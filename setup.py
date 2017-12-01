@@ -6,7 +6,7 @@ setup(
     packages=['afir', 'interface', 'data_analysis'],
     url='',
     license='GPl v3',
-    author='anoop',
+    author='anoop et al',
     author_email='',
     description=''
 )
