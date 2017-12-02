@@ -37,8 +37,8 @@ def main():
     import sys
     input_files = sys.argv[1:]
     from Molecule import Molecule
-    method = {'charge':0, 'multiplicity':1, 'scftype':'rhf', 'software'
-    :'xtb'}
+    method = {'charge': 0, 'multiplicity': 1, 'scftype': 'rhf', 'software'
+    : 'xtb'}
     gamma = 0.0
 
     for m in input_files:

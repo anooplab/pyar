@@ -48,9 +48,11 @@ def remove_similar(dict_of_molecules):
         fingerprint_distance = np.linalg.norm(dict_of_molecules[a].fingerprint - dict_of_molecules[b].fingerprint)
         if abs(energy_difference) < 1e-5 and abs(fingerprint_distance) < 1.0:
             if energy_difference < 1:
-                if a in bfec: del bfec[a]
+                if a in bfec:
+                    del bfec[a]
             else:
-                if b in bfec: del bfec[b]
+                if b in bfec:
+                    del bfec[b]
     return bfec
 
 
@@ -92,7 +94,7 @@ def choose_geometries(t_molecules):
 
 
 def print_energy_table(molecules):
-    e_dict = {i:molecules[i].energy for i in molecules}
+    e_dict = {i: molecules[i].energy for i in molecules}
     ref = min(e_dict.values())
     for i in sorted(e_dict, key=operator.itemgetter(1), reverse=True):
         print("      {:>15}:{:12.6f}{:12.2f}".format(i, e_dict[i], (e_dict[i] - ref) * 627.51))

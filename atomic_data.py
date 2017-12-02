@@ -273,7 +273,7 @@ covalent_radii = np.array([
 ])
 
 # This data is from Ashcroft and Mermin.
-reference_states = [ \
+reference_states = [
     None,  # X
     {'symmetry': 'diatom', 'd': 0.74},  # H
     {'symmetry': 'atom'},  # He

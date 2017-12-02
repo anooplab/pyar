@@ -28,7 +28,6 @@ from afir import restraints
 import interface.babel
 
 
-
 class XtbTurbo(object):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
         self.job_name = molecule.name
@@ -148,7 +147,6 @@ class XtbTurbo(object):
                 print("\nx2t not found.\nCheck your turbomole installation")
                 sys.exit()
 
-
     @property
     def energy(self):
         return float(open(self.energy_file).readlines()[-2].split()[1])
@@ -218,7 +216,7 @@ class XtbTurbo(object):
         print()
 
         if converged:
-            interface.babel.write_xyz(self.optimized_coordinates, self.result_xyz_file)
+            interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates, self.result_xyz_file)
             shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:

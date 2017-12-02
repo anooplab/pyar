@@ -1,7 +1,6 @@
 """
 files_dirs.py - handling files and directories in PyAR
-"""
-'''
+
 Copyright (C) 2016 by AnoopLab at Indian Institute of Technology Kharagpur, India
 Authro: Surajit Nandi
 
@@ -15,7 +14,7 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-'''
+"""
 
 import glob
 import os

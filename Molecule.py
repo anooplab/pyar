@@ -12,7 +12,7 @@ class Molecule(object):
         self.atoms_list = atoms_list
         self.coordinates = coordinates
         if name is None:
-            self.name= ''
+            self.name = ''
         else:
             self.name = name
         if title is None:
@@ -95,7 +95,7 @@ class Molecule(object):
             atoms_list = self.atoms_list
             for i in range(self.number_of_atoms):
                 fp.write("%20.14f  %20.14f  %20.14f  %6s\n" % (
-                coords[i][0], coords[i][1], coords[i][2], atoms_list[i].lower()))
+                    coords[i][0], coords[i][1], coords[i][2], atoms_list[i].lower()))
             fp.write("$end\n")
 
     def __add__(self, molecule):
@@ -274,6 +274,7 @@ def main():
     import sys
     mol = Molecule.from_xyz(sys.argv[1])
     print(mol)
+
 
 if __name__ == '__main__':
     main()

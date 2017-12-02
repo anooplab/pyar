@@ -8,5 +8,6 @@ setup(
     license='GPl v3',
     author='anoop et al',
     author_email='',
-    description='', requires=['numpy']
+    description='',
+    requires=['numpy', 'sklearn', 'scipy', 'fortranformat']
 )

@@ -23,6 +23,7 @@ import sys
 import numpy as np
 import interface.babel
 
+
 class Mopac(object):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
         self.job_name = molecule.name
@@ -82,7 +83,8 @@ class Mopac(object):
             if os.path.exists(self.arc_file):
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
-                interface.babel.write_xyz(self.optimized_coordinates, self.result_xyz_file, energy=self.energy)
+                interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates,
+                                          self.result_xyz_file, energy=self.energy)
                 return True
             else:
                 print("Error: File ", self.arc_file, "was not found.")
@@ -112,9 +114,7 @@ class Mopac(object):
 
     def get_coords(self):
         """
-        :param out_file: This is the output file in which the final xyz coordinates will be
-        written
-        :return: It will return coordinates
+        :return: coords It will return coordinates
         """
         number_of_atoms = None
         with open(self.arc_file) as arc_out:

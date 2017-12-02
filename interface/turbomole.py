@@ -47,6 +47,7 @@ class Turbomole(object):
     def make_coord(self, inp_xyz_file=None, outfile='coord'):
         """
         runs turbomole program x2t to create turbomole coord file.
+        :param inp_xyz_file: xyz file containing coordinats
         :param outfile: coordinate file in turbomole format
         """
         if inp_xyz_file is None:
@@ -55,7 +56,7 @@ class Turbomole(object):
         else:
             xyz_file_name = inp_xyz_file
         if not os.path.isfile(xyz_file_name):
-            interface.babel.write_xyz(self.start_coords, self.start_xyz_file)
+            interface.babel.write_xyz(self.job_name, self.atoms_list, self.start_coords, self.start_xyz_file)
 
         with open(outfile, 'w') as fcoord:
             print(os.getcwd())
@@ -117,7 +118,8 @@ class Turbomole(object):
             sys.exit()
         return define_status
 
-    def check_status_from_log(self, log_file, program):
+    @staticmethod
+    def check_status_from_log(log_file, program):
         run_status = 0
         with open(log_file) as fp:
             for this_line in fp.readlines():
@@ -127,7 +129,8 @@ class Turbomole(object):
                     run_status = 1
         return run_status
 
-    def run_turbomole_module(self, program, outfile):
+    @staticmethod
+    def run_turbomole_module(program, outfile):
         with open(outfile, 'a') as fp:
             if ' ' in program:
                 program_object = subp.Popen(program.split(), stdout=fp, stderr=fp)
@@ -137,7 +140,8 @@ class Turbomole(object):
             program_object.poll()
             return program_object.returncode
 
-    def run_convgrep(self, outfile):
+    @staticmethod
+    def run_convgrep(outfile):
         with open(outfile, 'a') as fp:
             run_status = subp.Popen(["convgrep"], stdout=fp, stderr=fp)
             out, error = run_status.communicate()
@@ -145,7 +149,8 @@ class Turbomole(object):
             convgrep_exit_status = run_status.returncode
         return convgrep_exit_status
 
-    def check_dscf(self):
+    @staticmethod
+    def check_dscf():
         dscf_conv_status = 0
         if os.path.isfile('dscf_problem'):
             dscf_conv_status = 1
@@ -153,7 +158,8 @@ class Turbomole(object):
             print("Check files in", os.getcwd())
         return dscf_conv_status
 
-    def check_convergence(self, outfile):
+    @staticmethod
+    def check_convergence(outfile):
         convergence_status = False
         with open("not.converged") as fp:
             all_lines = fp.readlines()
@@ -165,10 +171,14 @@ class Turbomole(object):
                     os.remove("not.converged")
         return convergence_status
 
+    @staticmethod
+    @property
     def get_energy(self):
         with open('energy') as fp:
             return float(fp.readlines()[-2].split()[1])
 
+    @staticmethod
+    @property
     def get_coords(self):
         return np.loadtxt('coord', comments='$', usecols=(0, 1, 2)) * 0.52917726
 
@@ -210,7 +220,7 @@ class Turbomole(object):
 
         while c <= cycle and not converged:
             if c == 50:
-                print("{:4d} {:15.6f}".format(c, self.get_energy()))
+                print("{:4d} {:15.6f}".format(c, self.get_energy))
             sys.stdout.flush()
             outfile = "job.last"
             if self.run_turbomole_module(gradient_program, outfile) \
@@ -244,14 +254,14 @@ class Turbomole(object):
         print()
 
         if converged:
-            self.energy = self.get_energy()
-            self.optimized_coordinates = self.get_coords()
-            interface.babel.write_xyz(self.optimized_coordinates, self.result_xyz_file)
+            self.energy = self.get_energy
+            self.optimized_coordinates = self.get_coords
+            interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates, self.result_xyz_file)
             shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:
             print("cycle exceeded")
-            self.energy = self.get_energy()
+            self.energy = self.get_energy
             status = False
         os.chdir(cwd)
         print(os.getcwd())

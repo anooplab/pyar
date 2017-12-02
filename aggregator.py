@@ -93,6 +93,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
         shutil.copy(xyz_file, 'selected/')
     return list(selected_seeds.values())
 
+def main():
+    pass
 
 if __name__ == "__main__":
     main()

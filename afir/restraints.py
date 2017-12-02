@@ -102,9 +102,9 @@ def read_fragments(n):
         for things in line.split():
             if "-" in things:
                 start, end = map(int, things.split('-'))
-                a = a + [i for i in range(start, end + 1)]
+                a += [i for i in range(start, end + 1)]
             else:
-                a = a + [int(things)]
+                a += [int(things)]
         atoms_in_fragments.append(a)
     collected_atoms = set([item for sublist in atoms_in_fragments for item in sublist])
     if len(collected_atoms) < n:
@@ -141,8 +141,8 @@ def inverse_distance_weighting_factor(atoms_in_fragment, idw_p, number_of_fragme
                         r2 = dxb * dxb + dyb * dyb + dzb * dzb
                         r = sqrt(r2)
                         R_AB = elements[xyz[Ai][3]] + elements[xyz[Bj][3]]
-                        idw_nominator = idw_nominator + ((R_AB / r) ** idw_p) * r
-                        idw_denominator = idw_denominator + (R_AB / r) ** idw_p
+                        idw_nominator += ((R_AB / r) ** idw_p) * r
+                        idw_denominator += (R_AB / r) ** idw_p
     idw_factor = idw_nominator / idw_denominator
     return idw_denominator, idw_factor, idw_nominator
 
@@ -203,7 +203,7 @@ def isotropic(force=0.0):
     total_restraint_gradients = 0.0
     for i in range(number_of_atoms):
         total_restraint_gradients += (
-        restraint_gradients[i][0] ** 2 + restraint_gradients[i][1] ** 2 + restraint_gradients[i][2] ** 2)
+            restraint_gradients[i][0] ** 2 + restraint_gradients[i][1] ** 2 + restraint_gradients[i][2] ** 2)
     # print(restraint_gradients[i])
     total_restraint_gradients = sqrt(total_restraint_gradients)
     #    print('afir all done')
@@ -250,6 +250,7 @@ def main():
     if len(sys.argv) != 2:
         print_usage()
         sys.exit(1)
+    gamma = None
     try:
         gamma = float(sys.argv[1])
     except:
@@ -260,4 +261,5 @@ def main():
     return
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    main()

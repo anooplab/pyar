@@ -161,7 +161,4 @@ def test_gen_vec():
 
 
 if __name__ == "__main__":
-    number_of_atoms, title, atoms_list, coords_1 = xyz_file.read(sys.argv[1])
-    coords_2 = coords_1[:]
-    x = gen_vectors(256)
-    generate_orientations(coords_1, coords_2, x)
+    main()

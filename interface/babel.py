@@ -26,20 +26,18 @@ import numpy as np
 class obabel(object):
     def __init__(self, molecule, forcefield=None):
         self.job_name = molecule.name
-        self.start_xyz_file = 'trial_'+self.job_name+'.xyz'
+        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
         if not os.path.isfile(self.start_xyz_file):
             molecule.mol_to_xyz(self.start_xyz_file)
-        self.result_xyz_file = 'result_'+self.job_name+'.xyz'
+        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.optimized_coordinates = []
         self.energy = 0.0
 
-    def optimize(self, gamma=0.0):
+    def optimize(self):
         """
         """
         with open('tmp.log', 'w') as logfile, open('tmp.xyz', 'w') as xyzfile:
             out = subp.Popen(["obminimize", "-ff", "uff", self.start_xyz_file], stdout=xyzfile, stderr=logfile)
-        output, error = out.communicate()
-        poll = out.poll()
         exit_status = out.returncode
         if exit_status == 1:
             with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
@@ -54,23 +52,20 @@ class obabel(object):
 
     def get_coords(self):
         """
-        :param out_file: This is the output file in which the final xyz coordinates will be
-        written
         :return: It will return coordinates
         """
         return np.loadtxt(self.result_xyz_file, dtype=float, skiprows=2, usecols=(1, 2, 3))
 
-
     def get_energy(self):
         """
         """
-        with open(self.job_name+'.ene', 'w') as energy_file:
+        with open(self.job_name + '.ene', 'w') as energy_file:
             out = subp.Popen(["obenergy", "-ff", "uff", self.result_xyz_file], stdout=energy_file, stderr=energy_file)
         output, error = out.communicate()
         poll = out.poll()
         exit_status = out.returncode
         if exit_status == 1:
-            with open(self.job_name+'.ene', 'r') as energy_file:
+            with open(self.job_name + '.ene', 'r') as energy_file:
                 energy = float(energy_file.readlines()[-1].split()[3])
                 return energy
 
@@ -99,8 +94,9 @@ def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
 def xyz_to_sdf_file(xyz_input_files, sdf_output_file):
     print(xyz_input_files)
     with open('tmp.log', 'w') as fminp:
-        subp.call(["babel", "-ixyz"]+ xyz_input_files+ ["-osdf", sdf_output_file] , stderr=fminp, stdout=fminp)
+        subp.call(["babel", "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file], stderr=fminp, stdout=fminp)
     os.remove('tmp.log')
+
 
 def make_inchi_string_from_xyz(xyzfile):
     """This function will make a inchi string from a xyz file with
@@ -127,9 +123,6 @@ def make_smile_string_from_xyz(xyzfile):
     else:
         raise IOError("file %s does not exists" % xyzfile)
 
-
-def min_all(input_sdf_file):
-    pass
 
 def write_xyz(job_name, atoms_list, coordinates, filename, energy=0.0):
     with open(filename, 'w') as fp:
