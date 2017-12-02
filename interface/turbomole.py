@@ -22,6 +22,7 @@ import subprocess as subp
 import sys
 
 import numpy as np
+import interface.babel
 
 import file_manager
 from afir import restraints
@@ -54,7 +55,7 @@ class Turbomole(object):
         else:
             xyz_file_name = inp_xyz_file
         if not os.path.isfile(xyz_file_name):
-            self.write_xyz(self.start_coords, self.start_xyz_file)
+            interface.babel.write_xyz(self.start_coords, self.start_xyz_file)
 
         with open(outfile, 'w') as fcoord:
             print(os.getcwd())
@@ -77,10 +78,10 @@ class Turbomole(object):
         if read_define_input == "no":
             define_input_file = "define.inp"
             with open(define_input_file, "w") as fdefine:
-                fdefine.write("\n\n\n\n")
+                fdefine.write("\n\n")
                 fdefine.write("a coord\n*\nno\n")
                 fdefine.write("bb all %s\n" % basis)
-                fdefine.write("*\n eht\n y \n")
+                fdefine.write("*\neht\ny \n")
                 fdefine.write("%d\n" % charge)
                 fdefine.write("y\n\n")
                 fdefine.write("\n\n\n")
@@ -171,15 +172,6 @@ class Turbomole(object):
     def get_coords(self):
         return np.loadtxt('coord', comments='$', usecols=(0, 1, 2)) * 0.52917726
 
-    def write_xyz(self, coords, filename):
-        number_of_atoms = len(coords)
-        with open(filename, 'w') as fp:
-            fp.write(str(number_of_atoms) + '\n')
-            fp.write(self.job_name + '\n')
-            for i in range(number_of_atoms):
-                fp.write("%3s  %10.7f  %10.7f %10.7f\n"
-                         % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-
     def optimize(self, ri="on", cycle=10000, gamma=0.0):
         cwd = os.getcwd()
         job_dir = 'job_' + self.job_name
@@ -254,7 +246,7 @@ class Turbomole(object):
         if converged:
             self.energy = self.get_energy()
             self.optimized_coordinates = self.get_coords()
-            self.write_xyz(self.optimized_coordinates, self.result_xyz_file)
+            interface.babel.write_xyz(self.optimized_coordinates, self.result_xyz_file)
             shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:

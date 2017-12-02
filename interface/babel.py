@@ -131,6 +131,14 @@ def make_smile_string_from_xyz(xyzfile):
 def min_all(input_sdf_file):
     pass
 
+def write_xyz(job_name, atoms_list, coordinates, filename, energy=0.0):
+    with open(filename, 'w') as fp:
+        fp.write("%3d\n" % len(coordinates))
+        fp.write(job_name + ':' + str(energy) + '\n')
+        for a, c in zip(atoms_list, coordinates):
+            fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
+
+
 def main(input_files):
     import Molecule
     for f in input_files:

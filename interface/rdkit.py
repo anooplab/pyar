@@ -1,5 +1,5 @@
 """
-mopac.py - interface to mopac program
+rdkit.py - interface to mopac program
 """
 '''
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller

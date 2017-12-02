@@ -25,6 +25,7 @@ import numpy as np
 
 import file_manager
 from afir import restraints
+import interface.babel
 
 
 
@@ -156,14 +157,6 @@ class XtbTurbo(object):
     def optimized_coordinates(self):
         return np.loadtxt(self.coord_file, comments='$', usecols=(0, 1, 2)) * 0.52917726
 
-    def write_xyz(self, coords, filename):
-        with open(filename, 'w') as fp:
-            fp.write(str(self.number_of_atoms) + '\n')
-            fp.write(self.job_name + '\n')
-            for i in range(self.number_of_atoms):
-                fp.write("%3s  %10.7f  %10.7f %10.7f\n"
-                         % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-
     def optimize(self, cycle=10000, gamma=0.0):
         cwd = os.getcwd()
         file_manager.make_directories(self.job_dir)
@@ -225,7 +218,7 @@ class XtbTurbo(object):
         print()
 
         if converged:
-            self.write_xyz(self.optimized_coordinates, self.result_xyz_file)
+            interface.babel.write_xyz(self.optimized_coordinates, self.result_xyz_file)
             shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:

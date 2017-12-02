@@ -1,7 +1,5 @@
 """
-mopac.py - interface to mopac program
-"""
-'''
+xtb.py - interface to mopac program
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
 Universitaet Muenster, Germany
@@ -16,7 +14,9 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-'''
+
+"""
+import interface.babel
 
 import os
 import subprocess as subp
@@ -37,7 +37,7 @@ class Xtb(object):
             self.cmd = "{} -{}".format(self.cmd, scftype)
         self.atoms_list = molecule.atoms_list
         if not os.path.isfile(self.start_xyz_file):
-            self.write_xyz(molecule.coordinates, self.start_xyz_file)
+            interface.babel.write_xyz(self.job_name, self.atoms_list, molecule.coordinates, self.start_xyz_file)
         self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
@@ -46,7 +46,8 @@ class Xtb(object):
         """
         out = subp.check_output(self.cmd.split())
         if os.path.isfile('.xtboptok'):
-            self.write_xyz(self.optimized_coordinates, self.result_xyz_file, energy=self.energy)
+            interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                                      energy=self.energy)
             os.rename('xtbopt.log', self.trajectory_xyz_file)
             os.remove('.xtboptok')
             return True
@@ -55,13 +56,6 @@ class Xtb(object):
         else:
             print('Something went wrong with {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return False
-
-    def write_xyz(self, coordinates, filename, energy=0.0):
-        with open(filename, 'w') as fp:
-            fp.write("%3d\n" % len(coordinates))
-            fp.write(self.job_name + ':' + str(energy) + '\n')
-            for a, c in izip(self.atoms_list, coordinates):
-                fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
 
     @property
     def optimized_coordinates(self):

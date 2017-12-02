@@ -1,7 +1,6 @@
 """
 mopac.py - interface to mopac program
-"""
-'''
+
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
 Universitaet Muenster, Germany
@@ -16,14 +15,13 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-'''
+"""
 
 import os
 import subprocess as subp
 import sys
-
 import numpy as np
-
+import interface.babel
 
 class Mopac(object):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
@@ -84,7 +82,7 @@ class Mopac(object):
             if os.path.exists(self.arc_file):
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
-                self.write_xyz(self.optimized_coordinates, self.result_xyz_file)
+                interface.babel.write_xyz(self.optimized_coordinates, self.result_xyz_file, energy=self.energy)
                 return True
             else:
                 print("Error: File ", self.arc_file, "was not found.")
@@ -111,14 +109,6 @@ class Mopac(object):
         except IOError:
             print("Warning: File ", self.arc_file, "was not found.")
         return en_kcal / 627.51
-
-    def write_xyz(self, coords, filename):
-        with open(filename, 'w') as fp:
-            fp.write(str(self.number_of_atoms) + '\n')
-            fp.write(self.job_name + '\n')
-            for i in range(self.number_of_atoms):
-                fp.write("%3s  %10.7f  %10.7f %10.7f\n"
-                         % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
 
     def get_coords(self):
         """
