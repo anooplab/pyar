@@ -83,8 +83,8 @@ class Mopac(object):
             if os.path.exists(self.arc_file):
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
-                interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates,
-                                          self.result_xyz_file, energy=self.energy)
+                interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                                          self.job_name, energy=self.energy)
                 return True
             else:
                 print("Error: File ", self.arc_file, "was not found.")

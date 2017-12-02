@@ -22,9 +22,9 @@ import subprocess as subp
 import sys
 
 import numpy as np
-import interface.babel
 
 import file_manager
+import interface.babel
 from afir import restraints
 
 
@@ -40,14 +40,14 @@ class Turbomole(object):
         self.title = molecule.title
         self.atoms_list = molecule.atoms_list
         self.start_coords = molecule.coordinates
-        self.optimized_coordinates = []
-        self.energy = 0.0
         self.prepare_input()
+        self.energy = None
+        self.optimized_coordinates = None
 
     def make_coord(self, inp_xyz_file=None, outfile='coord'):
         """
         runs turbomole program x2t to create turbomole coord file.
-        :param inp_xyz_file: xyz file containing coordinats
+        :param inp_xyz_file: xyz file containing coordinates
         :param outfile: coordinate file in turbomole format
         """
         if inp_xyz_file is None:
@@ -56,10 +56,9 @@ class Turbomole(object):
         else:
             xyz_file_name = inp_xyz_file
         if not os.path.isfile(xyz_file_name):
-            interface.babel.write_xyz(self.job_name, self.atoms_list, self.start_coords, self.start_xyz_file)
+            interface.babel.write_xyz(self.atoms_list, self.start_coords, self.start_xyz_file, self.job_name)
 
         with open(outfile, 'w') as fcoord:
-            print(os.getcwd())
             try:
                 subp.check_call(["x2t", str(xyz_file_name), ">"], stdout=fcoord)
             except OSError:
@@ -69,7 +68,7 @@ class Turbomole(object):
 
     def prepare_control(self, basis="def2-SVP", func="b-p", ri="on",
                         memory=8000, grid="m4", scf_conv=7, scf_maxiter=500,
-                        gamma=0.0, dftd3="yes", charge=0, multiplicity=1,
+                        dftd3="yes", charge=0, multiplicity=1,
                         read_define_input="no", define_input_file="define.inp"):
         """This function will prepare the control file. Most of the arguments have
            default values(all have in its current form). The read_define_input var
@@ -154,7 +153,7 @@ class Turbomole(object):
         dscf_conv_status = 0
         if os.path.isfile('dscf_problem'):
             dscf_conv_status = 1
-            print("\n :( :( :( :( !SCF Failure! :( :( :(")
+            print("\n ========= :( !SCF Failure! :( ==========")
             print("Check files in", os.getcwd())
         return dscf_conv_status
 
@@ -171,14 +170,10 @@ class Turbomole(object):
                     os.remove("not.converged")
         return convergence_status
 
-    @staticmethod
-    @property
     def get_energy(self):
         with open('energy') as fp:
             return float(fp.readlines()[-2].split()[1])
 
-    @staticmethod
-    @property
     def get_coords(self):
         return np.loadtxt('coord', comments='$', usecols=(0, 1, 2)) * 0.52917726
 
@@ -192,7 +187,7 @@ class Turbomole(object):
                 shutil.move(f, job_dir)
         os.chdir(job_dir)
         if not os.path.exists('control'):
-            print("TURBOMOLE input file (control) not found, stoping")
+            print("TURBOMOLE input file (control) not found, stopping")
             sys.exit()
         if gamma > 0.0:
             print("      gamma", gamma)
@@ -220,7 +215,7 @@ class Turbomole(object):
 
         while c <= cycle and not converged:
             if c == 50:
-                print("{:4d} {:15.6f}".format(c, self.get_energy))
+                print("{:4d} {:15.6f}".format(c, self.get_coords()))
             sys.stdout.flush()
             outfile = "job.last"
             if self.run_turbomole_module(gradient_program, outfile) \
@@ -254,14 +249,14 @@ class Turbomole(object):
         print()
 
         if converged:
-            self.energy = self.get_energy
-            self.optimized_coordinates = self.get_coords
-            interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates, self.result_xyz_file)
+            self.energy = self.get_energy()
+            self.optimized_coordinates = self.get_coords()
+            interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
+                                      energy=self.energy)
             shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:
             print("cycle exceeded")
-            self.energy = self.get_energy
             status = False
         os.chdir(cwd)
         print(os.getcwd())
@@ -269,26 +264,16 @@ class Turbomole(object):
         return status
 
 
-def usage():
-    print("This usage is for when it will run from the command line.")
-    print("otherwise import the module and run prepare_input and optimize.")
-    print("\n\n")
-    print("USAGE:", sys.argv[0], "start_xyz_file and/or gamma_value")
-    print("         gamma_value should be a float")
-    print()
-
-
 def main():
     from Molecule import Molecule
     mol = Molecule.from_xyz(sys.argv[1])
-    geometry = XtbTurbo(mol)
+    geometry = Turbomole(mol)
     if len(sys.argv) == 2:
         geometry.optimize()
     elif len(sys.argv) == 3:
         gamma_force = sys.argv[2]
         geometry.optimize(gamma=gamma_force)
     else:
-        usage()
         sys.exit()
     return
 

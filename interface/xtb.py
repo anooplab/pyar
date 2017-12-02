@@ -16,12 +16,12 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 """
-import interface.babel
-
 import os
 import subprocess as subp
 
 import numpy as np
+
+import interface.babel
 
 
 class Xtb(object):
@@ -37,7 +37,7 @@ class Xtb(object):
             self.cmd = "{} -{}".format(self.cmd, scftype)
         self.atoms_list = molecule.atoms_list
         if not os.path.isfile(self.start_xyz_file):
-            interface.babel.write_xyz(self.job_name, self.atoms_list, molecule.coordinates, self.start_xyz_file)
+            interface.babel.write_xyz(self.atoms_list, molecule.coordinates, self.start_xyz_file, job_name=self.job_name)
         self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
@@ -46,7 +46,8 @@ class Xtb(object):
         """
         out = subp.check_output(self.cmd.split())
         if os.path.isfile('.xtboptok'):
-            interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+            interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                                      job_name=self.job_name,
                                       energy=self.energy)
             os.rename('xtbopt.log', self.trajectory_xyz_file)
             os.remove('.xtboptok')

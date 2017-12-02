@@ -124,7 +124,7 @@ def make_smile_string_from_xyz(xyzfile):
         raise IOError("file %s does not exists" % xyzfile)
 
 
-def write_xyz(job_name, atoms_list, coordinates, filename, energy=0.0):
+def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0):
     with open(filename, 'w') as fp:
         fp.write("%3d\n" % len(coordinates))
         fp.write(job_name + ':' + str(energy) + '\n')

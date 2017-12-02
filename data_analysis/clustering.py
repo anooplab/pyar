@@ -142,7 +142,6 @@ def select_best_from_each_cluster(labels, t_molecules):
                 best_in_this_cluster[k] = t_molecules[k].energy
         best = min(best_in_this_cluster, key=best_in_this_cluster.get)
         best_from_each_cluster[best] = t_molecules[best]
-    ref = min([i.energy for i in best_from_each_cluster.values()])
     print("    Lowest energy structures from each cluster")
     print_energy_table(best_from_each_cluster)
     return best_from_each_cluster

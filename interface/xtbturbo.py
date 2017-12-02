@@ -216,7 +216,7 @@ class XtbTurbo(object):
         print()
 
         if converged:
-            interface.babel.write_xyz(self.job_name, self.atoms_list, self.optimized_coordinates, self.result_xyz_file)
+            interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, job_name=self.job_name)
             shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:
