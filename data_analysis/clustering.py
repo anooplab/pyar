@@ -1,4 +1,5 @@
 import itertools
+import collections
 import operator
 import sys
 
@@ -96,8 +97,8 @@ def choose_geometries(t_molecules):
 def print_energy_table(molecules):
     e_dict = {i: molecules[i].energy for i in molecules}
     ref = min(e_dict.values())
-    for i in sorted(e_dict, key=operator.itemgetter(1), reverse=True):
-        print("      {:>15}:{:12.6f}{:12.2f}".format(i, e_dict[i], (e_dict[i] - ref) * 627.51))
+    for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
+        print("      {:>15}:{:12.6f}{:12.2f}".format(name, energy, (energy - ref) * 627.51))
 
 
 def generate_labels(dt):
@@ -133,6 +134,7 @@ def select_best_from_each_cluster(labels, t_molecules):
     molecules_sorted = sorted(t_molecules.keys())
     unique_labels = np.unique(labels)
     print("   The distribution of file in each cluster:", np.bincount(labels[labels >= 0]))
+    print("   The distribution of file in each cluster:", collections.Counter(labels))
 
     best_from_each_cluster = {}
     for n in unique_labels:

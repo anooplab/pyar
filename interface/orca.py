@@ -1,7 +1,6 @@
 """
-mopac.py - interface to mopac program
-"""
-'''
+orca.py - interface to mopac program
+
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
 Universitaet Muenster, Germany
@@ -16,7 +15,7 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-'''
+"""
 
 import os
 import subprocess as subp
@@ -40,10 +39,10 @@ class Orca(object):
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword="!HF opt def2-SVP"
+        keyword="!BP RI opt def2-SVP def2-SVP/J KDIIS"
+        if any(x >=21 for x in molecule.atomic_number):
+            keyword += 'ecp(def2-SVP, def2-SVP/J)'
         self.prepare_input(keyword=keyword)
-
-
 
 
     def prepare_input(self,keyword=""):

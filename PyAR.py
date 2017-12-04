@@ -40,8 +40,8 @@ def argument_parse():
                                  default=1, help="Multiplicity of the system")
     chemistry_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
                                  default='rhf', help="specify rhf or uhf (defulat=rhf)")
-    chemistry_group.add_argument("--software", type=str, choices=['turbomole', 'obabel',
-                                                                  'mopac', 'xtb', 'xtb_turbo'],
+    chemistry_group.add_argument("--software", type=str, choices=['turbomole', 
+                                 'obabel', 'mopac', 'xtb', 'xtb_turbo', 'orca'], 
                                  required=True, help="Software")
 
     return parser.parse_args()
