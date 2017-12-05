@@ -1,4 +1,4 @@
-# pyar
+# PyAR
 PyAR stands for "Python program for aggregation and reaction"
 
 Features:
@@ -6,6 +6,7 @@ Features:
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
 
 Interfaced with electronic structure theory programs:
-- turbomole
+- Turbomole
 - Mopac
 - Xtb
+- Orca
