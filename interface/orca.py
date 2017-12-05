@@ -28,8 +28,14 @@ class Orca(object):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
         self.job_name = molecule.name
         self.charge = charge
-        self.multiplicity = multiplicity
-        self.scftype = scftype
+        if (sum(molecule.atomic_number) - self.charge) % 2 == 1 and multiplicity == 1:
+            self.multiplicity = 2
+        else:
+            self.multiplicity = multiplicity
+        if self.multiplicity % 2 == 0 and scftype is 'rhf'
+            self.scftype = 'uhf'
+        else:
+            self.scftype = scftype
         self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
         self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.inp_file = 'trial_' + self.job_name + '.inp'
@@ -41,15 +47,17 @@ class Orca(object):
         self.energy = 0.0
         keyword="!BP RI opt def2-SVP def2-SVP/J KDIIS"
         if any(x >=21 for x in molecule.atomic_number):
-            keyword += 'ecp(def2-SVP, def2-SVP/J)'
+            keyword += 'def2-ECP'
         self.prepare_input(keyword=keyword)
 
 
     def prepare_input(self,keyword=""):
         coords=self.start_coords
         f1=open(self.inp_file,"w")
+        if self.scftype is 'uks':
+            keyword += 'UKS'
         f1.write(keyword+"\n")
-        f1.write("*xyz "+str(self.charge)+" "+str(self.multiplicity)+"\n")
+        f1.write("*xyz {0} {1}\n".format(str(self.charge), str(self.multiplicity)))
         for i in range(self.number_of_atoms):
             f1.write(" "+"%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
         f1.write("*")

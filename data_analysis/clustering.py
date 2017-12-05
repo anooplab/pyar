@@ -67,9 +67,11 @@ def choose_geometries(t_molecules):
 
     molecules_sorted = sorted(t_molecules.keys())
     #    list_of_coulomb_matrices = [t_molecules[i].sorted_coulomb_matrix for i in sorted(t_molecules.keys())]
-    list_of_fingerprints = [t_molecules[i].fingerprint for i in molecules_sorted]
+    # list_of_fingerprints = [t_molecules[i].fingerprint for i in molecules_sorted]
+    # dt = list_of_fingerprints
 
-    dt = list_of_fingerprints
+    dt = [(t_molecules[i]. energy, np.sum(t_molecules[i].fingerprint)) for i in molecules_sorted]
+
     dt = np.around(dt, decimals=5)
 
     try:
@@ -113,13 +115,13 @@ def generate_labels(dt):
     except:
         print('    MeanShift failed')
     try:
-        return get_labels(dt, algorithm='dbscan')
-    except:
-        print('    DBSCAN failed')
-    try:
         return get_labels(dt, algorithm='affinitypropagation')
     except:
         print('    Affinity Propagation failed')
+    try:
+        return get_labels(dt, algorithm='dbscan')
+    except:
+        print('    DBSCAN failed')
 
     return get_labels(dt, algorithm='kmeans')
 
