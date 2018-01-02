@@ -33,6 +33,9 @@ class Molecule(object):
     def __iter__(self):
         pass
 
+    def __len__(self):
+        return self.number_of_atoms
+
     @classmethod
     def from_xyz(cls, filename):
         import sys
