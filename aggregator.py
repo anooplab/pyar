@@ -60,7 +60,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
     print('  There are', len(seeds), 'seed molecules')
     cwd = os.getcwd()
 
-    table_of_optimised_molecules = {}
+    dict_of_optimized_molecules = {}
     for seed_count, each_seed in enumerate(seeds):
         if check_stop_signal():
             print("Function: add_one")
@@ -79,14 +79,14 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
             o_status = optimise(molecule, method)
             if o_status is True:
                 print("      E(%10s): %12.7f" % (name, molecule.energy))
-                table_of_optimised_molecules[name] = molecule
+                dict_of_optimized_molecules[name] = molecule
             else:
                 print('    Optimisation failed:', name, 'will be discarded')
         os.chdir(cwd)
-    if len(table_of_optimised_molecules) < 2:
-        return list(table_of_optimised_molecules.values())
+    if len(dict_of_optimized_molecules) < 2:
+        return list(dict_of_optimized_molecules.values())
     print("  Clustering")
-    selected_seeds = clustering.choose_geometries(table_of_optimised_molecules)
+    selected_seeds = clustering.choose_geometries(dict_of_optimized_molecules)
     file_manager.make_directories('selected')
     for each_file in selected_seeds.values():
         xyz_file = 'seed_' + each_file.name[4:7] + '/result_' + each_file.name + '.xyz'

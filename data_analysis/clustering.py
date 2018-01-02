@@ -74,6 +74,10 @@ def choose_geometries(t_molecules):
 
     dt = np.around(dt, decimals=5)
 
+    import pandas as pd
+    df = pd.DataFrame(dt)
+    df.to_csv('dataframe.csv')
+
     try:
         labels = generate_labels(dt)
     except:

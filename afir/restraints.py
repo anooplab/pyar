@@ -147,22 +147,6 @@ def inverse_distance_weighting_factor(atoms_in_fragment, idw_p, number_of_fragme
     return idw_denominator, idw_factor, idw_nominator
 
 
-def afir_force(molecule, force=0.0):
-    atomicunit2kjoules = 2625.5
-    bohr2angstrom = 0.52917726
-    epsilon = 1.0061 / atomicunit2kjoules
-    r_zero = 3.8164 / bohr2angstrom
-    gamma = float(force) / atomicunit2kjoules
-    #    eqn. 3 JCTC 2011,7,2335
-    alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
-
-    number_of_atoms = molecule.number_of_atoms
-    xyz = molecule.coordinates
-    number_of_fragments = len(molecule.fragments)
-    atoms_in_fragment = molecule.fragments
-    idw_p = 6.0  # idw = inverse distance weighting
-
-
 def isotropic(force=0.0):
     from math import sqrt
     bohr2angstrom = 0.52917726

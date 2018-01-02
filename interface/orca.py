@@ -32,7 +32,7 @@ class Orca(object):
             self.multiplicity = 2
         else:
             self.multiplicity = multiplicity
-        if self.multiplicity % 2 == 0 and scftype is 'rhf'
+        if self.multiplicity % 2 == 0 and scftype is 'rhf':
             self.scftype = 'uhf'
         else:
             self.scftype = scftype
@@ -100,12 +100,12 @@ class Orca(object):
                 l = out.readlines()
                 en_steps=[]
                 for i in range(len(l)):
-                     if "FINAL SINGLE POINT ENERGY" in l[i]:
+                    if "FINAL SINGLE POINT ENERGY" in l[i]:
                         en_steps.append( l[i])
                 en_Eh=float((en_steps[-1].strip().split())[-1])
+            return en_Eh
         except IOError:
             print("Warning: File ", self.out_file, "was not found.")
-        return en_Eh
 
     def write_xyz(self, coords, filename):
         with open(filename, 'w') as fp:
