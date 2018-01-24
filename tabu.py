@@ -3,7 +3,6 @@ from __future__ import print_function
 import math
 import os.path
 import random
-import sys
 
 import numpy as np
 
@@ -70,9 +69,9 @@ def check_similarity(angles, previous_angles, d_threshold, a_threshold):
         diff_beta = abs(previous_beta - beta)
         diff_gamma = abs(previous_gamma - gamma)
         if abs(distance) < d_threshold and \
-                        diff_alpha < a_threshold and \
-                        diff_beta < a_threshold and \
-                        diff_gamma < a_threshold:
+                diff_alpha < a_threshold and \
+                diff_beta < a_threshold and \
+                diff_gamma < a_threshold:
             return False, angles
     return True, angles
 
@@ -94,11 +93,14 @@ def gen_vectors(number_of_orientations):
 
 def close_contact(mol_1, mol_2, contact_type):
     if contact_type == 'vdw':
-        mol_1.radii = [vdw_radii[atomic_numbers[c]] for c in mol_1.atoms_list]
-        mol_2.radii = [vdw_radii[atomic_numbers[c]] for c in mol_2.atoms_list]
+        mol_1.radii = [vdw_radii[atomic_numbers[c.capitalize()]] for c in mol_1.atoms_list]
+        mol_2.radii = [vdw_radii[atomic_numbers[c.capitalize()]] for c in mol_2.atoms_list]
     elif contact_type == 'covalent':
         mol_1.radii = [covalent_radii[atomic_numbers[c]] for c in mol_1.atoms_list]
         mol_2.radii = [covalent_radii[atomic_numbers[c]] for c in mol_2.atoms_list]
+    elif contact_type == 'long-range':
+        mol_1.radii = [1.5*vdw_radii[atomic_numbers[c]] for c in mol_1.atoms_list]
+        mol_2.radii = [1.5*vdw_radii[atomic_numbers[c]] for c in mol_2.atoms_list]
 
     for i in range(mol_1.number_of_atoms):
         for j in range(mol_2.number_of_atoms):
@@ -110,7 +112,7 @@ def close_contact(mol_1, mol_2, contact_type):
         return False
 
 
-def generate_orientations(molecule_id, seed, monomer, hm_orientations):
+def generate_orientations(molecule_id, seed, monomer, hm_orientations, cite_to_be_solvated, noa_core):
     noa = seed.number_of_atoms
     nob = monomer.number_of_atoms
     if noa == 1 and nob == 1:
@@ -141,6 +143,10 @@ def generate_orientations(molecule_id, seed, monomer, hm_orientations):
         orientation = seed + monomer
         orientation.title = 'trial orientation ' + orientation_id
         orientation.name = orientation_id
+
+        if cite_to_be_solvated is not None and proximity_check(orientation, cite_to_be_solvated, noa_core) is False:
+            continue
+
         tabu_list.append([r, theta, phi, alpha, beta, gamma])
         orientation_xyz_file = filename_prefix + orientation_id + '.xyz'
         orientation.mol_to_xyz(orientation_xyz_file)
@@ -148,6 +154,19 @@ def generate_orientations(molecule_id, seed, monomer, hm_orientations):
 
     write_tabu_list(tabu_list, 'tabu.dat')
     return orientations
+
+
+def proximity_check(mol, cite_to_be_solvated, noa_core):
+    atoms_in_solvents = range(noa_core, mol.number_of_atoms)
+    for a_1 in atoms_in_solvents:
+        a = vdw_radii[atomic_numbers[mol.atoms_list[cite_to_be_solvated].capitalize()]]
+        b = vdw_radii[atomic_numbers[mol.atoms_list[a_1].capitalize()]]
+        dist_cutoff = 1.8 * (a+b)
+        distance = np.linalg.norm(mol.coordinates[cite_to_be_solvated] - mol.coordinates[a_1])
+        if distance > dist_cutoff:
+            return False
+    else:
+        return True
 
 
 def test_gen_vec():

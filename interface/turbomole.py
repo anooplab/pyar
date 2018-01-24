@@ -214,8 +214,6 @@ class Turbomole(object):
         converged = False
 
         while c <= cycle and not converged:
-            if c == 50:
-                print("{:4d} {:15.6f}".format(c, self.get_coords()))
             sys.stdout.flush()
             outfile = "job.last"
             if self.run_turbomole_module(gradient_program, outfile) \

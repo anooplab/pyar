@@ -11,7 +11,7 @@ def optimise(molecule, method, gamma=0.0):
         geometry = xtb.Xtb(molecule, charge, multiplicity, scf_type)
     elif software == 'xtb_turbo':
         from interface import xtbturbo
-        geometry = xtbturbo.XtbTurbo(molecule)
+        geometry = xtbturbo.XtbTurbo(molecule, charge, multiplicity, scf_type)
     elif software == 'turbomole':
         from interface import turbomole
         geometry = turbomole.Turbomole(molecule)

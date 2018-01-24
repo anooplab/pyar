@@ -28,7 +28,7 @@ class Xtb(object):
     def __init__(self, molecule, charge, multiplicity, scftype):
         self.job_name = molecule.name
         self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
-        self.cmd = "xtb {} -opt".format(self.start_xyz_file)
+        self.cmd = "xtb {} -opt vtight".format(self.start_xyz_file)
         if charge != 0:
             self.cmd = "{} -chrg {}".format(self.cmd, charge)
         if multiplicity != 1:

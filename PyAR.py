@@ -1,7 +1,11 @@
+#!/usr/bin/env python3
 import argparse
 import copy
 import sys
 import time
+
+import os
+
 import aggregator
 import reactor
 from optimiser import optimise
@@ -16,6 +20,8 @@ def argument_parse():
                         type=str, nargs='+', help='input coordinate files')
     parser.add_argument("-N", dest='hm_orientations',
                         help='how many orientations to be used')
+    parser.add_argument('-cite', '--cite', type=int,
+                                  help='atom for site specific aggregation/solvation')
     run_type_group = parser.add_mutually_exclusive_group(required=True)
     run_type_group.add_argument("-r", "--react",
                                 help="Run a reactor calculation", action='store_true')
@@ -26,11 +32,16 @@ def argument_parse():
     aggregator_group = parser.add_argument_group('aggregator', 'Aggregator specific option')
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
                                   help='number of monomers in aggregate')
+
     reactor_group = parser.add_argument_group('reactor', 'Reactor specific option')
     reactor_group.add_argument('-gmin', type=float,
-                               help='minimum value of gamme')
+                               help='minimum value of gamma')
     reactor_group.add_argument('-gmax', type=float,
-                               help='maximum value of gamme')
+                               help='maximum value of gamma')
+
+    optimizer_group = parser.add_argument_group('optimizer', 'Optimizer specific option')
+    optimizer_group.add_argument('-gamma', type=float,
+                               help='value of gamma')
 
     chemistry_group = parser.add_argument_group('chemistry', 'Options related\
                                            to model chemistry')
@@ -89,16 +100,25 @@ def main():
             print("For aggregation, specify how many orientations"
                   "are to be used, by the argument\n"
                   "-N <number of orientations>")
+            sys.exit()
         if len(input_molecules) == 1:
             input_molecules.append(copy.copy(input_molecules[0]))
         monomer = input_molecules[-1]
         seeds = input_molecules[:-1]
 
+        if args.cite is not None:
+            cite = args.cite
+            noa_core = seeds[0].number_of_atoms
+        else:
+            cite=None
+            noa_core=None
         t1 = time.clock()
         aggregator.aggregate(seeds, monomer,
                              aggregate_size=size_of_aggregate,
                              hm_orientations=N,
-                             method=method_args)
+                             method=method_args,
+                             cite_to_be_solvated=cite, noa_core=noa_core)
+
         print('Time:', time.clock() - t1)
 
     if args.react:
@@ -111,23 +131,39 @@ def main():
                   '-gmin <integer> -gmax <integer>')
             sys.exit()
         if N is None:
-            print("For aggregation, specify how many orientations"
+            print("For reaction, specify how many orientations"
                   "are to be used, by the argument\n"
                   "-N <number of orientations>")
+            sys.exit()
+        if args.cite is not None:
+            cite = args.cite
+            noa_core = input_molecules[0].number_of_atoms
+        else:
+            cite=None
+            noa_core=None
         t1 = time.clock()
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
-                      hm_orientations=N, method=method_args)
+                      hm_orientations=N, method=method_args,
+                      cite_to_be_solvated=cite, noa_core=noa_core)
         print('Time:', time.clock() - t1)
         return
 
     if args.optimize:
+        if args.gamma:
+            if not os.path.isfile('fragment'):
+                print('fragment file is needed')
+                sys.exit()
+            gamma = args.gamma
+        else:
+            gamma=0.0
         import csv
         with open('energy.csv', 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["Name", "Energy"])
             for each_mol in input_molecules:
-                status = optimise(each_mol, method_args)
+                # each_mol.fragments = [[36], [64, 67, 70, 73, 76, 79, 82]]
+                status = optimise(each_mol, method_args, gamma=gamma)
                 if status is True:
                     writer.writerow([each_mol.name, each_mol.energy])
                 else:

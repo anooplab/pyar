@@ -189,7 +189,7 @@ class Molecule(object):
         """ 
         Author: Debankur Bhattacharyya
         """
-        charges = [atomic_numbers[c] for c in self.atoms_list]
+        charges = [atomic_numbers[c.capitalize()] for c in self.atoms_list]
         N = self.number_of_atoms
         coords = self.coordinates
         coulomb_matrix = np.zeros((N, N))

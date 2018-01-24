@@ -59,7 +59,7 @@ def remove_similar(dict_of_molecules):
 
 def choose_geometries(t_molecules):
     if len(t_molecules) < 2:
-        print("    Not enough data to cluster, returning original")
+        print("    Not enough data to cluster (only ", len(t_molecules), ") , returning original")
         return t_molecules
 
     print('   Clustering on ', len(t_molecules), 'geometries')
@@ -70,7 +70,9 @@ def choose_geometries(t_molecules):
     # list_of_fingerprints = [t_molecules[i].fingerprint for i in molecules_sorted]
     # dt = list_of_fingerprints
 
-    dt = [(t_molecules[i]. energy, np.sum(t_molecules[i].fingerprint)) for i in molecules_sorted]
+    # dt = [t_molecules[i].sorted_coulomb_matrix for i in molecules_sorted]
+    # dt = [t_molecules[i].fingerprint for i in molecules_sorted]
+    dt = [t_molecules[i].principal_axes for i in molecules_sorted]
 
     dt = np.around(dt, decimals=5)
 

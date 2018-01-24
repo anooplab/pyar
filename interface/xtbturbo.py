@@ -29,7 +29,7 @@ import interface.babel
 
 
 class XtbTurbo(object):
-    def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
+    def __init__(self, molecule, charge, multiplicity, scftype):
         self.job_name = molecule.name
         self.charge = charge
         self.multiplicity = multiplicity
@@ -42,6 +42,12 @@ class XtbTurbo(object):
         self.job_dir = '{}/job_{}'.format(os.getcwd(), self.job_name)
         self.coord_file = '{}/coord'.format(self.job_dir)
         self.energy_file = '{}/energy'.format(self.job_dir)
+        self.egrad_program = 'xtb coord -grad'
+        if charge > 0:
+            self.egrad_program = self.egrad_program +' -chrg ' + str(charge)
+        if multiplicity != 1:
+            self.egrad_program = self.egrad_program + ' -uhf ' + str(multiplicity)
+        print(self.egrad_program)
         self.prepare_control()
 
     def prepare_control(self, charge=0, multiplicity=1,
@@ -56,10 +62,10 @@ class XtbTurbo(object):
             with open(define_input_file, "w") as fdefine:
                 fdefine.write("\n\n\n\n")
                 fdefine.write("a coord\n*\nno\n")
-                fdefine.write("*\n eht\n y \n")
+                fdefine.write("*\neht\ny\n")
                 fdefine.write("{:d}\n".format(charge))
-                if multiplicity != 1:
-                    return NotImplemented
+#               if multiplicity != 1:
+#                   return NotImplemented
                 fdefine.write("y\n\n")
                 fdefine.write("\n\n\n")
                 fdefine.write("\n")
@@ -173,13 +179,14 @@ class XtbTurbo(object):
                 sys.exit()
 
         c = 0
+
         energy_program = "xtb coord"
         gradient_program = "xtb coord -grad"
         update_coord = "statpt"
         status = True
         outfile = 'job.start'
         # initial energy
-        self.run_xtb(energy_program, outfile)
+        self.run_xtb(self.egrad_program, outfile)
         if self.check_scf_convergance() is False:
             print('SF Failure. Check files in', os.getcwd())
             os.chdir(cwd)
@@ -188,10 +195,9 @@ class XtbTurbo(object):
         outfile = "xtb.log"
 
         while c <= cycle and not converged:
-            print("{:4d} {:15.6f}".format(c, self.energy))
             sys.stdout.flush()
 
-            self.run_xtb(gradient_program, outfile)
+            self.run_xtb(self.egrad_program, outfile)
 
             if gamma > 0.0:
                 status = restraints.isotropic(force=gamma)
@@ -226,15 +232,6 @@ class XtbTurbo(object):
         print(os.getcwd())
         sys.stdout.flush()
         return status
-
-
-def usage():
-    print("This usage is for when it will run from the command line.")
-    print("otherwise import the module and run prepare_input and optimize.")
-    print("\n\n")
-    print("USAGE:", sys.argv[0], "start_xyz_file and/or gamma_value")
-    print("         gamma_value should be a float")
-    print()
 
 
 def main():

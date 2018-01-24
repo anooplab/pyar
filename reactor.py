@@ -5,9 +5,9 @@ import sys
 
 import numpy as np
 
+import file_manager
 import interface.babel
 import tabu
-import file_manager
 from afir import fragment
 from data_analysis import clustering
 from optimiser import optimise
@@ -26,7 +26,7 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
     print(' Software   : ', software)
 
 
-def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations=8, method=None):
+def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations=8, method=None, cite_to_be_solvated=None, noa_core=None):
     cwd = os.getcwd()
     software = method['software']
     print_header(gamma_max, gamma_min, hm_orientations, software)
@@ -39,7 +39,9 @@ def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations
     all_orientations = tabu.generate_orientations('geom',
                                                   reactant_a,
                                                   reactant_b,
-                                                  hm_orientations)
+                                                  hm_orientations,
+                                                  cite_to_be_solvated,
+                                                  noa_core)
 
     os.chdir(cwd)
 
@@ -92,6 +94,7 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         start_inchi = interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
         start_smile = interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
         status = optimise(this_molecule, method, gamma=gamma)
+        before_relax = this_molecule.copy()
         this_molecule.name = job_name
         print('     job completed')
         if status is True or status == 'converged' or status == 'cycle_exceeded':
@@ -102,7 +105,7 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                 this_molecule.name = 'relax'
                 status = optimise(this_molecule, method)
                 this_molecule.name = job_name
-                if status is True:
+                if status is True or status == 'converged' or status == 'cycle_exceeded':
                     current_inchi = interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
                     current_smile = interface.babel.make_smile_string_from_xyz('result_relax.xyz')
                     print('      geometry relaxed')
