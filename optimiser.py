@@ -28,12 +28,10 @@ def optimise(molecule, method, gamma=0.0):
         print(software, "is not implemented yet")
         return NotImplementedError
     optimize_status = geometry.optimize(gamma=gamma)
-    if optimize_status:
+    if optimize_status is True or optimize_status == 'converged' or optimize_status == 'cycle_exceeded':
         molecule.energy = geometry.energy
         molecule.coordinates = geometry.optimized_coordinates
-        return optimize_status
-    else:
-        return optimize_status
+    return optimize_status
 
 
 def main():

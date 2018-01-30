@@ -255,7 +255,7 @@ class Turbomole(object):
             status = True
         elif c > cycle:
             print("cycle exceeded")
-            status = False
+            status = 'cycle_exceeded'
         os.chdir(cwd)
         print(os.getcwd())
         sys.stdout.flush()

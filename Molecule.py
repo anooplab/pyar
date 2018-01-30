@@ -172,8 +172,8 @@ class Molecule(object):
     def is_bonded(self):
         fragment_one = np.array([self.coordinates[i, :] for i in self.fragments[0]])
         fragment_two = np.array([self.coordinates[i, :] for i in self.fragments[1]])
-        radius_one = [covalent_radii[i] for i in self.fragments[0]]
-        radius_two = [covalent_radii[i] for i in self.fragments[1]]
+        radius_one = [covalent_radii[atomic_numbers[self.atoms_list[i]]] for i in self.fragments[0]]
+        radius_two = [covalent_radii[atomic_numbers[self.atoms_list[i]]] for i in self.fragments[1]]
 
         for i, a in enumerate(fragment_one):
             for j, b in enumerate(fragment_two):

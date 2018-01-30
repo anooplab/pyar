@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 
+import copy
 import file_manager
 import interface.babel
 import tabu
@@ -15,7 +16,6 @@ from optimiser import optimise
 table_of_product_molecules = {}
 table_of_product_inchi_strings = {}
 table_of_product_smile_strings = {}
-table_of_product_keys_inchis = {}
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
@@ -36,7 +36,7 @@ def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations
     file_manager.make_directories('trial_geometries')
     os.chdir('trial_geometries')
 
-    all_orientations = tabu.generate_orientations('geom',
+    all_orientations = tabu.new_func('geom',
                                                   reactant_a,
                                                   reactant_b,
                                                   hm_orientations,
@@ -60,7 +60,7 @@ def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations
                                            product_dir, method)
 
         print("      ", len(optimized_molecules), "geometries from this gamma cycle")
-        orientations_to_optimize = clustering.choose_geometries(optimized_molecules)
+        orientations_to_optimize = clustering.remove_similar(optimized_molecules)
         if len(orientations_to_optimize) == 0:
             print("No orientations to optimized for the next gamma cycle.")
             break
@@ -94,7 +94,7 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         start_inchi = interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
         start_smile = interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
         status = optimise(this_molecule, method, gamma=gamma)
-        before_relax = this_molecule.copy()
+        before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
         print('     job completed')
         if status is True or status == 'converged' or status == 'cycle_exceeded':
@@ -125,7 +125,6 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                                 table_of_product_inchi_strings[job_name] = current_inchi
                                 table_of_product_smile_strings[job_name] = current_smile
                                 table_of_product_molecules[job_name] = this_molecule
-                                table_of_product_keys_inchis[job_name] = current_inchi
                                 shutil.copy('result_relax.xyz',
                                             product_dir + '/' + job_name + '.xyz')
                                 os.chdir(cwd)
@@ -139,12 +138,12 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                             os.chdir(cwd)
                             continue
                     else:
-                        table_of_optimized_molecules[job_name] = this_molecule
+                        table_of_optimized_molecules[job_name] = before_relax
                         print(job_name, 'is added to the table to optimize with higher gamma')
             else:
                 table_of_optimized_molecules[job_name] = this_molecule
-                print(job_name, 'no close contacts found')
-                print(job_name, 'is added to the table to optimize with higher gamma')
+                print('        no close contacts found')
+                print('       ', job_name, 'is added to the table to optimize with higher gamma')
         os.chdir(cwd)
         sys.stdout.flush()
     return table_of_optimized_molecules

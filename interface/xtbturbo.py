@@ -47,7 +47,6 @@ class XtbTurbo(object):
             self.egrad_program = self.egrad_program +' -chrg ' + str(charge)
         if multiplicity != 1:
             self.egrad_program = self.egrad_program + ' -uhf ' + str(multiplicity)
-        print(self.egrad_program)
         self.prepare_control()
 
     def prepare_control(self, charge=0, multiplicity=1,
@@ -161,7 +160,7 @@ class XtbTurbo(object):
     def optimized_coordinates(self):
         return np.loadtxt(self.coord_file, comments='$', usecols=(0, 1, 2)) * 0.52917726
 
-    def optimize(self, cycle=10000, gamma=0.0):
+    def optimize(self, cycle=500, gamma=0.0):
         cwd = os.getcwd()
         file_manager.make_directories(self.job_dir)
         for f in ['auxbasis', 'basis', 'control', 'coord', 'mos', 'alpha', 'beta', 'define.inp', 'define.log',
@@ -222,12 +221,12 @@ class XtbTurbo(object):
         print()
 
         if converged:
-            interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, job_name=self.job_name)
-            shutil.copy(self.result_xyz_file, cwd)
             status = True
         elif c > cycle:
             print("cycle exceeded")
             status = 'cycle_exceeded'
+        interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, job_name=self.job_name, energy=self.energy)
+        shutil.copy(self.result_xyz_file, cwd)
         os.chdir(cwd)
         print(os.getcwd())
         sys.stdout.flush()

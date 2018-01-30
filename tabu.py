@@ -3,6 +3,7 @@ from __future__ import print_function
 import math
 import os.path
 import random
+import sys
 
 import numpy as np
 
@@ -76,19 +77,17 @@ def check_similarity(angles, previous_angles, d_threshold, a_threshold):
     return True, angles
 
 
-def gen_vectors(number_of_orientations):
-    vectors = []
-    a_threshold = math.pi / 2.0
-    d_threshold = 1.414
-    for i in range(int(int(number_of_orientations) / 8)):
-        for j in range(8):
-            accepted = False
-            one_set = None
-            while not accepted:
-                accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
-            vectors.append(one_set)
-        d_threshold *= 0.95
-    return vectors
+def proximity_check(mol, cite_to_be_solvated, noa_core):
+    atoms_in_solvents = range(noa_core, mol.number_of_atoms)
+    for a_1 in atoms_in_solvents:
+        a = vdw_radii[atomic_numbers[mol.atoms_list[cite_to_be_solvated].capitalize()]]
+        b = vdw_radii[atomic_numbers[mol.atoms_list[a_1].capitalize()]]
+        dist_cutoff = 2.0 * (a+b)
+        distance = np.linalg.norm(mol.coordinates[cite_to_be_solvated] - mol.coordinates[a_1])
+        if distance > dist_cutoff:
+            return False
+    else:
+        return True
 
 
 def close_contact(mol_1, mol_2, contact_type):
@@ -112,7 +111,71 @@ def close_contact(mol_1, mol_2, contact_type):
         return False
 
 
-def generate_orientations(molecule_id, seed, monomer, hm_orientations, cite_to_be_solvated, noa_core):
+def gen_vectors(number_of_orientations):
+    vectors = []
+    a_threshold = math.pi / 2.0
+    d_threshold = 1.414
+    for i in range(int(int(number_of_orientations) / 8)):
+        for j in range(8):
+            accepted = False
+            one_set = None
+            while not accepted:
+                accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
+            vectors.append(one_set)
+        d_threshold *= 0.95
+    return vectors
+
+
+def new_func(molecule_id, seed, monomer, number_of_orientations,
+             cite_to_be_solvated, noa_core):
+
+    noa = seed.number_of_atoms
+    nob = monomer.number_of_atoms
+    filename_prefix = 'trial_'
+    if noa > 1:
+        seed.align()
+    if nob > 1:
+        monomer.align()
+    seed.move_to_origin()
+
+    if noa == 1 and nob == 1:
+        vector = [[0.0, 0.0, 0.0, 0.0, 0.0]]
+        _, orientation = merge_monomer_and_seed(vector, monomer, seed, cite_to_be_solvated, noa_core)
+    else:
+        orientations = []
+        vectors = []
+        a_threshold = math.pi / 2.0
+        d_threshold = 1.414
+        for i in range(int(int(number_of_orientations) / 8)):
+            for j in range(8):
+                accepted = False
+                one_set = None
+                tries=1
+                while not accepted:
+                    accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
+                    accepted, orientation = merge_monomer_and_seed(one_set, monomer, seed, cite_to_be_solvated, noa_core)
+                    tries += 1
+                    if tries > 10000:
+                        print('Cound not find an oritneation in', tries, 'tries')
+                        break
+                if accepted:
+                    orientation_id = "%03d_" % i + molecule_id
+                    orientation.title = 'trial orientation ' + orientation_id
+                    orientation.name = orientation_id
+
+                    orientation_xyz_file = filename_prefix + orientation_id + '.xyz'
+                    orientation.mol_to_xyz(orientation_xyz_file)
+                    orientations.append(orientation)
+                    vectors.append(one_set)
+
+            d_threshold *= 0.95
+            a_threshold *= 0.95
+
+    return {i.name:i for i in orientations}
+
+
+def generate_orientations(molecule_id, seed, monomer, hm_orientations,
+                          cite_to_be_solvated, noa_core):
     noa = seed.number_of_atoms
     nob = monomer.number_of_atoms
     if noa == 1 and nob == 1:
@@ -130,24 +193,12 @@ def generate_orientations(molecule_id, seed, monomer, hm_orientations, cite_to_b
 
     for i, each_vector in enumerate(vectors):
         orientation_id = "%03d_" % i + molecule_id
-        theta, phi, alpha, beta, gamma = each_vector
-        monomer.move_to_origin()
-        if monomer.number_of_atoms > 1:
-            monomer.rotate_3d((alpha, beta, gamma))
-        r = 0.1
-        while close_contact(seed, monomer, 'vdw') is True:
-            r += 0.1
-            if seed.number_of_atoms == 2: phi = 0.0
-            monomer.translate(polar_to_cartesian(r, theta, phi))
+        status, orientation = merge_monomer_and_seed(each_vector, monomer, seed, cite_to_be_solvated, noa_core)
+        if status is False:  continue
 
-        orientation = seed + monomer
         orientation.title = 'trial orientation ' + orientation_id
         orientation.name = orientation_id
 
-        if cite_to_be_solvated is not None and proximity_check(orientation, cite_to_be_solvated, noa_core) is False:
-            continue
-
-        tabu_list.append([r, theta, phi, alpha, beta, gamma])
         orientation_xyz_file = filename_prefix + orientation_id + '.xyz'
         orientation.mol_to_xyz(orientation_xyz_file)
         orientations[orientation_id] = orientation
@@ -156,17 +207,22 @@ def generate_orientations(molecule_id, seed, monomer, hm_orientations, cite_to_b
     return orientations
 
 
-def proximity_check(mol, cite_to_be_solvated, noa_core):
-    atoms_in_solvents = range(noa_core, mol.number_of_atoms)
-    for a_1 in atoms_in_solvents:
-        a = vdw_radii[atomic_numbers[mol.atoms_list[cite_to_be_solvated].capitalize()]]
-        b = vdw_radii[atomic_numbers[mol.atoms_list[a_1].capitalize()]]
-        dist_cutoff = 1.8 * (a+b)
-        distance = np.linalg.norm(mol.coordinates[cite_to_be_solvated] - mol.coordinates[a_1])
-        if distance > dist_cutoff:
-            return False
-    else:
-        return True
+def merge_monomer_and_seed(each_vector, monomer, seed, cite_to_be_solvated, noa_core):
+    theta, phi, alpha, beta, gamma = each_vector
+    monomer.move_to_origin()
+    if monomer.number_of_atoms > 1:
+        monomer.rotate_3d((alpha, beta, gamma))
+    r = 0.1
+    while close_contact(seed, monomer, 'vdw') is True:
+        r += 0.1
+        if seed.number_of_atoms == 2: phi = 0.0
+        monomer.translate(polar_to_cartesian(r, theta, phi))
+    orientation = seed + monomer
+    if cite_to_be_solvated is not None and \
+            proximity_check(orientation, cite_to_be_solvated, noa_core) is False:
+        return False, None
+    write_tabu_list(each_vector, 'tabu.dat')
+    return True, orientation
 
 
 def test_gen_vec():

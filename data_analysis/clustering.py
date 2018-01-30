@@ -70,9 +70,9 @@ def choose_geometries(t_molecules):
     # list_of_fingerprints = [t_molecules[i].fingerprint for i in molecules_sorted]
     # dt = list_of_fingerprints
 
-    # dt = [t_molecules[i].sorted_coulomb_matrix for i in molecules_sorted]
+    dt = [t_molecules[i].sorted_coulomb_matrix for i in molecules_sorted]
     # dt = [t_molecules[i].fingerprint for i in molecules_sorted]
-    dt = [t_molecules[i].principal_axes for i in molecules_sorted]
+    # dt = [t_molecules[i].principal_axes for i in molecules_sorted]
 
     dt = np.around(dt, decimals=5)
 
@@ -160,7 +160,7 @@ def select_best_from_each_cluster(labels, t_molecules):
 def read_energy_from_xyz_file(xyzfile):
     with open(xyzfile, 'r') as fr:
         comments_line = fr.readlines()[1]
-    energy = float(comments_line.split(':')[1])
+    energy = float(comments_line.split(':')[-1])
     return energy
 
 
@@ -181,7 +181,7 @@ def main():
         mol = Molecule.from_xyz(each_file)
         mol.energy = read_energy_from_xyz_file(each_file)
         mols[mol.name] = mol
-    choose_geometries(mols)
+    print_energy_table(remove_similar(mols))
     return
 
 
