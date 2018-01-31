@@ -15,8 +15,8 @@ def check_stop_signal():
         return 1
 
 
-def aggregate(seeds, monomer, aggregate_size=2, hm_orientations=8,
-              method=None, cite_to_be_solvated=None, noa_core=None):
+def aggregate(seeds, monomer, aggregate_size, hm_orientations,
+              method, site, number_of_core_atoms, proximity_factor):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -38,7 +38,8 @@ def aggregate(seeds, monomer, aggregate_size=2, hm_orientations=8,
         os.chdir(aggregate_home)
 
         print(" Starting aggregation cycle: {}".format(aggregation_counter))
-        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method, cite_to_be_solvated, noa_core)
+        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations,
+                        method, site, number_of_core_atoms, proximity_factor)
         print(" Aggregation cycle: {} completed\n".format(aggregation_counter))
 
         if hm_orientations == 'auto' and number_of_orientations <= 256:
@@ -47,9 +48,11 @@ def aggregate(seeds, monomer, aggregate_size=2, hm_orientations=8,
     return
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, method, cite_to_be_solvated, noa_core):
+def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
+            site, number_of_core_atoms, proximity_factor):
     """
-    :param cite_to_be_solvated: to be defined
+    :param proximity_factor: to be used for site specific aggregation or solvation
+    :param site: to be defined
     :type aggregate_id str
     :type seeds list of Molecules
     :type monomer Molecule.Molecule
@@ -76,11 +79,14 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, cite_to_be_so
         monomer.mol_to_xyz('monomer.xyz')
         mol_id = '{0}_{1}'.format(seed_id, aggregate_id)
 
-        all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer, hm_orientations, cite_to_be_solvated, noa_core)
+        all_orientations = tabu.new_func(mol_id, seeds[seed_count], monomer,
+                                         hm_orientations, site,
+                                         number_of_core_atoms, proximity_factor)
         for name, molecule in sorted(all_orientations.items(), key=operator.itemgetter(0)):
             o_status = optimise(molecule, method)
             if o_status is True:
-                if cite_to_be_solvated is not None and proximity_check(molecule, cite_to_be_solvated, noa_core) is False:
+                if proximity_check(molecule, site, number_of_core_atoms,
+                                        proximity_factor) is False:
                     continue
                 print("      E(%10s): %12.7f" % (name, molecule.energy))
                 dict_of_optimized_molecules[name] = molecule

@@ -3,7 +3,7 @@ from scipy.spatial import distance as scipy_distance
 
 import numpy as np
 
-from atomic_data import atomic_masses, atomic_numbers, covalent_radii
+from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 
 
 class Molecule(object):
@@ -121,6 +121,10 @@ class Molecule(object):
     @property
     def covalent_radius(self):
         return [covalent_radii[i] for i in self.atomic_number]
+
+    @property
+    def vdw_radius(self):
+        return [vdw_radii[i] for i in self.atomic_number]
 
     @property
     def centroid(self):

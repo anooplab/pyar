@@ -20,7 +20,7 @@ def argument_parse():
                         type=str, nargs='+', help='input coordinate files')
     parser.add_argument("-N", dest='hm_orientations',
                         help='how many orientations to be used')
-    parser.add_argument('-cite', '--cite', type=int,
+    parser.add_argument('-s', '--site', type=int,
                                   help='atom for site specific aggregation/solvation')
     run_type_group = parser.add_mutually_exclusive_group(required=True)
     run_type_group.add_argument("-r", "--react",
@@ -89,6 +89,16 @@ def main():
 
     input_molecules = setup_molecules(input_files)
 
+    if args.site is None:
+        site = None
+        number_of_atoms_in_the_core = input_molecules[0].number_of_atoms
+        proximity_factor = 1.5
+    else:
+        site = args.site
+        number_of_atoms_in_the_core = input_molecules[0].number_of_atoms
+        proximity_factor = 1.0
+
+
     if args.aggregate:
         if size_of_aggregate is None:
             print('For an Aggregation run '
@@ -106,18 +116,14 @@ def main():
         monomer = input_molecules[-1]
         seeds = input_molecules[:-1]
 
-        if args.cite is not None:
-            cite = args.cite
-            noa_core = seeds[0].number_of_atoms
-        else:
-            cite=None
-            noa_core=None
         t1 = time.clock()
         aggregator.aggregate(seeds, monomer,
                              aggregate_size=size_of_aggregate,
                              hm_orientations=N,
                              method=method_args,
-                             cite_to_be_solvated=cite, noa_core=noa_core)
+                             site=site,
+                             number_of_core_atoms=number_of_atoms_in_the_core,
+                             proximity_factor=proximity_factor)
 
         print('Time:', time.clock() - t1)
 
@@ -135,17 +141,13 @@ def main():
                   "are to be used, by the argument\n"
                   "-N <number of orientations>")
             sys.exit()
-        if args.cite is not None:
-            cite = args.cite
-            noa_core = input_molecules[0].number_of_atoms
-        else:
-            cite=None
-            noa_core=None
+
         t1 = time.clock()
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=N, method=method_args,
-                      cite_to_be_solvated=cite, noa_core=noa_core)
+                      site=site, number_of_core_atom=number_of_atoms_in_the_core,
+                      proximity_factor=2.8)
         print('Time:', time.clock() - t1)
         return
 

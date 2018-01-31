@@ -1,3 +1,4 @@
+import copy
 import operator
 import os
 import shutil
@@ -5,7 +6,6 @@ import sys
 
 import numpy as np
 
-import copy
 import file_manager
 import interface.babel
 import tabu
@@ -26,7 +26,9 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
     print(' Software   : ', software)
 
 
-def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations=8, method=None, cite_to_be_solvated=None, noa_core=None):
+def react(reactant_a, reactant_b, gamma_min, gamma_max,
+          hm_orientations, method,
+          site, number_of_core_atom, proximity_factor):
     cwd = os.getcwd()
     software = method['software']
     print_header(gamma_max, gamma_min, hm_orientations, software)
@@ -37,11 +39,12 @@ def react(reactant_a, reactant_b, gamma_min=100, gamma_max=1000, hm_orientations
     os.chdir('trial_geometries')
 
     all_orientations = tabu.new_func('geom',
-                                                  reactant_a,
-                                                  reactant_b,
-                                                  hm_orientations,
-                                                  cite_to_be_solvated,
-                                                  noa_core)
+                                     reactant_a,
+                                     reactant_b,
+                                     hm_orientations,
+                                     site,
+                                     number_of_core_atom,
+                                     proximity_factor)
 
     os.chdir(cwd)
 
