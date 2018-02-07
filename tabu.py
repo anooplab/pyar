@@ -76,15 +76,15 @@ def check_similarity(angles, previous_angles, d_threshold, a_threshold):
     return True, angles
 
 
-def proximity_check(mol, cite_to_be_solvated, noa_core, proximity_factor):
+def proximity_check(mol, cite_to_be_solvated, number_of_core_atoms, proximity_factor):
     # TODO if cite_to_be_solvatedc is not specified, then consider complete
     #      seed in the beginning as the site.
     if cite_to_be_solvated is None:
-        cite_to_be_solvated = range(noa_core)
+        cite_to_be_solvated = range(number_of_core_atoms)
     else:
         cite_to_be_solvated = [cite_to_be_solvated,]
     for a in cite_to_be_solvated:
-        for b in range(noa_core, mol.number_of_atoms):
+        for b in range(number_of_core_atoms, mol.number_of_atoms):
             dist_cutoff = proximity_factor * (mol.vdw_radius[a] + mol.vdw_radius[b])
             distance = np.linalg.norm(mol.coordinates[a] - mol.coordinates[b])
             if distance < dist_cutoff:
@@ -184,7 +184,7 @@ def new_func(molecule_id, seed, monomer, number_of_orientations,
 
 
 def generate_orientations(molecule_id, seed, monomer, hm_orientations,
-                          cite_to_be_solvated, noa_core):
+                          cite_to_be_solvated, number_of_core_atoms):
     noa = seed.number_of_atoms
     nob = monomer.number_of_atoms
     if noa == 1 and nob == 1:
@@ -204,7 +204,7 @@ def generate_orientations(molecule_id, seed, monomer, hm_orientations,
         status, orientation = merge_monomer_and_seed(each_vector,
                                                      monomer, seed,
                                                      cite_to_be_solvated,
-                                                     noa_core, proximity_factor=1.5)
+                                                     number_of_core_atoms, proximity_factor=1.5)
         if status is False:  continue
 
         orientation.title = 'trial orientation ' + orientation_id
