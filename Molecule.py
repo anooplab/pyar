@@ -9,7 +9,7 @@ from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 class Molecule(object):
     def __init__(self, atoms_list, coordinates, name=None, title=None, fragments=None):
         self.number_of_atoms = len(coordinates)
-        self.atoms_list = atoms_list
+        self.atoms_list = [c.capitalize() for c in atoms_list]
         self.coordinates = coordinates
         if name is None:
             self.name = ''
@@ -62,7 +62,7 @@ class Molecule(object):
         coordinates = []
         for i, c in enumerate(geometry_section):
             try:
-                symbol = c[0]
+                symbol = c[0].capitalize()
                 x_coord = float(c[1])
                 y_coord = float(c[2])
                 z_coord = float(c[3])
