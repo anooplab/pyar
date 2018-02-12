@@ -21,11 +21,13 @@ import shutil
 import subprocess as subp
 import sys
 
+import fortranformat as ff
 import numpy as np
 
 import file_manager
 import interface.babel
 from afir import restraints
+
 
 
 class Turbomole(object):
@@ -40,227 +42,257 @@ class Turbomole(object):
         self.title = molecule.title
         self.atoms_list = molecule.atoms_list
         self.start_coords = molecule.coordinates
-        self.prepare_input()
         self.energy = None
         self.optimized_coordinates = None
 
-    def make_coord(self, inp_xyz_file=None, outfile='coord'):
-        """
-        runs turbomole program x2t to create turbomole coord file.
-        :param inp_xyz_file: xyz file containing coordinates
-        :param outfile: coordinate file in turbomole format
-        """
-        if inp_xyz_file is None:
-            # print "xyz file will be searched with job_name"
-            xyz_file_name = self.start_xyz_file
-        else:
-            xyz_file_name = inp_xyz_file
-        if not os.path.isfile(xyz_file_name):
-            interface.babel.write_xyz(self.atoms_list, self.start_coords, self.start_xyz_file, self.job_name)
+    def optimize(self, max_cycles=1000, gamma=0.0):
 
-        with open(outfile, 'w') as fcoord:
-            try:
-                subp.check_call(["x2t", str(xyz_file_name), ">"], stdout=fcoord)
-            except OSError:
-                print("\nx2t not found.\nCheck your turbomole installation")
-                sys.exit()
-        return
-
-    def prepare_control(self, basis="def2-SVP", func="b-p", ri="on",
-                        memory=8000, grid="m4", scf_conv=7, scf_maxiter=500,
-                        dftd3="yes", charge=0, multiplicity=1,
-                        read_define_input="no", define_input_file="define.inp"):
-        """This function will prepare the control file. Most of the arguments have
-           default values(all have in its current form). The read_define_input var
-           if "yes", then define_input_file should provide. The define will run
-           from this input file."""
-        define_log_file = "define.log"
-        if read_define_input == "no":
-            define_input_file = "define.inp"
-            with open(define_input_file, "w") as fdefine:
-                fdefine.write("\n\n")
-                fdefine.write("a coord\n*\nno\n")
-                fdefine.write("bb all %s\n" % basis)
-                fdefine.write("*\neht\ny \n")
-                fdefine.write("%d\n" % charge)
-                fdefine.write("y\n\n")
-                fdefine.write("\n\n\n")
-                fdefine.write("dft\n")
-                fdefine.write("on\n")
-                fdefine.write("func %s\n" % func)  # here put condition for advance use
-                fdefine.write("grid %s\n" % grid)
-                fdefine.write("\n")
-                if ri == "on":
-                    fdefine.write("ri\n on\n m\n")
-                    fdefine.write("%d\n" % memory)
-                    fdefine.write("\n")
-                fdefine.write("dsp\n on\n")
-                fdefine.write("\n")
-                fdefine.write("scf\n conv\n")
-                fdefine.write("%d\n" % scf_conv)
-                fdefine.write("iter\n")
-                fdefine.write("%d\n" % scf_maxiter)
-                fdefine.write("\n*")
-        with open('tmp_bash_command', 'w') as f:
-            f.write("define<%s>&define.log" % define_input_file)
-        with open(define_log_file, 'w') as fdout:
-            subp.check_call(["bash", "tmp_bash_command"], stdout=fdout)
-        os.remove('tmp_bash_command')
-        define_run_status = self.check_status_from_log(define_log_file, 'define')
-        return define_run_status
-
-    def prepare_input(self):
-        self.make_coord()
-        define_status = self.prepare_control()
-        if define_status:
-            print("Error in define.")
-            sys.exit()
-        return define_status
-
-    @staticmethod
-    def check_status_from_log(log_file, program):
-        run_status = 0
-        with open(log_file) as fp:
-            for this_line in fp.readlines():
-                program = ''.join(program)
-                if program + " ended abnormally" in this_line:
-                    print(this_line)
-                    run_status = 1
-        return run_status
-
-    @staticmethod
-    def run_turbomole_module(program, outfile):
-        with open(outfile, 'a') as fp:
-            if ' ' in program:
-                program_object = subp.Popen(program.split(), stdout=fp, stderr=fp)
-            else:
-                program_object = subp.Popen([program], stdout=fp, stderr=fp)
-            program_object.communicate()
-            program_object.poll()
-            return program_object.returncode
-
-    @staticmethod
-    def run_convgrep(outfile):
-        with open(outfile, 'a') as fp:
-            run_status = subp.Popen(["convgrep"], stdout=fp, stderr=fp)
-            out, error = run_status.communicate()
-            poll = run_status.poll()
-            convgrep_exit_status = run_status.returncode
-        return convgrep_exit_status
-
-    @staticmethod
-    def check_dscf():
-        dscf_conv_status = 0
-        if os.path.isfile('dscf_problem'):
-            dscf_conv_status = 1
-            print("\n ========= :( !SCF Failure! :( ==========")
-            print("Check files in", os.getcwd())
-        return dscf_conv_status
-
-    @staticmethod
-    def check_convergence(outfile):
-        convergence_status = False
-        with open("not.converged") as fp:
-            all_lines = fp.readlines()
-        with open(outfile, 'a') as fout:
-            for lines in all_lines:
-                if 'convergence reached' in lines:
-                    fout.write("THE OPTIMIZATION IS CONVERGED.\n")
-                    convergence_status = True
-                    os.remove("not.converged")
-        return convergence_status
-
-    def get_energy(self):
-        with open('energy') as fp:
-            return float(fp.readlines()[-2].split()[1])
-
-    def get_coords(self):
-        return np.loadtxt('coord', comments='$', usecols=(0, 1, 2)) * 0.52917726
-
-    def optimize(self, ri="on", cycle=10000, gamma=0.0):
         cwd = os.getcwd()
         job_dir = 'job_' + self.job_name
         file_manager.make_directories(job_dir)
-        for f in ['auxbasis', 'basis', 'control', 'coord', 'mos', 'alpha', 'beta', 'define.inp', 'define.log',
-                  'fragment']:
-            if os.path.exists(f):
-                shutil.move(f, job_dir)
-        os.chdir(job_dir)
-        if not os.path.exists('control'):
-            print("TURBOMOLE input file (control) not found, stopping")
-            sys.exit()
+
         if gamma > 0.0:
-            print("      gamma", gamma)
-            if not os.path.isfile('fragment'):
-                print("fragment file is not found")
+            if os.path.isfile('fragment'):
+                shutil.copy('fragment', job_dir)
+            else:
+                print("file, {}, not found".format('fragment'))
                 sys.exit()
 
-        c = 0
-        if ri == "on":
-            energy_program = "ridft"
-            gradient_program = "rdgrad"
-        else:
-            energy_program = "dscf"
-            gradient_program = "grad"
-        update_coord = "statpt"
-        status = True
-        outfile = 'job.start'
-        # initial energy
-        if self.run_turbomole_module(energy_program, outfile) \
-                or self.check_status_from_log(outfile, energy_program) \
-                or self.check_dscf():
-            os.chdir(cwd)
-            return False
-        converged = False
+        os.chdir(job_dir)
 
-        while c <= cycle and not converged:
-            sys.stdout.flush()
-            outfile = "job.last"
-            if self.run_turbomole_module(gradient_program, outfile) \
-                    or self.check_status_from_log(outfile, gradient_program):
+        make_coord(self.atoms_list, self.start_coords)
+        prepare_control()
+
+        for cycle in range(max_cycles):
+            # Calculate energy
+            status, message, energy = self.calc_energy
+            if status is False:
+                print('Energy evaluation failed')
                 os.chdir(cwd)
                 return False
 
+            # Calculate Gradients
+            status, message, gradients = self.calc_gradients
+            if status is False:
+                print('Gradient evaluation failed')
+                os.chdir(cwd)
+                return False
+
+            # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                if restraints.isotropic(force=gamma) is False:
-                    print("problem with afir restraints")
-                    os.chdir(cwd)
-                    return False
+                re, trg, rg = restraints.isotropic(gamma)
+                rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, re, trg)
 
-            if self.run_turbomole_module(update_coord, outfile):
-                print("problem with statpt")
+            # Update coordinates and check convergence.
+            status, msg = update_coord()
+            if status is True:
+                print('converged at', cycle)
+                self.energy = get_energy()
+                self.optimized_coordinates = get_coords()
+                interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                                          self.job_name,
+                                          energy=self.energy)
+                shutil.copy(self.result_xyz_file, cwd)
                 os.chdir(cwd)
-                return False
-
-            self.run_convgrep(outfile)
-            converged = self.check_convergence(outfile)
-
-            if converged:
-                print("\nConverged, at cycle", c)
-
-            if self.run_turbomole_module(energy_program, outfile) \
-                    or self.check_status_from_log(outfile, energy_program) \
-                    or self.check_dscf():
-                os.chdir(cwd)
-                return False
-            c += 1
-        print()
-
-        if converged:
-            self.energy = self.get_energy()
-            self.optimized_coordinates = self.get_coords()
-            interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
-                                      energy=self.energy)
-            shutil.copy(self.result_xyz_file, cwd)
-            status = True
-        elif c > cycle:
+                return True
+            else:
+                with open('energy.dat','a') as fe:
+                    if gamma > 0.0:
+                        fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
+                    else:
+                        fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
+        else:
             print("cycle exceeded")
             status = 'cycle_exceeded'
         os.chdir(cwd)
-        print(os.getcwd())
-        sys.stdout.flush()
-        return status
 
+    @property
+    def calc_energy(self):
+        with open('job.last', 'a') as fp, open('ridft.out', 'w') as fc:
+            subp.check_call(['ridft'], stdout=fp, stderr=fc)
+        msg = [line for line in open('ridft.out').readlines() if 'ended' in line]
+        if os.path.isfile('dscf_problem'):
+            msg = "SCF Failure. Check files in"+os.getcwd()
+            return False, msg, None
+        if 'abnormally' in msg:
+            return False, msg, None
+        else:
+            return True, msg, get_energy()
+
+    @property
+    def calc_gradients(self):
+        with open('job.last','a') as fp, open('rdgrad.out', 'w') as fc:
+            subp.check_call(['rdgrad'], stdout=fp, stderr=fc)
+        msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
+        if 'abnormally' in msg:
+            return False, msg, None
+        else:
+            gradients = get_gradients(self.number_of_atoms)
+            return True, msg, gradients
+
+
+def make_coord(atoms_list, coordinates, outfile='coord'):
+    """
+    runs turbomole program x2t to create turbomole coord file.
+    """
+
+    with open(outfile, 'w') as fcoord:
+        fcoord.write('$coord\n')
+        for s, c in zip(atoms_list, coordinates):
+            fcoord.write("{:20.13} {:20.13} {:20.13} {:3s}\n".format(c[0], c[1], c[2], s))
+        fcoord.write('$user-defined bonds\m')
+        fcoord.write('$end')
+    return
+
+
+def prepare_control(basis="def2-SVP", func="b-p", ri="on",
+                    memory=8000, grid="m4", scf_conv=7, scf_maxiter=500,
+                    dftd3="yes", charge=0, multiplicity=1,
+                    read_define_input="no", define_input_file="define.inp"):
+
+    """This function will prepare the control file. Most of the arguments have
+       default values(all have in its current form). The read_define_input var
+       if "yes", then define_input_file should provide. The define will run
+       from this input file."""
+
+    # Turbomole 'coord' file should exist
+    if not os.path.isfile('coord'):
+        print("Turbomole coordinate file, 'coord', should exist")
+        sys.exit()
+
+    if read_define_input == "no":
+        define_input_file = "define.inp"
+        with open(define_input_file, "w") as fdefine:
+            fdefine.write("\n\n")
+            fdefine.write("a coord\n*\nno\n")
+            fdefine.write("bb all %s\n" % basis)
+            fdefine.write("*\neht\ny \n")
+            fdefine.write("%d\n" % charge)
+            fdefine.write("y\n\n")
+            fdefine.write("\n\n\n")
+            fdefine.write("dft\n")
+            fdefine.write("on\n")
+            fdefine.write("func %s\n" % func)  # here put condition for advance use
+            fdefine.write("grid %s\n" % grid)
+            fdefine.write("\n")
+            if ri == "on":
+                fdefine.write("ri\n on\n m\n")
+                fdefine.write("%d\n" % memory)
+                fdefine.write("\n")
+            if dftd3=="yes":
+                fdefine.write("dsp\n on\n")
+                fdefine.write("\n")
+            fdefine.write("scf\nconv\n")
+            fdefine.write("%d\n" % scf_conv)
+            fdefine.write("iter\n")
+            fdefine.write("%d\n" % scf_maxiter)
+            fdefine.write("\n*")
+
+    define_log_file = "define.log"
+    with open('tmp_bash_command', 'w') as f:
+        f.write("define<%s>&define.log" % define_input_file)
+    with open(define_log_file, 'w') as fdout:
+        subp.check_call(["bash", "tmp_bash_command"], stdout=fdout)
+    os.remove('tmp_bash_command')
+    if 'abnormally' in open(define_log_file).read():
+        print('define ended abnormally')
+        return False
+    return True
+
+
+def get_energy():
+    with open('energy') as fp:
+        return float(fp.readlines()[-2].split()[1])
+
+
+def get_gradients(natoms):
+    start =natoms+1
+    grad = [line.replace('D', 'E').split() for line in open('gradient').readlines()[-start:-1]]
+    return grad
+
+
+def get_coords():
+    return np.loadtxt('coord', comments='$', usecols=(0, 1, 2)) * 0.52917726
+
+
+def update_coord():
+    with open('job.last', 'a') as fp, open('statpt.out', 'w') as fc:
+        subp.check_call(['statpt'], stdout=fp, stderr=fc)
+    msg = [line for line in open('statpt.out').readlines() if 'ended' in line]
+    if 'abnormally' in msg:
+        return False, msg
+    else:
+        return check_geometry_convergence('statput.out'), msg
+
+
+def check_geometry_convergence(outfile):
+    convergence_status = False
+    with open("not.converged") as fp:
+        all_lines = fp.readlines()
+    with open(outfile, 'a') as fout:
+        for lines in all_lines:
+            if 'convergence reached' in lines:
+                fout.write("THE OPTIMIZATION IS CONVERGED.\n")
+                convergence_status = True
+                os.remove("not.converged")
+    return convergence_status
+
+
+def rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy, total_restraint_gradients,
+                               restraint_gradient):
+    """Rewrite new gradient file in turbomole format"""
+    import re
+    with open('gradient', 'r') as gradient_file:
+        gradient_contents = gradient_file.read()
+        gradients = re.split("cycle", gradient_contents)
+        prelog = "cycle".join(gradients[:-1])
+        last_gradient = gradients[-1]
+        list_from_last_gradient = last_gradient.split('\n')
+
+        cycle_number = int(list_from_last_gradient[0].split()[1])
+        scf_energy = float(list_from_last_gradient[0].split()[5])
+        total_gradients = float(list_from_last_gradient[0].split()[8])
+        new_energy = scf_energy + total_restraint_energy
+        new_total_gradients = total_gradients + total_restraint_gradients
+        new_gradients = "cycle = %6d    SCF energy =%20.10f   |dE/dxyz| =%10.6f \n" \
+                        % (cycle_number, new_energy, new_total_gradients)
+
+        for line in list_from_last_gradient[1:number_of_atoms + 1]:
+            new_gradients = new_gradients + line + "\n"
+
+        i = 0
+        for line in list_from_last_gradient[number_of_atoms + 1:number_of_atoms * 2 + 1]:
+            dx, dy, dz = line.split()[0], line.split()[1], line.split()[2]
+            dx = float(re.sub('D', 'E', dx)) - restraint_gradient[i][0]
+            dy = float(re.sub('D', 'E', dy)) - restraint_gradient[i][1]
+            dz = float(re.sub('D', 'E', dz)) - restraint_gradient[i][2]
+            formatted = ff.FortranRecordWriter('3D22.13')
+            temp_line = formatted.write([dx, dy, dz])
+            new_gradients = new_gradients + str(temp_line) + "\n"
+            i += 1
+    with open('gradient', 'w') as g:
+        g.write(prelog + new_gradients + '$end')
+
+
+def rewrite_turbomole_energy(total_restraint_energy):
+    import re
+    with open('energy', 'r') as energy_file:
+        energy = energy_file.readlines()
+        till_last_energy = energy[:-2]
+        old_energy = energy[-2].split()[1]
+        new_energy = float(old_energy) + total_restraint_energy
+    with open('energy', 'w') as new_energy_file:
+        new_energy_file.write(''.join(till_last_energy) + re.sub(old_energy, str(new_energy), energy[-2]) + '$end\n')
+
+
+def rewrite_turbomole_energy_and_gradient_files(number_of_atoms,
+                                                restraint_gradients,
+                                                total_restraint_energy,
+                                                total_restraint_gradients):
+    rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy,
+                               total_restraint_gradients,
+                               restraint_gradients)
+    rewrite_turbomole_energy(total_restraint_energy)
 
 def main():
     from Molecule import Molecule
@@ -275,6 +307,8 @@ def main():
         sys.exit()
     return
 
-
 if __name__ == "__main__":
-    main()
+    from Molecule import Molecule
+    mol = Molecule.from_xyz(sys.argv[1])
+    geometry = Turbomole(mol)
+    geometry.optimize(1000)
