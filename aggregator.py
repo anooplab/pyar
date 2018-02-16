@@ -79,9 +79,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
         monomer.mol_to_xyz('monomer.xyz')
         mol_id = '{0}_{1}'.format(seed_id, aggregate_id)
 
-        all_orientations = tabu.new_func(mol_id, seeds[seed_count], monomer,
-                                         hm_orientations, site,
-                                         number_of_core_atoms, proximity_factor)
+        all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer,
+                                                      hm_orientations, site,
+                                                      number_of_core_atoms, proximity_factor)
         for name, molecule in sorted(all_orientations.items(), key=operator.itemgetter(0)):
             o_status = optimise(molecule, method)
             if o_status is True:

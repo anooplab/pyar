@@ -103,7 +103,8 @@ def make_inchi_string_from_xyz(xyzfile):
        babel as the tools
     """
     if os.path.isfile(xyzfile):
-        inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"])
+        with open('obabel.log', 'w') as ferr:
+            inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
         return inchi
     else:
         raise IOError("file %s does not exists" % xyzfile)
@@ -116,7 +117,8 @@ def make_smile_string_from_xyz(xyzfile):
        string
     """
     if os.path.isfile(xyzfile):
-        pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi"])
+        with open('obabel.log', 'w') as ferr:
+            pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi"], stderr=ferr)
         smile = pre_smile.split()[0]
         # print "smile string inside make_smile_string_from_xyz() is: ", smile
         return smile

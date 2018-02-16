@@ -1,6 +1,9 @@
 """
 fragment_make.py - to make 'fragment' file from 2 xyz files in PyAR
 """
+import sys
+from functools import reduce
+
 '''
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
@@ -93,3 +96,37 @@ def main():
 
 if __name__ == "__main__()":
     main()
+
+
+def read_fragments(n):
+    import operator
+    try:
+        fp = open('./fragment').readlines()
+    except IOError:
+        print("./fragment file should exist!")
+        sys.exit()
+    lines = [lines for lines in fp if lines.strip()]
+    atoms_in_fragments = []
+
+    for line in lines:
+        for delimitter in ',;':
+            line = line.replace(delimitter, ' ')
+        a = []
+        for things in line.split():
+            if "-" in things:
+                start, end = map(int, things.split('-'))
+                a += [i for i in range(start, end + 1)]
+            else:
+                a += [int(things)]
+        atoms_in_fragments.append(a)
+    collected_atoms = set([item for sublist in atoms_in_fragments for item in sublist])
+    if len(collected_atoms) < n:
+        all_atoms_in_molecules = set([i for i in range(1, n + 1)])
+        remaining = list(all_atoms_in_molecules - collected_atoms)
+        atoms_in_fragments.append(remaining)
+    common = reduce(operator.iand, map(set, atoms_in_fragments))
+    if common:
+        print("Fragments contain common atoms")
+        sys.exit()
+    n_fragments = len(atoms_in_fragments)
+    return n_fragments, atoms_in_fragments

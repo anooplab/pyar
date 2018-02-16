@@ -23,7 +23,9 @@ import sys
 
 import numpy as np
 
+import Molecule
 import file_manager
+from units import angstrom2bohr, bohr2angstrom
 from afir import restraints
 import interface.babel
 import interface.turbomole
@@ -36,11 +38,12 @@ class XtbTurbo(object):
         self.multiplicity = multiplicity
         self.scftype = scftype
         self.atoms_list = molecule.atoms_list
+        self.atoms_in_fragments =  molecule.fragments
         self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
         self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.number_of_atoms = molecule.number_of_atoms
         self.job_dir = '{}/job_{}'.format(os.getcwd(), self.job_name)
-        self.start_coords = molecule.coordinates
+        self.start_coords = angstrom2bohr(molecule.coordinates)
         self.coord_file = '{}/coord'.format(self.job_dir)
         self.energy_file = '{}/energy'.format(self.job_dir)
         self.egrad_program = ['xtb', 'coord', '-grad']
@@ -51,7 +54,7 @@ class XtbTurbo(object):
         self.energy = None
         self.optimized_coordinates = None
 
-    def optimize(self, max_cycles=1000, gamma=0.0):
+    def optimize(self, max_cycles=350, gamma=0.0):
 
         cwd = os.getcwd()
         job_dir = 'job_' + self.job_name
@@ -79,7 +82,7 @@ class XtbTurbo(object):
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                re, trg, rg = restraints.isotropic(gamma)
+                re, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list, interface.turbomole.get_coords(), gamma)
                 interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, re, trg)
 
             # Update coordinates and check convergence.
@@ -87,7 +90,7 @@ class XtbTurbo(object):
             if status is True:
                 print('converged at', cycle)
                 self.energy = interface.turbomole.get_energy()
-                self.optimized_coordinates = interface.turbomole.get_coords()
+                self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
                 interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates,
                                           self.result_xyz_file,
                                           self.job_name,
@@ -95,16 +98,18 @@ class XtbTurbo(object):
                 shutil.copy(self.result_xyz_file, cwd)
                 os.chdir(cwd)
                 return True
-            else:
-                with open('energy.dat','a') as fe:
-                    if gamma > 0.0:
-                        fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
-                    else:
-                        fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
+            with open('energy.dat','a') as fe:
+                if gamma > 0.0:
+                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
+                else:
+                    fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
             print("cycle exceeded")
             status = 'cycle_exceeded'
-        os.chdir(cwd)
+            self.energy = interface.turbomole.get_energy()
+            self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
+            os.chdir(cwd)
+            return status
 
     @property
     def calc_engrad(self):
@@ -113,9 +118,9 @@ class XtbTurbo(object):
         msg = [line for line in open('engrad.out').readlines() if 'ended' in line]
         if os.path.isfile('.sccnotconverged'):
             msg = "SCF Failure. Check files in"+os.getcwd()
-            return False, msg, None
+            return False, msg, None, None
         if 'abnormally' in msg:
-            return False, msg, None
+            return False, msg, None, None
         else:
             return True, msg, interface.turbomole.get_energy(), \
                    interface.turbomole.get_gradients(self.number_of_atoms)

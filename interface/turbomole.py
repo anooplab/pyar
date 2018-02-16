@@ -27,7 +27,7 @@ import numpy as np
 import file_manager
 import interface.babel
 from afir import restraints
-
+from units import angstrom2bohr, bohr2angstrom
 
 
 class Turbomole(object):
@@ -40,12 +40,13 @@ class Turbomole(object):
         self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.number_of_atoms = molecule.number_of_atoms
         self.title = molecule.title
+        self.atoms_in_fragments = molecule.fragments
         self.atoms_list = molecule.atoms_list
-        self.start_coords = molecule.coordinates
+        self.start_coords = angstrom2bohr(molecule.coordinates)
         self.energy = None
         self.optimized_coordinates = None
 
-    def optimize(self, max_cycles=1000, gamma=0.0):
+    def optimize(self, max_cycles=35, gamma=0.0):
 
         cwd = os.getcwd()
         job_dir = 'job_' + self.job_name
@@ -80,7 +81,7 @@ class Turbomole(object):
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                re, trg, rg = restraints.isotropic(gamma)
+                re, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list,get_coords(), gamma)
                 rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, re, trg)
 
             # Update coordinates and check convergence.
@@ -88,23 +89,25 @@ class Turbomole(object):
             if status is True:
                 print('converged at', cycle)
                 self.energy = get_energy()
-                self.optimized_coordinates = get_coords()
+                self.optimized_coordinates = bohr2angstrom(get_coords())
                 interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                                           self.job_name,
                                           energy=self.energy)
                 shutil.copy(self.result_xyz_file, cwd)
                 os.chdir(cwd)
                 return True
-            else:
-                with open('energy.dat','a') as fe:
-                    if gamma > 0.0:
-                        fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
-                    else:
-                        fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
+            with open('energy.dat','a') as fe:
+                if gamma > 0.0:
+                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
+                else:
+                    fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
-            print("cycle exceeded")
+            print("         cycle exceeded")
             status = 'cycle_exceeded'
-        os.chdir(cwd)
+            self.energy = get_energy()
+            self.optimized_coordinates = bohr2angstrom(get_coords())
+            os.chdir(cwd)
+            return status
 
     @property
     def calc_energy(self):
@@ -212,17 +215,17 @@ def get_gradients(natoms):
 
 
 def get_coords():
-    return np.loadtxt('coord', comments='$', usecols=(0, 1, 2)) * 0.52917726
+    return np.loadtxt('coord', comments='$', usecols=(0, 1, 2))
 
 
 def update_coord():
     with open('job.last', 'a') as fp, open('statpt.out', 'w') as fc:
-        subp.check_call(['statpt'], stdout=fp, stderr=fc)
+        subp.check_call(['relax'], stdout=fp, stderr=fc)
     msg = [line for line in open('statpt.out').readlines() if 'ended' in line]
     if 'abnormally' in msg:
         return False, msg
     else:
-        return check_geometry_convergence('statput.out'), msg
+        return check_geometry_convergence('statpt.out'), msg
 
 
 def check_geometry_convergence(outfile):
@@ -251,7 +254,7 @@ def rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy, total_re
 
         cycle_number = int(list_from_last_gradient[0].split()[1])
         scf_energy = float(list_from_last_gradient[0].split()[5])
-        total_gradients = float(list_from_last_gradient[0].split()[8])
+        total_gradients = float(list_from_last_gradient[0].split(' =')[-1])
         new_energy = scf_energy + total_restraint_energy
         new_total_gradients = total_gradients + total_restraint_gradients
         new_gradients = "cycle = %6d    SCF energy =%20.10f   |dE/dxyz| =%10.6f \n" \
@@ -289,10 +292,12 @@ def rewrite_turbomole_energy_and_gradient_files(number_of_atoms,
                                                 restraint_gradients,
                                                 total_restraint_energy,
                                                 total_restraint_gradients):
+
     rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy,
                                total_restraint_gradients,
                                restraint_gradients)
     rewrite_turbomole_energy(total_restraint_energy)
+
 
 def main():
     from Molecule import Molecule
@@ -309,6 +314,8 @@ def main():
 
 if __name__ == "__main__":
     from Molecule import Molecule
+
+
     mol = Molecule.from_xyz(sys.argv[1])
     geometry = Turbomole(mol)
     geometry.optimize(1000)

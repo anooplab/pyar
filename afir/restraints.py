@@ -1,10 +1,14 @@
+from __future__ import print_function
 import sys
-from functools import reduce
+import numpy as np
+from itertools import product
+from math import sqrt
+from units import *
+import os
+
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
-from math import sqrt
-
-import interface.turbomole
+from units import kjoules2atomicunits
 
 covalent_radii = {'x ': 0.00,
                   'h': 0.32, 'he': 0.46, 'li': 1.20, 'be': 0.94, 'b': 0.77, \
@@ -28,177 +32,68 @@ covalent_radii = {'x ': 0.00,
                   'pa': 1.52, 'u': 1.53, 'np': 1.54, 'pu': 1.55}
 
 
-def read_turbomole_coord():
-    """returns number of atoms, and coordinates as x, y, z, sym"""
-    f = open('coord').read().split('$')[1].split('\n')[1:-1]
-    p = open('coord').read()
-    coords = [i.split() for i in f]
-    coords = [(float(i[0]), float(i[1]), float(i[2]), i[3]) for i in coords]
-    return len(coords), coords
+def get_covalent_radius(z):
+    return angstrom2bohr(covalent_radii[z.lower()])
 
 
-def read_fragments(n):
-    import operator
-    try:
-        fp = open('./fragment').readlines()
-    except:
-        print("./fragment file should exist!")
-        sys.exit()
-    lines = [lines for lines in fp if lines.strip()]
-    atoms_in_fragments = []
-
-    for line in lines:
-        for delimitter in ',;':
-            line = line.replace(delimitter, ' ')
-        a = []
-        for things in line.split():
-            if "-" in things:
-                start, end = map(int, things.split('-'))
-                a += [i for i in range(start, end + 1)]
-            else:
-                a += [int(things)]
-        atoms_in_fragments.append(a)
-    collected_atoms = set([item for sublist in atoms_in_fragments for item in sublist])
-    if len(collected_atoms) < n:
-        all_atoms_in_molecules = set([i for i in range(1, n + 1)])
-        remaining = list(all_atoms_in_molecules - collected_atoms)
-        atoms_in_fragments.append(remaining)
-    common = reduce(operator.iand, map(set, atoms_in_fragments))
-    if common:
-        print("Fragments contain common atoms")
-        sys.exit()
-    n_fragments = len(atoms_in_fragments)
-    return n_fragments, atoms_in_fragments
+def calculate_gradient(ac, ac2, alpha, v, w, p):
+    zn, cn = ac
+    alo, aco = ac2
+    gr = np.zeros(3)
+    for zi, ci in zip(alo, aco):
+        Rni = get_covalent_radius(zn) + get_covalent_radius(zi)
+        rni = np.linalg.norm(cn-ci)
+        dq = cn-ci
+        gr += (-alpha/w*(((1-p)*dq*Rni**p*rni**(-1-p))+(p*v/w*dq*Rni**p*rni**(-2-p))))
+    return np.array(gr)
 
 
-def print_usage():
-    print("Usage: ", sys.argv[0], " Gamma")
-    print("       Gamma is model collition energy (in kJ/mol)")
+def isotropic(atoms_in_fragment, atoms_list, coords, force):
+
+    assert len(atoms_in_fragment) == 2
+
+    idwp = 6.0
+    covalent_radii['h'] = 0.000001
+
+    fragment1, fragment2 = [coords[flist,:] for flist in atoms_in_fragment]
+    al1, al2 = [np.array(atoms_list)[flist] for flist in atoms_in_fragment]
+    radius_one = [get_covalent_radius(z) for z in al1]
+    radius_two = [get_covalent_radius(z) for z in al2]
+
+    r_ij = np.array([np.linalg.norm(a - b) for a,b in product(fragment1, fragment2)])
+    R_ij = np.array([(a+b) for a, b in product(radius_one, radius_two)])
+
+    if bohr2angstrom(np.min(r_ij)) > 5.0:
+        print('Warning! Fragments may be flying away!\nCheck the geometry in', os.getcwd())
+
+    nom = np.sum((R_ij/r_ij)**idwp*r_ij)
+    den = np.sum((R_ij/r_ij)**idwp)
+
+    alpha = calculate_alpha(force)
+
+    total_restraint_energy = alpha * nom/den
+    gradients = np.zeros((len(coords),3))
+
+    for index, ac in enumerate(zip(atoms_list,coords)):
+        if index in atoms_in_fragment[0]:
+            gradients[index] = calculate_gradient(ac, (al2, fragment2), alpha, nom, den, idwp)
+        elif index in atoms_in_fragment[1]:
+            gradients[index] = calculate_gradient(ac, (al2, fragment1), alpha, nom, den, idwp)
+    total_restraint_gradients = np.sqrt(np.sum(gradients**2))
+    return total_restraint_energy, total_restraint_gradients, gradients
 
 
-def inverse_distance_weighting_factor(atoms_in_fragment,
-                                      inverse_distance_weighting_parameter,
-                                      number_of_fragments, xyz):
-    idw_nominator = 0.0
-    idw_denominator = 0.0
-    for i in range(number_of_fragments):
-        for j in range(number_of_fragments):
-            if i < j:
-                for k in range(len(atoms_in_fragment[i])):
-                    for l in range(len(atoms_in_fragment[j])):
-                        Ai = atoms_in_fragment[i][k] - 1
-                        Bj = atoms_in_fragment[j][l] - 1
-                        dxb = xyz[Ai][0] - xyz[Bj][0]
-                        dyb = xyz[Ai][1] - xyz[Bj][1]
-                        dzb = xyz[Ai][2] - xyz[Bj][2]
-                        r2 = dxb * dxb + dyb * dyb + dzb * dzb
-                        r = sqrt(r2)
-                        R_AB = covalent_radii[xyz[Ai][3]] + covalent_radii[xyz[Bj][3]]
-                        idw_nominator += ((R_AB / r) ** inverse_distance_weighting_parameter) * r
-                        idw_denominator += (R_AB / r) ** inverse_distance_weighting_parameter
-    idw_factor = idw_nominator / idw_denominator
-    return idw_denominator, idw_factor, idw_nominator
-
-
-def isotropic(force=0.0):
-
-    from math import sqrt
-    bohr2angstrom = 0.52917726
-    atomicunit2kjoules = 2625.5
-    atomicunit2kcals = 627.509541
-
-    gamma = float(force) / atomicunit2kjoules
-    epsilon = 1.0061 / atomicunit2kjoules
-    r_zero = 3.8164 / bohr2angstrom
+def calculate_alpha(force):
+    gamma = kjoules2atomicunits(force)
+    epsilon = kjoules2atomicunits(1.0061)
+    r_zero = angstrom2bohr(3.8164)
     #    eqn. 3 JCTC 2011,7,2335
     alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
-
-    number_of_atoms, xyz = read_turbomole_coord()
-    number_of_fragments, atoms_in_fragment = read_fragments(number_of_atoms)
-
-    # idw = inverse distance weighting
-    idw_p = 6.0
-
-    covalent_radii['h'] = 0.00001
-
-    #    eqn. 2 JCTC 2011,7,2335
-    # F(Q) = E(Q) + Alpha * factor
-
-    idw_denominator, idw_factor, idw_nominator = inverse_distance_weighting_factor(atoms_in_fragment, idw_p,
-                                                                                   number_of_fragments, xyz)
-    #    print('Inverse Weighting Factor =', idw_factor)
-    total_restraint_energy = idw_factor * alpha
-    #    print('  Energy term from AFIR =',total_restraint_energy,'
-    #    a.u.')
-    #    print('
-    #    =',total_restraint_energy*atomicunit2kcals,' kcal/mol')
-
-    R_AB = 0.0
-
-    restraint_gradients = get_restraint_gradients(alpha, atoms_in_fragment, idw_denominator, idw_nominator, idw_p,
-                                                  number_of_atoms, number_of_fragments, xyz)
-
-    total_restraint_gradients = 0.0
-    for i in range(number_of_atoms):
-        total_restraint_gradients += (
-            restraint_gradients[i][0] ** 2 + restraint_gradients[i][1] ** 2 + restraint_gradients[i][2] ** 2)
-    # print(restraint_gradients[i])
-    total_restraint_gradients = sqrt(total_restraint_gradients)
-    #    print('afir all done')
-    # interface.turbomole.rewrite_turbomole_energy_and_gradient_files(number_of_atoms,
-    #                                                                 restraint_gradients,
-    #                                                                 total_restraint_energy,
-    #                                                                 total_restraint_gradients,
-    #                                                                 xyz)
-    return total_restraint_energy, total_restraint_gradients, restraint_gradients
-
-
-def get_restraint_gradients(alpha, atoms_in_fragment, idw_denominator, idw_nominator, idw_p, number_of_atoms,
-                            number_of_fragments, xyz):
-    restraint_gradients = [[0.0 for j in range(3)] for i in range(number_of_atoms)]
-    for i in range(number_of_fragments):
-        for j in range(number_of_fragments):
-            if i < j:
-                for k in range(len(atoms_in_fragment[i])):
-                    for l in range(len(atoms_in_fragment[j])):
-                        Ai = atoms_in_fragment[i][k] - 1
-                        Bj = atoms_in_fragment[j][l] - 1
-                        dxb = xyz[Ai][0] - xyz[Bj][0]
-                        dyb = xyz[Ai][1] - xyz[Bj][1]
-                        dzb = xyz[Ai][2] - xyz[Bj][2]
-                        r2 = dxb * dxb + dyb * dyb + dzb * dzb
-                        r = sqrt(r2)
-                        R_AB = covalent_radii[xyz[Ai][3]] + covalent_radii[xyz[Bj][3]]
-
-                        term1 = alpha * (
-                            (1 - idw_p) * R_AB ** idw_p * r2 ** ((-1 - idw_p) / 2)) / idw_denominator
-                        term2 = alpha * (
-                            idw_p * idw_nominator * R_AB ** idw_p * r2 ** ((-2 - idw_p) / 2)) / idw_denominator ** 2
-
-                        restraint_gradients[Ai][0] = restraint_gradients[Ai][0] - dxb * term1 - dxb * term2
-                        restraint_gradients[Ai][1] = restraint_gradients[Ai][1] - dyb * term1 - dyb * term2
-                        restraint_gradients[Ai][2] = restraint_gradients[Ai][2] - dzb * term1 - dzb * term2
-                        restraint_gradients[Bj][0] = restraint_gradients[Bj][0] + dxb * term1 + dxb * term2
-                        restraint_gradients[Bj][1] = restraint_gradients[Bj][1] + dyb * term1 + dyb * term2
-                        restraint_gradients[Bj][2] = restraint_gradients[Bj][2] + dzb * term1 + dzb * term2
-
-                        #    print('AFIR Gradients are:')
-    return restraint_gradients
+    return alpha
 
 
 def main():
-    if len(sys.argv) != 2:
-        print_usage()
-        sys.exit(1)
-    gamma = None
-    try:
-        gamma = float(sys.argv[1])
-    except:
-        print("No Gamma value given")
-        print_usage()
-        exit()
-    isotropic(force=gamma)
-    return
+    pass
 
 
 if __name__ == '__main__':

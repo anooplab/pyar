@@ -4,6 +4,7 @@ from scipy.spatial import distance as scipy_distance
 import numpy as np
 
 from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
+import itertools
 
 
 class Molecule(object):
@@ -23,6 +24,8 @@ class Molecule(object):
             self.fragments = ()
         else:
             self.fragments = fragments
+            self.fragments_coordinates = self.split_coordinates()
+            self.fragments_atoms_list = self.split_atoms_lists()
 
     def __str__(self):
         return "Name: {}\n Coordinates:{}".format(self.name, self.coordinates)
@@ -35,6 +38,27 @@ class Molecule(object):
 
     def __len__(self):
         return self.number_of_atoms
+
+    def __add__(self, other):
+        atoms_list = self.atoms_list + other.atoms_list
+        coordinates = np.concatenate((self.coordinates, other.coordinates), axis=0)
+        merged = Molecule(atoms_list, coordinates)
+        atoms_in_self = [i for i in range(self.number_of_atoms)]
+        atoms_in_other = [i for i in range(self.number_of_atoms, merged.number_of_atoms)]
+        merged.fragments = [atoms_in_self, atoms_in_other]
+        merged.fragments_coordinates = [self.coordinates, other.coordinates]
+        merged.fragments_atoms_list = [self.atoms_list, other.atoms_list]
+        return merged
+
+    def split_coordinates(self, coordinates=None):
+        if coordinates is None:
+            coordinates = self.coordinates
+        fragments_coordinates = [coordinates[flist, :] for flist in self.fragments]
+        return fragments_coordinates
+
+    def split_atoms_lists(self):
+        fragments_atoms_list = [self.atoms_list[flist, :] for flist in self.fragments]
+        return fragments_atoms_list
 
     @classmethod
     def from_xyz(cls, filename):
@@ -101,15 +125,6 @@ class Molecule(object):
                     coords[i][0], coords[i][1], coords[i][2], atoms_list[i].lower()))
             fp.write("$end\n")
 
-    def __add__(self, molecule):
-        atoms_list = self.atoms_list + molecule.atoms_list
-        coordinates = np.concatenate((self.coordinates, molecule.coordinates), axis=0)
-        merged = Molecule(atoms_list, coordinates)
-        atoms_in_self = [i for i in range(self.number_of_atoms)]
-        atoms_in_molecule = [i for i in range(self.number_of_atoms, merged.number_of_atoms)]
-        merged.fragments = [atoms_in_self, atoms_in_molecule]
-        return merged
-
     @property
     def atomic_number(self):
         return [atomic_numbers[c.capitalize()] for c in self.atoms_list]
@@ -124,7 +139,13 @@ class Molecule(object):
 
     @property
     def vdw_radius(self):
-        return [vdw_radii[i] for i in self.atomic_number]
+        result = []
+        for i in self.atomic_number:
+            if np.isnan(vdw_radii[i]):
+                result.append(covalent_radii[i] * 1.5)
+            else:
+                result.append(vdw_radii[i])
+        return result
 
     @property
     def centroid(self):
@@ -134,18 +155,14 @@ class Molecule(object):
     def centre_of_mass(self):
         return np.average(self.coordinates, axis=0, weights=self.atomic_mass)
 
-    @staticmethod
-    def distance(coords_a, coords_b):
-        return np.linalg.norm(coords_a - coords_b)
-
     @property
     def average_radius(self):
-        return np.mean(np.array([self.distance(self.centroid, coord_i)
+        return np.mean(np.array([distance(self.centroid, coord_i)
                                  for coord_i in self.coordinates]))
 
     @property
     def std_of_radius(self):
-        return np.std([self.distance(self.centroid, coord_i)
+        return np.std([distance(self.centroid, coord_i)
                        for coord_i in self.coordinates])
 
     @property
@@ -173,20 +190,16 @@ class Molecule(object):
     def distance_matrix(self):
         return scipy_distance.pdist(self.coordinates)
 
-    def is_bonded(self):
-        fragment_one = np.array([self.coordinates[i, :] for i in self.fragments[0]])
-        fragment_two = np.array([self.coordinates[i, :] for i in self.fragments[1]])
-        radius_one = [covalent_radii[atomic_numbers[self.atoms_list[i]]] for i in self.fragments[0]]
-        radius_two = [covalent_radii[atomic_numbers[self.atoms_list[i]]] for i in self.fragments[1]]
+    def split_covalent_radii_list(self):
+        return [np.array(self.covalent_radius)[flist] for flist in self.fragments]
 
-        for i, a in enumerate(fragment_one):
-            for j, b in enumerate(fragment_two):
-                dist = np.linalg.norm(a - b)
-                sum_of_radii = radius_one[i] + radius_two[j]
-                if dist <= sum_of_radii:
-                    return True
-        else:
-            return False
+    def is_bonded(self):
+        fragment_one, fragment_two = self.split_coordinates()
+        radius_one, radius_two = self.split_covalent_radii_list()
+
+        R = [x + y for x, y in itertools.product(radius_one, radius_two)]
+        r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
+        return r < R
 
     @property
     def coulomb_matrix(self):
@@ -277,11 +290,25 @@ class Molecule(object):
         return np.dot(transformed_coordinates, move_axes)
 
 
+def distance(coords_a, coords_b):
+    return np.linalg.norm(coords_a - coords_b)
+
+
 def main():
     import sys
-    mol = Molecule.from_xyz(sys.argv[1])
-    print(mol)
+    mol1 = Molecule.from_xyz(sys.argv[1])
+    mol2 = Molecule.from_xyz(sys.argv[2])
+    mol = mol1 + mol2
+    a, b = [i for i in mol.fragments_coordinates]
+    l, m = [np.array(mol.covalent_radius)[flist] for flist in mol.fragments]
+    import itertools
+    R = [x+y for x, y in itertools.product(l, m)]
+    r = [np.linalg.norm(a-b) for a, b in itertools.product(a, b)]
+    print(r<R)
+    print(mol.is_bonded())
 
 
 if __name__ == '__main__':
     main()
+
+

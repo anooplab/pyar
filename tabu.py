@@ -3,7 +3,7 @@ from __future__ import print_function
 import math
 import os.path
 import random
-import sys
+import itertools
 
 import numpy as np
 
@@ -77,8 +77,6 @@ def check_similarity(angles, previous_angles, d_threshold, a_threshold):
 
 
 def proximity_check(mol, cite_to_be_solvated, number_of_core_atoms, proximity_factor):
-    # TODO if cite_to_be_solvatedc is not specified, then consider complete
-    #      seed in the beginning as the site.
     if cite_to_be_solvated is None:
         cite_to_be_solvated = range(number_of_core_atoms)
     else:
@@ -93,25 +91,12 @@ def proximity_check(mol, cite_to_be_solvated, number_of_core_atoms, proximity_fa
         return False
 
 
-def close_contact(mol_1, mol_2, contact_type):
-    if contact_type == 'vdw':
-        mol_1.radii = [vdw_radii[atomic_numbers[c.capitalize()]] for c in mol_1.atoms_list]
-        mol_2.radii = [vdw_radii[atomic_numbers[c.capitalize()]] for c in mol_2.atoms_list]
-    elif contact_type == 'covalent':
-        mol_1.radii = [covalent_radii[atomic_numbers[c]] for c in mol_1.atoms_list]
-        mol_2.radii = [covalent_radii[atomic_numbers[c]] for c in mol_2.atoms_list]
-    elif contact_type == 'long-range':
-        mol_1.radii = [1.5*vdw_radii[atomic_numbers[c]] for c in mol_1.atoms_list]
-        mol_2.radii = [1.5*vdw_radii[atomic_numbers[c]] for c in mol_2.atoms_list]
-
-    for i in range(mol_1.number_of_atoms):
-        for j in range(mol_2.number_of_atoms):
-            R_AB = mol_1.radii[i] + mol_2.radii[j]
-            distance = np.linalg.norm(mol_1.coordinates[i] - mol_2.coordinates[j])
-            if distance <= R_AB:
-                return True
-    else:
-        return False
+def close_contact(mol_1, mol_2, factor):
+    fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
+    radius_one, radius_two = mol_1.vdw_radius, mol_2.vdw_radius
+    R = np.array([(x + y) for x, y in itertools.product(radius_one, radius_two)])
+    r = np.array([np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)])
+    return np.any(r < R*factor)
 
 
 def gen_vectors(number_of_orientations):
@@ -129,8 +114,8 @@ def gen_vectors(number_of_orientations):
     return vectors
 
 
-def new_func(molecule_id, seed, monomer, number_of_orientations,
-             site, number_of_core_atoms, proximity_factor):
+def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
+                          site, number_of_core_atoms, proximity_factor):
 
     noa = seed.number_of_atoms
     nob = monomer.number_of_atoms
@@ -141,13 +126,21 @@ def new_func(molecule_id, seed, monomer, number_of_orientations,
         monomer.align()
     seed.move_to_origin()
 
+    orientations = []
+
     if noa == 1 and nob == 1:
-        vector = [[0.0, 0.0, 0.0, 0.0, 0.0]]
+        vector = [0.0, 0.0, 0.0, 0.0, 0.0]
         _, orientation = merge_monomer_and_seed(vector, monomer, seed,
                                                 site, number_of_core_atoms,
                                                 proximity_factor)
+        orientation_id = "%03d_" % 0 + molecule_id
+        orientation.title = 'trial orientation ' + orientation_id
+        orientation.name = orientation_id
+
+        orientation_xyz_file = filename_prefix + orientation_id + '.xyz'
+        orientation.mol_to_xyz(orientation_xyz_file)
+        orientations.append(orientation)
     else:
-        orientations = []
         vectors = []
         a_threshold = math.pi / 2.0
         d_threshold = 1.414
@@ -183,8 +176,8 @@ def new_func(molecule_id, seed, monomer, number_of_orientations,
     return {i.name:i for i in orientations}
 
 
-def generate_orientations(molecule_id, seed, monomer, hm_orientations,
-                          cite_to_be_solvated, number_of_core_atoms):
+def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orientations,
+                                             cite_to_be_solvated, number_of_core_atoms):
     noa = seed.number_of_atoms
     nob = monomer.number_of_atoms
     if noa == 1 and nob == 1:
@@ -225,7 +218,7 @@ def merge_monomer_and_seed(each_vector, monomer, seed,
     if monomer.number_of_atoms > 1:
         monomer.rotate_3d((alpha, beta, gamma))
     r = 0.1
-    while close_contact(seed, monomer, 'vdw') is True:
+    while close_contact(seed, monomer, 1.0):
         r += 0.1
         if seed.number_of_atoms == 2: phi = 0.0
         monomer.translate(polar_to_cartesian(r, theta, phi))

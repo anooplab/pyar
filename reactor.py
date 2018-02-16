@@ -38,13 +38,13 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max,
     file_manager.make_directories('trial_geometries')
     os.chdir('trial_geometries')
 
-    all_orientations = tabu.new_func('geom',
-                                     reactant_a,
-                                     reactant_b,
-                                     hm_orientations,
-                                     site,
-                                     number_of_core_atom,
-                                     proximity_factor)
+    all_orientations = tabu.generate_orientations('geom',
+                                                  reactant_a,
+                                                  reactant_b,
+                                                  hm_orientations,
+                                                  site,
+                                                  number_of_core_atom,
+                                                  proximity_factor)
 
     os.chdir(cwd)
 
@@ -102,7 +102,7 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         print('     job completed')
         if status is True or status == 'converged' or status == 'cycle_exceeded':
             print("      E(%s): %12.7f" % (job_name, this_molecule.energy))
-            if this_molecule.is_bonded() is True:
+            if this_molecule.is_bonded():
                 print("      The fragments have close contracts. Going for relaxation")
                 this_molecule.mol_to_xyz('trial_relax.xyz')
                 this_molecule.name = 'relax'
@@ -122,22 +122,17 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                         table_of_product_molecules[job_name] = this_molecule
                         print("       The geometry is different from the stating structure.")
                         print("       Checking if this is a (new) products")
-                        if current_inchi not in table_of_product_inchi_strings.values():
-                            if current_smile not in table_of_product_smile_strings.values():
-                                print("        New Product! Saving")
-                                table_of_product_inchi_strings[job_name] = current_inchi
-                                table_of_product_smile_strings[job_name] = current_smile
-                                table_of_product_molecules[job_name] = this_molecule
-                                shutil.copy('result_relax.xyz',
-                                            product_dir + '/' + job_name + '.xyz')
-                                os.chdir(cwd)
-                                continue
-                            else:
-                                print("SMILE matches")
-                                os.chdir(cwd)
-                                continue
+                        if current_inchi not in table_of_product_inchi_strings.values() and current_smile not in table_of_product_smile_strings.values():
+                            print("        New Product! Saving")
+                            table_of_product_inchi_strings[job_name] = current_inchi
+                            table_of_product_smile_strings[job_name] = current_smile
+                            table_of_product_molecules[job_name] = this_molecule
+                            shutil.copy('result_relax.xyz',
+                                        product_dir + '/' + job_name + '.xyz')
+                            os.chdir(cwd)
+                            continue
                         else:
-                            print("InChi matches")
+                            print("Both strings matches with those of already saved products. Discarded")
                             os.chdir(cwd)
                             continue
                     else:
