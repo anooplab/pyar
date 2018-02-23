@@ -22,32 +22,36 @@ GNU General Public License for more details.
 '''
 
 
-def get_no_of_atoms(files):
+class IncorrectXyzFileError(object):
+    pass
+
+
+def get_number_of_atoms(files):
     """This function will test the xyz file format.
        if it finds it alright, then it will return
        the number of atoms.
     """
-    with open(files) as xyzfile:
-        filecont = xyzfile.readlines()
-    no_of_atoms = len(filecont) - 2
-    if no_of_atoms != int(filecont[0]):
+    with open(files) as xyz_file:
+        number_of_lines = xyz_file.readlines()
+    no_of_atoms = len(number_of_lines) - 2
+    if no_of_atoms != int(number_of_lines[0]):
         raise IncorrectXyzFileError
     return no_of_atoms
 
 
-def get_no_of_atoms_list(*files):
+def make_a_list_of_no_of_atoms_in_each_file(*files):
     """This function is for making a list of all the atom numbers
        in all the xyz files (fragments) provided
     """
-    all_file_atoms = []
-    for ifile in files:
-        no_of_atom = get_no_of_atoms(ifile)
-        all_file_atoms.append(no_of_atom)
-    return all_file_atoms
+    list_of_number_of_atoms = []
+    for each_file in files:
+        number_of_atoms = get_number_of_atoms(each_file)
+        list_of_number_of_atoms.append(number_of_atoms)
+    return list_of_number_of_atoms
 
 
 def get_fragment_string(all_xyz_file_atom_number):
-    """This function will make the lines specified by the dftd3 code
+    """This function will make the lines specified by the DFTD3 code
        (modified by A. Anoop & M. Waller) for fragment file.
     """
     init = 1
@@ -63,7 +67,7 @@ def get_fragment_string(all_xyz_file_atom_number):
 
 def frag_lines_mod(lines_list):
     """This function will check if for a line the number in both side of
-       the 'hiphen' is same or not. If they same, then it will replace the
+       the 'hyphen' is same or not. If they same, then it will replace the
        line with one number.
     """
     return_line = []
@@ -77,11 +81,11 @@ def frag_lines_mod(lines_list):
     return return_line
 
 
-def make_fragment_file(number_of_atoms_in_fragement_1, number_of_atoms_in_fragment_2):
+def make_fragment_file(number_of_atoms_in_fragment_1, number_of_atoms_in_fragment_2):
     """This is the functional which by help of the above functions
        create the fragment file
     """
-    no_of_atoms_list = [number_of_atoms_in_fragement_1, number_of_atoms_in_fragment_2]
+    no_of_atoms_list = [number_of_atoms_in_fragment_1, number_of_atoms_in_fragment_2]
     lines_raw = get_fragment_string(no_of_atoms_list)
     all_lines_for_fragment = frag_lines_mod(lines_raw)
     with open('fragment', 'w') as f:
@@ -109,8 +113,8 @@ def read_fragments(n):
     atoms_in_fragments = []
 
     for line in lines:
-        for delimitter in ',;':
-            line = line.replace(delimitter, ' ')
+        for delimiter in ',;':
+            line = line.replace(delimiter, ' ')
         a = []
         for things in line.split():
             if "-" in things:
