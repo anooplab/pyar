@@ -15,7 +15,7 @@ PyAR stands for "Python program for aggregation and reaction"
 usage: PyAR [-h] [-N HM_ORIENTATIONS] [-cite CITE] (-r | -a | -o)
             [-as AGGREGATE_SIZE] [-gmin GMIN] [-gmax GMAX] [-gamma GAMMA]
             [-c CHARGE] [-m MULTIPLICITY] [--scftype {rhf,uhf}] --software
-            {turbomole,obabel,mopac,xtb,xtb_turbo,orca}
+            {turbomole,OBabel,mopac,xtb,xtb_turbo,orca}
             files [files ...]
 
 is a program to predict aggregation and reaction
@@ -57,6 +57,6 @@ chemistry:
   -m MULTIPLICITY, --multiplicity MULTIPLICITY
                         Multiplicity of the system
   --scftype {rhf,uhf}   specify rhf or uhf (defulat=rhf)
-  --software {turbomole,obabel,mopac,xtb,xtb_turbo,orca}
+  --software {turbomole,OBabel,mopac,xtb,xtb_turbo,orca}
                         Software
 

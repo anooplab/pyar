@@ -20,24 +20,30 @@ GNU General Public License for more details.
 import os
 import subprocess as subp
 import sys
+
 import numpy as np
+
+import interface
 import interface.babel
+from interface import SF, which
 
 
-class Mopac(object):
-    def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
-        self.job_name = molecule.name
-        self.charge = charge
-        self.multiplicity = multiplicity
-        self.scftype = scftype
-        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
-        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
+class Mopac(SF):
+    def __init__(self, molecule, method):
+
+        if which('mopac') is None:
+            print('set MOPAC path')
+            sys.exit()
+
+        super(Mopac, self).__init__(molecule)
+
+        charge = method['charge']
+        scftype = method['scftype']
+        multiplicity = method['multiplicity']
         self.inp_file = 'trial_' + self.job_name + '.mop'
         self.arc_file = 'trial_' + self.job_name + '.arc'
-        self.atoms_list = molecule.atoms_list
         self.start_coords = molecule.coordinates
         self.optimized_coordinates = []
-        self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
         keyword = "PM7 PRECISE LET DDMIN=0.0 " \
                   "CYCLES=10000 charge={}".format(charge)
@@ -83,8 +89,8 @@ class Mopac(object):
             if os.path.exists(self.arc_file):
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
-                interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
-                                          self.job_name, energy=self.energy)
+                interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                                    self.job_name, energy=self.energy)
                 return True
             else:
                 print("Error: File ", self.arc_file, "was not found.")
@@ -94,8 +100,8 @@ class Mopac(object):
 
     def get_energy(self):
         """
-        :return:This object will return energy from a mopac calculation. It will return both the kj/mol and
-        kcal/mol units.
+        :return:This object will return energy from a mopac calculation. It will return both the kj/my_mol and
+        kcal/my_mol units.
         """
         en_kcal = 0.0
         en_kj = 0.0

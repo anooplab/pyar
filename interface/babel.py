@@ -21,15 +21,20 @@ import os
 import subprocess as subp
 import sys
 import numpy as np
+from interface import SF, which
 
 
-class obabel(object):
+class OBabel(SF):
     def __init__(self, molecule, forcefield=None):
-        self.job_name = molecule.name
-        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
+
+        if which('OBabel') is None:
+            print('setup OBabel path')
+            sys.exit()
+
+        super(OBabel, self).__init__(molecule)
+
         if not os.path.isfile(self.start_xyz_file):
             molecule.mol_to_xyz(self.start_xyz_file)
-        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
         self.optimized_coordinates = []
         self.energy = 0.0
 
@@ -42,7 +47,7 @@ class obabel(object):
         if exit_status == 1:
             with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
                 for line in xyzfile:
-                    if not 'WARNING' in line:
+                    if 'WARNING' not in line:
                         result_xyz_file.write(line)
             self.energy = self.get_energy()
             self.optimized_coordinates = self.get_coords()
@@ -103,7 +108,7 @@ def make_inchi_string_from_xyz(xyzfile):
        babel as the tools
     """
     if os.path.isfile(xyzfile):
-        with open('obabel.log', 'w') as ferr:
+        with open('OBabel.log', 'w') as ferr:
             inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
         return inchi
     else:
@@ -117,7 +122,7 @@ def make_smile_string_from_xyz(xyzfile):
        string
     """
     if os.path.isfile(xyzfile):
-        with open('obabel.log', 'w') as ferr:
+        with open('OBabel.log', 'w') as ferr:
             pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi"], stderr=ferr)
         smile = pre_smile.split()[0]
         # print "smile string inside make_smile_string_from_xyz() is: ", smile
@@ -126,19 +131,11 @@ def make_smile_string_from_xyz(xyzfile):
         raise IOError("file %s does not exists" % xyzfile)
 
 
-def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0):
-    with open(filename, 'w') as fp:
-        fp.write("%3d\n" % len(coordinates))
-        fp.write(job_name + ':' + str(energy) + '\n')
-        for a, c in zip(atoms_list, coordinates):
-            fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
-
-
 def main(input_files):
     import Molecule
     for f in input_files:
         mol = Molecule.Molecule.from_xyz(f)
-        g = obabel(mol)
+        g = OBabel(mol)
         g.optimize()
 
 

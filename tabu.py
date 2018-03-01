@@ -6,8 +6,8 @@ import random
 import itertools
 
 import numpy as np
-
-from atomic_data import atomic_numbers, vdw_radii, covalent_radii
+import logging
+tabu_logger = logging.getLogger('pyar.tabu')
 
 
 def load_tabu_list(tabu_file='tabu.dat'):
@@ -21,30 +21,30 @@ def load_tabu_list(tabu_file='tabu.dat'):
 def write_tabu_list(tabu_list, tabu_file):
     with open(tabu_file, 'a') as tf:
         for i in tabu_list:
-            tf.write(str(i)+' ')
+            tf.write(str(i) + ' ')
         tf.write('\n')
 
 
 def gen_a_set_of_angles(which_octant):
     pi = math.pi
-    a = 0.0
-    b = pi / 2.0
-    c = pi
-    d = 3 * pi / 2.0
-    e = 2 * pi
+    sa = 0.0
+    ri = pi / 2.0
+    ga = pi
+    ma = 3 * pi / 2.0
+    pa = 2 * pi
 
     octant = {
-        1: [a, b, a, b], 2: [b, c, a, b], 3: [a, b, b, c], 4: [b, c, b, c], \
-        5: [a, b, c, d], 6: [b, c, c, d], 7: [a, b, d, e], 8: [b, c, d, e] \
-        }
+        1: [sa, ri, sa, ri], 2: [ri, ga, sa, ri], 3: [sa, ri, ri, ga], 4: [ri, ga, ri, ga],
+        5: [sa, ri, ga, ma], 6: [ri, ga, ga, ma], 7: [sa, ri, ma, pa], 8: [ri, ga, ma, pa]
+    }
 
-    i, j, k, l = octant[which_octant]
+    do, rea, me, fa = octant[which_octant]
 
-    theta = random.uniform(i, j)
-    phi = random.uniform(k, l)
-    alpha = random.uniform(a, e)
-    beta = random.uniform(a, c)
-    gamma = random.uniform(a, e)
+    theta = random.uniform(do, rea)
+    phi = random.uniform(me, fa)
+    alpha = random.uniform(sa, pa)
+    beta = random.uniform(sa, ga)
+    gamma = random.uniform(sa, pa)
 
     return theta, phi, alpha, beta, gamma
 
@@ -62,10 +62,10 @@ def check_similarity(angles, previous_angles, d_threshold, a_threshold):
     current_point = np.array(polar_to_cartesian(r, theta, phi))
     for i in previous_angles:
         previous_theta, previous_phi = i[:2]
-        previous_apha, previous_beta, previous_gamma = i[2:]
+        previous_alpha, previous_beta, previous_gamma = i[2:]
         previous_point = np.array(polar_to_cartesian(r, previous_theta, previous_phi))
         distance = np.linalg.norm(current_point - previous_point)
-        diff_alpha = abs(previous_apha - alpha)
+        diff_alpha = abs(previous_alpha - alpha)
         diff_beta = abs(previous_beta - beta)
         diff_gamma = abs(previous_gamma - gamma)
         if abs(distance) < d_threshold and \
@@ -80,7 +80,7 @@ def proximity_check(mol, cite_to_be_solvated, number_of_core_atoms, proximity_fa
     if cite_to_be_solvated is None:
         cite_to_be_solvated = range(number_of_core_atoms)
     else:
-        cite_to_be_solvated = [cite_to_be_solvated,]
+        cite_to_be_solvated = [cite_to_be_solvated, ]
     for a in cite_to_be_solvated:
         for b in range(number_of_core_atoms, mol.number_of_atoms):
             dist_cutoff = proximity_factor * (mol.vdw_radius[a] + mol.vdw_radius[b])
@@ -94,9 +94,9 @@ def proximity_check(mol, cite_to_be_solvated, number_of_core_atoms, proximity_fa
 def close_contact(mol_1, mol_2, factor):
     fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
     radius_one, radius_two = mol_1.vdw_radius, mol_2.vdw_radius
-    R = np.array([(x + y) for x, y in itertools.product(radius_one, radius_two)])
-    r = np.array([np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)])
-    return np.any(r < R*factor)
+    sum_of_radii = np.array([(x + y) for x, y in itertools.product(radius_one, radius_two)])
+    inter_atomic_distance = np.array([np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)])
+    return np.any(inter_atomic_distance < sum_of_radii * factor)
 
 
 def gen_vectors(number_of_orientations):
@@ -116,19 +116,18 @@ def gen_vectors(number_of_orientations):
 
 def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
                           site, number_of_core_atoms, proximity_factor):
-
-    noa = seed.number_of_atoms
-    nob = monomer.number_of_atoms
+    number_of_atoms_in_seed = seed.number_of_atoms
+    number_of_atoms_in_monomer = monomer.number_of_atoms
     filename_prefix = 'trial_'
-    if noa > 1:
+    if number_of_atoms_in_seed > 1:
         seed.align()
-    if nob > 1:
+    if number_of_atoms_in_monomer > 1:
         monomer.align()
     seed.move_to_origin()
 
     orientations = []
 
-    if noa == 1 and nob == 1:
+    if number_of_atoms_in_seed == 1 and number_of_atoms_in_monomer == 1:
         vector = [0.0, 0.0, 0.0, 0.0, 0.0]
         _, orientation = merge_monomer_and_seed(vector, monomer, seed,
                                                 site, number_of_core_atoms,
@@ -147,7 +146,6 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
         for i in range(int(int(number_of_orientations) / 8)):
             for j in range(8):
                 accepted = False
-                one_set = None
                 tries = 1
                 while not accepted:
                     accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
@@ -158,11 +156,11 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
                     vectors.append(one_set)
                     tries += 1
                     if tries > 10000:
-                        print('Could not find an orientation in', tries, 'tries')
+                        tabu_logger.warning('Could not find an orientation in', tries, 'tries')
                         proximity_factor *= 1.1
                         break
                 if accepted:
-                    orientation_id = "%03d_" % (i*8+j) + molecule_id
+                    orientation_id = "%03d_" % (i * 8 + j) + molecule_id
                     orientation.title = 'trial orientation ' + orientation_id
                     orientation.name = orientation_id
 
@@ -173,7 +171,7 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
                 d_threshold *= 0.95
                 a_threshold *= 0.95
 
-    return {i.name:i for i in orientations}
+    return orientations
 
 
 def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orientations,
@@ -198,7 +196,8 @@ def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orie
                                                      monomer, seed,
                                                      cite_to_be_solvated,
                                                      number_of_core_atoms, proximity_factor=1.5)
-        if status is False:  continue
+        if status is False:
+            continue
 
         orientation.title = 'trial orientation ' + orientation_id
         orientation.name = orientation_id
@@ -220,7 +219,8 @@ def merge_monomer_and_seed(each_vector, monomer, seed,
     r = 0.1
     while close_contact(seed, monomer, 1.0):
         r += 0.1
-        if seed.number_of_atoms == 2: phi = 0.0
+        if seed.number_of_atoms == 2:
+            phi = 0.0
         monomer.translate(polar_to_cartesian(r, theta, phi))
     orientation = seed + monomer
     write_tabu_list(each_vector, 'tabu.dat')
@@ -237,6 +237,10 @@ def test_gen_vec():
             x, y, z = polar_to_cartesian(5.0, i[0], i[1])
             fp.write('H ' + str(x) + ' ' + str(y) + ' ' + str(z) + '\n')
     return True
+
+
+def main():
+    pass
 
 
 if __name__ == "__main__":

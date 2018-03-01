@@ -17,57 +17,48 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 import os
-import shutil
 import subprocess as subp
 import sys
 
-import numpy as np
-
-import Molecule
-import file_manager
-from units import angstrom2bohr, bohr2angstrom
-from afir import restraints
+import interface
 import interface.babel
 import interface.turbomole
+from afir import restraints
+from interface import SF
+from units import angstrom2bohr, bohr2angstrom
 
 
-class XtbTurbo(object):
-    def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
-        self.job_name = molecule.name
-        self.charge = charge
-        self.multiplicity = multiplicity
-        self.scftype = scftype
-        self.atoms_list = molecule.atoms_list
-        self.atoms_in_fragments =  molecule.fragments
-        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
-        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
-        self.number_of_atoms = molecule.number_of_atoms
-        self.job_dir = '{}/job_{}'.format(os.getcwd(), self.job_name)
+class XtbTurbo(SF):
+
+    def __init__(self, molecule, method):
+
+        if interface.which('define') is None:
+            print('set Turbomole path')
+            sys.exit()
+        if interface.which('xtb') is None:
+            print('set XTB path')
+            sys.exit()
+
+        super(XtbTurbo, self).__init__(molecule)
+
+        self.charge = method['charge']
+        self.scf_type = method['scftype']
+        self.multiplicity = method['multiplicity']
         self.start_coords = angstrom2bohr(molecule.coordinates)
-        self.coord_file = '{}/coord'.format(self.job_dir)
-        self.energy_file = '{}/energy'.format(self.job_dir)
+        self.atoms_in_fragments = molecule.fragments
+        self.job_dir = '{}/job_{}'.format(os.getcwd(), self.job_name)
+        self.coord_file = 'coord'
+        self.energy_file = 'energy'
+
         self.egrad_program = ['xtb', 'coord', '-grad']
-        if charge > 0:
-            self.egrad_program = self.egrad_program + ['-chrg', str(charge)]
-        if multiplicity != 1:
-            self.egrad_program = self.egrad_program + ['-uhf', str(multiplicity)]
+        if self.charge > 0:
+            self.egrad_program = self.egrad_program + ['-chrg', str(self.charge)]
+        if self.multiplicity != 1:
+            self.egrad_program = self.egrad_program + ['-uhf', str(self.multiplicity)]
         self.energy = None
         self.optimized_coordinates = None
 
     def optimize(self, max_cycles=350, gamma=0.0):
-
-        cwd = os.getcwd()
-        job_dir = 'job_' + self.job_name
-        file_manager.make_directories(job_dir)
-
-        if gamma > 0.0:
-            if os.path.isfile('fragment'):
-                shutil.copy('fragment', job_dir)
-            else:
-                print("file, {}, not found".format('fragment'))
-                sys.exit()
-
-        os.chdir(job_dir)
 
         interface.turbomole.make_coord(self.atoms_list, self.start_coords, self.coord_file)
         interface.turbomole.prepare_control()
@@ -77,13 +68,12 @@ class XtbTurbo(object):
             status, message, energy, gradients = self.calc_engrad
             if status is False:
                 print('Energy/Gradient evaluation failed')
-                os.chdir(cwd)
                 return False
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                re, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list, interface.turbomole.get_coords(), gamma)
-                interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, re, trg)
+                augmented_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list, interface.turbomole.get_coords(), gamma)
+                interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, augmented_energy, trg)
 
             # Update coordinates and check convergence.
             status, msg = interface.turbomole.update_coord()
@@ -91,16 +81,14 @@ class XtbTurbo(object):
                 print('converged at', cycle)
                 self.energy = interface.turbomole.get_energy()
                 self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
-                interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates,
-                                          self.result_xyz_file,
-                                          self.job_name,
-                                          energy=self.energy)
-                shutil.copy(self.result_xyz_file, cwd)
-                os.chdir(cwd)
+                interface.write_xyz(self.atoms_list, self.optimized_coordinates,
+                                    self.result_xyz_file,
+                                    self.job_name,
+                                    energy=self.energy)
                 return True
             with open('energy.dat','a') as fe:
                 if gamma > 0.0:
-                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
+                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+augmented_energy))
                 else:
                     fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
@@ -108,7 +96,6 @@ class XtbTurbo(object):
             status = 'cycle_exceeded'
             self.energy = interface.turbomole.get_energy()
             self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
-            os.chdir(cwd)
             return status
 
     @property
@@ -127,22 +114,11 @@ class XtbTurbo(object):
 
 
 def main():
-    from Molecule import Molecule
-    mol = Molecule.from_xyz(sys.argv[1])
-    geometry = XtbTurbo(mol)
-    if len(sys.argv) == 2:
-        geometry.optimize()
-    elif len(sys.argv) == 3:
-        gamma_force = sys.argv[2]
-        geometry.optimize(gamma=gamma_force)
-    else:
-        usage()
-        sys.exit()
-    return
+    pass
 
 
 if __name__ == "__main__":
     from Molecule import Molecule
-    mol = Molecule.from_xyz(sys.argv[1])
-    geometry = XtbTurbo(mol)
+    my_mol = Molecule.from_xyz(sys.argv[1])
+    geometry = XtbTurbo(my_mol, method={})
     geometry.optimize(gamma=100.0)

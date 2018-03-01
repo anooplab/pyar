@@ -7,7 +7,7 @@ import os
 
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
-from units import kjoules2atomicunits
+from units import kilojoules2atomic_units
 
 covalent_radii = {'x ': 0.00,
                   'h': 0.32, 'he': 0.46, 'li': 1.20, 'be': 0.94, 'b': 0.77,
@@ -84,8 +84,8 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
 
 
 def calculate_alpha(force):
-    gamma = kjoules2atomicunits(force)
-    epsilon = kjoules2atomicunits(1.0061)
+    gamma = kilojoules2atomic_units(force)
+    epsilon = kilojoules2atomic_units(1.0061)
     r_zero = angstrom2bohr(3.8164)
     #    eqn. 3 JCTC 2011,7,2335
     alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)

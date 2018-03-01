@@ -21,30 +21,33 @@ import shutil
 import subprocess as subp
 import sys
 
-import fortranformat as ff
 import numpy as np
 
 import file_manager
+import interface
 import interface.babel
 from afir import restraints
+from interface import SF
+from interface import which
 from units import angstrom2bohr, bohr2angstrom
 
 
-class Turbomole(object):
-    def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
-        self.job_name = molecule.name
-        self.charge = charge
-        self.multiplicity = multiplicity
-        self.scftype = scftype
-        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
-        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
-        self.number_of_atoms = molecule.number_of_atoms
-        self.title = molecule.title
-        self.atoms_in_fragments = molecule.fragments
-        self.atoms_list = molecule.atoms_list
+class Turbomole(SF):
+    def __init__(self, molecule, method):
+        if which('define') is None:
+            print('set Turbomole path')
+            sys.exit()
+
+        super(Turbomole, self).__init__(molecule)
+
+        self.charge = method['charge']
+        self.scf_type = method['scftype']
+        self.multiplicity = method['multiplicity']
         self.start_coords = angstrom2bohr(molecule.coordinates)
+        self.atoms_in_fragments = molecule.fragments
         self.energy = None
         self.optimized_coordinates = None
+
 
     def optimize(self, max_cycles=35, gamma=0.0):
 
@@ -81,8 +84,8 @@ class Turbomole(object):
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                re, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list,get_coords(), gamma)
-                rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, re, trg)
+                restraint_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list,get_coords(), gamma)
+                rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, restraint_energy, trg)
 
             # Update coordinates and check convergence.
             status, msg = update_coord()
@@ -90,15 +93,15 @@ class Turbomole(object):
                 print('converged at', cycle)
                 self.energy = get_energy()
                 self.optimized_coordinates = bohr2angstrom(get_coords())
-                interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
-                                          self.job_name,
-                                          energy=self.energy)
+                interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                                    self.job_name,
+                                    energy=self.energy)
                 shutil.copy(self.result_xyz_file, cwd)
                 os.chdir(cwd)
                 return True
             with open('energy.dat','a') as fe:
                 if gamma > 0.0:
-                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+re))
+                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+restraint_energy))
                 else:
                     fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
@@ -269,8 +272,11 @@ def rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy, total_re
             dx = float(re.sub('D', 'E', dx)) - restraint_gradient[i][0]
             dy = float(re.sub('D', 'E', dy)) - restraint_gradient[i][1]
             dz = float(re.sub('D', 'E', dz)) - restraint_gradient[i][2]
-            formatted = ff.FortranRecordWriter('3D22.13')
-            temp_line = formatted.write([dx, dy, dz])
+            temp_line = "{:22.13f} {:22.13f} {:22.13f}".format(dx, dy, dz)
+            temp_line = re.sub('E', 'D', temp_line)
+            print(temp_line)
+            # formatted = ff.FortranRecordWriter('3D22.13')
+            # temp_line = formatted.write([dx, dy, dz])
             new_gradients = new_gradients + str(temp_line) + "\n"
             i += 1
     with open('gradient', 'w') as g:
@@ -301,21 +307,22 @@ def rewrite_turbomole_energy_and_gradient_files(number_of_atoms,
 
 def main():
     from Molecule import Molecule
-    mol = Molecule.from_xyz(sys.argv[1])
-    geometry = Turbomole(mol)
+    my_molecule = Molecule.from_xyz(sys.argv[1])
+    geom = Turbomole(my_molecule, method={})
     if len(sys.argv) == 2:
-        geometry.optimize()
+        geom.optimize()
     elif len(sys.argv) == 3:
         gamma_force = sys.argv[2]
-        geometry.optimize(gamma=gamma_force)
+        geom.optimize(gamma=gamma_force)
     else:
         sys.exit()
     return
 
 if __name__ == "__main__":
     from Molecule import Molecule
+    from interface import xtbturbo
 
-
-    mol = Molecule.from_xyz(sys.argv[1])
-    geometry = Turbomole(mol)
+    my_mol = Molecule.from_xyz(sys.argv[1])
+    my_mol.fragments = [[0, 1, 2], [3, 4, 5]]
+    geometry = xtbturbo.XtbTurbo(my_mol, method={'software':'turbomole'})
     geometry.optimize(1000)

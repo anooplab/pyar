@@ -9,5 +9,5 @@ setup(
     author='anoop et al',
     author_email='',
     description='',
-    requires=['numpy', 'sklearn', 'scipy', 'fortranformat']
+    requires=['numpy', 'sklearn', 'scipy', 'pandas']
 )

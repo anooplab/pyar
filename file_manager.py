@@ -2,7 +2,7 @@
 files_dirs.py - handling files and directories in PyAR
 
 Copyright (C) 2016 by AnoopLab at Indian Institute of Technology Kharagpur, India
-Authro: Surajit Nandi
+Author: Surajit Nandi
 
 file_manager.py is part of the PyAR project.
 
@@ -20,6 +20,8 @@ import glob
 import os
 import shutil
 import sys
+import logging
+file_manager_logger = logging.getLogger('pyar.file_manager')
 
 
 def important_file_check(*arguments):
@@ -29,8 +31,8 @@ def important_file_check(*arguments):
     for i in arguments:
         try:
             open(i).readlines()
-        except:
-            raise IOError("file <%s> does not exist" % i)
+        except IOError:
+            print("file <%s> does not exist" % i)
     return
 
 
@@ -53,8 +55,10 @@ def make_directories(*arguments):
     """
     for dirs in arguments:
         if not os.path.isdir(dirs):
+            file_manager_logger.debug('making directory: {}'.format(dirs))
             os.makedirs(dirs)
         else:
+            file_manager_logger.debug('{} exists! remvoing and recreating the directory'.format(dirs))
             shutil.rmtree(dirs)
             os.makedirs(dirs)
     return
@@ -93,8 +97,8 @@ def get_files(extension, destination="./"):
     files_needed = destination + "*." + extension
     print(files_needed)
     files = glob.glob(files_needed)
-    for ifile in files:
-        file_list.append(os.path.basename(ifile))
+    for each_file in files:
+        file_list.append(os.path.basename(each_file))
     return file_list
 
 
@@ -102,24 +106,15 @@ def get_dirs_files(destination="./", wildcard="*"):
     """This function will return all the subdirectory of the parent directory
        destination. Note, it will use glob. So, will not test for files"""
     dirs = glob.glob(destination + "/" + wildcard)
-    subdirs = []
+    sub_directories = []
     for i in dirs:
         last_name = os.path.basename(i)
-        subdirs.append(last_name)
-    subdirs.sort()
-    return subdirs
+        sub_directories.append(last_name)
+    sub_directories.sort()
+    return sub_directories
 
 
-def scopy(present, destination):
-    """This function will copy a file to a location. destination_name should not
-       contain the pathname starting with slash '/'. For details, see os.path.join
-       documentation in www.python.org website.
-    """
-    shutil.copy(present, destination)
-    return
-
-
-def smove(current_file, moved_file, path_to_move):
+def move_file(current_file, moved_file, path_to_move):
     """This function will move a file current_file to a destination directory
        path_to_move with a name moved_file
     """
@@ -128,33 +123,33 @@ def smove(current_file, moved_file, path_to_move):
     return
 
 
-def mmove(*args):
+def bulk_move(*args):
     """
     :param args: This is the argument lists. It will take tha last name as the directory name.
     If any of the files match with the strings it provided, it will move this file to the
     directory
     :return: It will return nothing.
     """
-    dirname = args[-1]
-    print("dirname:", dirname)
+    directory_name = args[-1]
+    print("directory_name:", directory_name)
     for items in args[:-1]:
         for name in glob.glob('./*' + str(items) + '*'):
-            smove(name, name, dirname)
+            move_file(name, name, directory_name)
     return
 
 
-def mcopy(*args):
+def bulk_copy(*args):
     """
     :param args: This are the argument lists. It will take the last name as directory name.
      if any of the files match with the strings it provided, it will copy this files to the
-     directory. Similar to mmove function
+     directory. Similar to bulk_move function
     :return: Nothing
     """
-    dirname = args[-1]
-    print("dirname:", dirname)
+    directory_name = args[-1]
+    print("directory_name:", directory_name)
     for items in args[:-1]:
         for name in glob.glob("./*" + str(items) + "*"):
-            scopy(name, dirname)
+            shutil.copy(name, directory_name)
     return
 
 

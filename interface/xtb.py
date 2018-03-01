@@ -18,16 +18,26 @@ GNU General Public License for more details.
 """
 import os
 import subprocess as subp
+import sys
 
 import numpy as np
 
-import interface.babel
+from interface import SF, which, write_xyz
 
 
-class Xtb(object):
-    def __init__(self, molecule, charge, multiplicity, scftype):
-        self.job_name = molecule.name
-        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
+class Xtb(SF):
+
+    def __init__(self, molecule, method):
+        if which('xtb') is None:
+            print('set XTB path')
+            sys.exit()
+
+        super(Xtb, self).__init__(molecule)
+
+        charge = method['charge']
+        scftype = method['scftype']
+        multiplicity = method['multiplicity']
+
         self.cmd = "xtb {} -opt vtight".format(self.start_xyz_file)
         if charge != 0:
             self.cmd = "{} -chrg {}".format(self.cmd, charge)
@@ -35,10 +45,7 @@ class Xtb(object):
             self.cmd = "{} -uhf {}".format(self.cmd, multiplicity)
         if multiplicity == 1 and scftype is not 'rhf':
             self.cmd = "{} -{}".format(self.cmd, scftype)
-        self.atoms_list = molecule.atoms_list
-        if not os.path.isfile(self.start_xyz_file):
-            interface.babel.write_xyz(self.atoms_list, molecule.coordinates, self.start_xyz_file, job_name=self.job_name)
-        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
+
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
     def optimize(self, gamma=None):
@@ -46,9 +53,10 @@ class Xtb(object):
         """
         out = subp.check_output(self.cmd.split())
         if os.path.isfile('.xtboptok'):
-            interface.babel.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
-                                      job_name=self.job_name,
-                                      energy=self.energy)
+
+            write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+                      job_name=self.job_name,
+                      energy=self.energy)
             os.rename('xtbopt.log', self.trajectory_xyz_file)
             os.remove('.xtboptok')
             return True

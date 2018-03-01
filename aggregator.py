@@ -1,4 +1,3 @@
-import operator
 import os
 import shutil
 
@@ -51,13 +50,7 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations,
 def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
             site, number_of_core_atoms, proximity_factor):
     """
-    :param proximity_factor: to be used for site specific aggregation or solvation
-    :param site: to be defined
-    :type aggregate_id str
-    :type seeds list of Molecules
-    :type monomer Molecule.Molecule
-    :type hm_orientations int how many orientations
-    :type method dict containing charge, multiplicity, software
+
     """
     if check_stop_signal():
         print("Function: add_one")
@@ -65,7 +58,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
     print('  There are', len(seeds), 'seed molecules')
     cwd = os.getcwd()
 
-    dict_of_optimized_molecules = {}
+    list_of_optimized_molecules = []
     for seed_count, each_seed in enumerate(seeds):
         if check_stop_signal():
             print("Function: add_one")
@@ -82,26 +75,26 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
         all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer,
                                                       hm_orientations, site,
                                                       number_of_core_atoms, proximity_factor)
-        for name, molecule in sorted(all_orientations.items(), key=operator.itemgetter(0)):
+        for molecule in all_orientations:
             o_status = optimise(molecule, method)
             if o_status is True:
                 if proximity_check(molecule, site, number_of_core_atoms,
-                                        proximity_factor) is False:
+                                   proximity_factor) is False:
                     continue
-                print("      E(%10s): %12.7f" % (name, molecule.energy))
-                dict_of_optimized_molecules[name] = molecule
+                print("      E(%10s): %12.7f" % (molecule.name, molecule.energy))
+                list_of_optimized_molecules.append(molecule)
             else:
-                print('    Optimisation failed:', name, 'will be discarded')
+                print('    Optimisation failed:', molecule.name, 'will be discarded')
         os.chdir(cwd)
-    if len(dict_of_optimized_molecules) < 2:
-        return list(dict_of_optimized_molecules.values())
+    if len(list_of_optimized_molecules) < 2:
+        return list_of_optimized_molecules
     print("  Clustering")
-    selected_seeds = clustering.choose_geometries(dict_of_optimized_molecules)
+    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules)
     file_manager.make_directories('selected')
-    for each_file in selected_seeds.values():
-        xyz_file = 'seed_' + each_file.name[4:7] + '/result_' + each_file.name + '.xyz'
+    for each_file in selected_seeds:
+        xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
         shutil.copy(xyz_file, 'selected/')
-    return list(selected_seeds.values())
+    return selected_seeds
 
 
 def main():

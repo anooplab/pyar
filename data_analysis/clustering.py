@@ -1,83 +1,89 @@
 import itertools
+import logging
 import operator
 import sys
 
 import numpy as np
-from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, MeanShift, estimate_bandwidth
+from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, MiniBatchKMeans, MeanShift, estimate_bandwidth
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import RobustScaler
 
+import pandas as pd
 
-def get_labels(data_as_list, algorithm='meanshift'):
-    dt = np.array(data_as_list)
-    labels = []
-
-    print('    Algorithm =', algorithm)
-
-    if algorithm == 'dbscan':
-        dbs = DBSCAN(eps=0.1)
-        dbs.fit(dt)
-        labels = dbs.labels_
-
-    if algorithm == 'kmeans':
-        kmeans = KMeans(n_clusters=10)
-        kmeans.fit(dt)
-        labels = kmeans.labels_
-
-    if algorithm == 'meanshift':
-        try:
-            # The following bandwidth can be automatically detected using
-            bandwidth = estimate_bandwidth(dt, quantile=0.2, n_samples=len(dt))
-        except:
-            # If it fails to estimate bandwidth, give a value (it is arbitrary now,
-            # TODO can we find a reasonable value?)
-            bandwidth = 0.5
-        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
-        ms.fit(dt)
-        labels = ms.labels_
-
-    if algorithm == 'affinitypropagation':
-        af = AffinityPropagation()
-        af.fit(dt)
-        labels = af.labels_
-
-    return labels
+cluster_logger = logging.getLogger('pyar.cluster')
 
 
 def remove_similar(list_of_molecules):
     final_list = list_of_molecules[:]
-
+    cluster_logger.debug('Number of molecules before similarity elimination,  {}'.format(len(final_list)))
     for a, b in itertools.combinations(list_of_molecules, 2):
-        energy_difference = a.energy - b.energy
-        fingerprint_distance = np.linalg.norm(a.fingerprint - b.fingerprint)
+        energy_difference = calc_energy_difference(a, b)
+        fingerprint_distance = calc_fingerprint_distance(a, b)
         if abs(energy_difference) < 1e-5 and abs(fingerprint_distance) < 1.0:
             if energy_difference < 1:
                 if a in final_list:
+                    cluster_logger.debug('Removing {}'.format(a.name))
                     final_list.remove(a)
             else:
                 if b in final_list:
+                    cluster_logger.debug('Removing {}'.format(b.name))
                     final_list.remove(b)
+    cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
+    print_energy_table(final_list)
     return final_list
 
 
+def memoize(f):
+    """ Memoization decorator for functions taking one or more arguments.
+    https://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/
+    """
+    class memodict(dict):
+        def __init__(self, f):
+            self.f = f
+        def __call__(self, *args):
+            return self[args]
+        def __missing__(self, key):
+            ret = self[key] = self.f(*key)
+            return ret
+    return memodict(f)
+
+@memoize
+def calc_energy_difference(a, b):
+    energy_difference = a.energy - b.energy
+    return energy_difference
+
+
+@memoize
+def calc_fingerprint_distance(a, b):
+    "Calculate the distance between two fingerprints"
+    fingerprint_distance = np.linalg.norm(a.fingerprint - b.fingerprint)
+    return fingerprint_distance
+
 def choose_geometries(list_of_molecules):
     if len(list_of_molecules) < 2:
-        print("    Not enough data to cluster (only ", len(list_of_molecules), ") , returning original")
+        cluster_logger.info("Not enough data to cluster (only ", len(list_of_molecules), ") , returning original")
         return list_of_molecules
+    if len(list_of_molecules) <= 8:
+        cluster_logger.info('Not enough data for clustering. Removing similar geometrys from the list')
+        return remove_similar(list_of_molecules)
 
-    print('   Clustering on ', len(list_of_molecules), 'geometries')
+    cluster_logger.info('Clustering on {} geometries'.format(len(list_of_molecules)))
 
-    # dt = [i.fingerprint for i in list_of_molecules]
-    dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
+    # dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
+    dt = [i.fingerprint for i in list_of_molecules]
 
     dt = np.around(dt, decimals=5)
 
-    import pandas as pd
     df = pd.DataFrame(dt)
     df.to_csv("features.csv")
 
+    scale_it = RobustScaler()
+    dt = scale_it.fit_transform(dt)
+
     try:
         labels = generate_labels(dt)
-    except:
-        print("   All Clustering algorithms failed")
+    except Exception:
+        cluster_logger.exception("All Clustering algorithms failed")
         return list_of_molecules
 
     best_from_each_cluster = select_best_from_each_cluster(labels, list_of_molecules)
@@ -85,10 +91,8 @@ def choose_geometries(list_of_molecules):
     if len(best_from_each_cluster) == 1:
         return best_from_each_cluster
     else:
+        cluster_logger.info("Removing similar molecules after clustering.")
         reduced_best_from_each_cluster = remove_similar(best_from_each_cluster)
-
-    print("After removing similar ones, the lowest energy structures from each cluster")
-    print_energy_table(reduced_best_from_each_cluster)
 
     if len(reduced_best_from_each_cluster) > 8:
         return choose_geometries(reduced_best_from_each_cluster)
@@ -100,7 +104,98 @@ def print_energy_table(molecules):
     e_dict = {i.name: i.energy for i in molecules}
     ref = min(e_dict.values())
     for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
-        print("      {:>15}:{:12.6f}{:12.2f}".format(name, energy, (energy - ref) * 627.51))
+        cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy, (energy - ref) * 627.51))
+
+
+def get_labels(data_as_list, algorithm='combo'):
+    dt = np.array(data_as_list)
+    labels = []
+
+    cluster_logger.debug(' Algorithm = {}'.format(algorithm))
+
+    if algorithm == 'combo':
+
+        kmeans_labels, centres = n_clusters_optimized_with_kmeans(dt)
+        cluster_logger.info('Clustering with MeahShift algorithm using seeds from K-Means')
+        ms = MeanShift(bandwidth=None, bin_seeding=True, seeds=centres)
+        ms.fit(dt)
+        meanshift_labels = ms.labels_
+        n_labels = len(np.unique(meanshift_labels))
+        if 1 < n_labels < 8:
+            labels = meanshift_labels
+        else:
+            labels = kmeans_labels
+
+    if algorithm == 'meanshift':
+
+        try:
+            # The following bandwidth can be automatically detected using
+            bandwidth = estimate_bandwidth(dt, quantile=0.2, n_samples=len(dt))
+            cluster_logger.debug(' Estimated bandwidth: {}'.format(bandwidth))
+        except Exception:
+            # If it fails to estimate bandwidth, give a value (it is arbitrary now,
+            # TODO can we find a reasonable value?)
+            cluster_logger.exception(' Estimation of bandwidth failed. Using 0.5 as bandwidth')
+            bandwidth = 0.5
+        try:
+            ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+            ms.fit(dt)
+            labels = ms.labels_
+        except Exception:
+            cluster_logger.error('MeanShift failed')
+
+    if algorithm == 'dbscan':
+        dbs = DBSCAN(eps=0.1)
+        try:
+            dbs.fit(dt)
+            labels = dbs.labels_
+        except Exception:
+            cluster_logger.exception('DBSCAN Failed')
+
+    if algorithm == 'kmeans':
+        kmeans = KMeans(n_clusters=8)
+        try:
+            kmeans.fit(dt)
+            labels = kmeans.labels_
+        except Exception:
+            cluster_logger.exception('K-Means  Failed')
+
+    if algorithm == 'affinitypropagation':
+        af = AffinityPropagation()
+        try:
+            af.fit(dt)
+            labels = af.labels_
+        except Exception:
+            cluster_logger.exception('Affinity Propagation Failed')
+
+    return labels
+
+
+def n_clusters_optimized_with_kmeans(dt):
+    if len(dt) > 10000:
+        kmeans = MiniBatchKMeans(n_clusters=8)
+        kmeans.fit(dt)
+        labels = kmeans.labels_
+        centres = kmeans.cluster_centers_
+        cluster_logger.info('For more than 10k samples, KMeans with n_clusters=8 is used as memory becomes a problem.')
+        return labels, centres
+
+    labels = {}
+    centres = {}
+    scores = {}
+    for i in range(2,min(len(dt),9)):
+        kmeans = KMeans(n_clusters=i)
+        try:
+            kmeans.fit(dt)
+            labels[i] = kmeans.labels_
+            centres[i] = kmeans.cluster_centers_
+            scores[i] = silhouette_score(dt, labels[i])
+            cluster_logger.debug('n_clusters: {}; score: {}'.format(i, scores[i]))
+        except Exception:
+            cluster_logger.exception('K-Means failed')
+    best = max(scores, key=scores.get)
+    cluster_logger.info('Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
+    return labels[best], centres[best]
 
 
 def generate_labels(dt):
@@ -110,39 +205,36 @@ def generate_labels(dt):
     :param dt: data for clustering as np.array
     :return: list of labels
     """
-    try:
-        return get_labels(dt, algorithm='meanshift')
-    except:
-        print('    MeanShift failed')
-    try:
-        return get_labels(dt, algorithm='affinitypropagation')
-    except:
-        print('    Affinity Propagation failed')
-    try:
-        return get_labels(dt, algorithm='dbscan')
-    except:
-        print('    DBSCAN failed')
-
-    return get_labels(dt, algorithm='kmeans')
+    methods = ['combo', 'meahshift', 'affinitypropagation', 'dbscan']
+    for method in methods:
+        try:
+            return get_labels(dt, algorithm=method)
+        except Exception:
+            cluster_logger.exception('{} failed'.format(method))
 
 
 def select_best_from_each_cluster(labels, list_of_molecules):
     unique_labels = np.unique(labels)
-    print("   The distribution of file in each cluster:", np.bincount(labels[labels >= 0]))
+    cluster_logger.info("The distribution of file in each cluster {}:".format(np.bincount(labels)))
 
     best_from_each_cluster = []
     for this_label in unique_labels:
-        mols_in_this_grp = [m for label, m in zip(labels, list_of_molecules) if label == this_label]
-        best_from_each_cluster.append(best_molecule(mols_in_this_grp))
-    print("    Lowest energy structures from each cluster")
+        molecules_in_this_group = [m for label, m in zip(labels, list_of_molecules) if label == this_label]
+        best_from_each_cluster.append(best_molecule(molecules_in_this_group))
+    cluster_logger.info("Lowest energy structures from each cluster")
     print_energy_table(best_from_each_cluster)
     return best_from_each_cluster
 
 
 def best_molecule(list_of_molecules):
+    """Give a list of molecule objects with name and energy, and this function returns the molecule with lower energy
+    :type list_of_molecules: list of Molecule objects
+    """
     energy_dict = {each_molecule.name: each_molecule.energy for each_molecule in list_of_molecules}
     key_of_the_least_value = min(energy_dict, key=energy_dict.get)
-    return list_of_molecules[key_of_the_least_value]
+    for i in list_of_molecules:
+        if i.name == key_of_the_least_value:
+            return i
 
 
 def read_energy_from_xyz_file(xyz_file):
@@ -155,22 +247,36 @@ def read_energy_from_xyz_file(xyz_file):
 # main program
 def main():
     from Molecule import Molecule
-    try:
-        input_files = sys.argv[1:]
-    except:
-        print('usage: cluster.;y <xyz-file(s)>')
-        sys.exit(1)
+    logger = logging.getLogger('pyar')
+    handler = logging.FileHandler('pyar.log', 'w')
+    formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
+    input_files = sys.argv[1:]
 
     if len(input_files) < 2:
         print('Not enough files to cluster')
         sys.exit(0)
-    mols = {}
+
+    mols = []
     for each_file in input_files:
         mol = Molecule.from_xyz(each_file)
         mol.energy = read_energy_from_xyz_file(each_file)
-        mols[mol.name] = mol
+        mols.append(mol)
+    selected = choose_geometries(mols)
+    cmd = ['/home/anoop/bin/molden5.0.gfortran.ubuntu.32']
+    fls = []
+    for one in selected:
+        fls.append(one.name+'.xyz')
+    import subprocess as subp
+    print(' '.join(cmd+fls))
+    # subp.check_call(cmd)
     return
 
 
 if __name__ == "__main__":
     main()
+
+
