@@ -28,7 +28,7 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max,
           hm_orientations, method,
-          site, number_of_core_atom, proximity_factor):
+          site, proximity_factor):
     """Run reactor module.  This is the outer loop
     generates all the orientations
     loop over all the gamma values
@@ -49,10 +49,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max,
     all_orientations = tabu.generate_orientations('geom',
                                                   reactant_a,
                                                   reactant_b,
-                                                  hm_orientations,
-                                                  site,
-                                                  number_of_core_atom,
-                                                  proximity_factor)
+                                                  hm_orientations)
 
     os.chdir(cwd)
 
@@ -71,14 +68,18 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max,
                                            product_dir, method)
 
         reactor_logger.info("      {} geometries from this gamma cycle".format(len(optimized_molecules)))
-        orientations_to_optimize = clustering.remove_similar(optimized_molecules)
-        if len(orientations_to_optimize) == 0:
+        if len(optimized_molecules) == 0:
             reactor_logger.info("No orientations to be optimized for the next gamma cycle.")
             return
-        reactor_logger.info("      {} geometries in the next gamma cycle".format(len(orientations_to_optimize)))
-        reactor_logger.info("number of products found from gamma:{} = {}".format(gamma, len(table_of_product_inchi_strings)))
+        if len(optimized_molecules) == 1:
+            orientations_to_optimize = optimized_molecules[:]
+        else:
+            orientations_to_optimize = clustering.remove_similar(optimized_molecules)
+        reactor_logger.info("Number of products found from gamma:{} = {}".format(gamma, len(table_of_product_inchi_strings)))
+        reactor_logger.info("      {} geometries are considered for the next gamma cycle".format(len(orientations_to_optimize)))
+        reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
-            reactor_logger.info("the key for next gamma cycle: {}".format(this_orientation.name))
+            reactor_logger.debug("      {}".format(this_orientation.name))
     os.chdir(cwd)
     return
 

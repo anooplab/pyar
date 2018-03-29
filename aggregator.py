@@ -5,8 +5,6 @@ import file_manager
 import tabu
 from data_analysis import clustering
 from optimiser import optimise
-from tabu import proximity_check
-
 
 def check_stop_signal():
     if os.path.exists('stop') or os.path.exists('STOP'):
@@ -14,8 +12,7 @@ def check_stop_signal():
         return 1
 
 
-def aggregate(seeds, monomer, aggregate_size, hm_orientations,
-              method, site, number_of_core_atoms, proximity_factor):
+def aggregate(seeds, monomer, aggregate_size, hm_orientations, method):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -37,8 +34,7 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations,
         os.chdir(aggregate_home)
 
         print(" Starting aggregation cycle: {}".format(aggregation_counter))
-        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations,
-                        method, site, number_of_core_atoms, proximity_factor)
+        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method)
         print(" Aggregation cycle: {} completed\n".format(aggregation_counter))
 
         if hm_orientations == 'auto' and number_of_orientations <= 256:
@@ -47,8 +43,7 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations,
     return
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
-            site, number_of_core_atoms, proximity_factor):
+def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
     """
 
     """
@@ -72,15 +67,10 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
         monomer.mol_to_xyz('monomer.xyz')
         mol_id = '{0}_{1}'.format(seed_id, aggregate_id)
 
-        all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer,
-                                                      hm_orientations, site,
-                                                      number_of_core_atoms, proximity_factor)
+        all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer, hm_orientations)
         for molecule in all_orientations:
             o_status = optimise(molecule, method)
             if o_status is True:
-                if proximity_check(molecule, site, number_of_core_atoms,
-                                   proximity_factor) is False:
-                    continue
                 print("      E(%10s): %12.7f" % (molecule.name, molecule.energy))
                 list_of_optimized_molecules.append(molecule)
             else:

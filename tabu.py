@@ -46,7 +46,7 @@ def gen_a_set_of_angles(which_octant):
     beta = random.uniform(sa, ga)
     gamma = random.uniform(sa, pa)
 
-    return theta, phi, alpha, beta, gamma
+    return list(map(math.degrees, [theta, phi, alpha, beta, gamma]))
 
 
 def polar_to_cartesian(r, theta, phi):
@@ -76,27 +76,17 @@ def check_similarity(angles, previous_angles, d_threshold, a_threshold):
     return True, angles
 
 
-def proximity_check(mol, cite_to_be_solvated, number_of_core_atoms, proximity_factor):
-    if cite_to_be_solvated is None:
-        cite_to_be_solvated = range(number_of_core_atoms)
-    else:
-        cite_to_be_solvated = [cite_to_be_solvated, ]
-    for a in cite_to_be_solvated:
-        for b in range(number_of_core_atoms, mol.number_of_atoms):
-            dist_cutoff = proximity_factor * (mol.vdw_radius[a] + mol.vdw_radius[b])
-            distance = np.linalg.norm(mol.coordinates[a] - mol.coordinates[b])
-            if distance < dist_cutoff:
-                return True
-    else:
-        return False
-
-
 def close_contact(mol_1, mol_2, factor):
     fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
     radius_one, radius_two = mol_1.vdw_radius, mol_2.vdw_radius
     sum_of_radii = np.array([(x + y) for x, y in itertools.product(radius_one, radius_two)])
     inter_atomic_distance = np.array([np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)])
-    return np.any(inter_atomic_distance < sum_of_radii * factor)
+    for l, m in zip(inter_atomic_distance, sum_of_radii):
+        if l < m:
+            return True
+        else:
+            print(l)
+            return False
 
 
 def gen_vectors(number_of_orientations):
@@ -114,8 +104,7 @@ def gen_vectors(number_of_orientations):
     return vectors
 
 
-def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
-                          site, number_of_core_atoms, proximity_factor):
+def generate_orientations(molecule_id, seed, monomer, number_of_orientations):
     number_of_atoms_in_seed = seed.number_of_atoms
     number_of_atoms_in_monomer = monomer.number_of_atoms
     filename_prefix = 'trial_'
@@ -129,9 +118,7 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
 
     if number_of_atoms_in_seed == 1 and number_of_atoms_in_monomer == 1:
         vector = [0.0, 0.0, 0.0, 0.0, 0.0]
-        _, orientation = merge_monomer_and_seed(vector, monomer, seed,
-                                                site, number_of_core_atoms,
-                                                proximity_factor)
+        orientation = merge_monomer_and_seed(vector, monomer, seed)
         orientation_id = "%03d_" % 0 + molecule_id
         orientation.title = 'trial orientation ' + orientation_id
         orientation.name = orientation_id
@@ -149,24 +136,15 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
                 tries = 1
                 while not accepted:
                     accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
-                    accepted, orientation = merge_monomer_and_seed(one_set, monomer, seed,
-                                                                   site,
-                                                                   number_of_core_atoms,
-                                                                   proximity_factor)
-                    vectors.append(one_set)
-                    tries += 1
-                    if tries > 10000:
-                        tabu_logger.warning('Could not find an orientation in', tries, 'tries')
-                        proximity_factor *= 1.1
-                        break
-                if accepted:
-                    orientation_id = "%03d_" % (i * 8 + j) + molecule_id
-                    orientation.title = 'trial orientation ' + orientation_id
-                    orientation.name = orientation_id
+                orientation = merge_monomer_and_seed(one_set, monomer, seed)
+                vectors.append(one_set)
+                orientation_id = "%03d_" % (i * 8 + j) + molecule_id
+                orientation.title = 'trial orientation ' + orientation_id
+                orientation.name = orientation_id
 
-                    orientation_xyz_file = filename_prefix + orientation_id + '.xyz'
-                    orientation.mol_to_xyz(orientation_xyz_file)
-                    orientations.append(orientation)
+                orientation_xyz_file = filename_prefix + orientation_id + '.xyz'
+                orientation.mol_to_xyz(orientation_xyz_file)
+                orientations.append(orientation)
 
                 d_threshold *= 0.95
                 a_threshold *= 0.95
@@ -174,8 +152,7 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
     return orientations
 
 
-def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orientations,
-                                             cite_to_be_solvated, number_of_core_atoms):
+def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orientations):
     noa = seed.number_of_atoms
     nob = monomer.number_of_atoms
     if noa == 1 and nob == 1:
@@ -192,12 +169,7 @@ def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orie
 
     for i, each_vector in enumerate(vectors):
         orientation_id = "%03d_" % i + molecule_id
-        status, orientation = merge_monomer_and_seed(each_vector,
-                                                     monomer, seed,
-                                                     cite_to_be_solvated,
-                                                     number_of_core_atoms, proximity_factor=1.5)
-        if status is False:
-            continue
+        orientation = merge_monomer_and_seed(each_vector, monomer, seed)
 
         orientation.title = 'trial orientation ' + orientation_id
         orientation.name = orientation_id
@@ -209,9 +181,7 @@ def generate_orientations_from_given_vectors(molecule_id, seed, monomer, hm_orie
     return orientations
 
 
-def merge_monomer_and_seed(each_vector, monomer, seed,
-                           site, number_of_core_atoms,
-                           proximity_factor):
+def merge_monomer_and_seed(each_vector, monomer, seed, site=None):
     theta, phi, alpha, beta, gamma = each_vector
     monomer.move_to_origin()
     if monomer.number_of_atoms > 1:
@@ -223,10 +193,14 @@ def merge_monomer_and_seed(each_vector, monomer, seed,
             phi = 0.0
         monomer.translate(polar_to_cartesian(r, theta, phi))
     orientation = seed + monomer
+    if site is not None:
+        atoms_in_self = site
+    else:
+        atoms_in_self = [i for i in range(seed.number_of_atoms)]
+    atoms_in_other = [i for i in range(seed.number_of_atoms, orientation.number_of_atoms)]
+    orientation.fragments = [atoms_in_self, atoms_in_other]
     write_tabu_list(each_vector, 'tabu.dat')
-    if site is not None and proximity_check(orientation, site, number_of_core_atoms, proximity_factor) is False:
-        return False, None
-    return True, orientation
+    return orientation
 
 
 def test_gen_vec():

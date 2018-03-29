@@ -311,18 +311,7 @@ def distance(coords_a, coords_b):
 
 
 def main():
-    import sys
-    mol1 = Molecule.from_xyz(sys.argv[1])
-    mol2 = Molecule.from_xyz(sys.argv[2])
-    mol3 = Molecule.from_xyz(sys.argv[3])
-    mol4 = Molecule.from_xyz(sys.argv[4])
-    mol5 = mol1 + mol2.translate(2)
-    print('mol1 + mol2 done')
-    mol6 = mol5 + mol3.rotate_3d([30.0, 30.0, 30.0])
-    print('mol5 + mol3 done')
-    mol7 = mol6 + mol4.translate(3)
-    print('mol6 + mol4 done')
-    print(mol7.fragments)
+    pass
 
 
 if __name__ == '__main__':

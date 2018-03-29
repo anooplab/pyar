@@ -63,9 +63,6 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
     inter_atomic_distance_ij = np.array([np.linalg.norm(a - b) for a, b in product(fragment1, fragment2)])
     sum_of_covalent_radii__ij = np.array([(a + b) for a, b in product(radius_one, radius_two)])
 
-    if bohr2angstrom(np.min(inter_atomic_distance_ij)) > 5.0:
-        print('Warning! Fragments may be flying away!\nCheck the geometry in', os.getcwd())
-
     nom = np.sum((sum_of_covalent_radii__ij / inter_atomic_distance_ij) ** parameter * inter_atomic_distance_ij)
     den = np.sum((sum_of_covalent_radii__ij / inter_atomic_distance_ij) ** parameter)
 

@@ -62,7 +62,7 @@ def argument_parse():
     chemistry_group.add_argument("--software", type=str,
                                  choices=['turbomole', 'OBabel', 'mopac', 'xtb', 'xtb_turbo', 'orca'],
                                  required=True, help="Software")
-    parser.add_argument('-v', '--verbosity', default=1, choices=[0, 1, 2, 3, 4],
+    parser.add_argument('-v', '--verbosity', default=1, choices=[0, 1, 2, 3, 4], type=int,
                         help="increase output verbosity (0=Debug; 1=Info; 2: Warning; 3: Error; 4: Critical)")
 
     return parser.parse_args()
@@ -110,12 +110,10 @@ def main():
 
     if args.site is None:
         site = None
-        number_of_atoms_in_the_core = input_molecules[0].number_of_atoms
-        proximity_factor = 1.5
+        proximity_factor = 2.3
     else:
         site = args.site
-        number_of_atoms_in_the_core = input_molecules[0].number_of_atoms
-        proximity_factor = 1.0
+        proximity_factor = 2.3
 
     if args.aggregate:
         size_of_aggregate = args.aggregate_size
@@ -141,12 +139,9 @@ def main():
         aggregator.aggregate(seeds, monomer,
                              aggregate_size=size_of_aggregate,
                              hm_orientations=number_of_orientations,
-                             method=method_args,
-                             site=site,
-                             number_of_core_atoms=number_of_atoms_in_the_core,
-                             proximity_factor=proximity_factor)
+                             method=method_args)
 
-        logger.info('Time:', time.clock() - t1)
+        logger.info('Time: {}'.format(time.clock() - t1))
 
     if args.react:
         minimum_gamma = args.gmin
@@ -170,8 +165,7 @@ def main():
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations, method=method_args,
-                      site=site, number_of_core_atom=number_of_atoms_in_the_core,
-                      proximity_factor=2.8)
+                      site=site, proximity_factor=2.8)
         logger.info('Time: {}'.format(time.clock() - t1))
         return
 

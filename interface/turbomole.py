@@ -31,6 +31,9 @@ from interface import SF
 from interface import which
 from units import angstrom2bohr, bohr2angstrom
 
+import logging
+turbomole_logger = logging.getLogger('pyar.turbomole')
+
 
 class Turbomole(SF):
     def __init__(self, molecule, method):
@@ -54,13 +57,6 @@ class Turbomole(SF):
         cwd = os.getcwd()
         job_dir = 'job_' + self.job_name
         file_manager.make_directories(job_dir)
-
-        if gamma > 0.0:
-            if os.path.isfile('fragment'):
-                shutil.copy('fragment', job_dir)
-            else:
-                print("file, {}, not found".format('fragment'))
-                sys.exit()
 
         os.chdir(job_dir)
 
@@ -88,7 +84,7 @@ class Turbomole(SF):
                 rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, restraint_energy, trg)
 
             # Update coordinates and check convergence.
-            status, msg = update_coord()
+            status = update_coord()
             if status is True:
                 print('converged at', cycle)
                 self.energy = get_energy()
@@ -154,7 +150,8 @@ def make_coord(atoms_list, coordinates, outfile='coord'):
 def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                     memory=8000, grid="m4", scf_conv=7, scf_maxiter=500,
                     dftd3="yes", charge=0, multiplicity=1,
-                    read_define_input="no", define_input_file="define.inp"):
+                    read_define_input="no", define_input_file="define.inp",
+                    coordinates='internal'):
 
     """This function will prepare the control file. Most of the arguments have
        default values(all have in its current form). The read_define_input var
@@ -170,7 +167,10 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
         define_input_file = "define.inp"
         with open(define_input_file, "w") as fdefine:
             fdefine.write("\n\n")
-            fdefine.write("a coord\n*\nno\n")
+            if coordinates is 'internal':
+                fdefine.write("a coord\nired\n*\n")
+            elif coordinates is 'cartesian':
+                fdefine.write("a coord\n*\nno\n")
             fdefine.write("bb all %s\n" % basis)
             fdefine.write("*\neht\ny \n")
             fdefine.write("%d\n" % charge)
@@ -202,7 +202,24 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
     os.remove('tmp_bash_command')
     if 'abnormally' in open(define_log_file).read():
         print('define ended abnormally')
-        return False
+        prepare_control(coordinates='cartesian')
+    return True
+
+
+def generate_internal_coordinates():
+
+    if not os.path.isfile('coord'):
+        print("Turbomole coordinate file, 'coord', should exist")
+        sys.exit()
+
+    define_input_file = "def_inp"
+    define_log_file = "define.log"
+
+    with open('tmp_bash_command', 'w') as f:
+        f.write("define<%s>&define.log" % define_input_file)
+    with open(define_log_file, 'w') as fdout:
+        subp.check_call(["bash", "tmp_bash_command"], stdout=fdout)
+    os.remove('tmp_bash_command')
     return True
 
 
@@ -218,17 +235,53 @@ def get_gradients(natoms):
 
 
 def get_coords():
-    return np.loadtxt('coord', comments='$', usecols=(0, 1, 2))
+    with open('coord') as fp:
+        f = fp.readlines()
+        if f[0].strip() != '$coord':
+            print("'$coord' not found. Check the file.")
+            sys.exit()
+        geometry_section = []
+        for line in f[1:]:
+            if line.strip() == '$user-defined bonds':
+                break
+            geometry_section.append(line.split())
+        coordinates = []
+        for i, c in enumerate(geometry_section):
+            try:
+                x_coord = float(c[0])
+                y_coord = float(c[1])
+                z_coord = float(c[2])
+                symbol = c[3].capitalize()
+            except:
+                print("Something wrong in line: ", i + 1)
+                print(c)
+                sys.exit()
+            coordinates.append([x_coord, y_coord, z_coord])
+
+        return np.array(coordinates)
 
 
 def update_coord():
+    if os.path.exists('def_inp'):
+        os.remove('def_inp')
+
     with open('job.last', 'a') as fp, open('statpt.out', 'w') as fc:
-        subp.check_call(['relax'], stdout=fp, stderr=fc)
-    msg = [line for line in open('statpt.out').readlines() if 'ended' in line]
-    if 'abnormally' in msg:
-        return False, msg
-    else:
-        return check_geometry_convergence('statpt.out'), msg
+        subp.check_call(['statpt'], stdout=fp, stderr=fc)
+    if 'statpt : all done' not in open('job.last').read():
+        turbomole_logger.critical('Error in statpt step')
+        return False
+
+    if os.path.exists('def_inp'):
+        generate_internal_coordinates()
+        os.remove('def_inp')
+
+    with open('job.last', 'a') as fp, open('statpt.out', 'w') as fc:
+        subp.check_call(['statpt'], stdout=fp, stderr=fc)
+    if 'statpt : all done' not in open('job.last').read():
+        turbomole_logger.critical('Error in statpt step')
+        return False
+    return check_geometry_convergence('statpt.out')
+
 
 
 def check_geometry_convergence(outfile):
@@ -274,7 +327,6 @@ def rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy, total_re
             dz = float(re.sub('D', 'E', dz)) - restraint_gradient[i][2]
             temp_line = "{:22.13f} {:22.13f} {:22.13f}".format(dx, dy, dz)
             temp_line = re.sub('E', 'D', temp_line)
-            print(temp_line)
             # formatted = ff.FortranRecordWriter('3D22.13')
             # temp_line = formatted.write([dx, dy, dz])
             new_gradients = new_gradients + str(temp_line) + "\n"

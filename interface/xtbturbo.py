@@ -27,6 +27,8 @@ from afir import restraints
 from interface import SF
 from units import angstrom2bohr, bohr2angstrom
 
+import logging
+xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
 
 class XtbTurbo(SF):
 
@@ -64,10 +66,11 @@ class XtbTurbo(SF):
         interface.turbomole.prepare_control()
 
         for cycle in range(max_cycles):
+            xtb_turbo_logger.debug("Optimization Cycle {}".format(cycle))
             # Calculate energy and gradient
             status, message, energy, gradients = self.calc_engrad
             if status is False:
-                print('Energy/Gradient evaluation failed')
+                xtb_turbo_logger.critical('Energy/Gradient evaluation failed')
                 return False
 
             # Calculate afir gradient if gamma is greater than zero
@@ -76,9 +79,9 @@ class XtbTurbo(SF):
                 interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, augmented_energy, trg)
 
             # Update coordinates and check convergence.
-            status, msg = interface.turbomole.update_coord()
+            status = interface.turbomole.update_coord()
             if status is True:
-                print('converged at', cycle)
+                xtb_turbo_logger.info('converged at {}'.format(cycle))
                 self.energy = interface.turbomole.get_energy()
                 self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
                 interface.write_xyz(self.atoms_list, self.optimized_coordinates,
@@ -92,7 +95,7 @@ class XtbTurbo(SF):
                 else:
                     fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
-            print("cycle exceeded")
+            xtb_turbo_logger.info("cycle exceeded")
             status = 'cycle_exceeded'
             self.energy = interface.turbomole.get_energy()
             self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
