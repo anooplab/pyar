@@ -5,6 +5,8 @@ import file_manager
 
 def optimise(molecule, method, gamma=0.0):
     cwd = os.getcwd()
+    if molecule.name == '':
+        molecule.name = 'opt'
     job_dir = 'job_' + molecule.name
     file_manager.make_directories(job_dir)
     os.chdir(job_dir)

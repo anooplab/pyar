@@ -23,11 +23,14 @@ def argument_parse():
     parser = argparse.ArgumentParser(prog='PyAR', description='is a \
              program to predict aggregation and reaction')
     parser.add_argument("input_files", metavar='files',
-                        type=str, nargs='+', help='input coordinate files')
-    parser.add_argument("-N", dest='hm_orientations',
+                        type=str, nargs='+',
+                        help='input coordinate files')
+    parser.add_argument("-N", dest='hm_orientations', type=int,
                         help='how many orientations to be used')
+
     parser.add_argument('-s', '--site', type=int,
-                        help='atom for site specific aggregation/solvation')
+                        help='atom for site specific '
+                             'aggregation/solvation')
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
     run_type_group.add_argument("-r", "--react",
@@ -58,12 +61,16 @@ def argument_parse():
     chemistry_group.add_argument("-m", "--multiplicity", type=int,
                                  default=1, help="Multiplicity of the system")
     chemistry_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
-                                 default='rhf', help="specify rhf or uhf (defulat=rhf)")
+                                 default='rhf',
+                                 help="specify rhf or uhf (defulat=rhf)")
     chemistry_group.add_argument("--software", type=str,
-                                 choices=['turbomole', 'OBabel', 'mopac', 'xtb', 'xtb_turbo', 'orca'],
+                                 choices=['turbomole', 'OBabel', 'mopac',
+                                          'xtb', 'xtb_turbo', 'orca'],
                                  required=True, help="Software")
-    parser.add_argument('-v', '--verbosity', default=1, choices=[0, 1, 2, 3, 4], type=int,
-                        help="increase output verbosity (0=Debug; 1=Info; 2: Warning; 3: Error; 4: Critical)")
+    parser.add_argument('-v', '--verbosity', default=1,
+                        choices=[0, 1, 2, 3, 4], type=int,
+                        help="increase output verbosity (0=Debug; 1=Info; "
+                             "2: Warning; 3: Error; 4: Critical)")
 
     return parser.parse_args()
 
@@ -84,6 +91,9 @@ def setup_molecules(input_files):
 
 def main():
     args = argument_parse()
+
+    print(type(args.hm_orientations))
+    print(args.hm_orientations)
     if args.verbosity == 0:
         logger.setLevel(logging.DEBUG)
     elif args.verbosity == 1:
@@ -161,7 +171,6 @@ def main():
             sys.exit()
 
         t1 = time.clock()
-
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations, method=method_args,

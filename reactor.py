@@ -13,9 +13,9 @@ from optimiser import optimise
 import logging
 reactor_logger = logging.getLogger('pyar.reactor')
 
-table_of_product_molecules = {}
-table_of_product_inchi_strings = {}
-table_of_product_smile_strings = {}
+saved_products = {}
+saved_inchi_strings = {}
+saved_smile_strings = {}
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
@@ -75,7 +75,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max,
             orientations_to_optimize = optimized_molecules[:]
         else:
             orientations_to_optimize = clustering.remove_similar(optimized_molecules)
-        reactor_logger.info("Number of products found from gamma:{} = {}".format(gamma, len(table_of_product_inchi_strings)))
+        reactor_logger.info("Number of products found from gamma:{} = {}".format(gamma, len(saved_inchi_strings)))
         reactor_logger.info("      {} geometries are considered for the next gamma cycle".format(len(orientations_to_optimize)))
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
@@ -124,15 +124,15 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                     reactor_logger.info("Start InChi: {} Current InChi: {}".format(start_inchi, current_inchi))
 
                     if start_inchi != current_inchi or start_smile != current_smile:
-                        table_of_product_molecules[job_name] = this_molecule
+                        saved_products[job_name] = this_molecule
                         reactor_logger.info("       The geometry is different from the stating structure.")
                         reactor_logger.info("       Checking if this is a (new) products")
-                        if current_inchi not in table_of_product_inchi_strings.values() and \
-                                current_smile not in table_of_product_smile_strings.values():
+                        if current_inchi not in saved_inchi_strings.values() and \
+                                current_smile not in saved_smile_strings.values():
                             reactor_logger.info("        New Product! Saving")
-                            table_of_product_inchi_strings[job_name] = current_inchi
-                            table_of_product_smile_strings[job_name] = current_smile
-                            table_of_product_molecules[job_name] = this_molecule
+                            saved_inchi_strings[job_name] = current_inchi
+                            saved_smile_strings[job_name] = current_smile
+                            saved_products[job_name] = this_molecule
                             shutil.copy('result_relax.xyz',
                                         product_dir + '/' + job_name + '.xyz')
                             os.chdir(cwd)

@@ -22,11 +22,11 @@ class Molecule(object):
         self.average_radius = self.get_average_radius()
         self.std_of_radius = self.get_std_of_radius()
         self.distance_matrix = self.get_distance_matrix()
-        self.moments_of_inertia_tensor = self.get_moments_of_inertia_tensor()
-        self.principal_axes = self.get_principal_axes()
-        self.coulomb_matrix = self.calculate_coulomb_matrix()
-        self.fingerprint =  self.calculate_fingerprint()
-        self.sorted_coulomb_matrix = self.calculate_sorted_coulomb_matrix()
+        # self.moments_of_inertia_tensor = self.get_moments_of_inertia_tensor()
+        # self.principal_axes = self.get_principal_axes()
+        # self.coulomb_matrix = self.calculate_coulomb_matrix()
+        # self.fingerprint =  self.calculate_fingerprint()
+        # self.sorted_coulomb_matrix = self.calculate_sorted_coulomb_matrix()
 
 
         if name is None:
@@ -119,6 +119,7 @@ class Molecule(object):
             coordinates.append([x_coord, y_coord, z_coord])
 
         mol_coordinates = np.array(coordinates)
+        mol_coordinates -= np.mean(mol_coordinates, axis=0)
         mol_name = filename[:-4]
         return cls(atoms_list, mol_coordinates, name=mol_name, title=mol_title)
 
@@ -215,7 +216,8 @@ class Molecule(object):
         else:
             return False
 
-    def calculate_coulomb_matrix(self):
+    @property
+    def coulomb_matrix(self):
         """ 
         Author: Debankur Bhattacharyya
         """
@@ -232,12 +234,14 @@ class Molecule(object):
                     coulomb_matrix[i, j] = (charges[i] * charges[j]) / R_ij
         return coulomb_matrix
 
-    def calculate_fingerprint(self):
+    @property
+    def fingerprint(self):
         eigenvalues = np.linalg.eigvals(self.coulomb_matrix)
         eigenvalues[::-1].sort()
         return eigenvalues
 
-    def calculate_sorted_coulomb_matrix(self):
+    @property
+    def sorted_coulomb_matrix(self):
         """
         From: https://github.com/pythonpanda/coulomb_matrix/
         Takes in a Coloumb matrix of (mxn) dimension and performs a 
@@ -257,7 +261,7 @@ class Molecule(object):
         of mass(centroid). Then, it rotate the molecule and translate
         to its original position. So, to rotate a molecule around the origin,
         (0.,0.,0.), set_origin usage is necessary"""
-        phi, theta, psi = map(radians, vector)
+        phi, theta, psi = vector
         D = np.array(((cos(phi), sin(phi), 0.),
                       (-sin(phi), cos(phi), 0.),
                       (0., 0., 1.)))
@@ -273,15 +277,15 @@ class Molecule(object):
         return self
 
     def move_to_origin(self):
-        self.translate(self.centroid)
+        self.translate(self.get_centroid())
         return self
 
     def move_to_centre_of_mass(self):
-        self.translate(self.centre_of_mass)
+        self.translate(self.get_centre_of_mass())
         return self
 
     def translate(self, magnitude):
-        self.coordinates = self.coordinates - magnitude
+        self.coordinates -= magnitude
         return self
 
     def align(self):
@@ -289,7 +293,7 @@ class Molecule(object):
         Align the molecules to the principal axis
         :return: aligned coordinates
         """
-        moi = self.moments_of_inertia_tensor
+        moi = self.get_moments_of_inertia_tensor()
         eigenvalues, eigen_vectors = np.linalg.eig(moi)
         transformed_coordinates = np.array(np.dot(self.coordinates, eigen_vectors))
         order = [0, 1, 2]
