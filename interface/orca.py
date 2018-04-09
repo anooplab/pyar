@@ -26,7 +26,7 @@ from interface import SF, write_xyz
 
 
 class Orca(SF):
-    def __init__(self, molecule, method):
+    def __init__(self, molecule, method, custom_keyword=None):
 
         super(Orca, self).__init__(molecule)
 
@@ -47,9 +47,11 @@ class Orca(SF):
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword = "!BP RI opt def2-SVP KDIIS"
+        keyword = "!BP RI opt def2-SVP KDIIS "
         if any(x >= 21 for x in molecule.atomic_number):
-            keyword += 'def2-ECP'
+            keyword += ' def2-ECP'
+        if custom_keyword is not None:
+            keyword += custom_keyword
         self.prepare_input(keyword=keyword)
 
     def prepare_input(self, keyword=""):

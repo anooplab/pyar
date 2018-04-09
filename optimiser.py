@@ -3,7 +3,7 @@ import os
 import file_manager
 
 
-def optimise(molecule, method, gamma=0.0):
+def optimise(molecule, method, gamma=0.0, custom_keyword=None):
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'opt'
@@ -26,7 +26,7 @@ def optimise(molecule, method, gamma=0.0):
         geometry = mopac.Mopac(molecule, method)
     elif software == "orca":
         from interface import orca
-        geometry = orca.Orca(molecule, method)
+        geometry = orca.Orca(molecule, method, custom_keyword=custom_keyword)
     elif software == 'OBabel':
         from interface import babel
         geometry = babel.OBabel(molecule)

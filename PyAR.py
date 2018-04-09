@@ -39,6 +39,9 @@ def argument_parse():
                                 help="Run a aggregator calculation", action='store_true')
     run_type_group.add_argument("-o", "--optimize",
                                 help="Optimize the molecules", action='store_true')
+    run_type_group.add_argument("-mb", "--makebond", nargs=2, type=int,
+                                help="make bonds between the given atoms of two"
+                                     "fragments")
 
     aggregator_group = parser.add_argument_group('aggregator', 'Aggregator specific option')
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
@@ -92,8 +95,6 @@ def setup_molecules(input_files):
 def main():
     args = argument_parse()
 
-    print(type(args.hm_orientations))
-    print(args.hm_orientations)
     if args.verbosity == 0:
         logger.setLevel(logging.DEBUG)
     elif args.verbosity == 1:
@@ -188,6 +189,31 @@ def main():
         from data_analysis import clustering
         x = clustering.choose_geometries(list_of_optimized_molecules)
         logger.info(x)
+
+    if args.makebond:
+        a = args.makebond[0]
+        b = input_molecules[0].number_of_atoms + args.makebond[1]
+        if number_of_orientations is None:
+            logger.error("For aggregation, specify how many orientations"
+                         "are to be used, by the argument\n"
+                         "-N <number of orientations>")
+            sys.exit()
+
+        import tabu
+        molecules = tabu.generate_guess_for_bonding('abc', input_molecules[0],
+                                                    input_molecules[1], a, b,
+                                                    number_of_orientations)
+        for each_molecule in molecules:
+            coordinates = each_molecule.coordinates
+            import numpy as np
+            start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
+            final_distance = each_molecule.covalent_radius[a] + \
+                             each_molecule.covalent_radius[b]
+            step = int(abs(final_distance - start_dist)*10)
+            c_k = '\n!ScanTS\n% geom scan B '+str(a)+' '+str(b)+ '= '+ \
+                  str(start_dist) + ', ' + str(final_distance) + ', 20 end end\n'
+            import optimiser
+            optimiser.optimise(each_molecule, method_args, 0.0, custom_keyword=c_k)
 
 
 if __name__ == "__main__":

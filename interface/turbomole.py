@@ -55,10 +55,10 @@ class Turbomole(SF):
     def optimize(self, max_cycles=35, gamma=0.0):
 
         cwd = os.getcwd()
-        job_dir = 'job_' + self.job_name
-        file_manager.make_directories(job_dir)
-
-        os.chdir(job_dir)
+        # job_dir = 'job_' + self.job_name
+        # file_manager.make_directories(job_dir)
+        #
+        # os.chdir(job_dir)
 
         make_coord(self.atoms_list, self.start_coords)
         prepare_control()
@@ -68,14 +68,14 @@ class Turbomole(SF):
             status, message, energy = self.calc_energy
             if status is False:
                 print('Energy evaluation failed')
-                os.chdir(cwd)
+                # os.chdir(cwd)
                 return False
 
             # Calculate Gradients
             status, message, gradients = self.calc_gradients
             if status is False:
                 print('Gradient evaluation failed')
-                os.chdir(cwd)
+                # os.chdir(cwd)
                 return False
 
             # Calculate afir gradient if gamma is greater than zero
@@ -93,7 +93,7 @@ class Turbomole(SF):
                                     self.job_name,
                                     energy=self.energy)
                 shutil.copy(self.result_xyz_file, cwd)
-                os.chdir(cwd)
+                # os.chdir(cwd)
                 return True
             with open('energy.dat','a') as fe:
                 if gamma > 0.0:
@@ -105,7 +105,7 @@ class Turbomole(SF):
             status = 'cycle_exceeded'
             self.energy = get_energy()
             self.optimized_coordinates = bohr2angstrom(get_coords())
-            os.chdir(cwd)
+            # os.chdir(cwd)
             return status
 
     @property
@@ -281,7 +281,6 @@ def update_coord():
         turbomole_logger.critical('Error in statpt step')
         return False
     return check_geometry_convergence('statpt.out')
-
 
 
 def check_geometry_convergence(outfile):

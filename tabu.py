@@ -172,14 +172,14 @@ def close_contact(mol_1, mol_2, factor):
     """
     fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
     radius_one, radius_two = mol_1.vdw_radius, mol_2.vdw_radius
-    status = False
     for i in range(len(fragment_one)):
         for j in range(len(fragment_two)):
             interatomic_distance = np.linalg.norm(fragment_one[i]-fragment_two[j])
             sum_of_radii = (radius_one[i] + radius_two[j])*factor
             if interatomic_distance < sum_of_radii:
-                status = True
-    return status
+                return True
+    else:
+        return False
 
 
 def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
@@ -237,16 +237,23 @@ def make_an_untabooed_point(a_threshold, angle_tabu, d_threshold,
     return point_n_angle
 
 
-def rotating_octants(number_of_points, distance_tabu=True, angle_tabu=True):
+def rotating_octants(number_of_points, distance_tabu=True, angle_tabu=True,
+                     spaa=None):
     """
     Make N points ((x, y, z, theta, phi, psi) using 'rotating octants' method.
 
+    :type spaa: numpy.array
     :param number_of_points: int
     :param distance_tabu: float
     :param angle_tabu: float
     :return: numpy.array
     """
-    saved_points_and_angles = []
+    if spaa is None:
+        print('no saved points')
+        saved_points_and_angles = []
+    else:
+        saved_points_and_angles = spaa[:]
+
     d_threshold = np.sqrt(2)/2.0
     a_threshold = pi/2.0
     for i in range(number_of_points//8):
@@ -258,7 +265,7 @@ def rotating_octants(number_of_points, distance_tabu=True, angle_tabu=True):
                 if len(saved_points_and_angles) == 0:
                     saved_points_and_angles.append(make_point_n_angles(octant_chooser))
                 else:
-                    point_n_angle = make_an_untabooed_point(a_threshold, angle_tabu, d_threshold, octant_chooser, saved_points_and_angles)
+                    point_n_angle = make_an_untabooed_point(a_threshold, angle_tabu, d_threshold, octant_chooser, spaa)
                     saved_points_and_angles.append(point_n_angle)
 
     return np.array(saved_points_and_angles)
@@ -391,19 +398,13 @@ def generate_composite_molecule(seed, monomer, points_and_angles):
 
 def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
                           method='rotating'):
-
-    if method == 'rotating':
-        if monomer.number_of_atoms ==1:
-            pts = rotating_octants(number_of_orientations, angle_tabu=False)
-        else:
-            pts = rotating_octants(number_of_orientations, angle_tabu=True)
-    elif method == 'random':
-        pts = make_random_points_and_angles(number_of_orientations)
-    elif method == 'uniform':
-        pts = uniformly_distributed_points(number_of_orientations)
+    if monomer.number_of_atoms == 1:
+        tabu_check_for_angles = False
     else:
-        tabu_logger.info('using default method: random')
-        pts = make_random_points_and_angles(number_of_orientations)
+        tabu_check_for_angles = True
+
+    pts = wrapper_of_make_points_and_angles(method, number_of_orientations,
+                                            tabu_check_for_angles)
 
     write_tabu_list(pts, 'tabu.dat')
     plot_points(pts)
@@ -416,6 +417,73 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
         each_orientation.name = each_orientation_id
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
+
+    return orientations
+
+
+def wrapper_of_make_points_and_angles(method, number_of_orientations,
+                                      tabu_check_for_angles):
+    if method == 'rotating':
+        pts = rotating_octants(number_of_orientations,
+                               angle_tabu=tabu_check_for_angles)
+    elif method == 'random':
+        pts = make_random_points_and_angles(number_of_orientations)
+    elif method == 'uniform':
+        pts = uniformly_distributed_points(number_of_orientations)
+    else:
+        tabu_logger.info('using default method: random')
+        pts = make_random_points_and_angles(number_of_orientations)
+    return pts
+
+
+def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
+                               number_of_orientations):
+
+    if monomer.number_of_atoms == 1:
+        tabu_check_for_angles = False
+    else:
+        tabu_check_for_angles = True
+
+    saved_pts = []
+
+    orientations = []
+    for i in range(number_of_orientations):
+        import time
+        t1 = time.clock()
+        pts = rotating_octants(512, angle_tabu=tabu_check_for_angles,
+                               spaa=saved_pts)
+        t2 = time.clock()
+        print('Creating points:', t2-t1, 'seconds')
+        t1 = time.clock()
+        current_orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
+        t2 = time.clock()
+        print('Creating orientations', t2 - t1, 'seconds')
+        t1 = time.clock()
+        dictorie = {}
+        for j, each_orientation in enumerate(current_orientations):
+            coords = each_orientation.coordinates
+            dist = np.linalg.norm(coords[a]-coords[b])
+            dictorie[j] = dist
+        best_orientation = min(dictorie, key=dictorie.get)
+        best_point = pts[best_orientation]
+        print(best_orientation, dictorie[best_orientation])
+        saved_pts.append(best_point)
+        orientations.append(current_orientations[best_orientation])
+        t2 = time.clock()
+        print('Found best orientation', t2-t1)
+
+    t1 = time.clock()
+    filename_prefix = 'trial_'
+    for i, each_orientation in enumerate(orientations):
+        each_orientation_id = "%03d_" % (i) + molecule_id
+        each_orientation.title = 'trial orientation ' + each_orientation_id
+        each_orientation.name = each_orientation_id
+        each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
+        each_orientation.mol_to_xyz(each_orientation_xyz_file)
+    t2 = time.clock()
+    print('Wrote files', t2 - t1)
+    write_tabu_list(saved_pts, 'tabu.dat')
+    plot_points(np.array(saved_pts))
 
     return orientations
 
@@ -499,21 +567,7 @@ def main():
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms+args.best[1]
-        orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
-        dictor = {}
-        for i, each_orientation in enumerate(orientations):
-            coords = each_orientation.coordinates
-            dist = np.linalg.norm(coords[a]-coords[b])
-            dictor[i] = dist
-
-        best = min(dictor, key=dictor.get)
-        print(best, dictor[best])
-        orientations[best].mol_to_xyz('mol.xyz')
-        import optimiser
-        method_here = {'software':'xtb_turbo',
-                       method={'software':'xtb_turbo', 'charge':0,
-                               'scftype':'rhf', 'multiplicity':1}
-        optimiser.optimise(orientations[best], method=method_here , gamma=1000)
+        generate_guess_for_bonding('xxx', seed,monomer, a, b,  N)
 
 if __name__ == "__main__":
     main()
