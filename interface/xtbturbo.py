@@ -75,7 +75,7 @@ class XtbTurbo(SF):
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                augmented_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list, interface.turbomole.get_coords(), gamma)
+                augmented_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, interface.turbomole.get_coords(), gamma)
                 interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, augmented_energy, trg)
 
             # Update coordinates and check convergence.

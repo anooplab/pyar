@@ -46,10 +46,15 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max,
     file_manager.make_directories('trial_geometries')
     os.chdir('trial_geometries')
 
-    all_orientations = tabu.generate_orientations('geom',
-                                                  reactant_a,
-                                                  reactant_b,
-                                                  hm_orientations)
+    if site is None:
+        all_orientations = tabu.generate_orientations('geom', reactant_a,
+                                                      reactant_b,
+                                                      hm_orientations)
+    else:
+        all_orientations = tabu.generate_guess_for_bonding('geom', reactant_a,
+                                                           reactant_b,
+                                                           site[0], site[1],
+                                                           hm_orientations)
 
     os.chdir(cwd)
 
@@ -76,10 +81,10 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max,
         else:
             orientations_to_optimize = clustering.remove_similar(optimized_molecules)
         reactor_logger.info("Number of products found from gamma:{} = {}".format(gamma, len(saved_inchi_strings)))
-        reactor_logger.info("      {} geometries are considered for the next gamma cycle".format(len(orientations_to_optimize)))
+        reactor_logger.info("{} geometries are considered for the next gamma cycle".format(len(orientations_to_optimize)))
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
-            reactor_logger.debug("      {}".format(this_orientation.name))
+            reactor_logger.debug("{}".format(this_orientation.name))
     os.chdir(cwd)
     return
 
@@ -97,7 +102,7 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         os.chdir(orientations_home)
         job_name = gamma_id + o_key
         this_molecule.name = job_name
-        reactor_logger.info('    Optimizing {}'.format(this_molecule.name))
+        reactor_logger.info('Optimizing {}'.format(this_molecule.name))
         start_xyz_file_name = 'trial_' + this_molecule.name + '.xyz'
         this_molecule.mol_to_xyz(start_xyz_file_name)
         start_inchi = interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
@@ -105,11 +110,11 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         status = optimise(this_molecule, method, gamma=gamma)
         before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
-        reactor_logger.info('     job completed')
+        reactor_logger.info('... completed')
         if status is True or status == 'converged' or status == 'cycle_exceeded':
             reactor_logger.info("      E({}): {:12.7f}".format(job_name, this_molecule.energy))
             if this_molecule.is_bonded():
-                reactor_logger.info("      The fragments have close contracts. Going for relaxation")
+                reactor_logger.info("The fragments have close contracts. Going for relaxation")
                 this_molecule.mol_to_xyz('trial_relax.xyz')
                 this_molecule.name = 'relax'
                 status = optimise(this_molecule, method)
@@ -118,15 +123,17 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                     this_molecule.mol_to_xyz('result_relax.xyz')
                     current_inchi = interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
                     current_smile = interface.babel.make_smile_string_from_xyz('result_relax.xyz')
-                    reactor_logger.info('      geometry relaxed')
+                    reactor_logger.info('geometry relaxed')
                     reactor_logger.info("Checking for product formation with SMILE and InChi strings")
                     reactor_logger.info("Start SMILE: {} Current SMILE: {}".format(start_smile, current_smile))
                     reactor_logger.info("Start InChi: {} Current InChi: {}".format(start_inchi, current_inchi))
 
                     if start_inchi != current_inchi or start_smile != current_smile:
                         saved_products[job_name] = this_molecule
-                        reactor_logger.info("       The geometry is different from the stating structure.")
-                        reactor_logger.info("       Checking if this is a (new) products")
+                        reactor_logger.info("       The geometry is different "
+                                            "from the stating structure.")
+                        reactor_logger.info("       Checking if this is a (new)"
+                                            " products")
                         if current_inchi not in saved_inchi_strings.values() and \
                                 current_smile not in saved_smile_strings.values():
                             reactor_logger.info("        New Product! Saving")
@@ -138,19 +145,25 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                             os.chdir(cwd)
                             continue
                         else:
-                            reactor_logger.info("Both strings matches with those of already saved products. Discarded")
+                            reactor_logger.info("Both strings matches with "
+                                                "those of already saved "
+                                                "products. Discarded")
                             os.chdir(cwd)
                             continue
                     else:
                         table_of_optimized_molecules.append(before_relax)
-                        reactor_logger.info('{} is added to the table to optimize with higher gamma'.format(job_name))
+                        reactor_logger.info('{} is added to the table to '
+                                            'optimize with higher '
+                                            'gamma'.format(job_name))
                 elif status == 'cycle_exceeded':
                     table_of_optimized_molecules.append(before_relax)
-                    reactor_logger.info('{} is added to the table to optimize with higher gamma'.format(job_name))
+                    reactor_logger.info('{} is added to the table to optimize '
+                                        'with higher gamma'.format(job_name))
             else:
                 table_of_optimized_molecules.append(this_molecule)
                 reactor_logger.info('        no close contacts found')
-                reactor_logger.info('       {} is added to the table to optimize with higher gamma'.format(job_name))
+                reactor_logger.info('       {} is added to the table to '
+                                    'optimize with higher gamma'.format(job_name))
         os.chdir(cwd)
         sys.stdout.flush()
     return table_of_optimized_molecules

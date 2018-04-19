@@ -3,6 +3,7 @@ import numpy as np
 from itertools import product
 from math import sqrt
 from units import *
+import collections
 import os
 
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
@@ -38,6 +39,8 @@ def get_covalent_radius(z):
 def calculate_gradient(ac, ac2, alpha, v, w, p):
     zn, cn = ac
     alo, aco = ac2
+    alo = flatten(alo)
+    aco = flatten(aco)
     gr = np.zeros(3)
     for zi, ci in zip(alo, aco):
         sum_of_covalent_radii_ni = get_covalent_radius(zn) + get_covalent_radius(zi)
@@ -49,6 +52,16 @@ def calculate_gradient(ac, ac2, alpha, v, w, p):
     return np.array(gr)
 
 
+def flatten(l):
+    # https://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists
+    for el in l:
+        if isinstance(el, collections.Iterable) and not isinstance(el, (str, bytes)):
+            for sub in flatten(el):
+                yield sub
+        else:
+            yield el
+
+
 def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
     assert len(atoms_in_fragment) == 2
 
@@ -57,8 +70,15 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
 
     fragment1, fragment2 = [coordinates[fragment_list, :] for fragment_list in atoms_in_fragment]
     al1, al2 = [np.array(atoms_list)[fragment_list] for fragment_list in atoms_in_fragment]
-    radius_one = [get_covalent_radius(z) for z in al1]
-    radius_two = [get_covalent_radius(z) for z in al2]
+
+    if isinstance(al1, str):
+        radius_one = [get_covalent_radius(al1)]
+    else:
+        radius_one = [get_covalent_radius(z) for z in al1]
+    if isinstance(al2, str):
+        radius_two = [get_covalent_radius(al2)]
+    else:
+        radius_two = [get_covalent_radius(z) for z in al2]
 
     inter_atomic_distance_ij = np.array([np.linalg.norm(a - b) for a, b in product(fragment1, fragment2)])
     sum_of_covalent_radii__ij = np.array([(a + b) for a, b in product(radius_one, radius_two)])
@@ -69,13 +89,14 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
     alpha = calculate_alpha(force)
 
     total_restraint_energy = alpha * nom / den
+
     gradients = np.zeros((len(coordinates), 3))
 
     for index, ac in enumerate(zip(atoms_list, coordinates)):
-        if index in atoms_in_fragment[0]:
-            gradients[index] = calculate_gradient(ac, (al2, fragment2), alpha, nom, den, parameter)
-        elif index in atoms_in_fragment[1]:
-            gradients[index] = calculate_gradient(ac, (al2, fragment1), alpha, nom, den, parameter)
+        if index in flatten(atoms_in_fragment):
+            gradients[index] = calculate_gradient(ac, (al2, fragment2), alpha,
+                                                  nom, den, parameter)
+
     total_restraint_gradients = np.sqrt(np.sum(gradients ** 2))
     return total_restraint_energy, total_restraint_gradients, gradients
 

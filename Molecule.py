@@ -22,12 +22,6 @@ class Molecule(object):
         self.average_radius = self.get_average_radius()
         self.std_of_radius = self.get_std_of_radius()
         self.distance_matrix = self.get_distance_matrix()
-        # self.moments_of_inertia_tensor = self.get_moments_of_inertia_tensor()
-        # self.principal_axes = self.get_principal_axes()
-        # self.coulomb_matrix = self.calculate_coulomb_matrix()
-        # self.fingerprint =  self.calculate_fingerprint()
-        # self.sorted_coulomb_matrix = self.calculate_sorted_coulomb_matrix()
-
 
         if name is None:
             self.name = ''
@@ -179,7 +173,8 @@ class Molecule(object):
         return np.std([distance(self.centroid, coord_i)
                        for coord_i in self.coordinates])
 
-    def get_moments_of_inertia_tensor(self):
+    @property
+    def moments_of_inertia_tensor(self):
         mass = self.atomic_mass
         self.move_to_centre_of_mass()
         x = self.coordinates[:, 0]
@@ -207,14 +202,21 @@ class Molecule(object):
     def is_bonded(self):
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
-
-        R = [x + y for x, y in itertools.product(radius_one, radius_two)]
-        r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
-        for l, m in zip(r, R):
-            if l < m:
+        if isinstance(radius_one, np.float) and isinstance(radius_two, np.float64):
+            R = radius_one + radius_two
+            r = np.linalg.norm(fragment_one-fragment_two)
+            if r < R:
                 return True
+            else:
+                return False
         else:
-            return False
+            R = [x + y for x, y in itertools.product(radius_one, radius_two)]
+            r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
+            for l, m in zip(r, R):
+                if l < m:
+                    return True
+            else:
+                return False
 
     @property
     def coulomb_matrix(self):
@@ -293,7 +295,7 @@ class Molecule(object):
         Align the molecules to the principal axis
         :return: aligned coordinates
         """
-        moi = self.get_moments_of_inertia_tensor()
+        moi = self.moments_of_inertia_tensor
         eigenvalues, eigen_vectors = np.linalg.eig(moi)
         transformed_coordinates = np.array(np.dot(self.coordinates, eigen_vectors))
         order = [0, 1, 2]

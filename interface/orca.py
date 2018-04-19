@@ -47,7 +47,7 @@ class Orca(SF):
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword = "!BP RI opt def2-SVP KDIIS "
+        keyword = "!BP RI Opt def2-SVP D3BJ KDIIS def2/J"
         if any(x >= 21 for x in molecule.atomic_number):
             keyword += ' def2-ECP'
         if custom_keyword is not None:

@@ -23,7 +23,6 @@ import sys
 
 import numpy as np
 
-import file_manager
 import interface
 import interface.babel
 from afir import restraints
@@ -50,7 +49,6 @@ class Turbomole(SF):
         self.atoms_in_fragments = molecule.fragments
         self.energy = None
         self.optimized_coordinates = None
-
 
     def optimize(self, max_cycles=35, gamma=0.0):
 
@@ -80,7 +78,7 @@ class Turbomole(SF):
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                restraint_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list,get_coords(), gamma)
+                restraint_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list, get_coords(), gamma)
                 rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, restraint_energy, trg)
 
             # Update coordinates and check convergence.

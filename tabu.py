@@ -1,10 +1,12 @@
+import itertools
+import logging
+import time
 import os.path
 import random
-import itertools
 
 import numpy as np
-from numpy import pi, arcsin, cos, sin, degrees
-import logging
+from numpy import pi, cos, sin, degrees
+
 tabu_logger = logging.getLogger('pyar.tabu')
 
 
@@ -198,6 +200,8 @@ def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
     :return: boolean True if the new points is within the proximity of saved
     points
     """
+    if saved_points_and_angles is None:
+        return False
     tabu = False
     for each_saved_entry in saved_points_and_angles:
         distance = np.linalg.norm(each_saved_entry[:3] - point_n_angle[:3])
@@ -343,7 +347,6 @@ def uniformly_distributed_points(N):
 
 def plot_points(pts):
     '''have to run with python -i '''
-    from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
 
     phi = np.linspace(0, np.pi, 20)
@@ -372,18 +375,20 @@ def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None
         monomer.translate(np.array([x, y, z])/10)
     orientation = seed + monomer
     if site is not None:
-        atoms_in_self = site
+        atoms_in_self = site[0]
+        atoms_in_other = site[1]
     else:
         atoms_in_self = [i for i in range(seed.number_of_atoms)]
-    atoms_in_other = [i for i in range(seed.number_of_atoms, orientation.number_of_atoms)]
+        atoms_in_other = [i for i in range(seed.number_of_atoms, orientation.number_of_atoms)]
     orientation.fragments = [atoms_in_self, atoms_in_other]
     return orientation
 
 
-def generate_orientations_from_points_and_angles(seed, monomer, points_and_angles):
+def generate_orientations_from_points_and_angles(seed, monomer,
+                                                 points_and_angles, site=None):
     orientations = []
     for vector in points_and_angles:
-        orientations.append(merge_two_molecules(vector, seed, monomer))
+        orientations.append(merge_two_molecules(vector, seed, monomer, site=site))
     return orientations
 
 
@@ -407,7 +412,7 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
                                             tabu_check_for_angles)
 
     write_tabu_list(pts, 'tabu.dat')
-    plot_points(pts)
+    # plot_points(pts)
 
     filename_prefix = 'trial_'
     orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
@@ -448,16 +453,15 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
 
     orientations = []
     for i in range(number_of_orientations):
-        import time
         t1 = time.clock()
         pts = rotating_octants(512, angle_tabu=tabu_check_for_angles,
                                spaa=saved_pts)
         t2 = time.clock()
-        print('Creating points:', t2-t1, 'seconds')
+        tabu_logger.debug('Creating points: in {} seconds'.format(t2-t1))
         t1 = time.clock()
-        current_orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
+        current_orientations = generate_orientations_from_points_and_angles(seed, monomer, pts, site=[a, b])
         t2 = time.clock()
-        print('Creating orientations', t2 - t1, 'seconds')
+        tabu_logger.debug('Creating orientations {} seconds'.format(t2-t1))
         t1 = time.clock()
         dictorie = {}
         for j, each_orientation in enumerate(current_orientations):
@@ -466,11 +470,11 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
             dictorie[j] = dist
         best_orientation = min(dictorie, key=dictorie.get)
         best_point = pts[best_orientation]
-        print(best_orientation, dictorie[best_orientation])
+        tabu_logger.debug(best_orientation, dictorie[best_orientation])
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
         t2 = time.clock()
-        print('Found best orientation', t2-t1)
+        tabu_logger.debug('Found best orientation in {} seconds'.format(t2-t1))
 
     t1 = time.clock()
     filename_prefix = 'trial_'
@@ -481,9 +485,9 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
     t2 = time.clock()
-    print('Wrote files', t2 - t1)
+    tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
     write_tabu_list(saved_pts, 'tabu.dat')
-    plot_points(np.array(saved_pts))
+    # plot_points(np.array(saved_pts))
 
     return orientations
 
@@ -558,12 +562,14 @@ def main():
         from atomic_data import atomic_numbers, covalent_radii
         radii = covalent_radii[atomic_numbers[args.spr.capitalize()]]
         pts = pts[:, :3]
+        factor = pts/10
         while np.min(sdist.pdist(pts)) < 2*radii:
-            pts += pts / 10
+            pts += factor
 
         atoms = [args.spr for _ in range(N)]
         result = Molecule(atoms, pts)
         result.mol_to_xyz('mol.xyz')
+
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms+args.best[1]

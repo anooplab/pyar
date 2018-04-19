@@ -59,12 +59,14 @@ def calc_fingerprint_distance(a, b):
     fingerprint_distance = np.linalg.norm(a.fingerprint - b.fingerprint)
     return fingerprint_distance
 
+
 def choose_geometries(list_of_molecules):
     if len(list_of_molecules) < 2:
         cluster_logger.info("Not enough data to cluster (only ", len(list_of_molecules), ") , returning original")
         return list_of_molecules
     if len(list_of_molecules) <= 8:
-        cluster_logger.info('Not enough data for clustering. Removing similar geometrys from the list')
+        cluster_logger.info('Not enough data for clustering. '
+                            'Removing similar geometries from the list')
         return remove_similar(list_of_molecules)
 
     cluster_logger.info('Clustering on {} geometries'.format(len(list_of_molecules)))
@@ -86,7 +88,8 @@ def choose_geometries(list_of_molecules):
         cluster_logger.exception("All Clustering algorithms failed")
         return list_of_molecules
 
-    best_from_each_cluster = select_best_from_each_cluster(labels, list_of_molecules)
+    best_from_each_cluster = select_best_from_each_cluster(labels,
+                                                           list_of_molecules)
 
     if len(best_from_each_cluster) == 1:
         return best_from_each_cluster
@@ -104,7 +107,9 @@ def print_energy_table(molecules):
     e_dict = {i.name: i.energy for i in molecules}
     ref = min(e_dict.values())
     for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
-        cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy, (energy - ref) * 627.51))
+        cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy,
+                                                             (energy - ref) *
+                                                             627.51))
 
 
 def get_labels(data_as_list, algorithm='combo'):
@@ -116,7 +121,8 @@ def get_labels(data_as_list, algorithm='combo'):
     if algorithm == 'combo':
 
         kmeans_labels, centres = n_clusters_optimized_with_kmeans(dt)
-        cluster_logger.info('Clustering with MeahShift algorithm using seeds from K-Means')
+        cluster_logger.info('Clustering with MeahShift algorithm using seeds '
+                            'from K-Means')
         ms = MeanShift(bandwidth=None, bin_seeding=True, seeds=centres)
         ms.fit(dt)
         meanshift_labels = ms.labels_
@@ -133,9 +139,11 @@ def get_labels(data_as_list, algorithm='combo'):
             bandwidth = estimate_bandwidth(dt, quantile=0.2, n_samples=len(dt))
             cluster_logger.debug(' Estimated bandwidth: {}'.format(bandwidth))
         except Exception:
-            # If it fails to estimate bandwidth, give a value (it is arbitrary now,
+            # If it fails to estimate bandwidth, give a value (it is arbitrary
+            # now,
             # TODO can we find a reasonable value?)
-            cluster_logger.exception(' Estimation of bandwidth failed. Using 0.5 as bandwidth')
+            cluster_logger.exception(' Estimation of bandwidth failed. Using '
+                                     '0.5 as bandwidth')
             bandwidth = 0.5
         try:
             ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
@@ -177,7 +185,8 @@ def n_clusters_optimized_with_kmeans(dt):
         kmeans.fit(dt)
         labels = kmeans.labels_
         centres = kmeans.cluster_centers_
-        cluster_logger.info('For more than 10k samples, KMeans with n_clusters=8 is used as memory becomes a problem.')
+        cluster_logger.info('For more than 10k samples, KMeans with '
+                            'n_clusters=8 is used as memory becomes a problem.')
         return labels, centres
 
     labels = {}
@@ -219,7 +228,9 @@ def select_best_from_each_cluster(labels, list_of_molecules):
 
     best_from_each_cluster = []
     for this_label in unique_labels:
-        molecules_in_this_group = [m for label, m in zip(labels, list_of_molecules) if label == this_label]
+        molecules_in_this_group = [m for label, m in
+                                   zip(labels, list_of_molecules)
+                                   if label == this_label]
         best_from_each_cluster.append(best_molecule(molecules_in_this_group))
     cluster_logger.info("Lowest energy structures from each cluster")
     print_energy_table(best_from_each_cluster)
@@ -227,10 +238,12 @@ def select_best_from_each_cluster(labels, list_of_molecules):
 
 
 def best_molecule(list_of_molecules):
-    """Give a list of molecule objects with name and energy, and this function returns the molecule with lower energy
+    """Give a list of molecule objects with name and energy, and this function
+    returns the molecule with lower energy
     :type list_of_molecules: list of Molecule objects
     """
-    energy_dict = {each_molecule.name: each_molecule.energy for each_molecule in list_of_molecules}
+    energy_dict = {each_molecule.name: each_molecule.energy
+                   for each_molecule in list_of_molecules}
     key_of_the_least_value = min(energy_dict, key=energy_dict.get)
     for i in list_of_molecules:
         if i.name == key_of_the_least_value:

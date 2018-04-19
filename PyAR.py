@@ -28,7 +28,7 @@ def argument_parse():
     parser.add_argument("-N", dest='hm_orientations', type=int,
                         help='how many orientations to be used')
 
-    parser.add_argument('-s', '--site', type=int,
+    parser.add_argument('-s', '--site', type=int, nargs=2,
                         help='atom for site specific '
                              'aggregation/solvation')
 
@@ -171,11 +171,13 @@ def main():
                          "-number_of_orientations <number of orientations>")
             sys.exit()
 
+        if site is not None:
+            site = [site[0], input_molecules[0].number_of_atoms+site[1]]
         t1 = time.clock()
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations, method=method_args,
-                      site=site, proximity_factor=2.8)
+                      site=site, proximity_factor=proximity_factor)
         logger.info('Time: {}'.format(time.clock() - t1))
         return
 
@@ -211,7 +213,8 @@ def main():
                              each_molecule.covalent_radius[b]
             step = int(abs(final_distance - start_dist)*10)
             c_k = '\n!ScanTS\n% geom scan B '+str(a)+' '+str(b)+ '= '+ \
-                  str(start_dist) + ', ' + str(final_distance) + ', 20 end end\n'
+                  str(start_dist) + ', ' + str(final_distance) + ', ' \
+                  + str(step) + ' end end\n'
             import optimiser
             optimiser.optimise(each_molecule, method_args, 0.0, custom_keyword=c_k)
 
