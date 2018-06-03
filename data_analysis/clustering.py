@@ -73,6 +73,7 @@ def choose_geometries(list_of_molecules):
 
     # dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
     dt = [i.fingerprint for i in list_of_molecules]
+    # dt = [i.get_principal_axes() for i in list_of_molecules]
 
     dt = np.around(dt, decimals=5)
 
@@ -279,7 +280,7 @@ def main():
         mol.energy = read_energy_from_xyz_file(each_file)
         mols.append(mol)
     selected = choose_geometries(mols)
-    cmd = ['/home/anoop/bin/molden5.0.gfortran.ubuntu.32']
+    cmd = ['/home/anoop/bin/molden']
     fls = []
     for one in selected:
         fls.append(one.name+'.xyz')

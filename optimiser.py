@@ -41,9 +41,10 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
     else:
         molecule.energy = None
         molecule.coordinates = None
-
+ 
     os.chdir(cwd)
     return optimize_status
+    return True
 
 
 def bulk_optimize(input_molecules, method_args, gamma):

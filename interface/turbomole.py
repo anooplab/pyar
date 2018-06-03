@@ -50,13 +50,9 @@ class Turbomole(SF):
         self.energy = None
         self.optimized_coordinates = None
 
-    def optimize(self, max_cycles=35, gamma=0.0):
+    def optimize(self, max_cycles=350, gamma=0.0):
 
         cwd = os.getcwd()
-        # job_dir = 'job_' + self.job_name
-        # file_manager.make_directories(job_dir)
-        #
-        # os.chdir(job_dir)
 
         make_coord(self.atoms_list, self.start_coords)
         prepare_control()
@@ -324,8 +320,6 @@ def rewrite_turbomole_gradient(number_of_atoms, total_restraint_energy, total_re
             dz = float(re.sub('D', 'E', dz)) - restraint_gradient[i][2]
             temp_line = "{:22.13f} {:22.13f} {:22.13f}".format(dx, dy, dz)
             temp_line = re.sub('E', 'D', temp_line)
-            # formatted = ff.FortranRecordWriter('3D22.13')
-            # temp_line = formatted.write([dx, dy, dz])
             new_gradients = new_gradients + str(temp_line) + "\n"
             i += 1
     with open('gradient', 'w') as g:

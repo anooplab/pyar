@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import copy
 import logging
 import sys
 import time
@@ -115,9 +114,7 @@ def main():
 
     number_of_orientations = args.hm_orientations
 
-    input_files = args.input_files
-
-    input_molecules = setup_molecules(input_files)
+    input_molecules = setup_molecules(args.input_files)
 
     if args.site is None:
         site = None
@@ -142,9 +139,11 @@ def main():
             sys.exit()
 
         if len(input_molecules) == 1:
-            input_molecules.append(copy.copy(input_molecules[0]))
-        monomer = input_molecules[-1]
-        seeds = input_molecules[:-1]
+            print('Provide at least two files')
+            sys.exit()
+        else:
+            monomer = input_molecules[-1]
+            seeds = input_molecules[:-1]
 
         t1 = time.clock()
         aggregator.aggregate(seeds, monomer,

@@ -173,7 +173,7 @@ def close_contact(mol_1, mol_2, factor):
     :type factor: float
     """
     fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
-    radius_one, radius_two = mol_1.vdw_radius, mol_2.vdw_radius
+    radius_one, radius_two = mol_1.covalent_radius, mol_2.covalent_radius
     for i in range(len(fragment_one)):
         for j in range(len(fragment_two)):
             interatomic_distance = np.linalg.norm(fragment_one[i]-fragment_two[j])
@@ -253,7 +253,6 @@ def rotating_octants(number_of_points, distance_tabu=True, angle_tabu=True,
     :return: numpy.array
     """
     if spaa is None:
-        print('no saved points')
         saved_points_and_angles = []
     else:
         saved_points_and_angles = spaa[:]
@@ -364,15 +363,18 @@ def plot_points(pts):
 
 def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None):
     x, y, z, theta, phi, psi = vector
+    translate_by = np.array([x, y, z])/10
 
+    tabu_logger.debug('Merging two molecules')
     if freeze_fragments is False:
         seed.move_to_origin()
     monomer.move_to_origin()
 
     if monomer.number_of_atoms > 1:
         monomer.rotate_3d((theta, phi, psi))
-    while close_contact(seed, monomer, 1.0):
-        monomer.translate(np.array([x, y, z])/10)
+    tabu_logger.debug('checking close contact')
+    while close_contact(seed, monomer, 1.3):
+        monomer.translate(translate_by)
     orientation = seed + monomer
     if site is not None:
         atoms_in_self = site[0]
@@ -381,12 +383,14 @@ def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None
         atoms_in_self = [i for i in range(seed.number_of_atoms)]
         atoms_in_other = [i for i in range(seed.number_of_atoms, orientation.number_of_atoms)]
     orientation.fragments = [atoms_in_self, atoms_in_other]
+    tabu_logger.debug('Merged.')
     return orientation
 
 
 def generate_orientations_from_points_and_angles(seed, monomer,
                                                  points_and_angles, site=None):
     orientations = []
+    tabu_logger.debug('generate orientations from points and angles')
     for vector in points_and_angles:
         orientations.append(merge_two_molecules(vector, seed, monomer, site=site))
     return orientations
@@ -408,9 +412,10 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
     else:
         tabu_check_for_angles = True
 
+    tabu_logger.debug('Generating points')
     pts = wrapper_of_make_points_and_angles(method, number_of_orientations,
                                             tabu_check_for_angles)
-
+    tabu_logger.debug('Generated points')
     write_tabu_list(pts, 'tabu.dat')
     # plot_points(pts)
 
@@ -454,14 +459,14 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     orientations = []
     for i in range(number_of_orientations):
         t1 = time.clock()
-        pts = rotating_octants(512, angle_tabu=tabu_check_for_angles,
+        pts = rotating_octants(128, angle_tabu=tabu_check_for_angles,
                                spaa=saved_pts)
         t2 = time.clock()
-        tabu_logger.debug('Creating points: in {} seconds'.format(t2-t1))
+        tabu_logger.debug('Created points: in {} seconds'.format(t2-t1))
         t1 = time.clock()
         current_orientations = generate_orientations_from_points_and_angles(seed, monomer, pts, site=[a, b])
         t2 = time.clock()
-        tabu_logger.debug('Creating orientations {} seconds'.format(t2-t1))
+        tabu_logger.debug('Created orientations {} seconds'.format(t2-t1))
         t1 = time.clock()
         dictorie = {}
         for j, each_orientation in enumerate(current_orientations):
@@ -470,7 +475,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
             dictorie[j] = dist
         best_orientation = min(dictorie, key=dictorie.get)
         best_point = pts[best_orientation]
-        tabu_logger.debug(best_orientation, dictorie[best_orientation])
+        tabu_logger.debug("{} {}".format(best_orientation, dictorie[best_orientation]))
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
         t2 = time.clock()

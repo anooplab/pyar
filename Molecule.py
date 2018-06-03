@@ -5,6 +5,8 @@ import numpy as np
 
 from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 import itertools
+import logging
+molecule_logger = logging.getLogger('pyar.molecule')
 
 
 class Molecule(object):
@@ -113,7 +115,7 @@ class Molecule(object):
             coordinates.append([x_coord, y_coord, z_coord])
 
         mol_coordinates = np.array(coordinates)
-        mol_coordinates -= np.mean(mol_coordinates, axis=0)
+        # mol_coordinates -= np.mean(mol_coordinates, axis=0)
         mol_name = filename[:-4]
         return cls(atoms_list, mol_coordinates, name=mol_name, title=mol_title)
 
@@ -246,8 +248,8 @@ class Molecule(object):
     def sorted_coulomb_matrix(self):
         """
         From: https://github.com/pythonpanda/coulomb_matrix/
-        Takes in a Coloumb matrix of (mxn) dimension and performs a 
-        rowwise sorting such that ||C(j,:)|| > ||C(j+1,:)||, J= 
+        Takes in a Coulomb matrix of (mxn) dimension and performs a
+        row-wise sorting such that ||C(j,:)|| > ||C(j+1,:)||, J=
         0,1,.......,(m-1) Finally returns a vectorized (m*n,1) column 
         matrix .
         """

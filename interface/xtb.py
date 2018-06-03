@@ -51,7 +51,11 @@ class Xtb(SF):
     def optimize(self, gamma=None):
         """
         """
-        out = subp.check_output(self.cmd.split())
+        try:
+            out = subp.check_output(self.cmd.split())
+        except:
+            print('Optimization failed')
+
         if os.path.isfile('.xtboptok'):
 
             write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
