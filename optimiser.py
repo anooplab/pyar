@@ -30,6 +30,9 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
     elif software == 'OBabel':
         from interface import babel
         geometry = babel.OBabel(molecule)
+    elif software == 'psi4':
+        from interface import psi4
+        geometry = psi4.Psi4(molecule, method)
     else:
         print(software, "is not implemented yet")
         return NotImplementedError

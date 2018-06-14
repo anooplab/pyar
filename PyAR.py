@@ -67,7 +67,7 @@ def argument_parse():
                                  help="specify rhf or uhf (defulat=rhf)")
     chemistry_group.add_argument("--software", type=str,
                                  choices=['turbomole', 'OBabel', 'mopac',
-                                          'xtb', 'xtb_turbo', 'orca'],
+                                          'xtb', 'xtb_turbo', 'orca', 'psi4'],
                                  required=True, help="Software")
     parser.add_argument('-v', '--verbosity', default=1,
                         choices=[0, 1, 2, 3, 4], type=int,

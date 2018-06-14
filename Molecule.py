@@ -1,7 +1,8 @@
-from math import radians, cos, sin
+from math import radians, cos, sin, pi
 from scipy.spatial import distance as scipy_distance
 
 import numpy as np
+from itertools import combinations, product
 
 from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 import itertools
@@ -23,7 +24,7 @@ class Molecule(object):
         self.centre_of_mass = self.get_centre_of_mass()
         self.average_radius = self.get_average_radius()
         self.std_of_radius = self.get_std_of_radius()
-        self.distance_matrix = self.get_distance_matrix()
+        self.distance_list = self.get_distance_list()
 
         if name is None:
             self.name = ''
@@ -195,8 +196,95 @@ class Molecule(object):
     def get_principal_axes(self):
         return np.linalg.eigvals(self.moments_of_inertia_tensor)
 
-    def get_distance_matrix(self):
+    def get_distance_list(self):
         return scipy_distance.pdist(self.coordinates)
+
+    def get_distance_matrix(self):
+        dm = np.zeros((len(self.coordinates), len(self.coordinates)))
+        for i, c in enumerate(self.coordinates):
+            for j, d in enumerate(self.coordinates):
+                dm[i,j] = np.linalg.norm(c-d)
+        return dm
+
+    def get_bond_matrix(self):
+        """return bond matrix"""
+        dm = self.get_distance_matrix()
+        bm = np.zeros((len(self.coordinates), len(self.coordinates)), dtype=int)
+        for i, c in enumerate(self.coordinates):
+            for j, d in enumerate(self.coordinates):
+                socr = (self.covalent_radius[i] + self.covalent_radius[j])*1.3
+                if i != j and dm[i,j] < socr:
+                    bm[i,j] = 1
+        return bm
+
+    def calculate_angle(self, i, j, k):
+
+        a1 = self.coordinates[i]
+        b1 = self.coordinates[k]
+        c1 = self.coordinates[j]
+
+        v1 = c1 - b1
+        v2 = c1 - a1
+        a = np.arccos(np.dot(v1, v2) / (
+                    np.linalg.norm(v1) * np.linalg.norm(v2))) * 180 / pi
+
+        return a
+
+    def calculate_dihedral(self, i, j, k, l):
+        p0 = self.coordinates[i]
+        p1 = self.coordinates[j]
+        p2 = self.coordinates[k]
+        p3 = self.coordinates[l]
+
+        b0 = -1.0 * (p1 - p0)
+        b1 = p2 - p1
+        b2 = p3 - p2
+        b1 /= np.linalg.norm(b1)
+        # vector rejections
+        # v = projection of b0 onto plane perpendicular to b1
+        #   = b0 minus component that aligns with b1
+        # w = projection of b2 onto plane perpendicular to b1
+        #   = b2 minus component that aligns with b1
+        v = b0 - np.dot(b0, b1) * b1
+        w = b2 - np.dot(b2, b1) * b1
+        # angle between v and w in a plane is the torsion angle
+        # v and w may not be normalized but that's fine since tan is y/x
+        x = np.dot(v, w)
+        y = np.dot(np.cross(v, b1), w)
+        d = np.degrees(np.arctan2(y, x))
+        return d
+
+    def make_internal_coordinates(self):
+        """
+
+        :rtype: list of internal coordinates
+        """
+        dm = self.get_distance_matrix()
+        bm = self.get_bond_matrix()
+        bl = []
+        for i in range(len(self.coordinates)):
+            for j in range(len(self.coordinates)):
+                if bm[i,j]:
+                    seq = [i, j]
+                    if seq[::-1] not in [i[0] for i in bl]:
+                        bl.append([seq, dm[i,j]])
+        al = []
+        for i, j, k in product(range(len(self.coordinates)), repeat=3):
+           if i != j and j != k and i != k:
+                if bm[i,j] and bm[j,k]:
+                    seq = [i, j, k]
+                    if seq[::-1] not in [i[0] for i in al]:
+                        al.append([seq,self.calculate_angle(i, j, k)])
+
+        dl = []
+        for i, j, k, l in product(range(len(self.coordinates)), repeat=4):
+            if i !=j and i != k and i != l and j != k and j != l and k != l:
+                if bm[i,j] and bm[j,k] and bm[k,l]:
+                    seq = [i, j, k, l]
+                    if seq[::-1] not in [i[0] for i in dl]:
+                        dl.append([seq, self.calculate_dihedral(i, j, k, l)])
+
+        return [bl, al, dl]
 
     def split_covalent_radii_list(self):
         return [np.array(self.covalent_radius)[flist] for flist in self.fragments]
@@ -319,8 +407,12 @@ def distance(coords_a, coords_b):
 
 
 def main():
-    pass
-
+    import sys
+    molfile1 = sys.argv[1]
+    molobj = Molecule.from_xyz(molfile1)
+    for i in molobj.make_internal_coordinates():
+        for j in i:
+            print(j)
 
 if __name__ == '__main__':
     main()

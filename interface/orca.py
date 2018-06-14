@@ -1,5 +1,5 @@
 """
-orca.py - interface to mopac program
+orca.py - interface to ORCA program
 
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
@@ -112,13 +112,6 @@ class Orca(SF):
         except IOError:
             print("Warning: File ", self.out_file, "was not found.")
 
-    # def write_xyz(self, coords, filename):
-    #     with open(filename, 'w') as fp:
-    #         fp.write(str(self.number_of_atoms) + '\n')
-    #         fp.write(self.job_name + '\n')
-    #         for i in range(self.number_of_atoms):
-    #             fp.write("%3s  %10.7f  %10.7f %10.7f\n"
-    #                      % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
 
 
 def main():
