@@ -49,9 +49,13 @@ def calculate_gradient(ac, ac2, alpha, v, w, p):
             gr += 0.0
         else:
             dq = cn - ci
-            gr += (-alpha * (
-                ((1 - p) / w * dq * sum_of_covalent_radii_ni ** p * inter_atomic_distance_ni ** (-1 - p)) +
-                (p * v / w**2 * dq * sum_of_covalent_radii_ni ** p * inter_atomic_distance_ni ** (-2 - p))))
+
+            first_term = ((1 - p) / w * sum_of_covalent_radii_ni ** p *
+                          inter_atomic_distance_ni ** (-1 - p))
+            second_term = (p * v / w**2 * sum_of_covalent_radii_ni ** p *
+                           inter_atomic_distance_ni ** (-2 - p))
+            this_gradient = -alpha*(first_term*dq+second_term*dq)
+            gr += this_gradient
     return np.array(gr)
 
 
@@ -100,7 +104,6 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
             gradients[index] = calculate_gradient(ac, (al1, fragment1), alpha, nom, den, parameter)
 
     total_restraint_gradients = np.sqrt(np.sum(gradients ** 2))
-    print(total_restraint_energy, total_restraint_gradients)
     return total_restraint_energy, total_restraint_gradients, gradients
 
 

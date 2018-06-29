@@ -86,7 +86,7 @@ class Turbomole(SF):
                 interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                                     self.job_name,
                                     energy=self.energy)
-                shutil.copy(self.result_xyz_file, cwd)
+                # shutil.copy(self.result_xyz_file, cwd)
                 # os.chdir(cwd)
                 return True
             with open('energy.dat','a') as fe:
