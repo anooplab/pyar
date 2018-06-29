@@ -104,7 +104,13 @@ class XtbTurbo(SF):
     @property
     def calc_engrad(self):
         with open('job.last', 'a') as fp, open('engrad.out', 'w') as fc:
-            subp.check_call(self.egrad_program, stdout=fp, stderr=fc)
+
+            try:
+                subp.check_output(self.egrad_program, stdout=fp, stderr=fc)
+            except subp.CalledProcessError as e:
+                xtb_turbo_logger.error(e.output)
+                return False, msg, None, None
+
         msg = [line for line in open('engrad.out').readlines() if 'ended' in line]
         if os.path.isfile('.sccnotconverged'):
             msg = "SCF Failure. Check files in"+os.getcwd()
