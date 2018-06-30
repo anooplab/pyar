@@ -1,9 +1,8 @@
 """
-orca.py - interface to ORCA program
+psi4.py - interface to PSI4 program
 
-Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
-Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
-Universitaet Muenster, Germany
+Copyright (C) 2016 by Anoop Ayyappan
+Indian Institute of Technology Kharagpur, India
 
 This file is part of the PyAR project.
 
@@ -25,10 +24,10 @@ import numpy as np
 from interface import SF, write_xyz
 
 
-class Orca(SF):
+class Psi4(SF):
     def __init__(self, molecule, method, custom_keyword=None):
 
-        super(Orca, self).__init__(molecule)
+        super(Psi4, self).__init__(molecule)
 
         self.charge = method['charge']
 
@@ -42,12 +41,12 @@ class Orca(SF):
             self.scftype = method['scftype']
 
         self.start_coords = molecule.coordinates
-        self.inp_file = 'trial_' + self.job_name + '.inp'
+        self.inp_file = 'trial_' + self.job_name + '.in'
         self.out_file = 'trial_' + self.job_name + '.out'
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword = "!BP RI Opt def2-SVP D3BJ KDIIS def2/J"
+        keyword = "set basis def2-SVP\n"
         if any(x >= 21 for x in molecule.atomic_number):
             keyword += ' def2-ECP'
         if custom_keyword is not None:
@@ -60,11 +59,13 @@ class Orca(SF):
         if self.scftype is 'uks':
             keyword += 'UKS'
         f1.write(keyword + "\n")
-        f1.write("*xyz {0} {1}\n".format(str(self.charge), str(self.multiplicity)))
+        f1.write("molecule {\n")
+        f1.write("{0} {1}\n".format(str(self.charge), str(self.multiplicity)))
         for i in range(self.number_of_atoms):
             f1.write(
                 " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-        f1.write("*")
+        f1.write("}\n")
+        f1.write("optimize(\"B97-D\")")
         f1.close()
 
     def optimize(self, gamma=None):
@@ -74,17 +75,16 @@ class Orca(SF):
         """
 
         with open(self.out_file, 'w') as fopt:
-            out = subp.Popen(["orca", self.inp_file], stdout=fopt, stderr=fopt)
+            out = subp.Popen(["psi4", self.inp_file], stdout=fopt, stderr=fopt)
         out.communicate()
         out.poll()
         exit_status = out.returncode
         if exit_status == 0:
             f = open(self.out_file, "r")
-            line = f.readlines()
-            if "****ORCA TERMINATED NORMALLY****" in line[-2]:
+            if "  **** Optimization is complete!" in f.read():
+                print("Optimized")
                 self.energy = self.get_energy()
-                self.optimized_coordinates = np.loadtxt(self.inp_file[:-4] + ".xyz", dtype=float, skiprows=2,
-                                                        usecols=(1, 2, 3))
+                self.optimized_coordinates = self.get_coordinates()
                 write_xyz(self.atoms_list,
                           self.optimized_coordinates,
                           self.result_xyz_file, energy=self.energy)
@@ -98,25 +98,52 @@ class Orca(SF):
 
     def get_energy(self):
         """
-        :return:This object will return energy from an orca calculation. It will return Hartree units.
+        :return:This object will return energy from an psi4 calculation. It will return Hartree units.
         """
         try:
             with open(self.out_file, "r") as out:
-                line = out.readlines()
-                en_steps = []
-                for i in range(len(line)):
-                    if "FINAL SINGLE POINT ENERGY" in line[i]:
-                        en_steps.append(line[i])
-                energy_in_hartrees = float((en_steps[-1].strip().split())[-1])
+                lines = out.readlines()
+                for line in lines:
+                    if "Final energy is" in line:
+                        energy_in_hartrees = float((line.strip().split())[-1])
             return energy_in_hartrees
+        except IOError:
+            print("Warning: File ", self.out_file, "was not found.")
+
+    def get_coordinates(self):
+        """
+        :return:This object will return energy from an psi4 calculation. It will return Hartree units.
+        """
+        from itertools import dropwhile
+        try:
+            with open(self.out_file, "r") as out:
+                for line in out:
+                    if "Final optimized geometry and variables:" in line:
+                         break
+                coords = []
+                for line in out.readlines()[5:5+self.number_of_atoms+1]:
+                    lc = line.split()
+                    if len(lc) == 4:
+                        try:
+                            _, x, y, z = lc
+                            coords.append([float(x), float(y), float(z)])
+                        except:
+                            print("some problem", line)
+            return np.array(coords)
         except IOError:
             print("Warning: File ", self.out_file, "was not found.")
 
 
 
-def main():
-    pass
 
+
+def main():
+    from Molecule import Molecule
+    import sys
+    mol = Molecule.from_xyz(sys.argv[1])
+    method = {'charge' : 0, 'multiplicity' : 1, 'scftype' : 'rhf'}
+    geometry = Psi4(mol, method)
+    geometry.optimize()
 
 if __name__ == "__main__":
     main()
