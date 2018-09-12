@@ -22,7 +22,7 @@ import subprocess as subp
 
 import numpy as np
 
-from interface import SF, write_xyz
+from interface import SF, write_xyz, which
 
 
 class Orca(SF):
@@ -76,7 +76,7 @@ class Orca(SF):
         """
 
         with open(self.out_file, 'w') as fopt:
-            out = subp.Popen(["orca", self.inp_file], stdout=fopt, stderr=fopt)
+            out = subp.Popen([which("orca"), self.inp_file], stdout=fopt, stderr=fopt)
         out.communicate()
         out.poll()
         exit_status = out.returncode

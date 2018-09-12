@@ -24,10 +24,10 @@ def argument_parse():
     parser.add_argument("input_files", metavar='files',
                         type=str, nargs='+',
                         help='input coordinate files')
-    parser.add_argument("-N", dest='hm_orientations', type=int,
+    parser.add_argument("-N", dest='hm_orientations',
                         help='how many orientations to be used')
 
-    parser.add_argument('-s', '--site', type=int, nargs=2,
+    parser.add_argument('--site', type=int, nargs=2,
                         help='atom for site specific '
                              'aggregation/solvation')
 
@@ -173,6 +173,7 @@ def main():
         if site is not None:
             site = [site[0], input_molecules[0].number_of_atoms+site[1]]
         t1 = time.clock()
+        number_of_orientations = int(number_of_orientations)
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations, method=method_args,

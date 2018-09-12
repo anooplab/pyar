@@ -26,7 +26,7 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations, method):
     if hm_orientations == 'auto':
         number_of_orientations = 8
     else:
-        number_of_orientations = hm_orientations
+        number_of_orientations = int(hm_orientations)
 
     starting_directory = os.getcwd()
     aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
@@ -81,6 +81,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
             else:
                 aggregator_logger.info('    Optimisation failed: {} , will be discarded'.format(molecule.name))
         os.chdir(cwd)
+
     if len(list_of_optimized_molecules) < 2:
         return list_of_optimized_molecules
     aggregator_logger.info("  Clustering")

@@ -62,7 +62,7 @@ def calc_fingerprint_distance(a, b):
 
 def choose_geometries(list_of_molecules):
     if len(list_of_molecules) < 2:
-        cluster_logger.info("Not enough data to cluster (only ", len(list_of_molecules), ") , returning original")
+        cluster_logger.info("Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules
     if len(list_of_molecules) <= 8:
         cluster_logger.info('Not enough data for clustering. '

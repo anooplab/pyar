@@ -26,8 +26,7 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
     reactor_logger.info(' Software   : {}'.format(software))
 
 
-def react(reactant_a, reactant_b, gamma_min, gamma_max,
-          hm_orientations, method,
+def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
           site, proximity_factor):
     """Run reactor module.  This is the outer loop
     generates all the orientations

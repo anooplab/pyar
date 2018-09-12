@@ -16,8 +16,12 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
         from interface import xtb
         geometry = xtb.Xtb(molecule, method)
     elif software == 'xtb_turbo':
-        from interface import xtbturbo
-        geometry = xtbturbo.XtbTurbo(molecule, method)
+        if gamma == 0.0:
+            from interface import xtb
+            geometry = xtb.Xtb(molecule, method)
+        else:
+            from interface import xtbturbo
+            geometry = xtbturbo.XtbTurbo(molecule, method)
     elif software == 'turbomole':
         from interface import turbomole
         geometry = turbomole.Turbomole(molecule, method)
@@ -47,7 +51,6 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
  
     os.chdir(cwd)
     return optimize_status
-    return True
 
 
 def bulk_optimize(input_molecules, method_args, gamma):

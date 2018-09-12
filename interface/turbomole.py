@@ -60,6 +60,23 @@ class Turbomole(SF):
         make_coord(self.atoms_list, self.start_coords)
         prepare_control()
 
+        if gamma == 0.0:
+            with open('jobex.out', 'w') as fj:
+                try:
+                    subp.check_call(['jobex', '-ri', '-c', '350'], stdout=fj, stderr=fj)
+                except subp.CalledProcessError as e:
+                    turbomole_logger.error('jobex failed')
+                    return False
+
+            turbomole_logger.info('jobex done')
+            self.energy = get_energy()
+            self.optimized_coordinates = bohr2angstrom(get_coords())
+            interface.write_xyz(self.atoms_list, self.optimized_coordinates,
+                                self.result_xyz_file,
+                                self.job_name,
+                                energy=self.energy)
+            return True
+
         # Test for Turbomole input
         if not os.path.isfile('control'):
             turbomole_logger.critical("Turbomole control file should exist")
@@ -105,11 +122,11 @@ class Turbomole(SF):
             energy = self.calc_energy
         elif first_step == 'relax':
             update_coord()
-            energy = self.calc_energy
+            status, message, energy = self.calc_energy
         elif first_step == 'grad':
-            energy=get_energy()
+            status, message, energy=get_energy()
         elif first_step == 'dscf':
-            energy = self.calc_energy
+            status, message, energy = self.calc_energy
         else:
             turbomole_logger.critical('first step is not defined')
 
@@ -118,6 +135,8 @@ class Turbomole(SF):
             status, message, gradients = self.calc_gradients
             if status is False:
                 turbomole_logger.critical('Gradient evaluation failed')
+                turbomole_logger.critical('Check the job in %s' % os.getcwd())
+                turbomole_logger.error(message)
                 return False
 
             grad_line = ""
@@ -142,6 +161,7 @@ class Turbomole(SF):
                                     self.job_name,
                                     energy=self.energy)
                 return True
+
             # Calculate energy
             status, message, energy = self.calc_energy
             if status is False:
@@ -175,15 +195,14 @@ class Turbomole(SF):
 
     @property
     def calc_energy(self):
-        # with open('ridft.out', 'w') as fc:
-        #     subp.check_call(['ridft'], stdout=fc, stderr=fc)
-        run_turbomole_module('ridft')
+
+        status = run_turbomole_module('ridft')
         msg = [line for line in open('ridft.out').readlines() if 'ended' in line]
-        if os.path.isfile('dscf_problem'):
+        if status is False or 'abnormally' in msg:
+            return False, msg, None
+        elif os.path.isfile('dscf_problem'):
             msg = "SCF Failure. Check files in"+os.getcwd()
             remove('GEO_OPT_RUNNING')
-            return False, msg, None
-        if 'abnormally' in msg:
             return False, msg, None
         else:
             with open('job.last', 'a') as fp:
@@ -192,8 +211,7 @@ class Turbomole(SF):
 
     @property
     def calc_gradients(self):
-        # with open('rdgrad.out', 'w') as fc:
-        #     subp.check_call(['rdgrad'], stdout=fc, stderr=fc)
+
         run_turbomole_module('rdgrad')
         msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
         if 'abnormally' in msg:
