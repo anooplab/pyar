@@ -205,7 +205,7 @@ class Turbomole(SF):
             return True, msg, gradients
 
 
-def abend(energy_program, gradient_program, relax_program):
+def abend(energy_program='ridft', gradient_program='rdgrad', relax_program='statpt'):
     msg = subp.check_output(['actual', '-e', energy_program, "-g", gradient_program, "-c", relax_program])
     turbomole_logger.info(msg)
     for failed in glob.glob('abend.*'):
@@ -231,7 +231,7 @@ def remove(file_name):
 
 def statpt_cart():
     statpt_status = run_turbomole_module('statpt')
-    abend()
+    soft_abend('statpt')
     return statpt_status
 
 

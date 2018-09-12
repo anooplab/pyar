@@ -108,7 +108,7 @@ class XtbTurbo(SF):
             try:
                 subp.check_output(self.egrad_program, stderr=fc)
             except subp.CalledProcessError as e:
-                print(e.output)
+                fp.write(e.output)
                 msg = "SCF Failure. Check files in" + os.getcwd()
                 xtb_turbo_logger.error(msg)
                 return False, msg, None, None
