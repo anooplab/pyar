@@ -71,7 +71,7 @@ class Mopac(SF):
         output, error = out.communicate()
         poll = out.poll()
         exit_status = out.returncode
-        os.remove('tmp.log')
+            os.remove('tmp.log')
         return exit_status
 
     def optimize(self, gamma=None):

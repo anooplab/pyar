@@ -20,9 +20,11 @@ import os
 import shutil
 import subprocess as subp
 import sys
-
+import glob
+import datetime
 import numpy as np
-
+import socket
+import time
 import interface
 import interface.babel
 from afir import restraints
@@ -31,6 +33,7 @@ from interface import which
 from units import angstrom2bohr, bohr2angstrom
 
 import logging
+
 turbomole_logger = logging.getLogger('pyar.turbomole')
 
 
@@ -38,6 +41,7 @@ class Turbomole(SF):
     def __init__(self, molecule, method):
         if which('define') is None:
             print('set Turbomole path')
+            turbomole_logger.error('set Turbomole path')
             sys.exit()
 
         super(Turbomole, self).__init__(molecule)
@@ -51,101 +55,203 @@ class Turbomole(SF):
         self.optimized_coordinates = None
 
     def optimize(self, max_cycles=350, gamma=0.0):
-
-        cwd = os.getcwd()
+        """This is the python implementation  of jobex of turbomole"""
 
         make_coord(self.atoms_list, self.start_coords)
         prepare_control()
 
-        for cycle in range(max_cycles):
-            # Calculate energy
-            status, message, energy = self.calc_energy
-            if status is False:
-                print('Energy evaluation failed')
-                # os.chdir(cwd)
-                return False
+        # Test for Turbomole input
+        if not os.path.isfile('control'):
+            turbomole_logger.critical("Turbomole control file should exist")
+            return False
 
+        remove('converged')
+        with open('not.converged', 'w') as fp:
+            fp.write('$convcrit\n')
+            fp.write('   energy              6\n')
+            fp.write('   cartesian gradient  3\n')
+            fp.write('   basis set gradient  3\n')
+            fp.write('   cycles              1\n')
+            fp.write('$convergence not reached\n')
+            fp.write('$end\n')
+
+        remove('abend.*')
+        remove('statistics')
+        remove('dscf_problem')
+        remove('job.[0-9]*')
+        remove('job.last')
+        remove('GEO_OPT_CONVERGED')
+        remove('GEO_OPT_FAILED')
+        remove('GEO_OPT_RUNNING')
+        with open('GEO_OPT_RUNNING', 'w') as fs:
+            fs.write("Job started at  %s\n" % datetime.datetime.now())
+            fs.write("  on machine %s\n"% socket.gethostname())
+            fs.write("  by user %s\n" % os.getlogin())
+            fs.write("  in directory %s\n" % os.getcwd())
+            fs.write(" CAUTION: this file will not be removed if user or the system decides \n")
+            fs.write("          to kill the job !!!\n")
+            fs.write("          To let jobex stop smoothly, simple create\n")
+            fs.write("          an empty file called \'stop\' in this directory\n")
+            fs.write("          jobex will stop at the next possible step\n")
+
+        if os.path.isfile('nextstep'):
+            with open('nextstep') as ff:
+                first_step = ff.read().strip()
+        else:
+            first_step = 'dscf'
+        turbomole_logger.debug('the first step is %s' % first_step)
+
+        if first_step == 'statpt':
+            energy = self.calc_energy
+        elif first_step == 'relax':
+            update_coord()
+            energy = self.calc_energy
+        elif first_step == 'grad':
+            energy=get_energy()
+        elif first_step == 'dscf':
+            energy = self.calc_energy
+        else:
+            turbomole_logger.critical('first step is not defined')
+
+        for cycle in range(max_cycles):
             # Calculate Gradients
             status, message, gradients = self.calc_gradients
             if status is False:
-                print('Gradient evaluation failed')
-                # os.chdir(cwd)
+                turbomole_logger.critical('Gradient evaluation failed')
                 return False
+
+            grad_line = ""
+            for line in open('gradient').readlines():
+                if 'cycle' in line:
+                    grad_line = line.strip()
+            turbomole_logger.debug(grad_line)
 
             # Calculate afir gradient if gamma is greater than zero
             if gamma > 0.0:
-                restraint_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments,self.atoms_list, get_coords(), gamma)
+                restraint_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, get_coords(), gamma)
                 rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, restraint_energy, trg)
+                turbomole_logger.debug('restraint energy = %f\ntotal restraint gradients %f' % (restraint_energy, trg))
 
             # Update coordinates and check convergence.
             status = update_coord()
             if status is True:
-                print('converged at', cycle)
+                turbomole_logger.info('converged at %d' % cycle)
                 self.energy = get_energy()
                 self.optimized_coordinates = bohr2angstrom(get_coords())
                 interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                                     self.job_name,
                                     energy=self.energy)
-                # shutil.copy(self.result_xyz_file, cwd)
-                # os.chdir(cwd)
                 return True
+            # Calculate energy
+            status, message, energy = self.calc_energy
+            if status is False:
+                turbomole_logger.critical('Energy evaluation failed')
+                turbomole_logger.critical(message)
+                turbomole_logger.error('check %s' %os.getcwd())
+                return False
+
             with open('energy.dat','a') as fe:
                 if gamma > 0.0:
                     fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+restraint_energy))
                 else:
                     fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
-            print("         cycle exceeded")
+            turbomole_logger.error("OPTIMIZATION DID NOT CONVERGE WITHIN $cycles CYCLES\n")
+            turbomole_logger.error("  Restarting it after checking the gradient "
+                                   "norms might be a good idea... "
+                                   "(grep cycle gradient)")
+            remove('GEO_OPT_RUNNING')
+
+            with open('GEO_OPT_FAILED') as fe:
+                fe.write("OPTIMIZATION DID NOT CONVERGE WITHIN $cycles CYCLES\n"
+                         "   Restarting it after checking the gradient norms\n "
+                         "   might be a good idea... (grep cycle gradient)")
+
             status = 'cycle_exceeded'
             self.energy = get_energy()
             self.optimized_coordinates = bohr2angstrom(get_coords())
-            # os.chdir(cwd)
             return status
+
 
     @property
     def calc_energy(self):
-        with open('job.last', 'a') as fp, open('ridft.out', 'w') as fc:
-            subp.check_call(['ridft'], stdout=fp, stderr=fc)
+        # with open('ridft.out', 'w') as fc:
+        #     subp.check_call(['ridft'], stdout=fc, stderr=fc)
+        run_turbomole_module('ridft')
         msg = [line for line in open('ridft.out').readlines() if 'ended' in line]
         if os.path.isfile('dscf_problem'):
             msg = "SCF Failure. Check files in"+os.getcwd()
+            remove('GEO_OPT_RUNNING')
             return False, msg, None
         if 'abnormally' in msg:
             return False, msg, None
         else:
+            with open('job.last', 'a') as fp:
+                fp.write(open('ridft.out').read())
             return True, msg, get_energy()
 
     @property
     def calc_gradients(self):
-        with open('job.last','a') as fp, open('rdgrad.out', 'w') as fc:
-            subp.check_call(['rdgrad'], stdout=fp, stderr=fc)
+        # with open('rdgrad.out', 'w') as fc:
+        #     subp.check_call(['rdgrad'], stdout=fc, stderr=fc)
+        run_turbomole_module('rdgrad')
         msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
         if 'abnormally' in msg:
             return False, msg, None
         else:
             gradients = get_gradients(self.number_of_atoms)
+            with open('job.last','a') as fp:
+                fp.write(open('rdgrad.out').read())
             return True, msg, gradients
+
+
+def abend(energy_program, gradient_program, relax_program):
+    msg = subp.check_output(['actual', '-e', energy_program, "-g", gradient_program, "-c", relax_program])
+    turbomole_logger.info(msg)
+    for failed in glob.glob('abend.*'):
+        failed_program = failed.split('.')[1]
+        turbomole_logger.critical('Error in '+failed_program)
+        remove(failed)
+        remove('GEO_OPT_RUNNING')
+        err_msg = "ERROR: Module " + failed_program + " failed to run " \
+                  "properly - please check output files for the reason"
+        turbomole_logger.critical(err_msg)
+        with open('GEO_OPT_FAILED', 'w') as fp:
+            fp.write(err_msg)
+        return False
+
+
+def remove(file_name):
+    files = glob.glob(file_name)
+    for file in files:
+        if os.path.exists(file_name):
+            os.remove(file_name)
+    return
+
+
+def statpt_cart():
+    statpt_status = run_turbomole_module('statpt')
+    abend('statpt')
+    return statpt_status
 
 
 def make_coord(atoms_list, coordinates, outfile='coord'):
     """
-    runs turbomole program x2t to create turbomole coord file.
     """
 
     with open(outfile, 'w') as fcoord:
         fcoord.write('$coord\n')
         for s, c in zip(atoms_list, coordinates):
             fcoord.write("{:20.13} {:20.13} {:20.13} {:3s}\n".format(c[0], c[1], c[2], s))
-        fcoord.write('$user-defined bonds\m')
+        fcoord.write('$user-defined bonds\n')
         fcoord.write('$end')
     return
 
 
 def prepare_control(basis="def2-SVP", func="b-p", ri="on",
-                    memory=8000, grid="m4", scf_conv=7, scf_maxiter=500,
+                    memory=6000, grid="m4", scf_conv=7, scf_maxiter=500,
                     dftd3="yes", charge=0, multiplicity=1,
-                    read_define_input="no", define_input_file="define.inp",
-                    coordinates='internal'):
+                    read_define_input="no", coordinates='internal'):
 
     """This function will prepare the control file. Most of the arguments have
        default values(all have in its current form). The read_define_input var
@@ -154,25 +260,31 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
 
     # Turbomole 'coord' file should exist
     if not os.path.isfile('coord'):
-        print("Turbomole coordinate file, 'coord', should exist")
-        sys.exit()
+        turbomole_logger.critical("Turbomole coordinate file, 'coord', should exist")
+        return False
 
+    define_input_file = "define.inp"
     if read_define_input == "no":
-        define_input_file = "define.inp"
         with open(define_input_file, "w") as fdefine:
             fdefine.write("\n\n")
+            fdefine.write("a coord\n")
             if coordinates is 'internal':
-                fdefine.write("a coord\nired\n*\n")
+                fdefine.write("ired\n*\n")
             elif coordinates is 'cartesian':
-                fdefine.write("a coord\n*\nno\n")
-            fdefine.write("bb all %s\n" % basis)
-            fdefine.write("*\neht\ny \n")
+                fdefine.write("*\nno\n")
+            fdefine.write("bb all %s\n*\n" % basis)
+            fdefine.write("eht\n")
+            fdefine.write("y\n")
             fdefine.write("%d\n" % charge)
-            fdefine.write("y\n\n")
+            if multiplicity > 2:
+                fdefine.write("n\n")
+                fdefine.write("u %d\n\n" % multiplicity)
+            else:
+                fdefine.write("y\n\n")
             fdefine.write("\n\n\n")
             fdefine.write("dft\n")
             fdefine.write("on\n")
-            fdefine.write("func %s\n" % func)  # here put condition for advance use
+            fdefine.write("func %s\n" % func)
             fdefine.write("grid %s\n" % grid)
             fdefine.write("\n")
             if ri == "on":
@@ -188,32 +300,42 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
             fdefine.write("%d\n" % scf_maxiter)
             fdefine.write("\n*")
 
-    define_log_file = "define.log"
-    with open('tmp_bash_command', 'w') as f:
-        f.write("define<%s>&define.log" % define_input_file)
-    with open(define_log_file, 'w') as fdout:
-        subp.check_call(["bash", "tmp_bash_command"], stdout=fdout)
-    os.remove('tmp_bash_command')
-    if 'abnormally' in open(define_log_file).read():
-        print('define ended abnormally')
-        prepare_control(coordinates='cartesian')
+        define_log_file = "define.log"
+
+        with open(define_log_file, 'w') as fout, open('define.inp') as fin:
+            try:
+                subp.check_call(['define'], stdin=fin, stdout=fout,
+                                stderr=fout, universal_newlines=False)
+            except subp.CalledProcessError as e:
+                turbomole_logger.critical('Error in define')
+                turbomole_logger.critical(e.output, e.returncode)
+                return False
     return True
+
+
+def soft_abend(program):
+    with open('job.last', 'a') as fout:
+        subp.check_call(['actual', '-e', 'ridft', '-g', 'rdgrad', '-c', program],
+                        stdout=fout, stderr=fout)
 
 
 def generate_internal_coordinates():
 
     if not os.path.isfile('coord'):
-        print("Turbomole coordinate file, 'coord', should exist")
-        sys.exit()
+        turbomole_logger.error("Turbomole coordinate file, 'coord', should exist")
+        return False
 
     define_input_file = "def_inp"
     define_log_file = "define.log"
 
-    with open('tmp_bash_command', 'w') as f:
-        f.write("define<%s>&define.log" % define_input_file)
-    with open(define_log_file, 'w') as fdout:
-        subp.check_call(["bash", "tmp_bash_command"], stdout=fdout)
-    os.remove('tmp_bash_command')
+    with open(define_log_file, 'w') as fout, open(define_input_file) as fin:
+        try:
+            subp.check_call(['define'], stdin=fin, stdout=fout,
+                            stderr=fout, universal_newlines=False)
+        except subp.CalledProcessError as e:
+            turbomole_logger.critical('Error in define')
+            turbomole_logger.critical(e.output, e.returncode)
+            return False
     return True
 
 
@@ -232,7 +354,7 @@ def get_coords():
     with open('coord') as fp:
         f = fp.readlines()
         if f[0].strip() != '$coord':
-            print("'$coord' not found. Check the file.")
+            turbomole_logger.critical("'$coord' not found. Check the file.")
             sys.exit()
         geometry_section = []
         for line in f[1:]:
@@ -247,8 +369,8 @@ def get_coords():
                 z_coord = float(c[2])
                 symbol = c[3].capitalize()
             except:
-                print("Something wrong in line: ", i + 1)
-                print(c)
+                turbomole_logger.error("Something wrong in line: ", i + 1)
+                turbomole_logger.error(c)
                 sys.exit()
             coordinates.append([x_coord, y_coord, z_coord])
 
@@ -256,37 +378,81 @@ def get_coords():
 
 
 def update_coord():
+    return relastatpt_step()
+
+
+def statpt_step():
     if os.path.exists('def_inp'):
         os.remove('def_inp')
 
-    with open('job.last', 'a') as fp, open('statpt.out', 'w') as fc:
-        subp.check_call(['statpt'], stdout=fp, stderr=fc)
-    if 'statpt : all done' not in open('job.last').read():
-        turbomole_logger.critical('Error in statpt step')
+    statpt_status = run_turbomole_module('statpt')
+    if statpt_status is False:
+        turbomole_logger.critical('Statpt  failed')
+        turbomole_logger.error('check %s' % os.getcwd())
         return False
 
     if os.path.exists('def_inp'):
-        generate_internal_coordinates()
+        define_status = generate_internal_coordinates()
+        turbomole_logger.debug('generated internal coordinates')
         os.remove('def_inp')
 
-    with open('job.last', 'a') as fp, open('statpt.out', 'w') as fc:
-        subp.check_call(['statpt'], stdout=fp, stderr=fc)
-    if 'statpt : all done' not in open('job.last').read():
-        turbomole_logger.critical('Error in statpt step')
+    soft_abend('statpt')
+
+    if os.path.isfile('abend.statpt'):
+        remove('abend.statpt')
+        statpt_status = run_turbomole_module('statpt')
+        if statpt_status is False:
+            turbomole_logger.critical('Statpt  failed')
+            turbomole_logger.error('check %s' % os.getcwd())
+            return False
+        soft_abend('statpt')
+        if os.path.isfile('abend.statpt'):
+            remove('abend.statpt')
+            statpt_cart()
+            if os.path.exists('def_inp'):
+                generate_internal_coordinates()
+                turbomole_logger.debug('generated internal coordinates')
+                os.remove('def_inp')
+        remove('relax_problem')
+
+    return check_geometry_convergence()
+
+
+def run_turbomole_module(module):
+    output_file = module+'.out'
+    with open(output_file, 'w') as fc:
+        try:
+            subp.check_call([module], stdout=fc, stderr=fc)
+        except subp.CalledProcessError as e:
+            time.sleep(1)
+            return check_output_for_fail(module)
+    return True
+
+
+def check_output_for_fail(module):
+    key_phrase = module+' : all done'
+    log_file = module+'.out'
+    if key_phrase not in open(log_file).read():
+        turbomole_logger.critical('Error in %s step' % module)
+        with open('GEO_OPT_FAILED', 'w') as ferr:
+            ferr.write("ERROR in %s step, check the output" % module)
+            remove('GEO_OPT_RUNNING')
         return False
-    return check_geometry_convergence('statpt.out')
+    return True
 
 
-def check_geometry_convergence(outfile):
+def check_geometry_convergence():
     convergence_status = False
-    with open("not.converged") as fp:
-        all_lines = fp.readlines()
-    with open(outfile, 'a') as fout:
-        for lines in all_lines:
-            if 'convergence reached' in lines:
-                fout.write("THE OPTIMIZATION IS CONVERGED.\n")
-                convergence_status = True
-                os.remove("not.converged")
+
+    run_turbomole_module('convgrep')
+
+    if os.path.isfile('converged'):
+        remove('nextstep')
+        remove('optinfo')
+        turbomole_logger.info("THE OPTIMIZATION IS CONVERGED.\n")
+        convergence_status = True
+        remove("not.converged")
+        remove('GEO_OPT_RUNNING')
     return convergence_status
 
 
@@ -348,24 +514,52 @@ def rewrite_turbomole_energy_and_gradient_files(number_of_atoms,
     rewrite_turbomole_energy(total_restraint_energy)
 
 
+
 def main():
+
+    turbomole_logger = logging.getLogger('pyar.turbomole')
+    handler = logging.FileHandler('turbomole.log', 'w')
+    turbomole_logger.addHandler(handler)
+    turbomole_logger.setLevel(logging.DEBUG)
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--charge', type=int, default=0,
+                        help='charge')
+    parser.add_argument('-m', '--multiplicity', type=int, default=1,
+                        help='multiplicity')
+    parser.add_argument('--scftype', type=str, default='rhf',
+                        choices=['rhf', 'uhf'],
+                        help='SCF type (rhf/uhf)')
+    parser.add_argument("input_file", metavar='file',
+                        type=str,
+                        help='input coordinate file')
+    parser.add_argument('-o', '--opt', action='store_true',
+                        help='optimize')
+    parser.add_argument('-g', '--gamma', type=float, default=0.0,
+                        help='optimize')
+    args = parser.parse_args()
     from Molecule import Molecule
-    my_molecule = Molecule.from_xyz(sys.argv[1])
-    geom = Turbomole(my_molecule, method={})
-    if len(sys.argv) == 2:
-        geom.optimize()
-    elif len(sys.argv) == 3:
-        gamma_force = sys.argv[2]
-        geom.optimize(gamma=gamma_force)
+    mol = Molecule.from_xyz(args.input_file)
+    mol.fragments = [[0], [2]]
+
+    method_args = {
+        'charge': args.charge,
+        'multiplicity': args.multiplicity,
+        'scftype': args.scftype,
+        'software': 'turbomole'
+    }
+    geometry = Turbomole(mol, method_args)
+    if args.opt:
+        import optimiser
+
+        turbomole_logger.info('optimising')
+        optimiser.optimise(mol, method_args, args.gamma)
     else:
-        sys.exit()
-    return
+        make_coord(mol.atoms_list, mol.coordinates)
+        prepare_control()
+        turbomole_logger.info('created input file')
+
 
 if __name__ == "__main__":
-    from Molecule import Molecule
-    from interface import xtbturbo
-
-    my_mol = Molecule.from_xyz(sys.argv[1])
-    my_mol.fragments = [[0, 1, 2], [3, 4, 5]]
-    geometry = xtbturbo.XtbTurbo(my_mol, method={'software':'turbomole'})
-    geometry.optimize(1000)
+    main()

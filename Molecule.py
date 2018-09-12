@@ -125,9 +125,11 @@ class Molecule(object):
 
         :param file_name: Output .xyz file
         """
+        if not hasattr(self, 'energy'):
+           self.energy = 0.0
         with open(file_name, 'w') as fp:
             fp.write("{:3d}\n".format(self.number_of_atoms))
-            fp.write("{}\n".format(self.title))
+            fp.write("{}: {}\n".format(self.title, self.energy))
             for l, c in zip(self.atoms_list, self.coordinates):
                 fp.write("%-2s%12.5f%12.5f%12.5f\n" % (l, c[0], c[1], c[2]))
 

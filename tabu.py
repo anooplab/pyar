@@ -459,7 +459,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     orientations = []
     for i in range(number_of_orientations):
         t1 = time.clock()
-        pts = rotating_octants(128, angle_tabu=tabu_check_for_angles,
+        pts = rotating_octants(32, angle_tabu=tabu_check_for_angles,
                                spaa=saved_pts)
         t2 = time.clock()
         tabu_logger.debug('Created points: in {} seconds'.format(t2-t1))
@@ -557,8 +557,19 @@ def main():
             each_orientation.mol_to_xyz('mol'+str(i)+'.xyz')
 
     if args.mcm:
-        result = generate_composite_molecule(seed, monomer, pts)
-        result.mol_to_xyz('mol.xyz')
+        import optimiser
+        method_args = {
+                       'charge': 0,
+                       'multiplicity': 1,
+                       'scftype': 'rhf',
+                       'software': 'xtb'
+                      }
+        for i in range(128):
+        
+            result = generate_composite_molecule(seed, monomer, pts)
+            result.title = "trial_" + str(i).zfill(3)
+            optimiser.optimise(result, method_args, 0.0)
+            result.mol_to_xyz('result_'+str(i).zfill(3)+'.xyz')
 
     if args.spr:
         import scipy.spatial.distance as sdist
@@ -573,6 +584,7 @@ def main():
 
         atoms = [args.spr for _ in range(N)]
         result = Molecule(atoms, pts)
+
         result.mol_to_xyz('mol.xyz')
 
     if args.best:
