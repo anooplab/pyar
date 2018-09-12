@@ -231,7 +231,7 @@ def remove(file_name):
 
 def statpt_cart():
     statpt_status = run_turbomole_module('statpt')
-    abend('statpt')
+    abend()
     return statpt_status
 
 
