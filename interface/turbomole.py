@@ -378,7 +378,7 @@ def get_coords():
 
 
 def update_coord():
-    return relastatpt_step()
+    return statpt_step()
 
 
 def statpt_step():
