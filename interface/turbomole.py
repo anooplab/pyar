@@ -25,6 +25,7 @@ import datetime
 import numpy as np
 import socket
 import time
+import re
 import interface
 import interface.babel
 from afir import restraints
@@ -61,21 +62,7 @@ class Turbomole(SF):
         prepare_control()
 
         if gamma == 0.0:
-            with open('jobex.out', 'w') as fj:
-                try:
-                    subp.check_call(['jobex', '-ri', '-c', '350'], stdout=fj, stderr=fj)
-                except subp.CalledProcessError as e:
-                    turbomole_logger.error('jobex failed')
-                    return False
-
-            turbomole_logger.info('jobex done')
-            self.energy = get_energy()
-            self.optimized_coordinates = bohr2angstrom(get_coords())
-            interface.write_xyz(self.atoms_list, self.optimized_coordinates,
-                                self.result_xyz_file,
-                                self.job_name,
-                                energy=self.energy)
-            return True
+            return self.run_turbomole_jobex()
 
         # Test for Turbomole input
         if not os.path.isfile('control'):
@@ -118,21 +105,25 @@ class Turbomole(SF):
             first_step = 'dscf'
         turbomole_logger.debug('the first step is %s' % first_step)
 
+        initial_status = False
+        initial_message = ""
+        initial_energy = None
         if first_step == 'statpt':
-            energy = self.calc_energy
+            initial_status, initial_message, initial_energy = self.calc_energy
         elif first_step == 'relax':
             update_coord()
-            status, message, energy = self.calc_energy
+            initial_status, initial_message, initial_energy = self.calc_energy
         elif first_step == 'grad':
-            status, message, energy=get_energy()
+            initial_status, initial_message, initial_energy = get_energy()
         elif first_step == 'dscf':
-            status, message, energy = self.calc_energy
+            initial_status, initial_message, initial_energy = self.calc_energy
         else:
             turbomole_logger.critical('first step is not defined')
+        turbomole_logger.debug('First step: %s, %s, %f' %(initial_status, initial_message, initial_energy))
 
         for cycle in range(max_cycles):
             # Calculate Gradients
-            status, message, gradients = self.calc_gradients
+            status, message, _ = self.calc_gradients
             if status is False:
                 turbomole_logger.critical('Gradient evaluation failed')
                 turbomole_logger.critical('Check the job in %s' % os.getcwd())
@@ -192,6 +183,63 @@ class Turbomole(SF):
             self.optimized_coordinates = bohr2angstrom(get_coords())
             return status
 
+    def run_turbomole_jobex(self):
+        """
+        return one of the following:
+            True: converged
+            SCFFailed
+            GradFailed
+            UpdateFailed
+            CycleExceeded
+            False: unknown error or jebex excution error
+        :rtype: string or boolean
+        """
+        with open('jobex.out', 'w') as fj:
+            try:
+                subp.check_call(['jobex', '-ri', '-c', '350'], stdout=fj,
+                            stderr=fj)
+            except subp.CalledProcessError as e:
+                turbomole_logger.error('jobex failed, check %s/jobex.out'
+                                       % os.getcwd())
+                return False
+
+        if os.path.isfile('GEO_OPT_FAILED'):
+            message = open('GEO_OPT_FAILED').read()
+            if 'ERROR: Module' in message:
+                turbomole_logger.error('Error in module!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                return False
+            elif 'ERROR in statpt step,' in message:
+                turbomole_logger.error('Statpt failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                return 'UpdateFailed'
+            elif 'ERROR in relax step,' in message:
+                turbomole_logger.error('Relax failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                return 'UpdateFailed'
+            elif 'ERROR: your energy calculation did not converge !!,' in message:
+                turbomole_logger.error('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                return 'SCFFailed'
+            elif 'ERROR in dscf step' in message:
+                turbomole_logger.error('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                return 'SCFFailed'
+            elif 'ERROR in gradient step' in message:
+                turbomole_logger.error('Gradient failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                return 'GradientFailed'
+            elif 'OPTIMIZATION DID NOT CONVERGE' in message:
+                turbomole_logger.error('Geometry did not converge!\n check %s' % os.getcwd())
+                return 'CycleExceeded'
+            else:
+                turbomole_logger.error('Unknown Error!\n chcek the files in %s' % os.getcwd())
+                return False
+
+        elif os.path.isfile('GEO_OPT_CONVERGED'):
+
+            turbomole_logger.info('jobex done')
+            self.energy = get_energy()
+            self.optimized_coordinates = bohr2angstrom(get_coords())
+            interface.write_xyz(self.atoms_list, self.optimized_coordinates,
+                                self.result_xyz_file,
+                                self.job_name,
+                                energy=self.energy)
+            return True
 
     @property
     def calc_energy(self):
@@ -337,6 +385,40 @@ def soft_abend(program):
                         stdout=fout, stderr=fout)
 
 
+def add_tmole_key():
+    control = open('control').read()
+
+    if '$tmole' not in control:
+        print('no tmole')
+        new_control = re.sub('end', 'tmole\n$end', control)
+
+        with open('control', 'w') as fc:
+            fc.write(new_control)
+
+
+def get_metric_value():
+    control = open('control').read()
+    for line in control.split('\n'):
+        if 'metric' in line:
+            return int(line.split()[1])
+    else:
+        return 3
+
+
+def change_or_add_metfic_in_redund_inp(metric):
+    control = open('control').read()
+
+    for i in control.split('$'):
+        if 'redund_inp' in i:
+            new_control = re.sub('metric '+str(metric), 'metric '+str(metric-1), control)
+            break
+    else:
+        new_control = re.sub('end', 'redund_inp\n    metric '+str(metric-1)+'\n$end', control)
+
+    with open('control', 'w') as fc:
+        fc.write(new_control)
+
+
 def generate_internal_coordinates():
 
     if not os.path.isfile('coord'):
@@ -346,16 +428,38 @@ def generate_internal_coordinates():
     define_input_file = "def_inp"
     define_log_file = "define.log"
 
-    with open(define_log_file, 'w') as fout, open(define_input_file) as fin:
-        try:
-            subp.check_call(['define'], stdin=fin, stdout=fout,
-                            stderr=fout, universal_newlines=False)
-        except subp.CalledProcessError as e:
-            turbomole_logger.critical('Error in define')
-            turbomole_logger.critical(e.output, e.returncode)
-            return False
+    add_tmole_key()
+    current_metric = get_metric_value()
+
+    for metric in range(current_metric, -3, -1):
+        if metric == 0:
+            continue
+        change_or_add_metfic_in_redund_inp(metric)
+
+        with open(define_log_file, 'w') as fout, open(define_input_file) as fin:
+            try:
+                subp.check_call(['define'], stdin=fin, stdout=fout,
+                                stderr=fout, universal_newlines=False)
+            except subp.CalledProcessError as e:
+                pass
+
+        if 'ATOMIC ATTRIBUTE DATA' in open(define_log_file).read():
+            if 'intdef' in open('control').read():
+                subp.check_call(['kdg', 'cartesianstep'])
+                subp.check_call(['kdg', 'redund_inp'])
+                remove('hessapprox')
+                break
+            else:
+                subp.check_call(['kdg', 'redund_inp'])
+                break
+    else:
+        subp.check_call(['kdg', 'redund_inp'])
+        turbomole_logger.error('error in define step while generating new internal coordiantes')
+
+    remove('tmp.input')
     return True
 
+# TODO: insert redund_inp and metric
 
 def get_energy():
     with open('energy') as fp:
@@ -396,6 +500,8 @@ def get_coords():
 
 
 def update_coord():
+    """ This function is kept, in case, we want to implement
+    relax function and choose which one to use"""
     return statpt_step()
 
 
@@ -409,9 +515,14 @@ def statpt_step():
         turbomole_logger.error('check %s' % os.getcwd())
         return False
 
+
     if os.path.exists('def_inp'):
         define_status = generate_internal_coordinates()
-        turbomole_logger.debug('generated internal coordinates')
+        if define_status is False:
+            turbomole_logger.critical('Statpt  failed')
+            turbomole_logger.error('check %s' % os.getcwd())
+        else:
+            turbomole_logger.debug('generated internal coordinates')
         os.remove('def_inp')
 
     soft_abend('statpt')
@@ -516,7 +627,7 @@ def rewrite_turbomole_energy(total_restraint_energy):
         energy = energy_file.readlines()
         till_last_energy = energy[:-2]
         old_energy = energy[-2].split()[1]
-        new_energy = float(old_energy) + total_restraint_energy
+        new_energy = '{:15.10f}'.format(float(old_energy) + total_restraint_energy)
     with open('energy', 'w') as new_energy_file:
         new_energy_file.write(''.join(till_last_energy) + re.sub(old_energy, str(new_energy), energy[-2]) + '$end\n')
 
@@ -542,7 +653,7 @@ def main():
 
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--charge', type=int, default=0,
+    parser.add_argument('--charge', type=int, default=0,
                         help='charge')
     parser.add_argument('-m', '--multiplicity', type=int, default=1,
                         help='multiplicity')
@@ -556,10 +667,12 @@ def main():
                         help='optimize')
     parser.add_argument('-g', '--gamma', type=float, default=0.0,
                         help='optimize')
+    parser.add_argument('--cycle', type=int, default=350,
+                        help='maximum number of optimization cycles')
     args = parser.parse_args()
     from Molecule import Molecule
     mol = Molecule.from_xyz(args.input_file)
-    mol.fragments = [[0], [2]]
+    mol.fragments = [[0], [3]]
 
     method_args = {
         'charge': args.charge,
