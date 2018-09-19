@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 import argparse
+import datetime
 import logging
+import os
 import sys
 import time
 
+import numpy as np
+
+import Molecule
 import aggregator
+import optimiser
 import reactor
-from Molecule import Molecule
-from optimiser import bulk_optimize
+import tabu
 
 logger = logging.getLogger('pyar')
 handler = logging.FileHandler('pyar.log', 'w')
-formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
 
 
 def argument_parse():
@@ -81,7 +82,7 @@ def setup_molecules(input_files):
     molecules = []
     for each_file in input_files:
         try:
-            mol = Molecule.from_xyz(each_file)
+            mol = Molecule.Molecule.from_xyz(each_file)
             logger.info(each_file)
             molecules.append(mol)
         except IOError:
@@ -92,18 +93,35 @@ def setup_molecules(input_files):
 
 
 def main():
-    args = argument_parse()
 
+    args = argument_parse()
     if args.verbosity == 0:
         logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
+                                      '%(lineno)d %(levelname)-8s: %(message)s')
     elif args.verbosity == 1:
+        formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.INFO)
     elif args.verbosity == 2:
+        formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.WARNING)
     elif args.verbosity == 3:
+        formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.ERROR)
     elif args.verbosity == 4:
+        formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.CRITICAL)
+    else:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.CRITICAL)
+
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    logger.info('Starting PyAR at %s in %s' %(datetime.datetime.now(),
+                                              os.getcwd()))
+    logger.debug('Logging level is %d' % args.verbosity)
+    logger.debug('Parsed arguments %s' % args)
 
     method_args = {
         'charge': args.charge,
@@ -130,17 +148,17 @@ def main():
                          'specify the aggregate size '
                          '(number of monomers to be added) '
                          'using the argument\n -as <integer>')
-            sys.exit()
+            sys.exit('Missing arguments: -as #')
 
         if number_of_orientations is None:
             logger.error("For aggregation, specify how many orientations"
                          "are to be used, by the argument\n"
                          "-number_of_orientations <number of orientations>")
-            sys.exit()
+            sys.exit('Missing arguments: -N #')
 
         if len(input_molecules) == 1:
             print('Provide at least two files')
-            sys.exit()
+            sys.exit('Missing arguments: Provide at least two files')
         else:
             monomer = input_molecules[-1]
             seeds = input_molecules[:-1]
@@ -151,24 +169,24 @@ def main():
                              hm_orientations=number_of_orientations,
                              method=method_args)
 
-        logger.info('Time: {}'.format(time.clock() - t1))
+        logger.info('Total Time: {}'.format(time.clock() - t1))
 
     if args.react:
         minimum_gamma = args.gmin
         maximum_gamma = args.gmax
         if len(input_molecules) == 1:
             logger.error('Reactor requires at least two molecules')
-            sys.exit()
+            sys.exit('Missing arguments: provide at least two molecules')
         if minimum_gamma is None or maximum_gamma is None:
             logger.error('For a Reactor run specify the '
                          'values of gamma_min and gamma_max using \n'
                          '-gmin <integer> -gmax <integer>')
-            sys.exit()
+            sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
         if number_of_orientations is None:
             logger.error("For reaction, specify how many orientations"
                          "are to be used, by the argument\n"
                          "-number_of_orientations <number of orientations>")
-            sys.exit()
+            sys.exit('Missing argumetns: -N #')
 
         if site is not None:
             site = [site[0], input_molecules[0].number_of_atoms+site[1]]
@@ -178,7 +196,7 @@ def main():
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations, method=method_args,
                       site=site, proximity_factor=proximity_factor)
-        logger.info('Time: {}'.format(time.clock() - t1))
+        logger.info('Total run time: {}'.format(time.clock() - t1))
         return
 
     if args.optimize:
@@ -187,10 +205,10 @@ def main():
         else:
             gamma = 0.0
 
-        list_of_optimized_molecules = bulk_optimize(input_molecules, method_args, gamma)
+        list_of_optimized_molecules = optimiser.bulk_optimize(input_molecules, method_args, gamma)
         from data_analysis import clustering
-        x = clustering.choose_geometries(list_of_optimized_molecules)
-        logger.info(x)
+        clustering_results = clustering.choose_geometries(list_of_optimized_molecules)
+        logger.info(clustering_results)
 
     if args.makebond:
         a = args.makebond[0]
@@ -199,24 +217,27 @@ def main():
             logger.error("For aggregation, specify how many orientations"
                          "are to be used, by the argument\n"
                          "-N <number of orientations>")
-            sys.exit()
+            sys.exit('Missing arguments: -N #')
 
-        import tabu
+
+
         molecules = tabu.generate_guess_for_bonding('abc', input_molecules[0],
                                                     input_molecules[1], a, b,
-                                                    number_of_orientations)
+                                                    int(number_of_orientations))
         for each_molecule in molecules:
             coordinates = each_molecule.coordinates
-            import numpy as np
             start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
             final_distance = each_molecule.covalent_radius[a] + \
                              each_molecule.covalent_radius[b]
             step = int(abs(final_distance - start_dist)*10)
-            c_k = '\n!ScanTS\n% geom scan B '+str(a)+' '+str(b)+ '= '+ \
-                  str(start_dist) + ', ' + str(final_distance) + ', ' \
-                  + str(step) + ' end end\n'
-            import optimiser
-            optimiser.optimise(each_molecule, method_args, 0.0, custom_keyword=c_k)
+            if args.software == 'orca':
+                c_k = '\n!ScanTS\n% geom scan B '+str(a)+' '+str(b)+ '= '+ \
+                      str(start_dist) + ', ' + str(final_distance) + ', ' \
+                      + str(step) + ' end end\n'
+
+                optimiser.optimise(each_molecule, method_args, 0.0, custom_keyword=c_k)
+            else:
+                print('Optimization with %s is not implemented yet' %args.software)
 
 
 if __name__ == "__main__":

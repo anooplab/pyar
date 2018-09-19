@@ -80,7 +80,13 @@ class XtbTurbo(SF):
 
             # Update coordinates and check convergence.
             status = interface.turbomole.update_coord()
-            if status is True:
+            if status is False:
+                xtb_turbo_logger.critical('Coordinate update failed in cycle %d' % cycle)
+                xtb_turbo_logger.critical('Check the job in %s' % os.getcwd())
+                return False
+
+            convergence_status = interface.turbomole.check_geometry_convergence()
+            if convergence_status is True:
                 xtb_turbo_logger.info('converged at {}'.format(cycle))
                 self.energy = interface.turbomole.get_energy()
                 self.optimized_coordinates = bohr2angstrom(interface.turbomole.get_coords())
@@ -122,7 +128,7 @@ class XtbTurbo(SF):
             return False, msg, None, None
         else:
             return True, msg, interface.turbomole.get_energy(), \
-                   interface.turbomole.get_gradients(self.number_of_atoms)
+                   interface.turbomole.get_gradients()
 
 
 def main():

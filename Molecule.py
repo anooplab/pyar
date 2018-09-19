@@ -86,20 +86,20 @@ class Molecule(object):
         try:
             number_of_atoms = int(f[0])
         except:
-            print(filename, "should have number of atoms in the first line")
-            print("but we found\n", f[0])
-            print("Is it an xyz file?")
-            sys.exit()
+            molecule_logger.error("%s should have number of atoms in the first line" % filename)
+            molecule_logger.error("but we found\n %s" % f[0])
+            molecule_logger.error("Is it an xyz file?")
+            sys.exit('Error in reading %s' % filename)
         mol_title = f[1].rstrip()
         try:
             geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
         except:
-            print("Something wrong with reading the geometry section")
-            sys.exit()
+            molecule_logger.error("Something wrong with reading the geometry section")
+            sys.exit('Error in reading %s' % filename)
         if len(geometry_section) != number_of_atoms:
-            print("Number of geometric coordinates is not equal to number of atoms")
-            print("Is something wrong?")
-            sys.exit()
+            molecule_logger.error("Number of geometric coordinates is not equal to number of atoms")
+            molecule_logger.error("Is something wrong?")
+            sys.exit('Error in reading %s' % filename)
         atoms_list = []
         coordinates = []
         for i, c in enumerate(geometry_section):
@@ -109,14 +109,13 @@ class Molecule(object):
                 y_coord = float(c[2])
                 z_coord = float(c[3])
             except:
-                print("Something wrong in line: ", i + 1)
-                print(c)
-                sys.exit()
+                molecule_logger.error("Something wrong in line: %d" % (i + 1))
+                molecule_logger.error(c)
+                sys.exit('Error in reading %s' % filename)
             atoms_list.append(symbol)
             coordinates.append([x_coord, y_coord, z_coord])
 
         mol_coordinates = np.array(coordinates)
-        # mol_coordinates -= np.mean(mol_coordinates, axis=0)
         mol_name = filename[:-4]
         return cls(atoms_list, mol_coordinates, name=mol_name, title=mol_title)
 

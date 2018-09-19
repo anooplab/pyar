@@ -489,7 +489,7 @@ ground_state_magnetic_moments = np.array([
 """ Van der Waals radii in [A] taken from
 http://www.webelements.com/periodicity/van_der_waals_radius/
 and the references given there.
-Additional source 5 from http://de.wikipedia.org/wiki/Van-der-Waals-Radius
+Additional source 5 from http://read_total_gradient.wikipedia.org/wiki/Van-der-Waals-Radius
 
 1. A. Bondi, J. Phys. Chem., 1964, 68, 441.
 

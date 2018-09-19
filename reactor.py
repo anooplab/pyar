@@ -19,7 +19,7 @@ saved_smile_strings = {}
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
-    reactor_logger.info('Starting PyAR 2.0\n')
+    reactor_logger.info('Starting Reactor')
     reactor_logger.info('{} orientations will be tried'.format(hm_orientations))
     reactor_logger.info(' Gamma (min): {}'.format(gamma_min))
     reactor_logger.info(' Gamma (max): {}'.format(gamma_max))
