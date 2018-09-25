@@ -34,26 +34,32 @@ def argument_parse():
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
     run_type_group.add_argument("-r", "--react",
-                                help="Run a reactor calculation", action='store_true')
+                                help="Run a reactor calculation",
+                                action='store_true')
     run_type_group.add_argument("-a", "--aggregate",
-                                help="Run a aggregator calculation", action='store_true')
+                                help="Run a aggregator calculation",
+                                action='store_true')
     run_type_group.add_argument("-o", "--optimize",
-                                help="Optimize the molecules", action='store_true')
+                                help="Optimize the molecules",
+                                action='store_true')
     run_type_group.add_argument("-mb", "--makebond", nargs=2, type=int,
                                 help="make bonds between the given atoms of two"
                                      "fragments")
 
-    aggregator_group = parser.add_argument_group('aggregator', 'Aggregator specific option')
+    aggregator_group = parser.add_argument_group('aggregator',
+                                                 'Aggregator specific option')
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
                                   help='number of monomers in aggregate')
 
-    reactor_group = parser.add_argument_group('reactor', 'Reactor specific option')
+    reactor_group = parser.add_argument_group('reactor',
+                                              'Reactor specific option')
     reactor_group.add_argument('-gmin', type=float,
                                help='minimum value of gamma')
     reactor_group.add_argument('-gmax', type=float,
                                help='maximum value of gamma')
 
-    optimizer_group = parser.add_argument_group('optimizer', 'Optimizer specific option')
+    optimizer_group = parser.add_argument_group('optimizer',
+                                                'Optimizer specific option')
     optimizer_group.add_argument('-gamma', type=float,
                                  help='value of gamma')
 
@@ -88,12 +94,12 @@ def setup_molecules(input_files):
         except IOError:
             logger.critical("File {} does not exist".format(each_file))
             sys.exit()
-    logger.info("I've parsed these molecules as input: {}".format([i.name for i in molecules]))
+    logger.info("I've parsed these molecules as input: {}".format(
+        [i.name for i in molecules]))
     return molecules
 
 
 def main():
-
     args = argument_parse()
     if args.verbosity == 0:
         logger.setLevel(logging.DEBUG)
@@ -118,8 +124,8 @@ def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    logger.info('Starting PyAR at %s in %s' %(datetime.datetime.now(),
-                                              os.getcwd()))
+    logger.info('Starting PyAR at %s in %s' % (datetime.datetime.now(),
+                                               os.getcwd()))
     logger.debug('Logging level is %d' % args.verbosity)
     logger.debug('Parsed arguments %s' % args)
 
@@ -189,12 +195,13 @@ def main():
             sys.exit('Missing argumetns: -N #')
 
         if site is not None:
-            site = [site[0], input_molecules[0].number_of_atoms+site[1]]
+            site = [site[0], input_molecules[0].number_of_atoms + site[1]]
         t1 = time.clock()
         number_of_orientations = int(number_of_orientations)
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
-                      hm_orientations=number_of_orientations, method=method_args,
+                      hm_orientations=number_of_orientations,
+                      method=method_args,
                       site=site, proximity_factor=proximity_factor)
         logger.info('Total run time: {}'.format(time.clock() - t1))
         return
@@ -205,9 +212,12 @@ def main():
         else:
             gamma = 0.0
 
-        list_of_optimized_molecules = optimiser.bulk_optimize(input_molecules, method_args, gamma)
+        list_of_optimized_molecules = optimiser.bulk_optimize(input_molecules,
+                                                              method_args,
+                                                              gamma)
         from data_analysis import clustering
-        clustering_results = clustering.choose_geometries(list_of_optimized_molecules)
+        clustering_results = clustering.choose_geometries(
+            list_of_optimized_molecules)
         logger.info(clustering_results)
 
     if args.makebond:
@@ -219,8 +229,6 @@ def main():
                          "-N <number of orientations>")
             sys.exit('Missing arguments: -N #')
 
-
-
         molecules = tabu.generate_guess_for_bonding('abc', input_molecules[0],
                                                     input_molecules[1], a, b,
                                                     int(number_of_orientations))
@@ -229,15 +237,17 @@ def main():
             start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
             final_distance = each_molecule.covalent_radius[a] + \
                              each_molecule.covalent_radius[b]
-            step = int(abs(final_distance - start_dist)*10)
+            step = int(abs(final_distance - start_dist) * 10)
             if args.software == 'orca':
-                c_k = '\n!ScanTS\n% geom scan B '+str(a)+' '+str(b)+ '= '+ \
-                      str(start_dist) + ', ' + str(final_distance) + ', ' \
-                      + str(step) + ' end end\n'
+                c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) +\
+                      '= ' + str(start_dist) + ', ' + str(final_distance) + \
+                      ', ' + str(step) + ' end end\n'
 
-                optimiser.optimise(each_molecule, method_args, 0.0, custom_keyword=c_k)
+                optimiser.optimise(each_molecule, method_args, 0.0,
+                                   custom_keyword=c_k)
             else:
-                print('Optimization with %s is not implemented yet' %args.software)
+                print(
+                    'Optimization with %s is not implemented yet' % args.software)
 
 
 if __name__ == "__main__":

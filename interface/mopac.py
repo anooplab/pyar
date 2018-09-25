@@ -53,9 +53,7 @@ class Mopac(SF):
         """
         :param keyword: this is the keyword for optimizations. This parameter
         should be a strings of characters which are mopac keywords
-        :return: It will not return anything. It will prepare the input file for
-        the purpose given in the keyword. Note that babel will be used to prepare
-        the input(.mop) file.
+        :return: exit status.
         """
         if not keyword:
             keyword_line = "-xkPM7"
@@ -71,7 +69,7 @@ class Mopac(SF):
         output, error = out.communicate()
         poll = out.poll()
         exit_status = out.returncode
-            os.remove('tmp.log')
+        os.remove('tmp.log')
         return exit_status
 
     def optimize(self, gamma=None):

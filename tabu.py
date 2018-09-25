@@ -121,7 +121,7 @@ def generate_orientations_old(molecule_id, seed, monomer, number_of_orientations
         for i in range(int(int(number_of_orientations) / 8)):
             for j in range(8):
                 accepted = False
-                tries = 1
+                one_set = None
                 while not accepted:
                     accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
                 orientation = merge_monomer_and_seed(one_set, monomer, seed)
@@ -516,13 +516,14 @@ def main():
     parser.add_argument('-method',
                         choices=['random','rotating', 'uniform'],
                         help="method for generating points")
-    parser.add_argument('-spr', type=str,
+    parser.add_argument('-spr', type=str, 
                         help="create a molecules from N atoms of given elememts")
-    parser.add_argument('-best', type=int, nargs=2,
+    parser.add_argument('-best', type=int, nargs=2, 
                         help="create the best orientation with lowest a b "
                              "distance")
 
     args = parser.parse_args()
+    print(args)
     tabu_logger.debug(args)
 
     N = args.N

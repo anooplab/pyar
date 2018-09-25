@@ -74,9 +74,8 @@ class XtbTurbo(SF):
                 return False
 
             # Calculate afir gradient if gamma is greater than zero
-            if gamma > 0.0:
-                augmented_energy, trg, rg = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, interface.turbomole.get_coords(), gamma)
-                interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, rg, augmented_energy, trg)
+            afir_energy, afir_gradient = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, interface.turbomole.get_coords(), gamma)
+            interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, afir_energy, afir_gradient)
 
             # Update coordinates and check convergence.
             status = interface.turbomole.update_coord()
@@ -96,10 +95,7 @@ class XtbTurbo(SF):
                                     energy=self.energy)
                 return True
             with open('energy.dat','a') as fe:
-                if gamma > 0.0:
-                    fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+augmented_energy))
-                else:
-                    fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
+                fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+afir_energy))
         else:
             xtb_turbo_logger.info("cycle exceeded")
             status = 'cycle_exceeded'
@@ -114,8 +110,9 @@ class XtbTurbo(SF):
             try:
                 subp.check_call(self.egrad_program, stderr=fc, stdout=fc)
             except subp.CalledProcessError as e:
-                with open('xtb.out', 'wb') as fb:
-                    fb.write(e.output)
+                if e.output:
+                    with open('xtb.out', 'w') as fb:
+                        fb.write(e.output)
                 msg = "SCF Failure. Check files in" + os.getcwd()
                 xtb_turbo_logger.error(msg)
                 return False, msg, None, None

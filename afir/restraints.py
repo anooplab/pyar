@@ -1,11 +1,12 @@
 from __future__ import print_function
-import numpy as np
+
+import collections
 from itertools import product
 from math import sqrt
-from units import *
-import collections
-import os
 
+import numpy as np
+
+from units import *
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
 from units import kilojoules2atomic_units
@@ -94,7 +95,7 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
 
     alpha = calculate_alpha(force)
 
-    total_restraint_energy = alpha * nom / den
+    restraint_energy = alpha * nom / den
 
     gradients = np.zeros((len(coordinates), 3))
     for index, ac in enumerate(zip(atoms_list, coordinates)):
@@ -103,8 +104,7 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
         if index in flatten(atoms_in_fragment[1]):
             gradients[index] = calculate_gradient(ac, (al1, fragment1), alpha, nom, den, parameter)
 
-    total_restraint_gradients = np.sqrt(np.sum(gradients ** 2))
-    return total_restraint_energy, total_restraint_gradients, gradients
+    return restraint_energy, gradients
 
 
 def calculate_alpha(force):

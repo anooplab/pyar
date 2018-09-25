@@ -101,6 +101,7 @@ class Psi4(SF):
         :return:This object will return energy from an psi4 calculation. It will return Hartree units.
         """
         try:
+            energy_in_hartrees = None
             with open(self.out_file, "r") as out:
                 lines = out.readlines()
                 for line in lines:
@@ -114,7 +115,6 @@ class Psi4(SF):
         """
         :return:This object will return energy from an psi4 calculation. It will return Hartree units.
         """
-        from itertools import dropwhile
         try:
             with open(self.out_file, "r") as out:
                 for line in out:

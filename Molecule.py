@@ -1,8 +1,8 @@
-from math import radians, cos, sin, pi
+from math import cos, sin, pi
 from scipy.spatial import distance as scipy_distance
 
 import numpy as np
-from itertools import combinations, product
+from itertools import product
 
 from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 import itertools

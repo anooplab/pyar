@@ -4,11 +4,11 @@ import operator
 import sys
 
 import numpy as np
-from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, MiniBatchKMeans, MeanShift, estimate_bandwidth
+import pandas as pd
+from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, \
+    MiniBatchKMeans, MeanShift, estimate_bandwidth
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import RobustScaler
-
-import pandas as pd
 
 cluster_logger = logging.getLogger('pyar.cluster')
 
@@ -37,15 +37,19 @@ def memoize(f):
     """ Memoization decorator for functions taking one or more arguments.
     https://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/
     """
-    class memodict(dict):
+    class MemoDict(dict):
         def __init__(self, f):
             self.f = f
+
         def __call__(self, *args):
             return self[args]
+
         def __missing__(self, key):
             ret = self[key] = self.f(*key)
             return ret
-    return memodict(f)
+    return MemoDict(f)
+
+
 
 @memoize
 def calc_energy_difference(a, b):
@@ -284,7 +288,6 @@ def main():
     fls = []
     for one in selected:
         fls.append(one.name+'.xyz')
-    import subprocess as subp
     print(' '.join(cmd+fls))
     # subp.check_call(cmd)
     return
