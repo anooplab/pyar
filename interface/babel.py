@@ -27,7 +27,7 @@ from interface import SF, which
 class OBabel(SF):
     def __init__(self, molecule, forcefield=None):
 
-        if which('OBabel') is None:
+        if which('obabel') is None:
             print('setup OBabel path')
             sys.exit()
 
@@ -38,22 +38,21 @@ class OBabel(SF):
         self.optimized_coordinates = []
         self.energy = 0.0
 
-    def optimize(self):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
         """
         """
         with open('tmp.log', 'w') as logfile, open('tmp.xyz', 'w') as xyzfile:
-            out = subp.Popen(["obminimize", "-ff", "uff", self.start_xyz_file], stdout=xyzfile, stderr=logfile)
-        exit_status = out.returncode
-        if exit_status == 1:
-            with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
-                for line in xyzfile:
-                    if 'WARNING' not in line:
-                        result_xyz_file.write(line)
-            self.energy = self.get_energy()
-            self.optimized_coordinates = self.get_coords()
-            return True
-        os.remove('tmp.log')
-        return exit_status
+            try:
+                subp.check_call(["obminimize", "-ff", "uff", '-n', max_cycles, self.start_xyz_file], stdout=xyzfile, stderr=logfile)
+            except subp.CalledProcessError as e:
+                print('done')
+        with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
+            for line in xyzfile:
+                if 'WARNING' not in line:
+                    result_xyz_file.write(line)
+        self.energy = self.get_energy()
+        self.optimized_coordinates = self.get_coords()
+        return True
 
     def get_coords(self):
         """
@@ -69,7 +68,7 @@ class OBabel(SF):
         output, error = out.communicate()
         poll = out.poll()
         exit_status = out.returncode
-        if exit_status == 1:
+        if exit_status is None:
             with open(self.job_name + '.ene', 'r') as energy_file:
                 energy = float(energy_file.readlines()[-1].split()[3])
                 return energy

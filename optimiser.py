@@ -3,7 +3,7 @@ import os
 import file_manager
 
 
-def optimise(molecule, method, gamma=0.0, custom_keyword=None):
+def optimise(molecule, method, gamma=0.0, max_cycles=350, custom_keyword=None):
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'opt'
@@ -31,7 +31,7 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
     elif software == "orca":
         from interface import orca
         geometry = orca.Orca(molecule, method, custom_keyword=custom_keyword)
-    elif software == 'OBabel':
+    elif software == 'obabel':
         from interface import babel
         geometry = babel.OBabel(molecule)
     elif software == 'psi4':
@@ -41,7 +41,7 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
         print(software, "is not implemented yet")
         return NotImplementedError
 
-    optimize_status = geometry.optimize(gamma=gamma)
+    optimize_status = geometry.optimize(gamma=gamma, max_cycles=max_cycles)
     if optimize_status is True or optimize_status == 'converged' or optimize_status == 'cycle_exceeded':
         molecule.energy = geometry.energy
         molecule.coordinates = geometry.optimized_coordinates
@@ -55,18 +55,8 @@ def optimise(molecule, method, gamma=0.0, custom_keyword=None):
 
 def bulk_optimize(input_molecules, method_args, gamma):
     status_list = [optimise(each_mol, method_args, gamma=gamma) for each_mol in input_molecules]
-    energy_dict = {n.name: n.energy for n, s in zip(input_molecules, status_list) if s}
-    write_csv_file('energy.csv', energy_dict)
     optimized_molecules = [n for n, s in zip(input_molecules, status_list) if s is True or s == 'cycleexceeded']
     return optimized_molecules
-
-
-def write_csv_file(csv_filename, energy_dict):
-    import csv
-    with open(csv_filename, 'w') as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(["Name", "Energy"])
-        writer.writerows(energy_dict.items())
 
 
 def main():

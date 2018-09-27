@@ -79,7 +79,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
                 aggregator_logger.info("      E(%10s): %12.7f" % (molecule.name, molecule.energy))
                 list_of_optimized_molecules.append(molecule)
             else:
-                aggregator_logger.info('    Optimisation failed: {} , will be discarded'.format(molecule.name))
+                aggregator_logger.info('    Optimisation failed: {}, will '
+                                       'be discarded'.format(molecule.name))
         os.chdir(cwd)
 
     if len(list_of_optimized_molecules) < 2:

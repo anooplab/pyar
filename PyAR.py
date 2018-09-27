@@ -18,6 +18,14 @@ logger = logging.getLogger('pyar')
 handler = logging.FileHandler('pyar.log', 'w')
 
 
+def write_csv_file(csv_filename, energy_dict):
+    import csv
+    with open(csv_filename, 'w') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["Name", "Energy"])
+        writer.writerows(energy_dict.items())
+
+
 def argument_parse():
     """ Parse command line arguments"""
     parser = argparse.ArgumentParser(prog='PyAR', description='is a \
@@ -73,7 +81,7 @@ def argument_parse():
                                  default='rhf',
                                  help="specify rhf or uhf (defulat=rhf)")
     chemistry_group.add_argument("--software", type=str,
-                                 choices=['turbomole', 'OBabel', 'mopac',
+                                 choices=['turbomole', 'obabel', 'mopac',
                                           'xtb', 'xtb_turbo', 'orca', 'psi4'],
                                  required=True, help="Software")
     parser.add_argument('-v', '--verbosity', default=1,
@@ -215,6 +223,10 @@ def main():
         list_of_optimized_molecules = optimiser.bulk_optimize(input_molecules,
                                                               method_args,
                                                               gamma)
+        if len(list_of_optimized_molecules) == 0:
+            print('no optimized molecules')
+        energy_dict = {n.name: n.energy for n in input_molecules}
+        write_csv_file('energy.csv', energy_dict)
         from data_analysis import clustering
         clustering_results = clustering.choose_geometries(
             list_of_optimized_molecules)

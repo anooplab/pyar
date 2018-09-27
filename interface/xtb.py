@@ -48,13 +48,25 @@ class Xtb(SF):
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
-    def optimize(self, gamma=None):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
         """
+        :returns: True,
+                  'SCFFailed',
+                  'GradFailed',
+                  'UpdateFailed',
+                  'CycleExceeded',
+                  False
         """
-        try:
-            out = subp.check_output(self.cmd.split())
-        except:
-            print('Optimization failed')
+        if gamma > 0.0:
+            print('not implemented in this module. Use xtb_turbo')
+
+        with open('xtb.out', 'w') as fout:
+            try:
+                out = subp.check_call(self.cmd.split(), stdout=fout, stderr=fout)
+                print('optimization done', out)
+            except:
+                print('Optimization failed')
+                return False
 
         if os.path.isfile('.xtboptok'):
 
@@ -66,6 +78,7 @@ class Xtb(SF):
             return True
         elif os.path.isfile('.sccnotconverged'):
             print('SCF Convergence failure in {} run in {}'.format(self.start_xyz_file, os.getcwd()))
+            return 'SCFFailed'
         else:
             print('Something went wrong with {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return False
@@ -82,7 +95,42 @@ class Xtb(SF):
 
 
 def main():
-    pass
+
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--charge', type=int, default=0,
+                        help='charge')
+    parser.add_argument('-m', '--multiplicity', type=int, default=1,
+                        help='multiplicity')
+    parser.add_argument('--scftype', type=str, default='rhf',
+                        choices=['rhf', 'uhf'],
+                        help='SCF type (rhf/uhf)')
+    parser.add_argument("input_file", metavar='file',
+                        type=str,
+                        help='input coordinate file')
+    parser.add_argument('--scan', type=int, nargs=2,
+                        help='scan between two atoms')
+    parser.add_argument('--cycle', type=int, default=350,
+                        help='maximum number of optimization cycles')
+    args = parser.parse_args()
+
+    from Molecule import Molecule
+    mol = Molecule.from_xyz(args.input_file)
+    method_args = {
+        'charge': args.charge,
+        'multiplicity': args.multiplicity,
+        'scftype': args.scftype,
+        'software': 'xtb'
+    }
+    Xtb(mol, method_args)
+
+    import optimiser
+
+    print('optimising')
+    optimiser.optimise(mol, method_args)
+
+    if args.scan:
+        pass
 
 
 if __name__ == "__main__":

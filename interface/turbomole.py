@@ -89,21 +89,29 @@ class Turbomole(SF):
         self.energy = None
         self.optimized_coordinates = None
 
-    def optimize(self, max_cycles=350, gamma=0.0):
-        """This is the python implementation  of jobex of turbomole"""
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
+        """This is the python implementation  of jobex of turbomole
+        :returns: True,
+                  'SCFFailed',
+                  'GradFailed',
+                  'UpdateFailed',
+                  'CycleExceeded',
+                  False
+        """
 
-        make_coord(self.atoms_list, self.start_coords)
-        define_status = prepare_control()
-        if define_status is False:
-            turbomole_logger.error('Initial Define failed.  Trying again with cartesian coordinate system')
-            remove('control')
-            define_status = prepare_control(coordinates='cartesian')
+        if restart is False:
+            make_coord(self.atoms_list, self.start_coords)
+            define_status = prepare_control()
             if define_status is False:
-                turbomole_logger.error('Initial Define failed again. Quit')
-                return False
+                turbomole_logger.error('Initial Define failed.  Trying again with cartesian coordinate system')
+                remove('control')
+                define_status = prepare_control(coordinates='cartesian')
+                if define_status is False:
+                    turbomole_logger.error('Initial Define failed again. Quit')
+                    return 'UpdateFailed'
 
         if gamma == 0.0:
-            return self.run_turbomole_jobex()
+            return self.run_turbomole_jobex(max_cycles=max_cycles)
 
         # Test for Turbomole input
         if not os.path.isfile('control'):
@@ -131,7 +139,7 @@ class Turbomole(SF):
         initial_status, initial_energy = calc_energy()
         if initial_status is False:
             turbomole_logger.error('Initial energy evaluation failed.')
-            return False
+            return 'SCFFailed'
 
         turbomole_logger.debug('First step: %s, %f' %(initial_status, initial_energy))
 
@@ -140,7 +148,7 @@ class Turbomole(SF):
             gradient_status = calc_gradients()
             if gradient_status is False:
                 turbomole_logger.error('Gradient evaluation failed in cycle %d' %cycle)
-                return False
+                return 'GradFailed'
 
             for line in open('gradient').readlines():
                 if 'cycle' in line:
@@ -157,7 +165,7 @@ class Turbomole(SF):
             if update_status is False:
                 turbomole_logger.critical('Coordinate update failed in cycle %d' %cycle)
                 turbomole_logger.critical('Check the job in %s' % os.getcwd())
-                return False
+                return 'UpdateFailed'
 
             convergence_status = check_geometry_convergence()
             if convergence_status is True:
@@ -173,7 +181,7 @@ class Turbomole(SF):
             scf_status, energy = calc_energy()
             if scf_status is False:
                 turbomole_logger.critical('Energy evaluation failed in cycle %d' %cycle)
-                return False
+                return 'SCFFailed'
 
             with open('energy.dat','a') as fe:
                 # if gamma > 0.0:
@@ -186,12 +194,11 @@ class Turbomole(SF):
                                   "the gradient norms\n might be a good idea..."
                                   " (grep cycle gradient)" %max_cycles)
 
-            optimisation_status = 'cycle_exceeded'
             self.energy = get_energy()
             self.optimized_coordinates = bohr2angstrom(get_coords())
-            return optimisation_status
+            return 'CycleExceeded'
 
-    def run_turbomole_jobex(self):
+    def run_turbomole_jobex(self, max_cycles=350):
         """
         return one of the following:
             True: converged
@@ -204,7 +211,7 @@ class Turbomole(SF):
         """
         with open('jobex.out', 'w') as fj:
             try:
-                subp.check_call(['jobex', '-ri', '-c', '350'], stdout=fj,
+                subp.check_call(['jobex', '-ri', '-c', max_cycles], stdout=fj,
                                 stderr=fj)
             except subp.CalledProcessError as e:
                 turbomole_logger.error('jobex failed, check %s/jobex.out'
@@ -240,7 +247,7 @@ class Turbomole(SF):
 
         elif os.path.isfile('GEO_OPT_CONVERGED'):
 
-            turbomole_logger.info('jobex done')
+            turbomole_logger.debug('jobex done')
             self.energy = get_energy()
             self.optimized_coordinates = bohr2angstrom(get_coords())
             interface.write_xyz(self.atoms_list, self.optimized_coordinates,
@@ -388,7 +395,7 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                                 stderr=fout, universal_newlines=False)
             except subp.CalledProcessError as e:
                 turbomole_logger.critical('Error in define')
-                turbomole_logger.critical(e.output, e.returncode)
+                turbomole_logger.critical("%s: %s\n" %(e.output, e.returncode))
                 return False
         with open(define_log_file) as fout:
             if "define : all done" not in fout.read() or 'abnormally' in fout.read():
@@ -489,7 +496,7 @@ def generate_internal_coordinates():
 
 
 def remove_data_group(group):
-
+    """similar to turbomole kdg script"""
     data_groups = open('control','r').read().split('$')
 
     for each_group in data_groups[1:]:
@@ -711,6 +718,13 @@ def movie_maker():
                                                                   c[2]+g[2]*i))
 
 
+def plot_energy(params):
+    import matplotlib.pyplot as plt
+    for i in params:
+        energies = np.loadtxt(i+'/energy', comments='$', usecols=(0,1))
+        plt.plot(energies[:,0],energies[:,1])
+    plt.show()
+
 def main():
 
     import argparse
@@ -768,3 +782,5 @@ if __name__ == "__main__":
     # main()
     # update_coord()
     # actual()
+    # import sys
+    # plot_energy(sys.argv[1:])

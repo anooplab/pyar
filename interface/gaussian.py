@@ -58,27 +58,7 @@ class gaussian(object):
         f1.write("\n")
         f1.close()
 
-    def get_coords(self):
-        """
-        :return: coords It will return coordinates
-        """
-        opt_status = False
-        coordinates = []
-        with open(self.out_file) as v:
-            t = v.readlines()
-        for i, lines in enumerate(t):
-            if 'Stationary point found.' in lines:
-                opt_status = True
-            if opt_status is True and 'Standard orientation' in lines:
-                pos = i
-                coords_lines = t[pos+5:pos+5+self.number_of_atoms]
-                for ilines in coords_lines:
-                    coordinates.append(ilines.split()[3:6])
-                return np.array(coordinates, dtype=float)
-        if opt_status is False:
-            return None
-     
-    def optimize(self, gamma=None):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
@@ -98,9 +78,9 @@ class gaussian(object):
 
             for j in l:
                 if "Optimization completed" in j:
-                        check_1=1
+                    check_1=1
                 if "SCF Done" in j:
-                        check_2=1
+                    check_2=1
 
             if ("Normal termination of Gaussian 09" in l[-1]) and check_1==1 and check_2==1:
                 self.energy = self.get_energy()
@@ -112,6 +92,26 @@ class gaussian(object):
                 print("Error: OPTIMIZATION PROBABLY FAILED.")
                 print("Location: {}".format(os.getcwd()))
                 return False
+
+    def get_coords(self):
+        """
+        :return: coords It will return coordinates
+        """
+        opt_status = False
+        coordinates = []
+        with open(self.out_file) as v:
+            t = v.readlines()
+        for i, lines in enumerate(t):
+            if 'Stationary point found.' in lines:
+                opt_status = True
+            if opt_status is True and 'Standard orientation' in lines:
+                pos = i
+                coords_lines = t[pos+5:pos+5+self.number_of_atoms]
+                for ilines in coords_lines:
+                    coordinates.append(ilines.split()[3:6])
+                return np.array(coordinates, dtype=float)
+        if opt_status is False:
+            return None
 
     def get_energy(self):
         """

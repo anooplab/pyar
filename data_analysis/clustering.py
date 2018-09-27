@@ -236,13 +236,13 @@ def select_best_from_each_cluster(labels, list_of_molecules):
         molecules_in_this_group = [m for label, m in
                                    zip(labels, list_of_molecules)
                                    if label == this_label]
-        best_from_each_cluster.append(best_molecule(molecules_in_this_group))
+        best_from_each_cluster.append(get_the_best_molecule(molecules_in_this_group))
     cluster_logger.info("Lowest energy structures from each cluster")
     print_energy_table(best_from_each_cluster)
     return best_from_each_cluster
 
 
-def best_molecule(list_of_molecules):
+def get_the_best_molecule(list_of_molecules):
     """Give a list of molecule objects with name and energy, and this function
     returns the molecule with lower energy
     :type list_of_molecules: list of Molecule objects
@@ -266,8 +266,9 @@ def read_energy_from_xyz_file(xyz_file):
 def main():
     from Molecule import Molecule
     logger = logging.getLogger('pyar')
-    handler = logging.FileHandler('pyar.log', 'w')
-    formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    handler = logging.FileHandler('clustering.log', 'w')
+    # formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    formatter = logging.Formatter('%(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)

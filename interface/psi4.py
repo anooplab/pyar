@@ -68,7 +68,7 @@ class Psi4(SF):
         f1.write("optimize(\"B97-D\")")
         f1.close()
 
-    def optimize(self, gamma=None):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
@@ -91,7 +91,8 @@ class Psi4(SF):
                 f.close()
                 return True
             else:
-                print("Error: OPTIMIZATION PROBABLY FAILED. CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
+                print("Error: OPTIMIZATION PROBABLY FAILED. "
+                      "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
                 print("Check for partial optimization.")
                 print("Location: {}".format(os.getcwd()))
                 return False

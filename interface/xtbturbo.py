@@ -71,7 +71,7 @@ class XtbTurbo(SF):
             status, message, energy, gradients = self.calc_engrad
             if status is False:
                 xtb_turbo_logger.critical('Energy/Gradient evaluation failed')
-                return False
+                return 'SCFFailed'
 
             # Calculate afir gradient if gamma is greater than zero
             afir_energy, afir_gradient = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, interface.turbomole.get_coords(), gamma)
@@ -82,7 +82,7 @@ class XtbTurbo(SF):
             if status is False:
                 xtb_turbo_logger.critical('Coordinate update failed in cycle %d' % cycle)
                 xtb_turbo_logger.critical('Check the job in %s' % os.getcwd())
-                return False
+                return 'UpdateFailed'
 
             convergence_status = interface.turbomole.check_geometry_convergence()
             if convergence_status is True:
@@ -94,7 +94,8 @@ class XtbTurbo(SF):
                                     self.job_name,
                                     energy=self.energy)
                 return True
-            with open('energy.dat','a') as fe:
+
+            with open('energy.dat', 'a') as fe:
                 fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+afir_energy))
         else:
             xtb_turbo_logger.info("cycle exceeded")
