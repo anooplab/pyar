@@ -42,7 +42,9 @@ def optimise(molecule, method, gamma=0.0, max_cycles=350, custom_keyword=None):
         return NotImplementedError
 
     optimize_status = geometry.optimize(gamma=gamma, max_cycles=max_cycles)
-    if optimize_status is True or optimize_status == 'converged' or optimize_status == 'cycle_exceeded':
+    if optimize_status is True\
+            or optimize_status == 'converged'\
+            or optimize_status == 'CycleExceeded':
         molecule.energy = geometry.energy
         molecule.coordinates = geometry.optimized_coordinates
     else:

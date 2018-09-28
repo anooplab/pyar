@@ -211,7 +211,7 @@ class Turbomole(SF):
         """
         with open('jobex.out', 'w') as fj:
             try:
-                subp.check_call(['jobex', '-ri', '-c', max_cycles], stdout=fj,
+                subp.check_call(['jobex', '-ri', '-c', str(max_cycles)], stdout=fj,
                                 stderr=fj)
             except subp.CalledProcessError as e:
                 turbomole_logger.error('jobex failed, check %s/jobex.out'
@@ -239,7 +239,9 @@ class Turbomole(SF):
                 turbomole_logger.error('Gradient failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return 'GradientFailed'
             elif 'OPTIMIZATION DID NOT CONVERGE' in message:
-                turbomole_logger.error('Geometry did not converge!\n check %s' % os.getcwd())
+                turbomole_logger.error('Geometry did not converge in %d cycles.\ncheck %s' % (max_cycles, os.getcwd()))
+                self.energy = get_energy()
+                self.optimized_coordinates = bohr2angstrom(get_coords())
                 return 'CycleExceeded'
             else:
                 turbomole_logger.error('Unknown Error!\n chcek the files in %s' % os.getcwd())
@@ -722,7 +724,11 @@ def plot_energy(params):
     import matplotlib.pyplot as plt
     for i in params:
         energies = np.loadtxt(i+'/energy', comments='$', usecols=(0,1))
-        plt.plot(energies[:,0],energies[:,1])
+        plt.plot(energies[:,0],energies[:,1], label=i)
+    plt.xlabel('cycles')
+    plt.ylabel('energy')
+    plt.title('SCF Convergence')
+    plt.legend(bbox_to_anchor=(1, 1), bbox_transform=plt.gcf().transFigure)
     plt.show()
 
 def main():
@@ -783,4 +789,4 @@ if __name__ == "__main__":
     # update_coord()
     # actual()
     # import sys
-    # plot_energy(sys.argv[1:])
+    plot_energy(sys.argv[1:])

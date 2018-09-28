@@ -64,7 +64,7 @@ def calc_fingerprint_distance(a, b):
     return fingerprint_distance
 
 
-def choose_geometries(list_of_molecules):
+def choose_geometries(list_of_molecules, feature='fingerprint'):
     if len(list_of_molecules) < 2:
         cluster_logger.info("Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules
@@ -75,9 +75,15 @@ def choose_geometries(list_of_molecules):
 
     cluster_logger.info('Clustering on {} geometries'.format(len(list_of_molecules)))
 
-    # dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
-    dt = [i.fingerprint for i in list_of_molecules]
-    # dt = [i.get_principal_axes() for i in list_of_molecules]
+    if feature == 'fingerprint':
+        dt = [i.fingerprint for i in list_of_molecules]
+    elif feature == 'scm'
+        dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
+    elif feature == 'moi':
+        dt = [i.get_principal_axes() for i in list_of_molecules]
+    else:
+        cluster_logger.error('This feature is not implemented')
+        return list_of_molecules
 
     dt = np.around(dt, decimals=5)
 
@@ -262,12 +268,25 @@ def read_energy_from_xyz_file(xyz_file):
     return energy
 
 
+def plot_energy_histogram(molecules):
+    energies = [i.energy for i in molecules]
+    ref = min(energies)
+    relative_energies = [(energy - ref) * 627.51 for energy in energies]
+    bin = np.linspace(0,max(relative_energies), 10)
+    import matplotlib.pyplot as plt
+    plt.hist(relative_energies, bin)
+    plt.xlabel('Energy')
+    plt.ylabel('Population')
+    plt.title('Histogram of energies')
+    plt.show()
+
+
+
 # main program
 def main():
     from Molecule import Molecule
     logger = logging.getLogger('pyar')
     handler = logging.FileHandler('clustering.log', 'w')
-    # formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
     formatter = logging.Formatter('%(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -284,6 +303,7 @@ def main():
         mol = Molecule.from_xyz(each_file)
         mol.energy = read_energy_from_xyz_file(each_file)
         mols.append(mol)
+    plot_energy_histogram(mols)
     selected = choose_geometries(mols)
     cmd = ['/home/anoop/bin/molden']
     fls = []

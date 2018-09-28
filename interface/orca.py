@@ -74,7 +74,7 @@ class Orca(SF):
         :return:This object will return the optimization status. It will
         optimize a structure.
         """
-
+        # TODO: Add a return 'CycleExceeded'
         with open(self.out_file, 'w') as fopt:
             out = subp.Popen([which("orca"), self.inp_file], stdout=fopt, stderr=fopt)
         out.communicate()

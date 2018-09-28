@@ -73,14 +73,27 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
         aggregator_logger.debug('Making orientations')
         all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer, hm_orientations)
         aggregator_logger.debug('Orientations are made.')
-        for molecule in all_orientations:
-            o_status = optimise(molecule, method)
-            if o_status is True and molecule.energy is not None:
-                aggregator_logger.info("      E(%10s): %12.7f" % (molecule.name, molecule.energy))
-                list_of_optimized_molecules.append(molecule)
-            else:
-                aggregator_logger.info('    Optimisation failed: {}, will '
-                                       'be discarded'.format(molecule.name))
+
+        not_converged = all_orientations[:]
+        for i in range(10):
+            aggregator_logger.info("Round %d of block optimizations" % i)
+            if len(not_converged) == 0:
+                break
+            status_list = [optimise(each_mol, method, max_cycles=100) for each_mol in not_converged]
+            converged = [n for n, s in zip(not_converged, status_list) if s is True]
+            list_of_optimized_molecules.extend(converged)
+            not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
+            not_converged = clustering.choose_geometries(not_converged)
+
+
+        # for molecule in all_orientations:
+        #     o_status = optimise(molecule, method)
+        #     if o_status is True and molecule.energy is not None:
+        #         aggregator_logger.info("      E(%10s): %12.7f" % (molecule.name, molecule.energy))
+        #         list_of_optimized_molecules.append(molecule)
+        #     else:
+        #         aggregator_logger.info('    Optimisation failed: {}, will '
+        #                                'be discarded'.format(molecule.name))
         os.chdir(cwd)
 
     if len(list_of_optimized_molecules) < 2:

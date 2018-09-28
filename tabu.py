@@ -144,12 +144,15 @@ def merge_monomer_and_seed(each_vector, monomer, seed, site=None):
     monomer.move_to_origin()
     if monomer.number_of_atoms > 1:
         monomer.rotate_3d((alpha, beta, gamma))
+
     r = 0.1
+
     while close_contact(seed, monomer, 1.0):
         r += 0.1
         if seed.number_of_atoms == 2:
             phi = 0.0
         monomer.translate(polar_to_cartesian(r, theta, phi))
+
     orientation = seed + monomer
     if site is not None:
         atoms_in_self = site
@@ -182,6 +185,18 @@ def close_contact(mol_1, mol_2, factor):
                 return True
     else:
         return False
+
+
+def minimum_separation(mol_1, mol_2):
+    """
+    Find the minimum separation between two fragmetns.
+
+    :return: boolean
+    :type mol_1: Molecule.Molecule
+    :type mol_2: Molecule.Molecule
+    """
+    return np.min([np.linalg.norm(a - b) for a, b in
+                itertools.product(mol_1.coordinates, mol_2.coordinates)])
 
 
 def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
@@ -373,8 +388,18 @@ def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None
     if monomer.number_of_atoms > 1:
         monomer.rotate_3d((theta, phi, psi))
     tabu_logger.debug('checking close contact')
-    while close_contact(seed, monomer, 1.3):
+
+    is_in_cage = True
+    while close_contact(seed, monomer, 1.3) or is_in_cage:
+        minsep_1 = minimum_separation(seed, monomer)
         monomer.translate(translate_by)
+        minsep_2 = minimum_separation(seed, monomer)
+        if minsep_2 > minsep_1:
+            if is_in_cage is True:
+                is_in_cage = 'BorW'
+            if is_in_cage == 'BorW':
+                is_in_cage = False
+
     orientation = seed + monomer
     if site is not None:
         atoms_in_self = site[0]

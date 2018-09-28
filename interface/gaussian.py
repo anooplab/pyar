@@ -63,6 +63,7 @@ class gaussian(object):
         :return:This object will return the optimization status. It will
         optimize a structure.
         """
+        # TODO: Add a return 'CycleExceeded'
         logfile = "trial_{}.out".format(self.job_name)
 
         with open(self.out_file, 'w') as fopt:

@@ -63,7 +63,6 @@ class Xtb(SF):
         with open('xtb.out', 'w') as fout:
             try:
                 out = subp.check_call(self.cmd.split(), stdout=fout, stderr=fout)
-                print('optimization done', out)
             except:
                 print('Optimization failed')
                 return False

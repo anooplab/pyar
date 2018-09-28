@@ -77,6 +77,8 @@ class Mopac(SF):
         :return:This object will return the optimization status. It will
         optimize a structure.
         """
+        # TODO: Add a return 'CycleExceeded'
+
         logfile = "trial_{}.log".format(self.job_name)
         with open(logfile, 'w') as fopt:
             out = subp.Popen(["mopac", self.inp_file], stdout=fopt, stderr=fopt)

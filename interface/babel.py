@@ -41,6 +41,8 @@ class OBabel(SF):
     def optimize(self, max_cycles=350, gamma=0.0, restart=False):
         """
         """
+        # TODO: Add a return 'CycleExceeded'
+
         with open('tmp.log', 'w') as logfile, open('tmp.xyz', 'w') as xyzfile:
             try:
                 subp.check_call(["obminimize", "-ff", "uff", '-n', max_cycles, self.start_xyz_file], stdout=xyzfile, stderr=logfile)
