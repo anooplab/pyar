@@ -77,7 +77,7 @@ def choose_geometries(list_of_molecules, feature='fingerprint'):
 
     if feature == 'fingerprint':
         dt = [i.fingerprint for i in list_of_molecules]
-    elif feature == 'scm'
+    elif feature == 'scm':
         dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
     elif feature == 'moi':
         dt = [i.get_principal_axes() for i in list_of_molecules]
@@ -152,7 +152,6 @@ def get_labels(data_as_list, algorithm='combo'):
         except Exception:
             # If it fails to estimate bandwidth, give a value (it is arbitrary
             # now,
-            # TODO can we find a reasonable value?)
             cluster_logger.exception(' Estimation of bandwidth failed. Using '
                                      '0.5 as bandwidth')
             bandwidth = 0.5
