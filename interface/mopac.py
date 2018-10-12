@@ -72,7 +72,7 @@ class Mopac(SF):
         os.remove('tmp.log')
         return exit_status
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.

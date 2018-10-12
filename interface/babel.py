@@ -38,7 +38,7 @@ class OBabel(SF):
         self.optimized_coordinates = []
         self.energy = 0.0
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """
         """
         # TODO: Add a return 'CycleExceeded'

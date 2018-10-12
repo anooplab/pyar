@@ -29,7 +29,9 @@ def write_csv_file(csv_filename, energy_dict):
 def argument_parse():
     """ Parse command line arguments"""
     parser = argparse.ArgumentParser(prog='PyAR', description='is a \
-             program to predict aggregation and reaction')
+             program to predict aggregation, reaction, clustering.  \
+             There are also modules for strochastic generation of  \
+             orientations of two more molecules and atoms')
     parser.add_argument("input_files", metavar='files',
                         type=str, nargs='+',
                         help='input coordinate files')
@@ -144,7 +146,14 @@ def main():
         'software': args.software
     }
 
-    number_of_orientations = args.hm_orientations
+    logger.info('Charge:        %s' % method_args['charge'])
+    logger.info('Multiplicity:  %s' % method_args['multiplicity'])
+    logger.info('SCF Type:      %s' % method_args['scftype'])
+
+    logger.info('QM Software:  %s' % method_args['software'])
+
+    how_many_orientations = args.hm_orientations
+    logger.info('%s orientations will be used' % how_many_orientations)
 
     input_molecules = setup_molecules(args.input_files)
 
@@ -164,7 +173,7 @@ def main():
                          'using the argument\n -as <integer>')
             sys.exit('Missing arguments: -as #')
 
-        if number_of_orientations is None:
+        if how_many_orientations is None:
             logger.error("For aggregation, specify how many orientations"
                          "are to be used, by the argument\n"
                          "-number_of_orientations <number of orientations>")
@@ -180,7 +189,7 @@ def main():
         t1 = time.clock()
         aggregator.aggregate(seeds, monomer,
                              aggregate_size=size_of_aggregate,
-                             hm_orientations=number_of_orientations,
+                             hm_orientations=how_many_orientations,
                              method=method_args)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
@@ -196,7 +205,7 @@ def main():
                          'values of gamma_min and gamma_max using \n'
                          '-gmin <integer> -gmax <integer>')
             sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
-        if number_of_orientations is None:
+        if how_many_orientations is None:
             logger.error("For reaction, specify how many orientations"
                          "are to be used, by the argument\n"
                          "-number_of_orientations <number of orientations>")
@@ -205,7 +214,7 @@ def main():
         if site is not None:
             site = [site[0], input_molecules[0].number_of_atoms + site[1]]
         t1 = time.clock()
-        number_of_orientations = int(number_of_orientations)
+        number_of_orientations = int(how_many_orientations)
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations,

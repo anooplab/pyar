@@ -48,7 +48,7 @@ class Xtb(SF):
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """
         :returns: True,
                   'SCFFailed',

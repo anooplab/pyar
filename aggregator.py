@@ -75,25 +75,17 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
         aggregator_logger.debug('Orientations are made.')
 
         not_converged = all_orientations[:]
+        converged = []
         for i in range(10):
-            aggregator_logger.info("Round %d of block optimizations" % i)
+            aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i+1, len(not_converged)))
             if len(not_converged) == 0:
                 break
-            status_list = [optimise(each_mol, method, max_cycles=100) for each_mol in not_converged]
+            status_list = [optimise(each_mol, method, max_cycles=100, convergence='loose') for each_mol in not_converged]
             converged = [n for n, s in zip(not_converged, status_list) if s is True]
             list_of_optimized_molecules.extend(converged)
             not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
-            not_converged = clustering.choose_geometries(not_converged)
+            not_converged = clustering.remove_similar(not_converged)
 
-
-        # for molecule in all_orientations:
-        #     o_status = optimise(molecule, method)
-        #     if o_status is True and molecule.energy is not None:
-        #         aggregator_logger.info("      E(%10s): %12.7f" % (molecule.name, molecule.energy))
-        #         list_of_optimized_molecules.append(molecule)
-        #     else:
-        #         aggregator_logger.info('    Optimisation failed: {}, will '
-        #                                'be discarded'.format(molecule.name))
         os.chdir(cwd)
 
     if len(list_of_optimized_molecules) < 2:
@@ -102,8 +94,10 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
     selected_seeds = clustering.choose_geometries(list_of_optimized_molecules)
     file_manager.make_directories('selected')
     for each_file in selected_seeds:
-        xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
-        shutil.copy(xyz_file, 'selected/')
+        status = optimise(each_file, method, max_cycles=100, convergence='normal')
+        if status is True:
+            xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
+            shutil.copy(xyz_file, 'selected/')
     return selected_seeds
 
 

@@ -89,7 +89,7 @@ class Turbomole(SF):
         self.energy = None
         self.optimized_coordinates = None
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
+    def optimize(self, max_cycles=350, gamma=0.0, convergence='normal', restart=False):
         """This is the python implementation  of jobex of turbomole
         :returns: True,
                   'SCFFailed',
@@ -98,17 +98,24 @@ class Turbomole(SF):
                   'CycleExceeded',
                   False
         """
+        if convergence == 'loose':
+            scf_conv = 6
+        elif convergence == 'tight':
+            scf_conv = 8
+        elif convergence == 'normal':
+            scf_conv = 7
+        else:
+            scf_conv = 7
 
-        if restart is False:
-            make_coord(self.atoms_list, self.start_coords)
-            define_status = prepare_control()
+        make_coord(self.atoms_list, self.start_coords)
+        define_status = prepare_control(scf_conv=scf_conv)
+        if define_status is False:
+            turbomole_logger.error('Initial Define failed, converting to cartesian coordinate')
+            remove('control')
+            define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian')
             if define_status is False:
-                turbomole_logger.error('Initial Define failed.  Trying again with cartesian coordinate system')
-                remove('control')
-                define_status = prepare_control(coordinates='cartesian')
-                if define_status is False:
-                    turbomole_logger.error('Initial Define failed again. Quit')
-                    return 'UpdateFailed'
+                turbomole_logger.error('Initial Define failed again. Quit')
+                return 'UpdateFailed'
 
         if gamma == 0.0:
             return self.run_turbomole_jobex(max_cycles=max_cycles)

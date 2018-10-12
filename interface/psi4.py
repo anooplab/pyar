@@ -68,7 +68,7 @@ class Psi4(SF):
         f1.write("optimize(\"B97-D\")")
         f1.close()
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False):
+    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
