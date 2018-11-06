@@ -116,9 +116,10 @@ def choose_geometries(list_of_molecules, feature='fingerprint'):
 
 def print_energy_table(molecules):
     e_dict = {i.name: i.energy for i in molecules}
-    ref = min(e_dict.values())
-    for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
-        cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy,
+    if len(e_dict) > 1:
+        ref = min(e_dict.values())
+        for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
+            cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy,
                                                              (energy - ref) *
                                                              627.51))
 

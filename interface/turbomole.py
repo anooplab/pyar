@@ -108,11 +108,11 @@ class Turbomole(SF):
             scf_conv = 7
 
         make_coord(self.atoms_list, self.start_coords)
-        define_status = prepare_control(scf_conv=scf_conv)
+        define_status = prepare_control(scf_conv=scf_conv, charge=self.charge, multiplicity=self.multiplicity)
         if define_status is False:
             turbomole_logger.error('Initial Define failed, converting to cartesian coordinate')
             remove('control')
-            define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian')
+            define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge, multiplicity=self.multiplicity)
             if define_status is False:
                 turbomole_logger.error('Initial Define failed again. Quit')
                 return 'UpdateFailed'
@@ -369,7 +369,7 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
             elif coordinates is 'cartesian':
                 fdefine.write("*\nno\n")
             fdefine.write("bb all %s\n*\n" % basis)
-            fdefine.write("eht\n")
+            fdefine.write("eht\n\n")
             fdefine.write("y\n")
             fdefine.write("%d\n" % charge)
             if multiplicity > 2:
@@ -781,7 +781,7 @@ def main():
         optimiser.optimise(mol, method_args, args.gamma)
     else:
         make_coord(mol.atoms_list, mol.coordinates)
-        prepare_control()
+        prepare_control(charge=method_args['charge'], multiplicity=method_args['multiplicity'])
         turbomole_logger.info('created input file')
 
 
@@ -792,8 +792,5 @@ if __name__ == "__main__":
     turbomole_logger.addHandler(handler)
     turbomole_logger.setLevel(logging.DEBUG)
 
-    # main()
-    # update_coord()
-    # actual()
-    # import sys
-    plot_energy(sys.argv[1:])
+    main()
+    # plot_energy(sys.argv[1:])
