@@ -59,6 +59,14 @@ def optimise(molecule, method, gamma=0.0, max_cycles=350, convergence='normal', 
     return optimize_status
 
 
+def write_csv_file(csv_filename, energy_dict):
+    import csv
+    with open(csv_filename, 'w') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["Name", "Energy"])
+        writer.writerows(energy_dict.items())
+
+
 def bulk_optimize(input_molecules, method_args, gamma):
     status_list = [optimise(each_mol, method_args, gamma=gamma) for each_mol in input_molecules]
     optimized_molecules = [n for n, s in zip(input_molecules, status_list) if s is True or s == 'cycleexceeded']
