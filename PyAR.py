@@ -246,7 +246,7 @@ def main():
         b = input_molecules[0].number_of_atoms + args.makebond[1]
         if how_many_orientations is None:
             logger.error("For aggregation, specify how many orientations"
-                         "are to be used, by the argument\n"
+                         "are    to be used, by the argument\n"
                          "-N <number of orientations>")
             sys.exit('Missing arguments: -N #')
 
