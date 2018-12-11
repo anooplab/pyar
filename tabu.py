@@ -362,6 +362,7 @@ def uniformly_distributed_points(N):
 def plot_points(pts):
     '''have to run with python -i '''
     import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
 
     phi = np.linspace(0, np.pi, 20)
     theta = np.linspace(0, 2 * np.pi, 40)
@@ -426,7 +427,7 @@ def generate_composite_molecule(seed, monomer, points_and_angles):
     composite = copy.copy(seed)
     for vector in points_and_angles:
         composite = merge_two_molecules(vector, composite, monomer,
-                                        freeze_fragments=True)
+                                        freeze_fragments=False)
     return composite
 
 
@@ -546,6 +547,8 @@ def main():
     parser.add_argument('-best', type=int, nargs=2, 
                         help="create the best orientation with lowest a b "
                              "distance")
+    parser.add_argument('-c', type=int, default=0,
+                        help='charge')
 
     args = parser.parse_args()
     print(args)
@@ -585,12 +588,12 @@ def main():
     if args.mcm:
         import optimiser
         method_args = {
-                       'charge': 0,
+                       'charge': args.c,
                        'multiplicity': 1,
                        'scftype': 'rhf',
                        'software': 'xtb'
                       }
-        for i in range(128):
+        for i in range(8):
         
             result = generate_composite_molecule(seed, monomer, pts)
             result.title = "trial_" + str(i).zfill(3)

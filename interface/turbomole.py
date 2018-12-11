@@ -30,12 +30,11 @@ import time
 
 import numpy as np
 
-import interface
-import interface.babel
-from afir import restraints
-from interface import SF
-from interface import which
-from units import angstrom2bohr, bohr2angstrom
+from pyar import interface
+from pyar.afir import restraints
+from pyar.interface import SF
+from pyar.interface import which
+from pyar.units import angstrom2bohr, bohr2angstrom
 
 turbomole_logger = logging.getLogger('pyar.turbomole')
 
@@ -792,5 +791,5 @@ if __name__ == "__main__":
     turbomole_logger.addHandler(handler)
     turbomole_logger.setLevel(logging.DEBUG)
 
-    main()
-    # plot_energy(sys.argv[1:])
+    # main()
+    plot_energy(sys.argv[1:])
