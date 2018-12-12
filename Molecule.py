@@ -4,7 +4,7 @@ from scipy.spatial import distance as scipy_distance
 import numpy as np
 from itertools import product
 
-from atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
+from pyar.atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 import itertools
 import logging
 molecule_logger = logging.getLogger('pyar.molecule')

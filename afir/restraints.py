@@ -6,10 +6,10 @@ from math import sqrt
 
 import numpy as np
 
-from units import *
+from pyar.units import *
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
-from units import kilojoules2atomic_units
+from pyar.units import kilojoules2atomic_units
 
 covalent_radii = {'x ': 0.00,
                   'h': 0.000001, 'he': 0.46, 'li': 1.20, 'be': 0.94, 'b': 0.77,

@@ -284,7 +284,7 @@ def plot_energy_histogram(molecules):
 
 # main program
 def main():
-    from Molecule import Molecule
+    from pyar.Molecule import Molecule
     logger = logging.getLogger('pyar')
     handler = logging.FileHandler('clustering.log', 'w')
     formatter = logging.Formatter('%(message)s')
