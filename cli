@@ -233,6 +233,7 @@ def main():
                          "-N <number of orientations>")
             sys.exit('Missing arguments: -N #')
 
+        number_of_orientations = int(how_many_orientations)
         molecules = tabu.generate_guess_for_bonding('abc', input_molecules[0],
                                                     input_molecules[1], a, b,
                                                     int(number_of_orientations))
