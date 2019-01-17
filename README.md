@@ -4,14 +4,17 @@ PyAR stands for "Python program for aggregation and reaction"
 ## Features:
 * Automated prediction of reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
+* Generate random orientations between two molecules.
 
 ## Interfaced with electronic structure theory programs:
 - Turbomole
 - Mopac
 - Xtb
 - Orca
+- Psi4
 
 ## Command line usage
+```
 usage: PyAR [-h] [-N HM_ORIENTATIONS] [-cite CITE] (-r | -a | -o)
             [-as AGGREGATE_SIZE] [-gmin GMIN] [-gmax GMAX] [-gamma GAMMA]
             [-c CHARGE] [-m MULTIPLICITY] [--scftype {rhf,uhf}] --software
@@ -59,4 +62,4 @@ chemistry:
   --scftype {rhf,uhf}   specify rhf or uhf (defulat=rhf)
   --software {turbomole,OBabel,mopac,xtb,xtb_turbo,orca}
                         Software
-
+```
