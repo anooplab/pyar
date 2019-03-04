@@ -89,8 +89,17 @@ class Xtb(SF):
 
     @property
     def energy(self):
-        with open('energy') as fp:
-            return float(fp.readlines()[-2].split()[1])
+        if os.path.exists('energy'):
+            with open('energy') as fp:
+                return float(fp.readlines()[-2].split()[1])
+        elif os.path.exists('xtb.out'):
+            with open('xtb.out') as fp:
+                for line in fp.readlines():
+                    if 'total E' in line:
+                        return float(line.split()[-1])
+        else:
+            return None
+
 
 
 def main():

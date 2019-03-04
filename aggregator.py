@@ -98,6 +98,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
         if status is True:
             xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
             shutil.copy(xyz_file, 'selected/')
+        else:
+            selected_seeds.remove(each_file)
     return selected_seeds
 
 
