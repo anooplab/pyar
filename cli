@@ -12,6 +12,7 @@ import numpy as np
 
 import Molecule
 import aggregator
+import binary_aggregator
 import optimiser
 import reactor
 import tabu
@@ -43,6 +44,9 @@ def argument_parse():
     run_type_group.add_argument("-a", "--aggregate",
                                 help="Run a aggregator calculation",
                                 action='store_true')
+    run_type_group.add_argument("-ba", "--baggregate",
+                                help="Run a baggregator calculation",
+                                action='store_true')
     run_type_group.add_argument("-o", "--optimize",
                                 help="Optimize the molecules",
                                 action='store_true')
@@ -54,7 +58,9 @@ def argument_parse():
                                                  'Aggregator specific option')
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
                                   help='number of monomers in aggregate')
-
+    baggregator_group = parser.add_argument_group('baggregator', 'Baggregator specific option')
+    baggregator_group.add_argument('-bs1', '--baggregator-size1', type=int, help='size of atom1') #NEW
+    baggregator_group.add_argument('-bs2', '--baggregator-size2', type=int, help='size of atom2') #NEW
     reactor_group = parser.add_argument_group('reactor',
                                               'Reactor specific option')
     reactor_group.add_argument('-gmin', type=float,
@@ -185,6 +191,26 @@ def main():
                              aggregate_size=size_of_aggregate,
                              hm_orientations=how_many_orientations,
                              method=method_args)
+
+        logger.info('Total Time: {}'.format(time.clock() - t1))
+    if args.baggregate:
+        size_of_aggregate1 = args.baggregator_size1
+        size_of_aggregate2 = args.baggregator_size2
+        if(size_of_aggregate1 is None or size_of_aggregate2 is None):
+            print("For binary aggregation, specify aggregate size of"
+                  " moiety 1 and 2 as <integers>")
+        if(how_many_orientations is None):
+            print("Any aggregation requires the number of orientations"
+                  " to be used")
+        if(len(input_molecules) == 1):
+            print("For binary aggregation, provide two moieties")
+        else:
+            seeds1 = input_molecules[-1:]
+            seeds2 = input_molecules[:-1]
+            print(seeds1)
+            print(seeds2)
+            t1 = time.clock()
+            binary_aggregator.aggregate(seeds1, seeds2, size_of_aggregate1, size_of_aggregate2, hm_orientations=how_many_orientations, method = method_args)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
 
