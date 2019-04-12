@@ -27,9 +27,9 @@ def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
         number_of_orientations = 8
     else:
         number_of_orientations = int(hm_orientations)
-    if(os.path.exists('Bag') == False):
-        os.mkdir('Bag')
-    os.chdir('Bag')
+    if(os.path.exists('Binary_Aggregates') == False):
+        os.mkdir('Binary_Aggregates')
+    os.chdir('Binary_Aggregates')
     starting_directory = os.getcwd()
     
     print("Starting Aggregation in\n {}".format(starting_directory))
