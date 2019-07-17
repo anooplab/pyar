@@ -2,6 +2,7 @@ import itertools
 import logging
 import operator
 import sys
+import re
 
 import numpy as np
 import pandas as pd
@@ -262,9 +263,10 @@ def get_the_best_molecule(list_of_molecules):
 
 
 def read_energy_from_xyz_file(xyz_file):
+    import re
     with open(xyz_file, 'r') as fr:
-        comments_line = fr.readlines()[1]
-    energy = float(comments_line.split(':')[-1])
+        comments_line = fr.readlines()[1].rstrip()
+    energy = float(re.split(':|=', comments_line)[-1])
     return energy
 
 

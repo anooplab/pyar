@@ -79,6 +79,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
         for i in range(10):
             aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i+1, len(not_converged)))
             if len(not_converged) == 0:
+                aggregator_logger.info("No more files")
                 break
             status_list = [optimise(each_mol, method, max_cycles=100, convergence='loose') for each_mol in not_converged]
             converged = [n for n, s in zip(not_converged, status_list) if s is True]
