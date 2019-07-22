@@ -27,9 +27,9 @@ def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
         number_of_orientations = 8
     else:
         number_of_orientations = int(hm_orientations)
-    if(os.path.exists('Binary_Aggregates') == False):
-        os.mkdir('Binary_Aggregates')
-    os.chdir('Binary_Aggregates')
+    if(os.path.exists('Baggregates') == False):
+        os.mkdir('Baggregates')
+    os.chdir('Baggregates')
     starting_directory = os.getcwd()
     
     print("Starting Aggregation in\n {}".format(starting_directory))
@@ -75,6 +75,87 @@ def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
 
        
 
+def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2, aggregate_size3, hm_orientations, method):
+    """
+    Input: a list of seed molecules, a monomer Molecule objects
+    """
+
+    if check_stop_signal():
+        print("Function: aggregate")
+        return StopIteration
+
+    if hm_orientations == 'auto':
+        number_of_orientations = 8
+    else:
+        number_of_orientations = int(hm_orientations)
+    if(os.path.exists('Taggregates') == False):
+        os.mkdir('Taggregates')
+    os.chdir('Taggregates')
+    starting_directory = os.getcwd()
+    
+    print("Starting Aggregation in\n {}".format(starting_directory))
+    seed_init1 = seeds1
+    seed_init2 = seeds2
+    seed_init3 = seeds3
+    seed_in1 = seeds1
+    seed_in2 = seeds2
+    seed_in3 = seeds3
+    for aggregation_counter1 in range(1, aggregate_size1 + 1):
+        for aggregation_counter2 in range(1, aggregate_size2 + 1):
+            print(seeds1)
+            print(seeds2) 
+                      
+            if(aggregation_counter1 > 1 and aggregation_counter2 == 1):
+                pass
+            else:
+                aggregate_id1 = "{:02d}".format(aggregation_counter1)
+                aggregate_id2 = "{:02d}".format(aggregation_counter2)
+                aggregate_home = 'aggregate_' + aggregate_id1 + '_' + aggregate_id2
+                file_manager.make_directories(aggregate_home)
+                os.chdir(aggregate_home)
+
+                print(" Starting aggregation cycle: {} of {}".format(aggregation_counter1, aggregation_counter2))
+
+                seeds1 = add_one1(aggregate_id1, aggregate_id2, seeds1, seed_init2, number_of_orientations, method)
+            
+                print(" Aggregation cycle: {} of {} completed\n".format(aggregation_counter1, aggregation_counter2))
+
+            if(aggregation_counter2 == 1):
+                os.chdir(starting_directory)
+                aggregate_id1 = "{:02d}".format(aggregation_counter1+1)
+                aggregate_id2 = "{:02d}".format(aggregation_counter2)
+                aggregate_home = 'aggregate_' + aggregate_id1 + '_' + aggregate_id2
+                file_manager.make_directories(aggregate_home)
+                os.chdir(aggregate_home)
+                seed_in1 = seeds1
+                print(" Starting aggregation cycle: {} of {}".format(aggregation_counter1, aggregation_counter2))
+
+                seed_in1 = add_one1(aggregate_id1, aggregate_id2, seed_in1, seed_init1, number_of_orientations, method)
+                print(" Aggregation cycle: {} of {} completed\n".format(aggregation_counter1, aggregation_counter2))
+            seed_in3 = seeds1
+            if(aggregation_counter2 == aggregate_size2):
+                seeds1 = seed_in1
+            if hm_orientations == 'auto' and number_of_orientations <= 256:
+                number_of_orientations *= 2
+            os.chdir(starting_directory)
+           
+            
+            for aggregation_counter3 in range(1, aggregate_size3 + 1):
+                
+                aggregate_id1 = "{:02d}".format(aggregation_counter1)
+                aggregate_id2 = "{:02d}".format(aggregation_counter2)
+                aggregate_id3 = "{:02d}".format(aggregation_counter3)
+                aggregate_home = 'aggregate_' + aggregate_id1 + '_' + aggregate_id2 + '_' + aggregate_id3
+                file_manager.make_directories(aggregate_home)
+                os.chdir(aggregate_home)
+                print(" Starting aggregation cycle: {} of {} of {}".format(aggregation_counter1, aggregation_counter2, aggregation_counter3))
+
+                seed_in3 = add_one1(aggregate_id1, aggregate_id3, seed_in3, seed_init3, number_of_orientations, method)
+                print(" Aggregation cycle: {} of {} of {} completed\n".format(aggregation_counter1, aggregation_counter2, aggregation_counter3))
+                if hm_orientations == 'auto' and number_of_orientations <= 256:
+                    number_of_orientations *= 2
+                os.chdir(starting_directory)
+
 
 def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, method):
     """
@@ -109,7 +190,7 @@ def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, meth
             aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i+1, len(not_converged)))
             if len(not_converged) == 0:
                 break
-            status_list = [optimise(each_mol, method, max_cycles=350, convergence='loose') for each_mol in not_converged]
+            status_list = [optimise(each_mol, method, max_cycles=700, convergence='loose') for each_mol in not_converged]
             converged = [n for n, s in zip(not_converged, status_list) if s is True]
             list_of_optimized_molecules.extend(converged)
             not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
@@ -123,7 +204,7 @@ def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, meth
     selected_seeds = clustering.choose_geometries(list_of_optimized_molecules)
     file_manager.make_directories('selected')
     for each_file in selected_seeds:
-        status = optimise(each_file, method, max_cycles=350, convergence='normal')
+        status = optimise(each_file, method, max_cycles=500, convergence='normal')
         if status is True:
             xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
             shutil.copy(xyz_file, 'selected/')
