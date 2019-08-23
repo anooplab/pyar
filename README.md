@@ -6,7 +6,7 @@ PyAR stands for "Python program for aggregation and reaction"
 1.  [Features](#features)
 2.  [Interfaced with electronic structure theory programs:](#interface)
 3.  [Command Line Interface](#cli)
-4.  [Example usages](#example)
+4.  [Example usages](#examples)
 
 # Features:
 * Automated prediction of reactions between two reactants (A+B)
