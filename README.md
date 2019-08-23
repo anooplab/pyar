@@ -1,24 +1,28 @@
 # PyAR
 PyAR stands for "Python program for aggregation and reaction"
 
-1.  [Features](#features)
-2. [Interfaced with electronic structure theory programs:](#interface)
+# Contents
 
-## Features:
+1.  [Features](#features)
+2.  [Interfaced with electronic structure theory programs:](#interface)
+3.  [Command Line Interface](#cli)
+4.  [Example usages](#example)
+
+# Features:
 * Automated prediction of reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
 * Generate random orientations between two molecules.
 
 
 
-## Interfaced with electronic structure theory programs:<a name="interface"></a>
+# Interfaced with electronic structure theory programs:<a name="interface"></a>
 - Turbomole
 - Mopac
 - Xtb
 - Orca
 - Psi4
 
-## Command line usage
+# Command line usage<a name="cli"></a>
 ```
 usage: PyAR [-h] [-N HM_ORIENTATIONS] [--site SITE SITE]
             (-r | -a | -ba | -o | -mb MAKEBOND MAKEBOND) [-as AGGREGATE_SIZE]
@@ -87,3 +91,11 @@ chemistry:
   --scftype {rhf,uhf}   specify rhf or uhf (defulat=rhf)
   --software {turbomole,obabel,mopac,xtb,xtb_turbo,orca,psi4}
                         Software
+```
+
+# Examples
+
+## Reaction
+
+To study the reaction between two reactants A and B using ORCA software interface, with force from 100 to 1999 using N=8 trial orientation, the commandline line argument is,  
+```python3 <path>/pyar/cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --ssoftware orca```
