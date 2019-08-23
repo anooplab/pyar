@@ -1,7 +1,9 @@
 # PyAR
 PyAR stands for "Python program for aggregation and reaction"
 
-[Features](#features)
+1.  [Features](#features)
+2. [Interfaced with electronic structure theory programs:](#interface)
+
 ## Features:
 * Automated prediction of reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
@@ -9,7 +11,7 @@ PyAR stands for "Python program for aggregation and reaction"
 
 
 
-## Interfaced with electronic structure theory programs:
+## Interfaced with electronic structure theory programs:<a name="interface"></a>
 - Turbomole
 - Mopac
 - Xtb
