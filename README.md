@@ -97,5 +97,10 @@ chemistry:
 
 ## Reaction
 
-To study the reaction between two reactants A and B using ORCA software interface, with force from 100 to 1999 using N=8 trial orientation, the commandline line argument is,  
+To study the reaction between two reactants A and B using ORCA software interface, with force from 100 to 1000 using N=8 trial orientation, the commandline line argument is,  
+
 ```python3 <path>/pyar/cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --ssoftware orca```
+
+A.xyz and B.xyz are the cartesian coordinate files of the reactants.
+
+
