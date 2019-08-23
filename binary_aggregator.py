@@ -15,7 +15,8 @@ def check_stop_signal():
         return 1
 
 
-def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations, method):
+def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
+              method, maximum_number_of_seeds):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -52,8 +53,9 @@ def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
                 os.chdir(aggregate_home)
 
                 print(" Starting aggregation cycle: {}".format(aggregation_counter1))
-
-                seeds1 = add_one1(aggregate_id1, aggregate_id2, seeds1, seed_init2, number_of_orientations, method)
+                seeds1 = add_one1(aggregate_id1, aggregate_id2, seeds1,
+                                  seed_init2, number_of_orientations, method,
+                                  maximum_number_of_seeds)
             
                 print(" Aggregation cycle: {} completed\n".format(aggregation_counter1))
 
@@ -65,7 +67,9 @@ def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
                 file_manager.make_directories(aggregate_home)
                 os.chdir(aggregate_home)
                 seed_in1 = seeds1
-                seed_in1 = add_one1(aggregate_id1, aggregate_id2, seed_in1, seed_init1, number_of_orientations, method)
+                seed_in1 = add_one1(aggregate_id1, aggregate_id2, seed_in1,
+                                    seed_init1, number_of_orientations, method,
+                                    maximum_number_of_seeds)
                 
             if(aggregation_counter2 == aggregate_size2):
                 seeds1 = seed_in1
@@ -75,7 +79,9 @@ def aggregate(seeds1, seeds2, aggregate_size1, aggregate_size2, hm_orientations,
 
        
 
-def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2, aggregate_size3, hm_orientations, method):
+def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2,
+               aggregate_size3, hm_orientations, method,
+               maximum_number_of_seeds):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -105,7 +111,7 @@ def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2, aggregat
             print(seeds1)
             print(seeds2) 
                       
-            if(aggregation_counter1 > 1 and aggregation_counter2 == 1):
+            if aggregation_counter1 > 1 and aggregation_counter2 == 1:
                 pass
             else:
                 aggregate_id1 = "{:02d}".format(aggregation_counter1)
@@ -116,7 +122,7 @@ def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2, aggregat
 
                 print(" Starting aggregation cycle: {} of {}".format(aggregation_counter1, aggregation_counter2))
 
-                seeds1 = add_one1(aggregate_id1, aggregate_id2, seeds1, seed_init2, number_of_orientations, method)
+                seeds1 = add_one1(aggregate_id1, aggregate_id2, seeds1, seed_init2, number_of_orientations, method, maximum_number_of_seeds)
             
                 print(" Aggregation cycle: {} of {} completed\n".format(aggregation_counter1, aggregation_counter2))
 
@@ -130,7 +136,7 @@ def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2, aggregat
                 seed_in1 = seeds1
                 print(" Starting aggregation cycle: {} of {}".format(aggregation_counter1, aggregation_counter2))
 
-                seed_in1 = add_one1(aggregate_id1, aggregate_id2, seed_in1, seed_init1, number_of_orientations, method)
+                seed_in1 = add_one1(aggregate_id1, aggregate_id2, seed_in1, seed_init1, number_of_orientations, method, maximum_number_of_seeds)
                 print(" Aggregation cycle: {} of {} completed\n".format(aggregation_counter1, aggregation_counter2))
             seed_in3 = seeds1
             if(aggregation_counter2 == aggregate_size2):
@@ -150,14 +156,14 @@ def taggregate(seeds1, seeds2,seeds3, aggregate_size1, aggregate_size2, aggregat
                 os.chdir(aggregate_home)
                 print(" Starting aggregation cycle: {} of {} of {}".format(aggregation_counter1, aggregation_counter2, aggregation_counter3))
 
-                seed_in3 = add_one1(aggregate_id1, aggregate_id3, seed_in3, seed_init3, number_of_orientations, method)
+                seed_in3 = add_one1(aggregate_id1, aggregate_id3, seed_in3, seed_init3, number_of_orientations, method, maximum_number_of_seeds)
                 print(" Aggregation cycle: {} of {} of {} completed\n".format(aggregation_counter1, aggregation_counter2, aggregation_counter3))
                 if hm_orientations == 'auto' and number_of_orientations <= 256:
                     number_of_orientations *= 2
                 os.chdir(starting_directory)
 
 
-def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, method):
+def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, method,  maximum_number_of_seeds):
     """
 
     """
@@ -201,7 +207,7 @@ def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, meth
     if len(list_of_optimized_molecules) < 2:
         return list_of_optimized_molecules
     print("  Clustering")
-    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules)
+    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
     file_manager.make_directories('selected')
     for each_file in selected_seeds:
         status = optimise(each_file, method, max_cycles=500, convergence='normal')
@@ -212,7 +218,7 @@ def add_one1(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, meth
             selected_seeds.remove(each_file)
     return selected_seeds
 
-def add_one2(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, method):
+def add_one2(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, method, maximum_number_of_seeds):
     """
 
     """
@@ -255,7 +261,7 @@ def add_one2(aggregate_id1, aggregate_id2, seeds1, seeds2, hm_orientations, meth
     if len(list_of_optimized_molecules) < 2:
         return list_of_optimized_molecules
     print("  Clustering")
-    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules)
+    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
     file_manager.make_directories('selected')
     for each_file in selected_seeds:
         status = optimise(each_file, method, max_cycles=350, convergence='normal')

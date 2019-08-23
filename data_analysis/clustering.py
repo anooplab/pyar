@@ -65,11 +65,12 @@ def calc_fingerprint_distance(a, b):
     return fingerprint_distance
 
 
-def choose_geometries(list_of_molecules, feature='fingerprint'):
+def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_of_seeds=8):
     if len(list_of_molecules) < 2:
         cluster_logger.info("Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules
-    if len(list_of_molecules) <= 8:
+
+    if len(list_of_molecules) <= maximum_number_of_seeds:
         cluster_logger.info('Not enough data for clustering. '
                             'Removing similar geometries from the list')
         return remove_similar(list_of_molecules)
@@ -109,8 +110,8 @@ def choose_geometries(list_of_molecules, feature='fingerprint'):
         cluster_logger.info("Removing similar molecules after clustering.")
         reduced_best_from_each_cluster = remove_similar(best_from_each_cluster)
 
-    if len(reduced_best_from_each_cluster) > 8:
-        return choose_geometries(reduced_best_from_each_cluster)
+    if len(reduced_best_from_each_cluster) > maximum_number_of_seeds:
+        return choose_geometries(reduced_best_from_each_cluster, maximum_number_of_seeds=maximum_number_of_seeds)
     else:
         return reduced_best_from_each_cluster
 

@@ -96,7 +96,10 @@ class Xtb(SF):
             with open('xtb.out') as fp:
                 for line in fp.readlines():
                     if 'total E' in line:
-                        return float(line.split()[-1])
+                        energy = float(line.split()[-1])
+                    if 'TOTAL ENERGY' in line:
+                        energy = float(line.split()[3])
+                return energy
         else:
             return None
 

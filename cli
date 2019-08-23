@@ -61,6 +61,8 @@ def argument_parse():
     baggregator_group = parser.add_argument_group('baggregator', 'Baggregator specific option')
     baggregator_group.add_argument('-bs1', '--baggregator-size1', type=int, help='size of atom1') #NEW
     baggregator_group.add_argument('-bs2', '--baggregator-size2', type=int, help='size of atom2') #NEW
+    baggregator_group.add_argument('-mns', '--maximum-number-of-seeds', type=int,
+                                   default=8, help='maximum number of seeds')
     reactor_group = parser.add_argument_group('reactor',
                                               'Reactor specific option')
     reactor_group.add_argument('-gmin', type=float,
@@ -145,7 +147,8 @@ def main():
         'scftype': args.scftype,
         'software': args.software
     }
-
+    print(args)
+    maximum_number_of_seeds = args.maximum_number_of_seeds
     logger.info('Charge:        %s' % method_args['charge'])
     logger.info('Multiplicity:  %s' % method_args['multiplicity'])
     logger.info('SCF Type:      %s' % method_args['scftype'])
@@ -190,7 +193,7 @@ def main():
         aggregator.aggregate(seeds, monomer,
                              aggregate_size=size_of_aggregate,
                              hm_orientations=how_many_orientations,
-                             method=method_args)
+                             method=method_args, maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
     if args.baggregate:
@@ -210,7 +213,11 @@ def main():
             print(seeds1)
             print(seeds2)
             t1 = time.clock()
-            binary_aggregator.aggregate(seeds1, seeds2, size_of_aggregate1, size_of_aggregate2, hm_orientations=how_many_orientations, method = method_args)
+            binary_aggregator.aggregate(seeds1, seeds2, size_of_aggregate1,
+                                        size_of_aggregate2,
+                                        hm_orientations=how_many_orientations,
+                                        method = method_args,
+                                        maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
 
