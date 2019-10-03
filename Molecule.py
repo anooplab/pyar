@@ -218,6 +218,24 @@ class Molecule(object):
                     bm[i,j] = 1
         return bm
 
+
+    def hbond_analysis(self):
+        """return bond matrix"""
+        dm = self.get_distance_matrix()
+        bm = self.get_bond_matrix()
+        hbm = np.zeros((len(self.coordinates), len(self.coordinates)), dtype=int)
+        for i, c in enumerate(self.coordinates):
+            for j, d in enumerate(self.coordinates):
+                if i != j:
+                    if self.atomic_number[i] == 1:
+                        if 1.5 < dm[i,j] < 2.5:
+                            bnd = int(np.where(bm[i,:])[0])
+                            angle = self.calculate_angle(bnd, i, j)
+                            if angle > 160.0:
+                                print("{}({}) - {}({}) = {}".format(self.atoms_list[i], i+1, self.atoms_list[j], j+1, dm[i, j]))
+                                hbm[i,j] = dm[i, j]
+        return hbm
+
     def calculate_angle(self, i, j, k):
 
         a1 = self.coordinates[i]

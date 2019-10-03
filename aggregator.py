@@ -15,7 +15,7 @@ def check_stop_signal():
         return 1
 
 
-def aggregate(seeds, monomer, aggregate_size, hm_orientations, method):
+def aggregate(seeds, monomer, aggregate_size, hm_orientations, method, maximum_number_of_seeds):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -37,7 +37,7 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations, method):
         os.chdir(aggregate_home)
 
         aggregator_logger.info(" Starting aggregation cycle: {}".format(aggregation_counter))
-        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method)
+        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method, maximum_number_of_seeds)
         aggregator_logger.info(" Aggregation cycle: {} completed\n".format(aggregation_counter))
 
         if hm_orientations == 'auto' and number_of_orientations <= 256:
@@ -46,7 +46,7 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations, method):
     return
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
+def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_number_of_seeds):
     """
 
     """
@@ -75,7 +75,6 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
         aggregator_logger.debug('Orientations are made.')
 
         not_converged = all_orientations[:]
-        converged = []
         for i in range(10):
             aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i+1, len(not_converged)))
             if len(not_converged) == 0:
@@ -92,7 +91,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method):
     if len(list_of_optimized_molecules) < 2:
         return list_of_optimized_molecules
     aggregator_logger.info("  Clustering")
-    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules)
+    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
     file_manager.make_directories('selected')
     for each_file in selected_seeds:
         status = optimise(each_file, method, max_cycles=100, convergence='normal')

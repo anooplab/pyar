@@ -364,7 +364,7 @@ def plot_points(pts):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     from matplotlib import style
-    style.use('dark_background')
+#    style.use('dark_background')
 
     phi = np.linspace(0, np.pi, 60)
     theta = np.linspace(0, 2 * np.pi, 90)
@@ -373,9 +373,9 @@ def plot_points(pts):
     z = np.outer(np.cos(theta), np.ones_like(phi))
 
     fig, ax = plt.subplots(1, 1, subplot_kw={'projection':'3d', 'aspect':'equal'})
-    ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.3)
+    ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.1)
     ax.scatter(pts[:,0], pts[:,1], pts[:,2], s=100, c='r', zorder=10)
-    # fig.show()
+    fig.show()
     fig.savefig('points.png')
 
 
