@@ -599,7 +599,7 @@ def main():
         
             result = generate_composite_molecule(seed, monomer, pts)
             result.title = "trial_" + str(i).zfill(3)
-            optimiser.optimise(result, method_args, 0.0)
+            #optimiser.optimise(result, method_args, 0.0)
             result.mol_to_xyz('result_'+str(i).zfill(3)+'.xyz')
 
     if args.spr:
