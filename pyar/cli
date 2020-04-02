@@ -10,12 +10,7 @@ import time
 
 import numpy as np
 
-import Molecule
-import aggregator
-import binary_aggregator
-import optimiser
-import reactor
-import tabu
+from pyar import reactor, tabu, aggregator, binary_aggregator, optimiser, Molecule
 
 logger = logging.getLogger('pyar')
 handler = logging.FileHandler('pyar.log', 'w')

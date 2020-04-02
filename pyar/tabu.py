@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import itertools
 import logging
 import time
@@ -362,9 +363,7 @@ def uniformly_distributed_points(N):
 def plot_points(pts):
     '''have to run with python -i '''
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    from matplotlib import style
-#    style.use('dark_background')
+    #    style.use('dark_background')
 
     phi = np.linspace(0, np.pi, 60)
     theta = np.linspace(0, 2 * np.pi, 90)
@@ -393,7 +392,7 @@ def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None
     tabu_logger.debug('checking close contact')
 
     is_in_cage = True
-    while close_contact(seed, monomer, 1.3) or is_in_cage:
+    while close_contact(seed, monomer, 1.0) or is_in_cage:
         minsep_1 = minimum_separation(seed, monomer)
         monomer.translate(translate_by)
         minsep_2 = minimum_separation(seed, monomer)
@@ -559,7 +558,7 @@ def main():
     N = args.N
 
     if args.file:
-        from Molecule import Molecule
+        from pyar.Molecule import Molecule
         seed = Molecule.from_xyz(args.file[0])
         monomer = Molecule.from_xyz(args.file[1])
     else:
@@ -588,25 +587,25 @@ def main():
             each_orientation.mol_to_xyz('mol'+str(i)+'.xyz')
 
     if args.mcm:
-        import optimiser
+        from pyar import optimiser
         method_args = {
                        'charge': args.c,
                        'multiplicity': 1,
                        'scftype': 'rhf',
-                       'software': 'xtb'
+                       'software': 'turbomole'
                       }
         for i in range(8):
         
             result = generate_composite_molecule(seed, monomer, pts)
             result.title = "trial_" + str(i).zfill(3)
-            #optimiser.optimise(result, method_args, 0.0)
+            optimiser.optimise(result, method_args, 0.0)
             result.mol_to_xyz('result_'+str(i).zfill(3)+'.xyz')
 
     if args.spr:
         import scipy.spatial.distance as sdist
 
-        from Molecule import Molecule
-        from atomic_data import atomic_numbers, covalent_radii
+        from pyar.Molecule import Molecule
+        from pyar.atomic_data import atomic_numbers, covalent_radii
         radii = covalent_radii[atomic_numbers[args.spr.capitalize()]]
         pts = pts[:, :3]
         factor = pts/10

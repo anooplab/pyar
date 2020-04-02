@@ -218,8 +218,7 @@ class Molecule(object):
                     bm[i,j] = 1
         return bm
 
-
-    def hbond_analysis(self):
+    def hydrogen_bond_analysis(self):
         """return bond matrix"""
         dm = self.get_distance_matrix()
         bm = self.get_bond_matrix()

@@ -1,10 +1,9 @@
 import os
 import shutil
 
-import file_manager
-import tabu
-from data_analysis import clustering
-from optimiser import optimise
+from pyar import tabu, file_manager
+from pyar.data_analysis import clustering
+from pyar.optimiser import optimise
 import logging
 aggregator_logger = logging.getLogger('pyar.aggregator')
 

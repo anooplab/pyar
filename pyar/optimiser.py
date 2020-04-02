@@ -1,6 +1,6 @@
 import os
 
-import file_manager
+from pyar import file_manager
 
 import logging
 optimiser_logger = logging.getLogger('pyar.optimiser')
@@ -16,29 +16,29 @@ def optimise(molecule, method, gamma=0.0, max_cycles=350, convergence='normal', 
 
     software = method['software']
     if software == 'xtb':
-        from interface import xtb
+        from pyar.interface import xtb
         geometry = xtb.Xtb(molecule, method)
     elif software == 'xtb_turbo':
         if gamma == 0.0:
-            from interface import xtb
+            from pyar.interface import xtb
             geometry = xtb.Xtb(molecule, method)
         else:
-            from interface import xtbturbo
+            from pyar.interface import xtbturbo
             geometry = xtbturbo.XtbTurbo(molecule, method)
     elif software == 'turbomole':
-        from interface import turbomole
+        from pyar.interface import turbomole
         geometry = turbomole.Turbomole(molecule, method)
     elif software == "mopac":
-        from interface import mopac
+        from pyar.interface import mopac
         geometry = mopac.Mopac(molecule, method)
     elif software == "orca":
-        from interface import orca
+        from pyar.interface import orca
         geometry = orca.Orca(molecule, method, custom_keyword=custom_keyword)
     elif software == 'obabel':
-        from interface import babel
+        from pyar.interface import babel
         geometry = babel.OBabel(molecule)
     elif software == 'psi4':
-        from interface import psi4
+        from pyar.interface import psi4
         geometry = psi4.Psi4(molecule, method)
     else:
         print(software, "is not implemented yet")
@@ -76,7 +76,7 @@ def bulk_optimize(input_molecules, method_args, gamma):
 def main():
     import sys
     input_files = sys.argv[1:]
-    from Molecule import Molecule
+    from pyar.Molecule import Molecule
     method = {'charge': 0, 'multiplicity': 1, 'scftype': 'rhf', 'software': 'orca'}
     gamma = 0.0
 

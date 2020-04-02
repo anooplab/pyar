@@ -5,11 +5,10 @@ import sys
 
 import numpy as np
 
-import file_manager
-import interface.babel
-import tabu
-from data_analysis import clustering
-from optimiser import optimise
+import pyar.interface.babel
+from pyar import tabu, file_manager
+from pyar.data_analysis import clustering
+from pyar.optimiser import optimise
 import logging
 reactor_logger = logging.getLogger('pyar.reactor')
 
@@ -104,8 +103,8 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         reactor_logger.info('Optimizing {}'.format(this_molecule.name))
         start_xyz_file_name = 'trial_' + this_molecule.name + '.xyz'
         this_molecule.mol_to_xyz(start_xyz_file_name)
-        start_inchi = interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
-        start_smile = interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
+        start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
+        start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
         status = optimise(this_molecule, method, gamma=gamma)
         before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
@@ -120,8 +119,8 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                 this_molecule.name = job_name
                 if status is True or status == 'converged':
                     this_molecule.mol_to_xyz('result_relax.xyz')
-                    current_inchi = interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
-                    current_smile = interface.babel.make_smile_string_from_xyz('result_relax.xyz')
+                    current_inchi = pyar.interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
+                    current_smile = pyar.interface.babel.make_smile_string_from_xyz('result_relax.xyz')
                     reactor_logger.info('geometry relaxed')
                     reactor_logger.info("Checking for product formation with SMILE and InChi strings")
                     reactor_logger.info("Start SMILE: {} Current SMILE: {}".format(start_smile, current_smile))
