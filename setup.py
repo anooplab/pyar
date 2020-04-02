@@ -3,9 +3,8 @@ from distutils.core import setup
 setup(
     name='PyAR',
     version='0.2',
-    packages=['pyar']
-    package_dir = {'pyar': 'pyar/afir', 'pyar':'pyar.data_analysis',
-'pyar':'pyar.interface'],
+    packages=['pyar', 'pyar.afir', 'pyar.data_analysis', 'pyar.interface'],
+    scripts=['pyar/pyar-cli'],
     url='https://github.com/anooplab/pyar',
     license='GPl v3',
     author='anoop et al',
