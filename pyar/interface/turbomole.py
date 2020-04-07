@@ -220,37 +220,37 @@ class Turbomole(SF):
                 subp.check_call(['jobex', '-ri', '-c', str(max_cycles)], stdout=fj,
                                 stderr=fj)
             except subp.CalledProcessError as e:
-                turbomole_logger.error('jobex failed, check %s/jobex.out'
+                turbomole_logger.debug('jobex failed, check %s/jobex.out'
                                        % os.getcwd())
                 return False
 
         if os.path.isfile('GEO_OPT_FAILED'):
             message = open('GEO_OPT_FAILED').read()
             if 'ERROR: Module' in message:
-                turbomole_logger.error('Error in module!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                turbomole_logger.debug('Error in module!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return False
             elif 'ERROR in statpt step,' in message:
-                turbomole_logger.error('Statpt failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                turbomole_logger.debug('Statpt failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return 'UpdateFailed'
             elif 'ERROR in relax step,' in message:
-                turbomole_logger.error('Relax failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                turbomole_logger.debug('Relax failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return 'UpdateFailed'
             elif 'ERROR: your energy calculation did not converge !!,' in message:
-                turbomole_logger.error('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                turbomole_logger.debug('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return 'SCFFailed'
             elif 'ERROR in dscf step' in message:
-                turbomole_logger.error('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                turbomole_logger.debug('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return 'SCFFailed'
             elif 'ERROR in gradient step' in message:
-                turbomole_logger.error('Gradient failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
+                turbomole_logger.debug('Gradient failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
                 return 'GradientFailed'
             elif 'OPTIMIZATION DID NOT CONVERGE' in message:
-                turbomole_logger.error('Geometry did not converge in %d cycles.\ncheck %s' % (max_cycles, os.getcwd()))
+                turbomole_logger.debug('Geometry did not converge in %d cycles.\ncheck %s' % (max_cycles, os.getcwd()))
                 self.energy = get_energy()
                 self.optimized_coordinates = bohr2angstrom(get_coords())
                 return 'CycleExceeded'
             else:
-                turbomole_logger.error('Unknown Error!\n chcek the files in %s' % os.getcwd())
+                turbomole_logger.debug('Unknown Error!\n chcek the files in %s' % os.getcwd())
                 return False
 
         elif os.path.isfile('GEO_OPT_CONVERGED'):
@@ -265,7 +265,6 @@ class Turbomole(SF):
             return True
 
 
-
 def run_single_point():
     """
     return one of the following:
@@ -277,7 +276,7 @@ def run_single_point():
         try:
             subp.check_call(['ridft'], stdout=fj, stderr=fj)
         except subp.CalledProcessError as e:
-            turbomole_logger.error('rdift failed, check %s/rdift.out'
+            turbomole_logger.debug('rdift failed, check %s/rdift.out'
                                    % os.getcwd())
             return False
 
@@ -290,11 +289,11 @@ def calc_energy():
     run_status = run_turbomole_module('ridft')
     msg = set([line.strip() for line in open('ridft.out').readlines() if 'ended' in line])
     if run_status is False or 'abnormally' in msg:
-        turbomole_logger.error(msg)
-        turbomole_logger.error('Check the the files in %s' % os.getcwd())
+        turbomole_logger.debug(msg)
+        turbomole_logger.debug('Check the the files in %s' % os.getcwd())
         return False, None
     elif os.path.isfile('dscf_problem'):
-        turbomole_logger.error("SCF Failure. Check files in"+os.getcwd())
+        turbomole_logger.debug("SCF Failure. Check files in"+os.getcwd())
         return False, None
     else:
         return True, get_energy()
@@ -305,9 +304,9 @@ def calc_gradients():
     run_status = run_turbomole_module('rdgrad')
     msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
     if run_status is False or 'abnormally' in msg:
-        turbomole_logger.error(msg)
-        turbomole_logger.error('Gradient calculation failed!')
-        turbomole_logger.error('Chcek files in %s' %os.getcwd())
+        turbomole_logger.debug(msg)
+        turbomole_logger.debug('Gradient calculation failed!')
+        turbomole_logger.debug('Chcek files in %s' %os.getcwd())
         return False
     else:
         return True
@@ -809,7 +808,7 @@ if __name__ == "__main__":
     turbomole_logger = logging.getLogger('pyar.turbomole')
     handler = logging.FileHandler('turbomole.log', 'w')
     turbomole_logger.addHandler(handler)
-    turbomole_logger.setLevel(logging.DEBUG)
+    turbomole_logger.setLevel(logging.INFO)
 
     main()
     # plot_energy(sys.argv[1:])

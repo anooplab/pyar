@@ -21,7 +21,7 @@ def remove_similar(list_of_molecules):
         energy_difference = calc_energy_difference(a, b)
         fingerprint_distance = calc_fingerprint_distance(a, b)
         if abs(energy_difference) < 1e-5 and abs(fingerprint_distance) < 1.0:
-            if energy_difference < 1:
+            if energy_difference < 0:
                 if a in final_list:
                     cluster_logger.debug('Removing {}'.format(a.name))
                     final_list.remove(a)
@@ -268,7 +268,6 @@ def read_energy_from_xyz_file(xyz_file):
     with open(xyz_file, 'r') as fr:
         comments_line = fr.readlines()[1].rstrip()
     energy = float(re.split(':|=| ', comments_line)[-1])
-    print(energy)
     return energy
 
 
