@@ -50,7 +50,7 @@ def optimise(molecule, method, gamma=0.0, max_cycles=350, convergence='normal', 
             or optimize_status == 'CycleExceeded':
         molecule.energy = geometry.energy
         molecule.coordinates = geometry.optimized_coordinates
-        optimiser_logger.info('Energy ({:20s}): {:15.6f}'.format(molecule.name, geometry.energy))
+        optimiser_logger.info('Energy ({:9s}): {:15.6f}'.format(molecule.name, geometry.energy))
     else:
         molecule.energy = None
         molecule.coordinates = None

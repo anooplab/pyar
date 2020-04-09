@@ -5,6 +5,7 @@ from pyar import tabu, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
 import logging
+
 aggregator_logger = logging.getLogger('pyar.aggregator')
 
 
@@ -75,11 +76,12 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_numbe
 
         not_converged = all_orientations[:]
         for i in range(10):
-            aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i+1, len(not_converged)))
+            aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
             if len(not_converged) == 0:
                 aggregator_logger.info("No more files")
                 break
-            status_list = [optimise(each_mol, method, max_cycles=100, convergence='loose') for each_mol in not_converged]
+            status_list = [optimise(each_mol, method, max_cycles=100, convergence='loose') for each_mol in
+                           not_converged]
             converged = [n for n, s in zip(not_converged, status_list) if s is True]
             list_of_optimized_molecules.extend(converged)
             not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
@@ -90,7 +92,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_numbe
     if len(list_of_optimized_molecules) < 2:
         return list_of_optimized_molecules
     aggregator_logger.info("  Clustering")
-    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
+    selected_seeds = clustering.choose_geometries(list_of_optimized_molecules,
+                                                  maximum_number_of_seeds=maximum_number_of_seeds)
     file_manager.make_directories('selected')
     for each_file in selected_seeds:
         status = optimise(each_file, method, max_cycles=100, convergence='normal')

@@ -71,11 +71,11 @@ class Molecule(object):
     def split_coordinates(self, coordinates=None):
         if coordinates is None:
             coordinates = self.coordinates
-        fragments_coordinates = [coordinates[flist, :] for flist in self.fragments]
+        fragments_coordinates = [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
         return fragments_coordinates
 
     def split_atoms_lists(self):
-        fragments_atoms_list = [self.atoms_list[flist, :] for flist in self.fragments]
+        fragments_atoms_list = [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
         return fragments_atoms_list
 
     @classmethod

@@ -39,13 +39,13 @@ def argument_parse():
     run_type_group.add_argument("-a", "--aggregate",
                                 help="Run a aggregator calculation",
                                 action='store_true')
-    run_type_group.add_argument("-ba", "--baggregate",
-                                help="Run a baggregator calculation",
+    run_type_group.add_argument("-ba", "--binary-aggregate",
+                                help="Run a binary aggregation",
                                 action='store_true')
     run_type_group.add_argument("-o", "--optimize",
                                 help="Optimize the molecules",
                                 action='store_true')
-    run_type_group.add_argument("-mb", "--makebond", nargs=2, type=int,
+    run_type_group.add_argument("-mb", "--make-bond", nargs=2, type=int,
                                 help="make bonds between the given atoms of two"
                                      "fragments")
 
@@ -54,8 +54,8 @@ def argument_parse():
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
                                   help='number of monomers in aggregate')
     baggregator_group = parser.add_argument_group('baggregator', 'Baggregator specific option')
-    baggregator_group.add_argument('-bs1', '--baggregator-size1', type=int, help='size of atom1') #NEW
-    baggregator_group.add_argument('-bs2', '--baggregator-size2', type=int, help='size of atom2') #NEW
+    baggregator_group.add_argument('-fa', '--size-of-fragment-one', type=int, help='size of atom1')  # NEW
+    baggregator_group.add_argument('-fb', '--size-of-fragment-two', type=int, help='size of atom2')  # NEW
     baggregator_group.add_argument('-mns', '--maximum-number-of-seeds', type=int,
                                    default=8, help='maximum number of seeds')
     reactor_group = parser.add_argument_group('reactor',
@@ -142,7 +142,7 @@ def main():
         'scftype': args.scftype,
         'software': args.software
     }
-    print(args)
+    logger.debug(args)
     maximum_number_of_seeds = args.maximum_number_of_seeds
     logger.info('Charge:        %s' % method_args['charge'])
     logger.info('Multiplicity:  %s' % method_args['multiplicity'])
@@ -178,7 +178,7 @@ def main():
             sys.exit('Missing arguments: -N #')
 
         if len(input_molecules) == 1:
-            print('Provide at least two files')
+            logger.error('Provide at least two files')
             sys.exit('Missing arguments: Provide at least two files')
         else:
             monomer = input_molecules[-1]
@@ -191,28 +191,32 @@ def main():
                              method=method_args, maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
-    if args.baggregate:
-        size_of_aggregate1 = args.baggregator_size1
-        size_of_aggregate2 = args.baggregator_size2
-        if(size_of_aggregate1 is None or size_of_aggregate2 is None):
-            print("For binary aggregation, specify aggregate size of"
-                  " moiety 1 and 2 as <integers>")
-        if(how_many_orientations is None):
-            print("Any aggregation requires the number of orientations"
-                  " to be used")
-        if(len(input_molecules) == 1):
-            print("For binary aggregation, provide two moieties")
+
+    if args.binary_aggregate:
+        number_of_fragment_one = args.size_of_fragment_one
+        number_of_fragment_two = args.size_of_fragment_two
+        if number_of_fragment_one is None or number_of_fragment_two is None:
+            logger.error("For binary aggregation, specify aggregate size of"
+                         " moiety 1 and 2 as <integers>")
+            sys.exit("For binary aggregation, specify aggregate size of"
+                     " moiety 1 and 2 as <integers>")
+        if how_many_orientations is None:
+            logger.error("Any aggregation requires the number of orientations"
+                         " to be used")
+            sys.exit("provide the number of orientations (-N #)")
+        if len(input_molecules) == 1:
+            logger.error("For binary aggregation, provide two moieties")
         else:
-            seeds1 = input_molecules[-1:]
-            seeds2 = input_molecules[:-1]
-            print(seeds1)
-            print(seeds2)
+            seed_a = input_molecules[:-1]
+            seed_b = input_molecules[-1:]
+            logger.debug(seed_a)
+            logger.debug(seed_b)
             t1 = time.clock()
-            binary_aggregator.aggregate(seeds1, seeds2, size_of_aggregate1,
-                                        size_of_aggregate2,
-                                        hm_orientations=how_many_orientations,
-                                        method = method_args,
-                                        maximum_number_of_seeds=maximum_number_of_seeds)
+            binary_aggregator.aggregate_in_binary(seed_a, seed_b, number_of_fragment_one,
+                                                  number_of_fragment_two,
+                                                  hm_orientations=how_many_orientations,
+                                                  method=method_args,
+                                                  maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
 
@@ -253,9 +257,9 @@ def main():
 
         optimiser.bulk_optimize(input_molecules, method_args, gamma)
 
-    if args.makebond:
-        a = args.makebond[0]
-        b = input_molecules[0].number_of_atoms + args.makebond[1]
+    if args.make_bond:
+        a = args.make_bond[0]
+        b = input_molecules[0].number_of_atoms + args.make_bond[1]
         if how_many_orientations is None:
             logger.error("For aggregation, specify how many orientations"
                          "are    to be used, by the argument\n"
@@ -273,14 +277,14 @@ def main():
                              each_molecule.covalent_radius[b]
             step = int(abs(final_distance - start_dist) * 10)
             if args.software == 'orca':
-                c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) +\
+                c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) + \
                       '= ' + str(start_dist) + ', ' + str(final_distance) + \
                       ', ' + str(step) + ' end end\n'
 
                 optimiser.optimise(each_molecule, method_args, 0.0,
                                    custom_keyword=c_k)
             else:
-                print(
+                logger.error(
                     'Optimization with %s is not implemented yet' % args.software)
 
 
