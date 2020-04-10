@@ -10,7 +10,8 @@ import time
 
 import numpy as np
 
-from pyar import reactor, tabu, aggregator, binary_aggregator, optimiser, Molecule
+import pyar.aggregator
+from pyar import reactor, tabu, aggregator, optimiser, Molecule
 
 logger = logging.getLogger('pyar')
 handler = logging.FileHandler('pyar.log', 'w')
@@ -212,11 +213,11 @@ def main():
             logger.debug(seed_a)
             logger.debug(seed_b)
             t1 = time.clock()
-            binary_aggregator.aggregate_in_binary(seed_a, seed_b, number_of_fragment_one,
-                                                  number_of_fragment_two,
-                                                  hm_orientations=how_many_orientations,
-                                                  method=method_args,
-                                                  maximum_number_of_seeds=maximum_number_of_seeds)
+            aggregator.binary_aggregate(seed_a, seed_b, number_of_fragment_one,
+                                        number_of_fragment_two,
+                                        hm_orientations=how_many_orientations,
+                                        method=method_args,
+                                        maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
 
