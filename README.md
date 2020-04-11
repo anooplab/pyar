@@ -34,74 +34,11 @@ and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
 
 # Command line usage<a name="cli"></a>
 ```
-usage: pyar-cli [-h] [-N HM_ORIENTATIONS] [--site SITE SITE]
-            (-r | -a | -ba | -o | -mb MAKEBOND MAKEBOND) [-as AGGREGATE_SIZE]
-            [-bs1 BAGGREGATOR_SIZE1] [-bs2 BAGGREGATOR_SIZE2]
-            [-mns MAXIMUM_NUMBER_OF_SEEDS] [-gmin GMIN] [-gmax GMAX]
-            [-gamma GAMMA] [-c CHARGE] [-m MULTIPLICITY] [--scftype {rhf,uhf}]
-            --software {turbomole,obabel,mopac,xtb,xtb_turbo,orca,psi4}
-            [-v {0,1,2,3,4}]
-            files [files ...]
+usage: pyar-cli options files
 
-is a program to predict aggregation, reaction, clustering. There are also
-modules for strochastic generation of orientations of two more molecules and
-atoms
-
-positional arguments:
-  files                 input coordinate files
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -N HM_ORIENTATIONS    how many orientations to be used
-  --site SITE SITE      atom for site specific aggregation/solvation
-  -r, --react           Run a reactor calculation
-  -a, --aggregate       Run a aggregator calculation
-  -ba, --baggregate     Run a baggregator calculation
-  -o, --optimize        Optimize the molecules
-  -mb MAKEBOND MAKEBOND, --makebond MAKEBOND MAKEBOND
-                        make bonds between the given atoms of twofragments
-  -v {0,1,2,3,4}, --verbosity {0,1,2,3,4}
-                        increase output verbosity (0=Debug; 1=Info; 2:
-                        Warning; 3: Error; 4: Critical)
-
-aggregator:
-  Aggregator specific option
-
-  -as AGGREGATE_SIZE, --aggregate-size AGGREGATE_SIZE
-                        number of monomers in aggregate
-
-baggregator:
-  Baggregator specific option
-
-  -bs1 BAGGREGATOR_SIZE1, --baggregator-size1 BAGGREGATOR_SIZE1
-                        size of atom1
-  -bs2 BAGGREGATOR_SIZE2, --baggregator-size2 BAGGREGATOR_SIZE2
-                        size of atom2
-  -mns MAXIMUM_NUMBER_OF_SEEDS, --maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS
-                        maximum number of seeds
-
-reactor:
-  Reactor specific option
-
-  -gmin GMIN            minimum value of gamma
-  -gmax GMAX            maximum value of gamma
-
-optimizer:
-  Optimizer specific option
-
-  -gamma GAMMA          value of gamma
-
-chemistry:
-  Options related to model chemistry
-
-  -c CHARGE, --charge CHARGE
-                        Charge of the system
-  -m MULTIPLICITY, --multiplicity MULTIPLICITY
-                        Multiplicity of the system
-  --scftype {rhf,uhf}   specify rhf or uhf (defulat=rhf)
-  --software {turbomole,obabel,mopac,xtb,xtb_turbo,orca,psi4}
-                        Software
+type pyar-cli -h for opttions
 ```
+
 
 # Examples
 
@@ -123,7 +60,7 @@ This will generate a molecular aggregate/cluster of size upto 10 with **XTB** pa
 # References
 
 1. "A Global Optimizer for Nanoclusters ", Maya Khatun, Rajat Shubhro Majumdar, Anakuthil Anoop <a href="https://www.frontiersin.org/articles/10.3389/fchem.2019.00644/full">Frontiers in Chemistry 2019, 644</a>
-1.  "A tabu-search based strategy for modeling molecular aggregates and binary reactions" S Nandi, SR McAnanama-Brereton, MP Waller, A Anoop, <a href="https://www.sciencedirect.com/science/article/pii/S2210271X17301627">Computational and Theoretical Chemistry 2017, 1111, 69-81</a>  
+1. "A tabu-search based strategy for modeling molecular aggregates and binary reactions" S Nandi, SR McAnanama-Brereton, MP Waller, A Anoop, <a href="https://www.sciencedirect.com/science/article/pii/S2210271X17301627">Computational and Theoretical Chemistry 2017, 1111, 69-81</a>  
 
 # Credits
 
