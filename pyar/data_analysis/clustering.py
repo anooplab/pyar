@@ -2,7 +2,6 @@ import itertools
 import logging
 import operator
 import sys
-import re
 
 import numpy as np
 import pandas as pd
@@ -38,8 +37,11 @@ def memoize(f):
     """ Memoization decorator for functions taking one or more arguments.
     https://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/
     """
+
     class MemoDict(dict):
+        # noinspection PyCompatibility
         def __init__(self, f):
+            super().__init__()
             self.f = f
 
         def __call__(self, *args):
@@ -48,8 +50,8 @@ def memoize(f):
         def __missing__(self, key):
             ret = self[key] = self.f(*key)
             return ret
-    return MemoDict(f)
 
+    return MemoDict(f)
 
 
 @memoize
@@ -122,8 +124,8 @@ def print_energy_table(molecules):
         ref = min(e_dict.values())
         for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
             cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy,
-                                                             (energy - ref) *
-                                                             627.51))
+                                                                 (energy - ref) *
+                                                                 627.51))
 
 
 def get_labels(data_as_list, algorithm='combo'):
@@ -205,7 +207,7 @@ def n_clusters_optimized_with_kmeans(dt):
     labels = {}
     centres = {}
     scores = {}
-    for i in range(2,min(len(dt),9)):
+    for i in range(2, min(len(dt), 9)):
         kmeans = KMeans(n_clusters=i)
         try:
             kmeans.fit(dt)
@@ -267,7 +269,7 @@ def read_energy_from_xyz_file(xyz_file):
     import re
     with open(xyz_file, 'r') as fr:
         comments_line = fr.readlines()[1].rstrip()
-    energy = float(re.split(':|=| ', comments_line)[-1])
+    energy = float(re.split('[:= ]', comments_line)[-1])
     return energy
 
 
@@ -275,14 +277,13 @@ def plot_energy_histogram(molecules):
     energies = [i.energy for i in molecules]
     ref = min(energies)
     relative_energies = [(energy - ref) * 627.51 for energy in energies]
-    bin = np.linspace(0,max(relative_energies), 10)
+    bin = np.linspace(0, max(relative_energies), 10)
     import matplotlib.pyplot as plt
     plt.hist(relative_energies, bin)
     plt.xlabel('Energy')
     plt.ylabel('Population')
     plt.title('Histogram of energies')
     plt.show()
-
 
 
 # main program
@@ -308,17 +309,15 @@ def main():
         mols.append(mol)
     plot_energy_histogram(mols)
     selected = choose_geometries(mols)
-#    selected = remove_similar(mols)
+    #    selected = remove_similar(mols)
     cmd = ['/home/anoop/bin/molden']
     fls = []
     for one in selected:
-        fls.append(one.name+'.xyz')
-    print(' '.join(cmd+fls))
+        fls.append(one.name + '.xyz')
+    print(' '.join(cmd + fls))
     # subp.check_call(cmd)
     return
 
 
 if __name__ == "__main__":
     main()
-
-

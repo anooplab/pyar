@@ -180,8 +180,8 @@ def close_contact(mol_1, mol_2, factor):
     radius_one, radius_two = mol_1.covalent_radius, mol_2.covalent_radius
     for i in range(len(fragment_one)):
         for j in range(len(fragment_two)):
-            interatomic_distance = np.linalg.norm(fragment_one[i]-fragment_two[j])
-            sum_of_radii = (radius_one[i] + radius_two[j])*factor
+            interatomic_distance = np.linalg.norm(fragment_one[i] - fragment_two[j])
+            sum_of_radii = (radius_one[i] + radius_two[j]) * factor
             if interatomic_distance < sum_of_radii:
                 return True
     else:
@@ -190,14 +190,14 @@ def close_contact(mol_1, mol_2, factor):
 
 def minimum_separation(mol_1, mol_2):
     """
-    Find the minimum separation between two fragmetns.
+    Find the minimum separation between two fragments.
 
     :return: boolean
     :type mol_1: Molecule.Molecule
     :type mol_2: Molecule.Molecule
     """
     return np.min([np.linalg.norm(a - b) for a, b in
-                itertools.product(mol_1.coordinates, mol_2.coordinates)])
+                   itertools.product(mol_1.coordinates, mol_2.coordinates)])
 
 
 def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
@@ -257,25 +257,25 @@ def make_an_untabooed_point(a_threshold, angle_tabu, d_threshold,
     return point_n_angle
 
 
-def rotating_octants(number_of_points, distance_tabu=True, angle_tabu=True,
-                     spaa=None):
+def rotating_octant(number_of_points, distance_tabu=True, angle_tabu=True,
+                    remember_points_and_angles=None):
     """
-    Make N points ((x, y, z, theta, phi, psi) using 'rotating octants' method.
+    Make N points ((x, y, z, theta, phi, psi) using 'rotating octant' method.
 
-    :type spaa: numpy.array
+    :type remember_points_and_angles: numpy.array
     :param number_of_points: int
     :param distance_tabu: float
     :param angle_tabu: float
     :return: numpy.array
     """
-    if spaa is None:
+    if remember_points_and_angles is None:
         saved_points_and_angles = []
     else:
-        saved_points_and_angles = spaa[:]
+        saved_points_and_angles = remember_points_and_angles[:]
 
-    d_threshold = np.sqrt(2)/2.0
-    a_threshold = pi/2.0
-    for i in range(number_of_points//8):
+    d_threshold = np.sqrt(2) / 2.0
+    a_threshold = pi / 2.0
+    for i in range(number_of_points // 8):
         for j in itertools.product([1, -1], repeat=3):
             octant_chooser = np.array(j)
             if distance_tabu is False:
@@ -284,7 +284,7 @@ def rotating_octants(number_of_points, distance_tabu=True, angle_tabu=True,
                 if len(saved_points_and_angles) == 0:
                     saved_points_and_angles.append(make_point_n_angles(octant_chooser))
                 else:
-                    point_n_angle = make_an_untabooed_point(a_threshold, angle_tabu, d_threshold, octant_chooser, spaa)
+                    point_n_angle = make_an_untabooed_point(a_threshold, angle_tabu, d_threshold, octant_chooser, remember_points_and_angles)
                     saved_points_and_angles.append(point_n_angle)
 
     return np.array(saved_points_and_angles)
@@ -311,7 +311,7 @@ def make_random_points_and_angles(number_of_points):
     """https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere"""
     vec_1 = np.random.randn(3, number_of_points)
     vec_1 /= np.linalg.norm(vec_1, axis=0)
-    vec_2 = np.random.uniform(2*pi, size=(number_of_points, 3))
+    vec_2 = np.random.uniform(2 * pi, size=(number_of_points, 3))
     vec = np.concatenate((vec_1.transpose(), vec_2), axis=1)
     return vec
 
@@ -336,24 +336,24 @@ def uniformly_distributed_points(N):
             for j in range(N):
                 if i == j: continue
                 q = points[j]
-                v = p-q
+                v = p - q
                 r = np.linalg.norm(v)
-                f = v/r**3
+                f = v / r ** 3
                 forces_on_p += f
             forces.append(forces_on_p)
         forces = np.array(forces)
-        total_forces = np.sqrt(np.sum(forces**2))
+        total_forces = np.sqrt(np.sum(forces ** 2))
         if total_forces > 0.25:
-            fscale = 0.25 / total_forces
+            scale_force = 0.25 / total_forces
         else:
-            fscale = 1
+            scale_force = 1
         dist = 0
         for i in range(len(points)):
             p = points[i]
             f = forces[i]
-            moved_point = (p + f*fscale)
-            moved_point /=  np.linalg.norm(moved_point)
-            dist += np.linalg.norm(p-moved_point)
+            moved_point = (p + f * scale_force)
+            moved_point /= np.linalg.norm(moved_point)
+            dist += np.linalg.norm(p - moved_point)
             points[i] = moved_point
 
         if dist < 1e-6:
@@ -371,16 +371,16 @@ def plot_points(pts):
     y = np.outer(np.sin(theta), np.sin(phi))
     z = np.outer(np.cos(theta), np.ones_like(phi))
 
-    fig, ax = plt.subplots(1, 1, subplot_kw={'projection':'3d', 'aspect':'equal'})
+    fig, ax = plt.subplots(1, 1, subplot_kw={'projection': '3d', 'aspect': 'equal'})
     ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.1)
-    ax.scatter(pts[:,0], pts[:,1], pts[:,2], s=100, c='r', zorder=10)
+    ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=100, c='r', zorder=10)
     fig.show()
     fig.savefig('points.png')
 
 
 def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None):
     x, y, z, theta, phi, psi = vector
-    translate_by = np.array([x, y, z])/10
+    translate_by = np.array([x, y, z]) / 10
 
     tabu_logger.debug('Merging two molecules')
     if freeze_fragments is False:
@@ -393,10 +393,10 @@ def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None
 
     is_in_cage = True
     while close_contact(seed, monomer, 1.0) or is_in_cage:
-        minsep_1 = minimum_separation(seed, monomer)
+        minimum_sep_1 = minimum_separation(seed, monomer)
         monomer.translate(translate_by)
-        minsep_2 = minimum_separation(seed, monomer)
-        if minsep_2 > minsep_1:
+        minimum_sep_2 = minimum_separation(seed, monomer)
+        if minimum_sep_2 > minimum_sep_1:
             if is_in_cage is True:
                 is_in_cage = 'BorW'
             if is_in_cage == 'BorW':
@@ -461,8 +461,8 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
 def wrapper_of_make_points_and_angles(method, number_of_orientations,
                                       tabu_check_for_angles):
     if method == 'rotating':
-        pts = rotating_octants(number_of_orientations,
-                               angle_tabu=tabu_check_for_angles)
+        pts = rotating_octant(number_of_orientations,
+                              angle_tabu=tabu_check_for_angles)
     elif method == 'random':
         pts = make_random_points_and_angles(number_of_orientations)
     elif method == 'uniform':
@@ -475,7 +475,6 @@ def wrapper_of_make_points_and_angles(method, number_of_orientations,
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
                                number_of_orientations):
-
     if monomer.number_of_atoms == 1:
         tabu_check_for_angles = False
     else:
@@ -486,27 +485,27 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     orientations = []
     for i in range(number_of_orientations):
         t1 = time.clock()
-        pts = rotating_octants(32, angle_tabu=tabu_check_for_angles,
-                               spaa=saved_pts)
+        pts = rotating_octant(32, angle_tabu=tabu_check_for_angles,
+                              remember_points_and_angles=saved_pts)
         t2 = time.clock()
-        tabu_logger.debug('Created points: in {} seconds'.format(t2-t1))
+        tabu_logger.debug('Created points: in {} seconds'.format(t2 - t1))
         t1 = time.clock()
         current_orientations = generate_orientations_from_points_and_angles(seed, monomer, pts, site=[a, b])
         t2 = time.clock()
-        tabu_logger.debug('Created orientations {} seconds'.format(t2-t1))
+        tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
         t1 = time.clock()
-        dictorie = {}
+        stored_orientations = {}
         for j, each_orientation in enumerate(current_orientations):
             coords = each_orientation.coordinates
-            dist = np.linalg.norm(coords[a]-coords[b])
-            dictorie[j] = dist
-        best_orientation = min(dictorie, key=dictorie.get)
+            dist = np.linalg.norm(coords[a] - coords[b])
+            stored_orientations[j] = dist
+        best_orientation = min(stored_orientations, key=stored_orientations.get)
         best_point = pts[best_orientation]
-        tabu_logger.debug("{} {}".format(best_orientation, dictorie[best_orientation]))
+        tabu_logger.debug("{} {}".format(best_orientation, stored_orientations[best_orientation]))
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
         t2 = time.clock()
-        tabu_logger.debug('Found best orientation in {} seconds'.format(t2-t1))
+        tabu_logger.debug('Found best orientation in {} seconds'.format(t2 - t1))
 
     t1 = time.clock()
     filename_prefix = 'trial_'
@@ -534,18 +533,18 @@ def main():
                              'sphere')
     parser.add_argument('-mmc', action='store_true',
                         help='generate N configurations of two molecules')
-    parser.add_argument('-mcm',  action='store_true',
+    parser.add_argument('-mcm', action='store_true',
                         help='generate a composite molecule with seed and N '
                              'monomers')
     parser.add_argument('-i', type=str, nargs=2,
                         dest='file', help="two molecules, seed and monomer, "
                                           "in xyz file format")
     parser.add_argument('-method',
-                        choices=['random','rotating', 'uniform'],
+                        choices=['random', 'rotating', 'uniform'],
                         help="method for generating points")
-    parser.add_argument('-spr', type=str, 
-                        help="create a molecules from N atoms of given elememts")
-    parser.add_argument('-best', type=int, nargs=2, 
+    parser.add_argument('-spr', type=str,
+                        help="create a molecules from N atoms of given elements")
+    parser.add_argument('-best', type=int, nargs=2,
                         help="create the best orientation with lowest a b "
                              "distance")
     parser.add_argument('-c', type=int, default=0,
@@ -566,10 +565,10 @@ def main():
         monomer = None
 
     if args.method == 'rotating':
-        if args.file and monomer.number_of_atoms ==1:
-            pts = rotating_octants(N, angle_tabu=False)
+        if args.file and monomer.number_of_atoms == 1:
+            pts = rotating_octant(N, angle_tabu=False)
         else:
-            pts = rotating_octants(N, angle_tabu=True)
+            pts = rotating_octant(N, angle_tabu=True)
     elif args.method == 'random':
         pts = make_random_points_and_angles(N)
     elif args.method == 'uniform':
@@ -584,22 +583,21 @@ def main():
     if args.mmc:
         orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
         for i, each_orientation in enumerate(orientations):
-            each_orientation.mol_to_xyz('mol'+str(i)+'.xyz')
+            each_orientation.mol_to_xyz('mol' + str(i) + '.xyz')
 
     if args.mcm:
         from pyar import optimiser
         method_args = {
-                       'charge': args.c,
-                       'multiplicity': 1,
-                       'scftype': 'rhf',
-                       'software': 'turbomole'
-                      }
+            'charge': args.c,
+            'multiplicity': 1,
+            'scftype': 'rhf',
+            'software': 'turbomole'
+        }
         for i in range(8):
-        
             result = generate_composite_molecule(seed, monomer, pts)
             result.title = "trial_" + str(i).zfill(3)
             optimiser.optimise(result, method_args, 0.0)
-            result.mol_to_xyz('result_'+str(i).zfill(3)+'.xyz')
+            result.mol_to_xyz('result_' + str(i).zfill(3) + '.xyz')
 
     if args.spr:
         import scipy.spatial.distance as sdist
@@ -608,8 +606,8 @@ def main():
         from pyar.atomic_data import atomic_numbers, covalent_radii
         radii = covalent_radii[atomic_numbers[args.spr.capitalize()]]
         pts = pts[:, :3]
-        factor = pts/10
-        while np.min(sdist.pdist(pts)) < 2*radii:
+        factor = pts / 10
+        while np.min(sdist.pdist(pts)) < 2 * radii:
             pts += factor
 
         atoms = [args.spr for _ in range(N)]
@@ -619,8 +617,9 @@ def main():
 
     if args.best:
         a = args.best[0]
-        b = seed.number_of_atoms+args.best[1]
-        generate_guess_for_bonding('xxx', seed,monomer, a, b,  N)
+        b = seed.number_of_atoms + args.best[1]
+        generate_guess_for_bonding('xxx', seed, monomer, a, b, N)
+
 
 if __name__ == "__main__":
     main()

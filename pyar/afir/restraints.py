@@ -60,9 +60,9 @@ def calculate_gradient(ac, ac2, alpha, v, w, p):
     return np.array(gr)
 
 
-def flatten(l):
+def flatten(ll):
     # https://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists
-    for el in l:
+    for el in ll:
         if isinstance(el, collections.Iterable) and not isinstance(el, (str, bytes)):
             for sub in flatten(el):
                 yield sub

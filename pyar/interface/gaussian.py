@@ -22,6 +22,8 @@ import subprocess as subp
 
 import numpy as np
 
+from pyar import interface
+
 
 class gaussian(object):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
@@ -38,19 +40,18 @@ class gaussian(object):
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword="%nprocshared=5\n%chk=molecule.chk\n%mem=5GB\n# opt=(maxcycles=1000) mp2/3-21g"
-       
-        if sum(molecule.atomic_number)%2 != 0:
-            self.multiplicity = 2   
+        keyword = "%nprocshared=5\n%chk=molecule.chk\n%mem=5GB\n# opt=(maxcycles=1000) mp2/3-21g"
+
+        if sum(molecule.atomic_number) % 2 != 0:
+            self.multiplicity = 2
         self.prepare_input(keyword=keyword)
 
-
-    def prepare_input(self,keyword=""):
-        coords=self.start_coords
-        f1=open(self.inp_file,"w")
-        f1.write(keyword+"\n\n")
-        f1.write(self.job_name+"\n\n")
-        f1.write(str(self.charge)+" "+str(self.multiplicity)+"\n")
+    def prepare_input(self, keyword=""):
+        coords = self.start_coords
+        f1 = open(self.inp_file, "w")
+        f1.write(keyword + "\n\n")
+        f1.write(self.job_name + "\n\n")
+        f1.write(str(self.charge) + " " + str(self.multiplicity) + "\n")
         for i in range(self.number_of_atoms):
             f1.write("%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
         f1.write("\n")
@@ -70,22 +71,23 @@ class gaussian(object):
         out.poll()
         exit_status = out.returncode
         if exit_status == 0:
-            f=open(self.out_file,"r")
-            l=f.readlines()
-            check_1=0
-            check_2=0
+            file_pointer = open(self.out_file, "r")
+            this_line = file_pointer.readlines()
+            check_1 = 0
+            check_2 = 0
 
-            for j in l:
+            for j in this_line:
                 if "Optimization completed" in j:
-                    check_1=1
+                    check_1 = 1
                 if "SCF Done" in j:
-                    check_2=1
+                    check_2 = 1
 
-            if ("Normal termination of Gaussian 09" in l[-1]) and check_1==1 and check_2==1:
+            if ("Normal termination of Gaussian 09" in this_line[-1]) and check_1 == 1 and check_2 == 1:
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
-                interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name, energy=self.energy)
-                f.close()
+                interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
+                                    energy=self.energy)
+                file_pointer.close()
                 return True
             else:
                 print("Error: OPTIMIZATION PROBABLY FAILED.")
@@ -105,7 +107,7 @@ class gaussian(object):
                 opt_status = True
             if opt_status is True and 'Standard orientation' in lines:
                 pos = i
-                coords_lines = t[pos+5:pos+5+self.number_of_atoms]
+                coords_lines = t[pos + 5:pos + 5 + self.number_of_atoms]
                 for ilines in coords_lines:
                     coordinates.append(ilines.split()[3:6])
                 return np.array(coordinates, dtype=float)
@@ -117,13 +119,13 @@ class gaussian(object):
         :return:This object will return energy from an orca calculation. It will return Hartree units.
         """
         try:
-            with open(self.out_file,"r") as out:
-                l = out.readlines()
-                en_steps=[]
-                for i in range(len(l)):
-                    if "SCF Done" in l[i]:
-                        en_steps.append( l[i])
-                en_Eh=float((en_steps[-1].strip().split())[4])
+            with open(self.out_file, "r") as out:
+                lines_in_file = out.readlines()
+                en_steps = []
+                for i in range(len(lines_in_file)):
+                    if "SCF Done" in lines_in_file[i]:
+                        en_steps.append(lines_in_file[i])
+                en_Eh = float((en_steps[-1].strip().split())[4])
             return en_Eh
         except IOError:
             print("Warning: File ", self.out_file, "was not found.")

@@ -4,11 +4,11 @@ import os
 def which(program):
     import os
 
-    def is_exe(file_path):
-        return os.path.isfile(file_path) and os.access(file_path, os.X_OK)
+    def is_exe(exec_path):
+        return os.path.isfile(exec_path) and os.access(exec_path, os.X_OK)
 
-    fpath, fname = os.path.split(program)
-    if fpath:
+    file_path, file_name = os.path.split(program)
+    if file_path:
         if is_exe(program):
             return program
     else:

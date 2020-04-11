@@ -28,7 +28,9 @@ from pyar.interface import SF
 from pyar.units import angstrom2bohr, bohr2angstrom
 
 import logging
+
 xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
+
 
 class XtbTurbo(SF):
 
@@ -74,8 +76,10 @@ class XtbTurbo(SF):
                 return 'SCFFailed'
 
             # Calculate afir gradient if gamma is greater than zero
-            afir_energy, afir_gradient = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, pyar.interface.turbomole.get_coords(), gamma)
-            pyar.interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, afir_energy, afir_gradient)
+            afir_energy, afir_gradient = restraints.isotropic(self.atoms_in_fragments, self.atoms_list,
+                                                              pyar.interface.turbomole.get_coords(), gamma)
+            pyar.interface.turbomole.rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, afir_energy,
+                                                                                 afir_gradient)
 
             # Update coordinates and check convergence.
             status = pyar.interface.turbomole.update_coord()
@@ -96,7 +100,7 @@ class XtbTurbo(SF):
                 return True
 
             with open('energy.dat', 'a') as fe:
-                fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+afir_energy))
+                fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy + afir_energy))
         else:
             xtb_turbo_logger.info("cycle exceeded")
             status = 'cycle_exceeded'
@@ -120,7 +124,7 @@ class XtbTurbo(SF):
 
         msg = [line for line in open('engrad.out').readlines() if 'ended' in line]
         if os.path.isfile('.sccnotconverged'):
-            msg = "SCF Failure. Check files in"+os.getcwd()
+            msg = "SCF Failure. Check files in" + os.getcwd()
             return False, msg, None, None
         if 'abnormally' in msg:
             return False, msg, None, None
@@ -135,6 +139,7 @@ def main():
 
 if __name__ == "__main__":
     from pyar.Molecule import Molecule
+
     my_mol = Molecule.from_xyz(sys.argv[1])
     geometry = XtbTurbo(my_mol, method={})
     geometry.optimize(gamma=100.0)

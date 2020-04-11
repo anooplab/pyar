@@ -60,11 +60,12 @@ class Xtb(SF):
         if gamma > 0.0:
             print('not implemented in this module. Use xtb_turbo')
 
-        with open('xtb.out', 'w') as fout:
+        with open('xtb.out', 'w') as output_file_pointer:
             try:
-                out = subp.check_call(self.cmd.split(), stdout=fout, stderr=fout)
-            except:
+                out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
+            except Exception as e:
                 print('Optimization failed')
+                print(e)
                 return False
 
         if os.path.isfile('.xtboptok'):
@@ -104,9 +105,7 @@ class Xtb(SF):
             return None
 
 
-
 def main():
-
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--charge', type=int, default=0,

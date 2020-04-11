@@ -45,7 +45,9 @@ class OBabel(SF):
 
         with open('tmp.log', 'w') as logfile, open('tmp.xyz', 'w') as xyzfile:
             try:
-                subp.check_call(["obminimize", "-ff", "uff", '-n', max_cycles, self.start_xyz_file], stdout=xyzfile, stderr=logfile)
+                subp.check_call(["obminimize", "-ff", "uff", '-n',
+                                 max_cycles, self.start_xyz_file],
+                                stdout=xyzfile, stderr=logfile)
             except subp.CalledProcessError as e:
                 print('done')
         with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:

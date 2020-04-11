@@ -54,10 +54,10 @@ def safe_rewrite_file(modified_data_groups, file_name):
     shutil.move(tmp_file.name, file_name)
 
 
-def sed_inplace(pattern, repl, filename='control'):
+def sed_inplace(pattern, replace_to, filename='control'):
     '''
     Perform the pure-Python equivalent of in-place `sed` substitution: e.g.,
-    `sed -i -e 's/'${pattern}'/'${repl}' "${filename}"`.
+    `sed -i -e 's/'${pattern}'/'${replace_to}' "${filename}"`.
     https://stackoverflow.com/questions/4427542/how-to-do-sed-like-text-replace-with-python#4427835
     '''
     pattern_compiled = re.compile(pattern)
@@ -65,7 +65,7 @@ def sed_inplace(pattern, repl, filename='control'):
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_file:
         with open(filename) as src_file:
             for line in src_file:
-                tmp_file.write(pattern_compiled.sub(repl, line))
+                tmp_file.write(pattern_compiled.sub(replace_to, line))
 
     shutil.copystat(filename, tmp_file.name)
     shutil.move(tmp_file.name, filename)
@@ -111,7 +111,8 @@ class Turbomole(SF):
         if define_status is False:
             turbomole_logger.error('Initial Define failed, converting to cartesian coordinate')
             remove('control')
-            define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge, multiplicity=self.multiplicity)
+            define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge,
+                                            multiplicity=self.multiplicity)
             if define_status is False:
                 turbomole_logger.error('Initial Define failed again. Quit')
                 return 'UpdateFailed'
@@ -138,7 +139,7 @@ class Turbomole(SF):
 
         turbomole_logger.info("Turbomole Optimization started\n")
         turbomole_logger.info("  at  %s\n" % datetime.datetime.now())
-        turbomole_logger.info("  on machine %s\n"% socket.gethostname())
+        turbomole_logger.info("  on machine %s\n" % socket.gethostname())
         turbomole_logger.info("  by user %s\n" % os.getlogin())
         turbomole_logger.info("  in directory %s\n" % os.getcwd())
 
@@ -147,13 +148,13 @@ class Turbomole(SF):
             turbomole_logger.error('Initial energy evaluation failed.')
             return 'SCFFailed'
 
-        turbomole_logger.debug('First step: %s, %f' %(initial_status, initial_energy))
+        turbomole_logger.debug('First step: %s, %f' % (initial_status, initial_energy))
 
         for cycle in range(max_cycles):
             # Calculate Gradients
             gradient_status = calc_gradients()
             if gradient_status is False:
-                turbomole_logger.error('Gradient evaluation failed in cycle %d' %cycle)
+                turbomole_logger.error('Gradient evaluation failed in cycle %d' % cycle)
                 return 'GradFailed'
 
             for line in open('gradient').readlines():
@@ -162,14 +163,15 @@ class Turbomole(SF):
 
             # Calculate afir gradient if gamma is greater than zero
             # if gamma > 0.0:
-            afir_energy, afir_gradients = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, get_coords(), gamma)
+            afir_energy, afir_gradients = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, get_coords(),
+                                                               gamma)
             rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, afir_energy, afir_gradients)
             turbomole_logger.debug('restraint energy = %f' % (afir_energy))
 
             # Update coordinates and check convergence.
             update_status = update_coord()
             if update_status is False:
-                turbomole_logger.critical('Coordinate update failed in cycle %d' %cycle)
+                turbomole_logger.critical('Coordinate update failed in cycle %d' % cycle)
                 turbomole_logger.critical('Check the job in %s' % os.getcwd())
                 return 'UpdateFailed'
 
@@ -186,19 +188,19 @@ class Turbomole(SF):
             # Calculate energy
             scf_status, energy = calc_energy()
             if scf_status is False:
-                turbomole_logger.critical('Energy evaluation failed in cycle %d' %cycle)
+                turbomole_logger.critical('Energy evaluation failed in cycle %d' % cycle)
                 return 'SCFFailed'
 
-            with open('energy.dat','a') as fe:
+            with open('energy.dat', 'a') as fe:
                 # if gamma > 0.0:
-                fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy+afir_energy))
+                fe.writelines("{:3d} {:15.8f} {:15.8f}\n".format(cycle, energy, energy + afir_energy))
                 # else:
                 #     fe.writelines("{:3d} {:15.8f}\n".format(cycle, energy))
         else:
             turbomole_logger.info("OPTIMIZATION DID NOT CONVERGE WITHIN "
                                   "%d CYCLES\n Restarting it after checking "
                                   "the gradient norms\n might be a good idea..."
-                                  " (grep cycle gradient)" %max_cycles)
+                                  " (grep cycle gradient)" % max_cycles)
 
             self.energy = get_energy()
             self.optimized_coordinates = bohr2angstrom(get_coords())
@@ -212,7 +214,7 @@ class Turbomole(SF):
             GradFailed
             UpdateFailed
             CycleExceeded
-            False: unknown error or jebex excution error
+            False: unknown error or jebex execution error
         :rtype: string or boolean
         """
         with open('jobex.out', 'w') as fj:
@@ -283,9 +285,7 @@ def run_single_point():
     return True
 
 
-
 def calc_energy():
-
     run_status = run_turbomole_module('ridft')
     msg = set([line.strip() for line in open('ridft.out').readlines() if 'ended' in line])
     if run_status is False or 'abnormally' in msg:
@@ -293,20 +293,19 @@ def calc_energy():
         turbomole_logger.debug('Check the the files in %s' % os.getcwd())
         return False, None
     elif os.path.isfile('dscf_problem'):
-        turbomole_logger.debug("SCF Failure. Check files in"+os.getcwd())
+        turbomole_logger.debug("SCF Failure. Check files in" + os.getcwd())
         return False, None
     else:
         return True, get_energy()
 
 
 def calc_gradients():
-
     run_status = run_turbomole_module('rdgrad')
     msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
     if run_status is False or 'abnormally' in msg:
         turbomole_logger.debug(msg)
         turbomole_logger.debug('Gradient calculation failed!')
-        turbomole_logger.debug('Chcek files in %s' %os.getcwd())
+        turbomole_logger.debug('Chcek files in %s' % os.getcwd())
         return False
     else:
         return True
@@ -324,11 +323,10 @@ def choose_coordinate_system(choice):
         sed_inplace('cartesian  off', 'cartesian  on')
         turbomole_logger.debug('changed to cartesian')
     else:
-        turbomole_logger.error('bad choice for coordinate system %s' %choice)
+        turbomole_logger.error('bad choice for coordinate system %s' % choice)
 
 
 def statpt_cart():
-
     turbomole_logger.debug('entering cartesian step')
     choose_coordinate_system('crt')
     statpt_status = run_turbomole_module('statpt')
@@ -366,7 +364,6 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                     memory=6000, grid="m4", scf_conv=7, scf_maxiter=500,
                     dftd3="yes", charge=0, multiplicity=1,
                     read_define_input="no", coordinates='internal'):
-
     """This function will prepare the control file. Most of the arguments have
        default values(all have in its current form). The read_define_input var
        if "yes", then define_input_file should provide. The define will run
@@ -405,7 +402,7 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                 fdefine.write("ri\n on\n m\n")
                 fdefine.write("%d\n" % memory)
                 fdefine.write("\n")
-            if dftd3=="yes":
+            if dftd3 == "yes":
                 fdefine.write("dsp\n on\n")
                 fdefine.write("\n")
             fdefine.write("scf\nconv\n")
@@ -422,7 +419,7 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                                 stderr=fout, universal_newlines=False)
             except subp.CalledProcessError as e:
                 turbomole_logger.critical('Error in define')
-                turbomole_logger.critical("%s: %s\n" %(e.output, e.returncode))
+                turbomole_logger.critical("%s: %s\n" % (e.output, e.returncode))
                 return False
         with open(define_log_file) as fout:
             if "define : all done" not in fout.read() or 'abnormally' in fout.read():
@@ -452,7 +449,7 @@ def add_tmole_key():
         turbomole_logger.debug("Adding '$tmole' to control file")
         new_control = re.sub('end', 'tmole\n$end', control)
 
-        safe_rewrite_file(new_control,'control')
+        safe_rewrite_file(new_control, 'control')
 
 
 def get_metric_value():
@@ -469,17 +466,16 @@ def change_or_add_metfic_in_redund_inp(metric):
 
     for i in control.split('$'):
         if 'redund_inp' in i:
-            new_control = re.sub('metric '+str(metric), 'metric '+str(metric-1), control)
+            new_control = re.sub('metric ' + str(metric), 'metric ' + str(metric - 1), control)
             break
     else:
-        new_control = re.sub('end', 'redund_inp\n    metric '+str(metric-1)+'\n$end', control)
+        new_control = re.sub('end', 'redund_inp\n    metric ' + str(metric - 1) + '\n$end', control)
 
     with open('control', 'w') as fc:
         fc.write(new_control)
 
 
 def generate_internal_coordinates():
-
     if not os.path.isfile('coord'):
         turbomole_logger.error("Turbomole file, 'coord', should exist")
         return False
@@ -524,7 +520,7 @@ def generate_internal_coordinates():
 
 def remove_data_group(group):
     """similar to turbomole kdg script"""
-    data_groups = open('control','r').read().split('$')
+    data_groups = open('control', 'r').read().split('$')
 
     for each_group in data_groups[1:]:
         if each_group.split()[0] == group:
@@ -535,14 +531,14 @@ def remove_data_group(group):
     safe_rewrite_file(modified_data_groups, 'control')
 
 
-
 def get_energy():
     with open('energy') as fp:
         return float(fp.readlines()[-2].split()[1])
 
 
 def get_gradients():
-    grad = [line.replace('D', 'E').split() for line in open('gradient').read().split('cycle')[-1].split('\n') if len(line.split()) == 3]
+    grad = [line.replace('D', 'E').split() for line in open('gradient').read().split('cycle')[-1].split('\n') if
+            len(line.split()) == 3]
     return grad
 
 
@@ -574,7 +570,6 @@ def get_coords():
 
 
 def update_coord():
-
     if os.path.exists('def_inp'):
         os.remove('def_inp')
 
@@ -614,7 +609,7 @@ def update_coord():
 
 
 def run_turbomole_module(module):
-    output_file = module+'.out'
+    output_file = module + '.out'
     with open(output_file, 'w') as fc:
         try:
             subp.check_call([module], stdout=fc, stderr=fc)
@@ -624,7 +619,7 @@ def run_turbomole_module(module):
             if e.output:
                 fc.write(e.output)
 
-    key_phrase = module+' : all done'
+    key_phrase = module + ' : all done'
     if key_phrase not in open(output_file).read():
         turbomole_logger.critical('Error in %s' % module)
         return False
@@ -658,7 +653,7 @@ def rewrite_turbomole_gradient(number_of_atoms, restraint_energy,
     dft_grad = np.array(get_gradients(), dtype='float')
     afir_grad = restraint_gradient
     combined_gradients = dft_grad + afir_grad
-    combined_total_gradients = np.sqrt(np.sum(combined_gradients**2))
+    combined_total_gradients = np.sqrt(np.sum(combined_gradients ** 2))
 
     with open('gradient', 'r') as gradient_file:
         gradient_file_contents = gradient_file.read()
@@ -704,14 +699,13 @@ def rewrite_turbomole_energy(total_restraint_energy):
                                         total_restraint_energy)
 
     str_of_new_energy_file = ''.join(till_last_energy) + re.sub(old_energy, str(new_energy),
-                                                      energy[-2]) + '$end\n'
+                                                                energy[-2]) + '$end\n'
     safe_rewrite_file(str_of_new_energy_file, 'energy')
 
 
 def rewrite_turbomole_energy_and_gradient_files(number_of_atoms,
                                                 restraint_energy,
                                                 restraint_gradients):
-
     rewrite_turbomole_gradient(number_of_atoms, restraint_energy,
                                restraint_gradients)
     rewrite_turbomole_energy(restraint_energy)
@@ -731,7 +725,7 @@ def movie_maker():
                                                               c[0], c[1], c[2]))
 
     steps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
-             -1 -2, -3 -4 -5, -6, -7, -8. -9, -10, -9, -8, -7, -6, -5, -4,
+             -1 - 2, -3 - 4 - 5, -6, -7, -8. - 9, -10, -9, -8, -7, -6, -5, -4,
              -3, -2, -1, 0]
 
     for i in steps:
@@ -740,24 +734,24 @@ def movie_maker():
             fp.write(str(i) + ':' + str(energy) + '\n')
             for a, c, g in zip(atoms_list, coordinates, grad):
                 fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a.upper(),
-                                                                  c[0]+g[0]*i,
-                                                                  c[1]+g[1]*i,
-                                                                  c[2]+g[2]*i))
+                                                                  c[0] + g[0] * i,
+                                                                  c[1] + g[1] * i,
+                                                                  c[2] + g[2] * i))
 
 
 def plot_energy(params):
     import matplotlib.pyplot as plt
     for i in params:
-        energies = np.loadtxt(i+'/energy', comments='$', usecols=(0,1))
-        plt.plot(energies[:,0],energies[:,1], label=i)
+        energies = np.loadtxt(i + '/energy', comments='$', usecols=(0, 1))
+        plt.plot(energies[:, 0], energies[:, 1], label=i)
     plt.xlabel('cycles')
     plt.ylabel('energy')
     plt.title('SCF Convergence')
     plt.legend(bbox_to_anchor=(1, 1), bbox_transform=plt.gcf().transFigure)
     plt.show()
 
-def main():
 
+def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--charge', type=int, default=0,
@@ -804,7 +798,6 @@ def main():
 
 
 if __name__ == "__main__":
-
     turbomole_logger = logging.getLogger('pyar.turbomole')
     handler = logging.FileHandler('turbomole.log', 'w')
     turbomole_logger.addHandler(handler)

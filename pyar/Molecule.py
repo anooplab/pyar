@@ -7,11 +7,13 @@ from itertools import product
 from pyar.atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 import itertools
 import logging
+
 molecule_logger = logging.getLogger('pyar.molecule')
 
 
 class Molecule(object):
     def __init__(self, atoms_list, coordinates, name=None, title=None, fragments=None):
+        self.energy = 0.0
         self.number_of_atoms = len(coordinates)
         self.atoms_list = [c.capitalize() for c in atoms_list]
         self.atomic_number = self.get_atomic_number()
@@ -63,7 +65,7 @@ class Molecule(object):
         merged.fragments_coordinates = [self.coordinates, other.coordinates]
         merged.fragments_atoms_list = [self.atoms_list, other.atoms_list]
         if hasattr(self, 'fragments_history'):
-            merged.fragments_history = self.fragments_history + [atoms_in_other]
+            merged.fragments_history = self.fragments_history + atoms_in_other
         else:
             merged.fragments_history = [atoms_in_self, atoms_in_other]
         return merged
@@ -85,7 +87,8 @@ class Molecule(object):
             f = fp.readlines()
         try:
             number_of_atoms = int(f[0])
-        except:
+        except Exception as e:
+            molecule_logger.error(e)
             molecule_logger.error("%s should have number of atoms in the first line" % filename)
             molecule_logger.error("but we found\n %s" % f[0])
             molecule_logger.error("Is it an xyz file?")
@@ -93,7 +96,8 @@ class Molecule(object):
         mol_title = f[1].rstrip()
         try:
             geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
-        except:
+        except Exception as e:
+            molecule_logger.error(e)
             molecule_logger.error("Something wrong with reading the geometry section")
             sys.exit('Error in reading %s' % filename)
         if len(geometry_section) != number_of_atoms:
@@ -108,7 +112,8 @@ class Molecule(object):
                 x_coord = float(c[1])
                 y_coord = float(c[2])
                 z_coord = float(c[3])
-            except:
+            except Exception as e:
+                molecule_logger.error(e)
                 molecule_logger.error("Something wrong in line: %d" % (i + 1))
                 molecule_logger.error(c)
                 sys.exit('Error in reading %s' % filename)
@@ -125,12 +130,13 @@ class Molecule(object):
         :param file_name: Output .xyz file
         """
         if not hasattr(self, 'energy'):
-           self.energy = 0.0
+            pass
         with open(file_name, 'w') as fp:
             fp.write("{:3d}\n".format(self.number_of_atoms))
             fp.write("{}: {}\n".format(self.title, self.energy))
-            for l, c in zip(self.atoms_list, self.coordinates):
-                fp.write("%-2s%12.5f%12.5f%12.5f\n" % (l, c[0], c[1], c[2]))
+            for element_symbol, atom_coordinate in zip(self.atoms_list, self.coordinates):
+                fp.write("%-2s%12.5f%12.5f%12.5f\n" % (
+                    element_symbol, atom_coordinate[0], atom_coordinate[1], atom_coordinate[2]))
 
     def mol_to_turbomole_coord(self):
         """
@@ -204,7 +210,7 @@ class Molecule(object):
         dm = np.zeros((len(self.coordinates), len(self.coordinates)))
         for i, c in enumerate(self.coordinates):
             for j, d in enumerate(self.coordinates):
-                dm[i,j] = np.linalg.norm(c-d)
+                dm[i, j] = np.linalg.norm(c - d)
         return dm
 
     def get_bond_matrix(self):
@@ -213,9 +219,9 @@ class Molecule(object):
         bm = np.zeros((len(self.coordinates), len(self.coordinates)), dtype=int)
         for i, c in enumerate(self.coordinates):
             for j, d in enumerate(self.coordinates):
-                socr = (self.covalent_radius[i] + self.covalent_radius[j])*1.3
-                if i != j and dm[i,j] < socr:
-                    bm[i,j] = 1
+                sum_of_covalent_radii = (self.covalent_radius[i] + self.covalent_radius[j]) * 1.3
+                if i != j and dm[i, j] < sum_of_covalent_radii:
+                    bm[i, j] = 1
         return bm
 
     def hydrogen_bond_analysis(self):
@@ -227,12 +233,14 @@ class Molecule(object):
             for j, d in enumerate(self.coordinates):
                 if i != j:
                     if self.atomic_number[i] == 1:
-                        if 1.5 < dm[i,j] < 2.5:
-                            bnd = int(np.where(bm[i,:])[0])
+                        if 1.5 < dm[i, j] < 2.5:
+                            bnd = int(np.where(bm[i, :])[0])
                             angle = self.calculate_angle(bnd, i, j)
                             if angle > 160.0:
-                                print("{}({}) - {}({}) = {}".format(self.atoms_list[i], i+1, self.atoms_list[j], j+1, dm[i, j]))
-                                hbm[i,j] = dm[i, j]
+                                print(
+                                    "{}({}) - {}({}) = {}".format(self.atoms_list[i], i + 1, self.atoms_list[j], j + 1,
+                                                                  dm[i, j]))
+                                hbm[i, j] = dm[i, j]
         return hbm
 
     def calculate_angle(self, i, j, k):
@@ -244,15 +252,15 @@ class Molecule(object):
         v1 = c1 - b1
         v2 = c1 - a1
         a = np.arccos(np.dot(v1, v2) / (
-                    np.linalg.norm(v1) * np.linalg.norm(v2))) * 180 / pi
+                np.linalg.norm(v1) * np.linalg.norm(v2))) * 180 / pi
 
         return a
 
-    def calculate_dihedral(self, i, j, k, l):
-        p0 = self.coordinates[i]
-        p1 = self.coordinates[j]
-        p2 = self.coordinates[k]
-        p3 = self.coordinates[l]
+    def calculate_dihedral(self, atom_i, atom_j, atom_k, atom_l):
+        p0 = self.coordinates[atom_i]
+        p1 = self.coordinates[atom_j]
+        p2 = self.coordinates[atom_k]
+        p3 = self.coordinates[atom_l]
 
         b0 = -1.0 * (p1 - p0)
         b1 = p2 - p1
@@ -282,22 +290,22 @@ class Molecule(object):
         bl = []
         for i in range(len(self.coordinates)):
             for j in range(len(self.coordinates)):
-                if bm[i,j]:
+                if bm[i, j]:
                     seq = [i, j]
                     if seq[::-1] not in [i[0] for i in bl]:
-                        bl.append([seq, dm[i,j]])
+                        bl.append([seq, dm[i, j]])
         al = []
         for i, j, k in product(range(len(self.coordinates)), repeat=3):
-           if i != j and j != k and i != k:
-                if bm[i,j] and bm[j,k]:
+            if i != j and j != k and i != k:
+                if bm[i, j] and bm[j, k]:
                     seq = [i, j, k]
                     if seq[::-1] not in [i[0] for i in al]:
-                        al.append([seq,self.calculate_angle(i, j, k)])
+                        al.append([seq, self.calculate_angle(i, j, k)])
 
         dl = []
         for i, j, k, l in product(range(len(self.coordinates)), repeat=4):
-            if i !=j and i != k and i != l and j != k and j != l and k != l:
-                if bm[i,j] and bm[j,k] and bm[k,l]:
+            if i != j and i != k and i != l and j != k and j != l and k != l:
+                if bm[i, j] and bm[j, k] and bm[k, l]:
                     seq = [i, j, k, l]
                     if seq[::-1] not in [i[0] for i in dl]:
                         dl.append([seq, self.calculate_dihedral(i, j, k, l)])
@@ -305,14 +313,14 @@ class Molecule(object):
         return [bl, al, dl]
 
     def split_covalent_radii_list(self):
-        return [np.array(self.covalent_radius)[flist] for flist in self.fragments]
+        return [np.array(self.covalent_radius)[fragment_identifiers] for fragment_identifiers in self.fragments]
 
     def is_bonded(self):
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
         if isinstance(radius_one, np.float) and isinstance(radius_two, np.float64):
             R = radius_one + radius_two
-            r = np.linalg.norm(fragment_one-fragment_two)
+            r = np.linalg.norm(fragment_one - fragment_two)
             if r < R:
                 return True
             else:
@@ -320,8 +328,8 @@ class Molecule(object):
         else:
             R = [x + y for x, y in itertools.product(radius_one, radius_two)]
             r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
-            for l, m in zip(r, R):
-                if l < m:
+            for a, b in zip(r, R):
+                if a < b:
                     return True
             else:
                 return False
@@ -432,7 +440,6 @@ def main():
         for j in i:
             print(j)
 
+
 if __name__ == '__main__':
     main()
-
-

@@ -79,7 +79,8 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
         else:
             orientations_to_optimize = clustering.remove_similar(optimized_molecules)
         reactor_logger.info("Number of products found from gamma:{} = {}".format(gamma, len(saved_inchi_strings)))
-        reactor_logger.info("{} geometries are considered for the next gamma cycle".format(len(orientations_to_optimize)))
+        reactor_logger.info("{} geometries are considered for the next gamma "
+                            "cycle".format(len(orientations_to_optimize)))
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
             reactor_logger.debug("{}".format(this_orientation.name))

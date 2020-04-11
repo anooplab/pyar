@@ -3,16 +3,16 @@ PyAR stands for "Python program for aggregation and reaction"
 
 # Contents
 
-1.  [Installation](#install)
+1.  [Installation](#installation)
 1.  [Features](#features)
-1.  [Interfaced with electronic structure theory programs:](#interface)
-1.  [Command Line Interface](#cli)
+1.  [Interfaced with electronic structure theory programs:](#interfaced-with-electronic-structure-theory-programmes)
+1.  [Command Line Interface](#command-line-usage)
 1.  [Example usages](#examples)
 1.  [References](#references)
 1.  [Credits](#credits)
 1.  [License](#license)
 
-# Installation<a name="install"></a>
+# Installation
 
 Download the file pyar-master.zip. Unzip it. Go the the folder and ```sudo python3 setup.py install```
 This will create python package in the path **/usr/local/lib/python3.6/dist-packages/pyar/**
@@ -25,14 +25,14 @@ and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
 
 
 
-# Interfaced with electronic structure theory programs:<a name="interface"></a>
+# Interfaced with electronic structure theory programmes
 - Turbomole
 - Mopac
 - Xtb
 - Orca
 - Psi4
 
-# Command line usage<a name="cli"></a>
+# Command line usage
 ```
 usage: pyar-cli options files
 

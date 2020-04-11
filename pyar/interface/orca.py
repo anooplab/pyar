@@ -116,7 +116,6 @@ class Orca(SF):
             print("Warning: File ", self.out_file, "was not found.")
 
 
-
 def main():
     import argparse
     parser = argparse.ArgumentParser()
@@ -126,7 +125,7 @@ def main():
                         help='charge')
     parser.add_argument('-m', '--multiplicity', type=int, default=1,
                         help='multiplicity')
-    parser.add_argument('--scftype', type=str, default= 'rhf', choices= ['rhf', 'uhf'],
+    parser.add_argument('--scftype', type=str, default='rhf', choices=['rhf', 'uhf'],
                         help='SCF type (rhf/uhf)')
     parser.add_argument("input_file", metavar='file',
                         type=str,
@@ -148,8 +147,8 @@ def main():
     import numpy as np
     start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
     final_distance = mol.covalent_radius[a] + mol.covalent_radius[b]
-    step = int(abs(final_distance - start_dist)*10)
-    c_k = '\n!ScanTS\n% geom scan B '+str(a)+' '+str(b)+ '= '+ str(start_dist)\
+    step = int(abs(final_distance - start_dist) * 10)
+    c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) + '= ' + str(start_dist) \
           + ', ' + str(final_distance) + ', ' + str(step) + ' end end\n'
     geometry = Orca(mol, method_args, custom_keyword=c_k)
     if args.opt:

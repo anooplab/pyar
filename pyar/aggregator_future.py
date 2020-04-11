@@ -33,8 +33,6 @@ def new_binary_aggregate(seed_a_input, seed_b_input, aggregate_size1, aggregate_
     a_n = 1
     b_n = 0
 
-    seed = seed_a
-    monomer = seed_b
     aggregate_counter = 1
     final_one = [seed_a]
     while b_n < aggregate_size2 or a_n < aggregate_size1:

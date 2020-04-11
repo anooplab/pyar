@@ -121,31 +121,30 @@ class Psi4(SF):
             with open(self.out_file, "r") as out:
                 for line in out:
                     if "Final optimized geometry and variables:" in line:
-                         break
+                        break
                 coords = []
-                for line in out.readlines()[5:5+self.number_of_atoms+1]:
+                for line in out.readlines()[5:5 + self.number_of_atoms + 1]:
                     lc = line.split()
                     if len(lc) == 4:
                         try:
                             _, x, y, z = lc
                             coords.append([float(x), float(y), float(z)])
-                        except:
+                        except Exception as e:
+                            print(e)
                             print("some problem", line)
             return np.array(coords)
         except IOError:
             print("Warning: File ", self.out_file, "was not found.")
 
 
-
-
-
 def main():
     from pyar.Molecule import Molecule
     import sys
     mol = Molecule.from_xyz(sys.argv[1])
-    method = {'charge' : 0, 'multiplicity' : 1, 'scftype' : 'rhf'}
+    method = {'charge': 0, 'multiplicity': 1, 'scftype': 'rhf'}
     geometry = Psi4(mol, method)
     geometry.optimize()
+
 
 if __name__ == "__main__":
     main()
