@@ -250,11 +250,9 @@ def main():
             logger.debug(seed_b)
             logger.debug(seed_c)
             t1 = time.clock()
-            aggregator.ternary_aggregate(seed_a, seed_b, seed_c, number_of_fragment_one,
-                                         number_of_fragment_two, number_of_fragment_three,
-                                         hm_orientations=how_many_orientations,
-                                         method=method_args,
-                                         maximum_number_of_seeds=maximum_number_of_seeds)
+            aggregator.ternary_aggregate(seed_a, seed_b, seed_c, number_of_fragment_one, number_of_fragment_two,
+                                         number_of_fragment_three, hm_orientations=how_many_orientations,
+                                         method=method_args, maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
 
