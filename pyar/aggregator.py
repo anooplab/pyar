@@ -1,10 +1,10 @@
+import logging
 import os
 import shutil
 
 from pyar import tabu, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
-import logging
 
 aggregator_logger = logging.getLogger('pyar.aggregator')
 
@@ -15,37 +15,6 @@ def check_stop_signal():
         return 1
 
 
-def aggregate(seeds, monomer, aggregate_size, hm_orientations, method, maximum_number_of_seeds):
-    """
-    Input: a list of seed molecules, a monomer Molecule objects
-    """
-    if check_stop_signal():
-        aggregator_logger.info("Function: aggregate")
-        return StopIteration
-
-    if hm_orientations == 'auto':
-        number_of_orientations = 8
-    else:
-        number_of_orientations = int(hm_orientations)
-
-    starting_directory = os.getcwd()
-    aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
-    for aggregation_counter in range(2, aggregate_size + 2):
-        aggregate_id = "{:03d}".format(aggregation_counter)
-        aggregate_home = 'aggregate_' + aggregate_id
-        file_manager.make_directories(aggregate_home)
-        os.chdir(aggregate_home)
-
-        aggregator_logger.info(" Starting aggregation cycle: {}".format(aggregation_counter))
-        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method, maximum_number_of_seeds)
-        aggregator_logger.info(" Aggregation cycle: {} completed\n".format(aggregation_counter))
-
-        if hm_orientations == 'auto' and number_of_orientations <= 256:
-            number_of_orientations *= 2
-        os.chdir(starting_directory)
-    return
-
-
 def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_number_of_seeds):
     """
 
@@ -53,7 +22,6 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_numbe
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
-
     aggregator_logger.info('  There are {} seed molecules'.format(len(seeds)))
     cwd = os.getcwd()
 
@@ -105,6 +73,37 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_numbe
     return selected_seeds
 
 
+def aggregate(seeds, monomer, aggregate_size, hm_orientations, method, maximum_number_of_seeds):
+    """
+    Input: a list of seed molecules, a monomer Molecule objects
+    """
+    if check_stop_signal():
+        aggregator_logger.info("Function: aggregate")
+        return StopIteration
+
+    if hm_orientations == 'auto':
+        number_of_orientations = 8
+    else:
+        number_of_orientations = int(hm_orientations)
+
+    starting_directory = os.getcwd()
+    aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
+    for aggregation_counter in range(2, aggregate_size + 2):
+        aggregate_id = "{:03d}".format(aggregation_counter)
+        aggregate_home = 'aggregate_' + aggregate_id
+        file_manager.make_directories(aggregate_home)
+        os.chdir(aggregate_home)
+
+        aggregator_logger.info(" Starting aggregation cycle: {}".format(aggregation_counter))
+        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method, maximum_number_of_seeds)
+        aggregator_logger.info(" Aggregation cycle: {} completed\n".format(aggregation_counter))
+
+        if hm_orientations == 'auto' and number_of_orientations <= 256:
+            number_of_orientations *= 2
+        os.chdir(starting_directory)
+    return
+
+
 def binary_aggregate(seed_a_input, seed_b_input, a_n_max, b_n_max, hm_orientations,
                      method, maximum_number_of_seeds):
     """
@@ -134,7 +133,6 @@ def binary_aggregate(seed_a_input, seed_b_input, a_n_max, b_n_max, hm_orientatio
 
     for a_counter in range(1, a_n_max + 1):
         for b_counter in range(1, b_n_max + 1):
-            print(a_counter, b_counter, os.getcwd())
             a_n = "{:02d}".format(a_counter)
             b_n = "{:02d}".format(b_counter)
 
@@ -170,6 +168,96 @@ def binary_aggregate(seed_a_input, seed_b_input, a_n_max, b_n_max, hm_orientatio
                 seed_a_input = tmp_holder
             if hm_orientations == 'auto' and number_of_orientations <= 256:
                 number_of_orientations += 8
+
+
+def ternary_aggregate(seed_a_input, seed_b_input, seed_c_input, a_n_max, b_n_max,
+                      c_n_max, hm_orientations, method,
+                      maximum_number_of_seeds):
+    """
+    Input: a list of seed molecules, a monomer Molecule objects
+    """
+
+    if check_stop_signal():
+        aggregator_logger.info("Function: aggregate")
+        return StopIteration
+
+    if hm_orientations == 'auto':
+        number_of_orientations = 8
+    else:
+        number_of_orientations = int(hm_orientations)
+    if not os.path.exists('ternary_aggregates'):
+        os.mkdir('ternary_aggregates')
+    os.chdir('ternary_aggregates')
+    starting_directory = os.getcwd()
+
+    aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
+    current_seed_a = seed_a_input
+    current_seed_b = seed_b_input
+    current_seed_c = seed_c_input
+    tmp_holder = seed_a_input
+    for a_counter in range(1, a_n_max + 1):
+        for b_counter in range(1, b_n_max + 1):
+            aggregator_logger.debug(seed_a_input)
+            aggregator_logger.debug(seed_b_input)
+
+            if not (a_counter > 1 and b_counter == 1):
+                aggregate_id1 = "{:02d}".format(a_counter)
+                aggregate_id2 = "{:02d}".format(b_counter)
+                aggregate_id = aggregate_id1 + '_' + aggregate_id2
+                aggregate_home = 'a_' + aggregate_id1 + '_b_' + aggregate_id2
+                file_manager.make_directories(aggregate_home)
+                os.chdir(aggregate_home)
+
+                aggregator_logger.info(" Starting aggregation cycle: {} of {}".format(a_counter, b_counter))
+                seed_a_input = add_one(aggregate_id, seed_a_input, current_seed_b[0],
+                                       number_of_orientations, method,
+                                       maximum_number_of_seeds)
+
+                aggregator_logger.info(" Aggregation cycle: {} of {} completed\n".format(a_counter, b_counter))
+
+            if b_counter == 1:
+                os.chdir(starting_directory)
+                aggregate_id1 = "{:02d}".format(a_counter + 1)
+                aggregate_id2 = "{:02d}".format(b_counter)
+                aggregate_id = aggregate_id1 + '_' + aggregate_id2
+                aggregate_home = 'a_' + aggregate_id1 + '_b_' + aggregate_id2
+                file_manager.make_directories(aggregate_home)
+                os.chdir(aggregate_home)
+                tmp_holder = seed_a_input
+                aggregator_logger.info(" Starting aggregation cycle: {} of {}".format(a_counter, b_counter))
+
+                tmp_holder = add_one(aggregate_id, tmp_holder, current_seed_a[0],
+                                     number_of_orientations, method,
+                                     maximum_number_of_seeds)
+                aggregator_logger.info(" Aggregation cycle: {} of {} completed\n".format(a_counter, b_counter))
+            seed_in3 = seed_a_input
+            if b_counter == b_n_max:
+                seed_a_input = tmp_holder
+            if hm_orientations == 'auto' and number_of_orientations <= 256:
+                number_of_orientations *= 2
+            os.chdir(starting_directory)
+
+            for c_counter in range(1, c_n_max + 1):
+                aggregate_id1 = "{:02d}".format(a_counter)
+                aggregate_id2 = "{:02d}".format(b_counter)
+                aggregate_id3 = "{:02d}".format(c_counter)
+                aggregate_id = aggregate_id1 + '_' + aggregate_id2 + '_' + aggregate_id3
+                aggregate_home = 'a_' + aggregate_id1 + '_b_' + \
+                                 aggregate_id2 + '_c_' + aggregate_id3
+                file_manager.make_directories(aggregate_home)
+                os.chdir(aggregate_home)
+                aggregator_logger.info(" Starting aggregation cycle: {} of {} of {}".format(a_counter, b_counter,
+                                                                                            c_counter))
+                aggregator_logger.info(os.getcwd())
+                seed_in3 = add_one(aggregate_id, seed_in3, current_seed_c[0],
+                                   number_of_orientations, method,
+                                   maximum_number_of_seeds)
+                aggregator_logger.info(
+                    " Aggregation cycle: {} of {} of {} completed\n".format(a_counter, b_counter,
+                                                                            c_counter))
+                if hm_orientations == 'auto' and number_of_orientations <= 256:
+                    number_of_orientations *= 2
+                os.chdir(starting_directory)
 
 
 def main():
