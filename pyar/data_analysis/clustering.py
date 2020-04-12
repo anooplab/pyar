@@ -1,7 +1,6 @@
 import itertools
 import logging
 import operator
-import sys
 
 import numpy as np
 import pandas as pd
@@ -288,35 +287,7 @@ def plot_energy_histogram(molecules):
 
 # main program
 def main():
-    from pyar.Molecule import Molecule
-    logger = logging.getLogger('pyar')
-    handler = logging.FileHandler('clustering.log', 'w')
-    formatter = logging.Formatter('%(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
-
-    input_files = sys.argv[1:]
-
-    if len(input_files) < 2:
-        print('Not enough files to cluster')
-        sys.exit(0)
-
-    mols = []
-    for each_file in input_files:
-        mol = Molecule.from_xyz(each_file)
-        mol.energy = read_energy_from_xyz_file(each_file)
-        mols.append(mol)
-    plot_energy_histogram(mols)
-    selected = choose_geometries(mols)
-    #    selected = remove_similar(mols)
-    cmd = ['/home/anoop/bin/molden']
-    fls = []
-    for one in selected:
-        fls.append(one.name + '.xyz')
-    print(' '.join(cmd + fls))
-    # subp.check_call(cmd)
-    return
+    pass
 
 
 if __name__ == "__main__":
