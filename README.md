@@ -19,10 +19,9 @@ This will create python package in the path **/usr/local/lib/python3.6/dist-pack
 and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
 
 # Features:
-* Automated prediction of reactions between two reactants (A+B)
+* Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
-* Generate random orientations between two molecules.
-
+* Automated search for reaction for bond forming between two atoms in two different molecules.
 
 
 # Interfaced with electronic structure theory programmes
@@ -33,12 +32,31 @@ and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
 - Psi4
 
 # Command line usage
-```
-usage: pyar-cli options files
 
-type pyar-cli -h for opttions
+The easy usage is by command line. This can also be used as library.
+The detailed help can be obtained by typing ```command -h```
+
+## pyar-cli
+The main program can be used as below:
+
+```
+pyar-cli options files
 ```
 
+There are other scipts for a few automation tasks.
+
+## pyar-tabu
+pyar-tabu can be used for
+* for making different orientations of two molecules.
+* Making a composite molecule containing a _seed_ molecule and __N__ number of monomer molecules.
+* Orient two molecules such that _i_'th atom of one molecule and _j_ 'th atom of second molecule have shortest distance 
+between them
+
+## pyar-clustering
+* for a clustering analysis of n input molecules to find unique molecules. 
+
+## pyar-optimiser
+* for the bulk optimisation of several molecules
 
 # Examples
 
