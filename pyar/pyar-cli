@@ -18,14 +18,16 @@ handler = logging.FileHandler('pyar.log', 'w')
 
 def argument_parse():
     """ Parse command line arguments"""
-    parser = argparse.ArgumentParser(prog='PyAR', description='is a \
+    parser = argparse.ArgumentParser(prog='PyAR', description='PyAR is a \
              program to predict aggregation, reaction, clustering.  \
              There are also modules for stochastic generation of  \
              orientations of two more molecules and atoms')
+
     parser.add_argument("input_files", metavar='files',
                         type=str, nargs='+',
                         help='input coordinate files')
-    parser.add_argument("-N", dest='hm_orientations',
+
+    parser.add_argument('-N', dest='hm_orientations',
                         help='how many orientations to be used')
 
     parser.add_argument('--site', type=int, nargs=2,
@@ -33,61 +35,71 @@ def argument_parse():
                              'aggregation/solvation')
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
+
     run_type_group.add_argument("-r", "--react",
                                 help="Run a reactor calculation",
                                 action='store_true')
+
     run_type_group.add_argument("-a", "--aggregate",
                                 help="Run a aggregator calculation",
                                 action='store_true')
+
     run_type_group.add_argument("-ba", "--binary-aggregate",
                                 help="Run a binary aggregation",
                                 action='store_true')
+
     run_type_group.add_argument("-ta", "--ternary-aggregate",
                                 help="Run a ternary aggregation",
                                 action='store_true')
 
-    run_type_group.add_argument("-o", "--optimize",
-                                help="Optimize the molecules",
-                                action='store_true')
-    run_type_group.add_argument("-mb", "--make-bond", nargs=2, type=int,
-                                help="make bonds between the given atoms of two"
+    run_type_group.add_argument("--scan-bond", nargs=2, type=int,
+                                help="scan a bond between the given atoms of two"
                                      "fragments")
 
     aggregator_group = parser.add_argument_group('aggregator',
                                                  'Aggregator specific option')
+
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
                                   help='number of monomers in aggregate')
+
     binary_aggregator_group = parser.add_argument_group('binary_aggregator', 'Binary_aggregator specific option')
+
     binary_aggregator_group.add_argument('-fa', '--size-of-fragment-one', type=int, help='size of atom1')
+
     binary_aggregator_group.add_argument('-fb', '--size-of-fragment-two', type=int, help='size of atom2')
+
     binary_aggregator_group.add_argument('-fc', '--size-of-fragment-three', type=int, help='size of atom3')
+
     binary_aggregator_group.add_argument('-mns', '--maximum-number-of-seeds', type=int,
                                          default=8, help='maximum number of seeds')
+
     reactor_group = parser.add_argument_group('reactor',
                                               'Reactor specific option')
+
     reactor_group.add_argument('-gmin', type=float,
                                help='minimum value of gamma')
+
     reactor_group.add_argument('-gmax', type=float,
                                help='maximum value of gamma')
 
-    optimizer_group = parser.add_argument_group('optimizer',
-                                                'Optimizer specific option')
-    optimizer_group.add_argument('-gamma', type=float,
-                                 help='value of gamma')
-
     chemistry_group = parser.add_argument_group('chemistry', 'Options related\
                                            to model chemistry')
+
     chemistry_group.add_argument("-c", "--charge", type=int, default=0,
                                  help="Charge of the system")
+
     chemistry_group.add_argument("-m", "--multiplicity", type=int,
                                  default=1, help="Multiplicity of the system")
+
     chemistry_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
                                  default='rhf',
                                  help="specify rhf or uhf (default=rhf)")
+
     chemistry_group.add_argument("--software", type=str,
                                  choices=['turbomole', 'obabel', 'mopac',
                                           'xtb', 'xtb_turbo', 'orca', 'psi4'],
                                  required=True, help="Software")
+
     parser.add_argument('-v', '--verbosity', default=1,
                         choices=[0, 1, 2, 3, 4], type=int,
                         help="increase output verbosity (0=Debug; 1=Info; "
@@ -293,9 +305,9 @@ def main():
 
         optimiser.bulk_optimize(input_molecules, method_args, gamma)
 
-    if args.make_bond:
-        a = args.make_bond[0]
-        b = input_molecules[0].number_of_atoms + args.make_bond[1]
+    if args.scan_bond:
+        a = args.scan_bond[0]
+        b = input_molecules[0].number_of_atoms + args.scan_bond[1]
         if how_many_orientations is None:
             logger.error("For aggregation, specify how many orientations"
                          "are    to be used, by the argument\n"
@@ -320,8 +332,8 @@ def main():
                 optimiser.optimise(each_molecule, method_args, 0.0,
                                    custom_keyword=c_k)
             else:
-                logger.error(
-                    'Optimization with %s is not implemented yet' % args.software)
+                logger.error('Optimization with %s is not implemented '
+                             'yet' % args.software)
 
 
 if __name__ == "__main__":

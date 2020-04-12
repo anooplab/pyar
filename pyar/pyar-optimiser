@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+"""Command line interface for PyAR"""
+import argparse
+import datetime
+import logging
+import os
+import sys
+import time
+
+from pyar import optimiser, Molecule
+
+
+def setup_molecules(input_files):
+    molecules = []
+    for each_file in input_files:
+        try:
+            mol = Molecule.Molecule.from_xyz(each_file)
+            logger.info(each_file)
+            molecules.append(mol)
+        except IOError:
+            logger.critical("File {} does not exist".format(each_file))
+            sys.exit()
+    logger.info("I've parsed these molecules as input: {}".format(
+        [i.name for i in molecules]))
+    return molecules
+
+
+logger = logging.getLogger('pyar')
+handler = logging.FileHandler('pyar-optimiser.log', 'w')
+
+parser = argparse.ArgumentParser(prog='PyAR', description='PyAR is a \
+         program to predict aggregation, reaction, clustering.  \
+         There are also modules for stochastic generation of  \
+         orientations of two more molecules and atoms')
+
+parser.add_argument("input_files", metavar='files',
+                    type=str, nargs='+',
+                    help='input coordinate files')
+
+parser.add_argument("-c", "--charge", type=int, default=0,
+                    help="Charge of the system")
+
+parser.add_argument("-m", "--multiplicity", type=int,
+                    default=1, help="Multiplicity of the system")
+
+parser.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
+                    default='rhf',
+                    help="specify rhf or uhf (default=rhf)")
+
+parser.add_argument("--software", type=str,
+                    choices=['turbomole', 'obabel', 'mopac',
+                             'xtb', 'xtb_turbo', 'orca', 'psi4'],
+                    required=True, help="Software")
+
+parser.add_argument('-v', '--verbosity', default=1,
+                    choices=[0, 1, 2, 3, 4], type=int,
+                    help="increase output verbosity (0=Debug; 1=Info; "
+                         "2: Warning; 3: Error; 4: Critical)")
+args = parser.parse_args()
+
+if args.verbosity == 0:
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
+                                  '%(lineno)d %(levelname)-8s: %(message)s')
+elif args.verbosity == 1:
+    formatter = logging.Formatter('%(message)s')
+    logger.setLevel(logging.INFO)
+elif args.verbosity == 2:
+    formatter = logging.Formatter('%(message)s')
+    logger.setLevel(logging.WARNING)
+elif args.verbosity == 3:
+    formatter = logging.Formatter('%(message)s')
+    logger.setLevel(logging.ERROR)
+elif args.verbosity == 4:
+    formatter = logging.Formatter('%(message)s')
+    logger.setLevel(logging.CRITICAL)
+else:
+    formatter = logging.Formatter('%(message)s')
+    logger.setLevel(logging.CRITICAL)
+
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+logger.info('Starting PyAR at %s in %s' % (datetime.datetime.now(),
+                                           os.getcwd()))
+logger.debug('Logging level is %d' % args.verbosity)
+logger.debug('Parsed arguments %s' % args)
+
+method_args = {
+    'charge': args.charge,
+    'multiplicity': args.multiplicity,
+    'scftype': args.scftype,
+    'software': args.software
+}
+logger.debug(args)
+logger.info('Charge:        %s' % method_args['charge'])
+logger.info('Multiplicity:  %s' % method_args['multiplicity'])
+logger.info('SCF Type:      %s' % method_args['scftype'])
+
+logger.info('QM Software:  %s' % method_args['software'])
+input_molecules = setup_molecules(args.input_files)
+
+optimiser.bulk_optimize(input_molecules, method_args, gamma=0.0)

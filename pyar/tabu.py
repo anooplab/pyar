@@ -362,15 +362,17 @@ def uniformly_distributed_points(N):
 
 def plot_points(pts):
     '''have to run with python -i '''
+
     import matplotlib.pyplot as plt
-    #    style.use('dark_background')
+    from mpl_toolkits.mplot3d import Axes3D, axes3d
+    from matplotlib import style
+    style.use('dark_background')
 
     phi = np.linspace(0, np.pi, 60)
     theta = np.linspace(0, 2 * np.pi, 90)
     x = np.outer(np.sin(theta), np.cos(phi))
     y = np.outer(np.sin(theta), np.sin(phi))
     z = np.outer(np.cos(theta), np.ones_like(phi))
-
     fig, ax = plt.subplots(1, 1, subplot_kw={'projection': '3d', 'aspect': 'equal'})
     ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.1)
     ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=100, c='r', zorder=10)
@@ -518,107 +520,13 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     t2 = time.clock()
     tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
     write_tabu_list(saved_pts, 'tabu.dat')
-    # plot_points(np.array(saved_pts))
+    plot_points(np.array(saved_pts))
 
     return orientations
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-N', type=int, required=True,
-                        help='number of points/configurations')
-    parser.add_argument('-mpt', action='store_true',
-                        help='generate random points on the surface of a unit '
-                             'sphere')
-    parser.add_argument('-mmc', action='store_true',
-                        help='generate N configurations of two molecules')
-    parser.add_argument('-mcm', action='store_true',
-                        help='generate a composite molecule with seed and N '
-                             'monomers')
-    parser.add_argument('-i', type=str, nargs=2,
-                        dest='file', help="two molecules, seed and monomer, "
-                                          "in xyz file format")
-    parser.add_argument('-method',
-                        choices=['random', 'rotating', 'uniform'],
-                        help="method for generating points")
-    parser.add_argument('-spr', type=str,
-                        help="create a molecules from N atoms of given elements")
-    parser.add_argument('-best', type=int, nargs=2,
-                        help="create the best orientation with lowest a b "
-                             "distance")
-    parser.add_argument('-c', type=int, default=0,
-                        help='charge')
-
-    args = parser.parse_args()
-    print(args)
-    tabu_logger.debug(args)
-
-    N = args.N
-
-    if args.file:
-        from pyar.Molecule import Molecule
-        seed = Molecule.from_xyz(args.file[0])
-        monomer = Molecule.from_xyz(args.file[1])
-    else:
-        seed = None
-        monomer = None
-
-    if args.method == 'rotating':
-        if args.file and monomer.number_of_atoms == 1:
-            pts = rotating_octant(N, angle_tabu=False)
-        else:
-            pts = rotating_octant(N, angle_tabu=True)
-    elif args.method == 'random':
-        pts = make_random_points_and_angles(N)
-    elif args.method == 'uniform':
-        pts = uniformly_distributed_points(N)
-    else:
-        print('using default method: random')
-        pts = make_random_points_and_angles(N)
-
-    if args.mpt:
-        plot_points(pts)
-
-    if args.mmc:
-        orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
-        for i, each_orientation in enumerate(orientations):
-            each_orientation.mol_to_xyz('mol' + str(i) + '.xyz')
-
-    if args.mcm:
-        from pyar import optimiser
-        method_args = {
-            'charge': args.c,
-            'multiplicity': 1,
-            'scftype': 'rhf',
-            'software': 'turbomole'
-        }
-        for i in range(8):
-            result = generate_composite_molecule(seed, monomer, pts)
-            result.title = "trial_" + str(i).zfill(3)
-            optimiser.optimise(result, method_args, 0.0)
-            result.mol_to_xyz('result_' + str(i).zfill(3) + '.xyz')
-
-    if args.spr:
-        import scipy.spatial.distance as sdist
-
-        from pyar.Molecule import Molecule
-        from pyar.atomic_data import atomic_numbers, covalent_radii
-        radii = covalent_radii[atomic_numbers[args.spr.capitalize()]]
-        pts = pts[:, :3]
-        factor = pts / 10
-        while np.min(sdist.pdist(pts)) < 2 * radii:
-            pts += factor
-
-        atoms = [args.spr for _ in range(N)]
-        result = Molecule(atoms, pts)
-
-        result.mol_to_xyz('mol.xyz')
-
-    if args.best:
-        a = args.best[0]
-        b = seed.number_of_atoms + args.best[1]
-        generate_guess_for_bonding('xxx', seed, monomer, a, b, N)
+    pass
 
 
 if __name__ == "__main__":

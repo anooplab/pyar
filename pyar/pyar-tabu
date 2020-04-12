@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+"""Command line interface for PyAR"""
+import argparse
+import datetime
+import logging
+import os
+import sys
+import time
+import numpy as np
+
+import pyar.tabu
+
+
+def tabu_function():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-N', type=int, required=True,
+                        help='number of points/configurations')
+    parser.add_argument('-i', type=str, nargs=2,
+                        dest='file', help="two molecules, seed and monomer, "
+                                          "in xyz file format")
+    parser.add_argument('-method',
+                        choices=['random', 'rotating', 'uniform'], default='rotating',
+                        help="method for generating points")
+    parser.add_argument('--charge', type=int, default=0,
+                        help='charge')
+    task_group = parser.add_mutually_exclusive_group(required=True)
+
+    task_group.add_argument('-best', type=int, nargs=2,
+                            help="create the best orientation with lowest a b "
+                                 "distance")
+    task_group.add_argument('-mkpts', action='store_true',
+                            help='generate random points on the surface of a unit '
+                                 'sphere')
+    task_group.add_argument('-mkconfigs', action='store_true',
+                            help='generate N configurations of two molecules')
+    task_group.add_argument('-mkcomposite', action='store_true',
+                            help='generate a composite molecule with seed and N '
+                                 'monomers')
+    task_group.add_argument('-mksphere', type=str,
+                            help="create a molecules from N atoms of given elements")
+
+    args = parser.parse_args()
+    print(args)
+    pyar.tabu.tabu_logger.debug(args)
+
+    N = args.N
+
+    if args.file:
+        from pyar.Molecule import Molecule
+        seed = Molecule.from_xyz(args.file[0])
+        monomer = Molecule.from_xyz(args.file[1])
+    else:
+        seed = None
+        monomer = None
+
+    if args.method == 'rotating':
+        if args.file and monomer.number_of_atoms == 1:
+            pts = pyar.tabu.rotating_octant(N, angle_tabu=False)
+        else:
+            pts = pyar.tabu.rotating_octant(N, angle_tabu=True)
+    elif args.method == 'random':
+        pts = pyar.tabu.make_random_points_and_angles(N)
+    elif args.method == 'uniform':
+        pts = pyar.tabu.uniformly_distributed_points(N)
+    else:
+        print('using default method: random')
+        pts = pyar.tabu.make_random_points_and_angles(N)
+
+    if args.mkpts:
+        pyar.tabu.plot_points(pts)
+
+    if args.mkconfigs:
+        if not (seed or monomer):
+            print(parser.print_help())
+            print("Note: provide two molecules, '-i file1.xyz file2.xyz'")
+            sys.exit()
+        orientations = pyar.tabu.generate_orientations_from_points_and_angles(seed, monomer, pts)
+        for i, each_orientation in enumerate(orientations):
+            each_orientation.mol_to_xyz('mol' + str(i) + '.xyz')
+
+    if args.mkcomposite:
+        from pyar import optimiser
+        method_args = {
+            'charge': args.charge,
+            'multiplicity': 1,
+            'scftype': 'rhf',
+            'software': 'turbomole'
+        }
+        for i in range(8):
+            result = pyar.tabu.generate_composite_molecule(seed, monomer, pts)
+            result.title = "trial_" + str(i).zfill(3)
+            optimiser.optimise(result, method_args, 0.0)
+            result.mol_to_xyz('result_' + str(i).zfill(3) + '.xyz')
+
+    if args.mksphere:
+        import scipy.spatial.distance as sdist
+
+        from pyar.Molecule import Molecule
+        from pyar.atomic_data import atomic_numbers, covalent_radii
+        radii = covalent_radii[atomic_numbers[args.mksphere.capitalize()]]
+        pts = pts[:, :3]
+        factor = pts / 10
+        while np.min(sdist.pdist(pts)) < 2 * radii:
+            pts += factor
+
+        atoms = [args.mksphere for _ in range(N)]
+        result = Molecule(atoms, pts)
+
+        result.mol_to_xyz('mol.xyz')
+
+    if args.best:
+        a = args.best[0]
+        b = seed.number_of_atoms + args.best[1]
+        pyar.tabu.generate_guess_for_bonding('xxx', seed, monomer, a, b, N)
+
+
+if __name__ == "__main__":
+    tabu_function()
