@@ -33,7 +33,7 @@ for each_file in input_files:
     mol = Molecule.from_xyz(each_file)
     mol.energy = pyar.data_analysis.clustering.read_energy_from_xyz_file(each_file)
     mols.append(mol)
-sys.exit()
+
 pyar.data_analysis.clustering.plot_energy_histogram(mols)
 selected = pyar.data_analysis.clustering.choose_geometries(mols)
 #    selected = remove_similar(mols)
