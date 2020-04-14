@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 import shutil
@@ -261,10 +262,93 @@ def ternary_aggregate(seed_a_input, seed_b_input, seed_c_input, a_n_max, b_n_max
                 os.chdir(starting_directory)
     return
 
+
+def update_id(aid, the_monomer):
+    """
+        aggregate_id = "a_{:03d}_b_{:03d}".format(a_n, b_n)
+
+    """
+    parts_of_aid = aid.split('_')
+    a_n = int(parts_of_aid[1])
+    b_n = int(parts_of_aid[3])
+    if the_monomer == 'a':
+        a_n += 1
+    if the_monomer == 'b':
+        b_n += 1
+    return "a_{:03d}_b_{:03d}".format(a_n, b_n)
+
+
+def exhaustive_binary_aggregate(seed_a_input, seed_b_input,
+                                aggregate_size1, aggregate_size2,
+                                hm_orientations,
+                                method, maximum_number_of_seeds):
+    """
+    Input: a list of seed molecules, a monomer Molecule objects
+    """
+    if check_stop_signal():
+        aggregator_logger.info("Function: aggregate")
+        return StopIteration
+
+    if hm_orientations == 'auto':
+        number_of_orientations = 8
+    else:
+        number_of_orientations = int(hm_orientations)
+
+    parent_folder = 'binary_aggregates'
+    if not os.path.exists(parent_folder):
+        os.mkdir(parent_folder)
+    os.chdir(parent_folder)
+    starting_directory = os.getcwd()
+
+    aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
+
+    seed_a = seed_a_input[0]
+    seed_b = seed_b_input[0]
+    seed_a.name = 'a'
+    seed_b.name = 'b'
+    a_seeds = [seed_a for _ in range(aggregate_size1)]
+    b_seeds = [seed_b for _ in range(aggregate_size2)]
+    a_n = 0
+    b_n = 0
+
+    seed_store = OrderedDict()
+
+    aggregate_id = "a_{:03d}_b_{:03d}".format(a_n, b_n)
+
+    monomers_to_add = a_seeds + b_seeds
+    start_store = copy.deepcopy(seed_store)
+    start_id = aggregate_id
+    outer_counter = 1
+    counter = 1
+    for i in set(itertools.permutations(monomers_to_add)):
+        for monomer in i:
+            if len(seed_store) < 1:
+                aggregate_id = update_id(aggregate_id, monomer.name)
+                seed_store[aggregate_id] = [monomer]
+                continue
+            seed = seed_store[aggregate_id]
+            aggregate_id = update_id(aggregate_id, monomer.name)
+            aggregate_home = "{}_{:03d}".format(aggregate_id, counter)
+            file_manager.make_directories(aggregate_home)
+            os.chdir(aggregate_home)
+
+            seed_store[aggregate_id] = add_one(aggregate_id,
+                                               seed, monomer,
+                                               number_of_orientations,
+                                               method,
+                                               maximum_number_of_seeds)
+            os.chdir(starting_directory)
+            seed_store.popitem(last=False)
+            counter += 1
+        outer_counter += 1
+        seed_store = copy.copy(start_store)
+        aggregate_id = start_id
+    return
+
+
 def main():
     pass
 
 
 if __name__ == "__main__":
     ternary_aggregate()
-

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+import copy
 import itertools
 import logging
-import time
 import os.path
 import random
+import time
 
 import numpy as np
 from numpy import pi, cos, sin, degrees
@@ -114,8 +115,6 @@ def generate_orientations_old(molecule_id, seed, monomer, number_of_orientations
         orientation.mol_to_xyz(orientation_xyz_file)
         orientations.append(orientation)
     else:
-        import copy
-        new_seed = copy.copy(seed)
         vectors = []
         a_threshold = pi / 2.0
         d_threshold = 1.414
@@ -364,7 +363,6 @@ def plot_points(pts):
     '''have to run with python -i '''
 
     import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D, axes3d
     from matplotlib import style
     style.use('dark_background')
 
@@ -426,8 +424,7 @@ def generate_orientations_from_points_and_angles(seed, monomer,
 
 
 def generate_composite_molecule(seed, monomer, points_and_angles):
-    import copy
-    composite = copy.copy(seed)
+    composite = copy.deepcopy(seed)
     for vector in points_and_angles:
         composite = merge_two_molecules(vector, composite, monomer,
                                         freeze_fragments=False)

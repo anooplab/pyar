@@ -229,11 +229,11 @@ def main():
             logger.debug(seed_a)
             logger.debug(seed_b)
             t1 = time.clock()
-            aggregator.binary_aggregate(seed_a, seed_b, number_of_fragment_one,
-                                        number_of_fragment_two,
-                                        hm_orientations=how_many_orientations,
-                                        method=method_args,
-                                        maximum_number_of_seeds=maximum_number_of_seeds)
+            aggregator.exhaustive_binary_aggregate(seed_a, seed_b, number_of_fragment_one,
+                                                   number_of_fragment_two,
+                                                   hm_orientations=how_many_orientations,
+                                                   method=method_args,
+                                                   maximum_number_of_seeds=maximum_number_of_seeds)
 
             logger.info('Total Time: {}'.format(time.clock() - t1))
 
