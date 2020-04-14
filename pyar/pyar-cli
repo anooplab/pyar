@@ -96,8 +96,8 @@ def argument_parse():
                                  help="specify rhf or uhf (default=rhf)")
 
     chemistry_group.add_argument("--software", type=str,
-                                 choices=['turbomole', 'obabel', 'mopac',
-                                          'xtb', 'xtb_turbo', 'orca', 'psi4'],
+                                 choices=['mopac', 'obabel', 'orca', 'psi4', 'turbomole',
+                                          'xtb', 'xtb_turbo'],
                                  required=True, help="Software")
 
     parser.add_argument('-v', '--verbosity', default=1,
@@ -262,13 +262,13 @@ def main():
             logger.debug(seed_b)
             logger.debug(seed_c)
             t1 = time.clock()
-            aggregator.ternary_aggregate(seed_a, seed_b, seed_c,
-                                         number_of_fragment_one,
-                                         number_of_fragment_two,
-                                         number_of_fragment_three,
-                                         hm_orientations=how_many_orientations,
-                                         method=method_args,
-                                         maximum_number_of_seeds=maximum_number_of_seeds)
+            aggregator.exhaustive_ternary_aggregate(seed_a, seed_b, seed_c,
+                                                    number_of_fragment_one,
+                                                    number_of_fragment_two,
+                                                    number_of_fragment_three,
+                                                    hm_orientations=how_many_orientations,
+                                                    method=method_args,
+                                                    maximum_number_of_seeds=maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.clock() - t1))
 

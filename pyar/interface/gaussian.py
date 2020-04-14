@@ -25,7 +25,7 @@ import numpy as np
 from pyar import interface
 
 
-class gaussian(object):
+class Gaussian(object):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
         self.job_name = molecule.name
         self.charge = charge

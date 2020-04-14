@@ -378,10 +378,11 @@ def plot_points(pts):
     fig.savefig('points.png')
 
 
-def merge_two_molecules(vector, seed, monomer, freeze_fragments=False, site=None):
+def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None):
     x, y, z, theta, phi, psi = vector
     translate_by = np.array([x, y, z]) / 10
-
+    seed = copy.deepcopy(seed_input)
+    monomer = copy.deepcopy(monomer_input)
     tabu_logger.debug('Merging two molecules')
     if freeze_fragments is False:
         seed.move_to_origin()

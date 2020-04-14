@@ -1,8 +1,7 @@
+import logging
 import os
 
 from pyar import file_manager
-
-import logging
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
@@ -41,6 +40,9 @@ def optimise(molecule, method, gamma=0.0, max_cycles=350, convergence='normal', 
     elif software == 'psi4':
         from pyar.interface import psi4
         geometry = psi4.Psi4(molecule, method)
+    elif software == 'gaussian':
+        from pyar.interface import gaussian
+        geometry = gaussian.Gaussian(molecule, method)
     else:
         print(software, "is not implemented yet")
         return NotImplementedError
