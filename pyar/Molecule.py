@@ -1,12 +1,12 @@
-from math import cos, sin, pi
-from scipy.spatial import distance as scipy_distance
-
-import numpy as np
-from itertools import product
-
-from pyar.atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 import itertools
 import logging
+from itertools import product
+from math import cos, sin, pi
+
+import numpy as np
+from scipy.spatial import distance as scipy_distance
+
+from pyar.data.atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
 
 molecule_logger = logging.getLogger('pyar.molecule')
 
@@ -20,8 +20,8 @@ class Molecule(object):
         self.atomic_mass = self.get_atomic_mass()
         self.covalent_radius = self.get_covalent_radius()
         self.vdw_radius = self.get_vdw_radius()
-
         self.coordinates = coordinates
+
         self.centroid = self.get_centroid()
         self.centre_of_mass = self.get_centre_of_mass()
         self.average_radius = self.get_average_radius()

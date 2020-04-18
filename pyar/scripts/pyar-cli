@@ -17,7 +17,9 @@ handler = logging.FileHandler('pyar.log', 'w')
 
 
 def argument_parse():
-    """ Parse command line arguments"""
+    """ Parse command line arguments
+    :return: argparse object
+    """
     parser = argparse.ArgumentParser(prog='PyAR', description='PyAR is a \
              program to predict aggregation, reaction, clustering.  \
              There are also modules for stochastic generation of  \
@@ -73,6 +75,13 @@ def argument_parse():
     binary_aggregator_group.add_argument('-mns', '--maximum-number-of-seeds', type=int,
                                          default=8, help='maximum number of seeds')
 
+    binary_aggregator_group.add_argument('--first-pathway', type=int,
+                                         default=0, help='The first pathway among all the possible '
+                                                         'aggregation paths in binary or ternary aggregation.')
+
+    binary_aggregator_group.add_argument('--number-of-pathways', type=int,
+                                         default=0, help='How many pathways to be used in binary/ternary aggregation.')
+
     reactor_group = parser.add_argument_group('reactor',
                                               'Reactor specific option')
 
@@ -109,6 +118,12 @@ def argument_parse():
 
 
 def setup_molecules(input_files):
+    """
+    Instantiate Molecule object from the given xyz files
+    :param input_files: list of xyz files
+    :type input_files: list
+    :return: list of Molecule objects
+    """
     molecules = []
     for each_file in input_files:
         try:
@@ -124,6 +139,9 @@ def setup_molecules(input_files):
 
 
 def main():
+    """
+    Process the parameters, setups the jobs and executes.
+    """
     args = argument_parse()
     if args.verbosity == 0:
         logger.setLevel(logging.DEBUG)
@@ -159,8 +177,8 @@ def main():
         'scftype': args.scftype,
         'software': args.software
     }
+    logger.debug("The arguments are:")
     logger.debug(args)
-    maximum_number_of_seeds = args.maximum_number_of_seeds
     logger.info('Charge:        %s' % method_args['charge'])
     logger.info('Multiplicity:  %s' % method_args['multiplicity'])
     logger.info('SCF Type:      %s' % method_args['scftype'])
@@ -179,6 +197,7 @@ def main():
         site = args.site
         proximity_factor = 2.3
 
+    maximum_number_of_seeds = args.maximum_number_of_seeds
     if args.aggregate:
         size_of_aggregate = args.aggregate_size
         if size_of_aggregate is None:
@@ -201,13 +220,15 @@ def main():
             monomer = input_molecules[-1]
             seeds = input_molecules[:-1]
 
-        t1 = time.clock()
+        t1_0 = time.time()
+        time_started = datetime.datetime.now()
         aggregator.aggregate(seeds, monomer,
                              aggregate_size=size_of_aggregate,
                              hm_orientations=how_many_orientations,
                              method=method_args, maximum_number_of_seeds=maximum_number_of_seeds)
 
-        logger.info('Total Time: {}'.format(time.clock() - t1))
+        logger.info('Total Time: {}'.format(time.time() - t1_0))
+        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
     if args.binary_aggregate:
         number_of_fragment_one = args.size_of_fragment_one
@@ -228,14 +249,18 @@ def main():
             seed_b = input_molecules[-1:]
             logger.debug(seed_a)
             logger.debug(seed_b)
-            t1 = time.clock()
+            zero_time = time.time()
+            time_started = datetime.datetime.now()
             aggregator.exhaustive_binary_aggregate(seed_a, seed_b, number_of_fragment_one,
                                                    number_of_fragment_two,
-                                                   hm_orientations=how_many_orientations,
-                                                   method=method_args,
-                                                   maximum_number_of_seeds=maximum_number_of_seeds)
+                                                   how_many_orientations,
+                                                   method_args,
+                                                   maximum_number_of_seeds,
+                                                   args.first_pathway,
+                                                   args.number_of_pathways)
 
-            logger.info('Total Time: {}'.format(time.clock() - t1))
+            logger.info('Total Time: {}'.format(time.time() - zero_time))
+            logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
     if args.ternary_aggregate:
         number_of_fragment_one = args.size_of_fragment_one
@@ -261,7 +286,8 @@ def main():
             logger.debug(seed_a)
             logger.debug(seed_b)
             logger.debug(seed_c)
-            t1 = time.clock()
+            zero_time = time.time()
+            time_started = datetime.datetime.now()
             aggregator.exhaustive_ternary_aggregate(seed_a, seed_b, seed_c,
                                                     number_of_fragment_one,
                                                     number_of_fragment_two,
@@ -270,7 +296,8 @@ def main():
                                                     method=method_args,
                                                     maximum_number_of_seeds=maximum_number_of_seeds)
 
-        logger.info('Total Time: {}'.format(time.clock() - t1))
+        logger.info('Total Time: {}'.format(time.time() - zero_time))
+        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
     if args.react:
         minimum_gamma = args.gmin
@@ -291,14 +318,17 @@ def main():
 
         if site is not None:
             site = [site[0], input_molecules[0].number_of_atoms + site[1]]
-        t1 = time.clock()
         number_of_orientations = int(how_many_orientations)
+
+        zero_time = time.time()
+        time_started = datetime.datetime.now()
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations,
                       method=method_args,
                       site=site, proximity_factor=proximity_factor)
-        logger.info('Total run time: {}'.format(time.clock() - t1))
+        logger.info('Total run time: {}'.format(time.time() - zero_time))
+        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
         return
 
     if args.scan_bond:

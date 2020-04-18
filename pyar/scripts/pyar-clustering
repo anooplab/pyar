@@ -2,9 +2,9 @@
 # encoding: utf-8
 """Command line interface for PyAR"""
 
+import argparse
 import logging
 import sys
-import argparse
 
 import pyar.data_analysis.clustering
 from pyar.Molecule import Molecule
@@ -19,6 +19,9 @@ logger.setLevel(logging.DEBUG)
 parser = argparse.ArgumentParser()
 parser.add_argument('input_files', type=str, nargs='+',
                     help="input xyz files for analysis")
+parser.add_argument('-m', '--mode', choices=['filter', 'cluster'],
+                    default='cluster',
+                    help="Choose the mode, filter or cluster")
 
 args =  parser.parse_args()
 input_files = args.input_files
@@ -29,17 +32,18 @@ if len(input_files) < 2:
 
 mols = []
 for each_file in input_files:
-    print(each_file)
     mol = Molecule.from_xyz(each_file)
     mol.energy = pyar.data_analysis.clustering.read_energy_from_xyz_file(each_file)
     mols.append(mol)
 
 pyar.data_analysis.clustering.plot_energy_histogram(mols)
-selected = pyar.data_analysis.clustering.choose_geometries(mols)
-#    selected = remove_similar(mols)
-cmd = ['/home/anoop/bin/molden']
+selected = []
+if args.mode == 'cluster':
+    selected = pyar.data_analysis.clustering.choose_geometries(mols)
+if args.mode == 'filter':
+    selected = pyar.data_analysis.clustering.remove_similar(mols)
+
 fls = []
 for one in selected:
     fls.append(one.name + '.xyz')
-print(' '.join(cmd + fls))
-# subp.check_call(cmd)
+print(' '.join(fls))

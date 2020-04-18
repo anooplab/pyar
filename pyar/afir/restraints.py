@@ -1,15 +1,13 @@
-from __future__ import print_function
-
 import collections
 from itertools import product
 from math import sqrt
 
 import numpy as np
 
-from pyar.units import *
+from pyar.data.units import *
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
-from pyar.units import kilojoules2atomic_units
+from pyar.data.units import kilojoules2atomic_units
 
 covalent_radii = {'x ': 0.00,
                   'h': 0.000001, 'he': 0.46, 'li': 1.20, 'be': 0.94, 'b': 0.77,
@@ -34,14 +32,17 @@ covalent_radii = {'x ': 0.00,
 
 
 def get_covalent_radius(z):
+    """
+    :param z: Atomic Symbol
+    :type z: str
+    :return: covalent radii
+    """
     return angstrom2bohr(covalent_radii[z.lower()])
 
 
 def calculate_gradient(ac, ac2, alpha, v, w, p):
     zn, cn = ac
     alo, aco = ac2
-#     alo = flatten(alo)
-#     aco = flatten(aco)
     gr = np.zeros(3)
     for zi, ci in zip(alo, aco):
         sum_of_covalent_radii_ni = get_covalent_radius(zn) + get_covalent_radius(zi)
@@ -98,11 +99,11 @@ def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
     restraint_energy = alpha * nom / den
 
     gradients = np.zeros((len(coordinates), 3))
-    for index, ac in enumerate(zip(atoms_list, coordinates)):
+    for index, atomic_coordinate in enumerate(zip(atoms_list, coordinates)):
         if index in flatten(atoms_in_fragment[0]):
-            gradients[index] = calculate_gradient(ac, (al2, fragment2), alpha, nom, den, parameter)
+            gradients[index] = calculate_gradient(atomic_coordinate, (al2, fragment2), alpha, nom, den, parameter)
         if index in flatten(atoms_in_fragment[1]):
-            gradients[index] = calculate_gradient(ac, (al1, fragment1), alpha, nom, den, parameter)
+            gradients[index] = calculate_gradient(atomic_coordinate, (al1, fragment1), alpha, nom, den, parameter)
 
     return restraint_energy, gradients
 

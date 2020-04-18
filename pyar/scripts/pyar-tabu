@@ -2,11 +2,8 @@
 # encoding: utf-8
 """Command line interface for PyAR"""
 import argparse
-import datetime
-import logging
-import os
 import sys
-import time
+
 import numpy as np
 
 import pyar.tabu
@@ -97,7 +94,7 @@ def tabu_function():
         import scipy.spatial.distance as sdist
 
         from pyar.Molecule import Molecule
-        from pyar.atomic_data import atomic_numbers, covalent_radii
+        from pyar.data.atomic_data import atomic_numbers, covalent_radii
         radii = covalent_radii[atomic_numbers[args.mksphere.capitalize()]]
         pts = pts[:, :3]
         factor = pts / 10

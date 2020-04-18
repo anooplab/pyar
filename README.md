@@ -43,7 +43,7 @@ The main program can be used as below:
 pyar-cli options files
 ```
 
-There are other scipts for a few automation tasks.
+There are other scripts for a few automation tasks.
 
 ## pyar-tabu
 pyar-tabu can be used for

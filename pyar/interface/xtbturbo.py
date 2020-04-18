@@ -16,18 +16,17 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
+import logging
 import os
 import subprocess as subp
 import sys
 
-from pyar import interface
 import pyar.interface.babel
 import pyar.interface.turbomole
+from pyar import interface
 from pyar.afir import restraints
+from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF
-from pyar.units import angstrom2bohr, bohr2angstrom
-
-import logging
 
 xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
 

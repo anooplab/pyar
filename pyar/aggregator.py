@@ -92,6 +92,9 @@ def aggregate(seeds, monomer, aggregate_size, hm_orientations, method, maximum_n
     starting_directory = os.getcwd()
     aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
     for aggregation_counter in range(2, aggregate_size + 2):
+        if len(seeds) == 0:
+            aggregator_logger.info("No seeds to process")
+            return
         aggregate_id = "{:03d}".format(aggregation_counter)
         aggregate_home = 'aggregate_' + aggregate_id
         file_manager.make_directories(aggregate_home)
@@ -287,7 +290,10 @@ def update_id(aid, the_monomer):
 def exhaustive_binary_aggregate(seed_a_input, seed_b_input,
                                 a_n_max, b_n_max,
                                 hm_orientations,
-                                method, maximum_number_of_seeds):
+                                method,
+                                maximum_number_of_seeds,
+                                first_pathway,
+                                number_of_pathways):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -326,7 +332,16 @@ def exhaustive_binary_aggregate(seed_a_input, seed_b_input,
     start_id = aggregate_id
     outer_counter = 1
     counter = 1
-    for i in set(itertools.permutations(monomers_to_add)):
+
+    if number_of_pathways != 0:
+        last_pathway = first_pathway + number_of_pathways
+    else:
+        last_pathway = None
+
+    full_pathways = list(set(itertools.permutations(monomers_to_add)))
+    pathways = full_pathways[first_pathway:last_pathway]
+
+    for i in pathways:
         for monomer in i:
             if len(seed_store) < 1:
                 aggregate_id = update_id(aggregate_id, monomer.name)
@@ -334,7 +349,7 @@ def exhaustive_binary_aggregate(seed_a_input, seed_b_input,
                 continue
             seed = seed_store[aggregate_id]
             aggregate_id = update_id(aggregate_id, monomer.name)
-            aggregate_home = "{}_{:03d}".format(aggregate_id, counter)
+            aggregate_home = "{}_{:03d}".format(aggregate_id, outer_counter)
             file_manager.make_directories(aggregate_home)
             os.chdir(aggregate_home)
 
@@ -398,15 +413,15 @@ def exhaustive_ternary_aggregate(seed_a_input, seed_b_input, seed_c_input,
     start_id = aggregate_id
     outer_counter = 1
     counter = 1
-    for i in set(itertools.permutations(monomers_to_add)):
-        for monomer in i:
+    for pathways in set(itertools.permutations(monomers_to_add)):
+        for monomer in pathways:
             if len(seed_store) < 1:
                 aggregate_id = update_id(aggregate_id, monomer.name)
                 seed_store[aggregate_id] = [monomer]
                 continue
             seed = seed_store[aggregate_id]
             aggregate_id = update_id(aggregate_id, monomer.name)
-            aggregate_home = "{}_{:03d}".format(aggregate_id, counter)
+            aggregate_home = "{}_{:03d}".format(aggregate_id, outer_counter)
             file_manager.make_directories(aggregate_home)
             os.chdir(aggregate_home)
 

@@ -32,9 +32,9 @@ import numpy as np
 
 from pyar import interface, optimiser
 from pyar.afir import restraints
+from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF
 from pyar.interface import which
-from pyar.units import angstrom2bohr, bohr2angstrom
 
 turbomole_logger = logging.getLogger('pyar.turbomole')
 
