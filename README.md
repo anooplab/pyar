@@ -18,6 +18,10 @@ Download the file pyar-master.zip. Unzip it. Go the the folder and ```sudo pytho
 This will create python package in the path **/usr/local/lib/python3.6/dist-packages/pyar/**
 and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
 
+or
+
+Run the following command in the pyar folder
+```sudo -H pip install .```
 # Features:
 * Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
