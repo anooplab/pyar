@@ -30,9 +30,6 @@ class Molecule(object):
     Created either by reading from the xyz file
     or by other modules.
 
-    attributes
-    ----------
-
     The following are the main attributes:
 
     :type number_of_atoms: int
@@ -41,17 +38,15 @@ class Molecule(object):
     :param atoms_list: The list of Atomic symbols of the atoms.
     :type coordinates: ndarray
     :param coordinates: 2D array of the cartesian coordinates of atoms
-        [[x1, y1, z1]
-         [x2, y2, z2]]
-        in angstroms units.
-
+    [[x1, y1, z1] [x2, y2, z2]]
+    in angstroms units.
     :type name: str
     :param name: The name of the molecule
     :type title: str
     :param title: Usually the second line in the xyz file.
     :type fragments: list
-    :param fragments: The list of atoms in each fragment required
-        for the Reaction module.
+    :pa ram fragments: The list of atoms in each fragment required
+    for the Reaction module.
 
     The following attributes are read from the
     data(atomic_data.py) and stored as a list in the

@@ -1,4 +1,5 @@
 import copy
+import logging
 import os
 import shutil
 import sys
@@ -9,7 +10,7 @@ import pyar.interface.babel
 from pyar import tabu, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
-import logging
+
 reactor_logger = logging.getLogger('pyar.reactor')
 
 saved_products = {}
@@ -27,11 +28,13 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
           site, proximity_factor):
-    """Run reactor module.  This is the outer loop
-    generates all the orientations
-    loop over all the gamma values
-      optimize all orientations in each gamma
-      after eliminating the products or failed geometries
+    """
+    The Reactor module
+
+    This is the outer loop generates all the orientations
+    loop over all the gamma values optimize all orientations
+    in each gamma after eliminating the products or failed geometries.
+
     """
     cwd = os.getcwd()
     reactor_logger.debug('Current working directory: {}'.format(cwd))

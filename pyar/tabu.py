@@ -214,6 +214,7 @@ def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
     proximity
     :return: boolean True if the new points is within the proximity of saved
     points
+    
     """
     if saved_points_and_angles is None:
         return False

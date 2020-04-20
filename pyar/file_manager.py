@@ -142,6 +142,7 @@ def move_file(current_file, moved_file, path_to_move):
 
 def bulk_move(*args):
     """
+
     :param args: This is the argument lists. It will take tha last name as the directory name.
     If any of the files match with the strings it provided, it will move this file to the
     directory

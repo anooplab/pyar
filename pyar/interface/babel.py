@@ -20,7 +20,9 @@ GNU General Public License for more details.
 import os
 import subprocess as subp
 import sys
+
 import numpy as np
+
 from pyar.interface import SF, which
 
 
@@ -88,6 +90,7 @@ def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
     :return: It will not return anything. It will prepare the input file for
     the purpose given in the keyword. Note that babel will be used to prepare
     the input(.mop) file.
+
     """
     if keyword is None:
         keyword_line = "-xkPM7"

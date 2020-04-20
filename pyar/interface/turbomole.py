@@ -15,6 +15,7 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
+
 """
 import datetime
 import glob
@@ -55,11 +56,12 @@ def safe_rewrite_file(modified_data_groups, file_name):
 
 
 def sed_inplace(pattern, replace_to, filename='control'):
-    '''
+    """
     Perform the pure-Python equivalent of in-place `sed` substitution: e.g.,
     `sed -i -e 's/'${pattern}'/'${replace_to}' "${filename}"`.
     https://stackoverflow.com/questions/4427542/how-to-do-sed-like-text-replace-with-python#4427835
-    '''
+
+    """
     pattern_compiled = re.compile(pattern)
 
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp_file:
@@ -90,12 +92,14 @@ class Turbomole(SF):
 
     def optimize(self, max_cycles=350, gamma=0.0, convergence='normal', restart=False):
         """This is the python implementation  of jobex of turbomole
+
         :returns: True,
                   'SCFFailed',
                   'GradFailed',
                   'UpdateFailed',
                   'CycleExceeded',
                   False
+
         """
         if convergence == 'loose':
             scf_conv = 6
@@ -208,6 +212,8 @@ class Turbomole(SF):
 
     def run_turbomole_jobex(self, max_cycles=350):
         """
+        Run a turbomole optimisation.
+
         return one of the following:
             True: converged
             SCFFailed
@@ -216,6 +222,7 @@ class Turbomole(SF):
             CycleExceeded
             False: unknown error or jebex execution error
         :rtype: string or boolean
+
         """
         with open('jobex.out', 'w') as fj:
             try:
@@ -269,10 +276,13 @@ class Turbomole(SF):
 
 def run_single_point():
     """
+    Run a single point calculation
+
     return one of the following:
         True: SCF Converged
         False: error
     :rtype: string or boolean
+
     """
     with open('ridft.out', 'w') as fj:
         try:
