@@ -1,9 +1,24 @@
+# -*- coding: utf-8 -*-
 """
-PyAR: A Python code for Aggregation and Reaction.
+    PyAR
+    ~~~~
+
+    A Python code for Aggregation and Reaction.
+    This includes modules for automating the tasks
+    for the folllowing:
+        - exploring the unknown chemical reactions
+          between two molecules
+        - predicting the geometries of molecular
+          aggregates and atomic clusters.
+        - in addition, there are some analysis modules
+
+    :copyright: © 2010 by AnoopLab.
+    :license: GPL v3.
 
 """
 
-__version__ = "0.2"
+__docformat__ = 'restructuredtext'
+
+__version__ = '0.2'
 __author__ = 'Anakuthil Anoop'
 __credits__ = 'IIT Kharagpur'
-

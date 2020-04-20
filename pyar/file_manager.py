@@ -1,5 +1,5 @@
 """
-files_dirs.py - handling files and directories in PyAR
+Handle files and directories in PyAR
 
 Copyright (C) 2016 by AnoopLab at Indian Institute of Technology Kharagpur, India
 Author: Surajit Nandi
@@ -14,20 +14,23 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
+
 """
 
 import glob
+import logging
 import os
 import shutil
 import sys
-import logging
+
 file_manager_logger = logging.getLogger('pyar.file_manager')
 
 
 def important_file_check(*arguments):
-    """This function will check if the files given as argument exists
-       or not
+    """Checks if the files given as argument exists
+
     """
+
     for i in arguments:
         try:
             open(i).readlines()
@@ -39,7 +42,9 @@ def important_file_check(*arguments):
 def file_exists_check_with_return_status(file_path):
     """This function will check if files in a location exists or not
        If exists, it will return True else, it will return False.
+
     """
+
     if os.path.exists(file_path):
         status = True
     else:
@@ -52,6 +57,7 @@ def make_directories(*arguments):
        It will check if the directory exists. If not, it will 
        make the directory. If the directory exists, it will first delete
        it and make new directory.
+
     """
     for dirs in arguments:
         if not os.path.isdir(dirs):
@@ -67,7 +73,9 @@ def make_directories(*arguments):
 def delete_files(*arguments):
     """This function will delete files which ar supplied as
        arguments.
+
     """
+
     for files in arguments:
         if os.path.isfile(files):
             os.remove(files)
@@ -79,7 +87,9 @@ def delete_files(*arguments):
 def delete_directories(*arguments):
     """This function will delete directories which are provided with
        arguments if they exists
+
     """
+
     for directory in arguments:
         if os.path.isdir(directory):
             shutil.rmtree(directory)
@@ -92,7 +102,9 @@ def get_files(extension, destination="./"):
     """This function will return all file names as a list from a directory
     'destination'. By default it is current directory. Extension should be
     simply "xyz", "out" , "log" etc.
+
     """
+
     file_list = []
     files_needed = destination + "*." + extension
     print(files_needed)
@@ -104,7 +116,10 @@ def get_files(extension, destination="./"):
 
 def get_dirs_files(destination="./", wildcard="*"):
     """This function will return all the subdirectory of the parent directory
-       destination. Note, it will use glob. So, will not test for files"""
+       destination. Note, it will use glob. So, will not test for files
+
+    """
+
     dirs = glob.glob(destination + "/" + wildcard)
     sub_directories = []
     for i in dirs:
@@ -117,7 +132,9 @@ def get_dirs_files(destination="./", wildcard="*"):
 def move_file(current_file, moved_file, path_to_move):
     """This function will move a file current_file to a destination directory
        path_to_move with a name moved_file
+
     """
+
     final_file = os.path.join(path_to_move, moved_file)
     shutil.move(current_file, final_file)
     return
@@ -129,6 +146,7 @@ def bulk_move(*args):
     If any of the files match with the strings it provided, it will move this file to the
     directory
     :return: It will return nothing.
+
     """
     directory_name = args[-1]
     print("directory_name:", directory_name)
@@ -144,7 +162,9 @@ def bulk_copy(*args):
      if any of the files match with the strings it provided, it will copy this files to the
      directory. Similar to bulk_move function
     :return: Nothing
+
     """
+
     directory_name = args[-1]
     print("directory_name:", directory_name)
     for items in args[:-1]:
@@ -155,6 +175,7 @@ def bulk_copy(*args):
 
 def write_result(filename, **kwargs):
     """This function will write the results as final files.
+
     """
     mode = kwargs.pop("mode", 'w')
     result_file = open(filename, mode)
@@ -168,6 +189,7 @@ def check_stop(filename):
     """ This function is for checking by presence of a file. If this file
         present, The program will stop after completion of a cycle. This
         function is like the 'STOP' file concept in turbomole.
+
     """
     if os.path.isfile(filename):
         print("file", filename, "is present.")

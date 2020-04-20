@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+    Molecule Class
+    --------------
+
+    While running from command-line interface,
+    the molecule object is created by reading the
+    .xyz file and stores the atom lists and coordinates.
+    During the job, new molecule objects are created by
+    the aggregator or reactor modules.
+
+"""
 import itertools
 import logging
 from itertools import product
@@ -12,15 +24,101 @@ molecule_logger = logging.getLogger('pyar.molecule')
 
 
 class Molecule(object):
+    """
+    Class used for representing molecule.
+
+    Created either by reading from the xyz file
+    or by other modules.
+
+    attributes
+    ----------
+
+    The following are the main attributes:
+
+    :type number_of_atoms: int
+    :param number_of_atoms: The total number of atoms in the molecule
+    :type atoms_list: list
+    :param atoms_list: The list of Atomic symbols of the atoms.
+    :type coordinates: ndarray
+    :param coordinates: 2D array of the cartesian coordinates of atoms
+        [[x1, y1, z1]
+         [x2, y2, z2]]
+        in angstroms units.
+
+    :type name: str
+    :param name: The name of the molecule
+    :type title: str
+    :param title: Usually the second line in the xyz file.
+    :type fragments: list
+    :param fragments: The list of atoms in each fragment required
+        for the Reaction module.
+
+    The following attributes are read from the
+    data(atomic_data.py) and stored as a list in the
+    order as the atoms list.
+
+    atomic_number: list
+        The list of atomic numbers
+    atomic_mass: list
+        Atomic masses. Required for calculating the
+        centre of mass.
+    covalent_radius: list
+        The covalent radii of atoms.  Required for
+        calculating the close contact of banded-status.
+    vdw_radius: list
+        The van der Waals radii of atoms. Required for
+        the placing the second fragment near the first.
+
+    The following attributes are calculated using the
+    above data.
+
+    centroid: ndarray
+        The centroid of the molecule (x,y,z)
+    centre_of_mass: ndarray
+        The centre of mass (x, y, z)
+    average_radius: float
+        The average radius of all the distances of
+        atoms= from the centroid.
+    std_of_radius: float
+        The standard deviation of all the distances
+        of atoms from the centroid.
+    distance_list: ndarray
+        The 2D array of interatomic distances.
+        Useful for calculating fingerprints, coulomb
+        matrix etc.
+    energy: float
+        The energy of the molecule. This is added after
+        any quantum chemical calculations.
+
+    """
+
     def __init__(self, atoms_list, coordinates, name=None, title=None, fragments=None):
-        self.energy = 0.0
+        """
+        Init function for Molecule
+
+        :type atoms_list: list
+        :param atoms_list: The list of atomic symbols
+        :type coordinates: ndarray
+        :param coordinates: atomic coordinates
+        :type name: str
+        :param name: The name of the molecule
+        :type title: str
+        :param title: Usually the second line in the xyz file.
+        :type fragments: list
+        :param fragments: The list of atoms in each fragment required
+            for the Reaction module.
+
+        """
+
         self.number_of_atoms = len(coordinates)
         self.atoms_list = [c.capitalize() for c in atoms_list]
+        self.coordinates = coordinates
+        self.energy = 0.0
+
         self.atomic_number = self.get_atomic_number()
         self.atomic_mass = self.get_atomic_mass()
         self.covalent_radius = self.get_covalent_radius()
         self.vdw_radius = self.get_vdw_radius()
-        self.coordinates = coordinates
 
         self.centroid = self.get_centroid()
         self.centre_of_mass = self.get_centre_of_mass()
@@ -70,16 +168,6 @@ class Molecule(object):
             merged.fragments_history = [atoms_in_self, atoms_in_other]
         return merged
 
-    def split_coordinates(self, coordinates=None):
-        if coordinates is None:
-            coordinates = self.coordinates
-        fragments_coordinates = [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
-        return fragments_coordinates
-
-    def split_atoms_lists(self):
-        fragments_atoms_list = [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
-        return fragments_atoms_list
-
     @classmethod
     def from_xyz(cls, filename):
         import sys
@@ -123,6 +211,16 @@ class Molecule(object):
         mol_coordinates = np.array(coordinates)
         mol_name = filename[:-4]
         return cls(atoms_list, mol_coordinates, name=mol_name, title=mol_title)
+
+    def split_coordinates(self, coordinates=None):
+        if coordinates is None:
+            coordinates = self.coordinates
+        fragments_coordinates = [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
+        return fragments_coordinates
+
+    def split_atoms_lists(self):
+        fragments_atoms_list = [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
+        return fragments_atoms_list
 
     def mol_to_xyz(self, file_name):
         """
