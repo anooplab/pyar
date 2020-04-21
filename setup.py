@@ -10,6 +10,14 @@ setup(name='PyAR',
       license='GPl v3',
       author='Anoop et al',
       author_email='anoop@chem.iitkgp.ac.in',
-      description='',
+      description='A Python Code for Aggregation and Reaction',
       requires=['numpy', 'sklearn', 'scipy', 'pandas', 'matplotlib'],
+      keywords='computational chemistry global minima aggregation automated reaction',
+      classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)',
+            'Programming Language :: Python :: 3.6',
+            'Topic :: Scientific/Engineering :: Chemistry'
+      ],
+      python_requires='>=3'
       )

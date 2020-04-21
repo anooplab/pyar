@@ -100,8 +100,7 @@ class Molecule(object):
         :type title: str
         :param title: Usually the second line in the xyz file.
         :type fragments: list
-        :param fragments: The list of atoms in each fragment required
-            for the Reaction module.
+        :param fragments: The list of atoms in each fragment required for the Reaction module.
 
         """
 
@@ -149,6 +148,18 @@ class Molecule(object):
         return self.number_of_atoms
 
     def __add__(self, other):
+        """
+        Merge the 'other' molecule with 'self'
+
+        Merges two molecules objects.
+
+        :type other: object
+        :param other: Molecule object to be merged with self.
+        :return: Merged Molecule object
+        :rtype: object
+
+        """
+
         atoms_list = self.atoms_list + other.atoms_list
         coordinates = np.concatenate((self.coordinates, other.coordinates), axis=0)
         merged = Molecule(atoms_list, coordinates)
@@ -165,6 +176,20 @@ class Molecule(object):
 
     @classmethod
     def from_xyz(cls, filename):
+        """
+        Intantiates Molecule object from .xyz file
+
+        Reads .xyz files, extracts list of atoms
+        and coordinates. The name is set as the name
+        of the molecule. The comment line of .xyz file
+        is stored as title.
+
+        :param filename: name of .xyz file
+        :type filename: str
+        :return: Molecule object
+        :rtype: object
+
+        """
         import sys
         with open(filename) as fp:
             f = fp.readlines()
@@ -208,19 +233,38 @@ class Molecule(object):
         return cls(atoms_list, mol_coordinates, name=mol_name, title=mol_title)
 
     def split_coordinates(self, coordinates=None):
+        """
+        Split coordinate in to two fragments.
+
+        :type coordinates: ndarray
+        :param coordinates: coordinates
+
+        """
+
         if coordinates is None:
             coordinates = self.coordinates
         fragments_coordinates = [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
         return fragments_coordinates
 
     def split_atoms_lists(self):
+        """
+        Split the list of atoms in to different fragment.
+
+        :return: A list of list aof atoms in fragments.
+        :rtype: list
+
+        """
+
         fragments_atoms_list = [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
         return fragments_atoms_list
 
     def mol_to_xyz(self, file_name):
         """
+        Write an xyz file of the Molecule.
 
         :param file_name: Output .xyz file
+        :type file_name: str
+
         """
         if not hasattr(self, 'energy'):
             pass
@@ -234,6 +278,7 @@ class Molecule(object):
     def mol_to_turbomole_coord(self):
         """
         Write 'coord' file in Turbomole format
+
         """
         with open('coord', 'w') as fp:
             fp.write("$coord\n")
@@ -245,6 +290,13 @@ class Molecule(object):
             fp.write("$end\n")
 
     def get_atomic_number(self):
+        """
+        Make a list of atomic numbers from Atomic Symbols.
+
+        :return: A list of atomic number
+        :rtype: list
+
+        """
         return [atomic_numbers[c.capitalize()] for c in self.atoms_list]
 
     def get_atomic_mass(self):
@@ -377,6 +429,7 @@ class Molecule(object):
         """
 
         :rtype: list of internal coordinates
+
         """
         dm = self.get_distance_matrix()
         bm = self.get_bond_matrix()

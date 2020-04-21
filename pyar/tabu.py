@@ -208,13 +208,10 @@ def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
     :param point_n_angle: numpy array of six numbers (x, y, z, theta, phi, psi)
     :param d_threshold: float minimum distance for Tabu
     :param a_threshold: float minimum angle (in radian) for Tabu
-    :param saved_points_and_angles: numpy array containing the saved points and
-     angles
-    :param angle_tabu: boolean if True consider also angles for checking the
-    proximity
-    :return: boolean True if the new points is within the proximity of saved
-    points
-    
+    :param saved_points_and_angles: numpy array containing the saved points and angles
+    :param angle_tabu: boolean if True consider also angles for checking the proximity
+    :return: boolean True if the new points is within the proximity of saved points
+
     """
     if saved_points_and_angles is None:
         return False
