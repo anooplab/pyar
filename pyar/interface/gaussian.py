@@ -25,25 +25,34 @@ import numpy as np
 from pyar import interface
 
 
-class Gaussian(object):
+class Gaussian(SF):
     def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
-        self.job_name = molecule.name
+
+        super(Gaussian, self).__init__(molecule)
+
         self.charge = charge
         self.multiplicity = multiplicity
         self.scftype = scftype
-        self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
-        self.result_xyz_file = 'result_' + self.job_name + '.xyz'
+
+        if (sum(molecule.atomic_number) - self.charge) % 2 == 1 and self.multiplicity == 1:
+            self.multiplicity = 2
+        else:
+            self.multiplicity = method['multiplicity']
+        if self.multiplicity % 2 == 0 and self.scftype is 'rhf':
+            self.scftype = 'uhf'
+        else:
+            self.scftype = method['scftype']
+
+        self.start_coords = molecule.coordinates
+        self.inp_file = 'trial_' + self.job_name + '.inp'
         self.inp_file = 'trial_' + self.job_name + '.com'
         self.out_file = 'trial_' + self.job_name + '.log'
-        self.atoms_list = molecule.atoms_list
-        self.start_coords = molecule.coordinates
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
+
         keyword = "%nprocshared=5\n%chk=molecule.chk\n%mem=5GB\n# opt=(maxcycles=1000) mp2/3-21g"
 
-        if sum(molecule.atomic_number) % 2 != 0:
-            self.multiplicity = 2
         self.prepare_input(keyword=keyword)
 
     def prepare_input(self, keyword=""):

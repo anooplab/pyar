@@ -8,17 +8,18 @@
     .xyz file and stores the atom lists and coordinates.
     During the job, new molecule objects are created by
     the aggregator or reactor modules.
-
 """
 import itertools
 import logging
 from itertools import product
-from math import cos, sin, pi
+from math import cos, sin
 
 import numpy as np
-from scipy.spatial import distance as scipy_distance
 
-from pyar.data.atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
+from pyar.data.atomic_data import atomic_numbers
+from pyar.get_property import get_atomic_mass, get_atomic_number, get_covalent_radius, get_vdw_radius, \
+    get_centroid, get_centre_of_mass, get_average_radius, get_std_of_radius, get_distance_list, get_distance_matrix, \
+    get_bond_matrix, calculate_angle, calculate_dihedral
 
 molecule_logger = logging.getLogger('pyar.molecule')
 
@@ -38,21 +39,21 @@ class Molecule(object):
     :param atoms_list: The list of Atomic symbols of the atoms.
     :type coordinates: ndarray
     :param coordinates: 2D array of the cartesian coordinates of atoms
-    [[x1, y1, z1] [x2, y2, z2]]
-    in angstroms units.
+        [[x1, y1, z1] [x2, y2, z2]]
+        in angstroms units.
     :type name: str
     :param name: The name of the molecule
     :type title: str
     :param title: Usually the second line in the xyz file.
     :type fragments: list
     :pa ram fragments: The list of atoms in each fragment required
-    for the Reaction module.
+        for the Reaction module.
 
     The following attributes are read from the
     data(atomic_data.py) and stored as a list in the
     order as the atoms list.
 
-    atomic_number: list
+    param atomic_number: list
         The list of atomic numbers
     atomic_mass: list
         Atomic masses. Required for calculating the
@@ -107,18 +108,19 @@ class Molecule(object):
         self.number_of_atoms = len(coordinates)
         self.atoms_list = [c.capitalize() for c in atoms_list]
         self.coordinates = coordinates
+
+        self.atomic_number = get_atomic_number(self.atoms_list)
+        self.atomic_mass = get_atomic_mass(self.atomic_number)
+        self.covalent_radius = get_covalent_radius(self.atomic_number)
+        self.vdw_radius = get_vdw_radius(self.atomic_number)
+
         self.energy = 0.0
 
-        self.atomic_number = self.get_atomic_number()
-        self.atomic_mass = self.get_atomic_mass()
-        self.covalent_radius = self.get_covalent_radius()
-        self.vdw_radius = self.get_vdw_radius()
-
-        self.centroid = self.get_centroid()
-        self.centre_of_mass = self.get_centre_of_mass()
-        self.average_radius = self.get_average_radius()
-        self.std_of_radius = self.get_std_of_radius()
-        self.distance_list = self.get_distance_list()
+        self.centroid = get_centroid(self.coordinates)
+        self.centre_of_mass = get_centre_of_mass(self.coordinates, self.atomic_mass)
+        self.average_radius = get_average_radius(self.coordinates, self.centroid)
+        self.std_of_radius = get_std_of_radius(self.coordinates, self.centroid)
+        self.distance_list = get_distance_list(self.coordinates)
 
         if name is None:
             self.name = ''
@@ -128,8 +130,9 @@ class Molecule(object):
             self.title = ''
         else:
             self.title = title
+
         if fragments is None:
-            self.fragments = ()
+            self.fragments = []
         else:
             self.fragments = fragments
             self.fragments_coordinates = self.split_coordinates()
@@ -289,47 +292,13 @@ class Molecule(object):
                     coords[i][0], coords[i][1], coords[i][2], atoms_list[i].lower()))
             fp.write("$end\n")
 
-    def get_atomic_number(self):
-        """
-        Make a list of atomic numbers from Atomic Symbols.
-
-        :return: A list of atomic number
-        :rtype: list
-
-        """
-        return [atomic_numbers[c.capitalize()] for c in self.atoms_list]
-
-    def get_atomic_mass(self):
-        return [atomic_masses[i] for i in self.atomic_number]
-
-    def get_covalent_radius(self):
-        return [covalent_radii[i] for i in self.atomic_number]
-
-    def get_vdw_radius(self):
-        result = []
-        for i in self.atomic_number:
-            if np.isnan(vdw_radii[i]):
-                result.append(covalent_radii[i] * 1.5)
-            else:
-                result.append(vdw_radii[i])
-        return result
-
-    def get_centroid(self):
-        return self.coordinates.mean(0)
-
-    def get_centre_of_mass(self):
-        return np.average(self.coordinates, axis=0, weights=self.atomic_mass)
-
-    def get_average_radius(self):
-        return np.mean(np.array([distance(self.centroid, coord_i)
-                                 for coord_i in self.coordinates]))
-
-    def get_std_of_radius(self):
-        return np.std([distance(self.centroid, coord_i)
-                       for coord_i in self.coordinates])
-
     @property
     def moments_of_inertia_tensor(self):
+        """
+        Calculate moments of inertia
+
+        :return: ndarray
+        """
         mass = self.atomic_mass
         self.move_to_centre_of_mass()
         x = self.coordinates[:, 0]
@@ -345,94 +314,13 @@ class Molecule(object):
                          [i_xy, i_yy, i_yz],
                          [i_xz, i_yz, i_zz]]) / self.number_of_atoms
 
-    def get_principal_axes(self):
-        return np.linalg.eigvals(self.moments_of_inertia_tensor)
-
-    def get_distance_list(self):
-        return scipy_distance.pdist(self.coordinates)
-
-    def get_distance_matrix(self):
-        dm = np.zeros((len(self.coordinates), len(self.coordinates)))
-        for i, c in enumerate(self.coordinates):
-            for j, d in enumerate(self.coordinates):
-                dm[i, j] = np.linalg.norm(c - d)
-        return dm
-
-    def get_bond_matrix(self):
-        """return bond matrix"""
-        dm = self.get_distance_matrix()
-        bm = np.zeros((len(self.coordinates), len(self.coordinates)), dtype=int)
-        for i, c in enumerate(self.coordinates):
-            for j, d in enumerate(self.coordinates):
-                sum_of_covalent_radii = (self.covalent_radius[i] + self.covalent_radius[j]) * 1.3
-                if i != j and dm[i, j] < sum_of_covalent_radii:
-                    bm[i, j] = 1
-        return bm
-
-    def hydrogen_bond_analysis(self):
-        """return bond matrix"""
-        dm = self.get_distance_matrix()
-        bm = self.get_bond_matrix()
-        hbm = np.zeros((len(self.coordinates), len(self.coordinates)), dtype=int)
-        for i, c in enumerate(self.coordinates):
-            for j, d in enumerate(self.coordinates):
-                if i != j:
-                    if self.atomic_number[i] == 1:
-                        if 1.5 < dm[i, j] < 2.5:
-                            bnd = int(np.where(bm[i, :])[0])
-                            angle = self.calculate_angle(bnd, i, j)
-                            if angle > 160.0:
-                                print(
-                                    "{}({}) - {}({}) = {}".format(self.atoms_list[i], i + 1, self.atoms_list[j], j + 1,
-                                                                  dm[i, j]))
-                                hbm[i, j] = dm[i, j]
-        return hbm
-
-    def calculate_angle(self, i, j, k):
-
-        a1 = self.coordinates[i]
-        b1 = self.coordinates[k]
-        c1 = self.coordinates[j]
-
-        v1 = c1 - b1
-        v2 = c1 - a1
-        a = np.arccos(np.dot(v1, v2) / (
-                np.linalg.norm(v1) * np.linalg.norm(v2))) * 180 / pi
-
-        return a
-
-    def calculate_dihedral(self, atom_i, atom_j, atom_k, atom_l):
-        p0 = self.coordinates[atom_i]
-        p1 = self.coordinates[atom_j]
-        p2 = self.coordinates[atom_k]
-        p3 = self.coordinates[atom_l]
-
-        b0 = -1.0 * (p1 - p0)
-        b1 = p2 - p1
-        b2 = p3 - p2
-        b1 /= np.linalg.norm(b1)
-        # vector rejections
-        # v = projection of b0 onto plane perpendicular to b1
-        #   = b0 minus component that aligns with b1
-        # w = projection of b2 onto plane perpendicular to b1
-        #   = b2 minus component that aligns with b1
-        v = b0 - np.dot(b0, b1) * b1
-        w = b2 - np.dot(b2, b1) * b1
-        # angle between v and w in a plane is the torsion angle
-        # v and w may not be normalized but that's fine since tan is y/x
-        x = np.dot(v, w)
-        y = np.dot(np.cross(v, b1), w)
-        d = np.degrees(np.arctan2(y, x))
-        return d
-
     def make_internal_coordinates(self):
         """
 
         :rtype: list of internal coordinates
-
         """
-        dm = self.get_distance_matrix()
-        bm = self.get_bond_matrix()
+        dm = get_distance_matrix(self.coordinates)
+        bm = get_bond_matrix(self.coordinates, self.covalent_radius)
         bl = []
         for i in range(len(self.coordinates)):
             for j in range(len(self.coordinates)):
@@ -446,7 +334,8 @@ class Molecule(object):
                 if bm[i, j] and bm[j, k]:
                     seq = [i, j, k]
                     if seq[::-1] not in [i[0] for i in al]:
-                        al.append([seq, self.calculate_angle(i, j, k)])
+                        al.append([seq, calculate_angle(self.coordinates[i], self.coordinates[j],
+                                                        self.coordinates[k])])
 
         dl = []
         for i, j, k, l in product(range(len(self.coordinates)), repeat=4):
@@ -454,7 +343,7 @@ class Molecule(object):
                 if bm[i, j] and bm[j, k] and bm[k, l]:
                     seq = [i, j, k, l]
                     if seq[::-1] not in [i[0] for i in dl]:
-                        dl.append([seq, self.calculate_dihedral(i, j, k, l)])
+                        dl.append([seq, calculate_dihedral(i, j, k, l)])
 
         return [bl, al, dl]
 
@@ -462,6 +351,15 @@ class Molecule(object):
         return [np.array(self.covalent_radius)[fragment_identifiers] for fragment_identifiers in self.fragments]
 
     def is_bonded(self):
+        """
+        Checks if there is any bond between two fragments in the molecule.
+
+        This is a simple distnace check.  If any of the intrafragmental
+        distance is smaller than the sum of covalent radii, it is
+        considered as a bond
+
+        :return: boolean
+        """
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
         if isinstance(radius_one, np.float) and isinstance(radius_two, np.float64):
@@ -511,7 +409,7 @@ class Molecule(object):
         Takes in a Coulomb matrix of (mxn) dimension and performs a
         row-wise sorting such that ||C(j,:)|| > ||C(j+1,:)||, J=
         0,1,.......,(m-1) Finally returns a vectorized (m*n,1) column 
-        matrix .
+        matrix.
         """
         summation = np.array([sum(x ** 2) for x in self.coulomb_matrix])
         sorted_matrix = self.coulomb_matrix[np.argsort(summation)[::-1, ], :]
@@ -541,11 +439,11 @@ class Molecule(object):
         return self
 
     def move_to_origin(self):
-        self.translate(self.get_centroid())
+        self.translate(get_centroid(self.coordinates))
         return self
 
     def move_to_centre_of_mass(self):
-        self.translate(self.get_centre_of_mass())
+        self.translate(get_centre_of_mass(self.coordinates, self.atomic_mass))
         return self
 
     def translate(self, magnitude):
@@ -555,6 +453,7 @@ class Molecule(object):
     def align(self):
         """
         Align the molecules to the principal axis
+
         :return: aligned coordinates
         """
         moi = self.moments_of_inertia_tensor
@@ -572,10 +471,6 @@ class Molecule(object):
             move_axes[p][order[p]] = 1.0
         self.coordinates = np.dot(transformed_coordinates, move_axes)
         return self
-
-
-def distance(coords_a, coords_b):
-    return np.linalg.norm(coords_a - coords_b)
 
 
 def main():

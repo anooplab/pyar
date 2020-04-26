@@ -9,6 +9,8 @@ from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, \
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import RobustScaler
 
+from pyar.get_property import get_principal_axes
+
 cluster_logger = logging.getLogger('pyar.cluster')
 
 
@@ -83,7 +85,7 @@ def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_o
     elif feature == 'scm':
         dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
     elif feature == 'moi':
-        dt = [i.get_principal_axes() for i in list_of_molecules]
+        dt = [get_principal_axes(i.moments_of_inertia_tensor) for i in list_of_molecules]
     else:
         cluster_logger.error('This feature is not implemented')
         return list_of_molecules

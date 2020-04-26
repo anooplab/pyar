@@ -66,11 +66,13 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_numbe
     selected_seeds = clustering.choose_geometries(list_of_optimized_molecules,
                                                   maximum_number_of_seeds=maximum_number_of_seeds)
     file_manager.make_directories('selected')
+    os.chdir('selected')
     for each_file in selected_seeds:
         status = optimise(each_file, method, max_cycles=100, convergence='normal')
         if status is True:
-            xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
-            shutil.copy(xyz_file, 'selected/')
+            # xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
+            xyz_file = 'job_' + each_file.name + '/result_' + each_file.name + '.xyz'
+            shutil.copy(xyz_file, '.')
         else:
             selected_seeds.remove(each_file)
     return selected_seeds

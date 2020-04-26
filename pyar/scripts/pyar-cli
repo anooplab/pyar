@@ -347,8 +347,8 @@ def main():
         for each_molecule in molecules:
             coordinates = each_molecule.coordinates
             start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
-            final_distance = each_molecule.covalent_radius[a] + \
-                             each_molecule.covalent_radius[b]
+            final_distance = each_molecule.covalent_radius[a] \
+                             + each_molecule.covalent_radius[b]
             step = int(abs(final_distance - start_dist) * 10)
             if args.software == 'orca':
                 c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) + \

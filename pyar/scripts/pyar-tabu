@@ -77,17 +77,9 @@ def tabu_function():
             each_orientation.mol_to_xyz('mol' + str(i) + '.xyz')
 
     if args.mkcomposite:
-        from pyar import optimiser
-        method_args = {
-            'charge': args.charge,
-            'multiplicity': 1,
-            'scftype': 'rhf',
-            'software': 'turbomole'
-        }
         for i in range(8):
             result = pyar.tabu.generate_composite_molecule(seed, monomer, pts)
             result.title = "trial_" + str(i).zfill(3)
-            optimiser.optimise(result, method_args, 0.0)
             result.mol_to_xyz('result_' + str(i).zfill(3) + '.xyz')
 
     if args.mksphere:

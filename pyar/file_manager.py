@@ -144,8 +144,8 @@ def bulk_move(*args):
     """
 
     :param args: This is the argument lists. It will take tha last name as the directory name.
-    If any of the files match with the strings it provided, it will move this file to the
-    directory
+        If any of the files match with the strings it provided, it will move this file to the
+        directory
     :return: It will return nothing.
 
     """

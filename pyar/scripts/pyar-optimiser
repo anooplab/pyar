@@ -20,8 +20,7 @@ def setup_molecules(input_files):
         except IOError:
             logger.critical("File {} does not exist".format(each_file))
             sys.exit()
-    logger.info("I've parsed these molecules as input: {}".format(
-        [i.name for i in molecules]))
+    logger.info(f"I've parsed these molecules as input: {[i.name for i in molecules]}")
     return molecules
 
 
@@ -92,6 +91,7 @@ method_args = {
     'scftype': args.scftype,
     'software': args.software
 }
+
 logger.debug(args)
 logger.info('Charge:        %s' % method_args['charge'])
 logger.info('Multiplicity:  %s' % method_args['multiplicity'])
@@ -99,5 +99,8 @@ logger.info('SCF Type:      %s' % method_args['scftype'])
 
 logger.info('QM Software:  %s' % method_args['software'])
 input_molecules = setup_molecules(args.input_files)
+for mol in input_molecules:
+    for prop in ['charge', 'multiplicity', 'scftype', 'software']:
+        vars(mol)[prop] = vars(args)[prop]
 
 optimiser.bulk_optimize(input_molecules, method_args, gamma=0.0)

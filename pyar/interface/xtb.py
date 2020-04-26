@@ -1,5 +1,6 @@
 """
 xtb.py - interface to mopac program
+
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
 Universitaet Muenster, Germany
@@ -34,9 +35,18 @@ class Xtb(SF):
 
         super(Xtb, self).__init__(molecule)
 
-        charge = method['charge']
-        scftype = method['scftype']
-        multiplicity = method['multiplicity']
+        if hasattr(molecule, 'charge'):
+            charge = molecule.charge
+        else:
+            charge = method['charge']
+        if hasattr(molecule, 'scftype'):
+            scftype = molecule.scftype
+        else:
+            scftype = method['scftype']
+        if hasattr(molecule, 'multiplicity'):
+            multiplicity = molecule.multiplicity
+        else:
+            multiplicity = method['multiplicity']
 
         self.cmd = "xtb {} -opt vtight".format(self.start_xyz_file)
         if charge != 0:
