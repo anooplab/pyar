@@ -5,7 +5,7 @@
 
     A Python code for Aggregation and Reaction.
     This includes modules for automating the tasks
-    for the folllowing:
+    for the following:
         - exploring the unknown chemical reactions
           between two molecules
         - predicting the geometries of molecular

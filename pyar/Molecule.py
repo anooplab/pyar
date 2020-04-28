@@ -82,16 +82,23 @@ class Molecule(object):
         The 2D array of interatomic distances.
         Useful for calculating fingerprints, coulomb
         matrix etc.
+
+    Follwing attributes are electronic properties.  This will be
+    available after a calculation
+
     energy: float
         The energy of the molecule. This is added after
         any quantum chemical calculations.
 
     """
 
-    def __init__(self, atoms_list, coordinates, name=None, title=None, fragments=None):
+    def __init__(self, atoms_list, coordinates, name=None,
+                 title=None, fragments=None, charge=0,
+                 multiplicity=1, scftype='rhf'):
         """
         Init function for Molecule
 
+        :type multiplicity: object
         :type atoms_list: list
         :param atoms_list: The list of atomic symbols
         :type coordinates: ndarray
@@ -108,6 +115,9 @@ class Molecule(object):
         self.number_of_atoms = len(coordinates)
         self.atoms_list = [c.capitalize() for c in atoms_list]
         self.coordinates = coordinates
+        self.charge = charge
+        self.multiplicity = multiplicity
+        self.scftype = scftype
 
         self.atomic_number = get_atomic_number(self.atoms_list)
         self.atomic_mass = get_atomic_mass(self.atomic_number)
@@ -123,11 +133,11 @@ class Molecule(object):
         self.distance_list = get_distance_list(self.coordinates)
 
         if name is None:
-            self.name = ''
+            self.name = 'Molecule'
         else:
             self.name = name
         if title is None:
-            self.title = ''
+            self.title = 'Title'
         else:
             self.title = title
 
@@ -156,13 +166,12 @@ class Molecule(object):
 
         Merges two molecules objects.
 
-        :type other: object
+        :type other: Molecule
         :param other: Molecule object to be merged with self.
         :return: Merged Molecule object
         :rtype: object
 
         """
-
         atoms_list = self.atoms_list + other.atoms_list
         coordinates = np.concatenate((self.coordinates, other.coordinates), axis=0)
         merged = Molecule(atoms_list, coordinates)
@@ -175,6 +184,28 @@ class Molecule(object):
             merged.fragments_history = self.fragments_history + atoms_in_other
         else:
             merged.fragments_history = [atoms_in_self, atoms_in_other]
+        merged.name = "{self.name} + {other.name}"
+        merged.title = "{self.title} + {other.title}"
+
+        combined_charge = self.charge + other.charge
+        total_multiplicity = self.multiplicity + other.multiplicity
+        if total_multiplicity == 2:
+            new_multiplicity = 1
+        elif total_multiplicity == 3:
+            new_multiplicity = 2
+        elif total_multiplicity == 4:
+            if self.multiplicity == 2:
+                new_multiplicity = 1  # Consider low-spin as default
+
+            else:
+                new_multiplicity = 3
+        else:
+            new_multiplicity = 1  # Complicated case.
+
+        if self.scftype == 'rhf' and other.scftype == 'rhf':
+            combined_scftype = 'rhf'
+        else:
+            combined_scftype = 'scf'
         return merged
 
     @classmethod
@@ -260,6 +291,9 @@ class Molecule(object):
 
         fragments_atoms_list = [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
         return fragments_atoms_list
+
+    def split_covalent_radii_list(self):
+        return [np.array(self.covalent_radius)[fragment_identifiers] for fragment_identifiers in self.fragments]
 
     def mol_to_xyz(self, file_name):
         """
@@ -347,9 +381,6 @@ class Molecule(object):
 
         return [bl, al, dl]
 
-    def split_covalent_radii_list(self):
-        return [np.array(self.covalent_radius)[fragment_identifiers] for fragment_identifiers in self.fragments]
-
     def is_bonded(self):
         """
         Checks if there is any bond between two fragments in the molecule.
@@ -380,8 +411,15 @@ class Molecule(object):
 
     @property
     def coulomb_matrix(self):
-        """ 
+        """
+        Calculate Coulomb Matrix
+
         Author: Debankur Bhattacharyya
+
+        $$
+        C_{ij} = \frac{1}{2} c_{i}^{2.4} if i = j
+               = \frac{c_{i}*c_{j}}{R_{ij}
+        $$
         """
         charges = [atomic_numbers[c.capitalize()] for c in self.atoms_list]
         N = self.number_of_atoms
@@ -416,13 +454,15 @@ class Molecule(object):
         return sorted_matrix.ravel()
 
     def rotate_3d(self, vector):
-        """This function will rotate a molecule by Euler rotation theorem.
+        """
+        This function will rotate a molecule by Euler rotation theorem.
         The Z-X-Z' rotation convention is followed. The range of phi, theta
         and psi should be (0,360),(0,180) and (0,360) respectively.
         This function will first translate the molecule to its center
         of mass(centroid). Then, it rotate the molecule and translate
         to its original position. So, to rotate a molecule around the origin,
-        (0.,0.,0.), set_origin usage is necessary"""
+        (0.,0.,0.), set_origin usage is necessary
+        """
         phi, theta, psi = vector
         D = np.array(((cos(phi), sin(phi), 0.),
                       (-sin(phi), cos(phi), 0.),
