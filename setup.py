@@ -2,7 +2,7 @@
 from distutils.core import setup
 
 setup(name='PyAR',
-      version='0.2',
+      version='0.3',
       packages=['pyar', 'pyar.afir', 'pyar.data_analysis', 'pyar.interface', 'pyar.data'],
       scripts=['pyar/scripts/pyar-cli', 'pyar/scripts/pyar-optimiser', 'pyar/scripts/pyar-tabu',
                'pyar/scripts/pyar-clustering'],

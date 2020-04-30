@@ -1,6 +1,8 @@
-values = {'input_files': [], 'charge': 0, 'multiplicity': 1, 'scftype': 'rhf',
+values = {'input_files': [''], 'charge': 0, 'multiplicity': 1, 'scftype': 'rhf',
           'scf_threshold': 'loose', 'scf_cycles': 1000,
           'opt_threshold': 'loose', 'opt_cycles': 100,
+          'basis': 'def2-SVP', 'method': 'BP86',
+          'software': None,
           'verbosity': 1,
           'maximum_number_of_seeds': 8,
           'how_many_orientations': 8,
@@ -13,8 +15,7 @@ values = {'input_files': [], 'charge': 0, 'multiplicity': 1, 'scftype': 'rhf',
           'size_of_fragment_three': None,
           'first_pathway': 0,
           'number_of_pathways': 0,
-          'scan_bond': None,
-          'software': None
+          'scan_bond': None
           }
 """
 The default calculation parameters

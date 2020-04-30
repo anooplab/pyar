@@ -77,16 +77,7 @@ def bulk_optimize(input_molecules, method_args, gamma):
 
 
 def main():
-    import sys
-    input_files = sys.argv[1:]
-    from pyar.Molecule import Molecule
-    method = {'charge': 0, 'multiplicity': 1, 'scftype': 'rhf', 'software': 'orca'}
-    gamma = 0.0
-
-    for m in input_files:
-        mol = Molecule.from_xyz(m)
-        if optimise(mol, method=method, gamma=gamma):
-            print(mol.energy)
+    pass
 
 
 if __name__ == '__main__':

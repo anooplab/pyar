@@ -29,17 +29,6 @@ class Psi4(SF):
 
         super(Psi4, self).__init__(molecule)
 
-        self.charge = method['charge']
-
-        if (sum(molecule.atomic_number) - self.charge) % 2 == 1 and self.multiplicity == 1:
-            self.multiplicity = 2
-        else:
-            self.multiplicity = method['multiplicity']
-        if self.multiplicity % 2 == 0 and self.scftype is 'rhf':
-            self.scftype = 'uhf'
-        else:
-            self.scftype = method['scftype']
-
         self.start_coords = molecule.coordinates
         self.inp_file = 'trial_' + self.job_name + '.in'
         self.out_file = 'trial_' + self.job_name + '.out'

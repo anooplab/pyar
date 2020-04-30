@@ -31,7 +31,7 @@ import time
 
 import numpy as np
 
-from pyar import interface, optimiser
+from pyar import interface
 from pyar.afir import restraints
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF
@@ -82,9 +82,6 @@ class Turbomole(SF):
 
         super(Turbomole, self).__init__(molecule)
 
-        self.charge = method['charge']
-        self.scf_type = method['scftype']
-        self.multiplicity = method['multiplicity']
         self.start_coords = angstrom2bohr(molecule.coordinates)
         self.atoms_in_fragments = molecule.fragments
         self.energy = None
@@ -762,56 +759,8 @@ def plot_energy(params):
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--charge', type=int, default=0,
-                        help='charge')
-    parser.add_argument('-m', '--multiplicity', type=int, default=1,
-                        help='multiplicity')
-    parser.add_argument('--scftype', type=str, default='rhf',
-                        choices=['rhf', 'uhf'],
-                        help='SCF type (rhf/uhf)')
-    parser.add_argument("input_file", metavar='file',
-                        type=str,
-                        help='input coordinate file')
-    parser.add_argument('-o', '--opt', action='store_true',
-                        help='optimize')
-    parser.add_argument('-g', '--gamma', type=float, default=0.0,
-                        help='optimize')
-    parser.add_argument('--cycle', type=int, default=350,
-                        help='maximum number of optimization cycles')
-    parser.add_argument('-f1', nargs='+', type=int,
-                        help='atoms in the first fragment')
-    parser.add_argument('-f2', nargs='+', type=int,
-                        help='atoms in the second fragment')
-    args = parser.parse_args()
-
-    from pyar.Molecule import Molecule
-    mol = Molecule.from_xyz(args.input_file)
-    mol.fragments = [args.f1, args.f2]
-    method_args = {
-        'charge': args.charge,
-        'multiplicity': args.multiplicity,
-        'scftype': args.scftype,
-        'software': 'turbomole'
-    }
-    Turbomole(mol, method_args)
-    if args.opt:
-
-        turbomole_logger.info('optimising')
-        optimiser.optimise(mol, method_args, args.gamma)
-    else:
-        make_coord(mol.atoms_list, mol.coordinates)
-        prepare_control(charge=method_args['charge'], multiplicity=method_args['multiplicity'], coordinates='cartesian')
-        turbomole_logger.info('created input file')
-        run_single_point()
+    pass
 
 
 if __name__ == "__main__":
-    turbomole_logger = logging.getLogger('pyar.turbomole')
-    handler = logging.FileHandler('turbomole.log', 'w')
-    turbomole_logger.addHandler(handler)
-    turbomole_logger.setLevel(logging.INFO)
-
     main()
-    # plot_energy(sys.argv[1:])

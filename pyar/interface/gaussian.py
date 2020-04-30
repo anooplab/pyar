@@ -23,6 +23,7 @@ import subprocess as subp
 import numpy as np
 
 from pyar import interface
+from pyar.interface import SF
 
 
 class Gaussian(SF):
@@ -34,7 +35,9 @@ class Gaussian(SF):
         self.multiplicity = multiplicity
         self.scftype = scftype
 
-        if (sum(molecule.atomic_number) - self.charge) % 2 == 1 and self.multiplicity == 1:
+        print(type(molecule.number_of_atoms), self.charge)
+
+        if (molecule.number_of_atoms - self.charge) % 2 == 1 and self.multiplicity == 1:
             self.multiplicity = 2
         else:
             self.multiplicity = method['multiplicity']

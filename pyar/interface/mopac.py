@@ -37,9 +37,6 @@ class Mopac(SF):
 
         super(Mopac, self).__init__(molecule)
 
-        charge = method['charge']
-        scftype = method['scftype']
-        multiplicity = method['multiplicity']
         self.inp_file = 'trial_' + self.job_name + '.mop'
         self.arc_file = 'trial_' + self.job_name + '.arc'
         self.start_coords = molecule.coordinates

@@ -44,9 +44,6 @@ class XtbTurbo(SF):
 
         super(XtbTurbo, self).__init__(molecule)
 
-        self.charge = method['charge']
-        self.scf_type = method['scftype']
-        self.multiplicity = method['multiplicity']
         self.start_coords = angstrom2bohr(molecule.coordinates)
         self.atoms_in_fragments = molecule.fragments
         self.job_dir = '{}/job_{}'.format(os.getcwd(), self.job_name)

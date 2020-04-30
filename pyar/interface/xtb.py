@@ -35,26 +35,14 @@ class Xtb(SF):
 
         super(Xtb, self).__init__(molecule)
 
-        if hasattr(molecule, 'charge'):
-            charge = molecule.charge
-        else:
-            charge = method['charge']
-        if hasattr(molecule, 'scftype'):
-            scftype = molecule.scftype
-        else:
-            scftype = method['scftype']
-        if hasattr(molecule, 'multiplicity'):
-            multiplicity = molecule.multiplicity
-        else:
-            multiplicity = method['multiplicity']
-
         self.cmd = "xtb {} -opt vtight".format(self.start_xyz_file)
-        if charge != 0:
-            self.cmd = "{} -chrg {}".format(self.cmd, charge)
-        if multiplicity != 1:
-            self.cmd = "{} -uhf {}".format(self.cmd, multiplicity)
-        if multiplicity == 1 and scftype is not 'rhf':
-            self.cmd = "{} -{}".format(self.cmd, scftype)
+
+        if self.charge != 0:
+            self.cmd = "{} -chrg {}".format(self.cmd, self.charge)
+        if self.multiplicity != 1:
+            self.cmd = "{} -uhf {}".format(self.cmd, self.multiplicity)
+        if self.multiplicity == 1 and self.scftype is not 'rhf':
+            self.cmd = "{} -{}".format(self.cmd, self.scftype)
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
@@ -116,41 +104,7 @@ class Xtb(SF):
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--charge', type=int, default=0,
-                        help='charge')
-    parser.add_argument('-m', '--multiplicity', type=int, default=1,
-                        help='multiplicity')
-    parser.add_argument('--scftype', type=str, default='rhf',
-                        choices=['rhf', 'uhf'],
-                        help='SCF type (rhf/uhf)')
-    parser.add_argument("input_file", metavar='file',
-                        type=str,
-                        help='input coordinate file')
-    parser.add_argument('--scan', type=int, nargs=2,
-                        help='scan between two atoms')
-    parser.add_argument('--cycle', type=int, default=350,
-                        help='maximum number of optimization cycles')
-    args = parser.parse_args()
-
-    from pyar.Molecule import Molecule
-    mol = Molecule.from_xyz(args.input_file)
-    method_args = {
-        'charge': args.charge,
-        'multiplicity': args.multiplicity,
-        'scftype': args.scftype,
-        'software': 'xtb'
-    }
-    Xtb(mol, method_args)
-
-    from pyar import optimiser
-
-    print('optimising')
-    optimiser.optimise(mol, method_args)
-
-    if args.scan:
-        pass
+    pass
 
 
 if __name__ == "__main__":

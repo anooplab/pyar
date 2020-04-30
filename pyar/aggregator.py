@@ -3,6 +3,7 @@ import itertools
 import logging
 import os
 import shutil
+import string
 from collections import OrderedDict
 
 from pyar import tabu, file_manager
@@ -18,9 +19,25 @@ def check_stop_signal():
         return 1
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_number_of_seeds):
+def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
+            maximum_number_of_seeds):
     """
+    Add one monomer to all the seed molecules
 
+    :type maximum_number_of_seeds: int
+    :param maximum_number_of_seeds: The maximum number of seeds to be
+        selected for next cycle
+    :param method: parameters needed for calculation
+    :param method: dict
+    :param hm_orientations: Number of orientation to be used.
+    :type hm_orientations: int
+    :type monomer: Molecule
+    :param monomer: monomer molecule
+    :type seeds: list[Molecule]
+    :param seeds: seed molecules to which monomer will be added.
+    :type aggregate_id: str
+    :param aggregate_id: An id for the aggregate used for
+        job_dir name and xyz file names
     """
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
@@ -78,7 +95,213 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method, maximum_numbe
     return selected_seeds
 
 
-def aggregate(seeds, monomer, aggregate_size, hm_orientations, method, maximum_number_of_seeds):
+def new_update_id(aid, the_monomer):
+    """
+        aggregate_id = "a_{:03d}_b_{:03d}_c_{:03d}".format(a_n, b_n, c_n)
+
+    """
+    from collections import deque
+    parts_of_aid = deque(aid.split('_'))
+    prefix = parts_of_aid.popleft()
+    d = {}
+    new_id = prefix
+    while parts_of_aid:
+        id = parts_of_aid.popleft()
+        n = parts_of_aid.popleft()
+        d[id] = int(n)
+        if id == the_monomer:
+            d[id] += 1
+        new_id += f"_{id}_{d[id]:03d}"
+
+    return new_id
+
+
+def new_aggregate(molecules,
+                  aggregate_sizes,
+                  hm_orientations,
+                  qc_params,
+                  maximum_number_of_seeds,
+                  first_pathway,
+                  number_of_pathways):
+    """
+    New aggregate module
+    --------------------
+
+
+    :type number_of_pathways: int
+    :param number_of_pathways: For cluster or aggregate containing different
+        types of molecules or atoms, there are many pathways to explore. This
+        parameter determines how many pathways to explore.
+    :type first_pathway: int
+    :param first_pathway: The starting pathway. This helps in restarting the broken job
+    :param molecules: molecules or atoms for aggregation or cluster formation.
+    :type molecules: list(Molecules)
+    :param aggregate_sizes: the number of each atoms in the final cluster.
+    :type aggregate_sizes: list(int)
+    :param hm_orientations: Number of trial orientations
+    :type hm_orientations: int
+    :param qc_params: Parameters for Quantum Chemistry Calculations
+    :type qc_params: dict
+    :param maximum_number_of_seeds: The maximum number of seeds to be selected
+        for the next cycle.
+    :type maximum_number_of_seeds: int
+    :return: None
+    """
+    if check_stop_signal():
+        aggregator_logger.info("Function: aggregate")
+        return StopIteration
+
+    if hm_orientations == 'auto':
+        number_of_orientations = 8
+    else:
+        number_of_orientations = int(hm_orientations)
+
+    parent_folder = 'aggregates'
+    file_manager.make_directories(parent_folder)
+    os.chdir(parent_folder)
+    starting_directory = os.getcwd()
+
+    aggregator_logger.info(f"Starting Aggregation in\n {starting_directory}")
+
+    seed_names = string.ascii_lowercase
+    ag_id = f"ag"
+
+    monomers_to_be_added = []
+    for seed_molecule, seed_name, size_of_this_seed in zip(molecules, seed_names, aggregate_sizes):
+        for i in range(size_of_this_seed):
+            seed_molecule.name = seed_name
+            monomers_to_be_added.append(seed_molecule)
+        ag_id += f"_{seed_name}_000"
+
+    complete_pathways = list(set(itertools.permutations(monomers_to_be_added)))
+
+    if number_of_pathways != 0:
+        my_last_pathway = first_pathway + number_of_pathways
+    else:
+        my_last_pathway = None
+
+    pathways_to_calculate = complete_pathways[first_pathway:my_last_pathway]
+
+    seed_storage = OrderedDict()
+
+    initial_storage = copy.deepcopy(seed_storage)
+    initial_aggregate_id = ag_id
+
+    outside_counter = 1
+    inside_counter = 1
+
+    for i in pathways_to_calculate:
+        for this_monomer in i:
+            if len(seed_storage) < 1:
+                ag_id = new_update_id(ag_id, this_monomer.name)
+                seed_storage[ag_id] = [this_monomer]
+                continue
+            this_seed = seed_storage[ag_id]
+            ag_id = new_update_id(ag_id, this_monomer.name)
+            ag_home = "{}_{:03d}".format(ag_id, outside_counter)
+            file_manager.make_directories(ag_home)
+            os.chdir(ag_home)
+
+            seed_storage[ag_id] = add_one(ag_id,
+                                          this_seed,
+                                          this_monomer,
+                                          number_of_orientations,
+                                          qc_params,
+                                          maximum_number_of_seeds)
+            os.chdir(starting_directory)
+            seed_storage.popitem(last=False)
+            inside_counter += 1
+        outside_counter += 1
+        seed_storage = copy.copy(initial_storage)
+        ag_id = initial_aggregate_id
+
+        if hm_orientations == 'auto' and number_of_orientations <= 256:
+            number_of_orientations += 8
+    return
+
+
+def exhaustive_binary_aggregate(seed_a_input, seed_b_input,
+                                a_n_max, b_n_max,
+                                hm_orientations,
+                                method,
+                                maximum_number_of_seeds,
+                                first_pathway,
+                                number_of_pathways):
+    """
+    Input: a list of seed molecules, a monomer Molecule objects
+    """
+    if check_stop_signal():
+        aggregator_logger.info("Function: aggregate")
+        return StopIteration
+
+    if hm_orientations == 'auto':
+        number_of_orientations = 8
+    else:
+        number_of_orientations = int(hm_orientations)
+
+    parent_folder = 'binary_aggregates'
+    if not os.path.exists(parent_folder):
+        os.mkdir(parent_folder)
+    os.chdir(parent_folder)
+    starting_directory = os.getcwd()
+
+    aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
+
+    seed_a = seed_a_input[0]
+    seed_b = seed_b_input[0]
+    seed_a.name = 'a'
+    seed_b.name = 'b'
+    a_seeds = [seed_a for _ in range(a_n_max)]
+    b_seeds = [seed_b for _ in range(b_n_max)]
+    a_n = 0
+    b_n = 0
+
+    seed_store = OrderedDict()
+
+    aggregate_id = "a_{:03d}_b_{:03d}_c_000".format(a_n, b_n)
+
+    monomers_to_add = a_seeds + b_seeds
+    start_store = copy.deepcopy(seed_store)
+    start_id = aggregate_id
+    outer_counter = 1
+    counter = 1
+
+    if number_of_pathways != 0:
+        last_pathway = first_pathway + number_of_pathways
+    else:
+        last_pathway = None
+
+    full_pathways = list(set(itertools.permutations(monomers_to_add)))
+    pathways = full_pathways[first_pathway:last_pathway]
+
+    for i in pathways:
+        for monomer in i:
+            if len(seed_store) < 1:
+                aggregate_id = update_id(aggregate_id, monomer.name)
+                seed_store[aggregate_id] = [monomer]
+                continue
+            seed = seed_store[aggregate_id]
+            aggregate_id = update_id(aggregate_id, monomer.name)
+            aggregate_home = "{}_{:03d}".format(aggregate_id, outer_counter)
+            file_manager.make_directories(aggregate_home)
+            os.chdir(aggregate_home)
+
+            seed_store[aggregate_id] = add_one(aggregate_id,
+                                               seed, monomer,
+                                               number_of_orientations,
+                                               method,
+                                               maximum_number_of_seeds)
+            os.chdir(starting_directory)
+            seed_store.popitem(last=False)
+            counter += 1
+        outer_counter += 1
+        seed_store = copy.copy(start_store)
+        aggregate_id = start_id
+    return
+
+
+def aggregate(seeds, monomer, aggregate_size, hm_orientations,
+              method, maximum_number_of_seeds):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -287,86 +510,6 @@ def update_id(aid, the_monomer):
         c_n += 1
 
     return "a_{:03d}_b_{:03d}_c_{:03d}".format(a_n, b_n, c_n)
-
-
-def exhaustive_binary_aggregate(seed_a_input, seed_b_input,
-                                a_n_max, b_n_max,
-                                hm_orientations,
-                                method,
-                                maximum_number_of_seeds,
-                                first_pathway,
-                                number_of_pathways):
-    """
-    Input: a list of seed molecules, a monomer Molecule objects
-    """
-    if check_stop_signal():
-        aggregator_logger.info("Function: aggregate")
-        return StopIteration
-
-    if hm_orientations == 'auto':
-        number_of_orientations = 8
-    else:
-        number_of_orientations = int(hm_orientations)
-
-    parent_folder = 'binary_aggregates'
-    if not os.path.exists(parent_folder):
-        os.mkdir(parent_folder)
-    os.chdir(parent_folder)
-    starting_directory = os.getcwd()
-
-    aggregator_logger.info("Starting Aggregation in\n {}".format(starting_directory))
-
-    seed_a = seed_a_input[0]
-    seed_b = seed_b_input[0]
-    seed_a.name = 'a'
-    seed_b.name = 'b'
-    a_seeds = [seed_a for _ in range(a_n_max)]
-    b_seeds = [seed_b for _ in range(b_n_max)]
-    a_n = 0
-    b_n = 0
-
-    seed_store = OrderedDict()
-
-    aggregate_id = "a_{:03d}_b_{:03d}_c_000".format(a_n, b_n)
-
-    monomers_to_add = a_seeds + b_seeds
-    start_store = copy.deepcopy(seed_store)
-    start_id = aggregate_id
-    outer_counter = 1
-    counter = 1
-
-    if number_of_pathways != 0:
-        last_pathway = first_pathway + number_of_pathways
-    else:
-        last_pathway = None
-
-    full_pathways = list(set(itertools.permutations(monomers_to_add)))
-    pathways = full_pathways[first_pathway:last_pathway]
-
-    for i in pathways:
-        for monomer in i:
-            if len(seed_store) < 1:
-                aggregate_id = update_id(aggregate_id, monomer.name)
-                seed_store[aggregate_id] = [monomer]
-                continue
-            seed = seed_store[aggregate_id]
-            aggregate_id = update_id(aggregate_id, monomer.name)
-            aggregate_home = "{}_{:03d}".format(aggregate_id, outer_counter)
-            file_manager.make_directories(aggregate_home)
-            os.chdir(aggregate_home)
-
-            seed_store[aggregate_id] = add_one(aggregate_id,
-                                               seed, monomer,
-                                               number_of_orientations,
-                                               method,
-                                               maximum_number_of_seeds)
-            os.chdir(starting_directory)
-            seed_store.popitem(last=False)
-            counter += 1
-        outer_counter += 1
-        seed_store = copy.copy(start_store)
-        aggregate_id = start_id
-    return
 
 
 def exhaustive_ternary_aggregate(seed_a_input, seed_b_input, seed_c_input,

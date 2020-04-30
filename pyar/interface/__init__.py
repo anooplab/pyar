@@ -28,6 +28,9 @@ class SF(object):
         self.atoms_list = molecule.atoms_list
         self.number_of_atoms = molecule.number_of_atoms
         self.title = 'opt {}'.format(molecule.title)
+        self.charge = molecule.charge
+        self.multiplicity = molecule.multiplicity
+        self.scftype = molecule.scftype
         if not os.path.isfile(self.start_xyz_file):
             write_xyz(self.atoms_list,
                       molecule.coordinates, self.start_xyz_file,

@@ -30,33 +30,24 @@ class Orca(SF):
 
         super(Orca, self).__init__(molecule)
 
-        self.charge = method['charge']
-        self.multiplicity = method['multiplicity']
-        self.scftype = method['scftype']
-
-        if (sum(molecule.atomic_number) - self.charge) % 2 == 1 and self.multiplicity == 1:
-            self.multiplicity = 2
-        else:
-            self.multiplicity = method['multiplicity']
-        if self.multiplicity % 2 == 0 and self.scftype is 'rhf':
-            self.scftype = 'uhf'
-        else:
-            self.scftype = method['scftype']
-
         self.start_coords = molecule.coordinates
         self.inp_file = 'trial_' + self.job_name + '.inp'
         self.out_file = 'trial_' + self.job_name + '.out'
         self.optimized_coordinates = []
-        self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword = "!BP RI Opt def2-SVP D3BJ KDIIS def2/J PAL3"
+        keyword = '! '
+        keyword += f" {method['method']}"
+        keyword += f" {method['basis']}"
+
         if any(x >= 21 for x in molecule.atomic_number):
             keyword += ' def2-ECP'
         if custom_keyword is not None:
             keyword += custom_keyword
-        self.prepare_input(keyword=keyword)
+        keyword += " RI def2/J D3BJ KDIIS  PAL3"
+        self.keyword = keyword
 
-    def prepare_input(self, keyword=""):
+    def prepare_input(self):
+        keyword = self.keyword
         coords = self.start_coords
         f1 = open(self.inp_file, "w")
         if self.scftype is 'uks':
@@ -75,6 +66,10 @@ class Orca(SF):
         optimize a structure.
         """
         # TODO: Add a return 'CycleExceeded'
+
+        self.keyword = self.keyword + ' Opt'
+        self.prepare_input()
+
         with open(self.out_file, 'w') as fopt:
             out = subp.Popen([which("orca"), self.inp_file], stdout=fopt, stderr=fopt)
         out.communicate()
@@ -117,46 +112,7 @@ class Orca(SF):
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-s', type=int, required=True, nargs=2,
-                        help='scan between two atoms')
-    parser.add_argument('-c', '--charge', type=int, default=0,
-                        help='charge')
-    parser.add_argument('-m', '--multiplicity', type=int, default=1,
-                        help='multiplicity')
-    parser.add_argument('--scftype', type=str, default='rhf', choices=['rhf', 'uhf'],
-                        help='SCF type (rhf/uhf)')
-    parser.add_argument("input_file", metavar='file',
-                        type=str,
-                        help='input coordinate file')
-    parser.add_argument('-o', '--opt', action='store_true',
-                        help='optimize')
-    args = parser.parse_args()
-    from pyar.Molecule import Molecule
-    mol = Molecule.from_xyz(args.input_file)
-
-    method_args = {
-        'charge': args.charge,
-        'multiplicity': args.multiplicity,
-        'scftype': args.scftype,
-        'software': 'orca'
-    }
-    a, b = args.s
-    coordinates = mol.coordinates
-    import numpy as np
-    start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
-    final_distance = mol.covalent_radius[a] + mol.covalent_radius[b]
-    step = int(abs(final_distance - start_dist) * 10)
-    c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) + '= ' + str(start_dist) \
-          + ', ' + str(final_distance) + ', ' + str(step) + ' end end\n'
-    geometry = Orca(mol, method_args, custom_keyword=c_k)
-    if args.opt:
-        from pyar import optimiser
-        print('optimising')
-        optimiser.optimise(mol, method_args, 0.0, custom_keyword=c_k)
-    else:
-        print('created input file')
+    pass
 
 
 if __name__ == "__main__":
