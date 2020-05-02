@@ -25,12 +25,13 @@ import numpy as np
 
 from pyar.interface import SF, which, write_xyz
 
+xtb_logger = logging.getLogger('pyar.xtb')
 
 class Xtb(SF):
 
     def __init__(self, molecule, method):
         if which('xtb') is None:
-            print('set XTB path')
+            xtb_logger.error('set XTB path')
             sys.exit()
 
         super(Xtb, self).__init__(molecule)
@@ -56,14 +57,14 @@ class Xtb(SF):
                   False
         """
         if gamma > 0.0:
-            print('not implemented in this module. Use xtb_turbo')
+            xtb_logger.error('not implemented in this module. Use xtb_turbo')
 
         with open('xtb.out', 'w') as output_file_pointer:
             try:
                 out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
-                print('Optimization failed')
-                print(e)
+                xtb_logger.info('Optimization failed')
+                xtb_logger.error(e)
                 return False
 
         if os.path.isfile('.xtboptok'):
@@ -75,10 +76,10 @@ class Xtb(SF):
             os.remove('.xtboptok')
             return True
         elif os.path.isfile('.sccnotconverged'):
-            print('SCF Convergence failure in {} run in {}'.format(self.start_xyz_file, os.getcwd()))
+            xtb_logger.info('SCF Convergence failure in {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return 'SCFFailed'
         else:
-            print('Something went wrong with {} run in {}'.format(self.start_xyz_file, os.getcwd()))
+            xtb_logger.info('Something went wrong with {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return False
 
     @property

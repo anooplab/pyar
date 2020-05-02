@@ -13,6 +13,13 @@ tabu_logger = logging.getLogger('pyar.tabu')
 
 
 def load_tabu_list(tabu_file='tabu.dat'):
+    """
+    This was supposed to help in restarting a job.
+    Never managed to implement.
+
+    :param tabu_file: The file name containing tabu list.
+    :return: tabu list
+    """
     if not os.path.exists(tabu_file):
         return []
     with open(tabu_file, 'r') as tf:

@@ -47,7 +47,10 @@ def optimise(molecule, method, gamma=0.0, max_cycles=350, convergence='normal', 
         print(software, "is not implemented yet")
         return NotImplementedError
 
-    optimize_status = geometry.optimize(gamma=gamma, max_cycles=max_cycles, convergence=convergence)
+    optimize_status = geometry.optimize(gamma=gamma,
+                                        max_cycles=max_cycles,
+                                        convergence=convergence)
+
     if optimize_status is True \
             or optimize_status == 'converged' \
             or optimize_status == 'CycleExceeded':

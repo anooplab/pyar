@@ -36,7 +36,8 @@ def argument_parse():
                         type=str, nargs='+',
                         help='input coordinate files')
 
-    parser.add_argument('-N', dest='how_many_orientations',
+    parser.add_argument('-N', dest='how_many_orientations', metavar='N',
+                        required=True,
                         help='how many orientations to be used')
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
@@ -45,66 +46,42 @@ def argument_parse():
                                 help="Run a reactor calculation",
                                 action='store_true')
 
+    run_type_group.add_argument("-s", "--solvate",
+                                help="Add one solvent molecules to given solute molecules",
+                                action='store_true')
+
     run_type_group.add_argument("-a", "--aggregate",
                                 help="Run a aggregator calculation",
                                 action='store_true')
 
-    run_type_group.add_argument("-na", "--new-aggregate",
-                                help="Run a aggregator calculation",
-                                action='store_true')
-
-    run_type_group.add_argument("-ba", "--binary-aggregate",
-                                help="Run a binary aggregation",
-                                action='store_true')
-
-    run_type_group.add_argument("-ta", "--ternary-aggregate",
-                                help="Run a ternary aggregation",
-                                action='store_true')
-
-    run_type_group.add_argument("--scan-bond", nargs=2, type=int,
+    run_type_group.add_argument("--scan-bond", nargs=2, type=int, metavar=('a', 'b'),
                                 help="scan a bond between the given atoms of two"
                                      "fragments")
 
-    new_aggregator_group = parser.add_argument_group('scan', 'Scan specific options')
-
-    new_aggregator_group = parser.add_argument_group('new_aggregator',
-                                                     'New aggregator specific options')
-
-    new_aggregator_group.add_argument('-nas', '--new-aggregate-size', type=int, nargs='*',
-                                      help='number of monomers in aggregate')
+    scan_group = parser.add_argument_group('scan', 'Scan specific options')
 
     aggregator_group = parser.add_argument_group('aggregator',
-                                                 'Aggregator specific option')
+                                                 'Aggregator specific options')
 
-    aggregator_group.add_argument('-as', '--aggregate-size', type=int,
-                                  help='number of monomers in aggregate')
+    aggregator_group.add_argument('-ss', '--solvation-size', type=int, metavar='n',
+                                  help='number of solvent molecules to be added')
 
-    aggregator_group.add_argument('-mns', '--maximum-number-of-seeds',
+    aggregator_group.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
                                   type=int,
                                   help='maximum number of seeds')
 
-    composite_aggregator_group = parser.add_argument_group('composite_aggregator',
-                                                           'Binary_and Ternary '
-                                                           'aggregator specific '
-                                                           'option')
+    aggregator_group.add_argument('-as', '--aggregate-size', type=int, nargs='*',
+                                  metavar=('l', 'm',),
+                                  help='number of monomers in aggregate')
 
-    composite_aggregator_group.add_argument('-fa', '--size-of-fragment-one',
-                                            type=int, help='size of atom1')
+    aggregator_group.add_argument('--first-pathway', type=int, metavar='l',
+                                  help='The first pathway among all the '
+                                       'possible aggregation paths in '
+                                       'binary or ternary aggregation.')
 
-    composite_aggregator_group.add_argument('-fb', '--size-of-fragment-two',
-                                            type=int, help='size of atom2')
-
-    composite_aggregator_group.add_argument('-fc', '--size-of-fragment-three',
-                                            type=int, help='size of atom3')
-
-    composite_aggregator_group.add_argument('--first-pathway', type=int,
-                                            help='The first pathway among all the '
-                                                 'possible aggregation paths in '
-                                                 'binary or ternary aggregation.')
-
-    composite_aggregator_group.add_argument('--number-of-pathways', type=int,
-                                            help='How many pathways to be used in '
-                                                 'binary/ternary aggregation.')
+    aggregator_group.add_argument('--number-of-pathways', type=int, metavar='n',
+                                  help='How many pathways to be used in '
+                                       'binary/ternary aggregation.')
 
     reactor_group = parser.add_argument_group('reactor',
                                               'Reactor specific option')
@@ -116,8 +93,7 @@ def argument_parse():
                                help='maximum value of gamma')
 
     reactor_group.add_argument('--site', type=int, nargs=2,
-                               help='atom for site specific '
-                                    'aggregation/solvation')
+                               help='atom for site specific reaction')
 
     molecule_group = parser.add_argument_group('molecule',
                                                'Options related to the electronic'
@@ -132,19 +108,34 @@ def argument_parse():
     molecule_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
                                 help="specify rhf or uhf (default=rhf)")
 
-    qm_setup_group = parser.add_argument_group('calculation',
-                                               'Calculation specific options')
+    quantum_chemistry_group = parser.add_argument_group('calculation',
+                                                        'Calculation specific options')
 
-    qm_setup_group.add_argument("--software", type=str,
-                                choices=['mopac', 'obabel', 'orca', 'psi4',
-                                         'turbomole', 'xtb', 'xtb_turbo'],
-                                required=True, help="Software")
+    quantum_chemistry_group.add_argument("--software", type=str,
+                                         choices=['mopac', 'obabel', 'orca',
+                                                  'psi4', 'turbomole', 'xtb',
+                                                  'xtb_turbo'],
+                                         required=True, help="Software")
 
-    qm_setup_group.add_argument('-basis', '--basis', type=str,
-                                help='Basis set (default=def2-SVP)')
+    quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
+                                         help='Basis set (default=def2-SVP)')
 
-    qm_setup_group.add_argument('-method', '--method', type=str,
-                                help='The method (default=BP86)')
+    quantum_chemistry_group.add_argument('-method', '--method', type=str,
+                                         help='The method (default=BP86)')
+
+    quantum_chemistry_group.add_argument('--opt-threshold', type=str, default='normal',
+                                         choices=['loose', 'normal', 'tight'],
+                                         help='Optimization threshold')
+
+    quantum_chemistry_group.add_argument('--opt-cycles', type=int, default=100,
+                                         help='Maximum optimization cycles')
+
+    quantum_chemistry_group.add_argument('--scf-threshold', type=str, default='normal',
+                                         choices=['loose', 'normal', 'tight'],
+                                         help='SCF threshold')
+
+    quantum_chemistry_group.add_argument('--scf-cycles', type=int, default=1000,
+                                         help='Maximum SCF cycles.')
 
     return parser.parse_args()
 
@@ -189,175 +180,110 @@ def main():
     logger.info(f'Starting PyAR at {datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")}')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
-    logger.debug(f'Parsed arguments {args}')
+
+    logger.debug(f'Parsed arguments are:')
+
+    for k, v in args.items():
+        if v:
+            logger.debug(f"{k:25} = {v}")
+
+    logger.debug(f'Full parameters are:')
+    for k, v in run_parameters.items():
+        if v:
+            logger.debug(f"{k:25} = {v}")
 
     logger.info("Parsing the following files: ")
-
     input_molecules = []
+    # noinspection PyTypeChecker
     for each_file in run_parameters['input_files']:
         try:
             mol = Molecule.Molecule.from_xyz(each_file)
             logger.info(f"    {each_file}")
-            for prop in ['charge', 'multiplicity', 'scftype', 'software']:
+            for prop in ['charge', 'multiplicity', 'scftype']:
                 vars(mol)[prop] = run_parameters[prop]
             input_molecules.append(mol)
         except IOError:
             logger.critical(f"File {each_file} does not exist")
             sys.exit()
 
-    logger.debug("The arguments are:")
-    logger.debug(args)
     logger.info(f'Charge:        {run_parameters["charge"]}')
     logger.info(f'Multiplicity:  {run_parameters["multiplicity"]}')
     logger.info(f'SCF Type:      {run_parameters["scftype"]}')
 
-    method_args = {
+    quantum_chemistry_parameters = {
         'basis': run_parameters['basis'],
         'method': run_parameters['method'],
-        'software': run_parameters['software']
+        'software': run_parameters['software'],
+        'opt_cycles': run_parameters['opt_cycles'],
+        'opt_threshold': run_parameters['opt_threshold'],
+        'scf_cycles': run_parameters['scf_cycles'],
+        'scf_threshold': run_parameters['scf_threshold']
     }
 
-    logger.info(f'QM Software:   {method_args["software"]}')
+    logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
 
     number_of_orientations = run_parameters['how_many_orientations']
     logger.info(f'{number_of_orientations} orientations will be used')
 
     maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
 
-    if run_parameters['new_aggregate']:
-        new_size_of_aggregate = run_parameters['new_aggregate_size']
-        if new_size_of_aggregate is None:
-            logger.error('For an Aggregation run '
-                         'specify the aggregate size '
-                         '(number of monomers to be added) '
-                         'using the argument\n -as <integer>')
-            sys.exit('Missing arguments: -as #')
+    logger.info(f'{number_of_orientations} orientations will be used')
 
-        if number_of_orientations is None:
-            logger.error("For aggregation, specify how many orientations"
-                         "are to be used, by the argument\n"
-                         "-number_of_orientations <number of orientations>")
-            sys.exit('Missing arguments: -N #')
-        #
-        # if len(input_molecules) == 1:
-        #     logger.error('Provide at least two files')
-        #     sys.exit('Missing arguments: Provide at least two files')
-        # else:
-        #     seeds = input_molecules
+    if run_parameters['aggregate']:
+        new_size_of_aggregate = run_parameters['aggregate_size']
+        if new_size_of_aggregate is None:
+            message = f"Error: For an Aggregation run, specify \n" \
+                      f"the desired number of each monomers to be added \n" \
+                      f"using the argument\n" \
+                      f" -as <int> <int> ..."
+            print(new_size_of_aggregate)
+            logger.critical(message)
+            sys.exit(message)
 
         seeds = input_molecules
 
         t1_0 = time.time()
         time_started = datetime.datetime.now()
-        aggregator.new_aggregate(seeds, new_size_of_aggregate,
-                                 number_of_orientations,
-                                 method_args,
-                                 maximum_number_of_seeds,
-                                 run_parameters['first_pathway'],
-                                 run_parameters['number_of_pathways'])
+        aggregator.aggregate(seeds, new_size_of_aggregate,
+                             number_of_orientations,
+                             quantum_chemistry_parameters,
+                             maximum_number_of_seeds,
+                             run_parameters['first_pathway'],
+                             run_parameters['number_of_pathways'])
 
         logger.info('Total Time: {}'.format(time.time() - t1_0))
         logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
-    if run_parameters['aggregate']:
-        size_of_aggregate = run_parameters['aggregate_size']
-        if size_of_aggregate is None:
-            logger.error('For an Aggregation run '
-                         'specify the aggregate size '
-                         '(number of monomers to be added) '
-                         'using the argument\n -as <integer>')
-            sys.exit('Missing arguments: -as #')
+    if run_parameters['solvate']:
+        number_of_solvent_molecules = run_parameters['solvation_size']
+        if number_of_solvent_molecules is None:
+            message = f'For this please provide the number of solvent\n' \
+                      f'molecules to be added. Use the fooloiwng optio\n' \
+                      f'  -ss <int>'
 
-        if number_of_orientations is None:
-            logger.error("For aggregation, specify how many orientations"
-                         "are to be used, by the argument\n"
-                         "-number_of_orientations <number of orientations>")
-            sys.exit('Missing arguments: -N #')
+            logger.error(message)
+            sys.exit(message)
 
         if len(input_molecules) == 1:
-            logger.error('Provide at least two files')
-            sys.exit('Missing arguments: Provide at least two files')
+            message = f"Please provide more than two molecules.\n" \
+                      f"The last input file will be considered as solvent\n" \
+                      f"and the other molecules as solutes to which solvent\n" \
+                      f"molecules will be added."
+            logger.error(message)
+            sys.exit(message)
         else:
             monomer = input_molecules[-1]
             seeds = input_molecules[:-1]
 
         t1_0 = time.time()
         time_started = datetime.datetime.now()
-        aggregator.aggregate(seeds, monomer,
-                             aggregate_size=size_of_aggregate,
-                             hm_orientations=number_of_orientations,
-                             method=method_args, maximum_number_of_seeds=maximum_number_of_seeds)
+        aggregator.solvate(seeds, monomer,
+                           number_of_solvent_molecules,
+                           number_of_orientations,
+                           quantum_chemistry_parameters,
+                           maximum_number_of_seeds)
 
         logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
-
-    if run_parameters['binary_aggregate']:
-        number_of_fragment_one = run_parameters['size_of_fragment_one']
-        number_of_fragment_two = run_parameters['size_of_fragment_two']
-        if number_of_fragment_one is None or number_of_fragment_two is None:
-            logger.error("For binary aggregation, specify aggregate size of"
-                         " moiety 1 and 2 as <integers>")
-            sys.exit("For binary aggregation, specify aggregate size of"
-                     " moiety 1 and 2 as <integers>")
-        if number_of_orientations is None:
-            logger.error("Any aggregation requires the number of orientations"
-                         " to be used")
-            sys.exit("provide the number of orientations (-N #)")
-        if len(input_molecules) == 1:
-            logger.error("For binary aggregation, provide two moieties")
-        else:
-            seed_a = input_molecules[:-1]
-            seed_b = input_molecules[-1:]
-            logger.debug(seed_a)
-            logger.debug(seed_b)
-            zero_time = time.time()
-            time_started = datetime.datetime.now()
-            aggregator.exhaustive_binary_aggregate(seed_a, seed_b, number_of_fragment_one,
-                                                   number_of_fragment_two,
-                                                   number_of_orientations,
-                                                   method_args,
-                                                   maximum_number_of_seeds,
-                                                   run_parameters['first_pathway'],
-                                                   run_parameters['number_of_pathways'])
-
-            logger.info('Total Time: {}'.format(time.time() - zero_time))
-            logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
-
-    if run_parameters['ternary_aggregate']:
-        number_of_fragment_one = run_parameterssize_of_fragment_one
-        number_of_fragment_two = run_parameters['size_of_fragment_two']
-        number_of_fragment_three = run_parameters['size_of_fragment_three']
-        if number_of_fragment_one is None or \
-                number_of_fragment_two is None or \
-                number_of_fragment_three is None:
-            logger.error("For binary aggregation, specify aggregate size of"
-                         " moiety 1, 2, and 3 as <integers>")
-            sys.exit("For binary aggregation, specify aggregate size of"
-                     " moiety 1,2, and 3 as <integers>")
-        if number_of_orientations is None:
-            logger.error("Any aggregation requires the number of orientations"
-                         " to be used")
-            sys.exit("provide the number of orientations (-N #)")
-        if len(input_molecules) != 3:
-            logger.error("For ternary aggregation, provide three moieties")
-        else:
-            seed_a = [input_molecules[0]]
-            seed_b = [input_molecules[1]]
-            seed_c = [input_molecules[2]]
-            logger.debug(seed_a)
-            logger.debug(seed_b)
-            logger.debug(seed_c)
-            zero_time = time.time()
-            time_started = datetime.datetime.now()
-            aggregator.exhaustive_ternary_aggregate(seed_a, seed_b, seed_c,
-                                                    number_of_fragment_one,
-                                                    number_of_fragment_two,
-                                                    number_of_fragment_three,
-                                                    hm_orientations=number_of_orientations,
-                                                    method=method_args,
-                                                    maximum_number_of_seeds=maximum_number_of_seeds)
-
-        logger.info('Total Time: {}'.format(time.time() - zero_time))
         logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
     if run_parameters['react']:
@@ -381,7 +307,7 @@ def main():
             site = None
             proximity_factor = 2.3
         else:
-            site = run_parameter['site']
+            site = run_parameters['site']
             proximity_factor = 2.3
             site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
@@ -390,15 +316,18 @@ def main():
         reactor.react(input_molecules[0], input_molecules[1],
                       gamma_min=minimum_gamma, gamma_max=maximum_gamma,
                       hm_orientations=number_of_orientations,
-                      method=method_args,
+                      method=quantum_chemistry_parameters,
                       site=site, proximity_factor=proximity_factor)
         logger.info('Total run time: {}'.format(time.time() - zero_time))
         logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
         return
 
     if run_parameters['scan_bond']:
-        a = run_parameters['scan_bond'][0]
-        b = input_molecules[0].number_of_atoms + run_parameters['scan_bond'][1]
+        site_atoms = run_parameters['scan_bond']
+        a_molecule = input_molecules[0]
+        b_molecule = input_molecules[1]
+        a_atom = site_atoms[0]
+        b_atom = a_molecule.number_of_atoms + a_atom
         if number_of_orientations is None:
             logger.error("For aggregation, specify how many orientations"
                          "are    to be used, by the argument\n"
@@ -407,25 +336,28 @@ def main():
 
         # noinspection PyTypeChecker
         number_of_orientations = int(number_of_orientations)
-        input_molecules = tabu.generate_guess_for_bonding('abc', input_molecules[0],
-                                                          input_molecules[1], a, b,
+        input_molecules = tabu.generate_guess_for_bonding('abc',
+                                                          a_molecule, b_molecule,
+                                                          a_atom, b_atom,
                                                           int(number_of_orientations))
+
         for each_molecule in input_molecules:
             coordinates = each_molecule.coordinates
-            start_dist = np.linalg.norm(coordinates[a] - coordinates[b])
-            final_distance = each_molecule.covalent_radius[a] \
-                             + each_molecule.covalent_radius[b]
+            start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
+            final_distance = each_molecule.covalent_radius[a_atom] + each_molecule.covalent_radius[b_atom]
             step = int(abs(final_distance - start_dist) * 10)
             if run_parameters['software'] == 'orca':
-                c_k = '\n!ScanTS\n% geom scan B ' + str(a) + ' ' + str(b) + \
+                c_k = '\n!ScanTS\n% geom scan B ' + str(a_atom) + ' ' + str(b_atom) + \
                       '= ' + str(start_dist) + ', ' + str(final_distance) + \
                       ', ' + str(step) + ' end end\n'
 
-                optimiser.optimise(each_molecule, method_args, 0.0,
+                optimiser.optimise(each_molecule, quantum_chemistry_parameters, 0.0,
                                    custom_keyword=c_k)
             else:
                 logger.error('Optimization with %s is not implemented '
                              'yet' % run_parameters['software'])
+
+    return
 
 
 if __name__ == "__main__":
