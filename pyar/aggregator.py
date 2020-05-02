@@ -40,7 +40,7 @@ def update_id(aid, the_monomer):
     return new_id
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
+def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
             maximum_number_of_seeds):
     """
     Add one monomer to all the seed molecules
@@ -48,7 +48,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
     :type maximum_number_of_seeds: int
     :param maximum_number_of_seeds: The maximum number of seeds to be
         selected for next cycle
-    :param method: parameters needed for calculation
+    :param qc_params: parameters needed for calculation
     :param method: dict
     :param hm_orientations: Number of orientation to be used.
     :type hm_orientations: int
@@ -89,7 +89,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
             if len(not_converged) == 0:
                 aggregator_logger.info("No more files")
                 break
-            status_list = [optimise(each_mol, method, max_cycles=100, convergence='loose') for each_mol in
+            status_list = [optimise(each_mol, qc_params, max_cycles=100, convergence='loose') for each_mol in
                            not_converged]
             converged = [n for n, s in zip(not_converged, status_list) if s is True]
             list_of_optimized_molecules.extend(converged)
@@ -106,7 +106,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, method,
     file_manager.make_directories('selected')
     os.chdir('selected')
     for each_file in selected_seeds:
-        status = optimise(each_file, method, max_cycles=100, convergence='normal')
+        status = optimise(each_file, qc_params, max_cycles=100, convergence='normal')
         if status is True:
             # xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
             xyz_file = 'job_' + each_file.name + '/result_' + each_file.name + '.xyz'
@@ -221,7 +221,7 @@ def aggregate(molecules,
 
 
 def solvate(seeds, monomer, aggregate_size, hm_orientations,
-            method, maximum_number_of_seeds):
+            qc_params, maximum_number_of_seeds):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -246,7 +246,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
         os.chdir(aggregate_home)
 
         aggregator_logger.info(" Starting aggregation cycle: {}".format(aggregation_counter))
-        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, method, maximum_number_of_seeds)
+        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, qc_params, maximum_number_of_seeds)
         aggregator_logger.info(" Aggregation cycle: {} completed\n".format(aggregation_counter))
 
         if hm_orientations == 'auto' and number_of_orientations <= 256:

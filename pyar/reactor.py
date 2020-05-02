@@ -20,13 +20,13 @@ saved_smile_strings = {}
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
     reactor_logger.info('Starting Reactor')
-    reactor_logger.info('{} orientations will be tried'.format(hm_orientations))
-    reactor_logger.info(' Gamma (min): {}'.format(gamma_min))
-    reactor_logger.info(' Gamma (max): {}'.format(gamma_max))
-    reactor_logger.info(' Software   : {}'.format(software))
+    reactor_logger.info(f'{hm_orientations} orientations will be tried')
+    reactor_logger.info(f' Gamma (min): {gamma_min}')
+    reactor_logger.info(f' Gamma (max): {gamma_max}')
+    reactor_logger.info(f' Software   : {software}')
 
 
-def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
+def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
           site, proximity_factor):
     """
     The Reactor module
@@ -37,12 +37,12 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
 
     """
     cwd = os.getcwd()
-    reactor_logger.debug('Current working directory: {}'.format(cwd))
-    software = method['software']
+    reactor_logger.debug(f'Current working directory: {cwd}')
+    software = qc_params['software']
     print_header(gamma_max, gamma_min, hm_orientations, software)
     # prepare job directories
     product_dir = cwd + '/products'
-    reactor_logger.debug('Product directory: {}'.format(product_dir))
+    reactor_logger.debug(f'Product directory: {product_dir}')
     file_manager.make_directories(product_dir)
     file_manager.make_directories('trial_geometries')
     os.chdir('trial_geometries')
@@ -63,17 +63,17 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
     orientations_to_optimize = all_orientations[:]
 
     for gamma in gamma_list:
-        reactor_logger.info('  Current gamma : {}'.format(gamma))
-        gamma_id = "%04d" % (int(gamma))
+        reactor_logger.info(f'  Current gamma : {gamma}')
+        gamma_id = f"{int(gamma):04d}"
         gamma_home = cwd + '/gamma_' + gamma_id
         file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)
 
         optimized_molecules = optimize_all(gamma_id, gamma,
                                            orientations_to_optimize,
-                                           product_dir, method)
+                                           product_dir, qc_params)
 
-        reactor_logger.info("      {} geometries from this gamma cycle".format(len(optimized_molecules)))
+        reactor_logger.info(f"      {len(optimized_molecules)} geometries from this gamma cycle")
         if len(optimized_molecules) == 0:
             reactor_logger.info("No orientations to be optimized for the next gamma cycle.")
             return
@@ -92,7 +92,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, method,
 
 
 def optimize_all(gamma_id, gamma, orientations_to_optimize,
-                 product_dir, method):
+                 product_dir, qc_param):
     cwd = os.getcwd()
     table_of_optimized_molecules = []
     for this_molecule in orientations_to_optimize:
@@ -109,17 +109,19 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         this_molecule.mol_to_xyz(start_xyz_file_name)
         start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
         start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
-        status = optimise(this_molecule, method, gamma=gamma)
+        status = optimise(this_molecule, qc_param, gamma=gamma)
         before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
         reactor_logger.info('... completed')
-        if status is True or status == 'converged' or status == 'cycle_exceeded':
+        if status is True or \
+                status == 'converged' \
+                or status == 'cycle_exceeded':
             reactor_logger.info("      E({}): {:12.7f}".format(job_name, this_molecule.energy))
             if this_molecule.is_bonded():
                 reactor_logger.info("The fragments have close contracts. Going for relaxation")
                 this_molecule.mol_to_xyz('trial_relax.xyz')
                 this_molecule.name = 'relax'
-                status = optimise(this_molecule, method)
+                status = optimise(this_molecule, qc_param)
                 this_molecule.name = job_name
                 if status is True or status == 'converged':
                     this_molecule.mol_to_xyz('result_relax.xyz')

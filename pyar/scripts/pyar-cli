@@ -112,7 +112,7 @@ def argument_parse():
                                                         'Calculation specific options')
 
     quantum_chemistry_group.add_argument("--software", type=str,
-                                         choices=['mopac', 'obabel', 'orca',
+                                         choices=['gaussian', 'mopac', 'obabel', 'orca',
                                                   'psi4', 'turbomole', 'xtb',
                                                   'xtb_turbo'],
                                          required=True, help="Software")
@@ -314,10 +314,10 @@ def main():
         zero_time = time.time()
         time_started = datetime.datetime.now()
         reactor.react(input_molecules[0], input_molecules[1],
-                      gamma_min=minimum_gamma, gamma_max=maximum_gamma,
-                      hm_orientations=number_of_orientations,
-                      method=quantum_chemistry_parameters,
-                      site=site, proximity_factor=proximity_factor)
+                      minimum_gamma, maximum_gamma,
+                      number_of_orientations,
+                      quantum_chemistry_parameters,
+                      site, proximity_factor)
         logger.info('Total run time: {}'.format(time.time() - zero_time))
         logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
         return

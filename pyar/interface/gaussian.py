@@ -27,46 +27,30 @@ from pyar.interface import SF
 
 
 class Gaussian(SF):
-    def __init__(self, molecule, charge=0, multiplicity=1, scftype='rhf'):
+    def __init__(self, molecule, qc_params):
 
         super(Gaussian, self).__init__(molecule)
 
-        self.charge = charge
-        self.multiplicity = multiplicity
-        self.scftype = scftype
-
-        print(type(molecule.number_of_atoms), self.charge)
-
-        if (molecule.number_of_atoms - self.charge) % 2 == 1 and self.multiplicity == 1:
-            self.multiplicity = 2
-        else:
-            self.multiplicity = method['multiplicity']
-        if self.multiplicity % 2 == 0 and self.scftype is 'rhf':
-            self.scftype = 'uhf'
-        else:
-            self.scftype = method['scftype']
-
         self.start_coords = molecule.coordinates
-        self.inp_file = 'trial_' + self.job_name + '.inp'
         self.inp_file = 'trial_' + self.job_name + '.com'
         self.out_file = 'trial_' + self.job_name + '.log'
         self.optimized_coordinates = []
-        self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
 
-        keyword = "%nprocshared=5\n%chk=molecule.chk\n%mem=5GB\n# opt=(maxcycles=1000) mp2/3-21g"
+        self.keyword = f"%nprocshared=3\n" \
+                       f"%chk=molecule.chk\n" \
+                       f"%mem=2GB\n" \
+                       f"# {qc_params['method']}"
 
-        self.prepare_input(keyword=keyword)
-
-    def prepare_input(self, keyword=""):
+    def prepare_input(self):
         coords = self.start_coords
         f1 = open(self.inp_file, "w")
-        f1.write(keyword + "\n\n")
-        f1.write(self.job_name + "\n\n")
-        f1.write(str(self.charge) + " " + str(self.multiplicity) + "\n")
+        f1.write(f"{self.keyword}\n\n")
+        f1.write(f"{self.job_name}\n\n")
+        f1.write(f"{str(self.charge)} {str(self.multiplicity)}\n")
         for i in range(self.number_of_atoms):
-            f1.write("%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-        f1.write("\n")
+            f1.write(f"{self.atoms_list[i]:>3}  {coords[i][0]:10.7f}  {coords[i][1]:10.7f} {coords[i][2]:10.7f}\n")
+        f1.write(f"\n")
         f1.close()
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
@@ -77,8 +61,10 @@ class Gaussian(SF):
         # TODO: Add a return 'CycleExceeded'
         logfile = "trial_{}.out".format(self.job_name)
 
+        self.keyword += f" opt=(maxcycles={max_cycles})"
+        self.prepare_input()
         with open(self.out_file, 'w') as fopt:
-            out = subp.Popen(["g09", self.inp_file], stdout=fopt, stderr=fopt)
+            out = subp.Popen(["g16", self.inp_file], stdout=fopt, stderr=fopt)
         out.communicate()
         out.poll()
         exit_status = out.returncode

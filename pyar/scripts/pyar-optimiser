@@ -6,23 +6,10 @@ import datetime
 import logging
 import os
 import sys
+from collections import defaultdict
 
 from pyar import optimiser, Molecule
-
-
-def setup_molecules(input_files):
-    molecules = []
-    for each_file in input_files:
-        try:
-            mol = Molecule.Molecule.from_xyz(each_file)
-            logger.info(each_file)
-            molecules.append(mol)
-        except IOError:
-            logger.critical("File {} does not exist".format(each_file))
-            sys.exit()
-    logger.info(f"I've parsed these molecules as input: {[i.name for i in molecules]}")
-    return molecules
-
+from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
 handler = logging.FileHandler('pyar-optimiser.log', 'w')
@@ -32,45 +19,87 @@ parser = argparse.ArgumentParser(prog='PyAR', description='PyAR is a \
          There are also modules for stochastic generation of  \
          orientations of two more molecules and atoms')
 
+parser.add_argument('-v', '--verbosity',
+                    choices=[0, 1, 2, 3, 4], type=int,
+                    help="increase output verbosity (0=Debug; 1=Info; "
+                         "2: Warning; 3: Error; 4: Critical)")
+
 parser.add_argument("input_files", metavar='files',
                     type=str, nargs='+',
                     help='input coordinate files')
 
-parser.add_argument("-c", "--charge", type=int, default=0,
-                    help="Charge of the system")
+reactor_group = parser.add_mutually_exclusive_group(required=False)
 
-parser.add_argument("-m", "--multiplicity", type=int,
-                    default=1, help="Multiplicity of the system")
+reactor_group.add_argument('-g', '--gamma', type=float,
+                           help='minimum value of gamma')
 
-parser.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
-                    default='rhf',
-                    help="specify rhf or uhf (default=rhf)")
+reactor_group.add_argument('--site', type=int, nargs=2,
+                           help='atom for site specific reaction')
 
-parser.add_argument("--software", type=str,
-                    choices=['turbomole', 'obabel', 'mopac',
-                             'xtb', 'xtb_turbo', 'orca', 'psi4'],
-                    required=True, help="Software")
+molecule_group = parser.add_argument_group('molecule',
+                                           'Options related to the electronic'
+                                           ' structure of the molecule')
 
-parser.add_argument('-v', '--verbosity', default=1,
-                    choices=[0, 1, 2, 3, 4], type=int,
-                    help="increase output verbosity (0=Debug; 1=Info; "
-                         "2: Warning; 3: Error; 4: Critical)")
-args = parser.parse_args()
+molecule_group.add_argument("-c", "--charge", type=int,
+                            help="Charge of the system")
 
-if args.verbosity == 0:
+molecule_group.add_argument("-m", "--multiplicity", type=int,
+                            help="Multiplicity of the system")
+
+molecule_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
+                            help="specify rhf or uhf (default=rhf)")
+
+quantum_chemistry_group = parser.add_argument_group('calculation',
+                                                    'Calculation specific options')
+
+quantum_chemistry_group.add_argument("--software", type=str,
+                                     choices=['gaussian', 'mopac', 'obabel', 'orca',
+                                              'psi4', 'turbomole', 'xtb',
+                                              'xtb_turbo'],
+                                     required=True, help="Software")
+
+quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
+                                     help='Basis set (default=def2-SVP)')
+
+quantum_chemistry_group.add_argument('-method', '--method', type=str,
+                                     help='The method (default=BP86)')
+
+quantum_chemistry_group.add_argument('--opt-threshold', type=str, default='normal',
+                                     choices=['loose', 'normal', 'tight'],
+                                     help='Optimization threshold')
+
+quantum_chemistry_group.add_argument('--opt-cycles', type=int, default=100,
+                                     help='Maximum optimization cycles')
+
+quantum_chemistry_group.add_argument('--scf-threshold', type=str, default='normal',
+                                     choices=['loose', 'normal', 'tight'],
+                                     help='SCF threshold')
+
+quantum_chemistry_group.add_argument('--scf-cycles', type=int, default=1000,
+                                     help='Maximum SCF cycles.')
+
+args = vars(parser.parse_args())
+
+run_parameters = defaultdict(lambda: None, defualt_parameters.values)
+
+for key, value in args.items():
+    if args[key] is not None and run_parameters[key] != args[key]:
+        run_parameters[key] = args[key]
+
+if run_parameters['verbosity'] == 0:
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
                                   '%(lineno)d %(levelname)-8s: %(message)s')
-elif args.verbosity == 1:
+elif run_parameters['verbosity'] == 1:
     formatter = logging.Formatter('%(message)s')
     logger.setLevel(logging.INFO)
-elif args.verbosity == 2:
+elif run_parameters['verbosity'] == 2:
     formatter = logging.Formatter('%(message)s')
     logger.setLevel(logging.WARNING)
-elif args.verbosity == 3:
+elif run_parameters['verbosity'] == 3:
     formatter = logging.Formatter('%(message)s')
     logger.setLevel(logging.ERROR)
-elif args.verbosity == 4:
+elif run_parameters['verbosity'] == 4:
     formatter = logging.Formatter('%(message)s')
     logger.setLevel(logging.CRITICAL)
 else:
@@ -80,27 +109,59 @@ else:
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-logger.info('Starting PyAR at %s in %s' % (datetime.datetime.now(),
-                                           os.getcwd()))
-logger.debug('Logging level is %d' % args.verbosity)
-logger.debug('Parsed arguments %s' % args)
+logger.info(f'Starting PyAR-Optimiser at {datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")}')
+logger.info(f'Job directory: {os.getcwd()}')
+logger.debug(f'Logging level is {{{logger.level}}}')
 
-method_args = {
-    'charge': args.charge,
-    'multiplicity': args.multiplicity,
-    'scftype': args.scftype,
-    'software': args.software
+logger.debug(f'Parsed arguments are:')
+
+for k, v in args.items():
+    if v:
+        logger.debug(f"{k:25} = {v}")
+
+logger.debug(f'Full parameters are:')
+for k, v in run_parameters.items():
+    if v:
+        logger.debug(f"{k:25} = {v}")
+
+logger.info("Parsing the following files: ")
+input_molecules = []
+# noinspection PyTypeChecker
+for each_file in run_parameters['input_files']:
+    try:
+        mol = Molecule.Molecule.from_xyz(each_file)
+        logger.info(f"    {each_file}")
+        for prop in ['charge', 'multiplicity', 'scftype']:
+            vars(mol)[prop] = run_parameters[prop]
+        input_molecules.append(mol)
+    except IOError:
+        logger.critical(f"File {each_file} does not exist")
+        sys.exit()
+
+logger.info(f'Charge:        {run_parameters["charge"]}')
+logger.info(f'Multiplicity:  {run_parameters["multiplicity"]}')
+logger.info(f'SCF Type:      {run_parameters["scftype"]}')
+
+quantum_chemistry_parameters = {
+    'basis': run_parameters['basis'],
+    'method': run_parameters['method'],
+    'software': run_parameters['software'],
+    'opt_cycles': run_parameters['opt_cycles'],
+    'opt_threshold': run_parameters['opt_threshold'],
+    'scf_cycles': run_parameters['scf_cycles'],
+    'scf_threshold': run_parameters['scf_threshold']
 }
 
-logger.debug(args)
-logger.info('Charge:        %s' % method_args['charge'])
-logger.info('Multiplicity:  %s' % method_args['multiplicity'])
-logger.info('SCF Type:      %s' % method_args['scftype'])
+logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
 
-logger.info('QM Software:  %s' % method_args['software'])
-input_molecules = setup_molecules(args.input_files)
-for mol in input_molecules:
-    for prop in ['charge', 'multiplicity', 'scftype', 'software']:
-        vars(mol)[prop] = vars(args)[prop]
+if run_parameters['site'] is None:
+    site = None
+    proximity_factor = 2.3
+else:
+    site = run_parameters['site']
+    proximity_factor = 2.3
+    site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
-optimiser.bulk_optimize(input_molecules, method_args, gamma=0.0)
+gamma = run_parameters['gamma']
+
+optimiser.bulk_optimize(input_molecules, quantum_chemistry_parameters, gamma=0.0)
