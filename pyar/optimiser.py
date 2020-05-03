@@ -13,8 +13,6 @@ def optimise(molecule, qc_params, gamma=0.0, max_cycles=350,
     scf_cycles = qc_params['scf_cycles']
     scf_threshold = qc_params['scf_threshold']
 
-    print(f"In Optimize function: Charge={molecule.charge}")
-
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'Gaussian job'
