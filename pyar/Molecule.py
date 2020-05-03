@@ -187,7 +187,7 @@ class Molecule(object):
         merged.name = "{self.name} + {other.name}"
         merged.title = "{self.title} + {other.title}"
 
-        combined_charge = self.charge + other.charge
+        merged.charge = self.charge + other.charge
         total_multiplicity = self.multiplicity + other.multiplicity
         if total_multiplicity == 2:
             new_multiplicity = 1
@@ -196,16 +196,17 @@ class Molecule(object):
         elif total_multiplicity == 4:
             if self.multiplicity == 2:
                 new_multiplicity = 1  # Consider low-spin as default
-
             else:
                 new_multiplicity = 3
         else:
             new_multiplicity = 1  # Complicated case.
+        merged.multiplicity = new_multiplicity
 
         if self.scftype == 'rhf' and other.scftype == 'rhf':
             combined_scftype = 'rhf'
         else:
-            combined_scftype = 'scf'
+            combined_scftype = 'uhf'
+        merged.scftype = combined_scftype
         return merged
 
     @classmethod

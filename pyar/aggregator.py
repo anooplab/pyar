@@ -85,16 +85,15 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
 
         not_converged = all_orientations[:]
         for i in range(10):
-            aggregator_logger.info("Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
-            if len(not_converged) == 0:
-                aggregator_logger.info("No more files")
-                break
-            status_list = [optimise(each_mol, qc_params, max_cycles=100, convergence='loose') for each_mol in
-                           not_converged]
-            converged = [n for n, s in zip(not_converged, status_list) if s is True]
-            list_of_optimized_molecules.extend(converged)
-            not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
-            not_converged = clustering.remove_similar(not_converged)
+            if len(not_converged) > 0:
+                aggregator_logger.info(
+                    "Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
+                status_list = [optimise(each_mol, qc_params, max_cycles=100, convergence='loose') for each_mol in
+                               not_converged]
+                converged = [n for n, s in zip(not_converged, status_list) if s is True]
+                list_of_optimized_molecules.extend(converged)
+                not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
+                not_converged = clustering.remove_similar(not_converged)
 
         os.chdir(cwd)
 

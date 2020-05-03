@@ -197,22 +197,22 @@ def main():
 
     # Sanity check
     number_of_input_files = len(run_parameters['input_files'])
-    print(f"{number_of_input_files}")
+    logger.debug(f"{number_of_input_files} input files")
 
     charges = run_parameters['charge']
     number_of_charge_arguments = len(charges)
-    print(f"{number_of_charge_arguments}")
+    logger.debug(f"{number_of_charge_arguments} charge arguments")
     if number_of_charge_arguments != number_of_input_files:
         message = f"Charges are not specified for all input files"
-        print(message)
+        logger.critical(message)
         sys.exit(message)
 
     multiplicities = run_parameters['multiplicity']
     number_of_multiplicity_arguments = len(multiplicities)
-    print(f"{number_of_multiplicity_arguments}")
+    logger.info(f"Provided {number_of_multiplicity_arguments} multiplicities")
     if number_of_multiplicity_arguments != number_of_input_files:
         message = f"Multiplicities are not specified for all input files"
-        print(message)
+        logger.critical(message)
         sys.exit(message)
 
     scftypes = run_parameters['scftype']
@@ -220,17 +220,13 @@ def main():
         scftypes = ['rhf' for _ in range(number_of_input_files)]
     if len(scftypes) != number_of_input_files:
         message = f"SCF Types are not specified for all input files"
-        print(message)
+        logger.critical(message)
         sys.exit(message)
-    print(f"SCF types: {scftypes}")
+    logger.info(f"SCF types: {scftypes}")
 
     logger.info("Parsing the following files: ")
     input_molecules = []
     # noinspection PyTypeChecker
-    for i in charges:
-        print(i)
-    for i in multiplicities:
-        print(i)
     for each_file, charge, multiplicity in \
             zip(run_parameters['input_files'], charges, multiplicities):
         try:
@@ -273,12 +269,10 @@ def main():
                       f"the desired number of each monomers to be added \n" \
                       f"using the argument\n" \
                       f" -as <int> <int> ..."
-            print(size_of_aggregate)
             logger.critical(message)
             sys.exit(message)
 
         number_of_aggregate_size_arguments = len(size_of_aggregate)
-        print(f"{number_of_aggregate_size_arguments}")
 
         seeds = input_molecules
 
