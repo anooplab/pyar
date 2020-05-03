@@ -63,7 +63,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
-    aggregator_logger.info('  There are {} seed molecules'.format(len(seeds)))
+    aggregator_logger.info(f'  There are {len(seeds)} seed molecules in {aggregate_id}')
     print(f'  There are {len(seeds)} seed molecules')
     print(f'  {os.getcwd()}')
     cwd = os.getcwd()
@@ -89,7 +89,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         for i in range(10):
             if len(not_converged) > 0:
                 aggregator_logger.info(
-                    "Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
+                    "    Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
                 status_list = [optimise(each_mol, qc_params, max_cycles=100, convergence='loose') for each_mol in
                                not_converged]
                 converged = [n for n, s in zip(not_converged, status_list) if s is True]
@@ -213,7 +213,7 @@ def aggregate(molecules,
             if len(seed_storage[ag_id]) == 0:
                 aggregator_logger.info(f"No molecules were found from {ag_id}"
                                        f"to continue this pathway.")
-                aggregator_logger.info(f"Breaking! \N{worried face")
+                aggregator_logger.info(f"Breaking! \N{worried face}")
                 break
             seed_storage.popitem(last=False)
             inside_counter += 1

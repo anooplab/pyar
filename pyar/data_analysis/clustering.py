@@ -70,11 +70,11 @@ def calc_fingerprint_distance(a, b):
 
 def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_of_seeds=8):
     if len(list_of_molecules) < 2:
-        cluster_logger.info("Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
+        cluster_logger.info("    Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules
 
     if len(list_of_molecules) <= maximum_number_of_seeds:
-        cluster_logger.info('Not enough data for clustering. '
+        cluster_logger.info('    Not enough data for clustering. '
                             'Removing similar geometries from the list')
         return remove_similar(list_of_molecules)
 
@@ -123,10 +123,9 @@ def print_energy_table(molecules):
     e_dict = {i.name: i.energy for i in molecules}
     if len(e_dict) > 1:
         ref = min(e_dict.values())
+        cluster_logger.info(f"     {'Name':>35}:{'Energy':>12}{'R. E. (kcal/mol)':>18}")
         for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
-            cluster_logger.info("{:>15}:{:12.6f}{:12.2f}".format(name, energy,
-                                                                 (energy - ref) *
-                                                                 627.51))
+            cluster_logger.info(f"     {name:>15}:{energy:12.6f}{(energy - ref) * 627.51:12.2f}")
 
 
 def get_labels(data_as_list, algorithm='combo'):

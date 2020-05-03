@@ -110,12 +110,12 @@ class Turbomole(SF):
         make_coord(self.atoms_list, self.start_coords)
         define_status = prepare_control(scf_conv=scf_conv, charge=self.charge, multiplicity=self.multiplicity)
         if define_status is False:
-            turbomole_logger.error('Initial Define failed, converting to cartesian coordinate')
+            turbomole_logger.warning('Initial Define failed, converting to cartesian coordinate')
             remove('control')
             define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge,
                                             multiplicity=self.multiplicity)
             if define_status is False:
-                turbomole_logger.error('Initial Define failed again. Quit')
+                turbomole_logger.warning('Initial Define failed again. Quit')
                 return 'UpdateFailed'
 
         if gamma == 0.0:
@@ -146,7 +146,7 @@ class Turbomole(SF):
 
         initial_status, initial_energy = calc_energy()
         if initial_status is False:
-            turbomole_logger.error('Initial energy evaluation failed.')
+            turbomole_logger.warning('Initial energy evaluation failed.')
             return 'SCFFailed'
 
         turbomole_logger.debug('First step: %s, %f' % (initial_status, initial_energy))
