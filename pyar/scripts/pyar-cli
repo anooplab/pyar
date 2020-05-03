@@ -99,13 +99,15 @@ def argument_parse():
                                                'Options related to the electronic'
                                                ' structure of the molecule')
 
-    molecule_group.add_argument("-c", "--charge", type=int,
+    molecule_group.add_argument("-c", "--charge", type=int, nargs='+',
+                                required=True, metavar='c',
                                 help="Charge of the system")
 
-    molecule_group.add_argument("-m", "--multiplicity", type=int,
+    molecule_group.add_argument("-m", "--multiplicity", type=int, nargs='+',
+                                required=True, metavar='m',
                                 help="Multiplicity of the system")
 
-    molecule_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
+    molecule_group.add_argument("--scftype", type=str, nargs='+',
                                 help="specify rhf or uhf (default=rhf)")
 
     quantum_chemistry_group = parser.add_argument_group('calculation',
@@ -177,7 +179,8 @@ def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    logger.info(f'Starting PyAR at {datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")}')
+    time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
+    logger.info(f'Starting PyAR at {time_now}')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
@@ -192,15 +195,49 @@ def main():
         if v:
             logger.debug(f"{k:25} = {v}")
 
+    # Sanity check
+    number_of_input_files = len(run_parameters['input_files'])
+    print(f"{number_of_input_files}")
+
+    charges = run_parameters['charge']
+    number_of_charge_arguments = len(charges)
+    print(f"{number_of_charge_arguments}")
+    if number_of_charge_arguments != number_of_input_files:
+        message = f"Charges are not specified for all input files"
+        print(message)
+        sys.exit(message)
+
+    multiplicities = run_parameters['multiplicity']
+    number_of_multiplicity_arguments = len(multiplicities)
+    print(f"{number_of_multiplicity_arguments}")
+    if number_of_multiplicity_arguments != number_of_input_files:
+        message = f"Multiplicities are not specified for all input files"
+        print(message)
+        sys.exit(message)
+
+    scftypes = run_parameters['scftype']
+    if scftypes is None:
+        scftypes = ['rhf' for _ in range(number_of_input_files)]
+    if len(scftypes) != number_of_input_files:
+        message = f"SCF Types are not specified for all input files"
+        print(message)
+        sys.exit(message)
+    print(f"SCF types: {scftypes}")
+
     logger.info("Parsing the following files: ")
     input_molecules = []
     # noinspection PyTypeChecker
-    for each_file in run_parameters['input_files']:
+    for i in charges:
+        print(i)
+    for i in multiplicities:
+        print(i)
+    for each_file, charge, multiplicity in \
+            zip(run_parameters['input_files'], charges, multiplicities):
         try:
             mol = Molecule.Molecule.from_xyz(each_file)
             logger.info(f"    {each_file}")
-            for prop in ['charge', 'multiplicity', 'scftype']:
-                vars(mol)[prop] = run_parameters[prop]
+            mol.charge = charge
+            mol.multiplicity = multiplicity
             input_molecules.append(mol)
         except IOError:
             logger.critical(f"File {each_file} does not exist")
@@ -230,21 +267,24 @@ def main():
     logger.info(f'{number_of_orientations} orientations will be used')
 
     if run_parameters['aggregate']:
-        new_size_of_aggregate = run_parameters['aggregate_size']
-        if new_size_of_aggregate is None:
+        size_of_aggregate = run_parameters['aggregate_size']
+        if size_of_aggregate is None:
             message = f"Error: For an Aggregation run, specify \n" \
                       f"the desired number of each monomers to be added \n" \
                       f"using the argument\n" \
                       f" -as <int> <int> ..."
-            print(new_size_of_aggregate)
+            print(size_of_aggregate)
             logger.critical(message)
             sys.exit(message)
+
+        number_of_aggregate_size_arguments = len(size_of_aggregate)
+        print(f"{number_of_aggregate_size_arguments}")
 
         seeds = input_molecules
 
         t1_0 = time.time()
         time_started = datetime.datetime.now()
-        aggregator.aggregate(seeds, new_size_of_aggregate,
+        aggregator.aggregate(seeds, size_of_aggregate,
                              number_of_orientations,
                              quantum_chemistry_parameters,
                              maximum_number_of_seeds,
@@ -258,7 +298,7 @@ def main():
         number_of_solvent_molecules = run_parameters['solvation_size']
         if number_of_solvent_molecules is None:
             message = f'For this please provide the number of solvent\n' \
-                      f'molecules to be added. Use the fooloiwng optio\n' \
+                      f'molecules to be added. Use the following option\n' \
                       f'  -ss <int>'
 
             logger.error(message)
@@ -315,7 +355,7 @@ def main():
         time_started = datetime.datetime.now()
         reactor.react(input_molecules[0], input_molecules[1],
                       minimum_gamma, maximum_gamma,
-                      number_of_orientations,
+                      int(number_of_orientations),
                       quantum_chemistry_parameters,
                       site, proximity_factor)
         logger.info('Total run time: {}'.format(time.time() - zero_time))

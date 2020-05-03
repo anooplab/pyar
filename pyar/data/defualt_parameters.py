@@ -1,6 +1,6 @@
 values = {'input_files': [''],
           'how_many_orientations': 8,
-          'charge': 0, 'multiplicity': 1, 'scftype': 'rhf',
+          'charge': None, 'multiplicity': None, 'scftype': None,
           'scf_threshold': 'loose', 'scf_cycles': 1000,
           'opt_threshold': 'loose', 'opt_cycles': 100,
           'basis': 'def2-SVP', 'method': 'BP86',

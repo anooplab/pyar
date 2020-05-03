@@ -40,13 +40,14 @@ molecule_group = parser.add_argument_group('molecule',
                                            'Options related to the electronic'
                                            ' structure of the molecule')
 
-molecule_group.add_argument("-c", "--charge", type=int,
+molecule_group.add_argument("-c", "--charge", type=int, required=True,
                             help="Charge of the system")
 
-molecule_group.add_argument("-m", "--multiplicity", type=int,
+molecule_group.add_argument("-m", "--multiplicity", type=int, required=True,
                             help="Multiplicity of the system")
 
 molecule_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'],
+                            default='rhf',
                             help="specify rhf or uhf (default=rhf)")
 
 quantum_chemistry_group = parser.add_argument_group('calculation',
