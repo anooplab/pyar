@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 
+import pyar.scan
 import pyar.tabu
 
 
@@ -101,7 +102,7 @@ def tabu_function():
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms + args.best[1]
-        pyar.tabu.generate_guess_for_bonding('xxx', seed, monomer, a, b, N)
+        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b, N)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ import sys
 import numpy as np
 
 import pyar.interface.babel
+import pyar.scan
 from pyar import tabu, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
@@ -59,10 +60,10 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
                                                       reactant_b,
                                                       hm_orientations)
     else:
-        all_orientations = tabu.generate_guess_for_bonding('geom', reactant_a,
-                                                           reactant_b,
-                                                           site[0], site[1],
-                                                           hm_orientations)
+        all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
+                                                                reactant_b,
+                                                                site[0], site[1],
+                                                                hm_orientations)
 
     os.chdir(cwd)
 

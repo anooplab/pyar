@@ -9,9 +9,7 @@ import sys
 import time
 from collections import defaultdict
 
-import numpy as np
-
-from pyar import reactor, tabu, aggregator, optimiser, Molecule
+from pyar import reactor, aggregator, scan, Molecule
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
@@ -363,11 +361,6 @@ def main():
         return
 
     if run_parameters['scan_bond']:
-        site_atoms = run_parameters['scan_bond']
-        a_molecule = input_molecules[0]
-        b_molecule = input_molecules[1]
-        a_atom = site_atoms[0]
-        b_atom = a_molecule.number_of_atoms + a_atom
         if number_of_orientations is None:
             logger.error("For aggregation, specify how many orientations"
                          "are    to be used, by the argument\n"
@@ -376,31 +369,9 @@ def main():
 
         # noinspection PyTypeChecker
         number_of_orientations = int(number_of_orientations)
-        input_molecules = tabu.generate_guess_for_bonding('abc',
-                                                          a_molecule, b_molecule,
-                                                          a_atom, b_atom,
-                                                          int(number_of_orientations))
+        site_atoms = run_parameters['scan_bond']
 
-        for each_molecule in input_molecules:
-            coordinates = each_molecule.coordinates
-            start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
-            final_distance = each_molecule.covalent_radius[a_atom] + each_molecule.covalent_radius[b_atom]
-            step = int(abs(final_distance - start_dist) * 10)
-            if run_parameters['software'] == 'orca':
-                c_k = f'\n% geom\n    scan B {a_atom} {b_atom}= {start_dist}, ' \
-                      f'{final_distance}, {step}\n        end\nend\n'
-                quantum_chemistry_parameters['gamma'] = 0.0
-                cwd = os.getcwd()
-                job_dir = 'scans'
-                from pyar import file_manager
-                file_manager.make_directories(job_dir)
-                os.chdir(job_dir)
-                optimiser.optimise(each_molecule, quantum_chemistry_parameters,
-                                   custom_keyword=c_k)
-                os.chdir(cwd)
-            else:
-                logger.error('Optimization with %s is not implemented '
-                             'yet' % run_parameters['software'])
+        scan.scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_chemistry_parameters)
 
     return
 
