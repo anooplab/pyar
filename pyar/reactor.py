@@ -19,11 +19,7 @@ saved_smile_strings = {}
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
-    reactor_logger.info('Starting Reactor')
-    reactor_logger.info(f'{hm_orientations} orientations will be tried')
-    reactor_logger.info(f' Gamma (min): {gamma_min}')
-    reactor_logger.info(f' Gamma (max): {gamma_max}')
-    reactor_logger.info(f' Software   : {software}')
+    pass
 
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
@@ -36,8 +32,19 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     in each gamma after eliminating the products or failed geometries.
 
     """
+
+    file_manager.make_directories('reaction')
+    os.chdir('reaction')
     cwd = os.getcwd()
+
+    reactor_logger.info('Starting Reactor')
+    reactor_logger.info(f'{hm_orientations} orientations will be tried')
+    reactor_logger.info(f' Gamma (min): {gamma_min}')
+    reactor_logger.info(f' Gamma (max): {gamma_max}')
+    reactor_logger.info(f' Software   : {software}')
+
     reactor_logger.debug(f'Current working directory: {cwd}')
+
     software = qc_params['software']
     print_header(gamma_max, gamma_min, hm_orientations, software)
     # prepare job directories
@@ -63,14 +70,14 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     orientations_to_optimize = all_orientations[:]
 
     for gamma in gamma_list:
+        qc_params['gamma'] = gamma
         reactor_logger.info(f'  Current gamma : {gamma}')
         gamma_id = f"{int(gamma):04d}"
         gamma_home = cwd + '/gamma_' + gamma_id
         file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)
 
-        optimized_molecules = optimize_all(gamma_id, gamma,
-                                           orientations_to_optimize,
+        optimized_molecules = optimize_all(gamma_id, orientations_to_optimize,
                                            product_dir, qc_params)
 
         reactor_logger.info(f"      {len(optimized_molecules)} geometries from this gamma cycle")
@@ -91,8 +98,9 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     return
 
 
-def optimize_all(gamma_id, gamma, orientations_to_optimize,
+def optimize_all(gamma_id, orientations_to_optimize,
                  product_dir, qc_param):
+    gamma = qc_param['gamma']
     cwd = os.getcwd()
     table_of_optimized_molecules = []
     for this_molecule in orientations_to_optimize:
@@ -109,7 +117,7 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
         this_molecule.mol_to_xyz(start_xyz_file_name)
         start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
         start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
-        status = optimise(this_molecule, qc_param, gamma=gamma)
+        status = optimise(this_molecule, qc_param)
         before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
         reactor_logger.info('... completed')
@@ -156,18 +164,17 @@ def optimize_all(gamma_id, gamma, orientations_to_optimize,
                             continue
                     else:
                         table_of_optimized_molecules.append(before_relax)
-                        reactor_logger.info('{} is added to the table to '
-                                            'optimize with higher '
-                                            'gamma'.format(job_name))
+                        reactor_logger.info(f'{job_name} is added to the table'
+                                            f' to optimize with higher gamma')
                 elif status == 'cycle_exceeded':
                     table_of_optimized_molecules.append(before_relax)
-                    reactor_logger.info('{} is added to the table to optimize '
-                                        'with higher gamma'.format(job_name))
+                    reactor_logger.info(f'{job_name} is added to the table to '
+                                        f'optimize with higher gamma')
             else:
                 table_of_optimized_molecules.append(this_molecule)
-                reactor_logger.info('        no close contacts found')
-                reactor_logger.info('       {} is added to the table to '
-                                    'optimize with higher gamma'.format(job_name))
+                reactor_logger.info(f'        no close contacts found')
+                reactor_logger.info(f'        {job_name} is added to '
+                                    f'the table to optimize with higher gamma')
         os.chdir(cwd)
         sys.stdout.flush()
     return table_of_optimized_molecules

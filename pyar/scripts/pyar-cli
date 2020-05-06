@@ -37,8 +37,10 @@ def argument_parse():
                         help='input coordinate files')
 
     parser.add_argument('-N', dest='how_many_orientations', metavar='N',
-                        required=True,
-                        help='how many orientations to be used')
+                        required=True, help='how many orientations to be used')
+
+    parser.add_argument('-nprocs', '--nprocs', metavar='n', nargs=1,
+                        type=int, help='how many orientations to be used')
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
 
@@ -100,11 +102,11 @@ def argument_parse():
                                                ' structure of the molecule')
 
     molecule_group.add_argument("-c", "--charge", type=int, nargs='+',
-                                required=True, metavar='c',
+                                metavar='c',
                                 help="Charge of the system")
 
     molecule_group.add_argument("-m", "--multiplicity", type=int, nargs='+',
-                                required=True, metavar='m',
+                                metavar='m',
                                 help="Multiplicity of the system")
 
     molecule_group.add_argument("--scftype", type=str, nargs='+',
@@ -138,6 +140,9 @@ def argument_parse():
 
     quantum_chemistry_group.add_argument('--scf-cycles', type=int, default=1000,
                                          help='Maximum SCF cycles.')
+
+    quantum_chemistry_group.add_argument('--custom-keywords', type=str,
+                                         help='Software related custom keywords.')
 
     return parser.parse_args()
 
@@ -200,6 +205,8 @@ def main():
     logger.debug(f"{number_of_input_files} input files")
 
     charges = run_parameters['charge']
+    if charges is None:
+        charges = [0 for _ in range(number_of_input_files)]
     number_of_charge_arguments = len(charges)
     logger.debug(f"{number_of_charge_arguments} charge arguments")
     if number_of_charge_arguments != number_of_input_files:
@@ -208,8 +215,10 @@ def main():
         sys.exit(message)
 
     multiplicities = run_parameters['multiplicity']
+    if multiplicities is None:
+        multiplicities = [1 for _ in range(number_of_input_files)]
     number_of_multiplicity_arguments = len(multiplicities)
-    logger.info(f"Provided {number_of_multiplicity_arguments} multiplicities")
+    logger.debug(f"Provided {number_of_multiplicity_arguments} multiplicities")
     if number_of_multiplicity_arguments != number_of_input_files:
         message = f"Multiplicities are not specified for all input files"
         logger.critical(message)
@@ -222,26 +231,22 @@ def main():
         message = f"SCF Types are not specified for all input files"
         logger.critical(message)
         sys.exit(message)
-    logger.info(f"SCF types: {scftypes}")
+    logger.debug(f"Provided SCF types: {scftypes}")
 
     logger.info("Parsing the following files: ")
     input_molecules = []
     # noinspection PyTypeChecker
-    for each_file, charge, multiplicity in \
-            zip(run_parameters['input_files'], charges, multiplicities):
+    for each_file, charge, multiplicity, scftype in \
+            zip(run_parameters['input_files'], charges, multiplicities, scftypes):
         try:
             mol = Molecule.Molecule.from_xyz(each_file)
-            logger.info(f"    {each_file}")
             mol.charge = charge
             mol.multiplicity = multiplicity
             input_molecules.append(mol)
+            logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
         except IOError:
             logger.critical(f"File {each_file} does not exist")
             sys.exit()
-
-    logger.info(f'Charge:        {run_parameters["charge"]}')
-    logger.info(f'Multiplicity:  {run_parameters["multiplicity"]}')
-    logger.info(f'SCF Type:      {run_parameters["scftype"]}')
 
     quantum_chemistry_parameters = {
         'basis': run_parameters['basis'],
@@ -250,29 +255,30 @@ def main():
         'opt_cycles': run_parameters['opt_cycles'],
         'opt_threshold': run_parameters['opt_threshold'],
         'scf_cycles': run_parameters['scf_cycles'],
-        'scf_threshold': run_parameters['scf_threshold']
+        'scf_threshold': run_parameters['scf_threshold'],
+        'nprocs': run_parameters['nprocs'],
+        'gamma': run_parameters['gamma'],
+        'custom_keyword': run_parameters['custom_keyword']
     }
 
     logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
 
     number_of_orientations = run_parameters['how_many_orientations']
-    logger.info(f'{number_of_orientations} orientations will be used')
+    logger.info(f'Number of orientations: {number_of_orientations}')
 
     maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
 
-    logger.info(f'{number_of_orientations} orientations will be used')
+    logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
 
     if run_parameters['aggregate']:
         size_of_aggregate = run_parameters['aggregate_size']
-        if size_of_aggregate is None:
+        if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
             message = f"Error: For an Aggregation run, specify \n" \
                       f"the desired number of each monomers to be added \n" \
                       f"using the argument\n" \
                       f" -as <int> <int> ..."
             logger.critical(message)
             sys.exit(message)
-
-        number_of_aggregate_size_arguments = len(size_of_aggregate)
 
         seeds = input_molecules
 
@@ -381,12 +387,17 @@ def main():
             final_distance = each_molecule.covalent_radius[a_atom] + each_molecule.covalent_radius[b_atom]
             step = int(abs(final_distance - start_dist) * 10)
             if run_parameters['software'] == 'orca':
-                c_k = '\n!ScanTS\n% geom scan B ' + str(a_atom) + ' ' + str(b_atom) + \
-                      '= ' + str(start_dist) + ', ' + str(final_distance) + \
-                      ', ' + str(step) + ' end end\n'
-
-                optimiser.optimise(each_molecule, quantum_chemistry_parameters, 0.0,
+                c_k = f'\n% geom\n    scan B {a_atom} {b_atom}= {start_dist}, ' \
+                      f'{final_distance}, {step}\n        end\nend\n'
+                quantum_chemistry_parameters['gamma'] = 0.0
+                cwd = os.getcwd()
+                job_dir = 'scans'
+                from pyar import file_manager
+                file_manager.make_directories(job_dir)
+                os.chdir(job_dir)
+                optimiser.optimise(each_molecule, quantum_chemistry_parameters,
                                    custom_keyword=c_k)
+                os.chdir(cwd)
             else:
                 logger.error('Optimization with %s is not implemented '
                              'yet' % run_parameters['software'])

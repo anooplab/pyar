@@ -29,7 +29,7 @@ from pyar.interface import SF, which
 
 
 class Mopac(SF):
-    def __init__(self, molecule, method):
+    def __init__(self, molecule, qc_params):
 
         if which('mopac') is None:
             print('set MOPAC path')
@@ -42,8 +42,7 @@ class Mopac(SF):
         self.start_coords = molecule.coordinates
         self.optimized_coordinates = []
         self.energy = 0.0
-        keyword = "PM7 PRECISE LET DDMIN=0.0 " \
-                  "CYCLES=10000 charge={}".format(charge)
+        keyword = f'PM7 PRECISE LET DDMIN=0.0 CYCLES=10000 charge={molecule.charge}'
         self.prepare_input(keyword=keyword)
 
     def prepare_input(self, keyword=""):

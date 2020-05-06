@@ -64,8 +64,6 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         aggregator_logger.info("Function: add_one")
         return StopIteration
     aggregator_logger.info(f'  There are {len(seeds)} seed molecules in {aggregate_id}')
-    print(f'  There are {len(seeds)} seed molecules')
-    print(f'  {os.getcwd()}')
     cwd = os.getcwd()
 
     list_of_optimized_molecules = []
@@ -90,7 +88,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
             if len(not_converged) > 0:
                 aggregator_logger.info(
                     "    Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
-                status_list = [optimise(each_mol, qc_params, max_cycles=100, convergence='loose') for each_mol in
+                qc_params["opt_threshold"] = 'loose'
+                status_list = [optimise(each_mol, qc_params) for each_mol in
                                not_converged]
                 converged = [n for n, s in zip(not_converged, status_list) if s is True]
                 list_of_optimized_molecules.extend(converged)
@@ -106,8 +105,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
                                                   maximum_number_of_seeds=maximum_number_of_seeds)
     file_manager.make_directories('selected')
     os.chdir('selected')
+    qc_params["opt_threshold"] = 'normal'
     for each_file in selected_seeds:
-        status = optimise(each_file, qc_params, max_cycles=100, convergence='normal')
+        status = optimise(each_file, qc_params)
         if status is True:
             # xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
             xyz_file = 'job_' + each_file.name + '/result_' + each_file.name + '.xyz'
@@ -221,8 +221,8 @@ def aggregate(molecules,
         seed_storage = copy.copy(initial_storage)
         ag_id = initial_aggregate_id
 
-        if hm_orientations == 'auto' and number_of_orientations <= 256:
-            number_of_orientations += 8
+    if hm_orientations == 'auto' and number_of_orientations <= 256:
+        number_of_orientations += 8
     return
 
 

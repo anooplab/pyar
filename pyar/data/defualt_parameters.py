@@ -7,7 +7,7 @@ values = {'input_files': [''],
           'software': None,
           'verbosity': 1,
           'maximum_number_of_seeds': 8,
-          'site': None,
+          'site': None, 'gamma': None,
           'react': False, 'gmin': None, 'gmax': None,
           'aggregate': False, 'aggregate_size': None,
           'binary_aggregate': False, 'ternary_aggregate': False,
@@ -16,7 +16,9 @@ values = {'input_files': [''],
           'size_of_fragment_three': None,
           'first_pathway': 0,
           'number_of_pathways': 0,
-          'scan_bond': None
+          'scan_bond': None,
+          'nprocs': 3,
+          'custom_keywords': None
           }
 """
 The default calculation parameters

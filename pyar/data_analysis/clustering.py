@@ -216,7 +216,7 @@ def n_clusters_optimized_with_kmeans(dt):
             scores[i] = silhouette_score(dt, labels[i])
             cluster_logger.debug('n_clusters: {}; score: {}'.format(i, scores[i]))
         except Exception:
-            cluster_logger.exception('K-Means failed')
+            cluster_logger.error('K-Means failed')
     best = max(scores, key=scores.get)
     cluster_logger.info('Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
     return labels[best], centres[best]

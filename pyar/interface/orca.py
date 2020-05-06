@@ -26,7 +26,7 @@ from pyar.interface import SF, write_xyz, which
 
 
 class Orca(SF):
-    def __init__(self, molecule, method, custom_keyword=None):
+    def __init__(self, molecule, qc_params, custom_keyword=None):
 
         super(Orca, self).__init__(molecule)
 
@@ -36,14 +36,14 @@ class Orca(SF):
         self.optimized_coordinates = []
         self.energy = 0.0
         keyword = '! '
-        keyword += f" {method['method']}"
-        keyword += f" {method['basis']}"
+        keyword += f" {qc_params['method']}"
+        keyword += f" {qc_params['basis']}"
 
         if any(x >= 21 for x in molecule.atomic_number):
             keyword += ' def2-ECP'
+        keyword += " RI def2/J D3BJ KDIIS PAL3"
         if custom_keyword is not None:
             keyword += custom_keyword
-        keyword += " RI def2/J D3BJ KDIIS  PAL3"
         self.keyword = keyword
 
     def prepare_input(self):
@@ -60,14 +60,18 @@ class Orca(SF):
         f1.write("*")
         f1.close()
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
+    def optimize(self, options)
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
         """
         # TODO: Add a return 'CycleExceeded'
 
-        self.keyword = self.keyword + ' Opt'
+        max_cycles = options['opt_cycles']
+        gamma = options['gamma']
+        convergence = options['opt_threshold']
+
+        self.keyword = self.keyword + '\n! Opt'
         self.prepare_input()
 
         with open(self.out_file, 'w') as fopt:

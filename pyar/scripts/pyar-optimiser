@@ -59,6 +59,9 @@ quantum_chemistry_group.add_argument("--software", type=str,
                                               'xtb_turbo'],
                                      required=True, help="Software")
 
+quantum_chemistry_group.add_argument('-nprocs', '--nprocs', type=int, nargs=1,
+                                     help='Number of processors')
+
 quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
                                      help='Basis set (default=def2-SVP)')
 
@@ -78,6 +81,9 @@ quantum_chemistry_group.add_argument('--scf-threshold', type=str, default='norma
 
 quantum_chemistry_group.add_argument('--scf-cycles', type=int, default=1000,
                                      help='Maximum SCF cycles.')
+
+quantum_chemistry_group.add_argument('--custom-keywords', type=str,
+                                     help='Software related custom keywords.')
 
 args = vars(parser.parse_args())
 
@@ -150,7 +156,10 @@ quantum_chemistry_parameters = {
     'opt_cycles': run_parameters['opt_cycles'],
     'opt_threshold': run_parameters['opt_threshold'],
     'scf_cycles': run_parameters['scf_cycles'],
-    'scf_threshold': run_parameters['scf_threshold']
+    'scf_threshold': run_parameters['scf_threshold'],
+    'nprocs': run_parameters['nprocs'],
+    'gamma': run_parameters['gamma'],
+    'custom_keyword': run_parameters['custom_keyword']
 }
 
 logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
@@ -163,6 +172,4 @@ else:
     proximity_factor = 2.3
     site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
-gamma = run_parameters['gamma']
-
-optimiser.bulk_optimize(input_molecules, quantum_chemistry_parameters, gamma=0.0)
+optimiser.bulk_optimize(input_molecules, quantum_chemistry_parameters)

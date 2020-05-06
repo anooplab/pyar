@@ -75,7 +75,7 @@ def sed_inplace(pattern, replace_to, filename='control'):
 
 class Turbomole(SF):
 
-    def __init__(self, molecule, method):
+    def __init__(self, molecule, qc_params):
         if which('define') is None:
             turbomole_logger.error('set Turbomole path')
             sys.exit('Set turbomole path')
@@ -86,8 +86,10 @@ class Turbomole(SF):
         self.atoms_in_fragments = molecule.fragments
         self.energy = None
         self.optimized_coordinates = None
+        self.basis = qc_params['basis']
+        self.method = qc_params['method']
 
-    def optimize(self, max_cycles=350, gamma=0.0, convergence='normal', restart=False):
+    def optimize(self, options):
         """This is the python implementation  of jobex of turbomole
 
         :returns: True,
@@ -98,6 +100,10 @@ class Turbomole(SF):
                   False
 
         """
+        max_cycles = options['opt_cycles']
+        gamma = options['gamma']
+        convergence = options['opt_threshold']
+
         if convergence == 'loose':
             scf_conv = 6
         elif convergence == 'tight':
@@ -107,18 +113,29 @@ class Turbomole(SF):
         else:
             scf_conv = 7
 
+        basis_set = self.basis
+        functional = 'bp'
+        if self.method.lower() == 'bp86':
+            functional = 'bp'
+        if self.method.lower() == 'b3lyp':
+            functional = 'b3-lyp'
+
         make_coord(self.atoms_list, self.start_coords)
-        define_status = prepare_control(scf_conv=scf_conv, charge=self.charge, multiplicity=self.multiplicity)
+        define_status = prepare_control(scf_conv=scf_conv,
+                                        charge=self.charge,
+                                        multiplicity=self.multiplicity,
+                                        basis=basis_set,
+                                        func=functional)
         if define_status is False:
-            turbomole_logger.warning('Initial Define failed, converting to cartesian coordinate')
+            turbomole_logger.debug('Initial Define failed, converting to cartesian coordinate')
             remove('control')
             define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge,
                                             multiplicity=self.multiplicity)
             if define_status is False:
-                turbomole_logger.warning('Initial Define failed again. Quit')
+                turbomole_logger.debug('Initial Define failed again. Quit')
                 return 'UpdateFailed'
 
-        if gamma == 0.0:
+        if gamma is None:
             return self.run_turbomole_jobex(max_cycles=max_cycles)
 
         # Test for Turbomole input
@@ -425,8 +442,8 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                 subp.check_call(['define'], stdin=fin, stdout=fout,
                                 stderr=fout, universal_newlines=False)
             except subp.CalledProcessError as e:
-                turbomole_logger.critical('Error in define')
-                turbomole_logger.critical("%s: %s\n" % (e.output, e.returncode))
+                turbomole_logger.debub('Error in define')
+                turbomole_logger.debub("%s: %s\n" % (e.output, e.returncode))
                 return False
         with open(define_log_file) as fout:
             if "define : all done" not in fout.read() or 'abnormally' in fout.read():

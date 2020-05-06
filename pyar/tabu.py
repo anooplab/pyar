@@ -34,7 +34,7 @@ def write_tabu_list(tabu_list, tabu_file):
         tf.write('\n')
 
 
-def gen_a_set_of_angles(which_octant):
+def generate_a_set_of_angles(which_octant):
     sa = 0.0
     ri = pi / 2.0
     ga = pi
@@ -93,7 +93,7 @@ def gen_vectors(number_of_orientations):
             accepted = False
             one_set = None
             while not accepted:
-                accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
+                accepted, one_set = check_similarity(generate_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
             vectors.append(one_set)
         d_threshold *= 0.95
     return vectors
@@ -130,7 +130,8 @@ def generate_orientations_old(molecule_id, seed, monomer, number_of_orientations
                 accepted = False
                 one_set = None
                 while not accepted:
-                    accepted, one_set = check_similarity(gen_a_set_of_angles(j + 1), vectors, d_threshold, a_threshold)
+                    accepted, one_set = check_similarity(generate_a_set_of_angles(j + 1), vectors, d_threshold,
+                                                         a_threshold)
                 orientation = merge_monomer_and_seed(one_set, monomer, seed)
                 vectors.append(one_set)
                 orientation_id = "%03d_" % (i * 8 + j) + molecule_id
@@ -376,7 +377,7 @@ def plot_points(pts):
     x = np.outer(np.sin(theta), np.cos(phi))
     y = np.outer(np.sin(theta), np.sin(phi))
     z = np.outer(np.cos(theta), np.ones_like(phi))
-    fig, ax = plt.subplots(1, 1, subplot_kw={'projection': '3d', 'aspect': 'equal'})
+    fig, ax = plt.subplots(1, 1, subplot_kw={'projection': '3d'})
     ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.1)
     ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=100, c='r', zorder=10)
     fig.show()
@@ -398,7 +399,7 @@ def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=Fals
     tabu_logger.debug('checking close contact')
 
     is_in_cage = True
-    while close_contact(seed, monomer, 1.0) or is_in_cage:
+    while close_contact(seed, monomer, 2.3) or is_in_cage:
         minimum_sep_1 = minimum_separation(seed, monomer)
         monomer.translate(translate_by)
         minimum_sep_2 = minimum_separation(seed, monomer)
@@ -454,8 +455,8 @@ def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
     filename_prefix = 'trial_'
     orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
     for i, each_orientation in enumerate(orientations):
-        each_orientation_id = "%03d_" % (i) + molecule_id
-        each_orientation.title = 'trial orientation ' + each_orientation_id
+        each_orientation_id = f"{i:03d}_{molecule_id}"
+        each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
@@ -523,7 +524,6 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     t2 = time.clock()
     tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
     write_tabu_list(saved_pts, 'tabu.dat')
-    plot_points(np.array(saved_pts))
 
     return orientations
 

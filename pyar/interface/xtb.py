@@ -48,7 +48,7 @@ class Xtb(SF):
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
+    def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
         """
         :returns: True,
                   'SCFFailed',
@@ -57,7 +57,7 @@ class Xtb(SF):
                   'CycleExceeded',
                   False
         """
-        if gamma > 0.0:
+        if gamma is not None:
             xtb_logger.error('not implemented in this module. Use xtb_turbo')
 
         with open('xtb.out', 'w') as output_file_pointer:

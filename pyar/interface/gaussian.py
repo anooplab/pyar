@@ -32,15 +32,18 @@ class Gaussian(SF):
         super(Gaussian, self).__init__(molecule)
 
         self.start_coords = molecule.coordinates
-        self.inp_file = 'trial_' + self.job_name + '.com'
-        self.out_file = 'trial_' + self.job_name + '.log'
+        self.inp_file = f'trial_{self.job_name}.com'
+        self.out_file = f'trial_{self.job_name}.log'
         self.optimized_coordinates = []
         self.energy = 0.0
-
-        self.keyword = f"%nprocshared=3\n" \
-                       f"%chk=molecule.chk\n" \
+        basis = qc_params['basis']
+        if basis.lower() == 'def2-svp':
+            basis = 'def2SVP'
+        self.keyword = f"%nprocshared={qc_params['nprocs']}3\n" \
+                       f"%chk=trial_{self.job_name}.chk\n" \
                        f"%mem=2GB\n" \
-                       f"# {qc_params['method']}"
+                       f"# {qc_params['method']} {basis} " \
+                       f"SCF=(MaxCycle={qc_params['scf_cycles']})"
 
     def prepare_input(self):
         coords = self.start_coords
@@ -53,7 +56,7 @@ class Gaussian(SF):
         f1.write(f"\n")
         f1.close()
 
-    def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
+    def optimize(self, options):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
@@ -61,7 +64,13 @@ class Gaussian(SF):
         # TODO: Add a return 'CycleExceeded'
         logfile = "trial_{}.out".format(self.job_name)
 
-        self.keyword += f" opt=(maxcycles={max_cycles})"
+        max_opt_cycles = options['opt_cycles']
+        gamma = options['gamma']
+        opt_keywords = f"maxcycles={max_opt_cycles}"
+        convergence = options['opt_threshold']
+        if convergence != 'normal':
+            opt_keywords += f", {convergence}"
+        self.keyword += f" opt=({opt_keywords})"
         self.prepare_input()
         with open(self.out_file, 'w') as fopt:
             out = subp.Popen(["g16", self.inp_file], stdout=fopt, stderr=fopt)
@@ -80,7 +89,7 @@ class Gaussian(SF):
                 if "SCF Done" in j:
                     check_2 = 1
 
-            if ("Normal termination of Gaussian 09" in this_line[-1]) and check_1 == 1 and check_2 == 1:
+            if ("Normal termination" in this_line[-1]) and check_1 == 1 and check_2 == 1:
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
                 interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
