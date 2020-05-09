@@ -20,7 +20,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     orientations = []
     for i in range(number_of_orientations):
         t1 = time.clock()
-        pts = pyar.tabu.new_gen(32, True, True, True, 0.3, 5.0)
+        pts = pyar.tabu.generate_points(32, True, True, True, 0.3, 5.0)
         t2 = time.clock()
         pyar.tabu.tabu_logger.debug('Created points: in {} seconds'.format(t2 - t1))
         t1 = time.clock()

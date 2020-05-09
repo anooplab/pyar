@@ -128,7 +128,7 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
     return tabu
 
 
-def generate_composite_molecule(seed, monomer, points_and_angles):
+def create_composite_molecule(seed, monomer, points_and_angles):
     composite = copy.deepcopy(seed)
     for vector in points_and_angles:
         composite = merge_two_molecules(vector, composite, monomer,
@@ -189,7 +189,7 @@ def make_5d_coords(grid_location):
     return np.concatenate((xyz, theta_phi), axis=0)
 
 
-def new_gen(number_of_orientations, tabu_on, grid_on, check_angle, d_threshold=0.3, a_threshold=15.0):
+def generate_points(number_of_orientations, tabu_on, grid_on, check_angle, d_threshold=0.3, a_threshold=15.0):
     """
     Generate points
 
@@ -257,8 +257,8 @@ def create_trial_geometries(molecule_id, seed, monomer,
         tabu_check_for_angles = True
 
     tabu_logger.debug('Generating points')
-    points_and_angles = new_gen(number_of_orientations, tabu_on,
-                                grid_on, tabu_check_for_angles)
+    points_and_angles = generate_points(number_of_orientations, tabu_on,
+                                        grid_on, tabu_check_for_angles)
     tabu_logger.debug('Generated points')
     write_tabu_list(points_and_angles, 'tabu.dat')
     # plot_points(pts)
@@ -303,7 +303,7 @@ def main():
 
 
 if __name__ == "__main__":
-    pts = new_gen(4, True, True, False, 0.3, 15.0)
+    pts = generate_points(4, True, True, False, 0.3, 15.0)
     for i in pts:
         print(i)
     plot_points(pts, '/home/anoop')

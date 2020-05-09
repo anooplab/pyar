@@ -65,8 +65,8 @@ def tabu_function():
     else:
         grid_on = False
 
-    pts = pyar.tabu.new_gen(number_of_trial_orientations,
-                            tabu_on, grid_on, False)
+    pts = pyar.tabu.generate_points(number_of_trial_orientations,
+                                    tabu_on, grid_on, False)
 
     if args.plot:
         pyar.tabu.plot_points(pts, os.getcwd())
@@ -82,8 +82,8 @@ def tabu_function():
 
     if args.make_composite:
         for i in range(8):
-            pts = pyar.tabu.new_gen(number_of_trial_orientations, tabu_on=True, grid_on=True, check_angle=False)
-            result = pyar.tabu.generate_composite_molecule(seed, monomer, pts)
+            pts = pyar.tabu.generate_points(number_of_trial_orientations, tabu_on=True, grid_on=True, check_angle=False)
+            result = pyar.tabu.create_composite_molecule(seed, monomer, pts)
             result.title = f"trial_{i:03d}"
             result.mol_to_xyz(f'result_{i:03}.xyz')
 
