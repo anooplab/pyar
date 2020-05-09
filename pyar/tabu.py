@@ -2,34 +2,11 @@
 import copy
 import itertools
 import logging
-import os.path
 
 import numpy as np
 from numpy import pi, cos, sin
 
 tabu_logger = logging.getLogger('pyar.tabu')
-
-
-def load_tabu_list(tabu_file='tabu.dat'):
-    """
-    This was supposed to help in restarting a job.
-    Never managed to implement.
-
-    :param tabu_file: The file name containing tabu list.
-    :return: tabu list
-    """
-    if not os.path.exists(tabu_file):
-        return []
-    with open(tabu_file, 'r') as tf:
-        tabu_list = [map(float, i.split()) for i in tf.readlines()]
-        return tabu_list
-
-
-def write_tabu_list(tabu_list, tabu_file):
-    with open(tabu_file, 'a') as tf:
-        for i in tabu_list:
-            tf.write(str(i) + ' ')
-        tf.write('\n')
 
 
 def polar_to_cartesian(r, theta, phi):
@@ -39,7 +16,7 @@ def polar_to_cartesian(r, theta, phi):
     return x, y, z
 
 
-def close_contact(mol_1, mol_2, factor):
+def check_close_contact(mol_1, mol_2, factor):
     """
     Checks for close contacts between two molecules.  If the distance between
     any pair of atoms is less than the sum of van der Waals radii (scaled by
@@ -74,81 +51,8 @@ def minimum_separation(mol_1, mol_2):
                    itertools.product(mol_1.coordinates, mol_2.coordinates)])
 
 
-def check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles,
-               angle_tabu):
-    """
-    Check if the given point (point_n_angle) is within the proximity (set by
-    d_threshold and a_threshold
-
-    :type point_n_angle: ndarray(x, y, z, theta, phi, psi)
-    :param point_n_angle: six numbers (x, y, z, theta, phi, psi)
-    :type d_threshold: float
-    :param d_threshold: minimum distance for Tabu
-    :type a_threshold: float
-    :param a_threshold: minimum angle (in radian) for Tabu
-    :type saved_points_and_angles: ndarray
-    :param saved_points_and_angles: the saved points and angles
-    :type angle_tabu: boolean
-    :param angle_tabu: boolean if True consider also angles for checking the proximity
-    :rtype: boolean
-    :return: True if the new points is within the proximity of saved points
-
-    """
-    if saved_points_and_angles is None:
-        return False
-    tabu = False
-    for each_saved_entry in saved_points_and_angles:
-        distance = np.linalg.norm(each_saved_entry[:3] - point_n_angle[:3])
-        if distance < d_threshold:
-            tabu = True
-        if tabu is True and angle_tabu is True:
-            delta_theta = abs(each_saved_entry[3] - point_n_angle[3])
-            delta_phi = abs(each_saved_entry[4] - point_n_angle[4])
-            delta_psi = abs(each_saved_entry[5] - point_n_angle[5])
-            if delta_theta < a_threshold and delta_phi < a_threshold and delta_psi < a_threshold:
-                tabu = True
-            else:
-                tabu = False
-    return tabu
-
-
-def make_an_untabooed_point(a_threshold, angle_tabu, d_threshold,
-                            octant_chooser, saved_points_and_angles):
-    """
-
-    Make a new point (x, y, z, theta, phi, psi) which is not in the Tabu list
-
-    :param a_threshold:
-    :param angle_tabu:
-    :param d_threshold:
-    :param octant_chooser:
-    :param saved_points_and_angles:
-    :return:
-    """
-    tries = 1
-    point_n_angle = make_point_n_angles(octant_chooser)
-    while check_tabu(point_n_angle, d_threshold, a_threshold, saved_points_and_angles, angle_tabu) is True:
-        point_n_angle = make_point_n_angles(octant_chooser)
-        tries += 1
-        if tries > 10000:
-            d_threshold *= 0.95
-    return point_n_angle
-
-
-def make_point_n_angles(octant):
-    a_point = make_a_random_point(octant)
-    two_angles = np.random.uniform(0, 2 * pi, size=3)
-    return np.concatenate((a_point, two_angles), axis=0)
-
-
-def make_a_random_point(octant):
-    p = np.random.uniform(0, 1.0, size=3)
-    p /= np.linalg.norm(p, axis=0)
-    p *= octant
-    return p
-
-
-def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None):
+def merge_two_molecules(vector, seed_input, monomer_input,
+                        freeze_fragments=False, site=None):
     x, y, z, theta, phi, psi = vector
     translate_by = np.array([x, y, z]) / 10
     seed = copy.deepcopy(seed_input)
@@ -163,7 +67,7 @@ def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=Fals
     tabu_logger.debug('checking close contact')
 
     is_in_cage = True
-    while close_contact(seed, monomer, 2.3) or is_in_cage:
+    while check_close_contact(seed, monomer, 2.3) or is_in_cage:
         minimum_sep_1 = minimum_separation(seed, monomer)
         monomer.translate(translate_by)
         minimum_sep_2 = minimum_separation(seed, monomer)
@@ -185,13 +89,43 @@ def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=Fals
     return orientation
 
 
-def generate_orientations_from_points_and_angles(seed, monomer,
-                                                 points_and_angles, site=None):
-    orientations = []
-    tabu_logger.debug('generate orientations from points and angles')
-    for vector in points_and_angles:
-        orientations.append(merge_two_molecules(vector, seed, monomer, site=site))
-    return orientations
+def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
+                      angle_tabu):
+    """
+    Check if the given point (point_n_angle) is within the proximity (set by
+    d_threshold and a_threshold
+
+    :type point_n_angle: Numpy.ndarray
+    :param point_n_angle: six numbers (x, y, z, theta, phi, psi)
+    :type d_threshold: float
+    :param d_threshold: minimum distance for Tabu
+    :type a_threshold: float
+    :param a_threshold: minimum angle (in radian) for Tabu
+    :type tabu_list: ndarray
+    :param tabu_list: the saved points and angles
+    :param bool angle_tabu: boolean if True consider also angles for checking the proximity
+    :type angle_tabu: bool
+    :param angle_tabu: boolean if True consider also angles for checking the proximity
+    :rtype: bool
+    :return: True if the new points is within the proximity of saved points
+
+    """
+    if tabu_list is None:
+        return False
+    tabu = False
+    for each_saved_entry in tabu_list:
+        distance = np.linalg.norm(each_saved_entry[:3] - point_n_angle[:3])
+        if distance < d_threshold:
+            tabu = True
+        if tabu is True and angle_tabu is True:
+            delta_theta = abs(each_saved_entry[3] - point_n_angle[3])
+            delta_phi = abs(each_saved_entry[4] - point_n_angle[4])
+            delta_psi = abs(each_saved_entry[5] - point_n_angle[5])
+            if delta_theta < a_threshold and delta_phi < a_threshold and delta_psi < a_threshold:
+                tabu = True
+            else:
+                tabu = False
+    return tabu
 
 
 def generate_composite_molecule(seed, monomer, points_and_angles):
@@ -202,34 +136,26 @@ def generate_composite_molecule(seed, monomer, points_and_angles):
     return composite
 
 
-def make_random_points_and_angles(number_of_points):
-    """https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere"""
-    vec_1 = np.random.randn(3, number_of_points)
-    vec_1 /= np.linalg.norm(vec_1, axis=0)
-    vec_2 = np.random.uniform(2 * pi, size=(number_of_points, 3))
-    vec = np.concatenate((vec_1.transpose(), vec_2), axis=1)
-    return vec
-
-
-def uniformly_distributed_points(N):
+def distribute_points_uniformly(points_and_angles):
     """
-    Code from Simon Tatham
+        Code from Simon Tatham
     https://www.chiark.greenend.org.uk/~sgtatham/polyhedra/
     modified
+
+    :param points_and_angles:
+    :return:
     """
-
-    points_and_angles = make_random_points_and_angles(N)
-
     angles = points_and_angles[:, 3:]
     points = points_and_angles[:, :3]
-
     for _ in range(100000):
         forces = []
-        for i in range(N):
+        number_of_points = len(points)
+        for i in range(number_of_points):
             p = points[i]
             forces_on_p = np.zeros(3)
-            for j in range(N):
-                if i == j: continue
+            for j in range(number_of_points):
+                if i == j:
+                    continue
                 q = points[j]
                 v = p - q
                 r = np.linalg.norm(v)
@@ -255,83 +181,106 @@ def uniformly_distributed_points(N):
             return np.concatenate((points, angles), axis=1)
 
 
-def rotating_octant(number_of_points, distance_tabu=True, angle_tabu=True,
-                    remember_points_and_angles=None):
+def make_5d_coords(grid_location):
+    xyz = np.random.uniform(-0.5, 0.5, size=3)
+    xyz += grid_location
+    xyz /= np.linalg.norm(xyz, axis=0)
+    theta_phi = np.random.uniform(0, 2 * pi, size=3)
+    return np.concatenate((xyz, theta_phi), axis=0)
+
+
+def new_gen(number_of_orientations, tabu_on, grid_on, check_angle, d_threshold=0.3, a_threshold=15.0):
     """
-    Make N points ((x, y, z, theta, phi, psi) using 'rotating octant' method.
+    Generate points
 
-    :type remember_points_and_angles: numpy.array
-    :param number_of_points: int
-    :param distance_tabu: float
-    :param angle_tabu: float
-    :return: numpy.array
+    :type a_threshold: float
+    :param a_threshold:
+    :type d_threshold: float
+    :param d_threshold:
+    :param bool check_angle: Should it check tabu list for angles
+    :param int number_of_orientations: Number of orientations
+    :param bool grid_on: Use Grid or not
+    :param bool tabu_on: Use tabu or not
+    :return:
     """
-    if remember_points_and_angles is None:
-        saved_points_and_angles = []
+
+    if grid_on:
+        choose_grid = itertools.cycle([(0.5, 0.5, 0.5), (-0.5, -0.5, -0.5),
+                                       (0.5, 0.5, -0.5), (-0.5, -0.5, 0.5),
+                                       (0.5, -0.5, 0.5), (-0.5, 0.5, -0.5),
+                                       (0.5, -0.5, -0.5), (-0.5, 0.5, 0.5)])
     else:
-        saved_points_and_angles = remember_points_and_angles[:]
+        choose_grid = itertools.cycle([0, 0, 0])
 
-    d_threshold = np.sqrt(2) / 2.0
-    a_threshold = pi / 2.0
-    for i in range(number_of_points // 8):
-        for j in itertools.product([1, -1], repeat=3):
-            octant_chooser = np.array(j)
-            if distance_tabu is False:
-                saved_points_and_angles.append(make_point_n_angles(octant_chooser))
-            if distance_tabu is True:
-                if len(saved_points_and_angles) == 0:
-                    saved_points_and_angles.append(make_point_n_angles(octant_chooser))
-                else:
-                    point_n_angle = make_an_untabooed_point(a_threshold, angle_tabu, d_threshold, octant_chooser,
-                                                            remember_points_and_angles)
-                    saved_points_and_angles.append(point_n_angle)
+    tabu_list = [make_5d_coords(next(choose_grid))]
+    for _ in range(number_of_orientations - 1):
+        current_grid = next(choose_grid)
+        point_n_angle = make_5d_coords(current_grid)
+        if tabu_on:
+            tries = 1
+            while check_tabu_status(point_n_angle, d_threshold, a_threshold,
+                                    tabu_list, check_angle) is True:
+                point_n_angle = make_5d_coords(current_grid)
+                tries += 1
+                if tries > 10000:
+                    d_threshold *= 0.95
 
-    return np.array(saved_points_and_angles)
-
-
-def wrapper_of_make_points_and_angles(method, number_of_orientations,
-                                      tabu_check_for_angles):
-    if method == 'rotating':
-        pts = rotating_octant(number_of_orientations,
-                              angle_tabu=tabu_check_for_angles)
-    elif method == 'random':
-        pts = make_random_points_and_angles(number_of_orientations)
-    elif method == 'uniform':
-        pts = uniformly_distributed_points(number_of_orientations)
-    else:
-        tabu_logger.info('using default method: random')
-        pts = make_random_points_and_angles(number_of_orientations)
-    return pts
+        tabu_list.append(point_n_angle)
+    return np.array(tabu_list)
 
 
-def generate_orientations(molecule_id, seed, monomer, number_of_orientations,
-                          method='rotating'):
+def create_trial_geometries(molecule_id, seed, monomer,
+                            number_of_orientations,
+                            tabu_on, grid_on, site):
+    """
+
+    :param grid_on: Use grid for making points
+    :type grid_on: bool
+    :param tabu_on: Use tabu
+    :type tabu_on:
+    :type molecule_id: str
+    :param molecule_id: An ID for molecule
+    :param seed: seed Molecule object
+    :type seed: object
+    :param monomer: monomer Molecule object
+    :type monomer: object
+    :param number_of_orientations: Number of trial geometries
+    :type number_of_orientations: int
+    :param site:
+    :type site: list[int, int] or None
+    :return: A list of trial geometries
+    :rtype: list
+    """
     if monomer.number_of_atoms == 1:
         tabu_check_for_angles = False
     else:
         tabu_check_for_angles = True
 
     tabu_logger.debug('Generating points')
-    pts = wrapper_of_make_points_and_angles(method, number_of_orientations,
-                                            tabu_check_for_angles)
+    points_and_angles = new_gen(number_of_orientations, tabu_on,
+                                grid_on, tabu_check_for_angles)
     tabu_logger.debug('Generated points')
-    write_tabu_list(pts, 'tabu.dat')
+    write_tabu_list(points_and_angles, 'tabu.dat')
     # plot_points(pts)
 
+    tabu_logger.debug('generate orientations from points and angles')
+
+    orientations = []
     filename_prefix = 'trial_'
-    orientations = generate_orientations_from_points_and_angles(seed, monomer, pts)
-    for i, each_orientation in enumerate(orientations):
-        each_orientation_id = f"{i:03d}_{molecule_id}"
-        each_orientation.title = f'trial orientation {each_orientation_id}'
-        each_orientation.name = each_orientation_id
-        each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
-        each_orientation.mol_to_xyz(each_orientation_xyz_file)
+    for i, vector in enumerate(points_and_angles):
+        new_orientation = merge_two_molecules(vector, seed, monomer, site=site)
+        new_orientation_id = f"{i:03d}_{molecule_id}"
+        new_orientation.title = f'trial orientation {new_orientation_id}'
+        new_orientation.name = new_orientation_id
+        new_orientation_xyz_file = f'{filename_prefix}{new_orientation_id}.xyz'
+        new_orientation.mol_to_xyz(new_orientation_xyz_file)
+        orientations.append(new_orientation)
 
     return orientations
 
 
-def plot_points(pts):
-    '''have to run with python -i '''
+def plot_points(points, location):
+    """have to run with python -i """
 
     import matplotlib.pyplot as plt
     from matplotlib import style
@@ -344,9 +293,9 @@ def plot_points(pts):
     z = np.outer(np.cos(theta), np.ones_like(phi))
     fig, ax = plt.subplots(1, 1, subplot_kw={'projection': '3d'})
     ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.1)
-    ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], s=100, c='r', zorder=10)
+    ax.scatter(points[:, 0], points[:, 1], points[:, 2], s=100, c='r', zorder=10)
     fig.show()
-    fig.savefig('points.png')
+    fig.savefig(f'{location}/points.png')
 
 
 def main():
@@ -354,4 +303,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    pts = new_gen(4, True, True, False, 0.3, 15.0)
+    for i in pts:
+        print(i)
+    plot_points(pts, '/home/anoop')
+
+
+def write_tabu_list(tabu_list, tabu_file):
+    with open(tabu_file, 'a') as tf:
+        for line in tabu_list:
+            tf.write(str(line) + ' ')
+        tf.write('\n')

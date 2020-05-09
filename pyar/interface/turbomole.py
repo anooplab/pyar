@@ -184,7 +184,7 @@ class Turbomole(SF):
             afir_energy, afir_gradients = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, get_coords(),
                                                                gamma)
             rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, afir_energy, afir_gradients)
-            turbomole_logger.debug('restraint energy = %f' % (afir_energy))
+            turbomole_logger.debug(f'restraint energy = {afir_energy:f}')
 
             # Update coordinates and check convergence.
             update_status = update_coord()
@@ -442,8 +442,8 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                 subp.check_call(['define'], stdin=fin, stdout=fout,
                                 stderr=fout, universal_newlines=False)
             except subp.CalledProcessError as e:
-                turbomole_logger.debub('Error in define')
-                turbomole_logger.debub("%s: %s\n" % (e.output, e.returncode))
+                turbomole_logger.debug('Error in define')
+                turbomole_logger.debug("%s: %s\n" % (e.output, e.returncode))
                 return False
         with open(define_log_file) as fout:
             if "define : all done" not in fout.read() or 'abnormally' in fout.read():

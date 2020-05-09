@@ -41,7 +41,7 @@ def update_id(aid, the_monomer):
 
 
 def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
-            maximum_number_of_seeds):
+            maximum_number_of_seeds, tabu_on, grid_on, site):
     """
     Add one monomer to all the seed molecules
 
@@ -49,7 +49,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
     :param maximum_number_of_seeds: The maximum number of seeds to be
         selected for next cycle
     :param qc_params: parameters needed for calculation
-    :param method: dict
+    :param qc_params: dict
     :param hm_orientations: Number of orientation to be used.
     :type hm_orientations: int
     :type monomer: Molecule
@@ -80,20 +80,24 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         monomer.mol_to_xyz('monomer.xyz')
         mol_id = '{0}_{1}'.format(seed_id, aggregate_id)
         aggregator_logger.debug('Making orientations')
-        all_orientations = tabu.generate_orientations(mol_id, seeds[seed_count], monomer, hm_orientations)
+        all_orientations = tabu.create_trial_geometries(mol_id, seeds[seed_count],
+                                                        monomer, hm_orientations,
+                                                        tabu_on, grid_on, site)
         aggregator_logger.debug('Orientations are made.')
 
         not_converged = all_orientations[:]
         for i in range(10):
             if len(not_converged) > 0:
                 aggregator_logger.info(
-                    "    Round %d of block optimizations with %d molecules" % (i + 1, len(not_converged)))
+                    f"    Round {i + 1:d} of block optimizations with"
+                    f" {len(not_converged):d} molecules")
                 qc_params["opt_threshold"] = 'loose'
                 status_list = [optimise(each_mol, qc_params) for each_mol in
                                not_converged]
                 converged = [n for n, s in zip(not_converged, status_list) if s is True]
                 list_of_optimized_molecules.extend(converged)
-                not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded']
+                not_converged = [n for n, s in zip(not_converged, status_list)
+                                 if s == 'CycleExceeded']
                 not_converged = clustering.remove_similar(not_converged)
 
         os.chdir(cwd)
@@ -123,7 +127,10 @@ def aggregate(molecules,
               qc_params,
               maximum_number_of_seeds,
               first_pathway,
-              number_of_pathways):
+              number_of_pathways,
+              tabu_on,
+              grid_on,
+              site):
     """
     New aggregate module
     --------------------
@@ -208,7 +215,8 @@ def aggregate(molecules,
                                           this_monomer,
                                           number_of_orientations,
                                           qc_params,
-                                          maximum_number_of_seeds)
+                                          maximum_number_of_seeds,
+                                          tabu_on, grid_on, site)
             os.chdir(starting_directory)
             if len(seed_storage[ag_id]) == 0:
                 aggregator_logger.info(f"No molecules were found from {ag_id}"
@@ -227,7 +235,7 @@ def aggregate(molecules,
 
 
 def solvate(seeds, monomer, aggregate_size, hm_orientations,
-            qc_params, maximum_number_of_seeds):
+            qc_params, maximum_number_of_seeds, tabu_on=None, grid_on=None, site=None):
     """
     Input: a list of seed molecules, a monomer Molecule objects
     """
@@ -252,7 +260,10 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
         os.chdir(aggregate_home)
 
         aggregator_logger.info(" Starting aggregation cycle: {}".format(aggregation_counter))
-        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations, qc_params, maximum_number_of_seeds)
+
+        seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations,
+                        qc_params, maximum_number_of_seeds, tabu_on, grid_on, site)
+
         aggregator_logger.info(" Aggregation cycle: {} completed\n".format(aggregation_counter))
 
         if hm_orientations == 'auto' and number_of_orientations <= 256:
@@ -266,4 +277,4 @@ def main():
 
 
 if __name__ == "__main__":
-    ternary_aggregate()
+    main()

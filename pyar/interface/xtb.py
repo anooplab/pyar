@@ -28,6 +28,7 @@ from pyar.interface import SF, which, write_xyz
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
+
 class Xtb(SF):
 
     def __init__(self, molecule, method):

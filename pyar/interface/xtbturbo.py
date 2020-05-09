@@ -141,4 +141,5 @@ if __name__ == "__main__":
 
     my_mol = Molecule.from_xyz(sys.argv[1])
     geometry = XtbTurbo(my_mol, method={})
-    geometry.optimize(gamma=100.0)
+    options = {'gamma': 100.0}
+    geometry.optimize(options)

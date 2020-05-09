@@ -41,9 +41,9 @@ def memoize(f):
 
     class MemoDict(dict):
         # noinspection PyCompatibility
-        def __init__(self, f):
+        def __init__(self, fun):
             super().__init__()
-            self.f = f
+            self.f = fun
 
         def __call__(self, *args):
             return self[args]
@@ -63,7 +63,7 @@ def calc_energy_difference(a, b):
 
 @memoize
 def calc_fingerprint_distance(a, b):
-    "Calculate the distance between two fingerprints"
+    """Calculate the distance between two fingerprints"""
     fingerprint_distance = np.linalg.norm(a.fingerprint - b.fingerprint)
     return fingerprint_distance
 
@@ -277,9 +277,9 @@ def plot_energy_histogram(molecules):
     energies = [i.energy for i in molecules]
     ref = min(energies)
     relative_energies = [(energy - ref) * 627.51 for energy in energies]
-    bin = np.linspace(0, max(relative_energies), 10)
+    histogram_bin = np.linspace(0, max(relative_energies), 10)
     import matplotlib.pyplot as plt
-    plt.hist(relative_energies, bin)
+    plt.hist(relative_energies, histogram_bin)
     plt.xlabel('Energy')
     plt.ylabel('Population')
     plt.title('Histogram of energies')

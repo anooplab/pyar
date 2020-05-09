@@ -170,6 +170,7 @@ if run_parameters['site'] is None:
 else:
     site = run_parameters['site']
     proximity_factor = 2.3
+    # noinspection PyUnresolvedReferences
     site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
 optimiser.bulk_optimize(input_molecules, quantum_chemistry_parameters)

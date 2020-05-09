@@ -60,7 +60,7 @@ class Orca(SF):
         f1.write("*")
         f1.close()
 
-    def optimize(self, options)
+    def optimize(self, options):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.

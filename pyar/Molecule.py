@@ -98,7 +98,7 @@ class Molecule(object):
         """
         Init function for Molecule
 
-        :type multiplicity: object
+        :type multiplicity: int
         :type atoms_list: list
         :param atoms_list: The list of atomic symbols
         :type coordinates: ndarray
@@ -454,7 +454,7 @@ class Molecule(object):
         sorted_matrix = self.coulomb_matrix[np.argsort(summation)[::-1, ], :]
         return sorted_matrix.ravel()
 
-    def rotate_3d(self, vector):
+    def rotate_3d(self, angles):
         """
         This function will rotate a molecule by Euler rotation theorem.
         The Z-X-Z' rotation convention is followed. The range of phi, theta
@@ -464,7 +464,7 @@ class Molecule(object):
         to its original position. So, to rotate a molecule around the origin,
         (0.,0.,0.), set_origin usage is necessary
         """
-        phi, theta, psi = vector
+        phi, theta, psi = angles
         D = np.array(((cos(phi), sin(phi), 0.),
                       (-sin(phi), cos(phi), 0.),
                       (0., 0., 1.)))
@@ -515,12 +515,7 @@ class Molecule(object):
 
 
 def main():
-    import sys
-    molfile1 = sys.argv[1]
-    molobj = Molecule.from_xyz(molfile1)
-    for i in molobj.make_internal_coordinates():
-        for j in i:
-            print(j)
+    pass
 
 
 if __name__ == '__main__':

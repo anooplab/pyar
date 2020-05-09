@@ -24,7 +24,7 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
 
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
-          site, proximity_factor):
+          site, proximity_factor, tabu_on=None, grid_on=None):
     """
     The Reactor module
 
@@ -42,7 +42,6 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     reactor_logger.info(f'{hm_orientations} orientations will be tried')
     reactor_logger.info(f' Gamma (min): {gamma_min}')
     reactor_logger.info(f' Gamma (max): {gamma_max}')
-    reactor_logger.info(f' Software   : {software}')
 
     reactor_logger.debug(f'Current working directory: {cwd}')
 
@@ -54,11 +53,13 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     file_manager.make_directories(product_dir)
     file_manager.make_directories('trial_geometries')
     os.chdir('trial_geometries')
-
     if site is None:
-        all_orientations = tabu.generate_orientations('geom', reactant_a,
-                                                      reactant_b,
-                                                      hm_orientations)
+        all_orientations = tabu.create_trial_geometries('geom', reactant_a,
+                                                        reactant_b,
+                                                        hm_orientations,
+                                                        tabu_on,
+                                                        grid_on,
+                                                        site)
     else:
         all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
                                                                 reactant_b,

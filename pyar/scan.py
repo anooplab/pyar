@@ -3,8 +3,9 @@ import time
 
 import numpy as np
 
+import pyar.tabu
+import pyar.unused_functions
 from pyar import optimiser
-from pyar.tabu import rotating_octant, tabu_logger, generate_orientations_from_points_and_angles, write_tabu_list
 
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
@@ -19,14 +20,15 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     orientations = []
     for i in range(number_of_orientations):
         t1 = time.clock()
-        pts = rotating_octant(32, angle_tabu=tabu_check_for_angles,
-                              remember_points_and_angles=saved_pts)
+        pts = pyar.tabu.new_gen(32, True, True, True, 0.3, 5.0)
         t2 = time.clock()
-        tabu_logger.debug('Created points: in {} seconds'.format(t2 - t1))
+        pyar.tabu.tabu_logger.debug('Created points: in {} seconds'.format(t2 - t1))
         t1 = time.clock()
-        current_orientations = generate_orientations_from_points_and_angles(seed, monomer, pts, site=[a, b])
+        current_orientations = []
+        for vector in pts:
+            current_orientations.append(pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]))
         t2 = time.clock()
-        tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
+        pyar.tabu.tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
         t1 = time.clock()
         stored_orientations = {}
         for j, each_orientation in enumerate(current_orientations):
@@ -35,23 +37,23 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
             stored_orientations[j] = dist
         best_orientation = min(stored_orientations, key=stored_orientations.get)
         best_point = pts[best_orientation]
-        tabu_logger.debug("{} {}".format(best_orientation, stored_orientations[best_orientation]))
+        pyar.tabu.tabu_logger.debug("{} {}".format(best_orientation, stored_orientations[best_orientation]))
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
         t2 = time.clock()
-        tabu_logger.debug('Found best orientation in {} seconds'.format(t2 - t1))
+        pyar.tabu.tabu_logger.debug('Found best orientation in {} seconds'.format(t2 - t1))
 
     t1 = time.clock()
     filename_prefix = 'trial_'
     for i, each_orientation in enumerate(orientations):
-        each_orientation_id = "%03d_" % (i) + molecule_id
-        each_orientation.title = 'trial orientation ' + each_orientation_id
+        each_orientation_id = f"{i:03d}_{molecule_id}_"
+        each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
     t2 = time.clock()
-    tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
-    write_tabu_list(saved_pts, 'tabu.dat')
+    pyar.tabu.tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
+    pyar.tabu.write_tabu_list(saved_pts, 'tabu.dat')
 
     return orientations
 
@@ -83,5 +85,5 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_c
             optimiser.optimise(each_molecule, quantum_chemistry_parameters)
             os.chdir(cwd)
         else:
-            logger.error('Optimization with %s is not implemented '
-                         'yet' % quantum_chemistry_parameters['software'])
+            print('Optimization with %s is not implemented '
+                  'yet' % quantum_chemistry_parameters['software'])

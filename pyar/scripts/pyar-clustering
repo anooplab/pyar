@@ -23,7 +23,7 @@ parser.add_argument('-m', '--mode', choices=['filter', 'cluster'],
                     default='cluster',
                     help="Choose the mode, filter or cluster")
 
-args =  parser.parse_args()
+args = parser.parse_args()
 input_files = args.input_files
 
 if len(input_files) < 2:

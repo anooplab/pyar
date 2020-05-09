@@ -19,26 +19,44 @@ handler = logging.FileHandler('pyar.log', 'w')
 def argument_parse():
     """ Parse command line arguments
     :return: argparse object
+    :rtype: Namespace
     """
-    parser = argparse.ArgumentParser(prog='PyAR', description='PyAR is a \
-             program to predict aggregation, reaction, clustering.  \
-             There are also modules for stochastic generation of  \
-             orientations of two more molecules and atoms')
+
+    pyr_description = """PyAR is a program to predict aggregation, reaction, 
+    and clustering. Reactor explores several possible reactions between two 
+    given molecules. Aggregator module explores several possible geometries 
+    of weakly bound molecular complexes or atomic clusters.
+    """
+
+    parser = argparse.ArgumentParser(prog='PyAR', description=pyr_description)
 
     parser.add_argument('-v', '--verbosity',
-                        choices=[0, 1, 2, 3, 4], type=int,
-                        help="increase output verbosity (0=Debug; 1=Info; "
-                             "2: Warning; 3: Error; 4: Critical)")
+                        choices=[0, 1, 2, 3, 4],
+                        type=int,
+                        default=1,
+                        help="Choose output verbosity"
+                             " (0=Debug; 1 = Info (default); "
+                             "2 = Warning; 3 = Error; 4 = Critical)")
 
-    parser.add_argument("input_files", metavar='files',
+    parser.add_argument("input_files", metavar='file',
                         type=str, nargs='+',
-                        help='input coordinate files')
+                        help='input coordinate files in xyz format.')
 
     parser.add_argument('-N', dest='how_many_orientations', metavar='N',
-                        required=True, help='how many orientations to be used')
+                        required=True, help='The number of orientations to be used')
+
+    parser.add_argument('--tabu', choices=['y', 'n'], default='y',
+                        help='Toggle Tabu search algorithm. Default is on (y)')
+
+    parser.add_argument('--grid', choices=['y', 'n'], default='y',
+                        help='Toggle the use of grid for search space.')
 
     parser.add_argument('-nprocs', '--nprocs', metavar='n', nargs=1,
-                        type=int, help='how many orientations to be used')
+                        type=int, help='The number of processors/cores to be '
+                                       'used by the quantum chemistry software.'
+                                       'Not fully implemented with all interfaces.'
+                                       'Write to anoop@chem.iitkgp.ac.in if this '
+                                       'does not work properly')
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
 
@@ -198,6 +216,16 @@ def main():
         if v:
             logger.debug(f"{k:25} = {v}")
 
+    if run_parameters['tabu'] == 'y':
+        tabu_on = True
+    else:
+        tabu_on = False
+
+    if run_parameters['grid'] == 'y':
+        grid_on = True
+    else:
+        grid_on = False
+
     # Sanity check
     number_of_input_files = len(run_parameters['input_files'])
     logger.debug(f"{number_of_input_files} input files")
@@ -279,7 +307,7 @@ def main():
             sys.exit(message)
 
         seeds = input_molecules
-
+        site = None
         t1_0 = time.time()
         time_started = datetime.datetime.now()
         aggregator.aggregate(seeds, size_of_aggregate,
@@ -287,7 +315,8 @@ def main():
                              quantum_chemistry_parameters,
                              maximum_number_of_seeds,
                              run_parameters['first_pathway'],
-                             run_parameters['number_of_pathways'])
+                             run_parameters['number_of_pathways'],
+                             tabu_on, grid_on, site)
 
         logger.info('Total Time: {}'.format(time.time() - t1_0))
         logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
@@ -319,7 +348,10 @@ def main():
                            number_of_solvent_molecules,
                            number_of_orientations,
                            quantum_chemistry_parameters,
-                           maximum_number_of_seeds)
+                           maximum_number_of_seeds,
+                           tabu_on,
+                           grid_on,
+                           site)
 
         logger.info('Total Time: {}'.format(time.time() - t1_0))
         logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
@@ -347,6 +379,7 @@ def main():
         else:
             site = run_parameters['site']
             proximity_factor = 2.3
+            # noinspection PyUnresolvedReferences
             site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
         zero_time = time.time()
@@ -355,9 +388,9 @@ def main():
                       minimum_gamma, maximum_gamma,
                       int(number_of_orientations),
                       quantum_chemistry_parameters,
-                      site, proximity_factor)
+                      site, proximity_factor, tabu_on, grid_on)
         logger.info('Total run time: {}'.format(time.time() - zero_time))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+        logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
         return
 
     if run_parameters['scan_bond']:

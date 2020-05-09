@@ -2,6 +2,7 @@
 # encoding: utf-8
 """Command line interface for PyAR"""
 import argparse
+import os
 import sys
 
 import numpy as np
@@ -12,14 +13,18 @@ import pyar.tabu
 
 def tabu_function():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-N', type=int, required=True,
+    parser.add_argument('-N', dest='number_of_trial_orientations', type=int,
+                        required=True, metavar='n',
                         help='number of points/configurations')
     parser.add_argument('-i', type=str, nargs=2,
                         dest='file', help="two molecules, seed and monomer, "
                                           "in xyz file format")
-    parser.add_argument('-method',
-                        choices=['random', 'rotating', 'uniform'], default='rotating',
-                        help="method for generating points")
+    parser.add_argument('-tabu', choices=['y', 'n'],
+                        default='y',
+                        help="Toggle Tabu search")
+    parser.add_argument('-grid', choices=['y', 'n'],
+                        default='y',
+                        help="Toggle grid")
     parser.add_argument('--charge', type=int, default=0,
                         help='charge')
     task_group = parser.add_mutually_exclusive_group(required=True)
@@ -27,22 +32,21 @@ def tabu_function():
     task_group.add_argument('-best', type=int, nargs=2,
                             help="create the best orientation with lowest a b "
                                  "distance")
-    task_group.add_argument('-mkpts', action='store_true',
+    task_group.add_argument('--plot', action='store_true',
                             help='generate random points on the surface of a unit '
                                  'sphere')
-    task_group.add_argument('-mkconfigs', action='store_true',
-                            help='generate N configurations of two molecules')
-    task_group.add_argument('-mkcomposite', action='store_true',
-                            help='generate a composite molecule with seed and N '
+    task_group.add_argument('--make-configurations', action='store_true',
+                            help='generate number_of_trial_orientations configurations of two molecules')
+    task_group.add_argument('--make-composite', action='store_true',
+                            help='generate a composite molecule with seed and number_of_trial_orientations '
                                  'monomers')
-    task_group.add_argument('-mksphere', type=str,
-                            help="create a molecules from N atoms of given elements")
+    task_group.add_argument('-make-sphere', type=str,
+                            help="create a molecules from number_of_trial_orientations atoms of given elements")
 
     args = parser.parse_args()
     print(args)
-    pyar.tabu.tabu_logger.debug(args)
 
-    N = args.N
+    number_of_trial_orientations = args.number_of_trial_orientations
 
     if args.file:
         from pyar.Molecule import Molecule
@@ -52,49 +56,50 @@ def tabu_function():
         seed = None
         monomer = None
 
-    if args.method == 'rotating':
-        if args.file and monomer.number_of_atoms == 1:
-            pts = pyar.tabu.rotating_octant(N, angle_tabu=False)
-        else:
-            pts = pyar.tabu.rotating_octant(N, angle_tabu=True)
-    elif args.method == 'random':
-        pts = pyar.tabu.make_random_points_and_angles(N)
-    elif args.method == 'uniform':
-        pts = pyar.tabu.uniformly_distributed_points(N)
+    if args.tabu == 'y:':
+        tabu_on = True
     else:
-        print('using default method: random')
-        pts = pyar.tabu.make_random_points_and_angles(N)
+        tabu_on = False
+    if args.grid == 'n:':
+        grid_on = False
+    else:
+        grid_on = False
 
-    if args.mkpts:
-        pyar.tabu.plot_points(pts)
+    pts = pyar.tabu.new_gen(number_of_trial_orientations,
+                            tabu_on, grid_on, False)
 
-    if args.mkconfigs:
+    if args.plot:
+        pyar.tabu.plot_points(pts, os.getcwd())
+
+    if args.make_configurations:
         if not (seed or monomer):
             print(parser.print_help())
             print("Note: provide two molecules, '-i file1.xyz file2.xyz'")
             sys.exit()
-        orientations = pyar.tabu.generate_orientations_from_points_and_angles(seed, monomer, pts)
-        for i, each_orientation in enumerate(orientations):
-            each_orientation.mol_to_xyz('mol' + str(i) + '.xyz')
+        for i, vector in enumerate(pts):
+            each_orientation = pyar.tabu.merge_two_molecules(vector, seed, monomer, site=None)
+            each_orientation.mol_to_xyz(f'mol_{i:03d}.xyz')
 
-    if args.mkcomposite:
+    if args.make_composite:
         for i in range(8):
+            pts = pyar.tabu.new_gen(number_of_trial_orientations, tabu_on=True, grid_on=True, check_angle=False)
             result = pyar.tabu.generate_composite_molecule(seed, monomer, pts)
-            result.title = "trial_" + str(i).zfill(3)
-            result.mol_to_xyz('result_' + str(i).zfill(3) + '.xyz')
+            result.title = f"trial_{i:03d}"
+            result.mol_to_xyz(f'result_{i:03}.xyz')
 
-    if args.mksphere:
+    if args.make_sphere:
         import scipy.spatial.distance as sdist
 
         from pyar.Molecule import Molecule
         from pyar.data.atomic_data import atomic_numbers, covalent_radii
-        radii = covalent_radii[atomic_numbers[args.mksphere.capitalize()]]
-        pts = pts[:, :3]
+        radii = covalent_radii[atomic_numbers[args.make_sphere.capitalize()]]
+        points = pyar.tabu.distribute_points_uniformly(pts)
         factor = pts / 10
-        while np.min(sdist.pdist(pts)) < 2 * radii:
+        while np.min(sdist.pdist(points)) < 2 * radii:
             pts += factor
 
-        atoms = [args.mksphere for _ in range(N)]
+        atoms = [args.make_sphere for _
+                 in range(number_of_trial_orientations)]
         result = Molecule(atoms, pts)
 
         result.mol_to_xyz('mol.xyz')
@@ -102,7 +107,7 @@ def tabu_function():
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms + args.best[1]
-        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b, N)
+        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b, number_of_trial_orientations)
 
 
 if __name__ == "__main__":
