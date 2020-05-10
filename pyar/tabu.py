@@ -138,7 +138,7 @@ def create_composite_molecule(seed, monomer, points_and_angles):
 
 def distribute_points_uniformly(points_and_angles):
     """
-        Code from Simon Tatham
+    Code from Simon Tatham
     https://www.chiark.greenend.org.uk/~sgtatham/polyhedra/
     modified
 

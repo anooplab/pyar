@@ -413,14 +413,9 @@ class Molecule(object):
     @property
     def coulomb_matrix(self):
         """
-        Calculate Coulomb Matrix
 
-        Author: Debankur Bhattacharyya
+        :return: Coulomb Matrix
 
-        $$
-        C_{ij} = \frac{1}{2} c_{i}^{2.4} if i = j
-               = \frac{c_{i}*c_{j}}{R_{ij}
-        $$
         """
         charges = [atomic_numbers[c.capitalize()] for c in self.atoms_list]
         N = self.number_of_atoms

@@ -133,8 +133,6 @@ def aggregate(molecules,
               site):
     """
     New aggregate module
-    --------------------
-
 
     :type number_of_pathways: int
     :param number_of_pathways: For cluster or aggregate containing different
@@ -154,6 +152,7 @@ def aggregate(molecules,
         for the next cycle.
     :type maximum_number_of_seeds: int
     :return: None
+
     """
     if check_stop_signal():
         aggregator_logger.info("Function: aggregate")

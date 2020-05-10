@@ -82,15 +82,15 @@ class OBabel(SF):
 
 def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
     """
+    Convert xyz file to mopac input
 
     :param xyzfile: input xyz file
     :param mopac_input_file: Mopac input file to be written
     :param keyword: this is the keyword for optimizations. This parameter
-    should be a strings of characters which are mopac keywords
+        should be a strings of characters which are mopac keywords
     :return: It will not return anything. It will prepare the input file for
-    the purpose given in the keyword. Note that babel will be used to prepare
-    the input(.mop) file.
-
+        the purpose given in the keyword. Note that babel will be used to prepare
+        the input(.mop) file.
     """
     if keyword is None:
         keyword_line = "-xkPM7"

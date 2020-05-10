@@ -47,9 +47,12 @@ class Mopac(SF):
 
     def prepare_input(self, keyword=""):
         """
+        Create a Mopac input
+
         :param keyword: this is the keyword for optimizations. This parameter
-        should be a strings of characters which are mopac keywords
+            should be a strings of characters which are mopac keywords
         :return: exit status.
+
         """
         if not keyword:
             keyword_line = "-xkPM7"

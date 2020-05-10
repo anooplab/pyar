@@ -92,12 +92,12 @@ class Turbomole(SF):
     def optimize(self, options):
         """This is the python implementation  of jobex of turbomole
 
-        :returns: True,
+        :returns: Union(True,
                   'SCFFailed',
                   'GradFailed',
                   'UpdateFailed',
                   'CycleExceeded',
-                  False
+                  False)
 
         """
         max_cycles = options['opt_cycles']
@@ -229,14 +229,14 @@ class Turbomole(SF):
         Run a turbomole optimisation.
 
         return one of the following:
-            True: converged
-            SCFFailed
-            GradFailed
-            UpdateFailed
-            CycleExceeded
-            False: unknown error or jebex execution error
-        :rtype: string or boolean
+        True: converged
+        SCFFailed
+        GradFailed
+        UpdateFailed
+        CycleExceeded
+        False: unknown error or jebex execution error
 
+        :rtype: string or boolean
         """
         with open('jobex.out', 'w') as fj:
             try:
@@ -293,11 +293,12 @@ def run_single_point():
     Run a single point calculation
 
     return one of the following:
-        True: SCF Converged
-        False: error
-    :rtype: string or boolean
+    True: SCF Converged
+    False: error
 
+    :rtype: string or boolean
     """
+
     with open('ridft.out', 'w') as fj:
         try:
             subp.check_call(['ridft'], stdout=fj, stderr=fj)
@@ -369,10 +370,9 @@ def make_coord(atoms_list, coordinates, output_file='coord'):
                        in the same order of atoms.
                        e.g.:
                        [[0.00000 0.00000 0.000000]
-                        [1.00000 0.00000 0.000000]
-                        [0.00000 1.00000 0.000000]]
+                       [1.00000 0.00000 0.000000]
+                       [0.00000 1.00000 0.000000]]
     :type output_file: Filename of the output file, usually 'coord'
-
     """
 
     with open(output_file, 'w') as fcoord:
@@ -388,10 +388,12 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                     memory=6000, grid="m4", scf_conv=7, scf_maxiter=500,
                     dftd3="yes", charge=0, multiplicity=1,
                     read_define_input="no", coordinates='internal'):
-    """This function will prepare the control file. Most of the arguments have
-       default values(all have in its current form). The read_define_input var
-       if "yes", then define_input_file should provide. The define will run
-       from this input file."""
+    """
+    This function will prepare the control file. Most of the arguments have
+    default values(all have in its current form). The read_define_input var
+    if "yes", then define_input_file should provide. The define will run
+    from this input file.
+    """
 
     # Turbomole 'coord' file should exist
     if not os.path.isfile('coord'):
