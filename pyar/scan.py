@@ -4,7 +4,6 @@ import time
 import numpy as np
 
 import pyar.tabu
-import pyar.unused_functions
 from pyar import optimiser
 
 
