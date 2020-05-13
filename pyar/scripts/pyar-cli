@@ -268,6 +268,14 @@ def main():
             mol = Molecule.Molecule.from_xyz(each_file)
             mol.charge = charge
             mol.multiplicity = multiplicity
+            n_electrons = sum(mol.atomic_number)-mol.charge
+            if n_electrons %2 == 0:
+                if mol.multiplicity % 2 != 1:
+                    sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
+            else:
+                ground_scftype = 'open'
+                if mol.multiplicity % 2 == 1:
+                    sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
             input_molecules.append(mol)
             logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
         except IOError:
