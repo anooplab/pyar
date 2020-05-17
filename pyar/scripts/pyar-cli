@@ -304,6 +304,13 @@ def main():
 
     logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
 
+    if run_parameters['site'] is None:
+        site = None
+    else:
+        site = run_parameters['site']
+        # noinspection PyUnresolvedReferences
+        site = [site[0], input_molecules[0].number_of_atoms + site[1]]
+
     if run_parameters['aggregate']:
         size_of_aggregate = run_parameters['aggregate_size']
         if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
@@ -315,7 +322,6 @@ def main():
             sys.exit(message)
 
         seeds = input_molecules
-        site = None
         t1_0 = time.time()
         time_started = datetime.datetime.now()
         aggregator.aggregate(seeds, size_of_aggregate,
@@ -381,14 +387,7 @@ def main():
                          "-number_of_orientations <number of orientations>")
             sys.exit('Missing arguments: -N #')
 
-        if run_parameters['site'] is None:
-            site = None
-            proximity_factor = 2.3
-        else:
-            site = run_parameters['site']
-            proximity_factor = 2.3
-            # noinspection PyUnresolvedReferences
-            site = [site[0], input_molecules[0].number_of_atoms + site[1]]
+        proximity_factor = 2.3
 
         zero_time = time.time()
         time_started = datetime.datetime.now()

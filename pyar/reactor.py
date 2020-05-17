@@ -64,7 +64,8 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
                                                                 reactant_b,
                                                                 site[0], site[1],
-                                                                hm_orientations)
+                                                                hm_orientations,
+                                                                d_scale=proximity_factor)
 
     os.chdir(cwd)
 

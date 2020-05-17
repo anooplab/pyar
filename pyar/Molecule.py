@@ -11,15 +11,12 @@
 """
 import itertools
 import logging
-from itertools import product
+import re
 from math import cos, sin
 
 import numpy as np
 
-from pyar.data.atomic_data import atomic_numbers
-from pyar.get_property import get_atomic_mass, get_atomic_number, get_covalent_radius, get_vdw_radius, \
-    get_centroid, get_centre_of_mass, get_average_radius, get_std_of_radius, get_distance_list, get_distance_matrix, \
-    get_bond_matrix, calculate_angle, calculate_dihedral
+import pyar.property
 
 molecule_logger = logging.getLogger('pyar.molecule')
 
@@ -83,7 +80,7 @@ class Molecule(object):
         Useful for calculating fingerprints, coulomb
         matrix etc.
 
-    Follwing attributes are electronic properties.  This will be
+    Following attributes are electronic properties.  This will be
     available after a calculation
 
     energy: float
@@ -94,7 +91,7 @@ class Molecule(object):
 
     def __init__(self, atoms_list, coordinates, name=None,
                  title=None, fragments=None, charge=0,
-                 multiplicity=1, scftype='rhf'):
+                 multiplicity=1, scftype='rhf', energy=None):
         """
         Init function for Molecule
 
@@ -119,18 +116,18 @@ class Molecule(object):
         self.multiplicity = multiplicity
         self.scftype = scftype
 
-        self.atomic_number = get_atomic_number(self.atoms_list)
-        self.atomic_mass = get_atomic_mass(self.atomic_number)
-        self.covalent_radius = get_covalent_radius(self.atomic_number)
-        self.vdw_radius = get_vdw_radius(self.atomic_number)
+        self.atomic_number = pyar.property.get_atomic_number(self.atoms_list)
+        self.atomic_mass = pyar.property.get_atomic_mass(self.atomic_number)
+        self.covalent_radius = pyar.property.get_covalent_radius(self.atomic_number)
+        self.vdw_radius = pyar.property.get_vdw_radius(self.atomic_number)
 
-        self.energy = 0.0
+        self.energy = energy
 
-        self.centroid = get_centroid(self.coordinates)
-        self.centre_of_mass = get_centre_of_mass(self.coordinates, self.atomic_mass)
-        self.average_radius = get_average_radius(self.coordinates, self.centroid)
-        self.std_of_radius = get_std_of_radius(self.coordinates, self.centroid)
-        self.distance_list = get_distance_list(self.coordinates)
+        self.centroid = pyar.property.get_centroid(self.coordinates)
+        self.centre_of_mass = pyar.property.get_centre_of_mass(self.coordinates, self.atomic_mass)
+        self.average_radius = pyar.property.get_average_radius(self.coordinates, self.centroid)
+        self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates, self.centroid)
+        self.distance_list = pyar.property.get_distance_list(self.coordinates)
 
         if name is None:
             self.name = 'Molecule'
@@ -238,6 +235,11 @@ class Molecule(object):
             sys.exit('Error in reading %s' % filename)
         mol_title = f[1].rstrip()
         try:
+            energy = float(re.split(':|=|\s+', mol_title)[1])
+        except Exception as e:
+            molecule_logger.error(f"No energy fournd\n{e}")
+            energy = None
+        try:
             geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
         except Exception as e:
             molecule_logger.error(e)
@@ -265,7 +267,8 @@ class Molecule(object):
 
         mol_coordinates = np.array(coordinates)
         mol_name = filename[:-4]
-        return cls(atoms_list, mol_coordinates, name=mol_name, title=mol_title)
+        return cls(atoms_list, mol_coordinates, name=mol_name,
+                   title=mol_title, energy=energy)
 
     def split_coordinates(self, coordinates=None):
         """
@@ -327,66 +330,11 @@ class Molecule(object):
                     coords[i][0], coords[i][1], coords[i][2], atoms_list[i].lower()))
             fp.write("$end\n")
 
-    @property
-    def moments_of_inertia_tensor(self):
-        """
-        Calculate moments of inertia
-
-        :return: ndarray
-        """
-        mass = self.atomic_mass
-        self.move_to_centre_of_mass()
-        x = self.coordinates[:, 0]
-        y = self.coordinates[:, 1]
-        z = self.coordinates[:, 2]
-        i_xx = np.sum(mass * (y * y + z * z))
-        i_yy = np.sum(mass * (x * x + z * z))
-        i_zz = np.sum(mass * (x * x + y * y))
-        i_xy = -np.sum(mass * (x * y))
-        i_yz = -np.sum(mass * (y * z))
-        i_xz = -np.sum(mass * (x * z))
-        return np.array([[i_xx, i_xy, i_xz],
-                         [i_xy, i_yy, i_yz],
-                         [i_xz, i_yz, i_zz]]) / self.number_of_atoms
-
-    def make_internal_coordinates(self):
-        """
-
-        :rtype: list of internal coordinates
-        """
-        dm = get_distance_matrix(self.coordinates)
-        bm = get_bond_matrix(self.coordinates, self.covalent_radius)
-        bl = []
-        for i in range(len(self.coordinates)):
-            for j in range(len(self.coordinates)):
-                if bm[i, j]:
-                    seq = [i, j]
-                    if seq[::-1] not in [i[0] for i in bl]:
-                        bl.append([seq, dm[i, j]])
-        al = []
-        for i, j, k in product(range(len(self.coordinates)), repeat=3):
-            if i != j and j != k and i != k:
-                if bm[i, j] and bm[j, k]:
-                    seq = [i, j, k]
-                    if seq[::-1] not in [i[0] for i in al]:
-                        al.append([seq, calculate_angle(self.coordinates[i], self.coordinates[j],
-                                                        self.coordinates[k])])
-
-        dl = []
-        for i, j, k, l in product(range(len(self.coordinates)), repeat=4):
-            if i != j and i != k and i != l and j != k and j != l and k != l:
-                if bm[i, j] and bm[j, k] and bm[k, l]:
-                    seq = [i, j, k, l]
-                    if seq[::-1] not in [i[0] for i in dl]:
-                        dl.append([seq, calculate_dihedral(i, j, k, l)])
-
-        return [bl, al, dl]
-
     def is_bonded(self):
         """
         Checks if there is any bond between two fragments in the molecule.
 
-        This is a simple distnace check.  If any of the intrafragmental
+        This is a simple distance check.  If any of the intrafragmental
         distance is smaller than the sum of covalent radii, it is
         considered as a bond
 
@@ -411,43 +359,26 @@ class Molecule(object):
                 return False
 
     @property
-    def coulomb_matrix(self):
+    def moments_of_inertia_tensor(self):
         """
+        Calculate moments of inertia
 
-        :return: Coulomb Matrix
-
+        :return: ndarray
         """
-        charges = [atomic_numbers[c.capitalize()] for c in self.atoms_list]
-        N = self.number_of_atoms
-        coords = self.coordinates
-        coulomb_matrix = np.zeros((N, N))
-        for i in range(N):
-            for j in range(N):
-                if i == j:
-                    coulomb_matrix[i, j] = 0.5 * (charges[i] ** 2.4)
-                else:
-                    R_ij = np.linalg.norm(coords[i, :] - coords[j, :])
-                    coulomb_matrix[i, j] = (charges[i] * charges[j]) / R_ij
-        return coulomb_matrix
-
-    @property
-    def fingerprint(self):
-        eigenvalues = np.linalg.eigvals(self.coulomb_matrix)
-        eigenvalues[::-1].sort()
-        return eigenvalues
-
-    @property
-    def sorted_coulomb_matrix(self):
-        """
-        From: https://github.com/pythonpanda/coulomb_matrix/
-        Takes in a Coulomb matrix of (mxn) dimension and performs a
-        row-wise sorting such that ||C(j,:)|| > ||C(j+1,:)||, J=
-        0,1,.......,(m-1) Finally returns a vectorized (m*n,1) column 
-        matrix.
-        """
-        summation = np.array([sum(x ** 2) for x in self.coulomb_matrix])
-        sorted_matrix = self.coulomb_matrix[np.argsort(summation)[::-1, ], :]
-        return sorted_matrix.ravel()
+        mass = self.atomic_mass
+        self.move_to_centre_of_mass()
+        x = self.coordinates[:, 0]
+        y = self.coordinates[:, 1]
+        z = self.coordinates[:, 2]
+        i_xx = np.sum(mass * (y * y + z * z))
+        i_yy = np.sum(mass * (x * x + z * z))
+        i_zz = np.sum(mass * (x * x + y * y))
+        i_xy = -np.sum(mass * (x * y))
+        i_yz = -np.sum(mass * (y * z))
+        i_xz = -np.sum(mass * (x * z))
+        return np.array([[i_xx, i_xy, i_xz],
+                         [i_xy, i_yy, i_yz],
+                         [i_xz, i_yz, i_zz]]) / self.number_of_atoms
 
     def rotate_3d(self, angles):
         """
@@ -475,11 +406,11 @@ class Molecule(object):
         return self
 
     def move_to_origin(self):
-        self.translate(get_centroid(self.coordinates))
+        self.translate(pyar.property.get_centroid(self.coordinates))
         return self
 
     def move_to_centre_of_mass(self):
-        self.translate(get_centre_of_mass(self.coordinates, self.atomic_mass))
+        self.translate(pyar.property.get_centre_of_mass(self.coordinates, self.atomic_mass))
         return self
 
     def translate(self, magnitude):

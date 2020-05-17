@@ -8,7 +8,7 @@ from pyar import optimiser
 
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
-                               number_of_orientations):
+                               number_of_orientations, d_scale):
     if monomer.number_of_atoms == 1:
         tabu_check_for_angles = False
     else:
@@ -25,7 +25,8 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         t1 = time.clock()
         current_orientations = []
         for vector in pts:
-            current_orientations.append(pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]))
+            current_orientations.append(pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]),
+                                        distance_scaling=d_scale)
         t2 = time.clock()
         pyar.tabu.tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
         t1 = time.clock()
@@ -62,10 +63,12 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_c
     b_molecule = input_molecules[1]
     a_atom = site_atoms[0]
     b_atom = a_molecule.number_of_atoms + a_atom
+    proximity_factor = 2.3  # TODO: find the optimum value
     input_molecules = generate_guess_for_bonding('abc',
                                                  a_molecule, b_molecule,
                                                  a_atom, b_atom,
-                                                 int(number_of_orientations))
+                                                 int(number_of_orientations),
+                                                 d_scale=proximity_factor)
     for each_molecule in input_molecules:
         coordinates = each_molecule.coordinates
         start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])

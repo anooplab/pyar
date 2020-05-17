@@ -17,12 +17,15 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
+import logging
 import os
 import subprocess as subp
 
 import numpy as np
 
 from pyar.interface import SF, write_xyz, which
+
+orca_logger = logging.getLogger('pyar.orca')
 
 
 class Orca(SF):
@@ -35,23 +38,24 @@ class Orca(SF):
         self.out_file = 'trial_' + self.job_name + '.out'
         self.optimized_coordinates = []
         self.energy = 0.0
-        keyword = '! '
-        keyword += f" {qc_params['method']}"
-        keyword += f" {qc_params['basis']}"
+        keyword = f"! {qc_params['method']} {qc_params['basis']}"
 
         if any(x >= 21 for x in molecule.atomic_number):
-            keyword += ' def2-ECP'
-        keyword += " RI def2/J D3BJ KDIIS PAL3"
+            keyword += f" def2-ECP"
+        keyword += f" RI def2/J D3BJ KDIIS"
+        if self.scftype is 'uks':
+            keyword += ' UKS'
+        nprocs = qc_params['nprocs']
         if custom_keyword is not None:
             keyword += custom_keyword
+        keyword += f"\n%pal nprocs {nprocs} end\n"
+        keyword += f"%scf maxiter {qc_params['scf_cycles']} end\n"
         self.keyword = keyword
 
     def prepare_input(self):
         keyword = self.keyword
         coords = self.start_coords
         f1 = open(self.inp_file, "w")
-        if self.scftype is 'uks':
-            keyword += 'UKS'
         f1.write(keyword + "\n")
         f1.write("*xyz {0} {1}\n".format(str(self.charge), str(self.multiplicity)))
         for i in range(self.number_of_atoms):
@@ -71,7 +75,7 @@ class Orca(SF):
         gamma = options['gamma']
         convergence = options['opt_threshold']
 
-        self.keyword = self.keyword + '\n! Opt'
+        self.keyword = self.keyword + '!Opt'
         self.prepare_input()
 
         with open(self.out_file, 'w') as fopt:
@@ -109,7 +113,10 @@ class Orca(SF):
                 for i in range(len(line)):
                     if "FINAL SINGLE POINT ENERGY" in line[i]:
                         en_steps.append(line[i])
-                energy_in_hartrees = float((en_steps[-1].strip().split())[-1])
+                if len(en_steps) >= 1:
+                    energy_in_hartrees = float((en_steps[-1].strip().split())[-1])
+                else:
+                    energy_in_hartrees = 0.0
             return energy_in_hartrees
         except IOError:
             print("Warning: File ", self.out_file, "was not found.")

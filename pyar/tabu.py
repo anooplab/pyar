@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+"""
+tabu.py
+
+Functions to merge two molecules.
+"""
 import copy
 import itertools
 import logging
@@ -6,10 +10,19 @@ import logging
 import numpy as np
 from numpy import pi, cos, sin
 
+from pyar.Molecule import Molecule
+
 tabu_logger = logging.getLogger('pyar.tabu')
 
 
 def polar_to_cartesian(r, theta, phi):
+    """
+
+    :param r: distance r
+    :param theta: angle theta
+    :param phi: angle phi
+    :return: (x, y, z)
+    """
     x = r * sin(theta) * cos(phi)
     y = r * sin(theta) * sin(phi)
     z = r * cos(theta)
@@ -23,16 +36,16 @@ def check_close_contact(mol_1, mol_2, factor):
     factor), then it is assumed to have a close contact.
 
     :return: boolean
-    :type mol_1: Molecule.Molecule
-    :type mol_2: Molecule.Molecule
+    :type mol_1: Callable[..., Molecule]
+    :type mol_2: () -> Molecule
     :type factor: float
     """
     fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
     radius_one, radius_two = mol_1.covalent_radius, mol_2.covalent_radius
-    for i in range(len(fragment_one)):
-        for j in range(len(fragment_two)):
-            interatomic_distance = np.linalg.norm(fragment_one[i] - fragment_two[j])
-            sum_of_radii = (radius_one[i] + radius_two[j]) * factor
+    for counter_i in range(len(fragment_one)):
+        for counter_j in range(len(fragment_two)):
+            interatomic_distance = np.linalg.norm(fragment_one[counter_i] - fragment_two[counter_j])
+            sum_of_radii = (radius_one[counter_i] + radius_two[counter_j]) * factor
             if interatomic_distance < sum_of_radii:
                 return True
     else:
@@ -52,9 +65,24 @@ def minimum_separation(mol_1, mol_2):
 
 
 def merge_two_molecules(vector, seed_input, monomer_input,
-                        freeze_fragments=False, site=None):
+                        freeze_fragments=False, site=None, distance_scaling=1.5):
+    """
+
+    :param ndarray vector: the direction for placing the monomer
+    :param seed_input: Seed () -> Molecule
+    :type seed_input: Seed molecule
+    :param molecule monomer_input: Monomer molecule
+    :param bool freeze_fragments: Whether to rotate the monomer
+    :param list site: weighted atom centres for placing
+    :param float distance_scaling: minimum separation between the
+        two fragments in merged molecule is sum_of_covalent_radii
+        * distance_scaling
+    :return: merged molecule
+    """
+
     x, y, z, theta, phi, psi = vector
-    translate_by = np.array([x, y, z]) / 10
+    direction = np.array([x, y, z])
+    tiny_steps = direction / 10
     seed = copy.deepcopy(seed_input)
     monomer = copy.deepcopy(monomer_input)
     tabu_logger.debug('Merging two molecules')
@@ -66,24 +94,58 @@ def merge_two_molecules(vector, seed_input, monomer_input,
         monomer.rotate_3d((theta, phi, psi))
     tabu_logger.debug('checking close contact')
 
-    is_in_cage = True
-    while check_close_contact(seed, monomer, 2.3) or is_in_cage:
-        minimum_sep_1 = minimum_separation(seed, monomer)
-        monomer.translate(translate_by)
-        minimum_sep_2 = minimum_separation(seed, monomer)
-        if minimum_sep_2 > minimum_sep_1:
-            if is_in_cage is True:
-                is_in_cage = 'BorW'
-            if is_in_cage == 'BorW':
-                is_in_cage = False
+    tabu_logger.debug('Taking a large first step')
+    step_counter = 0
+    r_max_of_seed = np.max([np.linalg.norm(c) for c in seed.coordinates])
+    r_max_of_monomer = np.max([np.linalg.norm(c) for c in monomer.coordinates])
+    maxi = r_max_of_seed + r_max_of_monomer + 1.0
+    move_by = direction * maxi
+    monomer.translate(move_by)
+    step_counter += 1
+    contact = check_close_contact(seed, monomer, distance_scaling)
+    if contact:
+        tabu_logger.debug("Large step was not enough")
+        while check_close_contact(seed, monomer, distance_scaling):
+            tabu_logger.debug("moving by small steps")
+            monomer.translate(tiny_steps)
+            step_counter += 1
+    else:
+        mini = 0.0
+        move_by = direction * (maxi + mini) / 2
+        tabu_logger.debug("Binary steps")
+        for i in range(100):
+            monomer.move_to_origin()
+            monomer.translate(move_by)
+            step_counter += 1
+            contact = check_close_contact(seed, monomer, distance_scaling)
+            if contact:
+                mini = move_by
+            else:
+                maxi = move_by
+            move_by = (maxi + mini) / 2
+            if np.linalg.norm(maxi - mini) < 0.01:
+                break
+    tabu_logger.debug(f"Total steps taken {step_counter}")
+
+    # is_in_cage = True
+    # while check_close_contact(seed, monomer, distance_scaling) or is_in_cage:
+    #     print("in loop")
+    #     minimum_sep_1 = minimum_separation(seed, monomer)
+    #     monomer.translate(translate_by)
+    #     minimum_sep_2 = minimum_separation(seed, monomer)
+    #     if minimum_sep_2 > minimum_sep_1:
+    #         if is_in_cage is True:
+    #             is_in_cage = 'BorW'
+    #         if is_in_cage == 'BorW':
+    #             is_in_cage = False
 
     orientation = seed + monomer
     if site is not None:
         atoms_in_self = site[0]
         atoms_in_other = site[1]
     else:
-        atoms_in_self = [i for i in range(seed.number_of_atoms)]
-        atoms_in_other = [i for i in range(seed.number_of_atoms, orientation.number_of_atoms)]
+        atoms_in_self = list(range(seed.number_of_atoms))
+        atoms_in_other = list(range(seed.number_of_atoms, orientation.number_of_atoms))
     orientation.fragments = [atoms_in_self, atoms_in_other]
     tabu_logger.debug('Merged.')
     return orientation
@@ -108,7 +170,6 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
     :param angle_tabu: boolean if True consider also angles for checking the proximity
     :rtype: bool
     :return: True if the new points is within the proximity of saved points
-
     """
     if tabu_list is None:
         return False
@@ -128,11 +189,25 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
     return tabu
 
 
-def create_composite_molecule(seed, monomer, points_and_angles):
+def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
+    """
+
+    :param seed: seed molecule
+    :type seed: Molecule.Molecule
+    :type monomer: Molecule.Molecule
+    :param monomer: monomer molecule
+    :param points_and_angles: a set of 3 points and 3 angles
+    :type points_and_angles: ndarray
+    :param d_scale: the minimum distance between two fragment is scaled by
+        sumo of covalent radii * d_scale
+    :type d_scale: float
+    :returns a composite molecule
+    :rtype Molecule.Molecule
+    """
     composite = copy.deepcopy(seed)
     for vector in points_and_angles:
         composite = merge_two_molecules(vector, composite, monomer,
-                                        freeze_fragments=False)
+                                        freeze_fragments=False, distance_scaling=d_scale)
     return composite
 
 
@@ -143,20 +218,21 @@ def distribute_points_uniformly(points_and_angles):
     modified
 
     :param points_and_angles:
-    :return:
+    :return: ndarray containing three points and angles
+    :rtype ndarray
     """
     angles = points_and_angles[:, 3:]
     points = points_and_angles[:, :3]
     for _ in range(100000):
         forces = []
         number_of_points = len(points)
-        for i in range(number_of_points):
-            p = points[i]
+        for ith in range(number_of_points):
+            p = points[ith]
             forces_on_p = np.zeros(3)
-            for j in range(number_of_points):
-                if i == j:
+            for jth in range(number_of_points):
+                if ith == jth:
                     continue
-                q = points[j]
+                q = points[jth]
                 v = p - q
                 r = np.linalg.norm(v)
                 f = v / r ** 3
@@ -169,19 +245,26 @@ def distribute_points_uniformly(points_and_angles):
         else:
             scale_force = 1
         dist = 0
-        for i in range(len(points)):
-            p = points[i]
-            f = forces[i]
+        for ith in range(len(points)):
+            p = points[ith]
+            f = forces[ith]
             moved_point = (p + f * scale_force)
             moved_point /= np.linalg.norm(moved_point)
             dist += np.linalg.norm(p - moved_point)
-            points[i] = moved_point
+            points[ith] = moved_point
 
         if dist < 1e-6:
             return np.concatenate((points, angles), axis=1)
 
 
 def make_5d_coords(grid_location):
+    """
+
+    :type grid_location: ndarray
+    :param grid_location: In grid based generation of points, this will choose the grid.
+    :return: a set of three points and three angles
+    :rtype: ndarray
+    """
     xyz = np.random.uniform(-0.5, 0.5, size=3)
     xyz += grid_location
     xyz /= np.linalg.norm(xyz, axis=0)
@@ -241,9 +324,9 @@ def create_trial_geometries(molecule_id, seed, monomer,
     :type molecule_id: str
     :param molecule_id: An ID for molecule
     :param seed: seed Molecule object
-    :type seed: object
+    :type seed: Any
     :param monomer: monomer Molecule object
-    :type monomer: object
+    :type monomer: Any
     :param number_of_orientations: Number of trial geometries
     :type number_of_orientations: int
     :param site:
@@ -253,8 +336,10 @@ def create_trial_geometries(molecule_id, seed, monomer,
     """
     if monomer.number_of_atoms == 1:
         tabu_check_for_angles = False
+        proximity_factor = 1.0
     else:
         tabu_check_for_angles = True
+        proximity_factor = 1.5
 
     tabu_logger.debug('Generating points')
     points_and_angles = generate_points(number_of_orientations, tabu_on,
@@ -267,9 +352,9 @@ def create_trial_geometries(molecule_id, seed, monomer,
 
     orientations = []
     filename_prefix = 'trial_'
-    for i, vector in enumerate(points_and_angles):
-        new_orientation = merge_two_molecules(vector, seed, monomer, site=site)
-        new_orientation_id = f"{i:03d}_{molecule_id}"
+    for counter, vector in enumerate(points_and_angles):
+        new_orientation = merge_two_molecules(vector, seed, monomer, site=site, distance_scaling=proximity_factor)
+        new_orientation_id = f"{counter:03d}_{molecule_id}"
         new_orientation.title = f'trial orientation {new_orientation_id}'
         new_orientation.name = new_orientation_id
         new_orientation_xyz_file = f'{filename_prefix}{new_orientation_id}.xyz'
@@ -298,7 +383,24 @@ def plot_points(points, location):
     fig.savefig(f'{location}/points.png')
 
 
+def write_tabu_list(tabu_list, tabu_file):
+    """
+    Save the tabu_list in tabu_file
+    :param tabu_list: The tabu list
+    :type tabu_list: list or ndarray
+    :param tabu_file: The file name to write tabu file
+    :type tabu_file: str
+    :rtype: None
+    :returns None
+    """
+    with open(tabu_file, 'a') as tf:
+        for line in tabu_list:
+            tf.write(str(line) + ' ')
+        tf.write('\n')
+
+
 def main():
+    """Nothing now"""
     pass
 
 
@@ -307,10 +409,3 @@ if __name__ == "__main__":
     for i in pts:
         print(i)
     plot_points(pts, '/home/anoop')
-
-
-def write_tabu_list(tabu_list, tabu_file):
-    with open(tabu_file, 'a') as tf:
-        for line in tabu_list:
-            tf.write(str(line) + ' ')
-        tf.write('\n')

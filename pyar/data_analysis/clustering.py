@@ -9,7 +9,8 @@ from sklearn.cluster import DBSCAN, AffinityPropagation, KMeans, \
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import RobustScaler
 
-from pyar.get_property import get_principal_axes
+import pyar.property
+import pyar.representations
 
 cluster_logger = logging.getLogger('pyar.cluster')
 
@@ -64,7 +65,9 @@ def calc_energy_difference(a, b):
 @memoize
 def calc_fingerprint_distance(a, b):
     """Calculate the distance between two fingerprints"""
-    fingerprint_distance = np.linalg.norm(a.fingerprint - b.fingerprint)
+    fingerprint_distance = np.linalg.norm(
+        pyar.representations.fingerprint(a.atoms_list, a.coordinates) - pyar.representations.fingerprint(b.atoms_list,
+                                                                                                         b.coordinates))
     return fingerprint_distance
 
 
@@ -81,11 +84,13 @@ def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_o
     cluster_logger.info('Clustering on {} geometries'.format(len(list_of_molecules)))
 
     if feature == 'fingerprint':
-        dt = [i.fingerprint for i in list_of_molecules]
+        dt = [pyar.representations.fingerprint(i.atoms_list, i.coordinates) for i in list_of_molecules]
     elif feature == 'scm':
-        dt = [i.sorted_coulomb_matrix for i in list_of_molecules]
+        dt = [
+            pyar.representations.sorted_coulomb_matrix(pyar.representations.coulomb_matrix(i.atoms_list, i.coordinates))
+            for i in list_of_molecules]
     elif feature == 'moi':
-        dt = [get_principal_axes(i.moments_of_inertia_tensor) for i in list_of_molecules]
+        dt = [pyar.property.get_principal_axes(i.moments_of_inertia_tensor) for i in list_of_molecules]
     else:
         cluster_logger.error('This feature is not implemented')
         return list_of_molecules
@@ -114,7 +119,8 @@ def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_o
         reduced_best_from_each_cluster = remove_similar(best_from_each_cluster)
 
     if len(reduced_best_from_each_cluster) > maximum_number_of_seeds:
-        return choose_geometries(reduced_best_from_each_cluster, maximum_number_of_seeds=maximum_number_of_seeds)
+        return choose_geometries(reduced_best_from_each_cluster,
+                                 maximum_number_of_seeds=maximum_number_of_seeds)
     else:
         return reduced_best_from_each_cluster
 
@@ -233,14 +239,13 @@ def generate_labels(dt):
     for method in methods:
         try:
             return get_labels(dt, algorithm=method)
-        except Exception:
-            cluster_logger.exception('{} failed'.format(method))
+        except Exception as e:
+            cluster_logger.exception(f'{method} failed\n{e}')
 
 
 def select_best_from_each_cluster(labels, list_of_molecules):
     unique_labels = np.unique(labels)
     cluster_logger.info("The distribution of file in each cluster {}:".format(np.bincount(labels)))
-
     best_from_each_cluster = []
     for this_label in unique_labels:
         molecules_in_this_group = [m for label, m in

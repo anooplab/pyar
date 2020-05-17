@@ -27,14 +27,18 @@ def tabu_function():
                         help="Toggle grid")
     parser.add_argument('--charge', type=int, default=0,
                         help='charge')
-    task_group = parser.add_mutually_exclusive_group(required=True)
+    parser.add_argument('--distance-scaling', metavar='x.x',
+                        default=1.0, type=float,
+                        help='Scaling to decide how far the fragments '
+                             'to be placed. sum_of_covalent_radii*x.x')
+    parser.add_argument('--plot', action='store_true',
+                        help='generate random points on the surface of a unit '
+                             'sphere')
+    task_group = parser.add_mutually_exclusive_group(required=False)
 
     task_group.add_argument('-best', type=int, nargs=2,
                             help="create the best orientation with lowest a b "
                                  "distance")
-    task_group.add_argument('--plot', action='store_true',
-                            help='generate random points on the surface of a unit '
-                                 'sphere')
     task_group.add_argument('--make-configurations', action='store_true',
                             help='generate number_of_trial_orientations configurations of two molecules')
     task_group.add_argument('--make-composite', action='store_true',
@@ -44,10 +48,12 @@ def tabu_function():
                             help="create a molecules from number_of_trial_orientations atoms of given elements")
 
     args = parser.parse_args()
-    print(args)
+    print(f"These are the arguments\n{args}")
 
     number_of_trial_orientations = args.number_of_trial_orientations
 
+    d_scale = args.distance_scaling
+    print(f"distance scale = {d_scale}; files {args.file}")
     if args.file:
         from pyar.Molecule import Molecule
         seed = Molecule.from_xyz(args.file[0])
@@ -67,7 +73,6 @@ def tabu_function():
 
     pts = pyar.tabu.generate_points(number_of_trial_orientations,
                                     tabu_on, grid_on, False)
-
     if args.plot:
         pyar.tabu.plot_points(pts, os.getcwd())
 
@@ -77,13 +82,14 @@ def tabu_function():
             print("Note: provide two molecules, '-i file1.xyz file2.xyz'")
             sys.exit()
         for i, vector in enumerate(pts):
-            each_orientation = pyar.tabu.merge_two_molecules(vector, seed, monomer, site=None)
+            each_orientation = pyar.tabu.merge_two_molecules(vector, seed, monomer, site=None, distance_scaling=d_scale)
             each_orientation.mol_to_xyz(f'mol_{i:03d}.xyz')
 
     if args.make_composite:
         for i in range(8):
             pts = pyar.tabu.generate_points(number_of_trial_orientations, tabu_on=True, grid_on=True, check_angle=False)
-            result = pyar.tabu.create_composite_molecule(seed, monomer, pts)
+            result = pyar.tabu.create_composite_molecule(seed, monomer,
+                                                         pts, d_scale=d_scale)
             result.title = f"trial_{i:03d}"
             result.mol_to_xyz(f'result_{i:03}.xyz')
 
@@ -107,7 +113,8 @@ def tabu_function():
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms + args.best[1]
-        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b, number_of_trial_orientations)
+        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b, number_of_trial_orientations,
+                                             d_scale=d_scale)
 
 
 if __name__ == "__main__":
