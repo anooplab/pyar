@@ -73,7 +73,8 @@ def merge_two_molecules(vector, seed_input, monomer_input,
     :type seed_input: Seed molecule
     :param molecule monomer_input: Monomer molecule
     :param bool freeze_fragments: Whether to rotate the monomer
-    :param list site: weighted atom centres for placing
+    :param site: weighted atom centres for placing
+    :type site: Union[list, None]
     :param float distance_scaling: minimum separation between the
         two fragments in merged molecule is sum_of_covalent_radii
         * distance_scaling
@@ -98,9 +99,9 @@ def merge_two_molecules(vector, seed_input, monomer_input,
     step_counter = 0
     r_max_of_seed = np.max([np.linalg.norm(c) for c in seed.coordinates])
     r_max_of_monomer = np.max([np.linalg.norm(c) for c in monomer.coordinates])
-    maxi = r_max_of_seed + r_max_of_monomer + 1.0
-    move_by = direction * maxi
-    monomer.translate(move_by)
+    maximum_distance_to_move = r_max_of_seed + r_max_of_monomer + 1.0
+    move_to = direction * maximum_distance_to_move
+    monomer.translate(move_to)
     step_counter += 1
     contact = check_close_contact(seed, monomer, distance_scaling)
     if contact:
@@ -110,20 +111,21 @@ def merge_two_molecules(vector, seed_input, monomer_input,
             monomer.translate(tiny_steps)
             step_counter += 1
     else:
-        mini = 0.0
-        move_by = direction * (maxi + mini) / 2
+        lower_distance = np.zeros(3)
+        upper_distance = move_to
+        move_to = (upper_distance + lower_distance) / 2
         tabu_logger.debug("Binary steps")
         for i in range(100):
             monomer.move_to_origin()
-            monomer.translate(move_by)
+            monomer.translate(move_to)
             step_counter += 1
             contact = check_close_contact(seed, monomer, distance_scaling)
             if contact:
-                mini = move_by
+                lower_distance = move_to
             else:
-                maxi = move_by
-            move_by = (maxi + mini) / 2
-            if np.linalg.norm(maxi - mini) < 0.01:
+                upper_distance = move_to
+            move_to = (upper_distance + lower_distance) / 2
+            if np.linalg.norm(upper_distance - lower_distance) < 0.01:
                 break
     tabu_logger.debug(f"Total steps taken {step_counter}")
 
@@ -339,7 +341,7 @@ def create_trial_geometries(molecule_id, seed, monomer,
         proximity_factor = 1.0
     else:
         tabu_check_for_angles = True
-        proximity_factor = 1.5
+        proximity_factor = 2.3
 
     tabu_logger.debug('Generating points')
     points_and_angles = generate_points(number_of_orientations, tabu_on,

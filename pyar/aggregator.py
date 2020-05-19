@@ -180,7 +180,9 @@ def aggregate(molecules,
             monomers_to_be_added.append(seed_molecule)
         ag_id += f"_{seed_name}_000"
 
-    complete_pathways = list(set(itertools.permutations(monomers_to_be_added)))
+    a = itertools.permutations(monomers_to_be_added)
+    from ordered_set import OrderedSet
+    complete_pathways = list(OrderedSet(a))
 
     if number_of_pathways != 0:
         my_last_pathway = first_pathway + number_of_pathways
@@ -188,6 +190,13 @@ def aggregate(molecules,
         my_last_pathway = None
 
     pathways_to_calculate = complete_pathways[first_pathway:my_last_pathway]
+
+    aggregator_logger.info("The following Afbau paths will be carried out")
+    for i, path in enumerate(pathways_to_calculate):
+        paths_for_print = f'{i:03d}: '
+        for p in path:
+            paths_for_print += p.name
+        aggregator_logger.info(paths_for_print)
 
     seed_storage = OrderedDict()
 
