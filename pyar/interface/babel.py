@@ -116,7 +116,7 @@ def make_inchi_string_from_xyz(xyzfile):
     if os.path.isfile(xyzfile):
         with open('OBabel.log', 'w') as ferr:
             inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
-        return inchi.decode("utf-8")
+        return inchi.decode("utf-8").strip()
     else:
         raise IOError("file %s does not exists" % xyzfile)
 
