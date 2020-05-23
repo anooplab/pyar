@@ -12,6 +12,7 @@
 import itertools
 import logging
 import re
+import sys
 from math import cos, sin
 
 import numpy as np
@@ -209,7 +210,7 @@ class Molecule(object):
     @classmethod
     def from_xyz(cls, filename):
         """
-        Intantiates Molecule object from .xyz file
+        Instantiates Molecule object from .xyz file
 
         Reads .xyz files, extracts list of atoms
         and coordinates. The name is set as the name
@@ -222,51 +223,8 @@ class Molecule(object):
         :rtype: object
 
         """
-        import sys
-        with open(filename) as fp:
-            f = fp.readlines()
-        try:
-            number_of_atoms = int(f[0])
-        except Exception as e:
-            molecule_logger.error(e)
-            molecule_logger.error("%s should have number of atoms in the first line" % filename)
-            molecule_logger.error("but we found\n %s" % f[0])
-            molecule_logger.error("Is it an xyz file?")
-            sys.exit('Error in reading %s' % filename)
-        mol_title = f[1].rstrip()
-        try:
-            energy = float(re.split(':|=|\s+', mol_title)[1])
-        except Exception as e:
-            molecule_logger.error(f"No energy fournd\n{e}")
-            energy = None
-        try:
-            geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
-        except Exception as e:
-            molecule_logger.error(e)
-            molecule_logger.error("Something wrong with reading the geometry section")
-            sys.exit('Error in reading %s' % filename)
-        if len(geometry_section) != number_of_atoms:
-            molecule_logger.error("Number of geometric coordinates is not equal to number of atoms")
-            molecule_logger.error("Is something wrong?")
-            sys.exit('Error in reading %s' % filename)
-        atoms_list = []
-        coordinates = []
-        for i, c in enumerate(geometry_section):
-            try:
-                symbol = c[0].capitalize()
-                x_coord = float(c[1])
-                y_coord = float(c[2])
-                z_coord = float(c[3])
-            except Exception as e:
-                molecule_logger.error(e)
-                molecule_logger.error("Something wrong in line: %d" % (i + 1))
-                molecule_logger.error(c)
-                sys.exit('Error in reading %s' % filename)
-            atoms_list.append(symbol)
-            coordinates.append([x_coord, y_coord, z_coord])
 
-        mol_coordinates = np.array(coordinates)
-        mol_name = filename[:-4]
+        atoms_list, mol_coordinates, mol_name, mol_title, energy = read_xyz(filename)
         return cls(atoms_list, mol_coordinates, name=mol_name,
                    title=mol_title, energy=energy)
 
@@ -334,7 +292,8 @@ class Molecule(object):
         """
         Checks if there is any bond between two fragments in the molecule.
 
-        This is a simple distance check.  If any of the intrafragmental
+        This is a simple distance check.  If any of the distance between
+        any two atoms of different fragments
         distance is smaller than the sum of covalent radii, it is
         considered as a bond
 
@@ -343,6 +302,7 @@ class Molecule(object):
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
         if isinstance(radius_one, np.float) and isinstance(radius_two, np.float64):
+            # noinspection PyPep8Naming
             R = radius_one + radius_two
             r = np.linalg.norm(fragment_one - fragment_two)
             if r < R:
@@ -350,6 +310,7 @@ class Molecule(object):
             else:
                 return False
         else:
+            # noinspection PyPep8Naming
             R = [x + y for x, y in itertools.product(radius_one, radius_two)]
             r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
             for a, b in zip(r, R):
@@ -391,17 +352,17 @@ class Molecule(object):
         (0.,0.,0.), set_origin usage is necessary
         """
         phi, theta, psi = angles
-        D = np.array(((cos(phi), sin(phi), 0.),
-                      (-sin(phi), cos(phi), 0.),
-                      (0., 0., 1.)))
-        C = np.array(((1., 0., 0.),
-                      (0., cos(theta), sin(theta)),
-                      (0., -sin(theta), cos(theta))))
-        B = np.array(((cos(psi), sin(psi), 0.),
-                      (-sin(psi), cos(psi), 0.),
-                      (0., 0., 1.)))
-        A = np.dot(B, np.dot(C, D))
-        new_coordinates = np.dot(A, np.transpose(self.coordinates))
+        matrix_d = np.array(((cos(phi), sin(phi), 0.),
+                             (-sin(phi), cos(phi), 0.),
+                             (0., 0., 1.)))
+        matrix_c = np.array(((1., 0., 0.),
+                             (0., cos(theta), sin(theta)),
+                             (0., -sin(theta), cos(theta))))
+        matrix_b = np.array(((cos(psi), sin(psi), 0.),
+                             (-sin(psi), cos(psi), 0.),
+                             (0., 0., 1.)))
+        matrix_a = np.dot(matrix_b, np.dot(matrix_c, matrix_d))
+        new_coordinates = np.dot(matrix_a, np.transpose(self.coordinates))
         self.coordinates = np.transpose(new_coordinates) + self.centroid
         return self
 
@@ -438,6 +399,54 @@ class Molecule(object):
             move_axes[p][order[p]] = 1.0
         self.coordinates = np.dot(transformed_coordinates, move_axes)
         return self
+
+
+def read_xyz(filename):
+    with open(filename) as fp:
+        f = fp.readlines()
+    try:
+        number_of_atoms = int(f[0])
+    except Exception as e:
+        molecule_logger.error(e)
+        molecule_logger.error("%s should have number of atoms in the first line" % filename)
+        molecule_logger.error("but we found\n %s" % f[0])
+        molecule_logger.error("Is it an xyz file?")
+        sys.exit('Error in reading %s' % filename)
+    mol_title = f[1].rstrip()
+    try:
+        energy = float(re.split(':|=|\s+', mol_title)[1])
+    except Exception as e:
+        molecule_logger.error(f"No energy found\n{e}")
+        energy = None
+    try:
+        geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
+    except Exception as e:
+        molecule_logger.error(e)
+        molecule_logger.error("Something wrong with reading the geometry section")
+        sys.exit('Error in reading %s' % filename)
+    if len(geometry_section) != number_of_atoms:
+        molecule_logger.error("Number of geometric coordinates is not equal to number of atoms")
+        molecule_logger.error("Is something wrong?")
+        sys.exit('Error in reading %s' % filename)
+    atoms_list = []
+    coordinates = []
+    for i, c in enumerate(geometry_section):
+        try:
+            symbol = c[0].capitalize()
+            x_coord = float(c[1])
+            y_coord = float(c[2])
+            z_coord = float(c[3])
+        except Exception as e:
+            molecule_logger.error(e)
+            molecule_logger.error("Something wrong in line: %d" % (i + 1))
+            molecule_logger.error(c)
+            sys.exit('Error in reading %s' % filename)
+        atoms_list.append(symbol)
+        coordinates.append([x_coord, y_coord, z_coord])
+
+    mol_coordinates = np.array(coordinates)
+    mol_name = filename[:-4]
+    return atoms_list, mol_coordinates, mol_name, mol_title, energy
 
 
 def main():

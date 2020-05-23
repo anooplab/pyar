@@ -9,6 +9,7 @@ from pyar.data.atomic_data import atomic_numbers
 
 
 def get_rsmd(mol):
+    """Molecular Descriptor written by Rajat Shubhro Majumdar"""
     mol.move_to_centre_of_mass()
     centre_of_mass = pyar.property.get_centre_of_mass(mol.coordinates, mol.atomic_mass)
     number_of_atoms = mol.number_of_atoms
