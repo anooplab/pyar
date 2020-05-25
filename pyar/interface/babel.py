@@ -129,10 +129,13 @@ def make_smile_string_from_xyz(xyzfile):
     """
     if os.path.isfile(xyzfile):
         with open('OBabel.log', 'w') as ferr:
-            pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi"], stderr=ferr)
-        smile = pre_smile.split()[0].decode("utf-8")
-        # print "smile string inside make_smile_string_from_xyz() is: ", smile
-        return smile
+            try:
+                pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr=ferr)
+                smile = pre_smile.decode("utf-8").strip()
+            except Exception as e:
+                ferr.write(e)
+                smile = ''
+            return smile
     else:
         raise IOError("file %s does not exists" % xyzfile)
 
