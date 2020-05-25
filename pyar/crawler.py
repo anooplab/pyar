@@ -22,7 +22,6 @@ def collect_data(starting_point, exclude_pattern, pattern):
     ne = []
     for root, dir_name, files in os.walk(starting_point):
         for file in files:
-            print(file)
             if pattern in file and os.path.splitext(file)[-1] == '.xyz' and exclude_pattern not in root:
                 xyz_file = os.path.join(root, file)
                 inchi_string = babel.make_inchi_string_from_xyz(xyz_file)
