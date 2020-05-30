@@ -247,9 +247,17 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
                 converged = [n for n, s in zip(not_converged, status_list) if s is True]
                 list_of_optimized_molecules.extend(converged)
                 not_converged = [n for n, s in zip(not_converged, status_list)
-                                 if s == 'CycleExceeded']
+                                 if s == 'CycleExceeded' and not tabu.broken(n)]
                 not_converged = clustering.remove_similar(not_converged)
-
+            else:
+                aggregator_logger.info("    All molecules are processed")
+                break
+        else:
+            aggregator_logger.info("    The following molecules are not converged"
+                                   "after 10 rounds")
+            for n, s in zip(not_converged, status_list):
+                if s == 'CycleExceeded' and not tabu.broken(n):
+                    aggregator_logger.info("      ", n.name)
         os.chdir(cwd)
 
     if len(list_of_optimized_molecules) < 2:
@@ -260,7 +268,10 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
     file_manager.make_directories('selected')
     os.chdir('selected')
     qc_params["opt_threshold"] = 'normal'
+    aggregator_logger.info("  Optimizing the selected molecules with higher thresold")
+    less_than_ideal = []
     for each_file in selected_seeds:
+        not_refined = copy.deepcopy(each_file)
         status = optimise(each_file, qc_params)
         if status is True:
             # xyz_file = 'seed_' + each_file.name[4:7] + '/job_' + each_file.name + '/result_' + each_file.name + '.xyz'
@@ -268,7 +279,13 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
             shutil.copy(xyz_file, '.')
         else:
             selected_seeds.remove(each_file)
-    return selected_seeds
+            less_than_ideal.append(not_refined)
+    if len(selected_seeds) == 0:
+        aggregator_logger.info("    The optimization could not be refined, \n"
+                               "    so sending the loosely optimised molecules")
+        return less_than_ideal
+    else:
+        return selected_seeds
 
 
 def update_id(aid, the_monomer):

@@ -77,7 +77,7 @@ def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_o
 
     if len(list_of_molecules) <= maximum_number_of_seeds:
         cluster_logger.info('    Not enough data for clustering. '
-                            'Removing similar geometries from the list')
+                            '    Removing similar geometries from the list')
         return remove_similar(list_of_molecules)
 
     cluster_logger.info('Clustering on {} geometries'.format(len(list_of_molecules)))
@@ -114,7 +114,7 @@ def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_o
     if len(best_from_each_cluster) == 1:
         return best_from_each_cluster
     else:
-        cluster_logger.info("Removing similar molecules after clustering.")
+        cluster_logger.info("    Removing similar molecules after clustering.")
         reduced_best_from_each_cluster = remove_similar(best_from_each_cluster)
 
     if len(reduced_best_from_each_cluster) > maximum_number_of_seeds:
@@ -130,7 +130,8 @@ def print_energy_table(molecules):
         ref = min(e_dict.values())
         cluster_logger.info(f"     {'Name':>35}:{'Energy':>12}{'R. E. (kcal/mol)':>18}")
         for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
-            cluster_logger.info(f"     {name:>15}:{energy:12.6f}{(energy - ref) * 627.51:12.2f}")
+            cluster_logger.info(f"     {name:>35}:{energy:12.6f}{(energy - ref) * 627.51:12.2f}")
+        cluster_logger.info(f"")
 
 
 def get_labels(data_as_list, algorithm='combo'):
@@ -142,7 +143,7 @@ def get_labels(data_as_list, algorithm='combo'):
     if algorithm == 'combo':
 
         kmeans_labels, centres = n_clusters_optimized_with_kmeans(dt)
-        cluster_logger.info('Clustering with MeahShift algorithm using seeds '
+        cluster_logger.info('    Clustering with MeahShift algorithm using seeds '
                             'from K-Means')
         ms = MeanShift(bandwidth=None, bin_seeding=True, seeds=centres)
         ms.fit(dt)
@@ -201,7 +202,7 @@ def n_clusters_optimized_with_kmeans(dt):
         kmeans.fit(dt)
         labels = kmeans.labels_
         centres = kmeans.cluster_centers_
-        cluster_logger.info('For more than 10k samples, KMeans with '
+        cluster_logger.info('    For more than 10k samples, KMeans with '
                             'n_clusters=8 is used as memory becomes a problem.')
         return labels, centres
 
@@ -219,7 +220,7 @@ def n_clusters_optimized_with_kmeans(dt):
         except Exception:
             cluster_logger.error('K-Means failed')
     best = max(scores, key=scores.get)
-    cluster_logger.info('Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
+    cluster_logger.info('    Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
     return labels[best], centres[best]
 
 
@@ -240,14 +241,14 @@ def generate_labels(dt):
 
 def select_best_from_each_cluster(labels, list_of_molecules):
     unique_labels = np.unique(labels)
-    cluster_logger.info("The distribution of file in each cluster {}:".format(np.bincount(labels)))
+    cluster_logger.info("    The distribution of file in each cluster {}:".format(np.bincount(labels)))
     best_from_each_cluster = []
     for this_label in unique_labels:
         molecules_in_this_group = [m for label, m in
                                    zip(labels, list_of_molecules)
                                    if label == this_label]
         best_from_each_cluster.append(get_the_best_molecule(molecules_in_this_group))
-    cluster_logger.info("Lowest energy structures from each cluster")
+    cluster_logger.info("    Lowest energy structures from each cluster")
     print_energy_table(best_from_each_cluster)
     return best_from_each_cluster
 

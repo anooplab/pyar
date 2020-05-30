@@ -34,7 +34,7 @@ class Molecule(object):
     :type number_of_atoms: int
     :param number_of_atoms: The total number of atoms in the molecule
     :type atoms_list: list
-    :param atoms_list: The list of Atomic symbols of the atoms.
+    :pa ram atoms_list: The list of Atomic symbols of the atoms.
     :type coordinates: ndarray
     :param coordinates: 2D array of the cartesian coordinates of atoms
         [[x1, y1, z1] [x2, y2, z2]]
