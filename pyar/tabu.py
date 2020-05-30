@@ -3,6 +3,7 @@ tabu.py
 
 Functions to merge two molecules.
 """
+import collections
 import copy
 import itertools
 import logging
@@ -405,15 +406,20 @@ def main():
 
 
 def broken(molobj):
-    bndgrph = get_connectivity(molobj.coordinates, molobj.covalent_radius)
-    from _collections import deque
+    """
+
+    :param molobj: object(Molecule)
+    :return: Is the molecule fragmented?
+    :rtype: bool
+    """
+    bond_graph = get_connectivity(molobj.coordinates, molobj.covalent_radius)
     explored = []
-    queue = deque([0])
+    queue = collections.deque([0])
     while queue:
         node = queue.popleft()
         if node not in explored:
             explored.append(node)
-            neighbours = bndgrph[node]
+            neighbours = bond_graph[node]
             for neighbour in neighbours:
                 queue.append(neighbour)
     status = [i for i in range(len(molobj.atoms_list)) if i not in explored]
