@@ -11,6 +11,7 @@ import numpy as np
 from numpy import pi, cos, sin
 
 from pyar.Molecule import Molecule
+from pyar.property import get_connectivity
 
 tabu_logger = logging.getLogger('pyar.tabu')
 
@@ -180,7 +181,7 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
         distance = np.linalg.norm(each_saved_entry[:3] - point_n_angle[:3])
         if distance < d_threshold:
             tabu = True
-        if tabu is True and angle_tabu is True:
+        if tabu and angle_tabu is True:
             delta_theta = abs(each_saved_entry[3] - point_n_angle[3])
             delta_phi = abs(each_saved_entry[4] - point_n_angle[4])
             delta_psi = abs(each_saved_entry[5] - point_n_angle[5])
@@ -242,10 +243,7 @@ def distribute_points_uniformly(points_and_angles):
             forces.append(forces_on_p)
         forces = np.array(forces)
         total_forces = np.sqrt(np.sum(forces ** 2))
-        if total_forces > 0.25:
-            scale_force = 0.25 / total_forces
-        else:
-            scale_force = 1
+        scale_force = 0.25 / total_forces if total_forces > 0.25 else 1
         dist = 0
         for ith in range(len(points)):
             p = points[ith]
@@ -406,8 +404,28 @@ def main():
     pass
 
 
+def broken(molobj):
+    bndgrph = get_connectivity(molobj.coordinates, molobj.covalent_radius)
+    from _collections import deque
+    explored = []
+    queue = deque([0])
+    while queue:
+        node = queue.popleft()
+        if node not in explored:
+            explored.append(node)
+            neighbours = bndgrph[node]
+            for neighbour in neighbours:
+                queue.append(neighbour)
+    status = [i for i in range(len(molobj.atoms_list)) if i not in explored]
+    return len(status) > 0
+
+
 if __name__ == "__main__":
-    pts = generate_points(4, True, True, False, 0.3, 15.0)
-    for i in pts:
-        print(i)
-    plot_points(pts, '/home/anoop')
+    import sys
+
+    input_xyz = sys.argv[1]
+    mol = Molecule.from_xyz(input_xyz)
+    if broken(mol):
+        print("is a fragment")
+    else:
+        print("Fine")

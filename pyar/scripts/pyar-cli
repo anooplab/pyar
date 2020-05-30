@@ -216,16 +216,8 @@ def main():
         if v:
             logger.debug(f"{k:25} = {v}")
 
-    if run_parameters['tabu'] == 'y':
-        tabu_on = True
-    else:
-        tabu_on = False
-
-    if run_parameters['grid'] == 'y':
-        grid_on = True
-    else:
-        grid_on = False
-
+    tabu_on = True if run_parameters['tabu'] == 'y' else False
+    grid_on = True if run_parameters['grid'] == 'y' else False
     # Sanity check
     number_of_input_files = len(run_parameters['input_files'])
     logger.debug(f"{number_of_input_files} input files")

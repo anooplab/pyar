@@ -45,11 +45,7 @@ def file_exists_check_with_return_status(file_path):
 
     """
 
-    if os.path.exists(file_path):
-        status = True
-    else:
-        status = False
-    return status
+    return True if os.path.exists(file_path) else False
 
 
 def make_directories(*arguments):
@@ -62,11 +58,10 @@ def make_directories(*arguments):
     for dirs in arguments:
         if not os.path.isdir(dirs):
             file_manager_logger.debug('making directory: {}'.format(dirs))
-            os.makedirs(dirs)
         else:
             file_manager_logger.debug('{} exists! remvoing and recreating the directory'.format(dirs))
             shutil.rmtree(dirs)
-            os.makedirs(dirs)
+        os.makedirs(dirs)
     return
 
 

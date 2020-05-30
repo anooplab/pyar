@@ -143,32 +143,35 @@ def optimize_all(gamma_id, orientations_to_optimize,
                     reactor_logger.info("Start SMILE: {} Current SMILE: {}".format(start_smile, current_smile))
                     reactor_logger.info("Start InChi: {} Current InChi: {}".format(start_inchi, current_inchi))
 
-                    if start_inchi != current_inchi or start_smile != current_smile:
+                    if (
+                            start_inchi == current_inchi
+                            and start_smile == current_smile
+                    ):
+                        table_of_optimized_molecules.append(before_relax)
+                        reactor_logger.info(f'{job_name} is added to the table'
+                                            f' to optimize with higher gamma')
+                    else:
                         saved_products[job_name] = this_molecule
                         reactor_logger.info("       The geometry is different "
                                             "from the stating structure.")
                         reactor_logger.info("       Checking if this is a (new)"
                                             " products")
-                        if current_inchi not in saved_inchi_strings.values() and \
-                                current_smile not in saved_smile_strings.values():
+                        if (
+                                current_inchi in saved_inchi_strings.values()
+                                or current_smile in saved_smile_strings.values()
+                        ):
+                            reactor_logger.info("Both strings matches with "
+                                                "those of already saved "
+                                                "products. Discarded")
+                        else:
                             reactor_logger.info("        New Product! Saving")
                             saved_inchi_strings[job_name] = current_inchi
                             saved_smile_strings[job_name] = current_smile
                             saved_products[job_name] = this_molecule
                             shutil.copy('result_relax.xyz',
                                         product_dir + '/' + job_name + '.xyz')
-                            os.chdir(cwd)
-                            continue
-                        else:
-                            reactor_logger.info("Both strings matches with "
-                                                "those of already saved "
-                                                "products. Discarded")
-                            os.chdir(cwd)
-                            continue
-                    else:
-                        table_of_optimized_molecules.append(before_relax)
-                        reactor_logger.info(f'{job_name} is added to the table'
-                                            f' to optimize with higher gamma')
+                        os.chdir(cwd)
+                        continue
                 elif status == 'cycle_exceeded':
                     table_of_optimized_molecules.append(before_relax)
                     reactor_logger.info(f'{job_name} is added to the table to '

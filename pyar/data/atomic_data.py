@@ -1,5 +1,6 @@
 # encoding: utf-8
 """ file from ASE"""
+
 import numpy as np
 
 chemical_symbols = ['X', 'H', 'He', 'Li', 'Be',
@@ -24,10 +25,7 @@ chemical_symbols = ['X', 'H', 'He', 'Li', 'Be',
                     'Am', 'Cm', 'Bk', 'Cf', 'Es',
                     'Fm', 'Md', 'No', 'Lr']
 
-atomic_numbers = {}
-for Z, symbol in enumerate(chemical_symbols):
-    atomic_numbers[symbol] = Z
-
+atomic_numbers = {symbol: Z for Z, symbol in enumerate(chemical_symbols)}
 atomic_names = [
     '', 'Hydrogen', 'Helium', 'Lithium', 'Beryllium', 'Boron',
     'Carbon', 'Nitrogen', 'Oxygen', 'Fluorine', 'Neon', 'Sodium',
@@ -163,7 +161,7 @@ atomic_masses = np.array([
 #  Covalent radii revisited,
 #  Beatriz Cordero, Verónica Gómez, Ana E. Platero-Prats, Marc Revés,
 #  Jorge Echeverría, Eduard Cremades, Flavia Barragán and Santiago Alvarez,
-#  Dalton Trans., 2008, 2832-2838 DOI:10.1039/B801115J 
+#  Dalton Trans., 2008, 2832-2838 DOI:10.1039/B801115J
 missing = 0.2
 covalent_radii = np.array([
     missing,  # X

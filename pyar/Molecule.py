@@ -130,15 +130,8 @@ class Molecule(object):
         self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates, self.centroid)
         self.distance_list = pyar.property.get_distance_list(self.coordinates)
 
-        if name is None:
-            self.name = 'Molecule'
-        else:
-            self.name = name
-        if title is None:
-            self.title = 'Title'
-        else:
-            self.title = title
-
+        self.name = 'Molecule' if name is None else name
+        self.title = 'Title' if title is None else title
         if fragments is None:
             self.fragments = []
         else:
@@ -239,8 +232,7 @@ class Molecule(object):
 
         if coordinates is None:
             coordinates = self.coordinates
-        fragments_coordinates = [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
-        return fragments_coordinates
+        return [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
 
     def split_atoms_lists(self):
         """
@@ -251,8 +243,7 @@ class Molecule(object):
 
         """
 
-        fragments_atoms_list = [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
-        return fragments_atoms_list
+        return [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
 
     def split_covalent_radii_list(self):
         return [np.array(self.covalent_radius)[fragment_identifiers] for fragment_identifiers in self.fragments]
@@ -265,8 +256,6 @@ class Molecule(object):
         :type file_name: str
 
         """
-        if not hasattr(self, 'energy'):
-            pass
         with open(file_name, 'w') as fp:
             fp.write("{:3d}\n".format(self.number_of_atoms))
             fp.write("{}: {}\n".format(self.title, self.energy))
@@ -305,10 +294,7 @@ class Molecule(object):
             # noinspection PyPep8Naming
             R = radius_one + radius_two
             r = np.linalg.norm(fragment_one - fragment_two)
-            if r < R:
-                return True
-            else:
-                return False
+            return r < R
         else:
             # noinspection PyPep8Naming
             R = [x + y for x, y in itertools.product(radius_one, radius_two)]

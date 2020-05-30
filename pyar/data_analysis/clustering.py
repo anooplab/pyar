@@ -58,17 +58,16 @@ def memoize(f):
 
 @memoize
 def calc_energy_difference(a, b):
-    energy_difference = a.energy - b.energy
-    return energy_difference
+    return a.energy - b.energy
 
 
 @memoize
 def calc_fingerprint_distance(a, b):
     """Calculate the distance between two fingerprints"""
-    fingerprint_distance = np.linalg.norm(
-        pyar.representations.fingerprint(a.atoms_list, a.coordinates) - pyar.representations.fingerprint(b.atoms_list,
-                                                                                                         b.coordinates))
-    return fingerprint_distance
+    return np.linalg.norm(
+        pyar.representations.fingerprint(a.atoms_list, a.coordinates)
+        - pyar.representations.fingerprint(b.atoms_list, b.coordinates)
+    )
 
 
 def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_of_seeds=8):
@@ -149,11 +148,7 @@ def get_labels(data_as_list, algorithm='combo'):
         ms.fit(dt)
         meanshift_labels = ms.labels_
         n_labels = len(np.unique(meanshift_labels))
-        if 1 < n_labels < 8:
-            labels = meanshift_labels
-        else:
-            labels = kmeans_labels
-
+        labels = meanshift_labels if 1 < n_labels < 8 else kmeans_labels
     if algorithm == 'meanshift':
 
         try:
@@ -274,8 +269,7 @@ def read_energy_from_xyz_file(xyz_file):
     import re
     with open(xyz_file, 'r') as fr:
         comments_line = fr.readlines()[1].rstrip()
-    energy = float(re.split(':|=|\s+', comments_line)[1])
-    return energy
+    return float(re.split(':|=|\s+', comments_line)[1])
 
 
 def plot_energy_histogram(molecules):

@@ -54,14 +54,7 @@ class Mopac(SF):
         :return: exit status.
 
         """
-        if not keyword:
-            keyword_line = "-xkPM7"
-        elif keyword:
-            keyword_line = "-xk" + keyword
-        else:
-            print("keyword:", keyword, "not recognized.")
-            print("program will stop")
-            sys.exit()
+        keyword_line = '-xkPM7' if not keyword else '-xk' + keyword
         with open('tmp.log', 'w') as fminp:
             out = subp.Popen(["babel", "-ixyz", self.start_xyz_file, "-omop", self.inp_file, keyword_line],
                              stdout=fminp, stderr=fminp)

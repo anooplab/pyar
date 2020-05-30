@@ -109,13 +109,24 @@ def get_bond_matrix(coordinates, covalent_radius):
     return bm
 
 
+def get_connectivity(coordinates, covalent_radius):
+    """return connection graph"""
+    import collections
+    dm = get_distance_matrix(coordinates)
+    bond_graph = collections.defaultdict(list)
+    for i, c in enumerate(coordinates):
+        for j, d in enumerate(coordinates):
+            sum_of_covalent_radii = (covalent_radius[i] + covalent_radius[j]) * 1.3
+            if i != j and dm[i, j] < sum_of_covalent_radii:
+                bond_graph[j].append(i)
+    return bond_graph
+
+
 def calculate_angle(a1, b1, c1):
     v1 = c1 - b1
     v2 = c1 - a1
-    a = np.arccos(np.dot(v1, v2) / (
+    return np.arccos(np.dot(v1, v2) / (
             np.linalg.norm(v1) * np.linalg.norm(v2))) * 180 / pi
-
-    return a
 
 
 def hydrogen_bond_analysis(coordinates, covalent_radius, atomic_number, atoms_list):
@@ -125,17 +136,15 @@ def hydrogen_bond_analysis(coordinates, covalent_radius, atomic_number, atoms_li
     hbm = np.zeros((len(coordinates), len(coordinates)), dtype=int)
     for i, c in enumerate(coordinates):
         for j, d in enumerate(coordinates):
-            if i != j:
-                if atomic_number[i] == 1:
-                    if 1.5 < dm[i, j] < 2.5:
-                        bnd = int(np.where(bm[i, :])[0])
-                        angle = calculate_angle(coordinates[bnd], coordinates[i],
-                                                coordinates[j])
-                        if angle > 160.0:
-                            print(
-                                "{}({}) - {}({}) = {}".format(atoms_list[i], i + 1, atoms_list[j], j + 1,
-                                                              dm[i, j]))
-                            hbm[i, j] = dm[i, j]
+            if i != j and atomic_number[i] == 1 and 1.5 < dm[i, j] < 2.5:
+                bnd = int(np.where(bm[i, :])[0])
+                angle = calculate_angle(coordinates[bnd], coordinates[i],
+                                        coordinates[j])
+                if angle > 160.0:
+                    print(
+                        "{}({}) - {}({}) = {}".format(atoms_list[i], i + 1, atoms_list[j], j + 1,
+                                                      dm[i, j]))
+                    hbm[i, j] = dm[i, j]
     return hbm
 
 
@@ -155,5 +164,4 @@ def calculate_dihedral(p0, p1, p2, p3):
     # v and w may not be normalized but that's fine since tan is y/x
     x = np.dot(v, w)
     y = np.dot(np.cross(v, b1), w)
-    d = np.degrees(np.arctan2(y, x))
-    return d
+    return np.degrees(np.arctan2(y, x))

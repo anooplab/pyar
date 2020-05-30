@@ -76,8 +76,7 @@ class OBabel(SF):
         exit_status = out.returncode
         if exit_status is None:
             with open(self.job_name + '.ene', 'r') as energy_file:
-                energy = float(energy_file.readlines()[-1].split()[3])
-                return energy
+                return float(energy_file.readlines()[-1].split()[3])
 
 
 def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
@@ -92,10 +91,7 @@ def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
         the purpose given in the keyword. Note that babel will be used to prepare
         the input(.mop) file.
     """
-    if keyword is None:
-        keyword_line = "-xkPM7"
-    else:
-        keyword_line = "-xk" + keyword
+    keyword_line = '-xkPM7' if keyword is None else '-xk' + keyword
     with open('tmp.log', 'w') as fminp:
         subp.call(["babel", "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line], stderr=fminp, stdout=fminp)
     print(open('tmp.log').readlines()[0])

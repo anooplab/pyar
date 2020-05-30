@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # encoding: utf-8
 """Command line interface for PyAR"""
+
 import argparse
 import datetime
 import logging
@@ -166,11 +167,10 @@ logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
 
 if run_parameters['site'] is None:
     site = None
-    proximity_factor = 2.3
 else:
     site = run_parameters['site']
-    proximity_factor = 2.3
     # noinspection PyUnresolvedReferences
     site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
+proximity_factor = 2.3
 optimiser.bulk_optimize(input_molecules, quantum_chemistry_parameters)

@@ -52,9 +52,9 @@ class XtbTurbo(SF):
 
         self.egrad_program = ['xtb', 'coord', '-grad']
         if self.charge > 0:
-            self.egrad_program = self.egrad_program + ['-chrg', str(self.charge)]
+            self.egrad_program += ['-chrg', str(self.charge)]
         if self.multiplicity != 1:
-            self.egrad_program = self.egrad_program + ['-uhf', str(self.multiplicity)]
+            self.egrad_program += ['-uhf', str(self.multiplicity)]
         self.energy = None
         self.optimized_coordinates = None
 

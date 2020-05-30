@@ -108,11 +108,8 @@ class Turbomole(SF):
             scf_conv = 6
         elif convergence == 'tight':
             scf_conv = 8
-        elif convergence == 'normal':
-            scf_conv = 7
         else:
             scf_conv = 7
-
         basis_set = self.basis
         functional = 'bp'
         if self.method.lower() == 'bp86':
@@ -131,9 +128,9 @@ class Turbomole(SF):
             remove('control')
             define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge,
                                             multiplicity=self.multiplicity)
-            if define_status is False:
-                turbomole_logger.debug('Initial Define failed again. Quit')
-                return 'UpdateFailed'
+        if define_status is False:
+            turbomole_logger.debug('Initial Define failed again. Quit')
+            return 'UpdateFailed'
 
         if gamma is None:
             return self.run_turbomole_jobex(max_cycles=max_cycles)
@@ -312,7 +309,12 @@ def run_single_point():
 
 def calc_energy():
     run_status = run_turbomole_module('ridft')
-    msg = set([line.strip() for line in open('ridft.out').readlines() if 'ended' in line])
+    msg = {
+        line.strip()
+        for line in open('ridft.out').readlines()
+        if 'ended' in line
+    }
+
     if run_status is False or 'abnormally' in msg:
         turbomole_logger.debug(msg)
         turbomole_logger.debug('Check the the files in %s' % os.getcwd())
@@ -563,9 +565,11 @@ def get_energy():
 
 
 def get_gradients():
-    grad = [line.replace('D', 'E').split() for line in open('gradient').read().split('cycle')[-1].split('\n') if
-            len(line.split()) == 3]
-    return grad
+    return [
+        line.replace('D', 'E').split()
+        for line in open('gradient').read().split('cycle')[-1].split('\n')
+        if len(line.split()) == 3
+    ]
 
 
 def get_coords():

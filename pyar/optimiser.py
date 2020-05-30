@@ -96,8 +96,11 @@ def write_csv_file(csv_filename, energy_dict):
 
 def bulk_optimize(input_molecules, qc_params):
     status_list = [optimise(each_mol, qc_params) for each_mol in input_molecules]
-    optimized_molecules = [n for n, s in zip(input_molecules, status_list) if s is True or s == 'cycleexceeded']
-    return optimized_molecules
+    return [
+        n
+        for n, s in zip(input_molecules, status_list)
+        if s is True or s == 'cycleexceeded'
+    ]
 
 
 def main():

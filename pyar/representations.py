@@ -44,8 +44,7 @@ def get_rsmd(mol):
             p_yi += (r / (z1 * z2)) * (np.exp(-r / z1 * z2)) * sin_theta
             p_zd += ((r / z1 * z2) ** 2) * (3 * (cos_theta ** 2) - 1)
 
-    descriptor = np.array([number_of_atoms, one_s, two_s, p_ex, p_yi, p_zd])
-    return descriptor
+    return np.array([number_of_atoms, one_s, two_s, p_ex, p_yi, p_zd])
 
 
 def make_internal_coordinates(mol):
@@ -67,20 +66,28 @@ def make_internal_coordinates(mol):
                     bl.append([seq, dm[i, j]])
     al = []
     for i, j, k in product(range(len(coordinates)), repeat=3):
-        if i != j and j != k and i != k:
-            if bm[i, j] and bm[j, k]:
-                seq = [i, j, k]
-                if seq[::-1] not in [i[0] for i in al]:
-                    al.append([seq, pyar.property.calculate_angle(coordinates[i], coordinates[j],
-                                                                  coordinates[k])])
+        if i != j and j != k and i != k and bm[i, j] and bm[j, k]:
+            seq = [i, j, k]
+            if seq[::-1] not in [i[0] for i in al]:
+                al.append([seq, pyar.property.calculate_angle(coordinates[i], coordinates[j],
+                                                              coordinates[k])])
 
     dl = []
     for i, j, k, l in product(range(len(coordinates)), repeat=4):
-        if i != j and i != k and i != l and j != k and j != l and k != l:
-            if bm[i, j] and bm[j, k] and bm[k, l]:
-                seq = [i, j, k, l]
-                if seq[::-1] not in [i[0] for i in dl]:
-                    dl.append([seq, pyar.property.calculate_dihedral(i, j, k, l)])
+        if (
+                i != j
+                and i != k
+                and i != l
+                and j != k
+                and j != l
+                and k != l
+                and bm[i, j]
+                and bm[j, k]
+                and bm[k, l]
+        ):
+            seq = [i, j, k, l]
+            if seq[::-1] not in [i[0] for i in dl]:
+                dl.append([seq, pyar.property.calculate_dihedral(i, j, k, l)])
 
     return [bl, al, dl]
 

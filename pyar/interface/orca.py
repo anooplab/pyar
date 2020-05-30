@@ -110,9 +110,9 @@ class Orca(SF):
             with open(self.out_file, "r") as out:
                 line = out.readlines()
                 en_steps = []
-                for i in range(len(line)):
-                    if "FINAL SINGLE POINT ENERGY" in line[i]:
-                        en_steps.append(line[i])
+                for item in line:
+                    if "FINAL SINGLE POINT ENERGY" in item:
+                        en_steps.append(item)
                 if len(en_steps) >= 1:
                     energy_in_hartrees = float((en_steps[-1].strip().split())[-1])
                 else:

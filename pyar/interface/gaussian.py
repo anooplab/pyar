@@ -112,13 +112,13 @@ class Gaussian(SF):
         for i, lines in enumerate(t):
             if 'Stationary point found.' in lines:
                 opt_status = True
-            if opt_status is True and 'Standard orientation' in lines:
+            if opt_status and 'Standard orientation' in lines:
                 pos = i
                 coords_lines = t[pos + 5:pos + 5 + self.number_of_atoms]
                 for ilines in coords_lines:
                     coordinates.append(ilines.split()[3:6])
                 return np.array(coordinates, dtype=float)
-        if opt_status is False:
+        if not opt_status:
             return None
 
     def get_energy(self):
@@ -129,9 +129,9 @@ class Gaussian(SF):
             with open(self.out_file, "r") as out:
                 lines_in_file = out.readlines()
                 en_steps = []
-                for i in range(len(lines_in_file)):
-                    if "SCF Done" in lines_in_file[i]:
-                        en_steps.append(lines_in_file[i])
+                for item in lines_in_file:
+                    if "SCF Done" in item:
+                        en_steps.append(item)
                 en_Eh = float((en_steps[-1].strip().split())[4])
             return en_Eh
         except IOError:

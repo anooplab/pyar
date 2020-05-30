@@ -9,15 +9,11 @@ from pyar import optimiser
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
                                number_of_orientations, d_scale):
-    if monomer.number_of_atoms == 1:
-        tabu_check_for_angles = False
-    else:
-        tabu_check_for_angles = True
-
+    tabu_check_for_angles = False if monomer.number_of_atoms == 1 else True
     saved_pts = []
 
     orientations = []
-    for i in range(number_of_orientations):
+    for _ in range(number_of_orientations):
         t1 = time.clock()
         pts = pyar.tabu.generate_points(32, True, True, True, 0.3, 5.0)
         t2 = time.clock()
@@ -25,8 +21,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         t1 = time.clock()
         current_orientations = []
         for vector in pts:
-            current_orientations.append(pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]),
-                                        distance_scaling=d_scale)
+            current_orientations.append(pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]))
         t2 = time.clock()
         pyar.tabu.tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
         t1 = time.clock()
@@ -73,8 +68,8 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_c
         coordinates = each_molecule.coordinates
         start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
         final_distance = each_molecule.covalent_radius[a_atom] + each_molecule.covalent_radius[b_atom]
-        step = int(abs(final_distance - start_dist) * 10)
         if quantum_chemistry_parameters['software'] == 'orca':
+            step = int(abs(final_distance - start_dist) * 10)
             c_k = f'\n% geom\n    scan B {a_atom} {b_atom}= {start_dist}, ' \
                   f'{final_distance}, {step}\n        end\nend\n'
             quantum_chemistry_parameters['gamma'] = 0.0
