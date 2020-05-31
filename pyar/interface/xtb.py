@@ -66,7 +66,7 @@ class Xtb(SF):
                 out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
                 xtb_logger.info('    Optimization failed')
-                xtb_logger.error("      ", e)
+                xtb_logger.error(f"      {e}")
                 return False
 
         if os.path.isfile('.xtboptok'):
@@ -77,7 +77,7 @@ class Xtb(SF):
             os.rename('xtbopt.log', self.trajectory_xyz_file)
             os.remove('.xtboptok')
             return True
-        elif os.path.isfile('.sccnotconverged'):
+        elif os.path.isfile('.sccnotconverged') or os.path.isfile('NOT_CONVERGED'):
             xtb_logger.info('      SCF Convergence failure in {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return 'SCFFailed'
         else:

@@ -78,6 +78,11 @@ def optimise(molecule, qc_params):
         molecule.energy = geometry.energy
         molecule.coordinates = geometry.optimized_coordinates
         optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy:15.6f}')
+    elif optimize_status == 'SCFFailed':
+        from numpy.random import uniform
+        molecule.coordinates += uniform(-0.1, 0.1, (molecule.number_of_atoms, 3))
+        os.chdir(cwd)
+        optimize_status = optimise(molecule, qc_params)
     else:
         molecule.energy = None
         molecule.coordinates = None

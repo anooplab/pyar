@@ -402,7 +402,7 @@ def read_xyz(filename):
     try:
         energy = float(re.split(':|=|\s+', mol_title)[1])
     except Exception as e:
-        molecule_logger.error(f"No energy found\n{e}")
+        molecule_logger.debug(f"No energy found\n{e}")
         energy = None
     try:
         geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]

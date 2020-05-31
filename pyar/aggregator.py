@@ -86,9 +86,9 @@ def aggregate(molecules,
 
     pathways_to_calculate = complete_pathways[first_pathway:my_last_pathway]
 
-    aggregator_logger.info("The following Afbau paths will be carried out")
+    aggregator_logger.info("  The following Afbau paths will be carried out")
     for i, path in enumerate(pathways_to_calculate):
-        paths_for_print = f'{i:03d}: '
+        paths_for_print = f'   {i:03d}: '
         for p in path:
             paths_for_print += p.name
         aggregator_logger.info(paths_for_print)
