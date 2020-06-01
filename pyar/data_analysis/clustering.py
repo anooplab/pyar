@@ -22,7 +22,7 @@ def remove_similar(list_of_molecules):
         energy_difference = calc_energy_difference(a, b)
         fingerprint_distance = calc_fingerprint_distance(a, b)
         if abs(energy_difference) < 1e-5 and abs(fingerprint_distance) < 1.0:
-            if energy_difference < 0:
+            if e    nergy_difference < 0:
                 if a in final_list:
                     cluster_logger.debug('Removing {}'.format(a.name))
                     final_list.remove(a)
@@ -70,7 +70,7 @@ def calc_fingerprint_distance(a, b):
     )
 
 
-def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_of_seeds=8):
+def choose_geometries(list_of_molecules, features='fingerprint', maximum_number_of_seeds=8):
     if len(list_of_molecules) < 2:
         cluster_logger.info("    Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules
@@ -82,14 +82,16 @@ def choose_geometries(list_of_molecules, feature='fingerprint', maximum_number_o
 
     cluster_logger.info('Clustering on {} geometries'.format(len(list_of_molecules)))
 
-    if feature == 'fingerprint':
+    if features == 'fingerprint':
         dt = [pyar.representations.fingerprint(i.atoms_list, i.coordinates) for i in list_of_molecules]
-    elif feature == 'scm':
+    elif features == 'scm':
         dt = [
             pyar.representations.sorted_coulomb_matrix(pyar.representations.coulomb_matrix(i.atoms_list, i.coordinates))
             for i in list_of_molecules]
-    elif feature == 'moi':
+    elif features == 'moi':
         dt = [pyar.property.get_principal_axes(i.moments_of_inertia_tensor) for i in list_of_molecules]
+    elif features == 'rsmd':
+        dt = [pyar.representations.get_rsmd(i.moments_of_inertia_tensor) for i in list_of_molecules]
     else:
         cluster_logger.error('This feature is not implemented')
         return list_of_molecules

@@ -22,6 +22,9 @@ parser.add_argument('input_files', type=str, nargs='+',
 parser.add_argument('-m', '--mode', choices=['filter', 'cluster'],
                     default='cluster',
                     help="Choose the mode, filter or cluster")
+parser.add_argument('-cf', '--clustering_features', choices=['fingerprint', 'scm', 'moi', 'fsmd'],
+                    default='fingerprint',
+                    help="Choose the features to be used for clustering")
 
 args = parser.parse_args()
 input_files = args.input_files
@@ -39,7 +42,7 @@ for each_file in input_files:
 pyar.data_analysis.clustering.plot_energy_histogram(mols)
 selected = []
 if args.mode == 'cluster':
-    selected = pyar.data_analysis.clustering.choose_geometries(mols)
+    selected = pyar.data_analysis.clustering.choose_geometries(mols, features=args.clustering_feature)
 if args.mode == 'filter':
     selected = pyar.data_analysis.clustering.remove_similar(mols)
 
