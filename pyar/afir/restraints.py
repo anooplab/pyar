@@ -54,11 +54,11 @@ def calculate_gradient(ac, ac2, alpha, v, w, p):
 
             first_term = ((1 - p) / w * sum_of_covalent_radii_ni ** p *
                           inter_atomic_distance_ni ** (-1 - p))
-            second_term = (p * v / w**2 * sum_of_covalent_radii_ni ** p *
+            second_term = (p * v / w ** 2 * sum_of_covalent_radii_ni ** p *
                            inter_atomic_distance_ni ** (-2 - p))
-            this_gradient = -alpha*(first_term*dq+second_term*dq)
+            this_gradient = first_term * dq + second_term * dq
             gr += this_gradient
-    return np.array(gr)
+    return np.array(-alpha * gr)
 
 
 def flatten(ll):
@@ -117,7 +117,17 @@ def calculate_alpha(force):
 
 
 def main():
-    pass
+    import sys
+    from pyar.Molecule import Molecule
+    from pyar.tabu import merge_two_molecules as merge
+
+    a, b = sys.argv[1:3]
+    force = float(sys.argv[3])
+    mol_a = Molecule.from_xyz(a)
+    mol_b = Molecule.from_xyz(b)
+    mol = merge([1, 0, 0, 0, 0, 0], mol_a, mol_b)
+
+    e1, g1 = isotropic(mol.fragments, mol.atoms_list, mol.coordinates, force)
 
 
 if __name__ == '__main__':

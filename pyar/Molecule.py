@@ -175,8 +175,8 @@ class Molecule(object):
             merged.fragments_history = self.fragments_history + atoms_in_other
         else:
             merged.fragments_history = [atoms_in_self, atoms_in_other]
-        merged.name = "{self.name} + {other.name}"
-        merged.title = "{self.title} + {other.title}"
+        merged.name = f"{self.name} + {other.name}"
+        merged.title = f"{self.title} + {other.title}"
 
         merged.charge = self.charge + other.charge
         total_multiplicity = self.multiplicity + other.multiplicity
