@@ -22,7 +22,7 @@ def remove_similar(list_of_molecules):
         energy_difference = calc_energy_difference(a, b)
         fingerprint_distance = calc_fingerprint_distance(a, b)
         if abs(energy_difference) < 1e-5 and abs(fingerprint_distance) < 1.0:
-            if e    nergy_difference < 0:
+            if energy_difference < 0:
                 if a in final_list:
                     cluster_logger.debug('Removing {}'.format(a.name))
                     final_list.remove(a)
@@ -106,8 +106,9 @@ def choose_geometries(list_of_molecules, features='fingerprint', maximum_number_
 
     try:
         labels = generate_labels(dt)
-    except Exception:
+    except Exception as e:
         cluster_logger.exception("All Clustering algorithms failed")
+        cluster_logger.exception(e)
         return list_of_molecules
 
     best_from_each_cluster = select_best_from_each_cluster(labels,
@@ -143,7 +144,6 @@ def get_labels(data_as_list, algorithm='combo'):
     cluster_logger.debug(' Algorithm = {}'.format(algorithm))
 
     if algorithm == 'combo':
-
         kmeans_labels, centres = n_clusters_optimized_with_kmeans(dt)
         cluster_logger.info('    Clustering with MeahShift algorithm using seeds '
                             'from K-Means')
@@ -158,18 +158,21 @@ def get_labels(data_as_list, algorithm='combo'):
             # The following bandwidth can be automatically detected using
             bandwidth = estimate_bandwidth(dt, quantile=0.2, n_samples=len(dt))
             cluster_logger.debug(' Estimated bandwidth: {}'.format(bandwidth))
-        except Exception:
+        except Exception as e:
             # If it fails to estimate bandwidth, give a value (it is arbitrary
             # now,
             cluster_logger.exception(' Estimation of bandwidth failed. Using '
                                      '0.5 as bandwidth')
+            cluster_logger.exception(e)
+
             bandwidth = 0.5
         try:
             ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
             ms.fit(dt)
             labels = ms.labels_
-        except Exception:
+        except Exception as e:
             cluster_logger.error('MeanShift failed')
+            cluster_logger.error(stacklevel=)
 
     if algorithm == 'dbscan':
         dbs = DBSCAN(eps=0.1)
