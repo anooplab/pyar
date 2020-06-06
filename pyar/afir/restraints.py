@@ -1,10 +1,10 @@
-import collections
 from itertools import product
-from math import sqrt
 
-import numpy as np
+import autograd.numpy as np
+from autograd import grad
 
 import pyar.data.units
+from pyar.Molecule import Molecule
 
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
@@ -40,94 +40,44 @@ def get_covalent_radius(z):
     return pyar.data.units.angstrom2bohr(covalent_radii[z.lower()])
 
 
-def calculate_gradient(ac, ac2, alpha, v, w, p):
-    zn, cn = ac
-    alo, aco = ac2
-    gr = np.zeros(3)
-    for zi, ci in zip(alo, aco):
-        sum_of_covalent_radii_ni = get_covalent_radius(zn) + get_covalent_radius(zi)
-        inter_atomic_distance_ni = np.linalg.norm(cn - ci)
-        if inter_atomic_distance_ni == 0.0:
-            gr += 0.0
-        else:
-            dq = cn - ci
-
-            first_term = ((1 - p) / w * sum_of_covalent_radii_ni ** p *
-                          inter_atomic_distance_ni ** (-1 - p))
-            second_term = (p * v / w ** 2 * sum_of_covalent_radii_ni ** p *
-                           inter_atomic_distance_ni ** (-2 - p))
-            this_gradient = first_term * dq + second_term * dq
-            gr += this_gradient
-    return np.array(-alpha * gr)
-
-
-def flatten(ll):
-    # https://stackoverflow.com/questions/2158395/flatten-an-irregular-list-of-lists
-    for el in ll:
-        if isinstance(el, collections.Iterable) and not isinstance(el, (str, bytes)):
-            yield from flatten(el)
-        else:
-            yield el
-
-
-def isotropic(atoms_in_fragment, atoms_list, coordinates, force):
-    assert len(atoms_in_fragment) == 2
-
+def isotropic(mol, force):
     parameter = 6.0  # inverse distance weighting parameter
-
-    fragment1, fragment2 = [coordinates[fragment_list, :] for fragment_list in atoms_in_fragment]
-    al1, al2 = [np.array(atoms_list)[fragment_list] for fragment_list in atoms_in_fragment]
-
-    if isinstance(al1, str):
-        radius_one = [get_covalent_radius(al1)]
-    else:
-        radius_one = [get_covalent_radius(z) for z in al1]
-    if isinstance(al2, str):
-        radius_two = [get_covalent_radius(al2)]
-    else:
-        radius_two = [get_covalent_radius(z) for z in al2]
-
-    inter_atomic_distance_ij = np.array([np.linalg.norm(a - b) for a, b in product(fragment1, fragment2)])
-    sum_of_covalent_radii__ij = np.array([(a + b) for a, b in product(radius_one, radius_two)])
-
-    nom = np.sum((sum_of_covalent_radii__ij / inter_atomic_distance_ij) ** parameter * inter_atomic_distance_ij)
-    den = np.sum((sum_of_covalent_radii__ij / inter_atomic_distance_ij) ** parameter)
-
-    alpha = calculate_alpha(force)
-
-    restraint_energy = alpha * nom / den
-
-    gradients = np.zeros((len(coordinates), 3))
-    for index, atomic_coordinate in enumerate(zip(atoms_list, coordinates)):
-        if index in flatten(atoms_in_fragment[0]):
-            gradients[index] = calculate_gradient(atomic_coordinate, (al2, fragment2), alpha, nom, den, parameter)
-        if index in flatten(atoms_in_fragment[1]):
-            gradients[index] = calculate_gradient(atomic_coordinate, (al1, fragment1), alpha, nom, den, parameter)
-
-    return restraint_energy, gradients
-
-
-def calculate_alpha(force):
-    gamma = pyar.data.units.kilojoules2atomic_units(force)
     epsilon = pyar.data.units.kilojoules2atomic_units(1.0061)
     r_zero = pyar.data.units.angstrom2bohr(3.8164)
+    gamma = pyar.data.units.kilojoules2atomic_units(force)
     #    eqn. 3 JCTC 2011,7,2335
-    alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
-    return alpha
+    alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + np.sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
+    fragment_one, fragment_two = mol.fragments_coordinates
+    radius_one, radius_two = [[get_covalent_radius(z) for z in f] for f in mol.fragments_atoms_list]
+
+    def calculate_restraint_energy(f_one, f_two):
+        inter_atomic_distance = np.array([np.linalg.norm(a - b) for a, b in product(f_one, f_two)])
+        sum_of_covalent_radii = np.array([(a + b) for a, b in product(radius_one, radius_two)])
+        v = np.sum((sum_of_covalent_radii / inter_atomic_distance) ** parameter * inter_atomic_distance)
+        w = np.sum((sum_of_covalent_radii / inter_atomic_distance) ** parameter)
+        return alpha * v / w
+
+    restraint_energy = calculate_restraint_energy(fragment_one, fragment_two)
+    calculate_restraint_gradient = grad(calculate_restraint_energy)
+    g_one = calculate_restraint_gradient(fragment_one, fragment_two)
+    g_two = calculate_restraint_gradient(fragment_two, fragment_one)
+    restraint_gradient = -np.concatenate((g_one, g_two))
+    return restraint_energy, restraint_gradient
 
 
 def main():
     import sys
-    from pyar.Molecule import Molecule
     from pyar.tabu import merge_two_molecules as merge
-
     a, b = sys.argv[1:3]
     force = float(sys.argv[3])
     mol_a = Molecule.from_xyz(a)
     mol_b = Molecule.from_xyz(b)
-    mol = merge([1, 0, 0, 0, 0, 0], mol_a, mol_b)
+    mol = merge([1, 1, 1, 45, 45, 45], mol_a, mol_b)
+    mol.mol_to_xyz('t.xyz')
 
-    e1, g1 = isotropic(mol.fragments, mol.atoms_list, mol.coordinates, force)
+    e1, g1 = isotropic(mol, force)
+    print(e1)
+    print(g1)
 
 
 if __name__ == '__main__':
