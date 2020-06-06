@@ -172,7 +172,6 @@ def get_labels(data_as_list, algorithm='combo'):
             labels = ms.labels_
         except Exception as e:
             cluster_logger.error('MeanShift failed')
-            cluster_logger.error(stacklevel=)
 
     if algorithm == 'dbscan':
         dbs = DBSCAN(eps=0.1)
