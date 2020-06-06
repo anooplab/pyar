@@ -40,15 +40,25 @@ def get_covalent_radius(z):
     return pyar.data.units.angstrom2bohr(covalent_radii[z.lower()])
 
 
-def isotropic(mol, force):
+def isotropic(fragment_indices, atoms_list, coordinates, force):
     parameter = 6.0  # inverse distance weighting parameter
     epsilon = pyar.data.units.kilojoules2atomic_units(1.0061)
     r_zero = pyar.data.units.angstrom2bohr(3.8164)
     gamma = pyar.data.units.kilojoules2atomic_units(force)
     #    eqn. 3 JCTC 2011,7,2335
     alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + np.sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
-    fragment_one, fragment_two = mol.fragments_coordinates
-    radius_one, radius_two = [[get_covalent_radius(z) for z in f] for f in mol.fragments_atoms_list]
+
+    fragment_one, fragment_two = [coordinates[fragment_list, :] for fragment_list in fragment_indices]
+    al1, al2 = [np.array(atoms_list)[fragment_list] for fragment_list in fragment_indices]
+
+    if isinstance(al1, str):
+        radius_one = [get_covalent_radius(al1)]
+    else:
+        radius_one = [get_covalent_radius(z) for z in al1]
+    if isinstance(al2, str):
+        radius_two = [get_covalent_radius(al2)]
+    else:
+        radius_two = [get_covalent_radius(z) for z in al2]
 
     def calculate_restraint_energy(f_one, f_two):
         inter_atomic_distance = np.array([np.linalg.norm(a - b) for a, b in product(f_one, f_two)])
@@ -75,7 +85,7 @@ def main():
     mol = merge([1, 1, 1, 45, 45, 45], mol_a, mol_b)
     mol.mol_to_xyz('t.xyz')
 
-    e1, g1 = isotropic(mol, force)
+    e1, g1 = isotropic(mol.fragments, mol.atoms_list, mol.coordinates, force)
     print(e1)
     print(g1)
 
