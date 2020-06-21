@@ -48,12 +48,12 @@ def tabu_function():
                             help="create a molecules from number_of_trial_orientations atoms of given elements")
 
     args = parser.parse_args()
-    print(f"These are the arguments\n{args}")
+    print("These are the arguments\n", args)
 
     number_of_trial_orientations = args.number_of_trial_orientations
 
     d_scale = args.distance_scaling
-    print(f"distance scale = {d_scale}; files {args.file}")
+    print("distance scale = ", d_scale, "; files ", args.file)
     if args.file:
         from pyar.Molecule import Molecule
         seed = Molecule.from_xyz(args.file[0])

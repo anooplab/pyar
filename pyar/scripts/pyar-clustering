@@ -42,7 +42,7 @@ for each_file in input_files:
 pyar.data_analysis.clustering.plot_energy_histogram(mols)
 selected = []
 if args.mode == 'cluster':
-    selected = pyar.data_analysis.clustering.choose_geometries(mols, features=args.clustering_feature)
+    selected = pyar.data_analysis.clustering.choose_geometries(mols, features=args.clustering_features)
 if args.mode == 'filter':
     selected = pyar.data_analysis.clustering.remove_similar(mols)
 

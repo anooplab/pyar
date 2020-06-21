@@ -63,10 +63,10 @@ def aggregate(molecules,
     os.chdir(parent_folder)
     starting_directory = os.getcwd()
 
-    aggregator_logger.info(f"Starting Aggregation in\n {starting_directory}")
+    aggregator_logger.info("Starting Aggregation in\n {starting_directory}")
 
     seed_names = string.ascii_lowercase
-    ag_id = f"ag"
+    ag_id = "ag"
 
     monomers_to_be_added = []
     for seed_molecule, seed_name, size_of_this_seed in zip(molecules, seed_names, aggregate_sizes):
