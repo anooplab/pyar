@@ -51,7 +51,7 @@ def argument_parse():
     parser.add_argument('--grid', choices=['y', 'n'], default='y',
                         help='Toggle the use of grid for search space.')
 
-    parser.add_argument('-nprocs', '--nprocs', metavar='n', nargs=1,
+    parser.add_argument('-nprocs', '--nprocs', metavar='n',
                         type=int, help='The number of processors/cores to be '
                                        'used by the quantum chemistry software.'
                                        'Not fully implemented with all interfaces.'
