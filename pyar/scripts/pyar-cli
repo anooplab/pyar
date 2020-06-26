@@ -92,10 +92,10 @@ def argument_parse():
                                   metavar=('l', 'm',),
                                   help='number of monomers in aggregate')
 
-    aggregator_group.add_argument('--first-pathway', type=int, metavar='l',
-                                  help='The first pathway among all the '
-                                       'possible aggregation paths in '
-                                       'binary or ternary aggregation.')
+    # aggregator_group.add_argument('--first-pathway', type=int, metavar='l',
+    #                               help='The first pathway among all the '
+    #                                    'possible aggregation paths in '
+    #                                    'binary or ternary aggregation.')
 
     aggregator_group.add_argument('--number-of-pathways', type=int, metavar='n',
                                   help='How many pathways to be used in '

@@ -76,8 +76,9 @@ def aggregate(molecules,
         ag_id += f"_{seed_name}_000"
 
     a = itertools.permutations(monomers_to_be_added)
-    from ordered_set import OrderedSet
-    complete_pathways = list(OrderedSet(a))
+    # from ordered_set import OrderedSet
+    # complete_pathways = list(OrderedSet(a))
+    complete_pathways = list(set(a))
 
     if number_of_pathways != 0:
         my_last_pathway = first_pathway + number_of_pathways
