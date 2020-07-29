@@ -63,7 +63,7 @@ def aggregate(molecules,
     os.chdir(parent_folder)
     starting_directory = os.getcwd()
 
-    aggregator_logger.info("Starting Aggregation in\n {starting_directory}")
+    aggregator_logger.info(f"Starting Aggregation in\n {starting_directory}")
 
     seed_names = string.ascii_lowercase
     ag_id = "ag"
@@ -75,10 +75,11 @@ def aggregate(molecules,
             monomers_to_be_added.append(seed_molecule)
         ag_id += f"_{seed_name}_000"
 
-    a = itertools.permutations(monomers_to_be_added)
-    # from ordered_set import OrderedSet
-    # complete_pathways = list(OrderedSet(a))
-    complete_pathways = list(set(a))
+    if len(molecules) == 1:
+        complete_pathways = [monomers_to_be_added]
+    else:
+        a = itertools.permutations(monomers_to_be_added)
+        complete_pathways = list(set(a))
 
     if number_of_pathways != 0:
         my_last_pathway = first_pathway + number_of_pathways
