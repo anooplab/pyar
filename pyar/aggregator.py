@@ -1,5 +1,4 @@
 import copy
-import itertools
 import logging
 import os
 import shutil
@@ -78,15 +77,13 @@ def aggregate(molecules,
     if len(molecules) == 1:
         complete_pathways = [monomers_to_be_added]
     else:
-        a = itertools.permutations(monomers_to_be_added)
-        complete_pathways = list(set(a))
+        complete_pathways = set()
+        for _ in range(number_of_pathways):
+            new_permutation = random_permutation(l)
+            if new_permutation not in complete_pathways:
+                complete_pathways.add(new_permutation)
 
-    if number_of_pathways != 0:
-        my_last_pathway = first_pathway + number_of_pathways
-    else:
-        my_last_pathway = None
-
-    pathways_to_calculate = complete_pathways[first_pathway:my_last_pathway]
+    pathways_to_calculate = complete_pathways
 
     aggregator_logger.info("  The following Afbau paths will be carried out")
     for i, path in enumerate(pathways_to_calculate):
