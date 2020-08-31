@@ -17,9 +17,9 @@ values = {'input_files': [''],
           'size_of_fragment_two': None,
           'size_of_fragment_three': None,
           'first_pathway': 0,
-          'number_of_pathways': 0,
+          'number_of_pathways': 10,
           'scan_bond': None,
-          'nprocs': 3,
+          'nprocs': 8,
           'custom_keywords': None
           }
 """

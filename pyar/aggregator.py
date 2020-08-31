@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import random
 import shutil
 import string
 from collections import OrderedDict
@@ -10,6 +11,13 @@ from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
 
 aggregator_logger = logging.getLogger('pyar.aggregator')
+
+
+def random_permutation(iterable, r=None):
+    """Random selection from itertools.permutations(iterable, r)"""
+    pool = tuple(iterable)
+    r = len(pool) if r is None else r
+    return tuple(random.sample(pool, r))
 
 
 def aggregate(molecules,
@@ -79,7 +87,7 @@ def aggregate(molecules,
     else:
         complete_pathways = set()
         for _ in range(number_of_pathways):
-            new_permutation = random_permutation(l)
+            new_permutation = random_permutation(monomers_to_be_added)
             if new_permutation not in complete_pathways:
                 complete_pathways.add(new_permutation)
 
@@ -267,7 +275,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
     file_manager.make_directories('selected')
     os.chdir('selected')
     qc_params["opt_threshold"] = 'normal'
-    aggregator_logger.info("  Optimizing the selected molecules with higher thresold")
+    aggregator_logger.info("  Optimizing the selected molecules with higher threshold")
     less_than_ideal = []
     for each_file in selected_seeds:
         not_refined = copy.deepcopy(each_file)
