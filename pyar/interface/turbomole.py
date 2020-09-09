@@ -21,6 +21,7 @@ import datetime
 import glob
 import logging
 import os
+import getpass
 import re
 import shutil
 import socket
@@ -155,7 +156,7 @@ class Turbomole(SF):
         turbomole_logger.info("Turbomole Optimization started\n")
         turbomole_logger.info("  at  %s\n" % datetime.datetime.now())
         turbomole_logger.info("  on machine %s\n" % socket.gethostname())
-        turbomole_logger.info("  by user %s\n" % os.getlogin())
+        turbomole_logger.info("  by user %s\n" % getpass.getuser())
         turbomole_logger.info("  in directory %s\n" % os.getcwd())
 
         initial_status, initial_energy = calc_energy()
