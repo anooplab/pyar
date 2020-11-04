@@ -75,9 +75,15 @@ A.xyz and B.xyz are the cartesian coordinate files of the reactants.
 
 ## Aggregation and clustering
 
-```pyar-cli -a A.xyz A.xyz -N 8 -as 10 --software xtb```
+```pyar-cli -a A.xyz -N 8 -as 10 --software xtb```
 
 This will generate a molecular aggregate/cluster of size upto 10 with **XTB** package using 8 trial orientations.
+The A.xyz is a standard cartesian coordinate file. For example the .xyz file for a carbon atom is the following:
+```
+1
+Comment
+C  0.0  0.0   0.0
+```
 
 # References
 
