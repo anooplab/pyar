@@ -1,0 +1,20 @@
+Installation
+============
+
+1. The easiest way is to install using pip.
+
+   ``$ python3 -m pip install git+https://github.com/anooplab/pyar.git``
+
+2. You can get the source code
+
+ - Clone the git repository if you have git installed.
+
+   ``$git clone https://github.com/anooplab/pyar.git``
+
+ - You can download the zip file from https://github.com/anooplab/pyar.git
+
+3. Then from the pyar folder install:
+
+ ``$python setup.py install``
+
+If there is any problem, mail me: anoop@chem.iitkgp.ac.in

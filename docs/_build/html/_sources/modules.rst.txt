@@ -1,0 +1,7 @@
+pyar
+====
+
+.. toctree::
+   :maxdepth: 4
+
+   pyar

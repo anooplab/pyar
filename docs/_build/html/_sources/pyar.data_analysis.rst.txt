@@ -1,0 +1,22 @@
+pyar.data\_analysis package
+===========================
+
+Submodules
+----------
+
+pyar.data\_analysis.clustering module
+-------------------------------------
+
+.. automodule:: pyar.data_analysis.clustering
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: pyar.data_analysis
+   :members:
+   :undoc-members:
+   :show-inheritance:

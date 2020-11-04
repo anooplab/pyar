@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<!--[if IE 8]>
+<html class="no-js lt-ie9" lang="en"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <title>pyar.data_analysis package &mdash; PyAR 0.2 documentation</title>
+
+
+    <script src="_static/js/modernizr.min.js" type="text/javascript"></script>
+
+
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"
+            type="text/javascript"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+
+    <script src="_static/js/theme.js" type="text/javascript"></script>
+
+
+    <link href="_static/css/theme.css" rel="stylesheet" type="text/css"/>
+    <link href="_static/pygments.css" rel="stylesheet" type="text/css"/>
+    <link href="genindex.html" rel="index" title="Index"/>
+    <link href="search.html" rel="search" title="Search"/>
+</head>
+
+<body class="wy-body-for-nav">
+
+
+<div class="wy-grid-for-nav">
+
+    <nav class="wy-nav-side" data-toggle="wy-nav-shift">
+        <div class="wy-side-scroll">
+            <div class="wy-side-nav-search">
+
+
+                <a class="icon icon-home" href="index.html"> PyAR
+
+
+                </a>
+
+
+                <div class="version">
+                    0.2
+                </div>
+
+
+                <div role="search">
+                    <form action="search.html" class="wy-form" id="rtd-search-form" method="get">
+                        <input name="q" placeholder="Search docs" type="text"/>
+                        <input name="check_keywords" type="hidden" value="yes"/>
+                        <input name="area" type="hidden" value="default"/>
+                    </form>
+                </div>
+
+
+            </div>
+
+            <div aria-label="main navigation" class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation">
+
+
+                <p class="caption"><span class="caption-text">Contents:</span></p>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation Guide</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="usage.html">How to run the job</a></li>
+                </ul>
+
+
+            </div>
+        </div>
+    </nav>
+
+    <section class="wy-nav-content-wrap" data-toggle="wy-nav-shift">
+
+
+        <nav aria-label="top navigation" class="wy-nav-top">
+
+            <i class="fa fa-bars" data-toggle="wy-nav-top"></i>
+            <a href="index.html">PyAR</a>
+
+        </nav>
+
+
+        <div class="wy-nav-content">
+
+            <div class="rst-content">
+
+
+                <div aria-label="breadcrumbs navigation" role="navigation">
+
+                    <ul class="wy-breadcrumbs">
+
+                        <li><a href="index.html">Docs</a> &raquo;</li>
+
+                        <li>pyar.data_analysis package</li>
+
+
+                        <li class="wy-breadcrumbs-aside">
+
+
+                            <a href="_sources/pyar.data_analysis.rst.txt" rel="nofollow"> View page source</a>
+
+
+                        </li>
+
+                    </ul>
+
+
+                    <hr/>
+                </div>
+                <div class="document" itemscope="itemscope" itemtype="http://schema.org/Article" role="main">
+                    <div itemprop="articleBody">
+
+                        <div class="section" id="pyar-data-analysis-package">
+                            <h1>pyar.data_analysis package<a class="headerlink" href="#pyar-data-analysis-package"
+                                                             title="Permalink to this headline">¶</a></h1>
+                            <div class="section" id="submodules">
+                                <h2>Submodules<a class="headerlink" href="#submodules"
+                                                 title="Permalink to this headline">¶</a></h2>
+                            </div>
+                            <div class="section" id="module-pyar.data_analysis.clustering">
+                                <span id="pyar-data-analysis-clustering-module"></span>
+                                <h2>pyar.data_analysis.clustering module<a class="headerlink"
+                                                                           href="#module-pyar.data_analysis.clustering"
+                                                                           title="Permalink to this headline">¶</a></h2>
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.choose_geometries">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">choose_geometries</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span class="n">list_of_molecules</span></em>,
+                                        <em class="sig-param"><span class="n">feature</span><span
+                                                class="o">=</span><span class="default_value">'fingerprint'</span></em>,
+                                        <em class="sig-param"><span class="n">maximum_number_of_seeds</span><span
+                                                class="o">=</span><span class="default_value">8</span></em><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.choose_geometries"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.generate_labels">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">generate_labels</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">dt</span></em><span class="sig-paren">)</span><a
+                                            class="headerlink" href="#pyar.data_analysis.clustering.generate_labels"
+                                            title="Permalink to this definition">¶</a></dt>
+                                    <dd><p>Try many algorithms for clustering one after the other.
+                                        :param dt: data for clustering as np.array
+                                        :return: list of labels</p>
+                                    </dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.get_labels">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">get_labels</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">data_as_list</span></em>, <em class="sig-param"><span class="n">algorithm</span><span
+                                            class="o">=</span><span class="default_value">'combo'</span></em><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.get_labels"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.get_the_best_molecule">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">get_the_best_molecule</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span class="n">list_of_molecules</span></em><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.get_the_best_molecule"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd><p>Give a list of molecule objects with name and energy, and this function
+                                        returns the molecule with lower energy
+                                        :type list_of_molecules: list of Molecule objects</p>
+                                    </dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.main">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">main</code><span class="sig-paren">(</span><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.main"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.memoize">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">memoize</code><span class="sig-paren">(</span><em
+                                            class="sig-param"><span class="n">f</span></em><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.memoize"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd><p>Memoization decorator for functions taking one or more arguments.
+                                        <a class="reference external"
+                                           href="https://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/">https://code.activestate.com/recipes/578231-probably-the-fastest-memoization-decorator-in-the-/</a>
+                                    </p>
+                                    </dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.n_clusters_optimized_with_kmeans">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">n_clusters_optimized_with_kmeans</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">dt</span></em><span class="sig-paren">)</span><a
+                                            class="headerlink"
+                                            href="#pyar.data_analysis.clustering.n_clusters_optimized_with_kmeans"
+                                            title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.plot_energy_histogram">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">plot_energy_histogram</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">molecules</span></em><span class="sig-paren">)</span><a
+                                            class="headerlink"
+                                            href="#pyar.data_analysis.clustering.plot_energy_histogram"
+                                            title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.print_energy_table">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">print_energy_table</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">molecules</span></em><span class="sig-paren">)</span><a
+                                            class="headerlink" href="#pyar.data_analysis.clustering.print_energy_table"
+                                            title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.read_energy_from_xyz_file">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">read_energy_from_xyz_file</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">xyz_file</span></em><span class="sig-paren">)</span><a
+                                            class="headerlink"
+                                            href="#pyar.data_analysis.clustering.read_energy_from_xyz_file"
+                                            title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.remove_similar">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">remove_similar</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span class="n">list_of_molecules</span></em><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.remove_similar"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                                <dl class="py function">
+                                    <dt id="pyar.data_analysis.clustering.select_best_from_each_cluster">
+                                        <code class="sig-prename descclassname">pyar.data_analysis.clustering.</code><code
+                                            class="sig-name descname">select_best_from_each_cluster</code><span
+                                            class="sig-paren">(</span><em class="sig-param"><span
+                                            class="n">labels</span></em>, <em class="sig-param"><span class="n">list_of_molecules</span></em><span
+                                            class="sig-paren">)</span><a class="headerlink"
+                                                                         href="#pyar.data_analysis.clustering.select_best_from_each_cluster"
+                                                                         title="Permalink to this definition">¶</a></dt>
+                                    <dd></dd>
+                                </dl>
+
+                            </div>
+                            <div class="section" id="module-pyar.data_analysis">
+                                <span id="module-contents"></span>
+                                <h2>Module contents<a class="headerlink" href="#module-pyar.data_analysis"
+                                                      title="Permalink to this headline">¶</a></h2>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                </div>
+                <footer>
+
+
+                    <hr/>
+
+                    <div role="contentinfo">
+                        <p>
+                            &copy; Copyright
+
+                        </p>
+                    </div>
+                    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+                        href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a
+                        href="https://readthedocs.org">Read the Docs</a>.
+
+                </footer>
+
+            </div>
+        </div>
+
+    </section>
+
+</div>
+
+
+<script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+
+</script>
+
+
+</body>
+</html>

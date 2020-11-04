@@ -1,0 +1,99 @@
+pyar package
+============
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   pyar.afir
+   pyar.data
+   pyar.data_analysis
+   pyar.interface
+   pyar.scripts
+
+Submodules
+----------
+
+pyar.Molecule module
+--------------------
+
+.. automodule:: pyar.Molecule
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.aggregator module
+----------------------
+
+.. automodule:: pyar.aggregator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.file\_manager module
+-------------------------
+
+.. automodule:: pyar.file_manager
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.get\_property module
+-------------------------
+
+.. automodule:: pyar.get_property
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.optimiser module
+---------------------
+
+.. automodule:: pyar.optimiser
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.reactor module
+-------------------
+
+.. automodule:: pyar.reactor
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scan module
+----------------
+
+.. automodule:: pyar.scan
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.tabu module
+----------------
+
+.. automodule:: pyar.tabu
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.unused\_functions module
+-----------------------------
+
+.. automodule:: pyar.unused_functions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: pyar
+   :members:
+   :undoc-members:
+   :show-inheritance:
+

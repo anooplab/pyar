@@ -1,0 +1,22 @@
+pyar.afir package
+=================
+
+Submodules
+----------
+
+pyar.afir.restraints module
+---------------------------
+
+.. automodule:: pyar.afir.restraints
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: pyar.afir
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -27,6 +27,13 @@ Run the following command in the pyar folder
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
 * Automated search for reaction for bond forming between two atoms in two different molecules.
 
+## Requirements
+* python >= 3.6
+* numpy>=1.18.4
+* pandas>=1.0.5
+* scipy>=1.5.2
+* scikit-learn>=0.23.2
+* autograd>=1.3
 
 # Interfaced with electronic structure theory programmes
 - Turbomole

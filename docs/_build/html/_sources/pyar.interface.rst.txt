@@ -1,0 +1,78 @@
+pyar.interface package
+======================
+
+Submodules
+----------
+
+pyar.interface.babel module
+---------------------------
+
+.. automodule:: pyar.interface.babel
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.gaussian module
+------------------------------
+
+.. automodule:: pyar.interface.gaussian
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.mopac module
+---------------------------
+
+.. automodule:: pyar.interface.mopac
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.orca module
+--------------------------
+
+.. automodule:: pyar.interface.orca
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.psi4 module
+--------------------------
+
+.. automodule:: pyar.interface.psi4
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.turbomole module
+-------------------------------
+
+.. automodule:: pyar.interface.turbomole
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.xtb module
+-------------------------
+
+.. automodule:: pyar.interface.xtb
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.xtbturbo module
+------------------------------
+
+.. automodule:: pyar.interface.xtbturbo
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: pyar.interface
+   :members:
+   :undoc-members:
+   :show-inheritance:
