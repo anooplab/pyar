@@ -221,11 +221,16 @@ def n_clusters_optimized_with_kmeans(dt):
             centres[i] = kmeans.cluster_centers_
             scores[i] = silhouette_score(dt, labels[i])
             cluster_logger.debug('n_clusters: {}; score: {}'.format(i, scores[i]))
-        except Exception:
+        except Exception as e:
             cluster_logger.error('K-Means failed')
-    best = max(scores, key=scores.get)
-    cluster_logger.info('    Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
-    return labels[best], centres[best]
+            cluster_logger.error(e)
+    if scores:
+        best = max(scores, key=scores.get)
+        cluster_logger.info('    Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
+        return labels[best], centres[best]
+    else:
+        return [0 for _ in range(len(dt))], [e.e+00]
+
 
 
 def generate_labels(dt):
