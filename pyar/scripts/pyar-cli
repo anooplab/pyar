@@ -1,6 +1,7 @@
-#!/usr/bin/env python3
+#!/home/ayusman/bin/anaconda3/bin/python
 # encoding: utf-8
 """Command line interface for PyAR"""
+import pickle
 import argparse
 import datetime
 import logging
@@ -13,7 +14,7 @@ from pyar import reactor, aggregator, scan, Molecule
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
-handler = logging.FileHandler('pyar.log', 'w')
+handler = logging.FileHandler('pyar.log', 'a')
 
 
 def argument_parse():
@@ -201,7 +202,7 @@ def main():
     logger.addHandler(handler)
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
-    logger.info(f'Starting PyAR at {time_now}')
+    logger.info(f'==============================Starting PyAR at {time_now}==============================')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
