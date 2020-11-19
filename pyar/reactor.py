@@ -5,7 +5,7 @@ import shutil
 import sys
 
 import numpy as np
-
+from pyar.checkpt import dumpchk, readchk, updtchk
 import pyar.interface.babel
 import pyar.scan
 from pyar import tabu, file_manager
@@ -33,80 +33,110 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     in each gamma after eliminating the products or failed geometries.
 
     """
+    global workdir
+    workdir = os.getcwd()
 
-    file_manager.make_directories('reaction')
-    os.chdir('reaction')
-    cwd = os.getcwd()
-
-    reactor_logger.info('Starting Reactor')
-    reactor_logger.info(f'{hm_orientations} orientations will be tried')
-    reactor_logger.info(f' Gamma (min): {gamma_min}')
-    reactor_logger.info(f' Gamma (max): {gamma_max}')
-
-    reactor_logger.debug(f'Current working directory: {cwd}')
-
-    software = qc_params['software']
-    print_header(gamma_max, gamma_min, hm_orientations, software)
-    # prepare job directories
-    product_dir = cwd + '/products'
-    reactor_logger.debug(f'Product directory: {product_dir}')
-    file_manager.make_directories(product_dir)
-    file_manager.make_directories('trial_geometries')
-    os.chdir('trial_geometries')
-    if site is None:
-        all_orientations = tabu.create_trial_geometries('geom', reactant_a,
-                                                        reactant_b,
-                                                        hm_orientations,
-                                                        tabu_on,
-                                                        grid_on,
-                                                        site)
+    if readchk(workdir) is not None:
+        chk = readchk(workdir)
+        import shutil
+        # shutil.move('pyar.log','pyar_old.log')
+        reactor_logger.info('====================Reading from Checkpoint====================')
+        gamma_list = list(chk.keys()).copy()
+        orientations_to_optimize = chk[gamma_list[0]].copy()
+        os.chdir('reaction')
+        cwd = os.getcwd()
+        product_dir = cwd + '/products'
+        
     else:
-        all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
-                                                                reactant_b,
-                                                                site[0], site[1],
-                                                                hm_orientations,
-                                                                d_scale=proximity_factor)
+        file_manager.make_directories('reaction')
+        os.chdir('reaction')
+        cwd = os.getcwd()
 
-    os.chdir(cwd)
+        reactor_logger.info('Starting Reactor')
+        reactor_logger.info(f'{hm_orientations} orientations will be tried')
+        reactor_logger.info(f' Gamma (min): {gamma_min}')
+        reactor_logger.info(f' Gamma (max): {gamma_max}')
 
-    gamma_list = np.linspace(gamma_min, gamma_max, num=10, dtype=float)
-    orientations_to_optimize = all_orientations[:]
+        reactor_logger.debug(f'Current working directory: {cwd}')
 
-    for gamma in gamma_list:
+        software = qc_params['software']
+        print_header(gamma_max, gamma_min, hm_orientations, software)
+        # prepare job directories
+        product_dir = cwd + '/products'
+        reactor_logger.debug(f'Product directory: {product_dir}')
+        file_manager.make_directories(product_dir)
+        file_manager.make_directories('trial_geometries')
+        os.chdir('trial_geometries')
+        if site is None:
+            all_orientations = tabu.create_trial_geometries('geom', reactant_a,
+                                                            reactant_b,
+                                                            hm_orientations,
+                                                            tabu_on,
+                                                            grid_on,
+                                                            site)
+        else:
+            all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
+                                                                    reactant_b,
+                                                                    site[0], site[1],
+                                                                    hm_orientations,
+                                                                    d_scale=proximity_factor)
+
+        os.chdir(cwd)
+
+        gamma_list = np.linspace(gamma_min, gamma_max, num=10, dtype=float)
+        gamma_list = [f"{int(gamma):04d}" for gamma in gamma_list]
+
+        orientations_to_optimize = all_orientations[:]
+        # print(k.name for k in orientations_to_optimize)
+        chk = {gamma: orientations_to_optimize.copy() for gamma in gamma_list}
+        dumpchk(chk, workdir, reactor_logger)
+
+    for en, gamma in enumerate(gamma_list):
         qc_params['gamma'] = gamma
         reactor_logger.info(f'  Current gamma : {gamma}')
         gamma_id = f"{int(gamma):04d}"
         gamma_home = cwd + '/gamma_' + gamma_id
-        file_manager.make_directories(gamma_home)
+        if not os.path.exists(gamma_home):
+            file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)
-
-        optimized_molecules = optimize_all(gamma_id, orientations_to_optimize,
+        
+        optimized_molecules = optimize_all(gamma_id, orientations_to_optimize,chk,
                                            product_dir, qc_params)
 
-        reactor_logger.info(f"      {len(optimized_molecules)} geometries from this gamma cycle")
+        reactor_logger.info(
+            f"      {len(optimized_molecules)} geometries from this gamma cycle")
         if len(optimized_molecules) == 0:
-            reactor_logger.info("No orientations to be optimized for the next gamma cycle.")
+            reactor_logger.info(
+                "No orientations to be optimized for the next gamma cycle.")
+            chk.clear()
             return
         if len(optimized_molecules) == 1:
             orientations_to_optimize = optimized_molecules[:]
         else:
-            orientations_to_optimize = clustering.remove_similar(optimized_molecules)
-        reactor_logger.info("Number of products found from gamma:{} = {}".format(gamma, len(saved_inchi_strings)))
+            orientations_to_optimize = clustering.remove_similar(
+                optimized_molecules)
+        if(en != len(gamma_list)-1):
+            chk[gamma_list[en+1]] = orientations_to_optimize
+        reactor_logger.info("Number of products found from gamma:{} = {}".format(
+            gamma, len(saved_inchi_strings)))
         reactor_logger.info("{} geometries are considered for the next gamma "
                             "cycle".format(len(orientations_to_optimize)))
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
             reactor_logger.debug("{}".format(this_orientation.name))
-    os.chdir(cwd)
+        updtchk(chk,'gamma',gamma,reactor_logger,workdir)
+    os.chdir(workdir)
+    os.remove('jobs.pickle')
+    reactor_logger.info("Removed checkpoints!!")
     return
 
 
-def optimize_all(gamma_id, orientations_to_optimize,
-                 product_dir, qc_param):
+def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
     gamma = qc_param['gamma']
     cwd = os.getcwd()
     table_of_optimized_molecules = []
-    for this_molecule in orientations_to_optimize:
+    for this_molecule in orientations:
+        # print(orientations)
         job_key = this_molecule.name
         reactor_logger.info('   Orientation: {}'.format(job_key))
         o_key = "_{}".format(job_key[-8:])
@@ -118,8 +148,10 @@ def optimize_all(gamma_id, orientations_to_optimize,
         reactor_logger.info('Optimizing {}'.format(this_molecule.name))
         start_xyz_file_name = 'trial_' + this_molecule.name + '.xyz'
         this_molecule.mol_to_xyz(start_xyz_file_name)
-        start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
-        start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
+        start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(
+            start_xyz_file_name)
+        start_smile = pyar.interface.babel.make_smile_string_from_xyz(
+            start_xyz_file_name)
         status = optimise(this_molecule, qc_param)
         before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
@@ -127,21 +159,28 @@ def optimize_all(gamma_id, orientations_to_optimize,
         if status is True or \
                 status == 'converged' \
                 or status == 'cycle_exceeded':
-            reactor_logger.info("      E({}): {:12.7f}".format(job_name, this_molecule.energy))
+            reactor_logger.info("      E({}): {:12.7f}".format(
+                job_name, this_molecule.energy))
             if this_molecule.is_bonded():
-                reactor_logger.info("The fragments have close contracts. Going for relaxation")
+                reactor_logger.info(
+                    "The fragments have close contracts. Going for relaxation")
                 this_molecule.mol_to_xyz('trial_relax.xyz')
                 this_molecule.name = 'relax'
                 status = optimise(this_molecule, qc_param)
                 this_molecule.name = job_name
                 if status is True or status == 'converged':
                     this_molecule.mol_to_xyz('result_relax.xyz')
-                    current_inchi = pyar.interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
-                    current_smile = pyar.interface.babel.make_smile_string_from_xyz('result_relax.xyz')
+                    current_inchi = pyar.interface.babel.make_inchi_string_from_xyz(
+                        'result_relax.xyz')
+                    current_smile = pyar.interface.babel.make_smile_string_from_xyz(
+                        'result_relax.xyz')
                     reactor_logger.info('geometry relaxed')
-                    reactor_logger.info("Checking for product formation with SMILE and InChi strings")
-                    reactor_logger.info("Start SMILE: {} Current SMILE: {}".format(start_smile, current_smile))
-                    reactor_logger.info("Start InChi: {} Current InChi: {}".format(start_inchi, current_inchi))
+                    reactor_logger.info(
+                        "Checking for product formation with SMILE and InChi strings")
+                    reactor_logger.info("Start SMILE: {} Current SMILE: {}".format(
+                        start_smile, current_smile))
+                    reactor_logger.info("Start InChi: {} Current InChi: {}".format(
+                        start_inchi, current_inchi))
 
                     if (
                             start_inchi == current_inchi
@@ -171,6 +210,7 @@ def optimize_all(gamma_id, orientations_to_optimize,
                             shutil.copy('result_relax.xyz',
                                         product_dir + '/' + job_name + '.xyz')
                         os.chdir(cwd)
+                        updtchk(chkdict,'ori',job_name,reactor_logger,workdir)
                         continue
                 elif status == 'cycle_exceeded':
                     table_of_optimized_molecules.append(before_relax)
@@ -180,7 +220,10 @@ def optimize_all(gamma_id, orientations_to_optimize,
                 table_of_optimized_molecules.append(this_molecule)
                 reactor_logger.info(f'        no close contacts found')
                 reactor_logger.info(f'        {job_name} is added to '
-                                    f'the table to optimize with higher gamma')
+                                    f'the table to optimize with higher gamma') 
+        
+        
+        updtchk(chkdict,'ori',job_name,reactor_logger,workdir)              
         os.chdir(cwd)
         sys.stdout.flush()
     return table_of_optimized_molecules
