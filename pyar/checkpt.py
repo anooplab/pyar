@@ -3,7 +3,7 @@ import pickle
 # import numpy as np
 
 def dumpchk(jobdict,location,logger):
-    with open(location+'/jobs.pickle','wb') as f:
+    with open(location+'/jobs.pkl','wb') as f:
         pickle.dump(jobdict,f)
     # logger.info("=====Updated Checkpoint=====")
     return None
@@ -11,7 +11,7 @@ def dumpchk(jobdict,location,logger):
 def readchk(location):
     flag = 0
     try:
-        with open(location+'/jobs.pickle','rb') as f:
+        with open(location+'/jobs.pkl','rb') as f:
         # print('Reading chk file')
             x = pickle.load(f)
         for k in x.keys():
