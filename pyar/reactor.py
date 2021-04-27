@@ -125,8 +125,9 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         for this_orientation in orientations_to_optimize:
             reactor_logger.debug("{}".format(this_orientation.name))
         updtchk(chk,'gamma',gamma,reactor_logger,workdir)
-    os.remove('jobs.pkl')
+    
     os.chdir(workdir)
+    os.remove('jobs.pkl')
     reactor_logger.info("Removed checkpoints!!")
     return
 
