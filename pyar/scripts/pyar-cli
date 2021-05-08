@@ -1,7 +1,6 @@
 #!/home/ayusman/bin/anaconda3/bin/python
 # encoding: utf-8
 """Command line interface for PyAR"""
-import pickle
 import argparse
 import datetime
 import logging
@@ -217,8 +216,8 @@ def main():
         if v:
             logger.debug(f"{k:25} = {v}")
 
-    tabu_on = True if run_parameters['tabu'] == 'y' else False
-    grid_on = True if run_parameters['grid'] == 'y' else False
+    tabu_on = run_parameters['tabu'] == 'y'
+    grid_on = run_parameters['grid'] == 'y'
     # Sanity check
     number_of_input_files = len(run_parameters['input_files'])
     logger.debug(f"{number_of_input_files} input files")
