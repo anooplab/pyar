@@ -8,19 +8,8 @@ from pyar.interface import babel
 
 def make_formula(at_ls):
     # Creating an empty dictionary
-    freq = {}
-    for items in at_ls:
-        freq[items] = at_ls.count(items)
-
-    formula = ''
-    for key, value in freq.items():
-        formula += f"{key}{value}"
-    return formula
-
-
-def collect_data(starting_point, exclude_pattern, pattern):
-    ne = []
-    for root, dir_name, files in os.walk(starting_point):
+    freq = {items: at_ls.count(items) for items in at_ls}
+    return ''.join(f"{key}{value}" for key, value in freq.items()), files in os.walk(starting_point):
         for file in files:
             if pattern in file and os.path.splitext(file)[-1] == '.xyz' and exclude_pattern not in root:
                 xyz_file = os.path.join(root, file)

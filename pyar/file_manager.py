@@ -45,7 +45,7 @@ def file_exists_check_with_return_status(file_path):
 
     """
 
-    return True if os.path.exists(file_path) else False
+    return bool(os.path.exists(file_path))
 
 
 def make_directories(*arguments):
@@ -100,13 +100,10 @@ def get_files(extension, destination="./"):
 
     """
 
-    file_list = []
     files_needed = destination + "*." + extension
     print(files_needed)
     files = glob.glob(files_needed)
-    for each_file in files:
-        file_list.append(os.path.basename(each_file))
-    return file_list
+    return [os.path.basename(each_file) for each_file in files]
 
 
 def get_dirs_files(destination="./", wildcard="*"):
@@ -174,11 +171,10 @@ def write_result(filename, **kwargs):
 
     """
     mode = kwargs.pop("mode", 'w')
-    result_file = open(filename, mode)
-    for (name, value) in kwargs.items():
-        result_file.write("%s = %s   " % (name, value))
-    result_file.write("\n")
-    result_file.close()
+    with open(filename, mode) as result_file:
+        for (name, value) in kwargs.items():
+            result_file.write("%s = %s   " % (name, value))
+        result_file.write("\n")
 
 
 def check_stop(filename):
