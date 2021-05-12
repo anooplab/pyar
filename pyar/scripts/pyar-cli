@@ -261,9 +261,10 @@ def main():
             mol.charge = charge
             mol.multiplicity = multiplicity
             n_electrons = sum(mol.atomic_number)-mol.charge
-            if n_electrons %2 == 0:
+            if n_electrons % 2 == 0:
                 if mol.multiplicity % 2 != 1:
-                    sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
+                    sys.exit(
+                        f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
             else:
                 ground_scftype = 'open'
                 if mol.multiplicity % 2 == 1:
@@ -312,7 +313,16 @@ def main():
                       f" -as <int> <int> ..."
             logger.critical(message)
             sys.exit(message)
-
+        from itertools import permutations
+        import filecmp
+        if number_of_input_files > 1:
+            for a, b in permutations(run_parameters['input_files'], 2):
+                if filecmp.cmp(a, b):
+                    same_file_error = f'You have provided same file {a} twice.\n' \
+                                      f'If you want to create a homo-elemental clusters, ' \
+                                      f'provide file name only once.'
+                    logger.error(same_file_error)
+                    sys.exit(same_file_error)
         seeds = input_molecules
         t1_0 = time.time()
         time_started = datetime.datetime.now()
