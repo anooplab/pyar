@@ -172,6 +172,7 @@ def main():
     Process the parameters, setups the jobs and executes.
     """
 
+    global mol
     args = vars(argument_parse())
 
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
@@ -256,7 +257,6 @@ def main():
 
     logger.info("Parsing the following files: ")
     input_molecules = []
-    mol = Molecule.Molecule()
     # noinspection PyTypeChecker
     for each_file, charge, multiplicity, scftype in \
             zip(run_parameters['input_files'], charges, multiplicities, scftypes):
