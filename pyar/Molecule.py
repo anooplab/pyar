@@ -143,7 +143,7 @@ class Molecule(object):
         return "Name: {}\n Coordinates:{}".format(self.name, self.coordinates)
 
     def __repr__(self):
-        return "Molecule.from_xyz('{}')".format(self.name + '.xyz')
+        return "Molecule('{}')".format(self.name + '.xyz')
 
     def __iter__(self):
         pass
@@ -224,7 +224,7 @@ class Molecule(object):
     @classmethod
     def from_symbol(cls, symbol):
         """
-        Instantiates Molecule object from Chemial symbol
+        Instantiates Molecule object from Chemical symbol
 
         :param symbol: Chemical symbol
         :type symbol: str
@@ -234,7 +234,7 @@ class Molecule(object):
         """
 
         atoms_list = [symbol]
-        mol_coordinates = np.zeros(3)
+        mol_coordinates = np.zeros((1, 3))
         mol_name = symbol
         mol_title = symbol
         energy = None

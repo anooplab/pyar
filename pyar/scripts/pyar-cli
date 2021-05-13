@@ -256,6 +256,7 @@ def main():
 
     logger.info("Parsing the following files: ")
     input_molecules = []
+    mol = None
     # noinspection PyTypeChecker
     for each_file, charge, multiplicity, scftype in \
             zip(run_parameters['input_files'], charges, multiplicities, scftypes):
