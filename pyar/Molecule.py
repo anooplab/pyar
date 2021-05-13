@@ -221,6 +221,26 @@ class Molecule(object):
         return cls(atoms_list, mol_coordinates, name=mol_name,
                    title=mol_title, energy=energy)
 
+    @classmethod
+    def from_symbol(cls, symbol):
+        """
+        Instantiates Molecule object from Chemial symbol
+
+        :param symbol: Chemical symbol
+        :type symbol: str
+        :return: Molecule object
+        :rtype: object
+
+        """
+
+        atoms_list = [symbol]
+        mol_coordinates = np.zeros(3)
+        mol_name = symbol
+        mol_title = symbol
+        energy = None
+        return cls(atoms_list, mol_coordinates, name=mol_name,
+                   title=mol_title, energy=energy)
+
     def split_coordinates(self, coordinates=None):
         """
         Split coordinate in to two fragments.

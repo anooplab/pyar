@@ -12,7 +12,8 @@ from collections import defaultdict
 from itertools import permutations
 
 from pyar import reactor, aggregator, scan, Molecule
-from pyar.data import defualt_parameters
+from pyar.data import defualt_parameters, atomic_data
+from pyar.property import get_atomic_number
 
 logger = logging.getLogger('pyar')
 handler = logging.FileHandler('pyar.log', 'w')
@@ -259,10 +260,14 @@ def main():
     for each_file, charge, multiplicity, scftype in \
             zip(run_parameters['input_files'], charges, multiplicities, scftypes):
         try:
-            mol = Molecule.Molecule.from_xyz(each_file)
+            if os.path.splitext(each_file)[-1] == '.xyz':
+                mol = Molecule.Molecule.from_xyz(each_file)
+            elif each_file in atomic_data.chemical_symbols:
+                mol = Molecule.Molecule.from_symbol(each_file)
             mol.charge = charge
             mol.multiplicity = multiplicity
-            n_electrons = sum(mol.atomic_number)-mol.charge
+            mol.atomic_number = get_atomic_number(self.atoms_list)
+            n_electrons = sum(mol.atomic_number) - mol.charge
             if n_electrons % 2 == 0:
                 if mol.multiplicity % 2 != 1:
                     sys.exit(
