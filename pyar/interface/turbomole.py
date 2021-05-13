@@ -18,10 +18,10 @@ GNU General Public License for more details.
 
 """
 import datetime
+import getpass
 import glob
 import logging
 import os
-import getpass
 import re
 import shutil
 import socket
@@ -330,13 +330,12 @@ def calc_energy():
 def calc_gradients():
     run_status = run_turbomole_module('rdgrad')
     msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
-    if run_status is False or 'abnormally' in msg:
-        turbomole_logger.debug(msg)
-        turbomole_logger.debug('Gradient calculation failed!')
-        turbomole_logger.debug('Chcek files in %s' % os.getcwd())
-        return False
-    else:
+    if run_status is not False and 'abnormally' not in msg:
         return True
+    turbomole_logger.debug(msg)
+    turbomole_logger.debug('Gradient calculation failed!')
+    turbomole_logger.debug('Chcek files in %s' % os.getcwd())
+    return False
 
 
 def choose_coordinate_system(choice):

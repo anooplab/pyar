@@ -44,18 +44,18 @@ class Psi4(SF):
 
     def prepare_input(self, keyword=""):
         coords = self.start_coords
-        f1 = open(self.inp_file, "w")
-        if self.scftype is 'uks':
-            keyword += 'UKS'
-        f1.write(keyword + "\n")
-        f1.write("molecule {\n")
-        f1.write("{0} {1}\n".format(str(self.charge), str(self.multiplicity)))
-        for i in range(self.number_of_atoms):
-            f1.write(
-                " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-        f1.write("}\n")
-        f1.write("optimize(\"B97-D\")")
-        f1.close()
+        with open(self.inp_file, "w") as f1:
+            if self.scftype is 'uks':
+                keyword += 'UKS'
+            f1.write(keyword + "\n")
+            f1.write("molecule {\n")
+            f1.write("{0} {1}\n".format(str(self.charge), str(self.multiplicity)))
+            for i in range(self.number_of_atoms):
+                f1.write(
+                    " " + "%3s  %10.7f  %10.7f %10.7f\n" % (
+                    self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
+            f1.write("}\n")
+            f1.write("optimize(\"B97-D\")")
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """

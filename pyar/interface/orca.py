@@ -55,14 +55,14 @@ class Orca(SF):
     def prepare_input(self):
         keyword = self.keyword
         coords = self.start_coords
-        f1 = open(self.inp_file, "w")
-        f1.write(keyword + "\n")
-        f1.write("*xyz {0} {1}\n".format(str(self.charge), str(self.multiplicity)))
-        for i in range(self.number_of_atoms):
-            f1.write(
-                " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-        f1.write("*")
-        f1.close()
+        with open(self.inp_file, "w") as f1:
+            f1.write(keyword + "\n")
+            f1.write("*xyz {0} {1}\n".format(str(self.charge), str(self.multiplicity)))
+            for i in range(self.number_of_atoms):
+                f1.write(
+                    " " + "%3s  %10.7f  %10.7f %10.7f\n" % (
+                    self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
+            f1.write("*")
 
     def optimize(self, options):
         """
@@ -109,11 +109,8 @@ class Orca(SF):
         try:
             with open(self.out_file, "r") as out:
                 line = out.readlines()
-                en_steps = []
-                for item in line:
-                    if "FINAL SINGLE POINT ENERGY" in item:
-                        en_steps.append(item)
-                if len(en_steps) >= 1:
+                en_steps = [item for item in line if "FINAL SINGLE POINT ENERGY" in item]
+                if en_steps:
                     energy_in_hartrees = float((en_steps[-1].strip().split())[-1])
                 else:
                     energy_in_hartrees = 0.0

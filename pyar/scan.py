@@ -9,7 +9,7 @@ from pyar import optimiser
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
                                number_of_orientations, d_scale):
-    tabu_check_for_angles = False if monomer.number_of_atoms == 1 else True
+    tabu_check_for_angles = monomer.number_of_atoms != 1
     saved_pts = []
 
     orientations = []
@@ -19,9 +19,11 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         t2 = time.clock()
         pyar.tabu.tabu_logger.debug('Created points: in {} seconds'.format(t2 - t1))
         t1 = time.clock()
-        current_orientations = []
-        for vector in pts:
-            current_orientations.append(pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]))
+        current_orientations = [
+            pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b])
+            for vector in pts
+        ]
+
         t2 = time.clock()
         pyar.tabu.tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
         t1 = time.clock()

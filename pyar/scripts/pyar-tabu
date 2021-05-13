@@ -62,7 +62,7 @@ def tabu_function():
         seed = None
         monomer = None
 
-    tabu_on = True if args.tabu == 'y:' else False
+    tabu_on = args.tabu == 'y:'
     grid_on = False
     pts = pyar.tabu.generate_points(number_of_trial_orientations,
                                     tabu_on, grid_on, False)

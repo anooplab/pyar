@@ -47,7 +47,6 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         os.chdir('reaction')
         cwd = os.getcwd()
         product_dir = cwd + '/products'
-
     else:
         file_manager.make_directories('reaction')
         os.chdir('reaction')
@@ -116,7 +115,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         else:
             orientations_to_optimize = clustering.remove_similar(
                 optimized_molecules)
-        if (en != len(gamma_list) - 1):
+        if en != len(gamma_list) - 1:
             chk[gamma_list[en + 1]] = orientations_to_optimize
         reactor_logger.info("Number of products found from gamma:{} = {}".format(
             gamma, len(saved_inchi_strings)))
@@ -226,7 +225,6 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                 reactor_logger.info(f'        no close contacts found')
                 reactor_logger.info(f'        {job_name} is added to '
                                     f'the table to optimize with higher gamma')
-
         updtchk(chkdict, 'ori', job_name, reactor_logger, workdir)
         os.chdir(cwd)
         sys.stdout.flush()

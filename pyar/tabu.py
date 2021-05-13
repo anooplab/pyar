@@ -117,7 +117,7 @@ def merge_two_molecules(vector, seed_input, monomer_input,
         upper_distance = move_to
         move_to = (upper_distance + lower_distance) / 2
         tabu_logger.debug("Binary steps")
-        for i in range(100):
+        for _ in range(100):
             monomer.move_to_origin()
             monomer.translate(move_to)
             step_counter += 1

@@ -217,6 +217,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
     :param aggregate_id: An id for the aggregate used for
         job_dir name and xyz file names
     """
+    global status_list
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
@@ -287,12 +288,11 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         else:
             selected_seeds.remove(each_file)
             less_than_ideal.append(not_refined)
-    if len(selected_seeds) == 0:
-        aggregator_logger.info("    The optimization could not be refined, \n"
-                               "    so sending the loosely optimised molecules")
-        return less_than_ideal
-    else:
+    if len(selected_seeds) != 0:
         return selected_seeds
+    aggregator_logger.info("    The optimization could not be refined, \n"
+                           "    so sending the loosely optimised molecules")
+    return less_than_ideal
 
 
 def update_id(aid, the_monomer):

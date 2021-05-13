@@ -109,12 +109,11 @@ def make_inchi_string_from_xyz(xyzfile):
     """This function will make a inchi string from a xyz file with
        babel as the tools
     """
-    if os.path.isfile(xyzfile):
-        with open('OBabel.log', 'w') as ferr:
-            inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
-        return inchi.decode("utf-8").strip()
-    else:
+    if not os.path.isfile(xyzfile):
         raise IOError("file %s does not exists" % xyzfile)
+    with open('OBabel.log', 'w') as ferr:
+        inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
+    return inchi.decode("utf-8").strip()
 
 
 def make_smile_string_from_xyz(xyzfile):

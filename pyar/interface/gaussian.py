@@ -47,14 +47,13 @@ class Gaussian(SF):
 
     def prepare_input(self):
         coords = self.start_coords
-        f1 = open(self.inp_file, "w")
-        f1.write(f"{self.keyword}\n\n")
-        f1.write(f"{self.job_name}\n\n")
-        f1.write(f"{str(self.charge)} {str(self.multiplicity)}\n")
-        for i in range(self.number_of_atoms):
-            f1.write(f"{self.atoms_list[i]:>3}  {coords[i][0]:10.7f}  {coords[i][1]:10.7f} {coords[i][2]:10.7f}\n")
-        f1.write(f"\n")
-        f1.close()
+        with open(self.inp_file, "w") as f1:
+            f1.write(f"{self.keyword}\n\n")
+            f1.write(f"{self.job_name}\n\n")
+            f1.write(f"{str(self.charge)} {str(self.multiplicity)}\n")
+            for i in range(self.number_of_atoms):
+                f1.write(f"{self.atoms_list[i]:>3}  {coords[i][0]:10.7f}  {coords[i][1]:10.7f} {coords[i][2]:10.7f}\n")
+            f1.write(f"\n")
 
     def optimize(self, options):
         """
@@ -128,10 +127,7 @@ class Gaussian(SF):
         try:
             with open(self.out_file, "r") as out:
                 lines_in_file = out.readlines()
-                en_steps = []
-                for item in lines_in_file:
-                    if "SCF Done" in item:
-                        en_steps.append(item)
+                en_steps = [item for item in lines_in_file if "SCF Done" in item]
                 en_Eh = float((en_steps[-1].strip().split())[4])
             return en_Eh
         except IOError:

@@ -34,10 +34,8 @@ def get_rsmd(mol):
             cos_theta = (np.dot(v1, v2) / (
                     np.linalg.norm(v1) *
                     np.linalg.norm(v2)))
-            if cos_theta > 1.:
-                cos_theta = 1.
-            if cos_theta < -1.:
-                cos_theta = -1.
+            cos_theta = min(cos_theta, 1.)
+            cos_theta = max(cos_theta, -1.)
             sin_theta = np.sqrt(1 - (cos_theta ** 2))
             r = np.linalg.norm(a)
             p_ex += (r / (z1 * z2)) * (np.exp(-r / z1 * z2)) * cos_theta
