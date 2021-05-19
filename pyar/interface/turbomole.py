@@ -39,6 +39,7 @@ from pyar.interface import SF
 from pyar.interface import which
 
 turbomole_logger = logging.getLogger('pyar.turbomole')
+error_logger = logging.getLogger('pyar_errors.turbomole')
 
 
 def remove(file_name):
@@ -78,7 +79,7 @@ class Turbomole(SF):
 
     def __init__(self, molecule, qc_params):
         if which('define') is None:
-            turbomole_logger.error('set Turbomole path')
+            error_logger.error('set Turbomole path')
             sys.exit('Set turbomole path')
 
         super(Turbomole, self).__init__(molecule)
@@ -138,7 +139,7 @@ class Turbomole(SF):
 
         # Test for Turbomole input
         if not os.path.isfile('control'):
-            turbomole_logger.critical("Turbomole control file should exist")
+            error_logger.critical("Turbomole control file should exist")
             return False
 
         with open('not.converged', 'w') as fp:
@@ -170,7 +171,7 @@ class Turbomole(SF):
             # Calculate Gradients
             gradient_status = calc_gradients()
             if gradient_status is False:
-                turbomole_logger.error('Gradient evaluation failed in cycle %d' % cycle)
+                error_logger.error('Gradient evaluation failed in cycle %d' % cycle)
                 return 'GradFailed'
 
             for line in open('gradient').readlines():
@@ -187,8 +188,8 @@ class Turbomole(SF):
             # Update coordinates and check convergence.
             update_status = update_coord()
             if update_status is False:
-                turbomole_logger.critical('Coordinate update failed in cycle %d' % cycle)
-                turbomole_logger.critical('Check the job in %s' % os.getcwd())
+                error_logger.critical('Coordinate update failed in cycle %d' % cycle)
+                error_logger.critical('Check the job in %s' % os.getcwd())
                 return 'UpdateFailed'
 
             convergence_status = check_geometry_convergence()
@@ -204,7 +205,7 @@ class Turbomole(SF):
             # Calculate energy
             scf_status, energy = calc_energy()
             if scf_status is False:
-                turbomole_logger.critical('Energy evaluation failed in cycle %d' % cycle)
+                error_logger.critical('Energy evaluation failed in cycle %d' % cycle)
                 return 'SCFFailed'
 
             with open('energy.dat', 'a') as fe:
@@ -350,7 +351,7 @@ def choose_coordinate_system(choice):
         sed_inplace('cartesian  off', 'cartesian  on')
         turbomole_logger.debug('changed to cartesian')
     else:
-        turbomole_logger.error('bad choice for coordinate system %s' % choice)
+        error_logger.error('bad choice for coordinate system %s' % choice)
 
 
 def statpt_cart():
@@ -399,7 +400,7 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
 
     # Turbomole 'coord' file should exist
     if not os.path.isfile('coord'):
-        turbomole_logger.critical("Turbomole coordinate file, 'coord', should exist")
+        error_logger.critical("Turbomole coordinate file, 'coord', should exist")
         return False
 
     define_input_file = "define.inp"
@@ -451,7 +452,7 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                 return False
         with open(define_log_file) as fout:
             if "define : all done" not in fout.read() or 'abnormally' in fout.read():
-                turbomole_logger.critical('Error in define')
+                error_logger.critical('Error in define')
                 return False
     return True
 
@@ -460,12 +461,12 @@ def actual(*args):
     control = open('control').read()
     if 'reset' in args:
         modified_control = re.sub('actual step', 'last step', control)
-        turbomole_logger.error('actual step found in control file, indicating error termination')
+        error_logger.error('actual step found in control file, indicating error termination')
         safe_rewrite_file(modified_control, 'control')
     else:
         match = re.search('actual step', control)
         if match:
-            turbomole_logger.error('Error in %s' % match.group().split()[-1])
+            error_logger.error('Error in %s' % match.group().split()[-1])
             return False
     return True
 
@@ -505,7 +506,7 @@ def change_or_add_metfic_in_redund_inp(metric):
 
 def generate_internal_coordinates():
     if not os.path.isfile('coord'):
-        turbomole_logger.error("Turbomole file, 'coord', should exist")
+        error_logger.error("Turbomole file, 'coord', should exist")
         return False
 
     define_input_file = "def_inp"
@@ -527,7 +528,7 @@ def generate_internal_coordinates():
                 if e.output:
                     fout.write(e.output)
                 else:
-                    turbomole_logger.error('Unknown error in define')
+                    error_logger.error('Unknown error in define')
 
         if 'ATOMIC ATTRIBUTE DATA' in open(define_log_file).read():
             if 'intdef' in open('control').read():
@@ -538,8 +539,8 @@ def generate_internal_coordinates():
             break
     else:
         remove_data_group('redund_inp')
-        turbomole_logger.error('error in define step while generating '
-                               'new internal coordinates')
+        error_logger.error('error in define step while generating '
+                           'new internal coordinates')
         return False
 
     remove('tmp.input')
@@ -576,7 +577,7 @@ def get_coords():
     with open('coord') as fp:
         f = fp.readlines()
         if f[0].strip() != '$coord':
-            turbomole_logger.critical("'$coord' not found. Check the file.")
+            error_logger.critical("'$coord' not found. Check the file.")
             sys.exit()
         geometry_section = []
         for line in f[1:]:
@@ -591,8 +592,8 @@ def get_coords():
                 z_coord = float(c[2])
                 symbol = c[3].capitalize()
             except:
-                turbomole_logger.error("Something wrong in line: ", i + 1)
-                turbomole_logger.error(c)
+                error_logger.error("Something wrong in line: ", i + 1)
+                error_logger.error(c)
                 sys.exit()
             coordinates.append([x_coord, y_coord, z_coord])
 
@@ -605,13 +606,13 @@ def update_coord():
 
     statpt_status = run_turbomole_module('statpt')
     if statpt_status is False:
-        turbomole_logger.error('Statpt  failed once')
+        error_logger.error('Statpt  failed once')
 
     if os.path.exists('def_inp'):
         turbomole_logger.info('found def_inp')
         gen_int_status = generate_internal_coordinates()
         if gen_int_status is False:
-            turbomole_logger.error('Generation of internal coordinates failed')
+            error_logger.error('Generation of internal coordinates failed')
         else:
             turbomole_logger.debug('Generated internal coordinates')
         os.remove('def_inp')
@@ -620,16 +621,16 @@ def update_coord():
         turbomole_logger.debug('trying again')
         statpt_status = run_turbomole_module('statpt')
         if statpt_status is False:
-            turbomole_logger.error('Statpt  failed again')
+            error_logger.error('Statpt  failed again')
         if actual() is False:
             if statpt_cart() is False:
-                turbomole_logger.error('Statpt with cartesian step also failed! Quit')
-                turbomole_logger.error('check %s' % os.getcwd())
+                error_logger.error('Statpt with cartesian step also failed! Quit')
+                error_logger.error('check %s' % os.getcwd())
                 return False
             if os.path.exists('def_inp'):
                 gen_int_status = generate_internal_coordinates()
                 if gen_int_status is False:
-                    turbomole_logger.error('Generation of internal coordinates failed')
+                    error_logger.error('Generation of internal coordinates failed')
                 else:
                     turbomole_logger.debug('generated internal coordinates')
                 os.remove('def_inp')
@@ -651,7 +652,7 @@ def run_turbomole_module(module):
 
     key_phrase = module + ' : all done'
     if key_phrase not in open(output_file).read():
-        turbomole_logger.critical('Error in %s' % module)
+        error_logger.critical('Error in %s' % module)
         return False
 
     return True
@@ -665,7 +666,7 @@ def check_geometry_convergence():
             subp.check_call(['convgrep'], stdout=fc, stderr=fc)
         except subp.CalledProcessError as e:
             fc.write(e.output)
-            turbomole_logger.error('Convgrep failed')
+            error_logger.error('Convgrep failed')
             return False
     if os.path.isfile('converged'):
         remove('optinfo')

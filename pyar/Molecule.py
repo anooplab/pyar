@@ -19,7 +19,7 @@ import numpy as np
 
 import pyar.property
 
-molecule_logger = logging.getLogger('pyar.molecule')
+molecule_logger = logging.getLogger('pyar_errors.molecule')
 
 
 class Molecule(object):

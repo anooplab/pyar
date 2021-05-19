@@ -26,6 +26,7 @@ import numpy as np
 from pyar.interface import SF, write_xyz, which
 
 orca_logger = logging.getLogger('pyar.orca')
+error_logger = logging.getLogger('pyar_errors.orca')
 
 
 class Orca(SF):

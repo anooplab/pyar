@@ -27,13 +27,14 @@ import numpy as np
 from pyar.interface import SF, which, write_xyz
 
 xtb_logger = logging.getLogger('pyar.xtb')
+error_logger = logging.getLogger('pyar_errors.xtb')
 
 
 class Xtb(SF):
 
     def __init__(self, molecule, method):
         if which('xtb') is None:
-            xtb_logger.error('set XTB path')
+            error_logger.error('set XTB path')
             sys.exit()
 
         super(Xtb, self).__init__(molecule)
@@ -59,14 +60,14 @@ class Xtb(SF):
                   False
         """
         if gamma is not None:
-            xtb_logger.error('not implemented in this module. Use xtb_turbo')
+            error_logger.error('not implemented in this module. Use xtb_turbo')
 
         with open('xtb.out', 'w') as output_file_pointer:
             try:
                 out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
                 xtb_logger.info('    Optimization failed')
-                xtb_logger.error(f"      {e}")
+                error_logger.error(f"      {e}")
                 return False
 
         if os.path.isfile('.xtboptok'):

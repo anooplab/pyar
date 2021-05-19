@@ -29,6 +29,7 @@ from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF
 
 xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
+error_logger = logging.getLogger('pyar_errors.xtbturbo')
 
 
 class XtbTurbo(SF):
@@ -71,7 +72,7 @@ class XtbTurbo(SF):
             # Calculate energy and gradient
             status, message, energy, gradients = self.calc_engrad
             if status is False:
-                xtb_turbo_logger.critical('Energy/Gradient evaluation failed')
+                error_logger.critical('Energy/Gradient evaluation failed')
                 return 'SCFFailed'
 
             # Calculate afir gradient if gamma is greater than zero
@@ -83,8 +84,8 @@ class XtbTurbo(SF):
             # Update coordinates and check convergence.
             status = pyar.interface.turbomole.update_coord()
             if status is False:
-                xtb_turbo_logger.critical('Coordinate update failed in cycle %d' % cycle)
-                xtb_turbo_logger.critical('Check the job in %s' % os.getcwd())
+                error_logger.critical('Coordinate update failed in cycle %d' % cycle)
+                error_logger.critical('Check the job in %s' % os.getcwd())
                 return 'UpdateFailed'
 
             convergence_status = pyar.interface.turbomole.check_geometry_convergence()
@@ -118,7 +119,7 @@ class XtbTurbo(SF):
                     with open('xtb.out', 'w') as fb:
                         fb.write(e.output)
                 msg = "SCF Failure. Check files in" + os.getcwd()
-                xtb_turbo_logger.error(msg)
+                error_logger.error(msg)
                 return False, msg, None, None
 
         msg = [line for line in open('engrad.out').readlines() if 'ended' in line]

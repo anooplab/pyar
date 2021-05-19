@@ -13,6 +13,7 @@ import pyar.property
 import pyar.representations
 
 cluster_logger = logging.getLogger('pyar.cluster')
+error_logger = logging.getLogger('pyar_errors.cluster')
 
 
 def remove_similar(list_of_molecules):
@@ -93,7 +94,7 @@ def choose_geometries(list_of_molecules, features='fingerprint', maximum_number_
     elif features == 'rsmd':
         dt = [pyar.representations.get_rsmd(i.moments_of_inertia_tensor) for i in list_of_molecules]
     else:
-        cluster_logger.error('This feature is not implemented')
+        error_logger.error('This feature is not implemented')
         return list_of_molecules
 
     dt = np.around(dt, decimals=5)
@@ -171,7 +172,7 @@ def get_labels(data_as_list, algorithm='combo'):
             ms.fit(dt)
             labels = ms.labels_
         except Exception as e:
-            cluster_logger.error('MeanShift failed')
+            error_logger.error('MeanShift failed')
 
     if algorithm == 'dbscan':
         dbs = DBSCAN(eps=0.1)
@@ -222,8 +223,8 @@ def n_clusters_optimized_with_kmeans(dt):
             scores[i] = silhouette_score(dt, labels[i])
             cluster_logger.debug('n_clusters: {}; score: {}'.format(i, scores[i]))
         except Exception as e:
-            cluster_logger.error('K-Means failed')
-            cluster_logger.error(e)
+            error_logger.error('K-Means failed')
+            error_logger.error(e)
     if scores:
         best = max(scores, key=scores.get)
         cluster_logger.info('    Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
