@@ -15,18 +15,10 @@ from pyar import reactor, aggregator, scan, Molecule
 from pyar.data import defualt_parameters, atomic_data
 from pyar.property import get_atomic_number
 
-logger = logging.getLogger('pyar')
-handler = logging.FileHandler('pyar.log', 'w')
-
-error_logger = logging.getLogger('pyar_errors')
-error_handler = logging.FileHandler('error.log', 'w')
-error_formatter = logging.Formatter('%(message)s')
-error_logger.setLevel(logging.CRITICAL)
-error_handler.setFormatter(error_formatter)
-error_logger.addHandler(error_handler)
+global mol
 
 
-def argument_parse():
+def argument_parse() -> object:
     """ Parse command line arguments
     :return: argparse object
     :rtype: Namespace
@@ -68,109 +60,97 @@ def argument_parse():
                                        'Write to anoop@chem.iitkgp.ac.in if this '
                                        'does not work properly')
 
-    run_type_group = parser.add_mutually_exclusive_group(required=True)
+    run_type_arguments(parser)
+    aggregator_arguments(parser)
+    reactor_arguments(parser)
+    molecule_arguments(parser)
+    quantum_chemistry_arguments(parser)
 
-    run_type_group.add_argument("-r", "--react",
-                                help="Run a reactor calculation",
-                                action='store_true')
+    return parser.parse_args()
 
-    run_type_group.add_argument("-s", "--solvate",
-                                help="Add one solvent molecules to given solute molecules",
-                                action='store_true')
 
-    run_type_group.add_argument("-a", "--aggregate",
-                                help="Run a aggregator calculation",
-                                action='store_true')
-
-    run_type_group.add_argument("--scan-bond", nargs=2, type=int, metavar=('a', 'b'),
-                                help="scan a bond between the given atoms of two"
-                                     "fragments")
-
-    scan_group = parser.add_argument_group('scan', 'Scan specific options')
-
-    aggregator_group = parser.add_argument_group('aggregator',
-                                                 'Aggregator specific options')
-
-    aggregator_group.add_argument('-ss', '--solvation-size', type=int, metavar='n',
-                                  help='number of solvent molecules to be added')
-
-    aggregator_group.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
-                                  type=int,
-                                  help='maximum number of seeds')
-
-    aggregator_group.add_argument('-as', '--aggregate-size', type=int, nargs='*',
-                                  metavar=('l', 'm',),
-                                  help='number of monomers in aggregate')
-
-    # aggregator_group.add_argument('--first-pathway', type=int, metavar='l',
-    #                               help='The first pathway among all the '
-    #                                    'possible aggregation paths in '
-    #                                    'binary or ternary aggregation.')
-
-    aggregator_group.add_argument('--number-of-pathways', type=int, metavar='n',
-                                  help='How many pathways to be used in '
-                                       'binary/ternary aggregation.')
-
-    reactor_group = parser.add_argument_group('reactor',
-                                              'Reactor specific option')
-
-    reactor_group.add_argument('-gmin', type=float,
-                               help='minimum value of gamma')
-
-    reactor_group.add_argument('-gmax', type=float,
-                               help='maximum value of gamma')
-
-    reactor_group.add_argument('--site', type=int, nargs=2,
-                               help='atom for site specific reaction')
-
-    molecule_group = parser.add_argument_group('molecule',
-                                               'Options related to the electronic'
-                                               ' structure of the molecule')
-
-    molecule_group.add_argument("-c", "--charge", type=int, nargs='+',
-                                metavar='c',
-                                help="Charge of the system")
-
-    molecule_group.add_argument("-m", "--multiplicity", type=int, nargs='+',
-                                metavar='m',
-                                help="Multiplicity of the system")
-
-    molecule_group.add_argument("--scftype", type=str, nargs='+',
-                                help="specify rhf or uhf (default=rhf)")
-
+def quantum_chemistry_arguments(parser):
     quantum_chemistry_group = parser.add_argument_group('calculation',
                                                         'Calculation specific options')
-
     quantum_chemistry_group.add_argument("--software", type=str,
                                          choices=['gaussian', 'mopac', 'obabel', 'orca',
                                                   'psi4', 'turbomole', 'xtb',
                                                   'xtb_turbo'],
                                          required=True, help="Software")
-
     quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
                                          help='Basis set (default=def2-SVP)')
-
     quantum_chemistry_group.add_argument('-method', '--method', type=str,
                                          help='The method (default=BP86)')
-
     quantum_chemistry_group.add_argument('--opt-threshold', type=str, default='normal',
                                          choices=['loose', 'normal', 'tight'],
                                          help='Optimization threshold')
-
     quantum_chemistry_group.add_argument('--opt-cycles', type=int, default=100,
                                          help='Maximum optimization cycles')
-
     quantum_chemistry_group.add_argument('--scf-threshold', type=str, default='normal',
                                          choices=['loose', 'normal', 'tight'],
                                          help='SCF threshold')
-
     quantum_chemistry_group.add_argument('--scf-cycles', type=int, default=1000,
                                          help='Maximum SCF cycles.')
-
     quantum_chemistry_group.add_argument('--custom-keywords', type=str,
                                          help='Software related custom keywords.')
 
-    return parser.parse_args()
+
+def molecule_arguments(parser):
+    molecule_group = parser.add_argument_group('molecule',
+                                               'Options related to the electronic'
+                                               ' structure of the molecule')
+    molecule_group.add_argument("-c", "--charge", type=int, nargs='+',
+                                metavar='c',
+                                help="Charge of the system")
+    molecule_group.add_argument("-m", "--multiplicity", type=int, nargs='+',
+                                metavar='m',
+                                help="Multiplicity of the system")
+    molecule_group.add_argument("--scftype", type=str, nargs='+',
+                                help="specify rhf or uhf (default=rhf)")
+
+
+def reactor_arguments(parser):
+    reactor_group = parser.add_argument_group('reactor',
+                                              'Reactor specific option')
+    reactor_group.add_argument('-gmin', type=float,
+                               help='minimum value of gamma')
+    reactor_group.add_argument('-gmax', type=float,
+                               help='maximum value of gamma')
+    reactor_group.add_argument('--site', type=int, nargs=2,
+                               help='atom for site specific reaction')
+
+
+def aggregator_arguments(parser):
+    aggregator_group = parser.add_argument_group('aggregator',
+                                                 'Aggregator specific options')
+    aggregator_group.add_argument('-ss', '--solvation-size', type=int, metavar='n',
+                                  help='number of solvent molecules to be added')
+    aggregator_group.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
+                                  type=int,
+                                  help='maximum number of seeds')
+    aggregator_group.add_argument('-as', '--aggregate-size', type=int, nargs='*',
+                                  metavar=('l', 'm',),
+                                  help='number of monomers in aggregate')
+
+    aggregator_group.add_argument('--number-of-pathways', type=int, metavar='n',
+                                  help='How many pathways to be used in '
+                                       'binary/ternary aggregation.')
+
+
+def run_type_arguments(parser):
+    run_type_group = parser.add_mutually_exclusive_group(required=True)
+    run_type_group.add_argument("-r", "--react",
+                                help="Run a reactor calculation",
+                                action='store_true')
+    run_type_group.add_argument("-s", "--solvate",
+                                help="Add one solvent molecules to given solute molecules",
+                                action='store_true')
+    run_type_group.add_argument("-a", "--aggregate",
+                                help="Run a aggregator calculation",
+                                action='store_true')
+    run_type_group.add_argument("--scan-bond", nargs=2, type=int, metavar=('a', 'b'),
+                                help="scan a bond between the given atoms of two"
+                                     "fragments")
 
 
 # noinspection PyTypeChecker
@@ -179,7 +159,6 @@ def main():
     Process the parameters, setups the jobs and executes.
     """
 
-    global mol
     args = vars(argument_parse())
 
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
@@ -188,69 +167,50 @@ def main():
         if args[key] is not None and run_parameters[key] != args[key]:
             run_parameters[key] = args[key]
 
-    if run_parameters['verbosity'] == 0:
-        logger.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
-                                      '%(lineno)d %(levelname)-8s: %(message)s')
-    elif run_parameters['verbosity'] == 1:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.INFO)
-    elif run_parameters['verbosity'] == 2:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.WARNING)
-    elif run_parameters['verbosity'] == 3:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.ERROR)
-    elif run_parameters['verbosity'] == 4:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.CRITICAL)
-    else:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.CRITICAL)
+    verbosity = run_parameters['verbosity']
 
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    error_logger, info_logger = setup_logging(verbosity)
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
-    logger.info(f'==============================Starting PyAR at {time_now}==============================')
-    logger.info(f'Job directory: {os.getcwd()}')
-    logger.debug(f'Logging level is {{{logger.level}}}')
+    info_logger.info(f'============ Starting PyAR at {time_now} ================')
+    info_logger.info(f'Job directory: {os.getcwd()}')
+    info_logger.debug(f'Logging level is {{{info_logger.level}}}')
 
-    logger.debug(f'Parsed arguments are:')
+    info_logger.debug(f'Parsed arguments are:')
 
     for k, v in args.items():
         if v:
-            logger.debug(f"{k:25} = {v}")
+            info_logger.debug(f"{k:25} = {v}")
 
-    logger.debug(f'Full parameters are:')
+    info_logger.debug(f'Full parameters are:')
     for k, v in run_parameters.items():
         if v:
-            logger.debug(f"{k:25} = {v}")
+            info_logger.debug(f"{k:25} = {v}")
 
     tabu_on = run_parameters['tabu'] == 'y'
     grid_on = run_parameters['grid'] == 'y'
     # Sanity check
     number_of_input_files = len(run_parameters['input_files'])
-    logger.debug(f"{number_of_input_files} input files")
+    info_logger.debug(f"{number_of_input_files} input files")
 
     charges = run_parameters['charge']
     if charges is None:
         charges = [0 for _ in range(number_of_input_files)]
     number_of_charge_arguments = len(charges)
-    logger.debug(f"{number_of_charge_arguments} charge arguments")
+    info_logger.debug(f"{number_of_charge_arguments} charge arguments")
     if number_of_charge_arguments != number_of_input_files:
         message = f"Charges are not specified for all input files"
-        logger.critical(message)
+        info_logger.critical(message)
         sys.exit(message)
 
     multiplicities = run_parameters['multiplicity']
     if multiplicities is None:
         multiplicities = [1 for _ in range(number_of_input_files)]
     number_of_multiplicity_arguments = len(multiplicities)
-    logger.debug(f"Provided {number_of_multiplicity_arguments} multiplicities")
+    info_logger.debug(f"Provided {number_of_multiplicity_arguments} multiplicities")
     if number_of_multiplicity_arguments != number_of_input_files:
         message = f"Multiplicities are not specified for all input files"
-        logger.critical(message)
+        info_logger.critical(message)
         sys.exit(message)
 
     scftypes = run_parameters['scftype']
@@ -258,11 +218,11 @@ def main():
         scftypes = ['rhf' for _ in range(number_of_input_files)]
     if len(scftypes) != number_of_input_files:
         message = f"SCF Types are not specified for all input files"
-        logger.critical(message)
+        info_logger.critical(message)
         sys.exit(message)
-    logger.debug(f"Provided SCF types: {scftypes}")
+    info_logger.debug(f"Provided SCF types: {scftypes}")
 
-    logger.info("Parsing the following files: ")
+    info_logger.info("Parsing the following files: ")
     input_molecules = []
     # noinspection PyTypeChecker
     for each_file, charge, multiplicity, scftype in \
@@ -288,13 +248,15 @@ def main():
             else:
                 ground_scftype = 'open'
                 if mol.multiplicity % 2 == 1:
-                    message = f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}"
+                    message = f"{n_electrons} (even) electrons and " \
+                              f"multiplicty {mol.multiplicity} (odd) " \
+                              f"is not pssible for {mol.name}"
                     error_logger.critical(message)
                     sys.exit(message)
             input_molecules.append(mol)
-            logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
+            info_logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
         except IOError:
-            logger.critical(f"File {each_file} does not exist")
+            info_logger.critical(f"File {each_file} does not exist")
             sys.exit()
 
     quantum_chemistry_parameters = {
@@ -310,14 +272,14 @@ def main():
         'custom_keyword': run_parameters['custom_keyword']
     }
 
-    logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
+    info_logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
 
     number_of_orientations = run_parameters['how_many_orientations']
-    logger.info(f'Number of orientations: {number_of_orientations}')
+    info_logger.info(f'Number of orientations: {number_of_orientations}')
 
     maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
 
-    logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
+    info_logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
 
     if run_parameters['site'] is None:
         site = None
@@ -333,7 +295,7 @@ def main():
                       f"the desired number of each monomers to be added \n" \
                       f"using the argument\n" \
                       f" -as <int> <int> ..."
-            logger.critical(message)
+            info_logger.critical(message)
             sys.exit(message)
         if number_of_input_files > 1:
             for a, b in permutations(run_parameters['input_files'], 2):
@@ -354,8 +316,8 @@ def main():
                              run_parameters['number_of_pathways'],
                              tabu_on, grid_on, site)
 
-        logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+        info_logger.info('Total Time: {}'.format(time.time() - t1_0))
+        info_logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
     if run_parameters['solvate']:
         number_of_solvent_molecules = run_parameters['solvation_size']
@@ -389,8 +351,8 @@ def main():
                            grid_on,
                            site)
 
-        logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+        info_logger.info('Total Time: {}'.format(time.time() - t1_0))
+        info_logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
     if run_parameters['react']:
         minimum_gamma = run_parameters['gmin']
@@ -418,8 +380,8 @@ def main():
                       int(number_of_orientations),
                       quantum_chemistry_parameters,
                       site, proximity_factor, tabu_on, grid_on)
-        logger.info('Total run time: {}'.format(time.time() - zero_time))
-        logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
+        info_logger.info('Total run time: {}'.format(time.time() - zero_time))
+        info_logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
         return
 
     if run_parameters['scan_bond']:
@@ -436,6 +398,39 @@ def main():
         scan.scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_chemistry_parameters)
 
     return
+
+
+def setup_logging(verbosity):
+    logger = logging.getLogger('pyar')
+    handler = logging.FileHandler('pyar.log', 'w')
+    error_logger = logging.getLogger('pyar_errors')
+    error_handler = logging.FileHandler('error.log', 'w')
+    error_formatter = logging.Formatter('%(message)s')
+    error_logger.setLevel(logging.CRITICAL)
+    error_handler.setFormatter(error_formatter)
+    error_logger.addHandler(error_handler)
+    if verbosity == 0:
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
+                                      '%(lineno)d %(levelname)-8s: %(message)s')
+    elif verbosity == 1:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.INFO)
+    elif verbosity == 2:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.WARNING)
+    elif verbosity == 3:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.ERROR)
+    elif verbosity == 4:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.CRITICAL)
+    else:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.CRITICAL)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return error_logger, logger
 
 
 if __name__ == "__main__":

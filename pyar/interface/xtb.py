@@ -27,14 +27,14 @@ import numpy as np
 from pyar.interface import SF, which, write_xyz
 
 xtb_logger = logging.getLogger('pyar.xtb')
-error_logger = logging.getLogger('pyar_errors.xtb')
+xtb_errors = logging.getLogger('pyar_errors.xtb')
 
 
 class Xtb(SF):
 
     def __init__(self, molecule, method):
         if which('xtb') is None:
-            error_logger.error('set XTB path')
+            xtb_errors.error('set XTB path')
             sys.exit()
 
         super(Xtb, self).__init__(molecule)
@@ -45,7 +45,7 @@ class Xtb(SF):
             self.cmd = "{} -chrg {}".format(self.cmd, self.charge)
         if self.multiplicity != 1:
             self.cmd = "{} -uhf {}".format(self.cmd, self.multiplicity)
-        if self.multiplicity == 1 and self.scftype is not 'rhf':
+        if self.multiplicity == 1 and self.scftype != 'rhf':
             self.cmd = "{} -{}".format(self.cmd, self.scftype)
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
@@ -60,14 +60,14 @@ class Xtb(SF):
                   False
         """
         if gamma is not None:
-            error_logger.error('not implemented in this module. Use xtb_turbo')
+            xtb_errors.error('not implemented in this module. Use xtb_turbo')
 
         with open('xtb.out', 'w') as output_file_pointer:
             try:
                 out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
                 xtb_logger.info('    Optimization failed')
-                error_logger.error(f"      {e}")
+                xtb_errors.error(f"      {e}")
                 return False
 
         if os.path.isfile('.xtboptok'):
@@ -79,10 +79,10 @@ class Xtb(SF):
             os.remove('.xtboptok')
             return True
         elif os.path.isfile('.sccnotconverged') or os.path.isfile('NOT_CONVERGED'):
-            xtb_logger.info('      SCF Convergence failure in {} run in {}'.format(self.start_xyz_file, os.getcwd()))
+            xtb_errors.error('      SCF Convergence failure in {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return 'SCFFailed'
         else:
-            xtb_logger.info('      Something went wrong with {} run in {}'.format(self.start_xyz_file, os.getcwd()))
+            xtb_errors.error('      Something went wrong with {} run in {}'.format(self.start_xyz_file, os.getcwd()))
             return False
 
     @property

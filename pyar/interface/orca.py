@@ -97,11 +97,16 @@ class Orca(SF):
                 f.close()
                 return True
             else:
-                print("Error: OPTIMIZATION PROBABLY FAILED. "
-                      "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
-                print("Check for partial optimization.")
-                print("Location: {}".format(os.getcwd()))
-                return False
+                message = f'                error_logger.error("Error: OPTIMIZATION PROBABLY FAILED. "
+                "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
+                error_logger.error("Check for partial optimization.")
+                error_logger.error("Location: {}".format(os.getcwd()))
+                '
+                error_logger.error("Error: OPTIMIZATION PROBABLY FAILED. "
+                "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
+                error_logger.error("Check for partial optimization.")
+                error_logger.error("Location: {}".format(os.getcwd()))
+            return False
 
     def get_energy(self):
         """
@@ -117,7 +122,7 @@ class Orca(SF):
                     energy_in_hartrees = 0.0
             return energy_in_hartrees
         except IOError:
-            print("Warning: File ", self.out_file, "was not found.")
+            error_logger.error("Warning: File ", self.out_file, "was not found.")
 
 
 def main():
