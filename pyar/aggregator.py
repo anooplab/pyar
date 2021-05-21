@@ -252,7 +252,6 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         return StopIteration
     aggregator_logger.info(f'  There are {len(seeds)} seed molecules in {aggregate_id}')
     cwd = os.getcwd()
-    optimise(monomer, qc_params)
 
     list_of_optimized_molecules = []
     for seed_count, each_seed in enumerate(seeds):
