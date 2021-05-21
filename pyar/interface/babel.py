@@ -93,7 +93,7 @@ def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
     """
     keyword_line = '-xkPM7' if keyword is None else '-xk' + keyword
     with open('tmp.log', 'w') as fminp:
-        subp.call(["babel", "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line], stderr=fminp, stdout=fminp)
+        subp.call(["obabel", "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line], stderr=fminp, stdout=fminp)
     print(open('tmp.log').readlines()[0])
     os.remove('tmp.log')
 
@@ -101,7 +101,7 @@ def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
 def xyz_to_sdf_file(xyz_input_files, sdf_output_file):
     print(xyz_input_files)
     with open('tmp.log', 'w') as fminp:
-        subp.call(["babel", "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file], stderr=fminp, stdout=fminp)
+        subp.call(["obabel", "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file], stderr=fminp, stdout=fminp)
     os.remove('tmp.log')
 
 
@@ -112,7 +112,7 @@ def make_inchi_string_from_xyz(xyzfile):
     if not os.path.isfile(xyzfile):
         raise IOError("file %s does not exists" % xyzfile)
     with open('OBabel.log', 'w') as ferr:
-        inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
+        inchi = subp.check_output(["obabel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
     return inchi.decode("utf-8").strip()
 
 
@@ -125,7 +125,7 @@ def make_smile_string_from_xyz(xyzfile):
     if os.path.isfile(xyzfile):
         with open('OBabel.log', 'w') as ferr:
             try:
-                pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr=ferr)
+                pre_smile = subp.check_output(["obabel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr=ferr)
                 smile = pre_smile.decode("utf-8").strip()
             except Exception as e:
                 ferr.write(e)

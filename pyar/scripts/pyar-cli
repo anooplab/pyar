@@ -18,20 +18,7 @@ from pyar.property import get_atomic_number
 global mol
 
 
-def argument_parse() -> object:
-    """ Parse command line arguments
-    :return: argparse object
-    :rtype: Namespace
-    """
-
-    pyr_description = """PyAR is a program to predict aggregation, reaction, 
-    and clustering. Reactor explores several possible reactions between two 
-    given molecules. Aggregator module explores several possible geometries 
-    of weakly bound molecular complexes or atomic clusters.
-    """
-
-    parser = argparse.ArgumentParser(prog='PyAR', description=pyr_description)
-
+def common_arguments(parser):
     parser.add_argument('-v', '--verbosity',
                         choices=[0, 1, 2, 3, 4],
                         type=int,
@@ -39,34 +26,21 @@ def argument_parse() -> object:
                         help="Choose output verbosity"
                              " (0=Debug; 1 = Info (default); "
                              "2 = Warning; 3 = Error; 4 = Critical)")
-
     parser.add_argument("input_files", metavar='file',
                         type=str, nargs='+',
                         help='input coordinate files in xyz format.')
-
     parser.add_argument('-N', dest='how_many_orientations', metavar='N',
                         required=True, help='The number of orientations to be used')
-
     parser.add_argument('--tabu', choices=['y', 'n'], default='y',
                         help='Toggle Tabu search algorithm. Default is on (y)')
-
     parser.add_argument('--grid', choices=['y', 'n'], default='y',
                         help='Toggle the use of grid for search space.')
-
     parser.add_argument('-nprocs', '--nprocs', metavar='n',
                         type=int, help='The number of processors/cores to be '
                                        'used by the quantum chemistry software.'
                                        'Not fully implemented with all interfaces.'
                                        'Write to anoop@chem.iitkgp.ac.in if this '
                                        'does not work properly')
-
-    run_type_arguments(parser)
-    aggregator_arguments(parser)
-    reactor_arguments(parser)
-    molecule_arguments(parser)
-    quantum_chemistry_arguments(parser)
-
-    return parser.parse_args()
 
 
 def quantum_chemistry_arguments(parser):
@@ -153,7 +127,151 @@ def run_type_arguments(parser):
                                      "fragments")
 
 
+def argument_parse() -> object:
+    """ Parse command line arguments
+    :return: argparse object
+    :rtype: Namespace
+    """
+
+    pyr_description = """PyAR is a program to predict aggregation, reaction, 
+    and clustering. Reactor explores several possible reactions between two 
+    given molecules. Aggregator module explores several possible geometries 
+    of weakly bound molecular complexes or atomic clusters.
+    """
+
+    parser = argparse.ArgumentParser(prog='PyAR', description=pyr_description)
+
+    common_arguments(parser)
+    run_type_arguments(parser)
+    aggregator_arguments(parser)
+    reactor_arguments(parser)
+    molecule_arguments(parser)
+    quantum_chemistry_arguments(parser)
+
+    return parser.parse_args()
+
+
 # noinspection PyTypeChecker
+def check_for_duplicate_file_arguments(error_logger, input_file_arguments):
+    for a, b in permutations(input_file_arguments, 2):
+        if os.path.exists(a) and os.path.exists(b) and filecmp.cmp(a, b):
+            same_file_error = f'You have provided same file {a} twice.\n' \
+                              f'If you want to create a homo-elemental clusters, ' \
+                              f'provide file name only once.'
+            error_logger.error(same_file_error)
+            sys.exit(same_file_error)
+
+
+def process_file_args(input_file_arguments, charges, multiplicities, scftypes, info_logger, error_logger):
+    input_molecules = []
+    # noinspection PyTypeChecker
+    for each_file, charge, multiplicity, scftype in \
+            zip(input_file_arguments, charges, multiplicities, scftypes):
+        if os.path.splitext(each_file)[-1] == '.xyz':
+            mol = Molecule.Molecule.from_xyz(each_file)
+        elif each_file.capitalize() in atomic_data.chemical_symbols:
+            mol = Molecule.Molecule.from_symbol(each_file.capitalize())
+        else:
+            message = f'Check input files'
+            error_logger.critical(message)
+            sys.exit(message)
+        mol.charge = charge
+        mol.multiplicity = multiplicity
+        mol.atomic_number = get_atomic_number(mol.atoms_list)
+        n_electrons = sum(mol.atomic_number) - mol.charge
+
+        check_charge_multiplicity_and_scftype(n_electrons, multiplicity, error_logger)
+        input_molecules.append(mol)
+        info_logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
+    return input_molecules
+
+
+def check_charge_multiplicity_and_scftype(n_electrons, multiplicity, error_logger):
+    incorrect = False
+    if n_electrons % 2 == 0:
+        if multiplicity % 2 != 1:
+            incorrect = True
+    else:
+        ground_scftype = 'open'
+        if multiplicity % 2 == 1:
+            incorrect = True
+    if incorrect:
+        message = f"{n_electrons} (even) electrons and " \
+                  f"multiplicity {multiplicity} (odd) " \
+                  f"is not possible"
+        error_logger.critical(message)
+        sys.exit(message)
+
+
+def process_scftype_input(number_of_input_files, info_logger, scftypes):
+    if scftypes is None:
+        scftypes = ['rhf' for _ in range(number_of_input_files)]
+    if len(scftypes) != number_of_input_files:
+        message = f"SCF Types are not specified for all input files"
+        info_logger.critical(message)
+        sys.exit(message)
+    info_logger.debug(f"Provided SCF types: {scftypes}")
+    return scftypes
+
+
+def process_multiplicity_input(multiplicities, number_of_input_files, info_logger, error_logger):
+    if multiplicities is None:
+        multiplicities = [1 for _ in range(number_of_input_files)]
+    number_of_multiplicity_arguments = len(multiplicities)
+    info_logger.debug(f"Provided {number_of_multiplicity_arguments} multiplicities")
+    if number_of_multiplicity_arguments != number_of_input_files:
+        message = f"Multiplicities are not specified for all input files"
+        error_logger.critical(message)
+        sys.exit(message)
+    return multiplicities
+
+
+def process_charge_input(charges, error_logger, info_logger, number_of_input_files):
+    if charges is None:
+        charges = [0 for _ in range(number_of_input_files)]
+    number_of_charge_arguments = len(charges)
+    info_logger.debug(f"{number_of_charge_arguments} charge arguments")
+    if number_of_charge_arguments != number_of_input_files:
+        message = f"Charges are not specified for all input files"
+        error_logger.critical(message)
+        sys.exit(message)
+    return charges
+
+
+def setup_logging(verbosity):
+    logger = logging.getLogger('pyar')
+    handler = logging.FileHandler('pyar.log', 'w')
+    if verbosity == 0:
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
+                                      '%(lineno)d %(levelname)-8s: %(message)s')
+    elif verbosity == 1:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.INFO)
+    elif verbosity == 2:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.WARNING)
+    elif verbosity == 3:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.ERROR)
+    elif verbosity == 4:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.CRITICAL)
+    else:
+        formatter = logging.Formatter('%(message)s')
+        logger.setLevel(logging.CRITICAL)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    error_logger = logging.getLogger('pyar_errors')
+    error_handler = logging.FileHandler('error.log', 'w')
+    error_formatter = logging.Formatter('%(message)s')
+    error_logger.setLevel(logging.CRITICAL)
+    error_handler.setFormatter(error_formatter)
+    error_logger.addHandler(error_handler)
+    return error_logger, logger
+
+
 def main():
     """
     Process the parameters, setups the jobs and executes.
@@ -167,8 +285,7 @@ def main():
         if args[key] is not None and run_parameters[key] != args[key]:
             run_parameters[key] = args[key]
 
-    verbosity = run_parameters['verbosity']
-
+    verbosity: int = run_parameters['verbosity']
     error_logger, info_logger = setup_logging(verbosity)
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
@@ -194,70 +311,18 @@ def main():
     info_logger.debug(f"{number_of_input_files} input files")
 
     charges = run_parameters['charge']
-    if charges is None:
-        charges = [0 for _ in range(number_of_input_files)]
-    number_of_charge_arguments = len(charges)
-    info_logger.debug(f"{number_of_charge_arguments} charge arguments")
-    if number_of_charge_arguments != number_of_input_files:
-        message = f"Charges are not specified for all input files"
-        info_logger.critical(message)
-        sys.exit(message)
+    charges = process_charge_input(charges, error_logger, info_logger, number_of_input_files)
 
     multiplicities = run_parameters['multiplicity']
-    if multiplicities is None:
-        multiplicities = [1 for _ in range(number_of_input_files)]
-    number_of_multiplicity_arguments = len(multiplicities)
-    info_logger.debug(f"Provided {number_of_multiplicity_arguments} multiplicities")
-    if number_of_multiplicity_arguments != number_of_input_files:
-        message = f"Multiplicities are not specified for all input files"
-        info_logger.critical(message)
-        sys.exit(message)
+    multiplicities = process_multiplicity_input(multiplicities, number_of_input_files, info_logger, error_logger)
 
     scftypes = run_parameters['scftype']
-    if scftypes is None:
-        scftypes = ['rhf' for _ in range(number_of_input_files)]
-    if len(scftypes) != number_of_input_files:
-        message = f"SCF Types are not specified for all input files"
-        info_logger.critical(message)
-        sys.exit(message)
-    info_logger.debug(f"Provided SCF types: {scftypes}")
+    scftypes = process_scftype_input(number_of_input_files, info_logger, scftypes)
 
     info_logger.info("Parsing the following files: ")
-    input_molecules = []
-    # noinspection PyTypeChecker
-    for each_file, charge, multiplicity, scftype in \
-            zip(run_parameters['input_files'], charges, multiplicities, scftypes):
-        try:
-            if os.path.splitext(each_file)[-1] == '.xyz':
-                mol = Molecule.Molecule.from_xyz(each_file)
-            elif each_file.capitalize() in atomic_data.chemical_symbols:
-                mol = Molecule.Molecule.from_symbol(each_file.capitalize())
-            else:
-                message = f'Check input files'
-                error_logger.critical(message)
-                sys.exit(message)
-            mol.charge = charge
-            mol.multiplicity = multiplicity
-            mol.atomic_number = get_atomic_number(mol.atoms_list)
-            n_electrons = sum(mol.atomic_number) - mol.charge
-            if n_electrons % 2 == 0:
-                if mol.multiplicity % 2 != 1:
-                    message = f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}"
-                    error_logger.critical(message)
-                    sys.exit(message)
-            else:
-                ground_scftype = 'open'
-                if mol.multiplicity % 2 == 1:
-                    message = f"{n_electrons} (even) electrons and " \
-                              f"multiplicty {mol.multiplicity} (odd) " \
-                              f"is not pssible for {mol.name}"
-                    error_logger.critical(message)
-                    sys.exit(message)
-            input_molecules.append(mol)
-            info_logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
-        except IOError:
-            info_logger.critical(f"File {each_file} does not exist")
-            sys.exit()
+    input_file_arguments = run_parameters['input_files']
+    input_molecules = process_file_args(input_file_arguments, charges, multiplicities, scftypes, info_logger,
+                                        error_logger)
 
     quantum_chemistry_parameters = {
         'basis': run_parameters['basis'],
@@ -278,7 +343,6 @@ def main():
     info_logger.info(f'Number of orientations: {number_of_orientations}')
 
     maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
-
     info_logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
 
     if run_parameters['site'] is None:
@@ -298,13 +362,7 @@ def main():
             info_logger.critical(message)
             sys.exit(message)
         if number_of_input_files > 1:
-            for a, b in permutations(run_parameters['input_files'], 2):
-                if os.path.exists(a) and os.path.exists(b) and filecmp.cmp(a, b):
-                    same_file_error = f'You have provided same file {a} twice.\n' \
-                                      f'If you want to create a homo-elemental clusters, ' \
-                                      f'provide file name only once.'
-                    error_logger.error(same_file_error)
-                    sys.exit(same_file_error)
+            check_for_duplicate_file_arguments(error_logger, input_file_arguments)
         seeds = input_molecules
         t1_0 = time.time()
         time_started = datetime.datetime.now()
@@ -375,6 +433,8 @@ def main():
 
         zero_time = time.time()
         time_started = datetime.datetime.now()
+
+        # noinspection PyTypeChecker
         reactor.react(input_molecules[0], input_molecules[1],
                       minimum_gamma, maximum_gamma,
                       int(number_of_orientations),
@@ -398,39 +458,6 @@ def main():
         scan.scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_chemistry_parameters)
 
     return
-
-
-def setup_logging(verbosity):
-    logger = logging.getLogger('pyar')
-    handler = logging.FileHandler('pyar.log', 'w')
-    error_logger = logging.getLogger('pyar_errors')
-    error_handler = logging.FileHandler('error.log', 'w')
-    error_formatter = logging.Formatter('%(message)s')
-    error_logger.setLevel(logging.CRITICAL)
-    error_handler.setFormatter(error_formatter)
-    error_logger.addHandler(error_handler)
-    if verbosity == 0:
-        logger.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
-                                      '%(lineno)d %(levelname)-8s: %(message)s')
-    elif verbosity == 1:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.INFO)
-    elif verbosity == 2:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.WARNING)
-    elif verbosity == 3:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.ERROR)
-    elif verbosity == 4:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.CRITICAL)
-    else:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.CRITICAL)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return error_logger, logger
 
 
 if __name__ == "__main__":
