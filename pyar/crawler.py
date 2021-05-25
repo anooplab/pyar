@@ -1,5 +1,7 @@
 import os
+
 import pandas as pd
+
 from pyar import Molecule
 from pyar.interface import babel
 
@@ -11,9 +13,12 @@ def make_formula(at_ls):
 
 def collect_files(start, exclude_pattern, pattern):
     paths = []
-    for root, dir, files in os.walk(start):
+    for root, directory, files in os.walk(start):
         for file in files:
-            if pattern in file and os.path.splitext(file)[-1] == '.xyz' and exclude_pattern not in root:
+            if pattern in file and \
+                    'selected' in root and \
+                    os.path.splitext(file)[-1] == '.xyz' and \
+                    exclude_pattern not in root:
                 paths.append(os.path.join(root, file))
     return paths
 
@@ -32,21 +37,32 @@ def collect_data(xyz_files):
     return df
 
 
-def calculate_binding_energy(df):
-    pass
+def find_best_geometry():
+    try:
+        df = pd.read_csv('data.csv')
+    except IOError:
+        print(f'data.csv is not found')
+        return
+    for i in df.loc[df.groupby('formula').Energy.agg('idxmin')].Name:
+        print(i)
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--starting-directory', default='./')
+    parser.add_argument('--starting-directory', default='./aggregates')
     parser.add_argument('--exclude', default='tmp')
     parser.add_argument('--pattern', default='result')
-
+    parser.add_argument('--mine', action='store_true')
+    parser.add_argument('--find-gm', action='store_true')
     args = parser.parse_args()
 
-    xyz_files = collect_files(args.starting_directory, args.exclude, args.pattern)
-    data_frame = collect_data(xyz_files)
+    if args.collect_data:
+        xyz_files = collect_files(args.starting_directory, args.exclude, args.pattern)
+        collect_data(xyz_files)
+
+    if args.find_best_geometries:
+        find_best_geometry()
 
 
 if __name__ == "__main__":

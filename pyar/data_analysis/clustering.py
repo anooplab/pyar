@@ -1,6 +1,7 @@
 import itertools
 import logging
 import operator
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -117,9 +118,8 @@ def choose_geometries(list_of_molecules, features='fingerprint', maximum_number_
 
     if len(best_from_each_cluster) == 1:
         return best_from_each_cluster
-    else:
-        cluster_logger.info("    Removing similar molecules after clustering.")
-        reduced_best_from_each_cluster = remove_similar(best_from_each_cluster)
+    cluster_logger.info("    Removing similar molecules after clustering.")
+    reduced_best_from_each_cluster = remove_similar(best_from_each_cluster)
 
     if len(reduced_best_from_each_cluster) > maximum_number_of_seeds:
         return choose_geometries(reduced_best_from_each_cluster,
@@ -195,8 +195,8 @@ def get_labels(data_as_list, algorithm='combo'):
         try:
             af.fit(dt)
             labels = af.labels_
-        except Exception:
-            cluster_logger.exception('Affinity Propagation Failed')
+        except Exception as e:
+            cluster_logger.exception(f'Affinity Propagation Failed\n{e}')
 
     return labels
 
@@ -217,21 +217,21 @@ def n_clusters_optimized_with_kmeans(dt):
     for i in range(2, min(len(dt), 9)):
         kmeans = KMeans(n_clusters=i)
         try:
-            kmeans.fit(dt)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                kmeans.fit(dt)
             labels[i] = kmeans.labels_
             centres[i] = kmeans.cluster_centers_
             scores[i] = silhouette_score(dt, labels[i])
-            cluster_logger.debug('n_clusters: {}; score: {}'.format(i, scores[i]))
+            cluster_logger.debug(f'n_clusters: {i}; score: {scores[i]}')
         except Exception as e:
             error_logger.error('K-Means failed')
             error_logger.error(e)
-    if scores:
-        best = max(scores, key=scores.get)
-        cluster_logger.info('    Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
-        return labels[best], centres[best]
-    else:
-        return [0 for _ in range(len(dt))], [e.e+00]
-
+    if not scores:
+        return [0 for _ in range(len(dt))], [[0.0, 0.0]]
+    best = max(scores, key=scores.get)
+    cluster_logger.info('    Best was {} clusters with Silhouette score of {}'.format(best, scores[best]))
+    return labels[best], centres[best]
 
 
 def generate_labels(dt):

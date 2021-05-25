@@ -29,18 +29,6 @@ def common_arguments(parser):
     parser.add_argument("input_files", metavar='file',
                         type=str, nargs='+',
                         help='input coordinate files in xyz format.')
-    parser.add_argument('-N', dest='how_many_orientations', metavar='N',
-                        required=True, help='The number of orientations to be used')
-    parser.add_argument('--tabu', choices=['y', 'n'], default='y',
-                        help='Toggle Tabu search algorithm. Default is on (y)')
-    parser.add_argument('--grid', choices=['y', 'n'], default='y',
-                        help='Toggle the use of grid for search space.')
-    parser.add_argument('-nprocs', '--nprocs', metavar='n',
-                        type=int, help='The number of processors/cores to be '
-                                       'used by the quantum chemistry software.'
-                                       'Not fully implemented with all interfaces.'
-                                       'Write to anoop@chem.iitkgp.ac.in if this '
-                                       'does not work properly')
 
 
 def quantum_chemistry_arguments(parser):
@@ -127,6 +115,24 @@ def run_type_arguments(parser):
                                      "fragments")
 
 
+def tabu_arguments(parser):
+    parser.add_argument('-N', dest='how_many_orientations', metavar='N',
+                        required=True, help='The number of orientations to be used')
+    parser.add_argument('--tabu', choices=['y', 'n'], default='y',
+                        help='Toggle Tabu search algorithm. Default is on (y)')
+    parser.add_argument('--grid', choices=['y', 'n'], default='y',
+                        help='Toggle the use of grid for search space.')
+
+
+def queue_arguments(parser):
+    parser.add_argument('-nprocs', '--nprocs', metavar='n',
+                        type=int, help='The number of processors/cores to be '
+                                       'used by the quantum chemistry software.'
+                                       'Not fully implemented with all interfaces.'
+                                       'Write to anoop@chem.iitkgp.ac.in if this '
+                                       'does not work properly')
+
+
 def argument_parse() -> object:
     """ Parse command line arguments
     :return: argparse object
@@ -141,7 +147,9 @@ def argument_parse() -> object:
 
     parser = argparse.ArgumentParser(prog='PyAR', description=pyr_description)
 
+    queue_arguments(parser)
     common_arguments(parser)
+    tabu_arguments(parser)
     run_type_arguments(parser)
     aggregator_arguments(parser)
     reactor_arguments(parser)
@@ -416,8 +424,10 @@ def main():
         minimum_gamma = run_parameters['gmin']
         maximum_gamma = run_parameters['gmax']
         if len(input_molecules) == 1:
-            error_logger.error('Reactor requires at least two molecules')
-            sys.exit('Missing arguments: provide at least two molecules')
+            message = f'Reactor requires at least two molecules' \
+                      f'Missing arguments: -r molecule_1.xyz molecule_2.xyz'
+            error_logger.error(message)
+            sys.exit(message)
         if minimum_gamma is None or maximum_gamma is None:
             error_logger.error('For a Reactor run specify the '
                                'values of gamma_min and gamma_max using \n'
@@ -433,7 +443,10 @@ def main():
 
         zero_time = time.time()
         time_started = datetime.datetime.now()
-
+        if quantum_chemistry_parameters['software'] not in ['turbomole', 'xtb_turbo']:
+            message = f'reactor runs only with turbomole or xtb_turbo'
+            error_logger.critical(message)
+            sys.exit(message)
         # noinspection PyTypeChecker
         reactor.react(input_molecules[0], input_molecules[1],
                       minimum_gamma, maximum_gamma,
