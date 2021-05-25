@@ -19,11 +19,9 @@ optimiser_logger = logging.getLogger('pyar.optimiser')
 
 
 def optimise(molecule, qc_params):
-    opt_options = {
-        option: qc_params[option]
-        for option in ['gamma', 'opt_cycles', 'opt_threshold']
-    }
-
+    opt_options = {}
+    for option in ['gamma', 'opt_cycles', 'opt_threshold']:
+        opt_options[option] = qc_params[option]
     opt_cycles = qc_params['opt_cycles']
     opt_threshold = qc_params['opt_threshold']
     gamma = qc_params['gamma']
@@ -68,6 +66,9 @@ def optimise(molecule, qc_params):
     elif software == 'gaussian':
         from pyar.interface import gaussian
         geometry = gaussian.Gaussian(molecule, qc_params)
+    elif software == 'ani2x':
+        from pyar.interface import animods
+        geometry = animods.ANI2X(molecule,qc_params)
     else:
         print(software, "is not implemented yet")
         return NotImplementedError
