@@ -19,9 +19,11 @@ optimiser_logger = logging.getLogger('pyar.optimiser')
 
 
 def optimise(molecule, qc_params):
-    opt_options = {}
-    for option in ['gamma', 'opt_cycles', 'opt_threshold']:
-        opt_options[option] = qc_params[option]
+    opt_options = {
+        option: qc_params[option]
+        for option in ['gamma', 'opt_cycles', 'opt_threshold']
+    }
+
     opt_cycles = qc_params['opt_cycles']
     opt_threshold = qc_params['opt_threshold']
     gamma = qc_params['gamma']

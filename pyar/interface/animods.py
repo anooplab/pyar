@@ -1,4 +1,3 @@
-
 # import logging
 # import os
 # import subprocess as subp
@@ -31,7 +30,7 @@
 #             ani2x_logger.error('Not implemented in this module. Use turbomole')
 
 #         opt = BFGS(self.asemol,trajectory='job_'+self.job_name+'_ase.traj', logfile='job_'+self.job_name+'_opt.log')
-        
+
 #         stat = opt.run(fmax=0.001,steps=1000)
 #         if stat == False:
 #             ani2x_logger.info('    Optimization failed!')
@@ -52,7 +51,7 @@ import logging
 import os
 import subprocess as subp
 # import numpy as np
-import torchani,torch
+import torchani, torch
 from pyar.interface import SF, write_xyz, which
 from ase import Atoms
 from ase.optimize import BFGS
@@ -63,12 +62,13 @@ from pyar.data.atomic_data import chemical_symbols
 
 ani2x_logger = logging.getLogger('pyar.ani2x')
 
+
 class GamCalcAse(ase.calculators.calculator.Calculator):
     """TorchANI calculator for ASE Modified to incorporate Gamma Values"""
 
     implemented_properties = ['energy', 'forces']
 
-    def __init__(self, species, model, gamma=None,frags = None,overwrite=False):
+    def __init__(self, species, model, gamma=None, frags=None, overwrite=False):
         super().__init__()
         self.species_to_tensor = torchani.utils.ChemicalSymbolsToInts(species)
         self.model = model
@@ -105,7 +105,7 @@ class GamCalcAse(ase.calculators.calculator.Calculator):
             species = self.species_to_tensor(self.atoms.get_chemical_symbols()).to(self.device)
 
         species = species.unsqueeze(0)
-        coordinates = torch.tensor([self.atoms.get_positions()],requires_grad=True)
+        coordinates = torch.tensor([self.atoms.get_positions()], requires_grad=True)
         coordinates = coordinates.to(self.device).to(self.dtype)
         energy = self.model((species, coordinates)).energies
         energy *= ase.units.Hartree
@@ -113,7 +113,8 @@ class GamCalcAse(ase.calculators.calculator.Calculator):
         forces = forces.squeeze(0).to('cpu').numpy()
         if self.gamma:
             species_elements = [chemical_symbols[i] for i in species[-1]]
-            rst_en , rst_grad = restraints.isotropic(self.fragments,self.atoms.get_chemical_symbols(),coordinates[-1].detach().numpy(),self.gamma)
+            rst_en, rst_grad = restraints.isotropic(self.fragments, self.atoms.get_chemical_symbols(),
+                                                    coordinates[-1].detach().numpy(), self.gamma)
             energy += rst_en
             # print(forces,rst_grad)
             forces += rst_grad
@@ -121,17 +122,20 @@ class GamCalcAse(ase.calculators.calculator.Calculator):
         self.results['energy'] = energy.item()
         self.results['forces'] = forces
 
+
 class ANI2X(SF):
     def __init__(self, molecule, qc_params):
 
         super(ANI2X, self).__init__(molecule)
-        self.asemol = Atoms(self.atoms_list,positions=molecule.coordinates)
+        self.asemol = Atoms(self.atoms_list, positions=molecule.coordinates)
         if qc_params['gamma']:
-            self.asemol.calc = GamCalcAse(self.atoms_list,torchani.models.ANI2x(),qc_params['gamma'],molecule.fragments)
+            self.asemol.calc = GamCalcAse(self.atoms_list, torchani.models.ANI2x(), qc_params['gamma'],
+                                          molecule.fragments)
         else:
-            self.asemol.calc = GamCalcAse(self.atoms_list,torchani.models.ANI2x(),qc_params['gamma'])
+            self.asemol.calc = GamCalcAse(self.atoms_list, torchani.models.ANI2x(), qc_params['gamma'])
         self.optimized_coordinates = self.asemol.get_positions()
         self.energy = self.asemol.get_total_energy()
+
     def optimize(self, calcdetails):
         """
         :returns: True,
@@ -140,14 +144,15 @@ class ANI2X(SF):
         if calcdetails['gamma'] is not None:
             ani2x_logger.error('Not implemented in this module. Use turbomole')
 
-        opt = BFGS(self.asemol,trajectory='job_'+self.job_name+'_ase.traj', logfile='job_'+self.job_name+'_opt.log')
-        
-        stat = opt.run(fmax=0.001,steps=1000)
-        if stat == False:
+        opt = BFGS(self.asemol, trajectory='job_' + self.job_name + '_ase.traj',
+                   logfile='job_' + self.job_name + '_opt.log')
+
+        stat = opt.run(fmax=0.001, steps=1000)
+        if not stat:
             ani2x_logger.info('    Optimization failed!')
             return False
         write_xyz(self.atoms_list, self.asemol.get_positions(), self.result_xyz_file,
-                    job_name=self.job_name,energy=self.asemol.get_total_energy())
+                  job_name=self.job_name, energy=self.asemol.get_total_energy())
         ani2x_logger.info('    Optimization done!!')
         self.optimized_coordinates = self.asemol.get_positions()
         return True
