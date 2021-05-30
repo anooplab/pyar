@@ -35,9 +35,9 @@ def quantum_chemistry_arguments(parser):
     quantum_chemistry_group = parser.add_argument_group('calculation',
                                                         'Calculation specific options')
     quantum_chemistry_group.add_argument("--software", type=str,
-                                         choices=['ani2x', 'gaussian', 'mopac', 'obabel', 'orca',
-                                                  'psi4', 'turbomole', 'xtb',
-                                                  'xtb_turbo'],
+                                         choices=['ani1cc','ani1x','ani2x', 'gaussian',  
+                                                  'mopac', 'obabel', 'orca', 'psi4',
+                                                  'turbomole', 'xtb','xtb_turbo'],
                                          required=True, help="Software")
     quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
                                          help='Basis set (default=def2-SVP)')
