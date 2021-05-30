@@ -66,9 +66,9 @@ def optimise(molecule, qc_params):
     elif software == 'gaussian':
         from pyar.interface import gaussian
         geometry = gaussian.Gaussian(molecule, qc_params)
-    elif software == 'ani2x':
+    elif software.startswith('ani'):
         from pyar.interface import animods
-        geometry = animods.ANI2X(molecule,qc_params)
+        geometry = animods.ANI(molecule,qc_params)
     else:
         print(software, "is not implemented yet")
         return NotImplementedError
