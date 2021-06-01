@@ -55,7 +55,8 @@ quantum_chemistry_group = parser.add_argument_group('calculation',
                                                     'Calculation specific options')
 
 quantum_chemistry_group.add_argument("--software", type=str,
-                                     choices=['gaussian', 'mopac', 'obabel', 'orca',
+                                     choices=['ani1x', 'ani2x', 'ani1cc',
+                                              'gaussian', 'mopac', 'obabel', 'orca',
                                               'psi4', 'turbomole', 'xtb',
                                               'xtb_turbo'],
                                      required=True, help="Software")
