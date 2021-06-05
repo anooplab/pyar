@@ -1,17 +1,10 @@
-import os
-
-import pandas as pd
-
-from pyar import Molecule
-from pyar.interface import babel
-
-
 def make_formula(at_ls):
     freq = {items: at_ls.count(items) for items in at_ls}
     return ''.join(f"{key}{value}" for key, value in freq.items())
 
 
 def collect_files(start, exclude_pattern, pattern):
+    import os
     paths = []
     for root, directory, files in os.walk(start):
         for file in files:
@@ -24,6 +17,9 @@ def collect_files(start, exclude_pattern, pattern):
 
 
 def collect_data(xyz_files):
+    import pandas as pd
+    from pyar import Molecule
+    from pyar.interface import babel
     ne = []
     for xyz_file in xyz_files:
         inchi_string = babel.make_inchi_string_from_xyz(xyz_file)
@@ -49,15 +45,20 @@ def find_best_geometry():
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--starting-directory', default='./aggregates')
-    parser.add_argument('--exclude', default='tmp')
-    parser.add_argument('--pattern', default='result')
-    parser.add_argument('--mine', action='store_true')
-    parser.add_argument('--find-gm', action='store_true')
+    parser = argparse.ArgumentParser(description='Program to search for \
+             relevant files from a pyar run, extract relevant data, pick \
+             global minima, or analyse important properties.')
+    parser.add_argument('--starting-directory', default='./aggregates',
+                        help='I will search for .xyz files recursively in the inner directories starting from the provided path. default="./aggregates"')
+    parser.add_argument('--exclude', metavar='EXCLUDE-PATTERN', default='tmp',
+                        help='exclude files that contain <EXCLUE-PATTERN>. defualt = "tmp"')
+    parser.add_argument('--pattern', default='result', help='pattern of file names. default = "result_"')
+    parser.add_argument('--mine', action='store_true', help='Explore the data')
+    parser.add_argument('--find-gm', action='store_true', help='Find global \
+                         minimum geometry from the files.')
     args = parser.parse_args()
 
-    if args.collect_data:
+    if args.mine:
         xyz_files = collect_files(args.starting_directory, args.exclude, args.pattern)
         collect_data(xyz_files)
 
