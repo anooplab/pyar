@@ -24,13 +24,8 @@ def optimise(molecule, qc_params):
         for option in ['gamma', 'opt_cycles', 'opt_threshold']
     }
 
-    opt_cycles = qc_params['opt_cycles']
-    opt_threshold = qc_params['opt_threshold']
     gamma = qc_params['gamma']
     custom_keyword = qc_params['custom_keyword']
-    scf_cycles = qc_params['scf_cycles']
-    scf_threshold = qc_params['scf_threshold']
-    nprocs = qc_params["nprocs"]
 
     cwd = os.getcwd()
     if molecule.name == '':

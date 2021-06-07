@@ -443,7 +443,7 @@ def main():
 
         zero_time = time.time()
         time_started = datetime.datetime.now()
-        if quantum_chemistry_parameters['software'] not in ['turbomole', 'xtb_turbo']:
+        if quantum_chemistry_parameters['software'] not in ['ani2x', 'turbomole', 'xtb_turbo']:
             message = f'reactor runs only with turbomole or xtb_turbo'
             error_logger.critical(message)
             sys.exit(message)

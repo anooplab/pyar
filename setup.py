@@ -11,7 +11,7 @@ setup(name='PyAR',
       author='Anoop et al',
       author_email='anoop@chem.iitkgp.ac.in',
       description='A Python Code for Aggregation and Reaction',
-      requires=['autograd', 'numpy', 'sklearn', 'scipy', 'pandas', 'matplotlib'],
+      requires=['autograd', 'numpy', 'sklearn', 'scipy', 'pandas', 'matplotlib', 'torchani'],
       keywords='computational chemistry global minima aggregation automated reaction',
       classifiers=[
           'Development Status :: 5 - Production/Stable',

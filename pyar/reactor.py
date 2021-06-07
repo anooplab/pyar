@@ -9,7 +9,7 @@ import numpy as np
 import pyar.interface.babel
 import pyar.scan
 from pyar import tabu, file_manager
-from pyar.checkpt import dumpchk, readchk, updtchk
+from pyar.check_point import write_chcek_point, read_check_point, update_checkpoint
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
 
@@ -18,10 +18,6 @@ reactor_logger = logging.getLogger('pyar.reactor')
 saved_products = {}
 saved_inchi_strings = {}
 saved_smile_strings = {}
-
-
-def print_header(gamma_max, gamma_min, hm_orientations, software):
-    pass
 
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
@@ -34,14 +30,11 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     in each gamma after eliminating the products or failed geometries.
 
     """
-    global workdir
     workdir = os.getcwd()
 
-    if readchk(workdir) is not None:
-        chk = readchk(workdir)
-        import shutil
-        # shutil.move('pyar.log','pyar_old.log')
-        reactor_logger.info('====================Reading from Checkpoint====================')
+    if read_check_point(workdir) is not None:
+        chk = read_check_point(workdir)
+        reactor_logger.debug('====================Reading from Checkpoint====================')
         gamma_list = list(chk.keys()).copy()
         orientations_to_optimize = chk[gamma_list[0]].copy()
         os.chdir('reaction')
@@ -60,7 +53,6 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         reactor_logger.debug(f'Current working directory: {cwd}')
 
         software = qc_params['software']
-        print_header(gamma_max, gamma_min, hm_orientations, software)
         # prepare job directories
         product_dir = cwd + '/products'
         reactor_logger.debug(f'Product directory: {product_dir}')
@@ -89,7 +81,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         orientations_to_optimize = all_orientations[:]
         # print(k.name for k in orientations_to_optimize)
         chk = {gamma: orientations_to_optimize.copy() for gamma in gamma_list}
-        dumpchk(chk, workdir, reactor_logger)
+        write_chcek_point(chk, workdir, reactor_logger)
 
     for en, gamma in enumerate(gamma_list):
         qc_params['gamma'] = gamma
@@ -124,7 +116,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
             reactor_logger.debug("{}".format(this_orientation.name))
-        updtchk(chk, 'gamma', gamma, reactor_logger, workdir)
+        update_checkpoint(chk, 'gamma', gamma, reactor_logger, workdir)
 
     os.chdir(workdir)
     os.remove('jobs.pkl')
@@ -140,7 +132,6 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
     cwd = os.getcwd()
     table_of_optimized_molecules = []
     for this_molecule in orientations:
-        # print(orientations)
         job_key = this_molecule.name
         reactor_logger.info('   Orientation: {}'.format(job_key))
         o_key = "_{}".format(job_key[-8:])
@@ -214,7 +205,7 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                             shutil.copy('result_relax.xyz',
                                         product_dir + '/' + job_name + '.xyz')
                         os.chdir(cwd)
-                        updtchk(chkdict, 'ori', job_name, reactor_logger, workdir)
+                        update_checkpoint(chkdict, 'ori', job_name, reactor_logger, workdir)
                         continue
                 elif status == 'cycle_exceeded':
                     table_of_optimized_molecules.append(before_relax)
@@ -225,7 +216,7 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                 reactor_logger.info(f'        no close contacts found')
                 reactor_logger.info(f'        {job_name} is added to '
                                     f'the table to optimize with higher gamma')
-        updtchk(chkdict, 'ori', job_name, reactor_logger, workdir)
+        update_checkpoint(chkdict, 'ori', job_name, reactor_logger, workdir)
         os.chdir(cwd)
         sys.stdout.flush()
     return table_of_optimized_molecules

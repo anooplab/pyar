@@ -196,7 +196,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
 
 
 def update_id(aid, the_monomer):
-    f"""
+    """
         aggregate_id = f"a_{aid}:03d}_b_{bid:03d}_c_{cid:03d}"
 
     """
