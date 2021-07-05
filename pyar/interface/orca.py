@@ -97,15 +97,10 @@ class Orca(SF):
                 f.close()
                 return True
             else:
-                message = f'                error_logger.error("Error: OPTIMIZATION PROBABLY FAILED. "
-                "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
-                error_logger.error("Check for partial optimization.")
-                error_logger.error("Location: {}".format(os.getcwd()))
-                '
-                error_logger.error("Error: OPTIMIZATION PROBABLY FAILED. "
-                "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
-                error_logger.error("Check for partial optimization.")
-                error_logger.error("Location: {}".format(os.getcwd()))
+                message = f'Error: Optimization probably failed.\n' \
+                          f'Check the .out file for partial details' \
+                          f'at {os.getcwd()}'
+                error_logger.error(message)
             return False
 
     def get_energy(self):
