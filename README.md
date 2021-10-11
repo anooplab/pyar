@@ -16,7 +16,7 @@ PyAR stands for "Python program for aggregation and reaction"
 
 ## Download or clone
 
-Download the file pyar-master.zip. Unzip it. 
+[Download](https://github.com/anooplab/pyar/archive/refs/heads/master.zip) the file pyar-master.zip. Unzip it. 
 
 or clone the repository
 
