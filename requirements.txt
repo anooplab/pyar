@@ -3,7 +3,6 @@ pandas>=1.0.5
 scipy>=1.5.2
 scikit-learn>=0.23.2
 autograd>=1.3
-PyAR>=0.3
 ase>=3.20.1
 torchani>=2.2
 torch>=1.8.1
