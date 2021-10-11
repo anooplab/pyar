@@ -14,14 +14,29 @@ PyAR stands for "Python program for aggregation and reaction"
 
 # Installation
 
-Download the file pyar-master.zip. Unzip it. Go the the folder and ```sudo python3 setup.py install```
-This will create python package in the path **/usr/local/lib/python3.6/dist-packages/pyar/**
-and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
+## Download or clone
+
+Download the file pyar-master.zip. Unzip it. 
+
+or clone the repository
+
+```git clone https://github.com/anooplab/pyar.git```
+
+## Install requirements
+
+```sudo python3 -m pip install -r requirements.txt```
+
+## Install PyAR
+
+Go the the folder and ```python3 setup.py install```
+This will create python package in the path **$HOME/.local/lib/python3.xx/dist-packages/pyar/**
+and will create the command line interface ```pyar-cli``` in **$HOME/.local/bin**
 
 or
 
 Run the following command in the pyar folder
-```sudo -H pip install .```
+```python3 -m Hpip install .```
+
 # Features:
 * Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
