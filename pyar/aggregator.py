@@ -76,11 +76,10 @@ def aggregate(molecules,
     else:
         number_of_orientations = int(hm_orientations)
 
+    starting_directory = os.getcwd()
     parent_folder = 'aggregates'
 
     restart = bool(os.path.exists(parent_folder) and os.path.exists('pyar.log'))
-
-    starting_directory = os.getcwd()
 
     if restart:
         old_path = read_old_path()
