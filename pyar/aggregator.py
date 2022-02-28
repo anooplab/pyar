@@ -89,9 +89,10 @@ def aggregate(molecules,
                 f"Restarting Aggregation in\n {starting_directory}")
         else:
             restart = False
-            file_manager.make_directories(parent_folder)
-            aggregator_logger.info(
-                f"Starting Aggregation in\n {starting_directory}")
+    if not restart
+        file_manager.make_directories(parent_folder)
+        aggregator_logger.info(
+            f"Starting Aggregation in\n {starting_directory}")
 
     os.chdir(parent_folder)
 
