@@ -14,27 +14,26 @@ import logging
 import os
 
 from pyar import file_manager
+from pyar.Molecule import Molecule
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
 
 def optimise(molecule, qc_params):
-    opt_options = {}
-    for option in ['gamma', 'opt_cycles', 'opt_threshold']:
-        opt_options[option] = qc_params[option]
-    opt_cycles = qc_params['opt_cycles']
-    opt_threshold = qc_params['opt_threshold']
+    opt_options = {
+        option: qc_params[option]
+        for option in ['gamma', 'opt_cycles', 'opt_threshold']
+    }
+
     gamma = qc_params['gamma']
     custom_keyword = qc_params['custom_keyword']
-    scf_cycles = qc_params['scf_cycles']
-    scf_threshold = qc_params['scf_threshold']
-    nprocs = qc_params["nprocs"]
 
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'Opt job'
     job_dir = 'job_' + molecule.name
-    file_manager.make_directories(job_dir)
+    if not os.path.exists(job_dir):
+        file_manager.make_directories(job_dir)
     os.chdir(job_dir)
 
     software = qc_params['software']
@@ -67,10 +66,17 @@ def optimise(molecule, qc_params):
         from pyar.interface import gaussian
         geometry = gaussian.Gaussian(molecule, qc_params)
     else:
-        print(software, "is not implemented yet")
+        optimiser_logger.error(software, "is not implemented yet")
         return NotImplementedError
 
-    optimize_status = geometry.optimize(opt_options)
+    if os.path.exists(f'result_{molecule.name}.xyz'):
+        optimize_status = True
+        read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
+        geometry.energy = read_molecule.energy
+        geometry.optimized_coordinates = read_molecule.coordinates
+
+    else:
+        optimize_status = geometry.optimize(opt_options)
 
     if optimize_status is True \
             or optimize_status == 'converged' \

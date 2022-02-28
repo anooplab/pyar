@@ -50,8 +50,7 @@ def check_close_contact(mol_1, mol_2, factor):
             sum_of_radii = (radius_one[counter_i] + radius_two[counter_j]) * factor
             if interatomic_distance < sum_of_radii:
                 return True
-    else:
-        return False
+    return False
 
 
 def minimum_separation(mol_1, mol_2):
@@ -98,13 +97,13 @@ def merge_two_molecules(vector, seed_input, monomer_input,
     tabu_logger.debug('checking close contact')
 
     tabu_logger.debug('Taking a large first step')
-    step_counter = 0
     r_max_of_seed = np.max([np.linalg.norm(c) for c in seed.coordinates])
     r_max_of_monomer = np.max([np.linalg.norm(c) for c in monomer.coordinates])
     maximum_distance_to_move = r_max_of_seed + r_max_of_monomer + 1.0
     move_to = direction * maximum_distance_to_move
     monomer.translate(move_to)
-    step_counter += 1
+
+    step_counter = 1
     contact = check_close_contact(seed, monomer, distance_scaling)
     if contact:
         tabu_logger.debug("Large step was not enough")
@@ -117,7 +116,7 @@ def merge_two_molecules(vector, seed_input, monomer_input,
         upper_distance = move_to
         move_to = (upper_distance + lower_distance) / 2
         tabu_logger.debug("Binary steps")
-        for i in range(100):
+        for _ in range(100):
             monomer.move_to_origin()
             monomer.translate(move_to)
             step_counter += 1
@@ -186,10 +185,12 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
             delta_theta = abs(each_saved_entry[3] - point_n_angle[3])
             delta_phi = abs(each_saved_entry[4] - point_n_angle[4])
             delta_psi = abs(each_saved_entry[5] - point_n_angle[5])
-            if delta_theta < a_threshold and delta_phi < a_threshold and delta_psi < a_threshold:
-                tabu = True
-            else:
-                tabu = False
+            tabu = (
+                delta_theta < a_threshold
+                and delta_phi < a_threshold
+                and delta_psi < a_threshold
+            )
+
     return tabu
 
 

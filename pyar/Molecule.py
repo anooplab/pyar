@@ -166,8 +166,8 @@ class Molecule(object):
         atoms_list = self.atoms_list + other.atoms_list
         coordinates = np.concatenate((self.coordinates, other.coordinates), axis=0)
         merged = Molecule(atoms_list, coordinates)
-        atoms_in_self = [i for i in range(self.number_of_atoms)]
-        atoms_in_other = [i for i in range(self.number_of_atoms, merged.number_of_atoms)]
+        atoms_in_self = list(range(self.number_of_atoms))
+        atoms_in_other = list(range(self.number_of_atoms, merged.number_of_atoms))
         merged.fragments = [atoms_in_self, atoms_in_other]
         merged.fragments_coordinates = [self.coordinates, other.coordinates]
         merged.fragments_atoms_list = [self.atoms_list, other.atoms_list]
@@ -180,15 +180,10 @@ class Molecule(object):
 
         merged.charge = self.charge + other.charge
         total_multiplicity = self.multiplicity + other.multiplicity
-        if total_multiplicity == 2:
-            new_multiplicity = 1
-        elif total_multiplicity == 3:
+        if total_multiplicity == 3:
             new_multiplicity = 2
         elif total_multiplicity == 4:
-            if self.multiplicity == 2:
-                new_multiplicity = 1  # Consider low-spin as default
-            else:
-                new_multiplicity = 3
+            new_multiplicity = 1 if self.multiplicity == 2 else 3
         else:
             new_multiplicity = 1  # Complicated case.
         merged.multiplicity = new_multiplicity
