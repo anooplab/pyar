@@ -294,11 +294,7 @@ class Molecule(object):
             # noinspection PyPep8Naming
             R = [x + y for x, y in itertools.product(radius_one, radius_two)]
             r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
-            for a, b in zip(r, R):
-                if a < b:
-                    return True
-            else:
-                return False
+            return any(a < b for a, b in zip(r, R))
 
     @property
     def moments_of_inertia_tensor(self):

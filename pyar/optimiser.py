@@ -36,6 +36,15 @@ def optimise(molecule, qc_params):
         file_manager.make_directories(job_dir)
     os.chdir(job_dir)
 
+    if os.path.exists(f'result_{molecule.name}.xyz'):
+        read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
+        molecule.energy = read_molecule.energy
+        molecule.optimized_coordinates = read_molecule.coordinates
+        optimiser_logger.info(
+            f'     {molecule.name:35s}: {molecule.energy:15.6f}')
+        os.chdir(cwd)
+        return True
+
     software = qc_params['software']
     if software == 'xtb':
         from pyar.interface import xtb
@@ -69,14 +78,7 @@ def optimise(molecule, qc_params):
         optimiser_logger.error(software, "is not implemented yet")
         return NotImplementedError
 
-    if os.path.exists(f'result_{molecule.name}.xyz'):
-        optimize_status = True
-        read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
-        geometry.energy = read_molecule.energy
-        geometry.optimized_coordinates = read_molecule.coordinates
-
-    else:
-        optimize_status = geometry.optimize(opt_options)
+    optimize_status = geometry.optimize(opt_options)
 
     if optimize_status is True \
             or optimize_status == 'converged' \

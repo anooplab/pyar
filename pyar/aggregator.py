@@ -7,9 +7,9 @@ import string
 from collections import OrderedDict
 
 from pyar import tabu, file_manager
+from pyar.Molecule import Molecule
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
-from pyar.Molecule import Molecule
 
 aggregator_logger = logging.getLogger('pyar.aggregator')
 
@@ -23,11 +23,13 @@ def random_permutation(iterable, r=None):
 
 def read_old_path():
     path = []
+    needed_elements = 3 if 'DEBUG' in open('pyar.log') else 2
     for line in open('pyar.log').readlines():
-        selected = line.split(':')
-        if len(selected) == 2 and selected[0].strip().isnumeric():
-            path.append(selected[1].rstrip())
-    return path
+        split_line = line.split(':')
+        if len(split_line) == needed_elements and \
+                split_line[-2].strip().isnumeric():
+            path.append(split_line[-1].rstrip())
+    return path or None
 
 
 def aggregate(molecules,
@@ -76,24 +78,22 @@ def aggregate(molecules,
     else:
         number_of_orientations = int(hm_orientations)
 
-    starting_directory = os.getcwd()
     parent_folder = 'aggregates'
+    old_path = read_old_path()
+    restart = bool(old_path)
 
-    restart = bool(os.path.exists(parent_folder) and os.path.exists('pyar.log'))
-
-    if restart:
-        old_path = read_old_path()
-        if len(old_path) > 0:
-            aggregator_logger.info(
-                f"Restarting Aggregation in\n {starting_directory}")
-        else:
-            restart = False
     if not restart:
         file_manager.make_directories(parent_folder)
-        aggregator_logger.info(
-            f"Starting Aggregation in\n {starting_directory}")
 
     os.chdir(parent_folder)
+    starting_directory = os.getcwd()
+
+    if restart:
+        aggregator_logger.info(
+            f"Restarting Aggregation in\n {starting_directory}")
+    else:
+        aggregator_logger.info(
+            f"Starting Aggregation in\n {starting_directory}")
 
     seed_names = string.ascii_lowercase
     ag_id = "ag"
@@ -116,7 +116,8 @@ def aggregate(molecules,
         pathways_to_calculate = select_pathways(molecules, monomers_to_be_added,
                                                 number_of_pathways)
 
-        aggregator_logger.info("  The following Afbau paths will be carried out")
+        aggregator_logger.info(
+            "  The following Afbau paths will be carried out")
         for i, path in enumerate(pathways_to_calculate):
             paths_for_print = f'      {i:03d}: '
             for p in path:
@@ -140,7 +141,8 @@ def aggregate(molecules,
             this_seed = seed_storage[ag_id]
             ag_id = update_id(ag_id, this_monomer.name)
             ag_home = "{}_{:03d}".format(ag_id, outside_counter)
-            if not restart: file_manager.make_directories(ag_home)
+            if not os.path.exists(ag_home):
+                file_manager.make_directories(ag_home)
             os.chdir(ag_home)
 
             seed_storage[ag_id] = add_one(ag_id,
@@ -299,19 +301,19 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         mol_id = '{0}_{1}'.format(seed_id, aggregate_id)
         aggregator_logger.debug('Making orientations')
         if not all(
-            os.path.exists(f"trial_{i:03d}_{mol_id}.xyz")
-            for i in range(hm_orientations)
+                os.path.exists(f"trial_{i:03d}_{mol_id}.xyz")
+                for i in range(hm_orientations)
         ):
             all_orientations = tabu.create_trial_geometries(mol_id,
                                                             seeds[seed_count],
                                                             monomer,
                                                             hm_orientations,
-                                                            tabu_on, grid_on, site)
+                                                            tabu_on, grid_on,
+                                                            site)
             aggregator_logger.debug('Orientations are made.')
         else:
             all_orientations = read_orientations(mol_id, hm_orientations)
         not_converged = all_orientations[:]
-# TODO        not_converged = [check_status(each_mol, qc_params) for each_mol in
         for i in range(10):
             if len(not_converged) > 0:
                 aggregator_logger.info(
@@ -337,14 +339,30 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
                 if s == 'CycleExceeded' and not tabu.broken(n):
                     aggregator_logger.info("      ", n.name)
         os.chdir(cwd)
+    if os.path.exists('selected'):
+        os.chdir('selected')
+        optimized_molecules = [i.name for i in list_of_optimized_molecules]
+        job_done = []
+        selected_seeds = []
+        for i in optimized_molecules:
+            for j in os.listdir():
+                if f'job_{i}' == j:
+                    job_done.append(j)
+                    if f'result_{i}.xyz' == j:
+                        selected_seeds.append(i)
+                        list_of_optimized_molecules.pop(j)
+        os.chdir(cwd)
+    else:
+        file_manager.make_directories('selected')
 
     if len(list_of_optimized_molecules) < 2:
-        return list_of_optimized_molecules
-    aggregator_logger.info("  Clustering")
-    selected_seeds = clustering.choose_geometries(
-        list_of_optimized_molecules,
-        maximum_number_of_seeds=maximum_number_of_seeds)
-    file_manager.make_directories('selected')
+        selected_seeds = list_of_optimized_molecules
+    else:
+        aggregator_logger.info("  Clustering")
+        selected_seeds = clustering.choose_geometries(
+            list_of_optimized_molecules,
+            maximum_number_of_seeds=maximum_number_of_seeds)
+
     os.chdir('selected')
     qc_params["opt_threshold"] = 'normal'
     aggregator_logger.info("Optimizing the selected molecules with higher "
@@ -354,8 +372,6 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         not_refined = copy.deepcopy(each_file)
         status = optimise(each_file, qc_params)
         if status is True:
-            # xyz_file = 'seed_' + each_file.name[4:7] + '/job_' +
-            # each_file.name + '/result_' + each_file.name + '.xyz'
             xyz_file = 'job_' + each_file.name + '/result_' + each_file.name + '.xyz'
             shutil.copy(xyz_file, '.')
         else:

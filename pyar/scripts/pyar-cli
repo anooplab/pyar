@@ -205,13 +205,13 @@ def main():
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
-    logger.debug(f'Parsed arguments are:')
+    logger.debug('Parsed arguments are:')
 
     for k, v in args.items():
         if v:
             logger.debug(f"{k:25} = {v}")
 
-    logger.debug(f'Full parameters are:')
+    logger.debug('Full parameters are:')
     for k, v in run_parameters.items():
         if v:
             logger.debug(f"{k:25} = {v}")
@@ -228,7 +228,7 @@ def main():
     number_of_charge_arguments = len(charges)
     logger.debug(f"{number_of_charge_arguments} charge arguments")
     if number_of_charge_arguments != number_of_input_files:
-        message = f"Charges are not specified for all input files"
+        message = 'Charges are not specified for all input files'
         logger.critical(message)
         sys.exit(message)
 
@@ -238,7 +238,7 @@ def main():
     number_of_multiplicity_arguments = len(multiplicities)
     logger.debug(f"Provided {number_of_multiplicity_arguments} multiplicities")
     if number_of_multiplicity_arguments != number_of_input_files:
-        message = f"Multiplicities are not specified for all input files"
+        message = 'Multiplicities are not specified for all input files'
         logger.critical(message)
         sys.exit(message)
 
@@ -246,7 +246,7 @@ def main():
     if scftypes is None:
         scftypes = ['rhf' for _ in range(number_of_input_files)]
     if len(scftypes) != number_of_input_files:
-        message = f"SCF Types are not specified for all input files"
+        message = 'SCF Types are not specified for all input files'
         logger.critical(message)
         sys.exit(message)
     logger.debug(f"Provided SCF types: {scftypes}")
@@ -306,10 +306,8 @@ def main():
     if run_parameters['aggregate']:
         size_of_aggregate = run_parameters['aggregate_size']
         if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
-            message = f"Error: For an Aggregation run, specify \n" \
-                      f"the desired number of each monomers to be added \n" \
-                      f"using the argument\n" \
-                      f" -as <int> <int> ..."
+            message = 'Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...'
+
             logger.critical(message)
             sys.exit(message)
 
@@ -330,18 +328,15 @@ def main():
     if run_parameters['solvate']:
         number_of_solvent_molecules = run_parameters['solvation_size']
         if number_of_solvent_molecules is None:
-            message = f'For this please provide the number of solvent\n' \
-                      f'molecules to be added. Use the following option\n' \
-                      f'  -ss <int>'
+            message = 'For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>'
+
 
             logger.error(message)
             sys.exit(message)
 
         if len(input_molecules) == 1:
-            message = f"Please provide more than two molecules.\n" \
-                      f"The last input file will be considered as solvent\n" \
-                      f"and the other molecules as solutes to which solvent\n" \
-                      f"molecules will be added."
+            message = 'Please provide more than two molecules.\nThe last input file will be considered as solvent\nand the other molecules as solutes to which solvent\nmolecules will be added.'
+
             logger.error(message)
             sys.exit(message)
         else:
