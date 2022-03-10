@@ -74,9 +74,9 @@ def optimise(molecule, qc_params):
     elif software == 'gaussian':
         from pyar.interface import gaussian
         geometry = gaussian.Gaussian(molecule, qc_params)
-    else:
-        optimiser_logger.error(software, "is not implemented yet")
-        return NotImplementedError
+    # else:
+    #     optimiser_logger.error(software, "is not implemented yet")
+    #     return NotImplementedError
 
     optimize_status = geometry.optimize(opt_options)
 

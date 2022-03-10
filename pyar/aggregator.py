@@ -133,6 +133,7 @@ def aggregate(molecules,
     inside_counter = 1
 
     for i in pathways_to_calculate:
+        aggregator_logger.info(f"  Path: {i}")
         for this_monomer in i:
             if len(seed_storage) < 1:
                 ag_id = update_id(ag_id, this_monomer.name)
