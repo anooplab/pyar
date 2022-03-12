@@ -40,12 +40,15 @@ def tabu_function():
                             help="create the best orientation with lowest a b "
                                  "distance")
     task_group.add_argument('--make-configurations', action='store_true',
-                            help='generate number_of_trial_orientations configurations of two molecules')
+                            help='generate number_of_trial_orientations '
+                                 'configurations of two molecules')
     task_group.add_argument('--make-composite', action='store_true',
-                            help='generate a composite molecule with seed and number_of_trial_orientations '
+                            help='generate a composite molecule with seed and '
+                                 'number_of_trial_orientations '
                                  'monomers')
     task_group.add_argument('-make-sphere', type=str,
-                            help="create a molecules from number_of_trial_orientations atoms of given elements")
+                            help="create a molecules from number_of_"
+                                 "trial_orientations atoms of given elements")
 
     args = parser.parse_args()
     print("These are the arguments\n", args)
@@ -62,7 +65,7 @@ def tabu_function():
         seed = None
         monomer = None
 
-    tabu_on = True if args.tabu == 'y:' else False
+    tabu_on = args.tabu == 'y:'
     grid_on = False
     pts = pyar.tabu.generate_points(number_of_trial_orientations,
                                     tabu_on, grid_on, False)
@@ -75,12 +78,16 @@ def tabu_function():
             print("Note: provide two molecules, '-i file1.xyz file2.xyz'")
             sys.exit()
         for i, vector in enumerate(pts):
-            each_orientation = pyar.tabu.merge_two_molecules(vector, seed, monomer, site=None, distance_scaling=d_scale)
+            each_orientation = pyar.tabu.merge_two_molecules(vector, seed,
+                                                             monomer, site=None,
+                                                             distance_scaling=d_scale)
             each_orientation.mol_to_xyz(f'mol_{i:03d}.xyz')
 
     if args.make_composite:
         for i in range(8):
-            pts = pyar.tabu.generate_points(number_of_trial_orientations, tabu_on=True, grid_on=True, check_angle=False)
+            pts = pyar.tabu.generate_points(number_of_trial_orientations,
+                                            tabu_on=True, grid_on=True,
+                                            check_angle=False)
             result = pyar.tabu.create_composite_molecule(seed, monomer,
                                                          pts, d_scale=d_scale)
             result.title = f"trial_{i:03d}"
@@ -103,12 +110,19 @@ def tabu_function():
 
         result.mol_to_xyz('mol.xyz')
 
+    # if args.best:
+    #     a = args.best[0]
+    #     b = seed.number_of_atoms + args.best[1]
+    #     pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b,
+    #                                          number_of_trial_orientations,
+    #                                          d_scale=d_scale)
+
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms + args.best[1]
-        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b, number_of_trial_orientations,
+        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b,
+                                             number_of_trial_orientations,
                                              d_scale=d_scale)
-
 
 if __name__ == "__main__":
     tabu_function()

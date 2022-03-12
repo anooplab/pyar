@@ -148,7 +148,8 @@ def merge_two_molecules(vector, seed_input, monomer_input,
         atoms_in_other = site[1]
     else:
         atoms_in_self = list(range(seed.number_of_atoms))
-        atoms_in_other = list(range(seed.number_of_atoms, orientation.number_of_atoms))
+        atoms_in_other = list(range(seed.number_of_atoms,
+                                    orientation.number_of_atoms))
     orientation.fragments = [atoms_in_self, atoms_in_other]
     tabu_logger.debug('Merged.')
     return orientation
@@ -274,7 +275,8 @@ def make_5d_coords(grid_location):
     return np.concatenate((xyz, theta_phi), axis=0)
 
 
-def generate_points(number_of_orientations, tabu_on, grid_on, check_angle, d_threshold=0.3, a_threshold=15.0):
+def generate_points(number_of_orientations, tabu_on, grid_on, check_angle,
+                    d_threshold=0.3, a_threshold=15.0):
     """
     Generate points
 

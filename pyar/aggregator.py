@@ -53,10 +53,11 @@ def aggregate(molecules,
         types of molecules or atoms, there are many pathways to explore. This
         parameter determines how many pathways to explore.
     :type first_pathway: int
-    :param first_pathway: The starting pathway. This helps in restarting the broken job.
+    :param first_pathway: The starting pathway. This helps in restarting the
+    broken job.
     :param molecules: molecules or atoms for aggregation or cluster formation.
     :type molecules: list(Molecules)
-    :param aggregate_sizes: the number of each atoms in the final cluster.
+    :param aggregate_sizes: the number of each atom in the final cluster.
     :type aggregate_sizes: list(int)
     :param hm_orientations: Number of trial orientations.
     :type hm_orientations: int
@@ -113,7 +114,7 @@ def aggregate(molecules,
         pathways_to_calculate = old_path_to_new_path(monomers_to_be_added,
                                                      old_path)
     else:
-        pathways_to_calculate = select_pathways(molecules, monomers_to_be_added,
+        pathways_to_calculate = select_pathways(monomers_to_be_added,
                                                 number_of_pathways)
 
         aggregator_logger.info(
@@ -182,7 +183,7 @@ def old_path_to_new_path(monomers_to_be_added, old_path):
     return complete_pathways
 
 
-def select_pathways(molecules, monomers_to_be_added, number_of_pathways):
+def select_pathways(monomers_to_be_added, number_of_pathways):
     complete_pathways = set()
     for _ in range(number_of_pathways):
         new_permutation = random_permutation(monomers_to_be_added)
@@ -315,6 +316,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         else:
             all_orientations = read_orientations(mol_id, hm_orientations)
         not_converged = all_orientations[:]
+        status_list = [False for _ in not_converged]
         for i in range(10):
             if len(not_converged) > 0:
                 aggregator_logger.info(
@@ -373,7 +375,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         not_refined = copy.deepcopy(each_file)
         status = optimise(each_file, qc_params)
         if status is True:
-            xyz_file = 'job_' + each_file.name + '/result_' + each_file.name + '.xyz'
+            xyz_file = 'job_' + each_file.name + '/result_' + \
+                       each_file.name + '.xyz'
             shutil.copy(xyz_file, '.')
         else:
             selected_seeds.remove(each_file)

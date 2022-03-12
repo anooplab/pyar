@@ -72,9 +72,10 @@ def argument_parse():
                                 help="Run a aggregator calculation",
                                 action='store_true')
 
-    run_type_group.add_argument("--scan-bond", nargs=2, type=int, metavar=('a', 'b'),
-                                help="scan a bond between the given atoms of two"
-                                     "fragments")
+    run_type_group.add_argument("--scan-bond", nargs=2, type=int,
+                                metavar=('a', 'b'),
+                                help="scan a bond between the given atoms "
+                                     "of two fragments")
 
     scan_group = parser.add_argument_group('scan', 'Scan specific options')
 
@@ -398,7 +399,8 @@ def main():
         number_of_orientations = int(number_of_orientations)
         site_atoms = run_parameters['scan_bond']
 
-        scan.scan_distance(input_molecules, site_atoms, number_of_orientations, quantum_chemistry_parameters)
+        scan.scan_distance(input_molecules, site_atoms, number_of_orientations,
+                           quantum_chemistry_parameters)
 
     return
 

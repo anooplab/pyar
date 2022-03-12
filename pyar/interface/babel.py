@@ -129,7 +129,7 @@ def make_smile_string_from_xyz(xyzfile):
                 pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr=ferr)
                 smile = pre_smile.decode("utf-8").strip()
             except Exception as e:
-                ferr.write(e)
+                ferr.write(str(e))
                 smile = ''
             return smile
     else:
