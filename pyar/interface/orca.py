@@ -38,6 +38,7 @@ class Orca(SF):
         self.out_file = 'trial_' + self.job_name + '.out'
         self.optimized_coordinates = []
         self.energy = 0.0
+        print(custom_keyword)
         keyword = f"! {qc_params['method']} {qc_params['basis']}"
 
         if any(x >= 21 for x in molecule.atomic_number):

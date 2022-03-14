@@ -14,6 +14,7 @@ import logging
 import re
 import sys
 from math import cos, sin
+import mendeleev
 
 import numpy as np
 
@@ -117,17 +118,22 @@ class Molecule(object):
         self.multiplicity = multiplicity
         self.scftype = scftype
 
-        self.atomic_number = pyar.property.get_atomic_number(self.atoms_list)
-        self.atomic_mass = pyar.property.get_atomic_mass(self.atomic_number)
-        self.covalent_radius = pyar.property.get_covalent_radius(self.atomic_number)
-        self.vdw_radius = pyar.property.get_vdw_radius(self.atomic_number)
+        self.elements = [mendeleev.element(z) for z in self.atoms_list]
+        self.atomic_number = [n.atomic_number for n in self.elements]
+        self.atomic_mass = [n.mass for n in self.elements]
+        self.covalent_radius = [n.covalent_radius / 100.0 for n in
+                                self.elements]
+        self.vdw_radius = [n.vdw_radius / 100.0 for n in self.elements]
 
         self.energy = energy
 
         self.centroid = pyar.property.get_centroid(self.coordinates)
-        self.centre_of_mass = pyar.property.get_centre_of_mass(self.coordinates, self.atomic_mass)
-        self.average_radius = pyar.property.get_average_radius(self.coordinates, self.centroid)
-        self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates, self.centroid)
+        self.centre_of_mass = pyar.property.get_centre_of_mass(self.coordinates,
+                                                               self.atomic_mass)
+        self.average_radius = pyar.property.get_average_radius(self.coordinates,
+                                                               self.centroid)
+        self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates,
+                                                             self.centroid)
         self.distance_list = pyar.property.get_distance_list(self.coordinates)
 
         self.name = 'Molecule' if name is None else name
@@ -164,10 +170,12 @@ class Molecule(object):
 
         """
         atoms_list = self.atoms_list + other.atoms_list
-        coordinates = np.concatenate((self.coordinates, other.coordinates), axis=0)
+        coordinates = np.concatenate((self.coordinates, other.coordinates),
+                                     axis=0)
         merged = Molecule(atoms_list, coordinates)
         atoms_in_self = list(range(self.number_of_atoms))
-        atoms_in_other = list(range(self.number_of_atoms, merged.number_of_atoms))
+        atoms_in_other = list(
+            range(self.number_of_atoms, merged.number_of_atoms))
         merged.fragments = [atoms_in_self, atoms_in_other]
         merged.fragments_coordinates = [self.coordinates, other.coordinates]
         merged.fragments_atoms_list = [self.atoms_list, other.atoms_list]
@@ -212,7 +220,8 @@ class Molecule(object):
 
         """
 
-        atoms_list, mol_coordinates, mol_name, mol_title, energy = read_xyz(filename)
+        atoms_list, mol_coordinates, mol_name, mol_title, energy = read_xyz(
+            filename)
         return cls(atoms_list, mol_coordinates, name=mol_name,
                    title=mol_title, energy=energy)
 
@@ -227,7 +236,8 @@ class Molecule(object):
 
         if coordinates is None:
             coordinates = self.coordinates
-        return [coordinates[fragment_atoms, :] for fragment_atoms in self.fragments]
+        return [coordinates[fragment_atoms, :] for fragment_atoms in
+                self.fragments]
 
     def split_atoms_lists(self):
         """
@@ -238,10 +248,12 @@ class Molecule(object):
 
         """
 
-        return [self.atoms_list[fragment_atoms, :] for fragment_atoms in self.fragments]
+        return [self.atoms_list[fragment_atoms, :] for fragment_atoms in
+                self.fragments]
 
     def split_covalent_radii_list(self):
-        return [np.array(self.covalent_radius)[fragment_identifiers] for fragment_identifiers in self.fragments]
+        return [np.array(self.covalent_radius)[fragment_identifiers] for
+                fragment_identifiers in self.fragments]
 
     def mol_to_xyz(self, file_name):
         """
@@ -254,9 +266,11 @@ class Molecule(object):
         with open(file_name, 'w') as fp:
             fp.write("{:3d}\n".format(self.number_of_atoms))
             fp.write("{}: {}\n".format(self.title, self.energy))
-            for element_symbol, atom_coordinate in zip(self.atoms_list, self.coordinates):
+            for element_symbol, atom_coordinate in zip(self.atoms_list,
+                                                       self.coordinates):
                 fp.write("%-2s%12.5f%12.5f%12.5f\n" % (
-                    element_symbol, atom_coordinate[0], atom_coordinate[1], atom_coordinate[2]))
+                    element_symbol, atom_coordinate[0], atom_coordinate[1],
+                    atom_coordinate[2]))
 
     def mol_to_turbomole_coord(self):
         """
@@ -269,7 +283,8 @@ class Molecule(object):
             atoms_list = self.atoms_list
             for i in range(self.number_of_atoms):
                 fp.write("%20.14f  %20.14f  %20.14f  %6s\n" % (
-                    coords[i][0], coords[i][1], coords[i][2], atoms_list[i].lower()))
+                    coords[i][0], coords[i][1], coords[i][2],
+                    atoms_list[i].lower()))
             fp.write("$end\n")
 
     def is_bonded(self):
@@ -285,7 +300,8 @@ class Molecule(object):
         """
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
-        if isinstance(radius_one, np.float) and isinstance(radius_two, np.float64):
+        if isinstance(radius_one, np.float) and isinstance(radius_two,
+                                                           np.float64):
             # noinspection PyPep8Naming
             R = radius_one + radius_two
             r = np.linalg.norm(fragment_one - fragment_two)
@@ -293,7 +309,8 @@ class Molecule(object):
         else:
             # noinspection PyPep8Naming
             R = [x + y for x, y in itertools.product(radius_one, radius_two)]
-            r = [np.linalg.norm(a - b) for a, b in itertools.product(fragment_one, fragment_two)]
+            r = [np.linalg.norm(a - b) for a, b in
+                 itertools.product(fragment_one, fragment_two)]
             return any(a < b for a, b in zip(r, R))
 
     @property
@@ -348,7 +365,8 @@ class Molecule(object):
         return self
 
     def move_to_centre_of_mass(self):
-        self.translate(pyar.property.get_centre_of_mass(self.coordinates, self.atomic_mass))
+        self.translate(pyar.property.get_centre_of_mass(self.coordinates,
+                                                        self.atomic_mass))
         return self
 
     def translate(self, magnitude):
@@ -363,7 +381,8 @@ class Molecule(object):
         """
         moi = self.moments_of_inertia_tensor
         eigenvalues, eigen_vectors = np.linalg.eig(moi)
-        transformed_coordinates = np.array(np.dot(self.coordinates, eigen_vectors))
+        transformed_coordinates = np.array(
+            np.dot(self.coordinates, eigen_vectors))
         order = [0, 1, 2]
         for p in range(3):
             for q in range(p + 1, 3):
@@ -385,7 +404,8 @@ def read_xyz(filename):
         number_of_atoms = int(f[0])
     except Exception as e:
         molecule_logger.error(e)
-        molecule_logger.error("%s should have number of atoms in the first line" % filename)
+        molecule_logger.error(
+            "%s should have number of atoms in the first line" % filename)
         molecule_logger.error("but we found\n %s" % f[0])
         molecule_logger.error("Is it an xyz file?")
         sys.exit('Error in reading %s' % filename)
@@ -396,13 +416,16 @@ def read_xyz(filename):
         molecule_logger.debug(f"No energy found\n{e}")
         energy = None
     try:
-        geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
+        geometry_section = [each_line.split() for each_line in f[2:] if
+                            len(each_line) >= 4]
     except Exception as e:
         molecule_logger.error(e)
-        molecule_logger.error("Something wrong with reading the geometry section")
+        molecule_logger.error(
+            "Something wrong with reading the geometry section")
         sys.exit('Error in reading %s' % filename)
     if len(geometry_section) != number_of_atoms:
-        molecule_logger.error("Number of geometric coordinates is not equal to number of atoms")
+        molecule_logger.error(
+            "Number of geometric coordinates is not equal to number of atoms")
         molecule_logger.error("Is something wrong?")
         sys.exit('Error in reading %s' % filename)
     atoms_list = []
@@ -427,7 +450,8 @@ def read_xyz(filename):
 
 
 def main():
-    pass
+    xyz_filename = sys.argv[1]
+    mol = Molecule.from_xyz(xyz_filename)
 
 
 if __name__ == '__main__':

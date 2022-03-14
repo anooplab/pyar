@@ -5,7 +5,6 @@ import numpy as np
 
 import pyar.property
 from pyar.Molecule import Molecule
-from pyar.data.atomic_data import atomic_numbers
 
 
 def get_rsmd(mol):
@@ -114,7 +113,8 @@ def coulomb_matrix(atoms_list, coordinates):
     :return: Coulomb Matrix
 
     """
-    charges = [atomic_numbers[c.capitalize()] for c in atoms_list]
+    elements = [mendeleev.element(z) for z in atoms_list]
+    charges = [n.atomic_number for n in elements]
     number_of_atoms = len(atoms_list)
     coords = coordinates
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))

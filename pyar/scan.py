@@ -5,6 +5,7 @@ import numpy as np
 
 import pyar.tabu
 from pyar import optimiser
+from pyar.data_analysis import clustering
 
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
@@ -21,14 +22,17 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         filename_prefix = "aai_"
         each_orientation = pyar.tabu.merge_two_molecules(x.x, seed, monomer,
                                                          site=[a, b])
-        each_orientation_id = f"{i:03d}_{molecule_id}_"
+        each_orientation_id = f"{i:03d}_{molecule_id}"
         each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
+        each_orientation.energy = x.x
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
         orientations.append(each_orientation)
-    print("Done")
-    return orientations
+    try:
+        return clustering.remove_similar(orientations)
+    except:
+        return orientations
 
 
 def ab_dist(pts, a, b, monomer, seed):
@@ -78,7 +82,7 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b,
     t1 = time.time()
     filename_prefix = 'trial_'
     for i, each_orientation in enumerate(orientations):
-        each_orientation_id = f"{i:03d}_{molecule_id}_"
+        each_orientation_id = f"{i:03d}_{molecule_id}"
         each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
@@ -109,7 +113,7 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
                          each_molecule.covalent_radius[b_atom]
         if quantum_chemistry_parameters['software'] == 'orca':
             step = int(abs(final_distance - start_dist) * 10)
-            c_k = f'\n% geom\n    scan B {a_atom} {b_atom}= {start_dist}, ' \
+            c_k = f'\n% geom\n    scan B {a_atom} {b_atom} = {start_dist}, ' \
                   f'{final_distance}, {step}\n        end\nend\n'
             quantum_chemistry_parameters['gamma'] = 0.0
             cwd = os.getcwd()
@@ -117,7 +121,7 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
             from pyar import file_manager
             file_manager.make_directories(job_dir)
             os.chdir(job_dir)
-            quantum_chemistry_parameters['custom_keywords'] = c_k
+            quantum_chemistry_parameters['custom_keyword'] = c_k
             optimiser.optimise(each_molecule, quantum_chemistry_parameters)
             os.chdir(cwd)
         else:

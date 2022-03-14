@@ -97,8 +97,8 @@ def tabu_function():
         import scipy.spatial.distance as sdist
 
         from pyar.Molecule import Molecule
-        from pyar.data.atomic_data import atomic_numbers, covalent_radii
-        radii = covalent_radii[atomic_numbers[args.make_sphere.capitalize()]]
+        elements = [mendeleev.element(z) for z in args.make_sphere.capitalize()]
+        radii = [n.covalent_radius / 100.0 for n in elements]
         points = pyar.tabu.distribute_points_uniformly(pts)
         factor = pts / 10
         while np.min(sdist.pdist(points)) < 2 * radii:

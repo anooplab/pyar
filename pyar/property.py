@@ -9,8 +9,6 @@ from math import pi
 import numpy as np
 from scipy.spatial import distance as scipy_distance
 
-from pyar.data.atomic_data import atomic_masses, atomic_numbers, covalent_radii, vdw_radii
-
 
 def distance(coords_a, coords_b):
     """
@@ -24,43 +22,6 @@ def distance(coords_a, coords_b):
     :rtype: float
     """
     return np.linalg.norm(coords_a - coords_b)
-
-
-def get_atomic_mass(atomic_number):
-    """
-    Return Atomic of the provided atomic number
-
-    :type atomic_number: list(int)
-    :param atomic_number: List of atomic numbers to look for atomic masses.
-    :return: atomic mass
-    :rtype: list(float)
-    """
-    return [atomic_masses[i] for i in atomic_number]
-
-
-def get_atomic_number(atoms_list):
-    """
-    Make a list of atomic numbers from Atomic Symbols.
-
-    :return: A list of atomic number
-    :rtype: list
-
-    """
-    return [atomic_numbers[c.capitalize()] for c in atoms_list]
-
-
-def get_covalent_radius(atomic_number):
-    return [covalent_radii[i] for i in atomic_number]
-
-
-def get_vdw_radius(atomic_number):
-    result = []
-    for i in atomic_number:
-        if np.isnan(vdw_radii[i]):
-            result.append(covalent_radii[i] * 1.5)
-        else:
-            result.append(vdw_radii[i])
-    return result
 
 
 def get_centroid(coordinates):
