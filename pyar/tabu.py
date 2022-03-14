@@ -46,7 +46,8 @@ def check_close_contact(mol_1, mol_2, factor):
     radius_one, radius_two = mol_1.covalent_radius, mol_2.covalent_radius
     for counter_i in range(len(fragment_one)):
         for counter_j in range(len(fragment_two)):
-            interatomic_distance = np.linalg.norm(fragment_one[counter_i] - fragment_two[counter_j])
+            interatomic_distance = np.linalg.norm(fragment_one[counter_i] -
+                                                  fragment_two[counter_j])
             sum_of_radii = (radius_one[counter_i] + radius_two[counter_j]) * factor
             if interatomic_distance < sum_of_radii:
                 return True

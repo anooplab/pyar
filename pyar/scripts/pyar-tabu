@@ -28,7 +28,7 @@ def tabu_function():
     parser.add_argument('--charge', type=int, default=0,
                         help='charge')
     parser.add_argument('--distance-scaling', metavar='x.x',
-                        default=1.0, type=float,
+                        default=1.5, type=float,
                         help='Scaling to decide how far the fragments '
                              'to be placed. sum_of_covalent_radii*x.x')
     parser.add_argument('--plot', action='store_true',
@@ -78,10 +78,10 @@ def tabu_function():
             print("Note: provide two molecules, '-i file1.xyz file2.xyz'")
             sys.exit()
         for i, vector in enumerate(pts):
-            each_orientation = pyar.tabu.merge_two_molecules(vector, seed,
-                                                             monomer, site=None,
-                                                             distance_scaling=d_scale)
-            each_orientation.mol_to_xyz(f'mol_{i:03d}.xyz')
+            pyar.tabu.merge_two_molecules(vector, seed,
+                                          monomer, site=None,
+                                          distance_scaling=1.5).mol_to_xyz(
+                f'mol_{i:03d}.xyz')
 
     if args.make_composite:
         for i in range(8):
@@ -110,19 +110,13 @@ def tabu_function():
 
         result.mol_to_xyz('mol.xyz')
 
-    # if args.best:
-    #     a = args.best[0]
-    #     b = seed.number_of_atoms + args.best[1]
-    #     pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b,
-    #                                          number_of_trial_orientations,
-    #                                          d_scale=d_scale)
-
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms + args.best[1]
         pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b,
                                              number_of_trial_orientations,
                                              d_scale=d_scale)
+
 
 if __name__ == "__main__":
     tabu_function()
