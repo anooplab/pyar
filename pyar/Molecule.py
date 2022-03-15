@@ -14,10 +14,10 @@ import logging
 import re
 import sys
 from math import cos, sin
-import mendeleev
 
 import numpy as np
 
+import data.new_atomic_data
 import pyar.property
 
 molecule_logger = logging.getLogger('pyar.molecule')
@@ -118,23 +118,31 @@ class Molecule(object):
         self.multiplicity = multiplicity
         self.scftype = scftype
 
-        self.elements = [mendeleev.element(z) for z in self.atoms_list]
-        self.atomic_number = [n.atomic_number for n in self.elements]
-        self.atomic_mass = [n.mass for n in self.elements]
-        self.covalent_radius = [n.covalent_radius / 100.0 for n in
-                                self.elements]
-        self.vdw_radius = [n.vdw_radius / 100.0 for n in self.elements]
+        # self.elements = [element(z) for z in self.atoms_list]
+        # self.atomic_number = [data.new_atomic_data. for n in self.atoms_list]
+
+        # self.covalent_radius = [n.covalent_radius / 100.0 for n in
+        #                         self.elements]
+        # self.vdw_radius = [n.vdw_radius / 100.0 for n in self.elements]
+
+        self.atomic_mass = [data.new_atomic_data.mass[n] for n in
+                            self.atoms_list]
+        self.covalent_radius = [data.new_atomic_data.covalent_radius[n] for n in
+                                self.atoms_list]
+        self.vdw_radius = [data.new_atomic_data.vdw_radius[n] for n in
+                           self.atoms_list]
 
         self.energy = energy
 
         self.centroid = pyar.property.get_centroid(self.coordinates)
-        self.centre_of_mass = pyar.property.get_centre_of_mass(self.coordinates,
-                                                               self.atomic_mass)
-        self.average_radius = pyar.property.get_average_radius(self.coordinates,
-                                                               self.centroid)
-        self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates,
-                                                             self.centroid)
-        self.distance_list = pyar.property.get_distance_list(self.coordinates)
+        # self.centre_of_mass = pyar.property.get_centre_of_mass(
+        #     self.coordinates, self.atomic_mass)
+        # self.average_radius = pyar.property.get_average_radius(
+        #     self.coordinates, self.centroid)
+        # self.std_of_radius = pyar.property.get_std_of_radius(
+        #     self.coordinates, self.centroid)
+        # self.distance_list = pyar.property.get_distance_list(
+        #     self.coordinates)
 
         self.name = 'Molecule' if name is None else name
         self.title = 'Title' if title is None else title

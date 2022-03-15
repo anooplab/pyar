@@ -33,10 +33,8 @@ def get_rsmd(mol):
             cos_theta = (np.dot(v1, v2) / (
                     np.linalg.norm(v1) *
                     np.linalg.norm(v2)))
-            if cos_theta > 1.:
-                cos_theta = 1.
-            if cos_theta < -1.:
-                cos_theta = -1.
+            cos_theta = min(cos_theta, 1.)
+            cos_theta = max(cos_theta, -1.)
             sin_theta = np.sqrt(1 - (cos_theta ** 2))
             r = np.linalg.norm(a)
             p_ex += (r / (z1 * z2)) * (np.exp(-r / z1 * z2)) * cos_theta
@@ -113,8 +111,8 @@ def coulomb_matrix(atoms_list, coordinates):
     :return: Coulomb Matrix
 
     """
-    elements = [mendeleev.element(z) for z in atoms_list]
-    charges = [n.atomic_number for n in elements]
+    import data.new_atomic_data
+    charges = [data.new_atomic_data[c.capitalize() for c in atoms_list]
     number_of_atoms = len(atoms_list)
     coords = coordinates
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
