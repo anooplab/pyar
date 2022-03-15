@@ -1,3 +1,4 @@
+from numpy import nan
 atomic_number = {
  'Ac': 89,
  'Ag': 47,
@@ -185,7 +186,7 @@ symbol = {
  90: 'Th',
  91: 'Pa'}
 
-mass = = { 
+mass = {
   'X': 0.0,
  'Ac': 227.0,
  'Ag': 107.8682,

@@ -17,7 +17,7 @@ from math import cos, sin
 
 import numpy as np
 
-import data.new_atomic_data
+import pyar.data.new_atomic_data as atomic_data
 import pyar.property
 
 molecule_logger = logging.getLogger('pyar.molecule')
@@ -125,11 +125,11 @@ class Molecule(object):
         #                         self.elements]
         # self.vdw_radius = [n.vdw_radius / 100.0 for n in self.elements]
 
-        self.atomic_mass = [data.new_atomic_data.mass[n] for n in
+        self.atomic_mass = [atomic_data.mass[n] for n in
                             self.atoms_list]
-        self.covalent_radius = [data.new_atomic_data.covalent_radius[n] for n in
+        self.covalent_radius = [atomic_data.covalent_radius[n] for n in
                                 self.atoms_list]
-        self.vdw_radius = [data.new_atomic_data.vdw_radius[n] for n in
+        self.vdw_radius = [atomic_data.vdw_radius[n] for n in
                            self.atoms_list]
 
         self.energy = energy

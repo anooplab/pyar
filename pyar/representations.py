@@ -55,36 +55,36 @@ def make_internal_coordinates(mol):
     dm = pyar.property.get_distance_matrix(coordinates)
     bm = pyar.property.get_bond_matrix(coordinates, covalent_radius)
     bl = []
-    for i in range(len(coordinates)):
-        for j in range(len(coordinates)):
-            if bm[i, j]:
-                seq = [i, j]
+    for a_i in range(len(coordinates)):
+        for a_j in range(len(coordinates)):
+            if bm[a_i, a_j]:
+                seq = [a_i, a_j]
                 if seq[::-1] not in [i[0] for i in bl]:
-                    bl.append([seq, dm[i, j]])
+                    bl.append([seq, dm[a_i, a_j]])
     al = []
-    for i, j, k in product(range(len(coordinates)), repeat=3):
-        if i != j and j != k and i != k and bm[i, j] and bm[j, k]:
-            seq = [i, j, k]
+    for a_i, a_j, k in product(range(len(coordinates)), repeat=3):
+        if a_i != a_j and a_j != k and a_i != k and bm[a_i, a_j] and bm[a_j, k]:
+            seq = [a_i, a_j, k]
             if seq[::-1] not in [i[0] for i in al]:
-                al.append([seq, pyar.property.calculate_angle(coordinates[i], coordinates[j],
+                al.append([seq, pyar.property.calculate_angle(coordinates[a_i], coordinates[a_j],
                                                               coordinates[k])])
 
     dl = []
-    for i, j, k, l in product(range(len(coordinates)), repeat=4):
+    for a_i, a_j, k, l in product(range(len(coordinates)), repeat=4):
         if (
-                i != j
-                and i != k
-                and i != l
-                and j != k
-                and j != l
+                a_i != a_j
+                and a_i != k
+                and a_i != l
+                and a_j != k
+                and a_j != l
                 and k != l
-                and bm[i, j]
-                and bm[j, k]
+                and bm[a_i, a_j]
+                and bm[a_j, k]
                 and bm[k, l]
         ):
-            seq = [i, j, k, l]
+            seq = [a_i, a_j, k, l]
             if seq[::-1] not in [i[0] for i in dl]:
-                dl.append([seq, pyar.property.calculate_dihedral(i, j, k, l)])
+                dl.append([seq, pyar.property.calculate_dihedral(a_i, a_j, k, l)])
 
     return [bl, al, dl]
 
@@ -112,7 +112,7 @@ def coulomb_matrix(atoms_list, coordinates):
 
     """
     import data.new_atomic_data
-    charges = [data.new_atomic_data[c.capitalize() for c in atoms_list]
+    charges = [data.new_atomic_data[c.capitalize()] for c in atoms_list]
     number_of_atoms = len(atoms_list)
     coords = coordinates
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
