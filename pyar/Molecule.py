@@ -125,8 +125,8 @@ class Molecule(object):
         #                         self.elements]
         # self.vdw_radius = [n.vdw_radius / 100.0 for n in self.elements]
 
-        self.atomic_mass = [atomic_data.mass[n] for n in
-                            self.atoms_list]
+        self.atomic_number = [atomic_data.atomic_number[z] for z in self.atoms_list]
+        self.atomic_mass = [atomic_data.mass[n] for n in self.atoms_list]
         self.covalent_radius = [atomic_data.covalent_radius[n] for n in
                                 self.atoms_list]
         self.vdw_radius = [atomic_data.vdw_radius[n] for n in
