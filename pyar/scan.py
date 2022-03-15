@@ -14,19 +14,19 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
 
     orientations = []
     for _ in range(number_of_orientations):
-        t1 = time.clock()
+        t1 = time.time()
         pts = pyar.tabu.generate_points(32, True, True, True, 0.3, 5.0)
-        t2 = time.clock()
+        t2 = time.time()
         pyar.tabu.tabu_logger.debug('Created points: in {} seconds'.format(t2 - t1))
-        t1 = time.clock()
+        t1 = time.time()
         current_orientations = [
             pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b])
             for vector in pts
         ]
 
-        t2 = time.clock()
+        t2 = time.time()
         pyar.tabu.tabu_logger.debug('Created orientations {} seconds'.format(t2 - t1))
-        t1 = time.clock()
+        t1 = time.time()
         stored_orientations = {}
         for j, each_orientation in enumerate(current_orientations):
             coords = each_orientation.coordinates
@@ -37,10 +37,10 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         pyar.tabu.tabu_logger.debug("{} {}".format(best_orientation, stored_orientations[best_orientation]))
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
-        t2 = time.clock()
+        t2 = time.time()
         pyar.tabu.tabu_logger.debug('Found best orientation in {} seconds'.format(t2 - t1))
 
-    t1 = time.clock()
+    t1 = time.time()
     filename_prefix = 'trial_'
     for i, each_orientation in enumerate(orientations):
         each_orientation_id = f"{i:03d}_{molecule_id}_"
@@ -48,7 +48,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         each_orientation.name = each_orientation_id
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
-    t2 = time.clock()
+    t2 = time.time()
     pyar.tabu.tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
     pyar.tabu.write_tabu_list(saved_pts, 'tabu.dat')
 

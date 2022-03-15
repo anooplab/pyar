@@ -124,11 +124,11 @@ class Molecule(object):
 
         self.energy = energy
 
-        self.centroid = pyar.property.get_centroid(self.coordinates)
-        self.centre_of_mass = pyar.property.get_centre_of_mass(self.coordinates, self.atomic_mass)
-        self.average_radius = pyar.property.get_average_radius(self.coordinates, self.centroid)
-        self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates, self.centroid)
-        self.distance_list = pyar.property.get_distance_list(self.coordinates)
+        # self.centroid = pyar.property.get_centroid(self.coordinates)
+        # self.centre_of_mass = pyar.property.get_centre_of_mass(self.coordinates, self.atomic_mass)
+        # self.average_radius = pyar.property.get_average_radius(self.coordinates, self.centroid)
+        # self.std_of_radius = pyar.property.get_std_of_radius(self.coordinates, self.centroid)
+        # self.distance_list = pyar.property.get_distance_list(self.coordinates)
 
         self.name = 'Molecule' if name is None else name
         self.title = 'Title' if title is None else title
