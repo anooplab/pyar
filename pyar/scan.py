@@ -21,7 +21,8 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         print(x.message)
         filename_prefix = "aai_"
         each_orientation = pyar.tabu.merge_two_molecules(x.x, seed, monomer,
-                                                         site=[a, b])
+                                                         site=[a, b],
+                                                         distance_scaling=d_scale)
         each_orientation_id = f"{i:03d}_{molecule_id}"
         each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
@@ -100,12 +101,13 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
     b_molecule = input_molecules[1]
     a_atom = site_atoms[0]
     b_atom = a_molecule.number_of_atoms + a_atom
-    proximity_factor = 2.3  # TODO: find the optimum value
+    proximity_factor = 1.5  # TODO: find the optimum value
     input_molecules = generate_guess_for_bonding('abc',
                                                  a_molecule, b_molecule,
                                                  a_atom, b_atom,
                                                  int(number_of_orientations),
                                                  d_scale=proximity_factor)
+
     for each_molecule in input_molecules:
         coordinates = each_molecule.coordinates
         start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])

@@ -43,7 +43,8 @@ def argument_parse():
                         help='input coordinate files in xyz format.')
 
     parser.add_argument('-N', dest='how_many_orientations', metavar='N',
-                        required=True, help='The number of orientations to be used')
+                        required=True,
+                        help='The number of orientations to be used')
 
     parser.add_argument('--tabu', choices=['y', 'n'], default='y',
                         help='Toggle Tabu search algorithm. Default is on (y)')
@@ -82,14 +83,17 @@ def argument_parse():
     aggregator_group = parser.add_argument_group('aggregator',
                                                  'Aggregator specific options')
 
-    aggregator_group.add_argument('-ss', '--solvation-size', type=int, metavar='n',
+    aggregator_group.add_argument('-ss', '--solvation-size', type=int,
+                                  metavar='n',
                                   help='number of solvent molecules to be added')
 
-    aggregator_group.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
+    aggregator_group.add_argument('-mns', '--maximum-number-of-seeds',
+                                  metavar='n',
                                   type=int,
                                   help='maximum number of seeds')
 
-    aggregator_group.add_argument('-as', '--aggregate-size', type=int, nargs='*',
+    aggregator_group.add_argument('-as', '--aggregate-size', type=int,
+                                  nargs='*',
                                   metavar=('l', 'm',),
                                   help='number of monomers in aggregate')
 
@@ -133,7 +137,8 @@ def argument_parse():
                                                         'Calculation specific options')
 
     quantum_chemistry_group.add_argument("--software", type=str,
-                                         choices=['gaussian', 'mopac', 'obabel', 'orca',
+                                         choices=['gaussian', 'mopac', 'obabel',
+                                                  'orca',
                                                   'psi4', 'turbomole', 'xtb',
                                                   'xtb_turbo'],
                                          required=True, help="Software")
@@ -144,14 +149,16 @@ def argument_parse():
     quantum_chemistry_group.add_argument('-method', '--method', type=str,
                                          help='The method (default=BP86)')
 
-    quantum_chemistry_group.add_argument('--opt-threshold', type=str, default='normal',
+    quantum_chemistry_group.add_argument('--opt-threshold', type=str,
+                                         default='normal',
                                          choices=['loose', 'normal', 'tight'],
                                          help='Optimization threshold')
 
     quantum_chemistry_group.add_argument('--opt-cycles', type=int, default=100,
                                          help='Maximum optimization cycles')
 
-    quantum_chemistry_group.add_argument('--scf-threshold', type=str, default='normal',
+    quantum_chemistry_group.add_argument('--scf-threshold', type=str,
+                                         default='normal',
                                          choices=['loose', 'normal', 'tight'],
                                          help='SCF threshold')
 
@@ -202,7 +209,8 @@ def main():
     logger.addHandler(handler)
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
-    logger.info(f'==============================Starting PyAR at {time_now}==============================')
+    logger.info(
+        f'==============================Starting PyAR at {time_now}==============================')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
@@ -256,19 +264,22 @@ def main():
     input_molecules = []
     # noinspection PyTypeChecker
     for each_file, charge, multiplicity, scftype in \
-            zip(run_parameters['input_files'], charges, multiplicities, scftypes):
+            zip(run_parameters['input_files'], charges, multiplicities,
+                scftypes):
         try:
             mol = Molecule.Molecule.from_xyz(each_file)
             mol.charge = charge
             mol.multiplicity = multiplicity
-            n_electrons = sum(mol.atomic_number)-mol.charge
-            if n_electrons %2 == 0:
+            n_electrons = sum(mol.atomic_number) - mol.charge
+            if n_electrons % 2 == 0:
                 if mol.multiplicity % 2 != 1:
-                    sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
+                    sys.exit(
+                        f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
             else:
                 ground_scftype = 'open'
                 if mol.multiplicity % 2 == 1:
-                    sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
+                    sys.exit(
+                        f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
             input_molecules.append(mol)
             logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
         except IOError:
@@ -306,7 +317,8 @@ def main():
 
     if run_parameters['aggregate']:
         size_of_aggregate = run_parameters['aggregate_size']
-        if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
+        if size_of_aggregate is None or len(size_of_aggregate) != len(
+                input_molecules):
             message = 'Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...'
 
             logger.critical(message)
@@ -324,13 +336,13 @@ def main():
                              tabu_on, grid_on, site)
 
         logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+        logger.info("Started at {}\nEnded at {}".format(time_started,
+                                                        datetime.datetime.now()))
 
     if run_parameters['solvate']:
         number_of_solvent_molecules = run_parameters['solvation_size']
         if number_of_solvent_molecules is None:
             message = 'For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>'
-
 
             logger.error(message)
             sys.exit(message)
@@ -356,7 +368,8 @@ def main():
                            site)
 
         logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+        logger.info("Started at {}\nEnded at {}".format(time_started,
+                                                        datetime.datetime.now()))
 
     if run_parameters['react']:
         minimum_gamma = run_parameters['gmin']
@@ -385,7 +398,8 @@ def main():
                       quantum_chemistry_parameters,
                       site, proximity_factor, tabu_on, grid_on)
         logger.info('Total run time: {}'.format(time.time() - zero_time))
-        logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
+        logger.info(
+            f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
         return
 
     if run_parameters['scan_bond']:
