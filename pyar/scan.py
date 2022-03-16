@@ -100,8 +100,8 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
     a_molecule = input_molecules[0]
     b_molecule = input_molecules[1]
     a_atom = site_atoms[0]
-    b_atom = a_molecule.number_of_atoms + a_atom
-    proximity_factor = 1.5  # TODO: find the optimum value
+    b_atom = a_molecule.number_of_atoms + a_atom -  1
+    proximity_factor = 1.5  #
     input_molecules = generate_guess_for_bonding('abc',
                                                  a_molecule, b_molecule,
                                                  a_atom, b_atom,
@@ -111,6 +111,7 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
     for each_molecule in input_molecules:
         coordinates = each_molecule.coordinates
         start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
+        print(a_atom, b_atom, start_dist)
         final_distance = each_molecule.covalent_radius[a_atom] + \
                          each_molecule.covalent_radius[b_atom]
         if quantum_chemistry_parameters['software'] == 'orca':
