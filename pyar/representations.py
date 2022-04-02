@@ -111,8 +111,8 @@ def coulomb_matrix(atoms_list, coordinates):
     :return: Coulomb Matrix
 
     """
-    import data.new_atomic_data
-    charges = [data.new_atomic_data[c.capitalize()] for c in atoms_list]
+    from pyar.data import new_atomic_data as atomic_data
+    charges = [atomic_data.atomic_number[c.capitalize()] for c in atoms_list]
     number_of_atoms = len(atoms_list)
     coords = coordinates
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))

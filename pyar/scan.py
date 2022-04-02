@@ -26,7 +26,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         each_orientation_id = f"{i:03d}_{molecule_id}"
         each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
-        each_orientation.energy = x.x
+        each_orientation.energy = 0.0
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
         orientations.append(each_orientation)
