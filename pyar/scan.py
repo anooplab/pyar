@@ -111,7 +111,6 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
     for each_molecule in input_molecules:
         coordinates = each_molecule.coordinates
         start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
-        print(a_atom, b_atom, start_dist)
         final_distance = each_molecule.covalent_radius[a_atom] + \
                          each_molecule.covalent_radius[b_atom]
         if quantum_chemistry_parameters['software'] == 'orca':
