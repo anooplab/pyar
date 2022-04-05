@@ -1,4 +1,4 @@
-#!/home/ayusman/bin/anaconda3/bin/python
+#!/usr/bin/anaconda3/bin/python
 # encoding: utf-8
 """Command line interface for PyAR"""
 import argparse
@@ -55,9 +55,10 @@ def argument_parse():
     parser.add_argument('-nprocs', '--nprocs', metavar='n',
                         type=int, help='The number of processors/cores to be '
                                        'used by the quantum chemistry software.'
-                                       'Not fully implemented with all interfaces.'
-                                       'Write to anoop@chem.iitkgp.ac.in if this '
-                                       'does not work properly')
+                                       'Not fully implemented with all '
+                                       'interfaces. Write to '
+                                       'anoop@chem.iitkgp.ac.in'
+                                       ' if this does not work properly')
 
     run_type_group = parser.add_mutually_exclusive_group(required=True)
 
@@ -66,7 +67,8 @@ def argument_parse():
                                 action='store_true')
 
     run_type_group.add_argument("-s", "--solvate",
-                                help="Add one solvent molecules to given solute molecules",
+                                help="Add one solvent molecules to "
+                                     "given solute molecules",
                                 action='store_true')
 
     run_type_group.add_argument("-a", "--aggregate",
