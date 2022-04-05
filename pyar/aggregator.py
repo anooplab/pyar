@@ -297,6 +297,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         os.chdir(seeds_home)
         each_seed.mol_to_xyz('seed.xyz')
         monomer.mol_to_xyz('monomer.xyz')
+        if len(each_seed) == 1:
+            hm_orientations = 1
         mol_id = f'{seed_id}_{aggregate_id}'
         aggregator_logger.debug('Making orientations')
         if not all(
