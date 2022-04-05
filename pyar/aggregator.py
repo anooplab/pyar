@@ -104,8 +104,7 @@ def aggregate(molecules,
                                                            seed_names,
                                                            aggregate_sizes):
         seed_molecule.name = seed_name
-        for _ in range(size_of_this_seed):
-            monomers_to_be_added.append(seed_molecule)
+        monomers_to_be_added.extend(seed_molecule for _ in range(size_of_this_seed))
         ag_id += f"_{seed_name}_000"
 
     if len(molecules) == 1:
@@ -176,9 +175,7 @@ def old_path_to_new_path(monomers_to_be_added, old_path):
     for each in old_path:
         tmp = []
         for e in each:
-            for a in monomers_to_be_added:
-                if a.name == e:
-                    tmp.append(a)
+            tmp.extend(a for a in monomers_to_be_added if a.name == e)
         complete_pathways.append(tuple(tmp))
     return complete_pathways
 
@@ -226,7 +223,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
             aggregator_logger.info("No seeds to process")
             return
         aggregate_id = "{:03d}".format(aggregation_counter)
-        aggregate_home = 'aggregate_' + aggregate_id
+        aggregate_home = f'aggregate_{aggregate_id}'
         file_manager.make_directories(aggregate_home)
         os.chdir(aggregate_home)
 
@@ -294,13 +291,15 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
             return
         aggregator_logger.info('   Seed: {}'.format(seed_count))
         seed_id = "{:03d}".format(seed_count)
-        seeds_home = 'seed_' + seed_id
+        seeds_home = f'seed_{seed_id}'
         if not os.path.exists(seeds_home):
             file_manager.make_directories(seeds_home)
         os.chdir(seeds_home)
         each_seed.mol_to_xyz('seed.xyz')
         monomer.mol_to_xyz('monomer.xyz')
-        mol_id = '{0}_{1}'.format(seed_id, aggregate_id)
+        if len(each_seed) == 1:
+            hm_orientations = 1
+        mol_id = f'{seed_id}_{aggregate_id}'
         aggregator_logger.debug('Making orientations')
         if not all(
                 os.path.exists(f"trial_{i:03d}_{mol_id}.xyz")
@@ -375,8 +374,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         not_refined = copy.deepcopy(each_file)
         status = optimise(each_file, qc_params)
         if status is True:
-            xyz_file = 'job_' + each_file.name + '/result_' + \
-                       each_file.name + '.xyz'
+            xyz_file = f'job_{each_file.name}/result_{each_file.name}.xyz'
             shutil.copy(xyz_file, '.')
         else:
             selected_seeds.remove(each_file)

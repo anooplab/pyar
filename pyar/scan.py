@@ -26,7 +26,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         each_orientation_id = f"{i:03d}_{molecule_id}"
         each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
-        each_orientation.energy = x.x
+        each_orientation.energy = 0.0
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
         orientations.append(each_orientation)
@@ -111,7 +111,6 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
     for each_molecule in input_molecules:
         coordinates = each_molecule.coordinates
         start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
-        print(a_atom, b_atom, start_dist)
         final_distance = each_molecule.covalent_radius[a_atom] + \
                          each_molecule.covalent_radius[b_atom]
         if quantum_chemistry_parameters['software'] == 'orca':
