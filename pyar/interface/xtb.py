@@ -38,7 +38,7 @@ class Xtb(SF):
 
         super(Xtb, self).__init__(molecule)
 
-        self.cmd = f"xtb {self.start_xyz_file} -opt {options['opt_threshold']}"
+        self.cmd = f"xtb {self.start_xyz_file} -opt {method['opt_threshold']}"
 
         if self.charge != 0:
             self.cmd = "{} -chrg {}".format(self.cmd, self.charge)
