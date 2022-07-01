@@ -12,12 +12,14 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
                                number_of_orientations, d_scale):
     # pts = pyar.tabu.generate_points(1, True, True, True, 0.3, 5.0)
     from scipy.optimize import differential_evolution as global_opt
+    from functools import partial
     my_bounds = [(-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5), (0, 2 * np.pi),
                  (0, 2 * np.pi), (0, 2 * np.pi)]
     orientations = []
+    fun = partial(ab_dist, a, b, monomer, seed)
     for i in range(number_of_orientations):
         x = global_opt(ab_dist, my_bounds, args=(a, b, monomer, seed),
-                       polish=True, disp=True)
+                       polish=True, disp=True, workers=-1)
         print(x.message)
         filename_prefix = "aai_"
         each_orientation = pyar.tabu.merge_two_molecules(x.x, seed, monomer,
@@ -36,7 +38,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         return orientations
 
 
-def ab_dist(pts, a, b, monomer, seed):
+def ab_dist(a, b, monomer, seed, pts):
     orientation = pyar.tabu.merge_two_molecules(pts, seed, monomer, site=[a, b])
     coordinates = orientation.coordinates
     return np.linalg.norm(coordinates[a] - coordinates[b])

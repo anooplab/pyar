@@ -103,32 +103,39 @@ def merge_two_molecules(vector, seed_input, monomer_input,
     move_to = direction * maximum_distance_to_move
     monomer.translate(move_to)
 
-    step_counter = 1
+    # step_counter = 1
     contact = check_close_contact(seed, monomer, distance_scaling)
     if contact:
         tabu_logger.debug("Large step was not enough")
-        while check_close_contact(seed, monomer, distance_scaling):
+        while contact:
             tabu_logger.debug("moving by small steps")
             monomer.translate(tiny_steps)
-            step_counter += 1
+            contact = check_close_contact(seed_here, monomer_here, distance_scaling)
+
+            # step_counter += 1
     else:
-        lower_distance = np.zeros(3)
-        upper_distance = move_to
-        move_to = (upper_distance + lower_distance) / 2
-        tabu_logger.debug("Binary steps")
-        for _ in range(100):
-            monomer.move_to_origin()
-            monomer.translate(move_to)
-            step_counter += 1
-            contact = check_close_contact(seed, monomer, distance_scaling)
-            if contact:
-                lower_distance = move_to
-            else:
-                upper_distance = move_to
-            move_to = (upper_distance + lower_distance) / 2
-            if np.linalg.norm(upper_distance - lower_distance) < 0.01:
-                break
-    tabu_logger.debug(f"Total steps taken {step_counter}")
+        while contact:
+            monomer.translate(-1*tiny_steps)
+            contact = check_close_contact(seed_here, monomer_here, distance_scaling)
+
+
+    #     lower_distance = np.zeros(3)
+    #     upper_distance = move_to
+    #     move_to = (upper_distance + lower_distance) / 2
+    #     tabu_logger.debug("Binary steps")
+    #     for _ in range(100):
+    #         monomer.move_to_origin()
+    #         monomer.translate(move_to)
+    #         step_counter += 1
+    #         contact = check_close_contact(seed, monomer, distance_scaling)
+    #         if contact:
+    #             lower_distance = move_to
+    #         else:
+    #             upper_distance = move_to
+    #         move_to = (upper_distance + lower_distance) / 2
+    #         if np.linalg.norm(upper_distance - lower_distance) < 0.01:
+    #             break
+    # tabu_logger.debug(f"Total steps taken {step_counter}")
 
     # is_in_cage = True
     # while check_close_contact(seed, monomer, distance_scaling) or is_in_cage:
