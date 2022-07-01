@@ -18,7 +18,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
     orientations = []
     fun = partial(ab_dist, a, b, monomer, seed)
     for i in range(number_of_orientations):
-        x = global_opt(funt, my_bounds, args=(a, b, monomer, seed),
+        x = global_opt(fun, my_bounds,
                        polish=True, disp=True, workers=-1)
         print(x.message)
         filename_prefix = "aai_"

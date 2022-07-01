@@ -110,13 +110,13 @@ def merge_two_molecules(vector, seed_input, monomer_input,
         while contact:
             tabu_logger.debug("moving by small steps")
             monomer.translate(tiny_steps)
-            contact = check_close_contact(seed_here, monomer_here, distance_scaling)
+            contact = check_close_contact(seed, monomer, distance_scaling)
 
             # step_counter += 1
     else:
         while contact:
             monomer.translate(-1*tiny_steps)
-            contact = check_close_contact(seed_here, monomer_here, distance_scaling)
+            contact = check_close_contact(seed, monomer, distance_scaling)
 
 
     #     lower_distance = np.zeros(3)
