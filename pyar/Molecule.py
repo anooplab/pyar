@@ -154,10 +154,10 @@ class Molecule(object):
             self.fragments_atoms_list = self.split_atoms_lists()
 
     def __str__(self):
-        return "Name: {}\n Coordinates:{}".format(self.name, self.coordinates)
+        return f"Name: {self.name}\n Coordinates:{self.coordinates}"
 
     def __repr__(self):
-        return "Molecule.from_xyz('{}')".format(self.name + '.xyz')
+        return f"Molecule.from_xyz('{self.name}.xyz')"
 
     def __iter__(self):
         pass
@@ -273,12 +273,9 @@ class Molecule(object):
         """
         with open(file_name, 'w') as fp:
             fp.write("{:3d}\n".format(self.number_of_atoms))
-            fp.write("{}: {}\n".format(self.title, self.energy))
-            for element_symbol, atom_coordinate in zip(self.atoms_list,
-                                                       self.coordinates):
-                fp.write("%-2s%12.5f%12.5f%12.5f\n" % (
-                    element_symbol, atom_coordinate[0], atom_coordinate[1],
-                    atom_coordinate[2]))
+            fp.write(f"{self.title}: {self.energy}\n")
+            for element_symbol, atom_coordinate in zip(self.atoms_list, self.coordinates):
+                fp.write(("%-2s%12.5f%12.5f%12.5f\n" % (element_symbol, atom_coordinate[0], atom_coordinate[1], atom_coordinate[2])))
 
     def mol_to_turbomole_coord(self):
         """
@@ -412,11 +409,11 @@ def read_xyz(filename):
         number_of_atoms = int(f[0])
     except Exception as e:
         molecule_logger.error(e)
-        molecule_logger.error(
-            "%s should have number of atoms in the first line" % filename)
+        molecule_logger.error(f"{filename} should have number of atoms in the first line")
+
         molecule_logger.error("but we found\n %s" % f[0])
         molecule_logger.error("Is it an xyz file?")
-        sys.exit('Error in reading %s' % filename)
+        sys.exit(f'Error in reading {filename}')
     mol_title = f[1].rstrip()
     try:
         energy = float(re.split(':|=|\s+', mol_title)[1])
@@ -424,18 +421,17 @@ def read_xyz(filename):
         molecule_logger.debug(f"No energy found\n{e}")
         energy = None
     try:
-        geometry_section = [each_line.split() for each_line in f[2:] if
-                            len(each_line) >= 4]
+        geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
+
     except Exception as e:
         molecule_logger.error(e)
-        molecule_logger.error(
-            "Something wrong with reading the geometry section")
-        sys.exit('Error in reading %s' % filename)
+        molecule_logger.error("Something wrong with reading the geometry section")
+        sys.exit(f'Error in reading {filename}')
     if len(geometry_section) != number_of_atoms:
-        molecule_logger.error(
-            "Number of geometric coordinates is not equal to number of atoms")
+        molecule_logger.error("Number of geometric coordinates is not equal to number of atoms")
+
         molecule_logger.error("Is something wrong?")
-        sys.exit('Error in reading %s' % filename)
+        sys.exit(f'Error in reading {filename}')
     atoms_list = []
     coordinates = []
     for i, c in enumerate(geometry_section):
@@ -448,10 +444,9 @@ def read_xyz(filename):
             molecule_logger.error(e)
             molecule_logger.error("Something wrong in line: %d" % (i + 1))
             molecule_logger.error(c)
-            sys.exit('Error in reading %s' % filename)
+            sys.exit(f'Error in reading {filename}')
         atoms_list.append(symbol)
         coordinates.append([x_coord, y_coord, z_coord])
-
     mol_coordinates = np.array(coordinates)
     mol_name = filename[:-4]
     return atoms_list, mol_coordinates, mol_name, mol_title, energy

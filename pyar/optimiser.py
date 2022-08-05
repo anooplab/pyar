@@ -20,31 +20,24 @@ optimiser_logger = logging.getLogger('pyar.optimiser')
 
 
 def optimise(molecule, qc_params):
-    opt_options = {
-        option: qc_params[option]
-        for option in ['gamma', 'opt_cycles', 'opt_threshold']
-    }
+    opt_options = {option: qc_params[option] for option in ['gamma', 'opt_cycles', 'opt_threshold']}
 
     gamma = qc_params['gamma']
     custom_keyword = qc_params['custom_keyword']
-
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'Opt job'
-    job_dir = 'job_' + molecule.name
+    job_dir = f'job_{molecule.name}'
     if not os.path.exists(job_dir):
         file_manager.make_directories(job_dir)
     os.chdir(job_dir)
-
     if os.path.exists(f'result_{molecule.name}.xyz'):
         read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
         molecule.energy = read_molecule.energy
         molecule.optimized_coordinates = read_molecule.coordinates
-        optimiser_logger.info(
-            f'     {molecule.name:35s}: {molecule.energy:15.6f}')
+        optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
         os.chdir(cwd)
         return True
-
     software = qc_params['software']
     if software == 'xtb':
         from pyar.interface import xtb
@@ -74,15 +67,8 @@ def optimise(molecule, qc_params):
     elif software == 'gaussian':
         from pyar.interface import gaussian
         geometry = gaussian.Gaussian(molecule, qc_params)
-    # else:
-    #     optimiser_logger.error(software, "is not implemented yet")
-    #     return NotImplementedError
-
     optimize_status = geometry.optimize(opt_options)
-
-    if optimize_status is True \
-            or optimize_status == 'converged' \
-            or optimize_status == 'CycleExceeded':
+    if optimize_status is True or optimize_status == 'converged' or optimize_status == 'CycleExceeded':
         molecule.energy = geometry.energy
         molecule.coordinates = geometry.optimized_coordinates
         optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy:15.6f}')
@@ -94,7 +80,6 @@ def optimise(molecule, qc_params):
     else:
         molecule.energy = None
         molecule.coordinates = None
-
     os.chdir(cwd)
     return optimize_status
 

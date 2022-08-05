@@ -47,7 +47,7 @@ def check_close_contact(mol_1, mol_2, factor):
     for f1, r1 in zip(fragment_one, radius_one):
         for f2, r2 in zip(fragment_two, radius_two):
             interatomic_distance = np.linalg.norm(f1 - f2)
-            sum_of_radii = (r1+r2)*factor
+            sum_of_radii = (r1 + r2) * factor
             if interatomic_distance < sum_of_radii:
                 return True
     return False
@@ -65,8 +65,7 @@ def minimum_separation(mol_1, mol_2):
                    itertools.product(mol_1.coordinates, mol_2.coordinates)])
 
 
-def merge_two_molecules(vector, seed_input, monomer_input,
-                        freeze_fragments=False, site=None, distance_scaling=1.5):
+def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None,  distance_scaling=1.5):
     """
 
     :param ndarray vector: the direction for placing the monomer
@@ -103,7 +102,6 @@ def merge_two_molecules(vector, seed_input, monomer_input,
     move_to = direction * maximum_distance_to_move
     monomer.translate(move_to)
 
-    # step_counter = 1
     contact = check_close_contact(seed, monomer, distance_scaling)
     if contact:
         tabu_logger.debug("Large step was not enough")
@@ -111,13 +109,10 @@ def merge_two_molecules(vector, seed_input, monomer_input,
             tabu_logger.debug("moving by small steps")
             monomer.translate(tiny_steps)
             contact = check_close_contact(seed, monomer, distance_scaling)
-
-            # step_counter += 1
     else:
         while contact:
-            monomer.translate(-1*tiny_steps)
+            monomer.translate(-1 * tiny_steps)
             contact = check_close_contact(seed, monomer, distance_scaling)
-
 
     #     lower_distance = np.zeros(3)
     #     upper_distance = move_to
@@ -194,9 +189,9 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
             delta_phi = abs(each_saved_entry[4] - point_n_angle[4])
             delta_psi = abs(each_saved_entry[5] - point_n_angle[5])
             tabu = (
-                delta_theta < a_threshold
-                and delta_phi < a_threshold
-                and delta_psi < a_threshold
+                    delta_theta < a_threshold
+                    and delta_phi < a_threshold
+                    and delta_psi < a_threshold
             )
 
     return tabu
@@ -220,7 +215,8 @@ def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
     composite = copy.deepcopy(seed)
     for vector in points_and_angles:
         composite = merge_two_molecules(vector, composite, monomer,
-                                        freeze_fragments=False, distance_scaling=d_scale)
+                                        freeze_fragments=False,
+                                        distance_scaling=d_scale)
     return composite
 
 
@@ -364,7 +360,8 @@ def create_trial_geometries(molecule_id, seed, monomer,
     orientations = []
     filename_prefix = 'trial_'
     for counter, vector in enumerate(points_and_angles):
-        new_orientation = merge_two_molecules(vector, seed, monomer, site=site, distance_scaling=proximity_factor)
+        new_orientation = merge_two_molecules(vector, seed, monomer, site=site,
+                                              distance_scaling=proximity_factor)
         new_orientation_id = f"{counter:03d}_{molecule_id}"
         new_orientation.title = f'trial orientation {new_orientation_id}'
         new_orientation.name = new_orientation_id
@@ -388,8 +385,10 @@ def plot_points(points, location):
     y = np.outer(np.sin(theta), np.sin(phi))
     z = np.outer(np.cos(theta), np.ones_like(phi))
     fig, ax = plt.subplots(1, 1, subplot_kw={'projection': '3d'})
-    ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1, linewidth=0.1)
-    ax.scatter(points[:, 0], points[:, 1], points[:, 2], s=100, c='r', zorder=10)
+    ax.plot_wireframe(x, y, z, color='blue', rstride=1, cstride=1,
+                      linewidth=0.1)
+    ax.scatter(points[:, 0], points[:, 1], points[:, 2], s=100, c='r',
+               zorder=10)
     fig.show()
     fig.savefig(f'{location}/points.png')
 
@@ -406,7 +405,7 @@ def write_tabu_list(tabu_list, tabu_file):
     """
     with open(tabu_file, 'a') as tf:
         for line in tabu_list:
-            tf.write(str(line) + ' ')
+            tf.write(f'{str(line)} ')
         tf.write('\n')
 
 

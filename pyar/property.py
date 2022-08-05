@@ -102,9 +102,7 @@ def hydrogen_bond_analysis(coordinates, covalent_radius, atomic_number, atoms_li
                 angle = calculate_angle(coordinates[bnd], coordinates[i],
                                         coordinates[j])
                 if angle > 160.0:
-                    print(
-                        "{}({}) - {}({}) = {}".format(atoms_list[i], i + 1, atoms_list[j], j + 1,
-                                                      dm[i, j]))
+                    print(f"{atoms_list[i]}({i + 1}) - {atoms_list[j]}({j + 1}) = {dm[i, j]}")
                     hbm[i, j] = dm[i, j]
     return hbm
 

@@ -34,7 +34,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         orientations.append(each_orientation)
     try:
         return clustering.remove_similar(orientations)
-    except:
+    except Exception:
         return orientations
 
 
@@ -44,27 +44,20 @@ def ab_dist(a, b, monomer, seed, pts):
     return np.linalg.norm(coordinates[a] - coordinates[b])
 
 
-def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b,
-                                           number_of_orientations, d_scale):
+def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, number_of_orientations, d_scale):
     tabu_check_for_angles = monomer.number_of_atoms != 1
     saved_pts = []
-
     orientations = []
     for _ in range(number_of_orientations):
         t1 = time.time()
         pts = pyar.tabu.generate_points(32, True, True, True, 0.3, 5.0)
         t2 = time.time()
-        pyar.tabu.tabu_logger.debug(
-            'Created points: in {} seconds'.format(t2 - t1))
+        pyar.tabu.tabu_logger.debug(f'Created points: in {t2 - t1} seconds')
         t1 = time.time()
-        current_orientations = [
-            pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b])
-            for vector in pts
-        ]
+        current_orientations = [pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]) for vector in pts]
 
         t2 = time.time()
-        pyar.tabu.tabu_logger.debug(
-            'Created orientations {} seconds'.format(t2 - t1))
+        pyar.tabu.tabu_logger.debug(f'Created orientations {t2 - t1} seconds')
         t1 = time.time()
         stored_orientations = {}
         for j, each_orientation in enumerate(current_orientations):
@@ -73,14 +66,13 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b,
             stored_orientations[j] = dist
         best_orientation = min(stored_orientations, key=stored_orientations.get)
         best_point = pts[best_orientation]
-        pyar.tabu.tabu_logger.debug("{} {}".format(best_orientation,
-                                                   stored_orientations[
-                                                       best_orientation]))
+        pyar.tabu.tabu_logger.debug(f"{best_orientation} {stored_orientations[best_orientation]}")
+
+
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
         t2 = time.time()
-        pyar.tabu.tabu_logger.debug(
-            'Found best orientation in {} seconds'.format(t2 - t1))
+        pyar.tabu.tabu_logger.debug(f'Found best orientation in {t2 - t1} seconds')
 
     t1 = time.time()
     filename_prefix = 'trial_'
@@ -91,9 +83,8 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b,
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
     t2 = time.time()
-    pyar.tabu.tabu_logger.debug('Wrote files in {} seconds'.format(t2 - t1))
+    pyar.tabu.tabu_logger.debug(f'Wrote files in {t2 - t1} seconds')
     pyar.tabu.write_tabu_list(saved_pts, 'tabu.dat')
-
     return orientations
 
 

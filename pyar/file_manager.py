@@ -35,7 +35,7 @@ def important_file_check(*arguments):
         try:
             open(i).readlines()
         except IOError:
-            print("file <%s> does not exist" % i)
+            print(f"file <{i}> does not exist")
     return
 
 
@@ -57,9 +57,10 @@ def make_directories(*arguments):
     """
     for dirs in arguments:
         if not os.path.isdir(dirs):
-            file_manager_logger.debug('making directory: {}'.format(dirs))
+            file_manager_logger.debug(f'making directory: {dirs}')
         else:
-            file_manager_logger.debug('{} exists! remvoing and recreating the directory'.format(dirs))
+            file_manager_logger.debug(f'{dirs} exists! remvoing and recreating the directory')
+
             shutil.rmtree(dirs)
         os.makedirs(dirs)
     return
@@ -99,8 +100,7 @@ def get_files(extension, destination="./"):
     simply "xyz", "out" , "log" etc.
 
     """
-
-    files_needed = destination + "*." + extension
+    files_needed = f"{destination}*.{extension}"
     print(files_needed)
     files = glob.glob(files_needed)
     return [os.path.basename(each_file) for each_file in files]
@@ -111,8 +111,7 @@ def get_dirs_files(destination="./", wildcard="*"):
        destination. Note, it will use glob. So, will not test for files
 
     """
-
-    dirs = glob.glob(destination + "/" + wildcard)
+    dirs = glob.glob(f"{destination}/{wildcard}")
     sub_directories = []
     for i in dirs:
         last_name = os.path.basename(i)
@@ -144,7 +143,7 @@ def bulk_move(*args):
     directory_name = args[-1]
     print("directory_name:", directory_name)
     for items in args[:-1]:
-        for name in glob.glob('./*' + str(items) + '*'):
+        for name in glob.glob(f'./*{str(items)}*'):
             move_file(name, name, directory_name)
     return
 
@@ -157,11 +156,10 @@ def bulk_copy(*args):
     :return: Nothing
 
     """
-
     directory_name = args[-1]
     print("directory_name:", directory_name)
     for items in args[:-1]:
-        for name in glob.glob("./*" + str(items) + "*"):
+        for name in glob.glob(f"./*{str(items)}*"):
             shutil.copy(name, directory_name)
     return
 
@@ -172,8 +170,8 @@ def write_result(filename, **kwargs):
     """
     mode = kwargs.pop("mode", 'w')
     with open(filename, mode) as result_file:
-        for (name, value) in kwargs.items():
-            result_file.write("%s = %s   " % (name, value))
+        for name, value in kwargs.items():
+            result_file.write(f"{name} = {value}   ")
         result_file.write("\n")
 
 

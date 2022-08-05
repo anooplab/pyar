@@ -55,37 +55,24 @@ def make_internal_coordinates(mol):
     dm = pyar.property.get_distance_matrix(coordinates)
     bm = pyar.property.get_bond_matrix(coordinates, covalent_radius)
     bl = []
-    for a_i in range(len(coordinates)):
-        for a_j in range(len(coordinates)):
-            if bm[a_i, a_j]:
-                seq = [a_i, a_j]
-                if seq[::-1] not in [i[0] for i in bl]:
-                    bl.append([seq, dm[a_i, a_j]])
+    for a_i, a_j in product(range(len(coordinates)), range(len(coordinates))):
+        if bm[a_i, a_j]:
+            seq = [a_i, a_j]
+            if seq[::-1] not in [i[0] for i in bl]:
+                bl.append([seq, dm[a_i, a_j]])
     al = []
     for a_i, a_j, k in product(range(len(coordinates)), repeat=3):
         if a_i != a_j and a_j != k and a_i != k and bm[a_i, a_j] and bm[a_j, k]:
             seq = [a_i, a_j, k]
             if seq[::-1] not in [i[0] for i in al]:
-                al.append([seq, pyar.property.calculate_angle(coordinates[a_i], coordinates[a_j],
-                                                              coordinates[k])])
+                al.append([seq, pyar.property.calculate_angle(coordinates[a_i], coordinates[a_j], coordinates[k])])
 
     dl = []
     for a_i, a_j, k, l in product(range(len(coordinates)), repeat=4):
-        if (
-                a_i != a_j
-                and a_i != k
-                and a_i != l
-                and a_j != k
-                and a_j != l
-                and k != l
-                and bm[a_i, a_j]
-                and bm[a_j, k]
-                and bm[k, l]
-        ):
+        if a_i != a_j and a_i != k and a_i != l and a_j != k and a_j != l and k != l and bm[a_i, a_j] and bm[a_j, k] and bm[k, l]:
             seq = [a_i, a_j, k, l]
             if seq[::-1] not in [i[0] for i in dl]:
                 dl.append([seq, pyar.property.calculate_dihedral(a_i, a_j, k, l)])
-
     return [bl, al, dl]
 
 
@@ -116,13 +103,12 @@ def coulomb_matrix(atoms_list, coordinates):
     number_of_atoms = len(atoms_list)
     coords = coordinates
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
-    for i in range(number_of_atoms):
-        for j in range(number_of_atoms):
-            if i == j:
-                c_matrix[i, j] = 0.5 * (charges[i] ** 2.4)
-            else:
-                r_ij = np.linalg.norm(coords[i, :] - coords[j, :])
-                c_matrix[i, j] = (charges[i] * charges[j]) / r_ij
+    for i, j in product(range(number_of_atoms), range(number_of_atoms)):
+        if i == j:
+            c_matrix[i, j] = 0.5 * charges[i]**2.4
+        else:
+            r_ij = np.linalg.norm(coords[i, :] - coords[j, :])
+            c_matrix[i, j] = charges[i] * charges[j] / r_ij
     return c_matrix
 
 

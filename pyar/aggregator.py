@@ -24,10 +24,10 @@ def random_permutation(iterable, r=None):
 def read_old_path():
     path = []
     needed_elements = 3 if 'DEBUG' in open('pyar.log') else 2
-    for line in open('pyar.log').readlines():
+    for line in open('pyar.log'):
         split_line = line.split(':')
-        if len(split_line) == needed_elements and \
-                split_line[-2].strip().isnumeric():
+        if len(split_line) == needed_elements and split_line[
+            -2].strip().isnumeric():
             path.append(split_line[-1].rstrip())
     return path or None
 
@@ -104,7 +104,8 @@ def aggregate(molecules,
                                                            seed_names,
                                                            aggregate_sizes):
         seed_molecule.name = seed_name
-        monomers_to_be_added.extend(seed_molecule for _ in range(size_of_this_seed))
+        monomers_to_be_added.extend(
+            seed_molecule for _ in range(size_of_this_seed))
         ag_id += f"_{seed_name}_000"
 
     if len(molecules) == 1:
@@ -217,7 +218,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
 
     starting_directory = os.getcwd()
     aggregator_logger.info(
-        "Starting Aggregation in\n {}".format(starting_directory))
+        f"Starting Aggregation in\n {starting_directory}")
     for aggregation_counter in range(2, aggregate_size + 2):
         if len(seeds) == 0:
             aggregator_logger.info("No seeds to process")
@@ -228,14 +229,14 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
         os.chdir(aggregate_home)
 
         aggregator_logger.info(
-            " Starting aggregation cycle: {}".format(aggregation_counter))
+            f" Starting aggregation cycle: {aggregation_counter}")
 
         seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations,
                         qc_params, maximum_number_of_seeds, tabu_on, grid_on,
                         site)
 
         aggregator_logger.info(
-            " Aggregation cycle: {} completed\n".format(aggregation_counter))
+            f" Aggregation cycle: {aggregation_counter} completed\n")
 
         if hm_orientations == 'auto' and number_of_orientations <= 256:
             number_of_orientations *= 2
@@ -253,8 +254,7 @@ def read_orientations(molecule_id, noo):
     return orientations
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
-            maximum_number_of_seeds, tabu_on, grid_on, site):
+def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, tabu_on, grid_on, site):
     """
     Add one monomer to all the seed molecules
 
@@ -280,16 +280,15 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
-    aggregator_logger.info(
-        f'  There are {len(seeds)} seed molecules in {aggregate_id}')
-    cwd = os.getcwd()
+    aggregator_logger.info(f'  There are {len(seeds)} seed molecules in {aggregate_id}')
 
+    cwd = os.getcwd()
     list_of_optimized_molecules = []
     for seed_count, each_seed in enumerate(seeds):
         if check_stop_signal():
             aggregator_logger.info("Function: add_one")
             return
-        aggregator_logger.info('   Seed: {}'.format(seed_count))
+        aggregator_logger.info(f'   Seed: {seed_count}')
         seed_id = "{:03d}".format(seed_count)
         seeds_home = f'seed_{seed_id}'
         if not os.path.exists(seeds_home):
@@ -301,16 +300,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
             hm_orientations = 1
         mol_id = f'{seed_id}_{aggregate_id}'
         aggregator_logger.debug('Making orientations')
-        if not all(
-                os.path.exists(f"trial_{i:03d}_{mol_id}.xyz")
-                for i in range(hm_orientations)
-        ):
-            all_orientations = tabu.create_trial_geometries(mol_id,
-                                                            seeds[seed_count],
-                                                            monomer,
-                                                            hm_orientations,
-                                                            tabu_on, grid_on,
-                                                            site)
+        if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(hm_orientations)):
+            all_orientations = tabu.create_trial_geometries(mol_id, seeds[seed_count], monomer, hm_orientations, tabu_on, grid_on, site)
+
             aggregator_logger.debug('Orientations are made.')
         else:
             all_orientations = read_orientations(mol_id, hm_orientations)
@@ -318,25 +310,21 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         status_list = [False for _ in not_converged]
         for i in range(10):
             if len(not_converged) > 0:
-                aggregator_logger.info(
-                    f"    Round {i + 1:d} of block optimizations with"
-                    f" {len(not_converged):d} molecules")
+                aggregator_logger.info(f"    Round {i + 1:d} of block optimizations with {len(not_converged):d} molecules")
+
                 qc_params["opt_threshold"] = 'loose'
-                status_list = [optimise(each_mol, qc_params) for each_mol in
-                               not_converged]
-                converged = [n for n, s in zip(not_converged, status_list) if
-                             s is True]
+                status_list = [optimise(each_mol, qc_params) for each_mol in not_converged]
+                converged = [n for n, s in zip(not_converged, status_list) if s is True]
                 list_of_optimized_molecules.extend(converged)
-                not_converged = [n for n, s in zip(not_converged, status_list)
-                                 if s == 'CycleExceeded' and not tabu.broken(n)]
+                not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded' and not tabu.broken(n)]
+
                 not_converged = clustering.remove_similar(not_converged)
             else:
                 aggregator_logger.info("    All molecules are processed")
                 break
         else:
-            aggregator_logger.info(
-                "    The following molecules are not converged"
-                "after 10 rounds")
+            aggregator_logger.info("    The following molecules are not convergedafter 10 rounds")
+
             for n, s in zip(not_converged, status_list):
                 if s == 'CycleExceeded' and not tabu.broken(n):
                     aggregator_logger.info("      ", n.name)
@@ -356,19 +344,16 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
         os.chdir(cwd)
     else:
         file_manager.make_directories('selected')
-
     if len(list_of_optimized_molecules) < 2:
         selected_seeds = list_of_optimized_molecules
     else:
         aggregator_logger.info("  Clustering")
-        selected_seeds = clustering.choose_geometries(
-            list_of_optimized_molecules,
-            maximum_number_of_seeds=maximum_number_of_seeds)
+        selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
 
     os.chdir('selected')
     qc_params["opt_threshold"] = 'normal'
-    aggregator_logger.info("Optimizing the selected molecules with higher "
-                           "threshold")
+    aggregator_logger.info("Optimizing the selected molecules with higher threshold")
+
     less_than_ideal = []
     for each_file in selected_seeds:
         not_refined = copy.deepcopy(each_file)
@@ -381,8 +366,8 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params,
             less_than_ideal.append(not_refined)
     if len(selected_seeds) != 0:
         return selected_seeds
-    aggregator_logger.info("    The optimization could not be refined, \n"
-                           "    so sending the loosely optimised molecules")
+    aggregator_logger.info("    The optimization could not be refined, \n    so sending the loosely optimised molecules")
+
     return less_than_ideal
 
 
@@ -409,7 +394,7 @@ def update_id(aid, the_monomer):
 
 def check_stop_signal():
     if os.path.exists('stop') or os.path.exists('STOP'):
-        aggregator_logger.info("Found stop file, in {}".format(os.getcwd()))
+        aggregator_logger.info(f"Found stop file, in {os.getcwd()}")
         return 1
 
 
