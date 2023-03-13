@@ -299,13 +299,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         if len(each_seed) == 1:
             hm_orientations = 1
         mol_id = f'{seed_id}_{aggregate_id}'
-        aggregator_logger.debug('Making orientations')
-        if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(hm_orientations)):
-            all_orientations = tabu.create_trial_geometries(mol_id, seeds[seed_count], monomer, hm_orientations, tabu_on, grid_on, site)
-
-            aggregator_logger.debug('Orientations are made.')
-        else:
-            all_orientations = read_orientations(mol_id, hm_orientations)
+        all_orientations = generate_orientations(grid_on, hm_orientations,
+                                                 mol_id, monomer, seed_count,
+                                                 seeds, site, tabu_on)
         not_converged = all_orientations[:]
         status_list = [False for _ in not_converged]
         for i in range(10):
@@ -330,18 +326,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                     aggregator_logger.info("      ", n.name)
         os.chdir(cwd)
     if os.path.exists('selected'):
-        os.chdir('selected')
-        optimized_molecules = [i.name for i in list_of_optimized_molecules]
-        job_done = []
-        selected_seeds = []
-        for i in optimized_molecules:
-            for j in os.listdir():
-                if f'job_{i}' == j:
-                    job_done.append(j)
-                    if f'result_{i}.xyz' == j:
-                        selected_seeds.append(i)
-                        list_of_optimized_molecules.pop(j)
-        os.chdir(cwd)
+        check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd)
     else:
         file_manager.make_directories('selected')
     if len(list_of_optimized_molecules) < 2:
@@ -366,9 +351,61 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             less_than_ideal.append(not_refined)
     if len(selected_seeds) != 0:
         return selected_seeds
-    aggregator_logger.info("    The optimization could not be refined, \n    so sending the loosely optimised molecules")
+    aggregator_logger.info("    The optimization could not be refined, \n"
+                           "    so sending the loosely optimised molecules")
 
     return less_than_ideal
+
+
+def check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd):
+    os.chdir('selected')
+    optimized_molecules = [i.name for i in list_of_optimized_molecules]
+    job_done = []
+    result = []
+    for i in optimized_molecules:
+        for j in os.listdir():
+            if f'job_{i}' == j:
+                job_done.append(j)
+                if f'result_{i}.xyz' == j:
+                    result.append(i)
+                    list_of_optimized_molecules.pop(j)
+    os.chdir(cwd)
+    return result
+
+
+# def generate_orientations(use_grid, num_orientations, mol_id, monomer,
+#                           seed_counter, seeds, site, use_tabu):
+#     aggregator_logger.debug('Making orientations')
+#     if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in
+#                range(num_orientations)):
+#         all_orientations = tabu.create_trial_geometries(mol_id,
+#                                                         seeds[seed_counter],
+#                                                         monomer,
+#                                                         num_orientations,
+#                                                         use_tabu, use_grid, site)
+#
+#         aggregator_logger.debug('Orientations are made.')
+#     else:
+#         all_orientations = read_orientations(mol_id, num_orientations)
+#     return all_orientations
+
+
+def generate_orientations(use_grid, num_orientations, mol_id, monomer,
+                          seed_counter, seeds, site, use_tabu):
+    aggregator_logger.debug('Making orientations')
+    if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(num_orientations)):
+        yield from tabu.create_trial_geometries(
+            mol_id,
+            seeds[seed_counter],
+            monomer,
+            num_orientations,
+            use_tabu,
+            use_grid,
+            site,
+        )
+        aggregator_logger.debug('Orientations are made.')
+    else:
+        yield from read_orientations(mol_id, num_orientations)
 
 
 def update_id(aid, the_monomer):

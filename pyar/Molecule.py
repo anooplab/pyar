@@ -235,7 +235,25 @@ class Molecule(object):
 
     def split_coordinates(self, coordinates=None):
         """
-        Split coordinate in to two fragments.
+        This function splits coordinates into a list of coordinates
+        for each fragment in self.fragments. 
+        
+        Inputs:
+            coordinates (optional): Coordinates to be split. 
+                                    Defaults to self.coordinates.
+        
+        Outputs:
+            split_coordinates: List of coordinates for each fragment.
+        
+        Steps:
+            1. If no coordinates are specified, use self.coordinates 
+               as the coordinates to split.
+            2. Iterate through each fragment in self.fragments.
+            3. For each fragment, extract the coordinates for the 
+               corresponding atoms.
+            4. Append the extracted coordinates to the list of 
+               split_coordinates. 
+            5. Return the list of split_coordinates.
 
         :type coordinates: ndarray
         :param coordinates: coordinates
