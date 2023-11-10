@@ -302,7 +302,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         all_orientations = generate_orientations(grid_on, hm_orientations,
                                                  mol_id, monomer, seed_count,
                                                  seeds, site, tabu_on)
-        not_converged = all_orientations[:]
+        not_converged = list(all_orientations)[:]
         status_list = [False for _ in not_converged]
         for i in range(10):
             if len(not_converged) > 0:
@@ -319,7 +319,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                 aggregator_logger.info("    All molecules are processed")
                 break
         else:
-            aggregator_logger.info("    The following molecules are not convergedafter 10 rounds")
+            aggregator_logger.info("    The following molecules are not converged after 10 rounds")
 
             for n, s in zip(not_converged, status_list):
                 if s == 'CycleExceeded' and not tabu.broken(n):
@@ -393,7 +393,8 @@ def check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd):
 def generate_orientations(use_grid, num_orientations, mol_id, monomer,
                           seed_counter, seeds, site, use_tabu):
     aggregator_logger.debug('Making orientations')
-    if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(num_orientations)):
+    if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz")
+               for i in range(num_orientations)):
         yield from tabu.create_trial_geometries(
             mol_id,
             seeds[seed_counter],
