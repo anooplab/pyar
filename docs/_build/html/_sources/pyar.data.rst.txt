@@ -1,29 +1,29 @@
-pyar.data package
+pymlgen.data package
 =================
 
 Submodules
 ----------
 
-pyar.data.atomic\_data module
+pymlgen.data.atomic\_data module
 -----------------------------
 
-.. automodule:: pyar.data.atomic_data
+.. automodule:: pymlgen.data.atomic_data
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.data.defualt\_parameters module
+pymlgen.data.defualt\_parameters module
 ------------------------------------
 
-.. automodule:: pyar.data.defualt_parameters
+.. automodule:: pymlgen.data.defualt_parameters
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.data.units module
+pymlgen.data.units module
 ----------------------
 
-.. automodule:: pyar.data.units
+.. automodule:: pymlgen.data.units
    :members:
    :undoc-members:
    :show-inheritance:
@@ -32,7 +32,7 @@ pyar.data.units module
 Module contents
 ---------------
 
-.. automodule:: pyar.data
+.. automodule:: pymlgen.data
    :members:
    :undoc-members:
    :show-inheritance:

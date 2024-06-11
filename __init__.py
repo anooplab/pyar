@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    PyAR
+    pymlgen
     ~~~~
 
     A Python code for Aggregation and Reaction.

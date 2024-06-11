@@ -44,7 +44,7 @@ class Xtb(SF):
             self.cmd = "{} -chrg {}".format(self.cmd, self.charge)
         if self.multiplicity != 1:
             self.cmd = "{} -uhf {}".format(self.cmd, self.multiplicity)
-        if self.multiplicity == 1 and self.scftype is not 'rhf':
+        if self.multiplicity == 1 and self.scftype is not 'rhf':  # noqa: F632
             self.cmd = "{} -{}".format(self.cmd, self.scftype)
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
@@ -63,7 +63,7 @@ class Xtb(SF):
 
         with open('xtb.out', 'w') as output_file_pointer:
             try:
-                out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
+                out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)  # noqa: F841
             except Exception as e:
                 xtb_logger.info('    Optimization failed')
                 xtb_logger.error(f"      {e}")

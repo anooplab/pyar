@@ -5,7 +5,7 @@ Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
 Universitaet Muenster, Germany
 
-This file is part of the PyAR project.
+This file is part of the pyar project.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ orca_logger = logging.getLogger('pyar.orca')
 
 
 class Orca(SF):
-    def __init__(self, molecule, qc_params, custom_keyword=None):
+    def __init__(self, molecule, qc_params):
 
         super(Orca, self).__init__(molecule)
 
@@ -38,7 +38,7 @@ class Orca(SF):
         self.out_file = 'trial_' + self.job_name + '.out'
         self.optimized_coordinates = []
         self.energy = 0.0
-        print(custom_keyword)
+        # print(custom_keyword)
         keyword = f"! {qc_params['method']} {qc_params['basis']}"
 
         if any(x >= 21 for x in molecule.atomic_number):
@@ -47,8 +47,8 @@ class Orca(SF):
         if self.scftype == 'uks':
             keyword += ' UKS'
         nprocs = qc_params['nprocs']
-        if custom_keyword is not None:
-            keyword += custom_keyword
+        # if custom_keyword is not None:
+        #     keyword += custom_keyword
         keyword += f"\n%pal nprocs {nprocs} end\n"
         keyword += f"%scf maxiter {qc_params['scf_cycles']} end\n"
         self.keyword = keyword
@@ -64,16 +64,16 @@ class Orca(SF):
                     " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
             f1.write("*")
 
-    def optimize(self, options):
+    def optimize(self):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
         """
         # TODO: Add a return 'CycleExceeded'
 
-        max_cycles = options['opt_cycles']
-        gamma = options['gamma']
-        convergence = options['opt_threshold']
+        # max_cycles = options['opt_cycles']  # noqa: F841
+        # gamma = options['gamma']  # noqa: F841
+        # convergence = options['opt_threshold']  # noqa: F841
 
         self.keyword = self.keyword + '!Opt'
         self.prepare_input()

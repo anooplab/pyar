@@ -1,10 +1,10 @@
 """
-Handle files and directories in PyAR
+Handle files and directories in pyar
 
 Copyright (C) 2016 by AnoopLab at Indian Institute of Technology Kharagpur, India
 Author: Surajit Nandi
 
-file_manager.py is part of the PyAR project.
+file_manager.py is part of the pyar project.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

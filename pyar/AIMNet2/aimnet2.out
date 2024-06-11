@@ -1,0 +1,6 @@
+Loading AIMNet2 model from file ./models/aimnet2_wb97m-d3_ens.jpt
+       Step     Time          Energy          fmax
+LBFGS:    0 00:07:38    -2081.040424         0.636954
+LBFGS:    1 00:07:42    -2081.044631         0.239106
+LBFGS:    2 00:07:44    -2081.046005         0.163296
+LBFGS:    3 00:07:46    -2081.047412         0.003252

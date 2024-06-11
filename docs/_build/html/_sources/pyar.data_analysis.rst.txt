@@ -1,13 +1,13 @@
-pyar.data\_analysis package
+pymlgen.data\_analysis package
 ===========================
 
 Submodules
 ----------
 
-pyar.data\_analysis.clustering module
+pymlgen.data\_analysis.clustering module
 -------------------------------------
 
-.. automodule:: pyar.data_analysis.clustering
+.. automodule:: pymlgen.data_analysis.clustering
    :members:
    :undoc-members:
    :show-inheritance:
@@ -16,7 +16,7 @@ pyar.data\_analysis.clustering module
 Module contents
 ---------------
 
-.. automodule:: pyar.data_analysis
+.. automodule:: pymlgen.data_analysis
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-"""Command line interface for PyAR"""
+"""Command line interface for pymlgen"""
 import argparse
 import os
 import sys
 
 import numpy as np
 
-import pyar.scan
-import pyar.tabu
+import pymlgen.scan
+import pymlgen.tabu
 
 
 def tabu_function():
@@ -58,7 +58,7 @@ def tabu_function():
     d_scale = args.distance_scaling
     print("distance scale = ", d_scale, "; files ", args.file)
     if args.file:
-        from pyar.Molecule import Molecule
+        from pymlgen.Molecule import Molecule
         seed = Molecule.from_xyz(args.file[0])
         monomer = Molecule.from_xyz(args.file[1])
     else:
@@ -67,10 +67,10 @@ def tabu_function():
 
     tabu_on = args.tabu == 'y:'
     grid_on = False
-    pts = pyar.tabu.generate_points(number_of_trial_orientations,
+    pts = pymlgen.tabu.generate_points(number_of_trial_orientations,
                                     tabu_on, grid_on, False)
     if args.plot:
-        pyar.tabu.plot_points(pts, os.getcwd())
+        pymlgen.tabu.plot_points(pts, os.getcwd())
 
     if args.make_configurations:
         if not (seed or monomer):
@@ -78,17 +78,17 @@ def tabu_function():
             print("Note: provide two molecules, '-i file1.xyz file2.xyz'")
             sys.exit()
         for i, vector in enumerate(pts):
-            pyar.tabu.merge_two_molecules(vector, seed,
+            pymlgen.tabu.merge_two_molecules(vector, seed,
                                           monomer, site=None,
                                           distance_scaling=1.5).mol_to_xyz(
                 f'mol_{i:03d}.xyz')
 
     if args.make_composite:
         for i in range(8):
-            pts = pyar.tabu.generate_points(number_of_trial_orientations,
+            pts = pymlgen.tabu.generate_points(number_of_trial_orientations,
                                             tabu_on=True, grid_on=True,
                                             check_angle=False)
-            result = pyar.tabu.create_composite_molecule(seed, monomer,
+            result = pymlgen.tabu.create_composite_molecule(seed, monomer,
                                                          pts, d_scale=d_scale)
             result.title = f"trial_{i:03d}"
             result.mol_to_xyz(f'result_{i:03}.xyz')
@@ -96,13 +96,13 @@ def tabu_function():
     if args.make_sphere:
         import scipy.spatial.distance as sdist
 
-        from pyar.data import new_atomic_data as atomic_data
-        from pyar.Molecule import Molecule
+        from pymlgen.data import new_atomic_data as atomic_data
+        from pymlgen.Molecule import Molecule
 
         radii = [atomic_data.covalent_radius[n] for n in
                  args.make_sphere.capitalize()]
 
-        points = pyar.tabu.distribute_points_uniformly(pts)
+        points = pymlgen.tabu.distribute_points_uniformly(pts)
         factor = pts / 10
         while np.min(sdist.pdist(points)) < 2 * radii:
             pts += factor
@@ -116,7 +116,7 @@ def tabu_function():
     if args.best:
         a = args.best[0]
         b = seed.number_of_atoms + args.best[1]
-        pyar.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b,
+        pymlgen.scan.generate_guess_for_bonding('xxx', seed, monomer, a, b,
                                              number_of_trial_orientations,
                                              d_scale=d_scale)
 

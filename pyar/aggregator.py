@@ -5,12 +5,13 @@ import random
 import shutil
 import string
 from collections import OrderedDict
-
+import numpy as np
 from pyar import tabu, file_manager
 from pyar.Molecule import Molecule
 from pyar.data_analysis import clustering
 from pyar.optimiser import optimise
-
+import re
+from pyar.Molecule import atomic_data
 aggregator_logger = logging.getLogger('pyar.aggregator')
 
 
@@ -254,29 +255,84 @@ def read_orientations(molecule_id, noo):
     return orientations
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, tabu_on, grid_on, site):
-    """
-    Add one monomer to all the seed molecules
+#This is a new add function for the aggregator, not adding the monomer to seed properly
 
-    :param tabu_on: Toggle the use of Tabu list
-    :param grid_on: Toggle the use of Grid
-    :param site: Not used
-    :return: List(Molecule.Molecule)
-    :type maximum_number_of_seeds: int
-    :param maximum_number_of_seeds: The maximum number of seeds to be
-        selected for next cycle
-    :param qc_params: parameters needed for calculation
-    :param qc_params: dict
-    :param hm_orientations: Number of orientation to be used.
-    :type hm_orientations: int
-    :type monomer: Molecule
-    :param monomer: monomer molecule
-    :type seeds: list[Molecule]
-    :param seeds: seed molecules to which monomer will be added.
-    :type aggregate_id: str
-    :param aggregate_id: An id for the aggregate used for
-        job_dir name and xyz file names
-    """
+# def add_new_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, tabu_on, grid_on, site):
+#     if check_stop_signal():
+#         aggregator_logger.info("Function: add_one")
+#         return StopIteration
+#     aggregator_logger.info(f'  There are {len(seeds)} seed molecules in {aggregate_id}')
+
+#     cwd = os.getcwd()
+#     list_of_optimized_molecules = []
+#     for seed_count, each_seed in enumerate(seeds):
+#         if check_stop_signal():
+#             aggregator_logger.info("Function: add_one")
+#             return
+#         aggregator_logger.info(f'   Seed: {seed_count}')
+#         seed_id = "{:03d}".format(seed_count)
+#         seeds_home = f'seed_{seed_id}'
+#         if not os.path.exists(seeds_home):
+#             file_manager.make_directories(seeds_home)
+#         os.chdir(seeds_home)
+#         each_seed.mol_to_xyz('seed.xyz')
+#         monomer.mol_to_xyz('monomer.xyz')
+#         if len(each_seed) == 1:
+#             hm_orientations = 1
+#         mol_id = f'{seed_id}_{aggregate_id}'
+#         aggregator_logger.debug('Making orientations')
+#         if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(hm_orientations)):
+#             aggregator_logger.info(f'Before create_trial_geometries: seed = {each_seed}, monomer = {monomer}')
+#             all_orientations = tabu.create_trial_geometries(mol_id, seeds[seed_count], monomer, hm_orientations, tabu_on, grid_on, site)
+#             aggregator_logger.info(f'After create_trial_geometries: seed = {each_seed}, monomer = {monomer}')
+#             aggregator_logger.debug('Orientations are made.')
+#         else:
+#             all_orientations = read_orientations(mol_id, hm_orientations)
+#         not_converged = list(all_orientations)[:]
+#         for i in range(10):
+#             if len(not_converged) > 0:
+#                 aggregator_logger.info(f"    Round {i + 1:d} of block optimizations with {len(not_converged):d} molecules")
+#                 status_list = [optimise(each_mol, qc_params) for each_mol in not_converged]
+#                 converged = [n for n, s in zip(not_converged, status_list) if s is True]
+#                 list_of_optimized_molecules.extend(converged)
+#                 not_converged = [n for n, s in zip(not_converged, status_list) if s is False]
+#                 not_converged = clustering.remove_similar(not_converged)
+#             else:
+#                 aggregator_logger.info("    All molecules are processed")
+#                 break
+#         os.chdir(cwd)
+#     if os.path.exists('selected'):
+#         check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd)
+        
+#         # os.chdir('selected')
+#         # optimized_molecules = [i.name for i in list_of_optimized_molecules]
+#         # selected_seeds = []
+#         # for i in optimized_molecules:
+#         #     if f'result_{i}.xyz' in os.listdir():
+#         #         selected_seeds.append(i)
+#         # os.chdir(cwd)
+#     else:
+#         file_manager.make_directories('selected')
+#     if len(list_of_optimized_molecules) < 2:
+#         selected_seeds = list_of_optimized_molecules
+#     else:
+#         aggregator_logger.info("  Clustering")
+
+#         selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
+#     os.chdir('selected')
+#     aggregator_logger.info("Copying the selected molecules")
+#     less_than_ideal = [] 
+#     for each_file in selected_seeds:
+#         not_refined = copy.deepcopy(each_file)
+#         less_than_ideal.append(not_refined)
+#         print(f'each_file = {each_file}')
+#     if len(selected_seeds) != 0:
+#         return selected_seeds
+#     aggregator_logger.info("    The optimization could not be refined")
+#     return less_than_ideal
+
+def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, tabu_on, grid_on, site):
+    
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
@@ -299,10 +355,14 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         if len(each_seed) == 1:
             hm_orientations = 1
         mol_id = f'{seed_id}_{aggregate_id}'
-        all_orientations = generate_orientations(grid_on, hm_orientations,
-                                                 mol_id, monomer, seed_count,
-                                                 seeds, site, tabu_on)
-        not_converged = list(all_orientations)[:]
+        aggregator_logger.debug('Making orientations')
+        if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(hm_orientations)):
+            all_orientations = tabu.create_trial_geometries(mol_id, seeds[seed_count], monomer, hm_orientations, tabu_on, grid_on, site)
+
+            aggregator_logger.debug('Orientations are made.')
+        else:
+            all_orientations = read_orientations(mol_id, hm_orientations)
+        not_converged = all_orientations[:]
         status_list = [False for _ in not_converged]
         for i in range(10):
             if len(not_converged) > 0:
@@ -319,14 +379,25 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                 aggregator_logger.info("    All molecules are processed")
                 break
         else:
-            aggregator_logger.info("    The following molecules are not converged after 10 rounds")
+            aggregator_logger.info("    The following molecules are not convergedafter 10 rounds")
 
             for n, s in zip(not_converged, status_list):
                 if s == 'CycleExceeded' and not tabu.broken(n):
                     aggregator_logger.info("      ", n.name)
         os.chdir(cwd)
     if os.path.exists('selected'):
-        check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd)
+        os.chdir('selected')
+        optimized_molecules = [i.name for i in list_of_optimized_molecules]
+        job_done = []
+        selected_seeds = []
+        for i in optimized_molecules:
+            for j in os.listdir():
+                if f'job_{i}' == j:
+                    job_done.append(j)
+                    if f'result_{i}.xyz' == j:
+                        selected_seeds.append(i)
+                        list_of_optimized_molecules.pop(j)
+        os.chdir(cwd)
     else:
         file_manager.make_directories('selected')
     if len(list_of_optimized_molecules) < 2:
@@ -351,8 +422,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             less_than_ideal.append(not_refined)
     if len(selected_seeds) != 0:
         return selected_seeds
-    aggregator_logger.info("    The optimization could not be refined, \n"
-                           "    so sending the loosely optimised molecules")
+    aggregator_logger.info("    The optimization could not be refined, \n    so sending the loosely optimised molecules")
 
     return less_than_ideal
 
@@ -373,22 +443,6 @@ def check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd):
     return result
 
 
-# def generate_orientations(use_grid, num_orientations, mol_id, monomer,
-#                           seed_counter, seeds, site, use_tabu):
-#     aggregator_logger.debug('Making orientations')
-#     if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in
-#                range(num_orientations)):
-#         all_orientations = tabu.create_trial_geometries(mol_id,
-#                                                         seeds[seed_counter],
-#                                                         monomer,
-#                                                         num_orientations,
-#                                                         use_tabu, use_grid, site)
-#
-#         aggregator_logger.debug('Orientations are made.')
-#     else:
-#         all_orientations = read_orientations(mol_id, num_orientations)
-#     return all_orientations
-
 
 def generate_orientations(use_grid, num_orientations, mol_id, monomer,
                           seed_counter, seeds, site, use_tabu):
@@ -407,7 +461,6 @@ def generate_orientations(use_grid, num_orientations, mol_id, monomer,
         aggregator_logger.debug('Orientations are made.')
     else:
         yield from read_orientations(mol_id, num_orientations)
-
 
 def update_id(aid, the_monomer):
     """
@@ -435,6 +488,78 @@ def check_stop_signal():
         aggregator_logger.info(f"Found stop file, in {os.getcwd()}")
         return 1
 
+def generate_molecule_from_formula(formula, box_size=None):
+    """
+    Generates a molecule object from a given formula using a Tabu-based approach within a box.
+
+    Args:
+        formula (str): The chemical formula of the molecule to generate.
+        box_size (float, optional): The size of the box in Angstroms. If None, it will be auto-generated.
+
+    Returns:
+        Molecule: The generated molecule object.
+    """
+
+    # Parse the formula into a dictionary of element counts
+    element_counts = {}
+    for match in re.findall(r'([A-Z][a-z]*)(\d*)', formula):
+        element, count = match
+        count = int(count) if count else 1
+        element_counts[element] = count
+
+    # Create a list of atoms based on the formula
+    atoms_list = []
+    for element, count in element_counts.items():
+        atoms_list.extend([element] * count)
+
+    # Auto-generate box size if not provided
+    if box_size is None:
+        max_radius = max(atomic_data.vdw_radii[atomic_data.atomic_number[atom]] for atom in atoms_list)
+        box_size = 2 * max_radius + 2.0  # Add some buffer space
+
+    # Generate initial random coordinates within the box
+    coordinates = np.random.uniform(0, box_size, size=(len(atoms_list), 3))
+
+    # Create the initial molecule object
+    molecule = Molecule(atoms_list, coordinates)
+
+    # Use Tabu search to optimize the molecule's geometry
+    tabu_options = {
+        'number_of_orientations': 100,  # Adjust as needed
+        'tabu_on': True,
+        'grid_on': True,
+        'd_threshold': 0.3,  # Adjust as needed
+        'a_threshold': 15.0  # Adjust as needed
+    }
+    optimized_molecule = tabu.create_composite_molecule(molecule, molecule, tabu_options, d_scale=1.5)
+
+    return optimized_molecule
+
+
+def aggregate_from_formulas(formulas, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
+                            first_pathway, number_of_pathways, tabu_on, grid_on, site):
+    """
+    Generates aggregates from given formulas using a Tabu-based approach within a box.
+
+    Args:
+        formulas (list): A list of chemical formulas for the molecules to aggregate.
+        aggregate_sizes (list): The number of each molecule in the final aggregate.
+        hm_orientations (int): Number of trial orientations.
+        qc_params (dict): Parameters for Quantum Chemistry Calculations.
+        maximum_number_of_seeds (int): The maximum number of seeds to be selected for the next cycle.
+        first_pathway (int): The starting pathway.
+        number_of_pathways (int): The number of pathways to explore.
+        tabu_on (bool): Toggle the use of Tabu list.
+        grid_on (bool): Toggle the use of Grid.
+        site (list, optional): Not used now, but needed for create_trial_molecules().
+    """
+
+    # Generate molecule objects from formulas
+    molecules = [generate_molecule_from_formula(formula) for formula in formulas]
+
+    # Call the original aggregate function with the generated molecules
+    aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
+              first_pathway, number_of_pathways, tabu_on, grid_on, site)
 
 def main():
     pass

@@ -20,10 +20,10 @@ optimiser_logger = logging.getLogger('pyar.optimiser')
 
 
 def optimise(molecule, qc_params):
-    opt_options = {option: qc_params[option] for option in ['gamma', 'opt_cycles', 'opt_threshold']}
+    # opt_options = {option: qc_params[option] for option in ['gamma', 'opt_cycles', 'opt_threshold']}
 
-    gamma = qc_params['gamma']
-    custom_keyword = qc_params['custom_keyword']
+    # gamma = qc_params['gamma']
+    # custom_keyword = qc_params['custom_keyword']
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'Opt job'
@@ -39,44 +39,53 @@ def optimise(molecule, qc_params):
         os.chdir(cwd)
         return True
     software = qc_params['software']
-    if software == 'xtb':
-        from pyar.interface import xtb
-        geometry = xtb.Xtb(molecule, qc_params)
-    elif software == 'xtb_turbo':
-        if gamma == 0.0:
-            from pyar.interface import xtb
-            geometry = xtb.Xtb(molecule, qc_params)
-        else:
-            from pyar.interface import xtbturbo
-            geometry = xtbturbo.XtbTurbo(molecule, qc_params)
-    elif software == 'turbomole':
-        from pyar.interface import turbomole
-        geometry = turbomole.Turbomole(molecule, qc_params)
-    elif software == "mopac":
-        from pyar.interface import mopac
-        geometry = mopac.Mopac(molecule, qc_params)
+    
+    if software == 'mlatom_aiqm1':
+        from pyar.interface import mlatom_aiqm1
+        geometry = mlatom_aiqm1.MlatomAiqm1(molecule, qc_params)
+        # geometry.run()
+        # molecule.energy = geometry.energy
+        # molecule.coordinates = geometry.optimized_coordinates
+        # optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy:15.6f}')
+        
+        # os.chdir(cwd)
+        # return True
+    
     elif software == "orca":
         from pyar.interface import orca
-        geometry = orca.Orca(molecule, qc_params, custom_keyword=custom_keyword)
-    elif software == 'obabel':
+        geometry = orca.Orca(molecule, qc_params)
+    elif software == "xtb":
+        from pyar.interface import xtb
+        geometry = xtb.Xtb(molecule, qc_params)
+    elif software == "aimnet_2":
+        from pyar.interface import aimnet_2
+        geometry = aimnet_2.Aimnet2(molecule, qc_params)
+    elif software == "aiqm1_mlatom":
+         from pyar.interface import aiqm1_mlatom
+         geometry = aiqm1_mlatom.AIQM1(molecule, qc_params) # noqa: F401
+    elif software == "xtb-aimnet2":
+        from pyar.interface import xtb_aimnet2
+        geometry = xtb_aimnet2.XtbAimnet2(molecule, qc_params)
+    elif software == "xtb-aiqm1":
+        from pyar.interface import xtb_aiqm1
+        geometry = xtb_aiqm1.XtbAIQM1(molecule, qc_params)
+    elif software == 'obabel': 
         from pyar.interface import babel
         geometry = babel.OBabel(molecule)
-    elif software == 'psi4':
-        from pyar.interface import psi4
-        geometry = psi4.Psi4(molecule, qc_params)
-    elif software == 'gaussian':
-        from pyar.interface import gaussian
-        geometry = gaussian.Gaussian(molecule, qc_params)
-    optimize_status = geometry.optimize(opt_options)
-    if optimize_status is True or optimize_status == 'converged' or optimize_status == 'CycleExceeded':
+    
+    
+    optimize_status = geometry.optimize()
+    # if optimize_status is True or optimize_status == 'converged' or optimize_status == 'CycleExceeded':
+    if optimize_status is True:
         molecule.energy = geometry.energy
-        molecule.coordinates = geometry.optimized_coordinates
-        optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy:15.6f}')
-    elif optimize_status == 'SCFFailed':
-        from numpy.random import uniform
-        molecule.coordinates += uniform(-0.1, 0.1, (molecule.number_of_atoms, 3))
-        os.chdir(cwd)
-        optimize_status = optimise(molecule, qc_params)
+        # molecule.coordinates = geometry.optimized_coordinates
+        optimiser_logger.info(f'     {molecule.name:35s}: {float(geometry.energy):15.6f}')
+        # optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy}')
+    # elif optimize_status == 'SCFFailed':
+    #     from numpy.random import uniform
+    #     molecule.coordinates += uniform(-0.1, 0.1, (molecule.number_of_atoms, 3))
+    #     os.chdir(cwd)
+    #     optimize_status = optimise(molecule, qc_params)
     else:
         molecule.energy = None
         molecule.coordinates = None
