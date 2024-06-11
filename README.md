@@ -1,5 +1,22 @@
-# PyMLGen
-This is an integration of pyar aggregator module and MLAtom package, where the Tabu heuristic of aggregator module run with the interface of AIQM1 potential.
+# PyAR
+PyAR stands for "Python program for aggregation and reaction"
+
+# Installation
+
+Download the file pyar-master.zip. Unzip it. Go the the folder and ```sudo python3 setup.py install```
+This will create python package in the path **/usr/local/lib/python3.6/dist-packages/pyar/**
+and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
+
+or
+
+Run the following command in the pyar folder
+```sudo -H pip install .```
+# Features:
+* Automated prediction of unknown reactions between two reactants (A+B)
+* Automated prediction of the geometries of aggregates, atomic clusters etc.
+* Automated search for reaction for bond forming between two atoms in two different molecules.
+
+
 
 ## Setting Up Environment
 
@@ -46,6 +63,10 @@ pip install git+https://github.com/christopherjenness/DBCV.git
 
 # Interfaced with electronic structure theory programmes
 - mlatom_aiqm1
+- aimnet2
+- Mopac
+- Turbomole
+- Psi4
 - Xtb
 - Orca
 
@@ -72,6 +93,36 @@ C  0.0  0.0   0.0
 hydrogen
 H  0.0  0.0   0.0
 ```
+# Reaction
+
+To study the reaction between two reactants A and B using ORCA software interface, with force from 100 to 1000 using N=8 trial orientation, the commandline line argument is,
+
+```pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --ssoftware orca```
+
+A.xyz and B.xyz are the cartesian coordinate files of the reactants
+
+## pyar-cli
+The main program can be used as below:
+
+```
+pyar-cli options files
+```
+
+There are other scripts for a few automation tasks.
+
+## pyar-tabu
+pyar-tabu can be used for
+* for making different orientations of two molecules.
+* Making a composite molecule containing a _seed_ molecule and __N__ number of monomer molecules.
+* Orient two molecules such that _i_'th atom of one molecule and _j_ 'th atom of second molecule have shortest distance
+between them
+
+## pyar-clustering
+* for a clustering analysis of n input molecules to find unique molecules.
+
+## pyar-optimiser
+* for the bulk optimisation of several molecules
+
 
 
 # References
