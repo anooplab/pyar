@@ -5,7 +5,13 @@ import numpy as np
 
 import pyar.property
 from pyar.Molecule import Molecule
-
+# import torch
+# import torchani
+# from DBCV import DBCV
+from dscribe.descriptors import MBTR, SOAP, LMBTR, ACSF, SineMatrix, ValleOganov
+# from ase.io import read
+from ase import Atoms
+# import glob
 
 def get_rsmd(mol):
     """Molecular Descriptor written by Rajat Shubhro Majumdar"""
@@ -99,7 +105,8 @@ def coulomb_matrix(atoms_list, coordinates):
 
     """
     from pyar.data import new_atomic_data as atomic_data
-    charges = [atomic_data.atomic_number[c.capitalize()] for c in atoms_list]
+    # charges = [atomic_data.atomic_number[c.capitalize()] for c in atoms_list]
+    charges = [atomic_data.atomic_number[c.capitalize()] if isinstance(c, str) else c for c in atoms_list]
     number_of_atoms = len(atoms_list)
     coords = coordinates
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
@@ -111,12 +118,237 @@ def coulomb_matrix(atoms_list, coordinates):
             c_matrix[i, j] = charges[i] * charges[j] / r_ij
     return c_matrix
 
+#last old version
+# def coulomb_matrix(atoms_list, coordinates):
+#     """
+#     :return: Coulomb Matrix
+#     """
+#     from pyar.data import new_atomic_data as atomic_data
+
+#     charges = [atomic_data.atomic_number[c.capitalize()] if isinstance(c, str) else c for c in atoms_list]
+#     number_of_atoms = len(atoms_list)
+#     coords = coordinates
+#     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
+
+#     for i, j in product(range(number_of_atoms), range(number_of_atoms)):
+#         charge_i = charges[i]
+#         charge_j = charges[j]
+
+#         if isinstance(charge_i, np.ndarray):
+#             charge_i = charge_i.item()
+#         if isinstance(charge_j, np.ndarray):
+#             charge_j = charge_j.item()
+
+#         if i == j:
+#             c_matrix[i, j] = 0.5 * charge_i**2.4
+#         else:
+#             r_ij = np.linalg.norm(coords[i, :] - coords[j, :])
+#             c_matrix[i, j] = charge_i * charge_j / r_ij
+
+#     return c_matrix
+
+# def coulomb_matrix(atoms_list, coordinates):
+#     """
+#     :return: Coulomb Matrix
+#     """
+#     from pyar.data import new_atomic_data as atomic_data
+
+#     charges = [atomic_data.atomic_number[c.capitalize()] if isinstance(c, str) else c for c in atoms_list]
+#     number_of_atoms = len(atoms_list)
+#     coords = coordinates
+#     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
+
+#     for i, j in product(range(number_of_atoms), range(number_of_atoms)):
+#         charge_i = charges[i]
+#         charge_j = charges[j]
+
+#         if isinstance(charge_i, np.ndarray):
+#             charge_i = charge_i[0]  # Take the first element of the array
+#         if isinstance(charge_j, np.ndarray):
+#             charge_j = charge_j[0]  # Take the first element of the array
+
+#         if i == j:
+#             c_matrix[i, j] = 0.5 * charge_i**2.4
+#         else:
+#             r_ij = np.linalg.norm(coords[i, :] - coords[j, :])
+#             if r_ij < 1e-8:  # Check if the distance is very close to zero
+#                 c_matrix[i, j] = 0.0  # Set the value to zero to avoid division by near-zero
+#             else:
+#                 c_matrix[i, j] = charge_i * charge_j / r_ij
+
+#     # Check if the Coulomb matrix contains any NaN or infinite values
+#     if np.isnan(c_matrix).any() or np.isinf(c_matrix).any():
+#         raise ValueError("Coulomb matrix contains NaN or infinite values")
+
+#     return c_matrix
+
+
 
 def fingerprint(atoms_list, coordinates):
     eigenvalues = np.linalg.eigvals(coulomb_matrix(atoms_list, coordinates))
-    eigenvalues[::-1].sort()
+    # eigenvalues[::-1].sort()
+    eigenvalues = np.sort(eigenvalues)[::-1]
     return eigenvalues
 
+def cutoff_func(r, Rc):
+    return 0.5 * (np.cos(np.pi * r / Rc) + 1) if r < Rc else 0
+
+def radial_symmetry_func(r, eta, Rs, Rc):
+    return np.exp(-eta * (r - Rs)**2) * cutoff_func(r, Rc)
+
+def angular_symmetry_func(r_ij, r_ik, r_jk, theta_ijk, eta, zeta, lambda_, Rc):
+    return 2**(1 - zeta) * (1 + lambda_ * np.cos(theta_ijk))**zeta * np.exp(-eta * (r_ij**2 + r_ik**2 + r_jk**2)) * cutoff_func(r_ij, Rc) * cutoff_func(r_ik, Rc) * cutoff_func(r_jk, Rc)
+
+def generate_aev(atom_list, coordinates):
+    # Define the Behler-Parrinello constants
+    eta = 0.5
+    Rs = [1.0, 2.0, 3.0]  # Example radial symmetry function distances
+    zeta = 1.0
+    lambda_ = 1.0
+    Rc = 6.0
+    aev = []
+    for i, atom_i in enumerate(atom_list):
+        G2 = []
+        G3 = []
+        for j, atom_j in enumerate(atom_list):
+            if i != j:
+                r_ij = np.linalg.norm(coordinates[i] - coordinates[j])
+                G2.extend(radial_symmetry_func(r_ij, eta, Rs, Rc))
+                for k, atom_k in enumerate(atom_list):
+                    if i != k and j < k:
+                        r_ik = np.linalg.norm(coordinates[i] - coordinates[k])
+                        r_jk = np.linalg.norm(coordinates[j] - coordinates[k])
+                        theta_ijk = np.arccos(np.dot(coordinates[i] - coordinates[j], coordinates[i] - coordinates[k]) / (r_ij * r_ik))
+                        G3.append(angular_symmetry_func(r_ij, r_ik, r_jk, theta_ijk, eta, zeta, lambda_, Rc))
+        aev.append(np.concatenate((G2, G3)))
+    return aev
+
+# LMBTR Descriptor
+def lmbtr_descriptor(atoms_list, coordinates):
+    # Create an ASE Atoms object from the atoms_list and coordinates
+    molecule = Atoms(atoms_list, positions=coordinates)
+
+    # Get unique species from atoms_list
+    unique_species = list(set(atoms_list))
+
+    #setup LMBTR
+    lmbtr = LMBTR(
+        species=unique_species,
+        geometry={"function": "distance"},
+        grid={"min": 0, "max": 5, "n": 100, "sigma": 0.1},
+        weighting={"function": "exp", "scale": 0.5, "threshold": 1e-3},
+        periodic=False,
+        normalization="l2",
+    )
+
+    # Create LMBTR output for the molecule
+    lmbtr_output = lmbtr.create(molecule)
+
+    return lmbtr_output
+
+
+def acsf_descriptor(atoms_list, coordinates):
+    # Create an Atoms object from the atoms_list and coordinates
+    molecule = Atoms(atoms_list, positions=coordinates)
+    unique_species = list(set(atoms_list))
+    #setup ACSF
+    acsf = ACSF(
+        species=unique_species,
+        r_cut=6.0,
+        g2_params=[[1, 1], [1, 2], [1, 3]],
+        g4_params=[[1, 1, 1], [1, 2, 1], [1, 1, -1], [1, 2, -1]],
+    )
+
+    # Create ACSF output for the molecule
+    acsf_output = acsf.create(molecule)
+
+    return acsf_output
+
+
+
+def sinematrix_descriptor(atoms_list, coordinates):
+    # Create an Atoms object from the atoms_list and coordinates
+    molecule = Atoms(atoms_list, positions=coordinates)
+    
+
+    # Setting up the sine matrix descriptor
+    sm = SineMatrix(
+        n_atoms_max=len(atoms_list),
+        permutation="sorted_l2",
+        sparse=False
+    )
+
+    # Create SineMatrix output for the molecule
+    sm_output = sm.create(molecule)
+
+    return sm_output
+
+
+
+def valleoganov_descriptor(atoms_list, coordinates):    
+    # Create an Atoms object from the atoms_list and coordinates
+    molecule = Atoms(atoms_list, positions=coordinates)
+    unique_species = list(set(atoms_list))
+
+    # Setup
+    vo = ValleOganov(
+        species=unique_species,
+        function="distance",
+        sigma=10**(-0.5),
+        n=100,
+        r_cut=5
+    )
+
+    # Create ValleOganov output for the molecule
+    vo_output = vo.create(molecule)
+
+    return vo_output
+
+
+
+def mbtr_descriptor(atoms_list, coordinates):
+    # Create an Atoms object from the atoms_list and coordinates
+    molecule = Atoms(atoms_list, positions=coordinates)
+
+    # Get unique species from atoms_list
+    unique_species = list(set(atoms_list))
+
+    # Setup MBTR
+    mbtr = MBTR(
+        species=unique_species,
+        geometry={"function": "inverse_distance"},
+        grid={"min": 0, "max": 1, "n": 100, "sigma": 0.1},
+        weighting={"function": "exp", "scale": 0.5, "threshold": 1e-3},
+        periodic=False,
+        normalization="l2",
+)
+
+    # Create LMBTR output for the molecule
+    mbtr_output = mbtr.create(molecule)
+
+    return mbtr_output
+
+    
+
+
+def soap_descriptor(atoms_list, coordinates):
+    # Create an Atoms object from the atoms_list and coordinates
+    molecule = Atoms(atoms_list, positions=coordinates)
+    # Get unique species from atoms_list
+    unique_species = list(set(atoms_list))
+    # Setup SOAP
+    soap = SOAP(
+        species=unique_species,
+        periodic=False,
+        r_cut=5,
+        n_max=8,
+        l_max=8,
+        average="off",
+        sparse=True
+    )
+    # Create SOAP output for the molecule
+    soap_output = soap.create(molecule)
+    return soap_output
 
 def main():
     import argparse

@@ -1,13 +1,13 @@
-pyar.afir package
+pymlgen.afir package
 =================
 
 Submodules
 ----------
 
-pyar.afir.restraints module
+pymlgen.afir.restraints module
 ---------------------------
 
-.. automodule:: pyar.afir.restraints
+.. automodule:: pymlgen.afir.restraints
    :members:
    :undoc-members:
    :show-inheritance:
@@ -16,7 +16,7 @@ pyar.afir.restraints module
 Module contents
 ---------------
 
-.. automodule:: pyar.afir
+.. automodule:: pymlgen.afir
    :members:
    :undoc-members:
    :show-inheritance:

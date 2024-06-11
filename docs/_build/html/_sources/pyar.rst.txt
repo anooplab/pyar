@@ -1,4 +1,4 @@
-pyar package
+pymlgen package
 ============
 
 Subpackages
@@ -7,83 +7,83 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   pyar.afir
-   pyar.data
-   pyar.data_analysis
-   pyar.interface
-   pyar.scripts
+   pymlgen.afir
+   pymlgen.data
+   pymlgen.data_analysis
+   pymlgen.interface
+   pymlgen.scripts
 
 Submodules
 ----------
 
-pyar.Molecule module
+pymlgen.Molecule module
 --------------------
 
-.. automodule:: pyar.Molecule
+.. automodule:: pymlgen.Molecule
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.aggregator module
+pymlgen.aggregator module
 ----------------------
 
-.. automodule:: pyar.aggregator
+.. automodule:: pymlgen.aggregator
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.file\_manager module
+pymlgen.file\_manager module
 -------------------------
 
-.. automodule:: pyar.file_manager
+.. automodule:: pymlgen.file_manager
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.get\_property module
+pymlgen.get\_property module
 -------------------------
 
-.. automodule:: pyar.get_property
+.. automodule:: pymlgen.get_property
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.optimiser module
+pymlgen.optimiser module
 ---------------------
 
-.. automodule:: pyar.optimiser
+.. automodule:: pymlgen.optimiser
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.reactor module
+pymlgen.reactor module
 -------------------
 
-.. automodule:: pyar.reactor
+.. automodule:: pymlgen.reactor
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.scan module
+pymlgen.scan module
 ----------------
 
-.. automodule:: pyar.scan
+.. automodule:: pymlgen.scan
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.tabu module
+pymlgen.tabu module
 ----------------
 
-.. automodule:: pyar.tabu
+.. automodule:: pymlgen.tabu
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.unused\_functions module
+pymlgen.unused\_functions module
 -----------------------------
 
-.. automodule:: pyar.unused_functions
+.. automodule:: pymlgen.unused_functions
    :members:
    :undoc-members:
    :show-inheritance:
@@ -92,7 +92,7 @@ pyar.unused\_functions module
 Module contents
 ---------------
 
-.. automodule:: pyar
+.. automodule:: pymlgen
    :members:
    :undoc-members:
    :show-inheritance:

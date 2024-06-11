@@ -1,6 +1,6 @@
-#!/usr/bin/anaconda3/bin/python
+#!/home/20cy91r19/miniconda3.7/bin/python
 # encoding: utf-8
-"""Command line interface for PyAR"""
+"""Command line interface for pymlgen"""
 import argparse
 import datetime
 import logging
@@ -8,12 +8,12 @@ import os
 import sys
 import time
 from collections import defaultdict
+import pymlgen.data_analysis.clustering
+from pymlgen import aggregator, Molecule
+from pymlgen.data import defualt_parameters
 
-from pyar import reactor, aggregator, scan, Molecule
-from pyar.data import defualt_parameters
-
-logger = logging.getLogger('pyar')
-handler = logging.FileHandler('pyar.log', 'a')
+logger = logging.getLogger('pymlgen')
+handler = logging.FileHandler('pymlgen.log', 'a')
 
 
 def argument_parse():
@@ -22,13 +22,13 @@ def argument_parse():
     :rtype: Namespace
     """
 
-    pyr_description = """PyAR is a program to predict aggregation, reaction, 
+    pymlgen_description = """pymlgen is a program to predict aggregation, reaction, 
     and clustering. Reactor explores several possible reactions between two 
     given molecules. Aggregator module explores several possible geometries 
     of weakly bound molecular complexes or atomic clusters.
     """
 
-    parser = argparse.ArgumentParser(prog='PyAR', description=pyr_description)
+    parser = argparse.ArgumentParser(prog='pymlgen', description=pymlgen_description)
 
     parser.add_argument('-v', '--verbosity',
                         choices=[0, 1, 2, 3, 4],
@@ -51,6 +51,9 @@ def argument_parse():
 
     parser.add_argument('--grid', choices=['y', 'n'], default='y',
                         help='Toggle the use of grid for search space.')
+    
+    parser.add_argument('--formula', type=str,
+                        help='Chemical formula of the molecule to generate')
 
     parser.add_argument('-nprocs', '--nprocs', metavar='n',
                         type=int, help='The number of processors/cores to be '
@@ -59,7 +62,22 @@ def argument_parse():
                                        'interfaces. Write to '
                                        'anoop@chem.iitkgp.ac.in'
                                        ' if this does not work properly')
+    parser.add_argument('-model', '--model', metavar='model',
+                        type=str, help='The model to be used for the '
+                                       'aggregation. Default is '
+                                       'aimnet2_wb97m-d3_ens.jpt')
+   
 
+
+
+    # clustering_group = parser.add_argument_group('clustering',
+    #                                              'Clustering specific options')
+    
+    # clustering_group.add_argument('-n', '--number_of_seeds', type=int,
+    #                               help='Number of seeds')
+    # clustering_group.add_argument('-f', '--features', choices=['fingerprint', 'scm', 'moi', 'fsmd', 'soap', 'mbtr', 'ani', 'lmbtr', 'acsf', 'sinematrix', 'vallornav'],
+    #                            default='fingerprint',
+    #                            help="Choose the features to be used for clustering")
     run_type_group = parser.add_mutually_exclusive_group(required=True)
 
     run_type_group.add_argument("-r", "--react",
@@ -93,6 +111,10 @@ def argument_parse():
                                   metavar='n',
                                   type=int,
                                   help='maximum number of seeds')
+    aggregator_group.add_argument('-f', '--features',
+                                  choices=['fingerprint', 'scm', 'moi', 'fsmd', 'soap', 'mbtr', 'ani', 'lmbtr', 'acsf', 'sinematrix', 'vallornav'],
+                                  default='fingerprint',
+                                  help="Choose the features to be used for clustering")
 
     aggregator_group.add_argument('-as', '--aggregate-size', type=int,
                                   nargs='*',
@@ -142,7 +164,7 @@ def argument_parse():
                                          choices=['gaussian', 'mopac', 'obabel',
                                                   'orca',
                                                   'psi4', 'turbomole', 'xtb',
-                                                  'xtb_turbo'],
+                                                  'xtb_turbo', 'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom', 'xtb-aimnet2', 'xtb-aiqm1'],
                                          required=True, help="Software")
 
     quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
@@ -212,7 +234,7 @@ def main():
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
     logger.info(
-        f'==============================Starting PyAR at {time_now}==============================')
+        f'==============================Starting pymlgen at {time_now}==============================')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
@@ -242,7 +264,12 @@ def main():
         message = 'Charges are not specified for all input files'
         logger.critical(message)
         sys.exit(message)
+    # Get the number of clusters and clustering features from the parsed arguments
+    # maximum_number_of_seeds = args.number_of_seeds
+    # features = args.features
 
+    # # Call the choose_geometries function with the parsed arguments
+    # clustered_geometries = pymlgen.data_analysis.clustering.choose_geometries(list_of_molecules, maximum_number_of_seeds, features)
     multiplicities = run_parameters['multiplicity']
     if multiplicities is None:
         multiplicities = [1 for _ in range(number_of_input_files)]
@@ -298,7 +325,8 @@ def main():
         'scf_threshold': run_parameters['scf_threshold'],
         'nprocs': run_parameters['nprocs'],
         'gamma': run_parameters['gamma'],
-        'custom_keyword': run_parameters['custom_keyword']
+        'custom_keyword': run_parameters['custom_keyword'],
+        'model': run_parameters['model']
     }
 
     logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
@@ -340,6 +368,10 @@ def main():
         logger.info('Total Time: {}'.format(time.time() - t1_0))
         logger.info("Started at {}\nEnded at {}".format(time_started,
                                                         datetime.datetime.now()))
+    if run_parameters['formula']:
+        # Generate molecule from formula
+        molecule = aggregator.generate_molecule_from_formula(args.formula)
+        input_molecules = [molecule]
 
     if run_parameters['solvate']:
         number_of_solvent_molecules = run_parameters['solvation_size']
@@ -373,50 +405,50 @@ def main():
         logger.info("Started at {}\nEnded at {}".format(time_started,
                                                         datetime.datetime.now()))
 
-    if run_parameters['react']:
-        minimum_gamma = run_parameters['gmin']
-        maximum_gamma = run_parameters['gmax']
-        if len(input_molecules) == 1:
-            logger.error('Reactor requires at least two molecules')
-            sys.exit('Missing arguments: provide at least two molecules')
-        if minimum_gamma is None or maximum_gamma is None:
-            logger.error('For a Reactor run specify the '
-                         'values of gamma_min and gamma_max using \n'
-                         '-gmin <integer> -gmax <integer>')
-            sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
-        if number_of_orientations is None:
-            logger.error("For reaction, specify how many orientations"
-                         "are to be used, by the argument\n"
-                         "-number_of_orientations <number of orientations>")
-            sys.exit('Missing arguments: -N #')
+    # if run_parameters['react']:
+    #     minimum_gamma = run_parameters['gmin']
+    #     maximum_gamma = run_parameters['gmax']
+    #     if len(input_molecules) == 1:
+    #         logger.error('Reactor requires at least two molecules')
+    #         sys.exit('Missing arguments: provide at least two molecules')
+    #     if minimum_gamma is None or maximum_gamma is None:
+    #         logger.error('For a Reactor run specify the '
+    #                      'values of gamma_min and gamma_max using \n'
+    #                      '-gmin <integer> -gmax <integer>')
+    #         sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
+    #     if number_of_orientations is None:
+    #         logger.error("For reaction, specify how many orientations"
+    #                      "are to be used, by the argument\n"
+    #                      "-number_of_orientations <number of orientations>")
+    #         sys.exit('Missing arguments: -N #')
 
-        proximity_factor = 2.3
+    #     proximity_factor = 2.3
 
-        zero_time = time.time()
-        time_started = datetime.datetime.now()
-        reactor.react(input_molecules[0], input_molecules[1],
-                      minimum_gamma, maximum_gamma,
-                      int(number_of_orientations),
-                      quantum_chemistry_parameters,
-                      site, proximity_factor, tabu_on, grid_on)
-        logger.info('Total run time: {}'.format(time.time() - zero_time))
-        logger.info(
-            f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
-        return
+    #     zero_time = time.time()
+    #     time_started = datetime.datetime.now()
+    #     reactor.react(input_molecules[0], input_molecules[1],
+    #                   minimum_gamma, maximum_gamma,
+    #                   int(number_of_orientations),
+    #                   quantum_chemistry_parameters,
+    #                   site, proximity_factor, tabu_on, grid_on)
+    #     logger.info('Total run time: {}'.format(time.time() - zero_time))
+    #     logger.info(
+    #         f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
+    #     return
 
-    if run_parameters['scan_bond']:
-        if number_of_orientations is None:
-            logger.error("For aggregation, specify how many orientations"
-                         "are    to be used, by the argument\n"
-                         "-N <number of orientations>")
-            sys.exit('Missing arguments: -N #')
+    # if run_parameters['scan_bond']:
+    #     if number_of_orientations is None:
+    #         logger.error("For aggregation, specify how many orientations"
+    #                      "are    to be used, by the argument\n"
+    #                      "-N <number of orientations>")
+    #         sys.exit('Missing arguments: -N #')
 
         # noinspection PyTypeChecker
-        number_of_orientations = int(number_of_orientations)
-        site_atoms = run_parameters['scan_bond']
+        # number_of_orientations = int(number_of_orientations)
+        # site_atoms = run_parameters['scan_bond']
 
-        scan.scan_distance(input_molecules, site_atoms, number_of_orientations,
-                           quantum_chemistry_parameters)
+        # scan.scan_distance(input_molecules, site_atoms, number_of_orientations,
+        #                    quantum_chemistry_parameters)
 
     return
 

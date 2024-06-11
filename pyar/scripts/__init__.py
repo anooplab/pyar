@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Command line arguments in PyAR
+Command line arguments in pyar
 
 * pyar-cli: the main cli for aggregation and reaction
 * pyar-clustering: cluster or filter the given molecules based on their similarity with each other.

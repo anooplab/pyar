@@ -1,69 +1,69 @@
-pyar.interface package
+pymlgen.interface package
 ======================
 
 Submodules
 ----------
 
-pyar.interface.babel module
+pymlgen.interface.babel module
 ---------------------------
 
-.. automodule:: pyar.interface.babel
+.. automodule:: pymlgen.interface.babel
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.gaussian module
+pymlgen.interface.gaussian module
 ------------------------------
 
-.. automodule:: pyar.interface.gaussian
+.. automodule:: pymlgen.interface.gaussian
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.mopac module
+pymlgen.interface.mopac module
 ---------------------------
 
-.. automodule:: pyar.interface.mopac
+.. automodule:: pymlgen.interface.mopac
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.orca module
+pymlgen.interface.orca module
 --------------------------
 
-.. automodule:: pyar.interface.orca
+.. automodule:: pymlgen.interface.orca
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.psi4 module
+pymlgen.interface.psi4 module
 --------------------------
 
-.. automodule:: pyar.interface.psi4
+.. automodule:: pymlgen.interface.psi4
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.turbomole module
+pymlgen.interface.turbomole module
 -------------------------------
 
-.. automodule:: pyar.interface.turbomole
+.. automodule:: pymlgen.interface.turbomole
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.xtb module
+pymlgen.interface.xtb module
 -------------------------
 
-.. automodule:: pyar.interface.xtb
+.. automodule:: pymlgen.interface.xtb
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.xtbturbo module
+pymlgen.interface.xtbturbo module
 ------------------------------
 
-.. automodule:: pyar.interface.xtbturbo
+.. automodule:: pymlgen.interface.xtbturbo
    :members:
    :undoc-members:
    :show-inheritance:
@@ -72,7 +72,7 @@ pyar.interface.xtbturbo module
 Module contents
 ---------------
 
-.. automodule:: pyar.interface
+.. automodule:: pymlgen.interface
    :members:
    :undoc-members:
    :show-inheritance:

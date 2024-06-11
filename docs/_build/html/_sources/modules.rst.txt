@@ -1,7 +1,7 @@
-pyar
+pymlgen
 ====
 
 .. toctree::
    :maxdepth: 4
 
-   pyar
+   pymlgen

@@ -20,7 +20,8 @@ values = {'input_files': [''],
           'number_of_pathways': 10,
           'scan_bond': None,
           'nprocs': 8,
-          'custom_keywords': None
+          'custom_keywords': None,
+          'model': '/scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/models/aimnet2_wb97m-d3_ens.jpt',
           }
 """
 The default calculation parameters

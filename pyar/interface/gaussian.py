@@ -5,7 +5,7 @@ Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
 Universitaet Muenster, Germany
 
-This file is part of the PyAR project.
+This file is part of the pyar project.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ class Gaussian(SF):
         f1.write(f"\n")
         f1.close()
 
-    def optimize(self, options):
+    def optimize(self):
         """
         :return:This object will return the optimization status. It will
         optimize a structure.
@@ -64,13 +64,13 @@ class Gaussian(SF):
         # TODO: Add a return 'CycleExceeded'
         logfile = "trial_{}.out".format(self.job_name)
 
-        max_opt_cycles = options['opt_cycles']
-        gamma = options['gamma']
-        opt_keywords = f"maxcycles={max_opt_cycles}"
-        convergence = options['opt_threshold']
-        if convergence != 'normal':
-            opt_keywords += f", {convergence}"
-        self.keyword += f" opt=({opt_keywords})"
+        # max_opt_cycles = options['opt_cycles']
+        # gamma = options['gamma']
+        # opt_keywords = f"maxcycles={max_opt_cycles}"
+        # convergence = options['opt_threshold']
+        # if convergence != 'normal':
+        #     opt_keywords += f", {convergence}"
+        # self.keyword += f" opt=({opt_keywords})"
         self.prepare_input()
         with open(self.out_file, 'w') as fopt:
             out = subp.Popen(["g16", self.inp_file], stdout=fopt, stderr=fopt)
