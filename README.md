@@ -72,14 +72,14 @@ pip install git+https://github.com/christopherjenness/DBCV.git
 
 # Molecule generations 
 
-```pymlgen-cli -a c.xyz h.xyz -N 8 -as 6 6 --software mlatom_aiqm1  -m 1 2 ```
+```pyar-cli -a c.xyz h.xyz -N 8 -as 6 6 --software mlatom_aiqm1  -m 1 2 ```
 
 # Molecular clusters
 
 ## XTB
-```pymlgen-cli -s water.xyz water.xyz --software xtb -ss 10  -N 16 -c 0 0 -m 1 1```
+```pyar-cli -s water.xyz water.xyz --software xtb -ss 10  -N 16 -c 0 0 -m 1 1```
 ## AIMNet2
-```pymlgen-cli -s water.xyz water.xyz --software aimnet-2 --model -ss 10  -N 16 -c 0 0 -m 1 1```
+```pyar-cli -s water.xyz water.xyz --software aimnet-2 --model -ss 10  -N 16 -c 0 0 -m 1 1```
 
 This will generate a molecules  upto maximum 6 carbon and 6 hydrogens with **mlatom_aiqm1** potential using 8 trial orientations.
 Here c.xyz and h.xyz are standard cartesian coordinate files. 
