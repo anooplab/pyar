@@ -1,4 +1,4 @@
-pymlgen.data package
+pyarpymlgen.data package
 =================
 
 Submodules

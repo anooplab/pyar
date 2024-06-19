@@ -1,4 +1,4 @@
-Installation
+pyarInstallation
 ============
 
 1. The easiest way is to install using pip.

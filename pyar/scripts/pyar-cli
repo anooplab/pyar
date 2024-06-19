@@ -405,50 +405,50 @@ def main():
         logger.info("Started at {}\nEnded at {}".format(time_started,
                                                         datetime.datetime.now()))
 
-    # if run_parameters['react']:
-    #     minimum_gamma = run_parameters['gmin']
-    #     maximum_gamma = run_parameters['gmax']
-    #     if len(input_molecules) == 1:
-    #         logger.error('Reactor requires at least two molecules')
-    #         sys.exit('Missing arguments: provide at least two molecules')
-    #     if minimum_gamma is None or maximum_gamma is None:
-    #         logger.error('For a Reactor run specify the '
-    #                      'values of gamma_min and gamma_max using \n'
-    #                      '-gmin <integer> -gmax <integer>')
-    #         sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
-    #     if number_of_orientations is None:
-    #         logger.error("For reaction, specify how many orientations"
-    #                      "are to be used, by the argument\n"
-    #                      "-number_of_orientations <number of orientations>")
-    #         sys.exit('Missing arguments: -N #')
+    if run_parameters['react']:
+        minimum_gamma = run_parameters['gmin']
+        maximum_gamma = run_parameters['gmax']
+        if len(input_molecules) == 1:
+            logger.error('Reactor requires at least two molecules')
+            sys.exit('Missing arguments: provide at least two molecules')
+        if minimum_gamma is None or maximum_gamma is None:
+            logger.error('For a Reactor run specify the '
+                         'values of gamma_min and gamma_max using \n'
+                         '-gmin <integer> -gmax <integer>')
+            sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
+        if number_of_orientations is None:
+            logger.error("For reaction, specify how many orientations"
+                         "are to be used, by the argument\n"
+                         "-number_of_orientations <number of orientations>")
+            sys.exit('Missing arguments: -N #')
 
-    #     proximity_factor = 2.3
+        proximity_factor = 2.3
 
-    #     zero_time = time.time()
-    #     time_started = datetime.datetime.now()
-    #     reactor.react(input_molecules[0], input_molecules[1],
-    #                   minimum_gamma, maximum_gamma,
-    #                   int(number_of_orientations),
-    #                   quantum_chemistry_parameters,
-    #                   site, proximity_factor, tabu_on, grid_on)
-    #     logger.info('Total run time: {}'.format(time.time() - zero_time))
-    #     logger.info(
-    #         f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
-    #     return
+        zero_time = time.time()
+        time_started = datetime.datetime.now()
+        reactor.react(input_molecules[0], input_molecules[1],
+                      minimum_gamma, maximum_gamma,
+                      int(number_of_orientations),
+                      quantum_chemistry_parameters,
+                      site, proximity_factor, tabu_on, grid_on)
+        logger.info('Total run time: {}'.format(time.time() - zero_time))
+        logger.info(
+            f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
+        return
 
-    # if run_parameters['scan_bond']:
-    #     if number_of_orientations is None:
-    #         logger.error("For aggregation, specify how many orientations"
-    #                      "are    to be used, by the argument\n"
-    #                      "-N <number of orientations>")
-    #         sys.exit('Missing arguments: -N #')
+    if run_parameters['scan_bond']:
+        if number_of_orientations is None:
+            logger.error("For aggregation, specify how many orientations"
+                         "are    to be used, by the argument\n"
+                         "-N <number of orientations>")
+            sys.exit('Missing arguments: -N #')
 
-        # noinspection PyTypeChecker
-        # number_of_orientations = int(number_of_orientations)
-        # site_atoms = run_parameters['scan_bond']
+        noinspection PyTypeChecker
+        number_of_orientations = int(number_of_orientations)
+        site_atoms = run_parameters['scan_bond']
 
-        # scan.scan_distance(input_molecules, site_atoms, number_of_orientations,
-        #                    quantum_chemistry_parameters)
+        scan.scan_distance(input_molecules, site_atoms, number_of_orientations,
+                           quantum_chemistry_parameters)
 
     return
 
