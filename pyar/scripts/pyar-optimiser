@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-"""Command line interface for pymlgen"""
+"""Command line interface for pyar"""
 
 import argparse
 import datetime
@@ -9,13 +9,13 @@ import os
 import sys
 from collections import defaultdict
 
-from pymlgen import optimiser, Molecule
-from pymlgen.data import defualt_parameters
+from pyar import optimiser, Molecule
+from pyar.data import defualt_parameters
 
-logger = logging.getLogger('pymlgen')
-handler = logging.FileHandler('pymlgen-optimiser.log', 'w')
+logger = logging.getLogger('pyar')
+handler = logging.FileHandler('pyar-optimiser.log', 'w')
 
-parser = argparse.ArgumentParser(prog='pymlgen', description='pymlgen is a \
+parser = argparse.ArgumentParser(prog='pyar', description='pyar is a \
          program to predict aggregation, reaction, clustering.  \
          There are also modules for stochastic generation of  \
          orientations of two more molecules and atoms')
@@ -117,7 +117,7 @@ else:
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-logger.info(f'Starting pymlgen-Optimiser at {datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")}')
+logger.info(f'Starting pyar-Optimiser at {datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")}')
 logger.info(f'Job directory: {os.getcwd()}')
 logger.debug(f'Logging level is {{{logger.level}}}')
 
