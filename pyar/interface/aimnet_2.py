@@ -22,7 +22,8 @@ torch.backends.cudnn.allow_tf32 = False
 device = torch.device('cpu')
 print(device)
 
-aimnet2 = torch.jit.load('/scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt', map_location=device)
+#Plese adjust the path according the cloned repo.
+aimnet2 = torch.jit.load('~/pyar/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt', map_location=device)
 
 class Aimnet2(SF):
     def __init__(self, molecule, qc_params):
@@ -45,7 +46,7 @@ class Aimnet2(SF):
         self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
         self.out_file = 'trial_' + self.job_name + '.out'
         
-        self.cmd = f"python /scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/calculators/aimnet2_ase_opt.py  /scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt --traj result.traj {self.inp_file} {self.inp_min_file}"
+        self.cmd = f"python ~/pyar/pyar/AIMNet2/calculators/aimnet2_ase_opt.py  ~/pyar/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt --traj result.traj {self.inp_file} {self.inp_min_file}"
         if self.charge != 0:
             self.cmd = "{} -c {}".format(self.cmd, self.charge)
 

@@ -4,3 +4,9 @@ scipy>=1.5.2
 scikit-learn>=0.23.2
 autograd>=1.3
 mendeleev>=0.9.0
+torchani
+dscribe
+ase
+h5md
+hdbscan
+git+https://github.com/christopherjenness/DBCV.git

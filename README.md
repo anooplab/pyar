@@ -26,8 +26,7 @@ To set up your environment for the tasks, you can create and edit your `.bashrc`
 # Create an alias for "mndo2020"
 alias mndobin="mndo2020"
 
-# Add MLatom_v2.3.3 to your PATH
-export PATH=$PATH:/home/20cy91r19/apps/MLatom_v2.3.3
+
 
 # Add Gaussian 16 to your PATH
 export PATH=$PATH:/home/apps/g16
@@ -35,8 +34,8 @@ export PATH=$PATH:/home/apps/g16
 # Create an alias for GAUSS_EXEDIR
 alias GAUSS_EXEDIR="g16"
 
-# Create an alias for MLatom.py test
-alias mlatom-test="MLatom.py"
+# Create an alias for MLatom.py
+alias mlatom="MLatom.py"
 
 ```
 

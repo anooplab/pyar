@@ -13,7 +13,8 @@ xtb_aimnet2_logger = logging.getLogger('pyar.xtb_aimnet2')
 device = torch.device('cpu')
 print(device)
 
-aimnet2 = torch.jit.load('/scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt', map_location=device)
+#Please adjust the location for your cloned repo
+aimnet2 = torch.jit.load('~/pyar/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt', map_location=device)
 
 class XtbAimnet2(SF):
     def __init__(self, molecule, method):
@@ -36,7 +37,7 @@ class XtbAimnet2(SF):
         if self.multiplicity == 1 and self.scftype is not 'rhf':
             self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
 
-        self.aimnet2_cmd = f"python /scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/calculators/aimnet2_ase_opt.py  /scratch/20cy91r19/bitbucket/pyatomgen/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt --traj result.traj {self.xtb_optimized_xyz_file} {self.aimnet2_optimized_xyz_file}"
+        self.aimnet2_cmd = f"python ~/pyar/pyar/pyar/AIMNet2/calculators/aimnet2_ase_opt.py  ~/pyar/pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt --traj result.traj {self.xtb_optimized_xyz_file} {self.aimnet2_optimized_xyz_file}"
 
         if self.charge != 0:
             self.aimnet2_cmd = "{} -c {}".format(self.aimnet2_cmd, self.charge)

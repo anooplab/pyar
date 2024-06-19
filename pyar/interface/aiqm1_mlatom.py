@@ -32,7 +32,7 @@ class AIQM1(SF):
         self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
         self.out_file = 'trial_' + self.job_name + '.out'
         
-        self.cmd = f"python /scratch/20cy91r19/bitbucket/pyatomgen/pyar/interface/mlopt.py  {self.inp_file} -c {self.charge} -m {self.multiplicity}  {self.inp_min_file}"
+        self.cmd = f"python ~/pyar/pyar/interface/mlopt.py  {self.inp_file} -c {self.charge} -m {self.multiplicity}  {self.inp_min_file}"
         if self.charge != 0:
             self.cmd = "{} -c {}".format(self.cmd, self.charge)
 
