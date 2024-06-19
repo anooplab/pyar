@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # encoding: utf-8
-"""Command line interface for pymlgen"""
+"""Command line interface for pyar"""
 
 import argparse
 import logging
 import sys
 
-import pymlgen.data_analysis.clustering
-from pymlgen.Molecule import Molecule
+import pyar.data_analysis.clustering
+from pyar.Molecule import Molecule
 
-logger = logging.getLogger('pymlgen')
+logger = logging.getLogger('pyar')
 handler = logging.FileHandler('clustering.log', 'w')
 formatter = logging.Formatter('%(message)s')
 handler.setFormatter(formatter)
@@ -36,15 +36,15 @@ if len(input_files) < 2:
 mols = []
 for each_file in input_files:
     mol = Molecule.from_xyz(each_file)
-    mol.energy = pymlgen.data_analysis.clustering.read_energy_from_xyz_file(each_file)
+    mol.energy = pyar.data_analysis.clustering.read_energy_from_xyz_file(each_file)
     mols.append(mol)
 
-pymlgen.data_analysis.clustering.plot_energy_histogram(mols)
+pyar.data_analysis.clustering.plot_energy_histogram(mols)
 selected = []
 if args.mode == 'cluster':
-    selected = pymlgen.data_analysis.clustering.choose_geometries(mols, features=args.clustering_features)
+    selected = pyar.data_analysis.clustering.choose_geometries(mols, features=args.clustering_features)
 if args.mode == 'filter':
-    selected = pymlgen.data_analysis.clustering.remove_similar(mols)
+    selected = pyar.data_analysis.clustering.remove_similar(mols)
 
 fls = []
 for one in selected:
