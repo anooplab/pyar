@@ -1,4 +1,4 @@
-pymlgen package
+pyarpymlgen package
 ============
 
 Subpackages

@@ -1,4 +1,4 @@
-pymlgen.interface package
+pyarpymlgen.interface package
 ======================
 
 Submodules

@@ -1,4 +1,4 @@
-pymlgen.afir package
+pyarpymlgen.afir package
 =================
 
 Submodules

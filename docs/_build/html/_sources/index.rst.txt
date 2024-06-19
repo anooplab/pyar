@@ -1,4 +1,4 @@
-.. pymlgen documentation master file, created by
+pyar.. pymlgen documentation master file, created by
    sphinx-quickstart on Sat May  9 18:16:39 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
