@@ -12,7 +12,6 @@ import numpy as np
 import argparse
 import itertools
 
-
 # Global variable
 numb_atoms = 0
 
@@ -39,15 +38,19 @@ Atomic_number = {
     '92': 'U', '23': 'V', '74': 'W', '54': 'Xe', '30': 'Zn', '40': 'Zr'
 }
 
+
 def read_file(input_file):
     with open(input_file, "r") as file:
         return file.read().splitlines()
 
+
 def Euclidean_distance(p1, p2, p3, axis_x, axis_y, axis_z):
-    return math.sqrt((axis_x - p1)**2 + (axis_y - p2)**2 + (axis_z - p3)**2)
+    return math.sqrt((axis_x - p1) ** 2 + (axis_y - p2) ** 2 + (axis_z - p3) ** 2)
+
 
 def promedio(data):
     return np.mean(data)
+
 
 def Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coord_z_1,
                          array_coord_x_2, array_coord_y_2, array_coord_z_2):
@@ -55,7 +58,7 @@ def Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coo
     distance_beta = []
 
     for i in range(numb_atoms):
-        for j in range(i+1, numb_atoms):
+        for j in range(i + 1, numb_atoms):
             distance_alpha.append(Euclidean_distance(
                 array_coord_x_1[i], array_coord_y_1[i], array_coord_z_1[i],
                 array_coord_x_1[j], array_coord_y_1[j], array_coord_z_1[j]
@@ -72,21 +75,24 @@ def Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coo
     dim_alpha = promedio(mol_alpha)
     dim_beta = promedio(mol_beta)
 
-    sumY = sum(((mol_alpha[i] / dim_alpha) - (mol_beta[i] / dim_beta))**2 for i in range(num))
+    sumY = sum(((mol_alpha[i] / dim_alpha) - (mol_beta[i] / dim_beta)) ** 2 for i in range(num))
     Springborg_2 = math.sqrt((2 / (numb_atoms * (numb_atoms - 1))) * sumY)
 
     return Springborg_2
+
 
 def uniq(lst):
     seen = set()
     return [x for x in lst if not (x in seen or seen.add(x))]
 
+
 def index_elements(duplicate_name, files_name):
     filtered = uniq(duplicate_name)
     return [k for u in filtered for k, v in enumerate(files_name) if v == u]
 
+
 def process_files(x, array_keys, Info_Coords, threshold_duplicate, file_tmp, file_log, files_xyz):
-    for y in range(x+1, len(array_keys)):
+    for y in range(x + 1, len(array_keys)):
         matrix_1 = Info_Coords[array_keys[x]]
         matrix_2 = Info_Coords[array_keys[y]]
 
@@ -131,7 +137,6 @@ def process_files(x, array_keys, Info_Coords, threshold_duplicate, file_tmp, fil
                 logfile.write("------------------------\n")
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Grigoryan Springborg Similarity')
     parser.add_argument('-f', '--files', default='*.xyz', help='File pattern to match XYZ files (default: *.xyz)')
@@ -168,7 +173,8 @@ if __name__ == "__main__":
 
     results = []
     for x in range(len(array_keys)):
-        result = pool.apply_async(process_files, (x, array_keys, Info_Coords, threshold_duplicate, file_tmp, file_log, files_xyz))
+        result = pool.apply_async(process_files,
+                                  (x, array_keys, Info_Coords, threshold_duplicate, file_tmp, file_log, files_xyz))
         results.append(result)
 
     for result in results:
@@ -214,5 +220,3 @@ if __name__ == "__main__":
     print(f"\n\tExecution Time: {execution_time:.2f} seconds\n")
 
     os.remove(file_tmp)
-
-    

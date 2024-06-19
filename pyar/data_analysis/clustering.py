@@ -14,6 +14,7 @@ import pyar.property
 import pyar.representations
 from pyar.similarity import Grigoryan_Springborg
 import warnings
+
 cluster_logger = logging.getLogger('pyar.cluster')
 
 
@@ -35,6 +36,7 @@ def remove_similar(list_of_molecules):
     cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
     print_energy_table(final_list)
     return final_list
+
 
 # def remove_similar(list_of_molecules, threshold_duplicate=0.005):
 #     final_list = list_of_molecules[:]
@@ -136,7 +138,7 @@ def choose_geometries(list_of_molecules, features='mbtr', maximum_number_of_seed
 
     elif features == 'vallornav':
         dt = [pyar.representations.valleoganov_descriptor(i.atoms_list, i.coordinates) for i in list_of_molecules]
-    
+
     else:
         cluster_logger.error('This feature is not implemented')
         return list_of_molecules
@@ -147,10 +149,10 @@ def choose_geometries(list_of_molecules, features='mbtr', maximum_number_of_seed
     # df.to_csv("features.csv")
     # Assuming 'dt' is a list of LMBTR descriptors for multiple molecules
     dt_array = np.array(dt)
-    
+
     # Reshape the array into a 2-dimensional array
     dt_reshaped = dt_array.reshape(dt_array.shape[0], -1)
-    
+
     # Create a DataFrame from the reshaped array
     df = pd.DataFrame(dt_reshaped)
     df.to_csv("features.csv")
@@ -183,8 +185,6 @@ def choose_geometries(list_of_molecules, features='mbtr', maximum_number_of_seed
         return reduced_best_from_each_cluster
 
 
-
-
 def print_energy_table(molecules):
     e_dict = {i.name: float(i.energy) for i in molecules}  # Convert energies to floats
     if len(e_dict) > 1:
@@ -193,6 +193,7 @@ def print_energy_table(molecules):
         for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):  # noqa: F821
             cluster_logger.info(f"     {name:>35}:{energy:12.6f}{(energy - ref) * 627.51:12.2f}")
         cluster_logger.info(f"")
+
 
 def get_labels(data_as_list, algorithm='combo'):
     dt = np.array(data_as_list)
@@ -268,7 +269,6 @@ def get_labels(data_as_list, algorithm='combo'):
             cluster_logger.exception('Agglomerative Clustering Failed')
 
     return labels
-    
 
 
 def n_clusters_optimized_with_kmeans(dt):
@@ -281,14 +281,11 @@ def n_clusters_optimized_with_kmeans(dt):
                             'n_clusters=8 is used as memory becomes a problem.')
         return labels, centres
 
-
-
-
     labels = {}
     centres = {}
     silhouette_scores = {}
     dbcv_scores = {}
-    
+
     for i in range(2, min(len(dt), 9)):
         kmeans = KMeans(n_clusters=i)
         try:
@@ -296,37 +293,42 @@ def n_clusters_optimized_with_kmeans(dt):
             labels[i] = kmeans.labels_
             centres[i] = kmeans.cluster_centers_
             silhouette_scores[i] = silhouette_score(dt, labels[i])
-            
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
-                dbcv_score = DBCV(dt, labels[i], dist_function=lambda x,y: np.sqrt(np.sum((x-y)**2)))
-            
+                dbcv_score = DBCV(dt, labels[i], dist_function=lambda x, y: np.sqrt(np.sum((x - y) ** 2)))
+
             if np.isnan(dbcv_score):
                 dbcv_scores[i] = None
                 cluster_logger.warning('DBCV score is NaN for n_clusters: {}'.format(i))
             else:
                 dbcv_scores[i] = dbcv_score
-            
-            cluster_logger.debug('n_clusters: {}; Silhouette score: {}; DBCV score: {}'.format(i, silhouette_scores[i], dbcv_scores[i]))
+
+            cluster_logger.debug(
+                'n_clusters: {}; Silhouette score: {}; DBCV score: {}'.format(i, silhouette_scores[i], dbcv_scores[i]))
         except Exception as e:
             cluster_logger.error('K-Means failed')
             cluster_logger.error(e)
-    
+
     if silhouette_scores:
         best_silhouette = max(silhouette_scores, key=silhouette_scores.get)
-        cluster_logger.info('Best Silhouette score was {} clusters with a score of {}'.format(best_silhouette, silhouette_scores[best_silhouette]))
-        
+        cluster_logger.info('Best Silhouette score was {} clusters with a score of {}'.format(best_silhouette,
+                                                                                              silhouette_scores[
+                                                                                                  best_silhouette]))
+
         if dbcv_scores:
             valid_dbcv_scores = {k: v for k, v in dbcv_scores.items() if v is not None}
             if valid_dbcv_scores:
                 best_dbcv = max(valid_dbcv_scores, key=valid_dbcv_scores.get)
-                cluster_logger.info('Best DBCV score was {} clusters with a score of {}'.format(best_dbcv, dbcv_scores[best_dbcv]))
-                
+                cluster_logger.info(
+                    'Best DBCV score was {} clusters with a score of {}'.format(best_dbcv, dbcv_scores[best_dbcv]))
+
                 if best_silhouette == best_dbcv:
                     return labels[best_silhouette], centres[best_silhouette]
                 else:
                     cluster_logger.warning('Silhouette and DBCV scores suggest different optimal number of clusters')
-                    return labels[best_silhouette], centres[best_silhouette]  # You can choose which one to return based on your preference
+                    return labels[best_silhouette], centres[
+                        best_silhouette]  # You can choose which one to return based on your preference
             else:
                 cluster_logger.warning('All DBCV scores are NaN')
                 return labels[best_silhouette], centres[best_silhouette]
@@ -335,11 +337,9 @@ def n_clusters_optimized_with_kmeans(dt):
             return labels[best_silhouette], centres[best_silhouette]
     else:
         return [0 for _ in range(len(dt))], [1.e+00]
-    
-   
+
 
 def generate_labels(dt):
-    # type: (np.array) -> list
     """
     Try many algorithms for clustering one after the other.
     :param dt: data for clustering as np.array
@@ -380,12 +380,10 @@ def get_the_best_molecule(list_of_molecules):
             return i
 
 
-
-
 def read_energy_from_xyz_file(xyz_file):
     import re
     try:
-       with open(xyz_file, 'r') as fr:
+        with open(xyz_file, 'r') as fr:
             lines = fr.readlines()
             second_line = lines[1].strip()
             energy_str = re.search(r'-?\d+\.?\d*', second_line).group()
@@ -394,15 +392,14 @@ def read_energy_from_xyz_file(xyz_file):
         with open(xyz_file, 'r') as fr:
             comments_line = fr.readlines()[1].rstrip()
             energy = float(re.split(':|=|\s+', comments_line)[1])
-        
-    return energy
 
+    return energy
 
 
 def plot_energy_histogram(molecules):
     energies = [i.energy for i in molecules]
     ref = min(energies)
-    relative_energies = [(float(energy) - ref)  for energy in energies]
+    relative_energies = [(float(energy) - ref) for energy in energies]
     histogram_bin = np.linspace(0, max(relative_energies), 10)
     import matplotlib.pyplot as plt
     plt.hist(relative_energies, histogram_bin)
