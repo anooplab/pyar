@@ -1,6 +1,6 @@
 #!/home/20cy91r19/miniconda3.7/bin/python
 # encoding: utf-8
-"""Command line interface for pymlgen"""
+"""Command line interface for pyar"""
 import argparse
 import datetime
 import logging
@@ -8,12 +8,12 @@ import os
 import sys
 import time
 from collections import defaultdict
-import pymlgen.data_analysis.clustering
-from pymlgen import aggregator, Molecule
-from pymlgen.data import defualt_parameters
+import pyar.data_analysis.clustering
+from pyar import aggregator, Molecule
+from pyar.data import defualt_parameters
 
-logger = logging.getLogger('pymlgen')
-handler = logging.FileHandler('pymlgen.log', 'a')
+logger = logging.getLogger('pyar')
+handler = logging.FileHandler('pyar.log', 'a')
 
 
 def argument_parse():
@@ -22,13 +22,13 @@ def argument_parse():
     :rtype: Namespace
     """
 
-    pymlgen_description = """pymlgen is a program to predict aggregation, reaction, 
+    pyar_description = """pyar is a program to predict aggregation, reaction, 
     and clustering. Reactor explores several possible reactions between two 
     given molecules. Aggregator module explores several possible geometries 
     of weakly bound molecular complexes or atomic clusters.
     """
 
-    parser = argparse.ArgumentParser(prog='pymlgen', description=pymlgen_description)
+    parser = argparse.ArgumentParser(prog='pyar', description=pyar_description)
 
     parser.add_argument('-v', '--verbosity',
                         choices=[0, 1, 2, 3, 4],
@@ -234,7 +234,7 @@ def main():
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
     logger.info(
-        f'==============================Starting pymlgen at {time_now}==============================')
+        f'==============================Starting pyar at {time_now}==============================')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
@@ -269,7 +269,7 @@ def main():
     # features = args.features
 
     # # Call the choose_geometries function with the parsed arguments
-    # clustered_geometries = pymlgen.data_analysis.clustering.choose_geometries(list_of_molecules, maximum_number_of_seeds, features)
+    # clustered_geometries = pyar.data_analysis.clustering.choose_geometries(list_of_molecules, maximum_number_of_seeds, features)
     multiplicities = run_parameters['multiplicity']
     if multiplicities is None:
         multiplicities = [1 for _ in range(number_of_input_files)]
