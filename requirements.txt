@@ -7,6 +7,6 @@ mendeleev>=0.9.0
 torchani
 dscribe
 ase
-h5md
+pyh5md
 hdbscan
 git+https://github.com/christopherjenness/DBCV.git
