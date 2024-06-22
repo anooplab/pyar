@@ -1,23 +1,44 @@
 #!/usr/bin/env python3
-from distutils.core import setup
+from setuptools import setup, find_packages
 
-setup(name='pyar',
-      version='1.0',
-      packages=['pyar', 'pyar.data_analysis', 'pyar.interface', 'pyar.data', 'pyar.mlatom', 'pyar.mlatom.aiqm1_model', 'pyar.mlatom.interfaces', 'pyar.AIMNet2', 'pyar.AIMNet2.calculators', 'pyar.AIMNet2.models'],
-      scripts=['pyar/scripts/pyar-cli', 'pyar/scripts/pyar-optimiser', 'pyar/scripts/pyar-tabu',
-               'pyar/scripts/pyar-clustering', 'pyar/scripts/pyar-similarity'],
-      url='https://github.com/anooplab/pyar',
-      license='GPl v3',
-      author='Anoop et al',
-      author_email='anoop@chem.iitkgp.ac.in',
-      description='A Python Code for Aggregation and Reaction',
-      install_requires=['numpy', 'scikit-learn', 'scipy', 'pandas', 'matplotlib', 'h5md'],
-      keywords='computational chemistry global minima aggregation automated reaction',
-      classifiers=[
-          'Development Status :: 5 - Production/Stable',
-          'License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)',
-          'Programming Language :: Python :: 3.6',
-          'Topic :: Scientific/Engineering :: Chemistry'
-      ],
-      python_requires='>=3.6'
-      )
+setup(
+    name='pyar',
+    version='1.0',
+    packages=find_packages(include=[
+        'pyar', 'pyar.*'
+    ]),
+    scripts=[
+        'pyar/scripts/pyar-cli',
+        'pyar/scripts/pyar-optimiser',
+        'pyar/scripts/pyar-tabu',
+        'pyar/scripts/pyar-clustering',
+        'pyar/scripts/pyar-similarity'
+    ],
+    url='https://github.com/anooplab/pyar',
+    license='GPL v3',
+    author='Anoop et al',
+    author_email='anoop@chem.iitkgp.ac.in',
+    description='A Python Code for Aggregation and Reaction',
+    install_requires=[
+        'numpy',
+        'scikit-learn',
+        'scipy',
+        'pandas',
+        'matplotlib',
+        'pyh5md',
+        'hdbscan',
+        'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
+        'dscribe'
+    ],
+    keywords='computational chemistry global minima aggregation automated reaction',
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Topic :: Scientific/Engineering :: Chemistry'
+    ],
+    python_requires='>=3.6',
+)

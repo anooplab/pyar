@@ -1,6 +1,18 @@
 #!/home/20cy91r19/miniconda3.7/bin/python
 # encoding: utf-8
-"""Command line interface for pyar"""
+"""
+pyar-cli - Command-line interface for the PyAR project
+
+This script provides a command-line interface for various operations
+related to the PyAR project, including setting up the environment,
+checking dependencies, and executing specific commands.
+
+Usage:
+    python pyar-cli [options]
+
+Options:
+
+"""
 import argparse
 import datetime
 import logging
@@ -443,7 +455,6 @@ def main():
                          "-N <number of orientations>")
             sys.exit('Missing arguments: -N #')
 
-        noinspection PyTypeChecker
         number_of_orientations = int(number_of_orientations)
         site_atoms = run_parameters['scan_bond']
 
