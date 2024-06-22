@@ -3,10 +3,10 @@ from distutils.core import setup
 
 setup(name='pyar',
       version='1.0',
-      packages=['pyar', 'pyar.data_analysis', 'pyar.interface', 'pyar.data', 'pyar.mlatom', 'pyar.mlatom.aiqm1_model', 'pyar.mlatom.interfaces', 'pyar.AIMNet2', 'pyar.AIMNet2.calculators', 'pyar.AIMNet2.data','pyar.AIMNet2.models'],
+      packages=['pyar', 'pyar.data_analysis', 'pyar.interface', 'pyar.data', 'pyar.mlatom', 'pyar.mlatom.aiqm1_model', 'pyar.mlatom.interfaces', 'pyar.AIMNet2', 'pyar.AIMNet2.calculators', 'pyar.AIMNet2.models'],
       scripts=['pyar/scripts/pyar-cli', 'pyar/scripts/pyar-optimiser', 'pyar/scripts/pyar-tabu',
                'pyar/scripts/pyar-clustering', 'pyar/scripts/pyar-similarity'],
-      url='https://github.com/sandipgiri576/pyar',
+      url='https://github.com/anooplab/pyar',
       license='GPl v3',
       author='Anoop et al',
       author_email='anoop@chem.iitkgp.ac.in',
