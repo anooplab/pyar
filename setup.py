@@ -11,7 +11,7 @@ setup(name='pyar',
       author='Anoop et al',
       author_email='anoop@chem.iitkgp.ac.in',
       description='A Python Code for Aggregation and Reaction',
-      install_requires=['numpy', 'scikit-learn', 'scipy', 'pandas', 'matplotlib'],
+      install_requires=['numpy', 'scikit-learn', 'scipy', 'pandas', 'matplotlib', 'h5md'],
       keywords='computational chemistry global minima aggregation automated reaction',
       classifiers=[
           'Development Status :: 5 - Production/Stable',
