@@ -2,7 +2,7 @@ import itertools
 import math
 import numpy as np
 import torch
-from afirxn.afir.restraints import get_covalent_radius
+from pyar.afir.restraints import get_covalent_radius
 
 hartree2kcalmol = 627.509
 bohr2angstroms = 0.529177
