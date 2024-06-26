@@ -16,6 +16,12 @@ from collections import UserDict
 
 from pyar.mlatom import data, stats, stopper, interfaces
 from pyar.mlatom.utils import doc_inherit
+
+from pyar.mlatom import lazy_loader
+
+models = lazy_loader.models
+
+
 try:
     from pyar.mlatom.kreg_api import KREG_API
 except:

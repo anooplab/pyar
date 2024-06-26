@@ -8,5 +8,6 @@ torchani
 dscribe
 ase
 pyh5md
+h5py
 hdbscan
 git+https://github.com/christopherjenness/DBCV.git

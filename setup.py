@@ -27,6 +27,7 @@ setup(
         'matplotlib',
         'pyh5md',
         'hdbscan',
+        'h5py',
         'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
         'dscribe'
     ],

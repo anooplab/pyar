@@ -46,7 +46,7 @@ def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0)
         for a, c in zip(atoms_list, coordinates):
             fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
 
-import torchani  # noqa: E402
+# import torchani  # noqa: E402
 import ase.optimize  # noqa: E402
 from ase.calculators.calculator import Calculator  # noqa: E402
 
