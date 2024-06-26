@@ -177,7 +177,7 @@ def argument_parse():
                                                   'orca',
                                                   'psi4', 'turbomole', 'xtb',
                                                   'xtb_turbo', 'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom', 'xtb-aimnet2', 'xtb-aiqm1'],
-                                         required=True, help="Software")
+                                         required=False, default=None, help="Software")
 
     quantum_chemistry_group.add_argument('-basis', '--basis', type=str,
                                          help='Basis set (default=def2-SVP)')
