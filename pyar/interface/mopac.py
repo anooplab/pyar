@@ -59,13 +59,13 @@ class Mopac(SF):
 
         """
         keyword_line = '-xkPM7' if not keyword else '-xk' + keyword
-        with open(self.inp_file, 'w') as fminp:
+        with open(self.inp_file, 'w') as fminp, open('tmp.log', 'w') as ferr:
             out = subp.Popen(["obabel", "-ixyz", self.start_xyz_file, "-omop", keyword_line],
-                             stdout=fminp)
-        output, error = out.communicate()
-        poll = out.poll()
+                             stdout=fminp, stderr=ferr)
+            output, error = out.communicate()
         exit_status = out.returncode
-        os.remove('tmp.log')
+        if exit_status == 0:
+            os.remove('tmp.log')
         return exit_status
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
