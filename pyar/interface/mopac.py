@@ -59,9 +59,9 @@ class Mopac(SF):
 
         """
         keyword_line = '-xkPM7' if not keyword else '-xk' + keyword
-        with open('tmp.log', 'w') as fminp:
-            out = subp.Popen(["obabel", "-ixyz", self.start_xyz_file, "-omop", self.inp_file, keyword_line],
-                             stdout=fminp, stderr=fminp)
+        with open(self.inp_file, 'w') as fminp:
+            out = subp.Popen(["obabel", "-ixyz", self.start_xyz_file, "-omop", keyword_line],
+                             stdout=fminp)
         output, error = out.communicate()
         poll = out.poll()
         exit_status = out.returncode
@@ -130,7 +130,7 @@ class Mopac(SF):
         for i in coordinates:
             c = i.split()
             try:
-                coords.append(np.array([c[1], c[3], c[5]], dtype=str).astype(np.float))
+                coords.append(np.array([c[1], c[3], c[5]], dtype=str).astype(float))
             except ValueError:
                 return
             atoms_list.append(c[0])
