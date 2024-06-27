@@ -20,6 +20,7 @@ def which(program):
 
     return None
 
+
 # from pyar.interface.mlatom_aiqm1 import MlatomAiqm1
 
 class SF(object):
@@ -46,29 +47,30 @@ def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0)
         for a, c in zip(atoms_list, coordinates):
             fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
 
+
 # import torchani  # noqa: E402
 import ase.optimize  # noqa: E402
 from ase.calculators.calculator import Calculator  # noqa: E402
+
 
 class ANI(Calculator):
     def __init__(self, species, model='ANI-1x'):
         self.species = species
         self.model = torchani.models.__dict__[model]()
-    
+
     def calculate(self, atoms=None, properties=['energy'], system_changes=[]):
         positions = atoms.get_positions()
         species = atoms.get_chemical_symbols()
         energy = self.model((species, positions)).energy
         self.results = {'energy': energy}
-        
+
     def optimize(atoms):
         dyn = ase.optimize.BFGS(atoms, trajectory='optimization.traj')
         dyn.run(fmax=0.001)
         return atoms.get_potential_energy()
 
     def singlepoint(atoms):
-       calc = ANI(atoms.get_chemical_symbols())
-       atoms.set_calculator(calc)
-       energy = atoms.get_potential_energy()
-       return energy
-    
+        calc = ANI(atoms.get_chemical_symbols())
+        atoms.set_calculator(calc)
+        energy = atoms.get_potential_energy()
+        return energy

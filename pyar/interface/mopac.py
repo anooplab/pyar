@@ -32,7 +32,11 @@ class Mopac(SF):
     def __init__(self, molecule, qc_params):
 
         if which('mopac') is None:
-            print('set MOPAC path')
+            print('Install Mopac or set MOPAC path')
+            sys.exit()
+
+        if which('obabel') is None:
+            print('Install opanbabel')
             sys.exit()
 
         super(Mopac, self).__init__(molecule)
@@ -56,7 +60,7 @@ class Mopac(SF):
         """
         keyword_line = '-xkPM7' if not keyword else '-xk' + keyword
         with open('tmp.log', 'w') as fminp:
-            out = subp.Popen(["babel", "-ixyz", self.start_xyz_file, "-omop", self.inp_file, keyword_line],
+            out = subp.Popen(["obabel", "-ixyz", self.start_xyz_file, "-omop", self.inp_file, keyword_line],
                              stdout=fminp, stderr=fminp)
         output, error = out.communicate()
         poll = out.poll()
