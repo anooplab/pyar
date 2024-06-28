@@ -26,8 +26,6 @@ To set up your environment for the tasks, you can create and edit your `.bashrc`
 # Create an alias for "mndo2020"
 alias mndobin="mndo2020"
 
-
-
 # Add Gaussian 16 to your PATH
 export PATH=$PATH:/home/apps/g16
 
@@ -43,6 +41,7 @@ alias mlatom="MLatom.py"
 # Install dftd4 executable in this way
 conda config --add channels conda-forge
 conda install dftd4
+conda install -c conda-forge openbabel
 alias dftd4bin="dftd4"
 ```
 
