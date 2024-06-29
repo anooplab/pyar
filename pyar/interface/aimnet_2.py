@@ -8,6 +8,8 @@ import numpy as np
 from pyar.AIMNet2.calculators import aimnet2_ase_opt  # noqa: F401
 from pyar.AIMNet2.calculators import aimnet2ase  # noqa: F401
 import sys
+import pkg_resources
+import os
 
 Aimnet2_logger = logging.getLogger('pyar.aimnet-2')
 
@@ -22,8 +24,10 @@ torch.backends.cudnn.allow_tf32 = False
 device = torch.device('cpu')
 print(device)
 
-#Plese adjust the path according the cloned repo.
-aimnet2 = torch.jit.load('aimnet2_wb97m-d3_0.jpt', map_location=device)
+model_path = pkg_resources.resource_filename('pyar', 'AIMNet2/models/aimnet2_wb97m-d3_0.jpt')
+aimnet2_script = pkg_resources.resource_filename('pyar', 'AIMNet2/calculators/aimnet2_ase_opt.py')
+# Load the model
+aimnet2 = torch.jit.load(model_path, map_location=device)
 
 class Aimnet2(SF):
     def __init__(self, molecule, qc_params):
@@ -46,7 +50,7 @@ class Aimnet2(SF):
         self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
         self.out_file = 'trial_' + self.job_name + '.out'
         
-        self.cmd = f"python aimnet2_ase_opt.py  aimnet2_wb97m-d3_0.jpt --traj result.traj {self.inp_file} {self.inp_min_file}"
+        self.cmd = f"python {aimnet2_script} {model_path} --traj result.traj {self.inp_file} {self.inp_min_file}"
         if self.charge != 0:
             self.cmd = "{} -c {}".format(self.cmd, self.charge)
 

@@ -13,9 +13,11 @@ setup(
         'pyar/scripts/pyar-tabu',
         'pyar/scripts/pyar-clustering',
         'pyar/scripts/pyar-similarity',
-        'pyar/AIMNet2/calculators/aimnet2_ase_opt.py',
-        'pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt'
+        'pyar/AIMNet2/calculators/aimnet2_ase_opt.py'
     ],
+    package_data={
+        'pyar': ['AIMNet2/models/aimnet2_wb97m-d3_0.jpt']
+    },
     url='https://github.com/anooplab/pyar',
     license='GPL v3',
     author='Anoop et al',
@@ -28,7 +30,6 @@ setup(
         'pandas',
         'matplotlib',
         'pyh5md',
-        'hdbscan',
         'h5py',
         'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
         'dscribe'
@@ -45,3 +46,4 @@ setup(
     ],
     python_requires='>=3.6',
 )
+
