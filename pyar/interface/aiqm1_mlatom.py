@@ -6,10 +6,12 @@ import os
 import subprocess as subp
 import numpy as np
 import sys
+import pkg_resources
+import os
 
 mlatom_logger = logging.getLogger('pyar.mlatom')
 
-
+aiqm1_opt = pkg_resources.resource_filename('pyar', 'interface/mlopt.py')
 
 class AIQM1(SF):
     def __init__(self, molecule, qc_params):
@@ -32,7 +34,7 @@ class AIQM1(SF):
         self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
         self.out_file = 'trial_' + self.job_name + '.out'
         
-        self.cmd = f"python ~/pyar/pyar/interface/mlopt.py  {self.inp_file} -c {self.charge} -m {self.multiplicity}  {self.inp_min_file}"
+        self.cmd = f"python {aiqm1_opt}  {self.inp_file} -c {self.charge} -m {self.multiplicity}  {self.inp_min_file}"
         if self.charge != 0:
             self.cmd = "{} -c {}".format(self.cmd, self.charge)
 

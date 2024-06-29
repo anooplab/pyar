@@ -13,6 +13,7 @@ setup(
         'pyar/scripts/pyar-tabu',
         'pyar/scripts/pyar-clustering',
         'pyar/scripts/pyar-similarity',
+        'pyar/interface/mlopt.py',
         'pyar/AIMNet2/calculators/aimnet2_ase_opt.py'
     ],
     package_data={
