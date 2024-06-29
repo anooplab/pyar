@@ -12,7 +12,9 @@ setup(
         'pyar/scripts/pyar-optimiser',
         'pyar/scripts/pyar-tabu',
         'pyar/scripts/pyar-clustering',
-        'pyar/scripts/pyar-similarity'
+        'pyar/scripts/pyar-similarity',
+        'pyar/AIMNet2/calculators/aimnet2_ase_opt.py',
+        'pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt'
     ],
     url='https://github.com/anooplab/pyar',
     license='GPL v3',
