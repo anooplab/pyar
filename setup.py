@@ -32,6 +32,7 @@ setup(
         'matplotlib',
         'pyh5md',
         'h5py',
+        'networkx',
         'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
         'dscribe'
     ],

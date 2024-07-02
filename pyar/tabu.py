@@ -12,7 +12,9 @@ import numpy as np
 from numpy import pi, cos, sin
 
 from pyar.Molecule import Molecule
-from pyar.property import get_connectivity
+# from pyar.property import get_connectivity
+import networkx as nx
+from typing import List, Tuple
 
 tabu_logger = logging.getLogger('pyar.tabu')
 
@@ -414,29 +416,44 @@ def main():
     pass
 
 
-def broken(molobj):
+def get_connectivity(coordinates: np.ndarray, covalent_radii: List[float],
+                     tolerance: float = 0.4) -> List[Tuple[int, int]]:
     """
+    Calculate connectivity based on interatomic distances and covalent radii.
+
+    :param coordinates: numpy array of shape (n_atoms, 3) with atomic coordinates
+    :param covalent_radii: list of covalent radii for each atom
+    :param tolerance: tolerance factor for bond detection
+    :return: list of tuples representing bonds (atom_index1, atom_index2)
+    """
+    n_atoms = len(coordinates)
+    bonds = []
+    for i in range(n_atoms):
+        for j in range(i+1, n_atoms):
+            distance = np.linalg.norm(coordinates[i] - coordinates[j])
+            if distance < (covalent_radii[i] + covalent_radii[j]) * (1 + tolerance):
+                bonds.append((i, j))
+    return bonds
+
+def broken(molobj) -> bool:
+    """
+    Check if the molecule is fragmented.
 
     :param molobj: object(Molecule)
     :return: Is the molecule fragmented?
     :rtype: bool
     """
-    bond_graph = get_connectivity(molobj.coordinates, molobj.covalent_radius)
-    explored = []
-    queue = collections.deque([0])
-    while queue:
-        node = queue.popleft()
-        if node not in explored:
-            explored.append(node)
-            neighbours = bond_graph[node]
-            for neighbour in neighbours:
-                queue.append(neighbour)
-    status = [i for i in range(len(molobj.atoms_list)) if i not in explored]
-    return len(status) > 0
+    # Create a graph from the molecular structure
+    G = nx.Graph()
+    G.add_nodes_from(range(len(molobj.atoms_list)))
+    G.add_edges_from(get_connectivity(molobj.coordinates, molobj.covalent_radius))
 
+    # Check if the graph is connected
+    return not nx.is_connected(G)
 
 if __name__ == "__main__":
     import sys
+
 
     input_xyz = sys.argv[1]
     mol = Molecule.from_xyz(input_xyz)
