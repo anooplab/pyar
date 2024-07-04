@@ -1,4 +1,4 @@
-import os
+averageimport os
 import math
 import glob
 import multiprocessing
@@ -39,7 +39,7 @@ def read_file(input_file):
 def Euclidean_distance(p1, p2, p3, axis_x, axis_y, axis_z):
     return math.sqrt((axis_x - p1)**2 + (axis_y - p2)**2 + (axis_z - p3)**2)
 
-def promedio(data):
+def average(data):
     return np.mean(data)
 
 def Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coord_z_1,
@@ -62,8 +62,8 @@ def Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coo
     mol_beta = sorted(distance_beta)
 
     num = len(mol_alpha)
-    dim_alpha = promedio(mol_alpha)
-    dim_beta = promedio(mol_beta)
+    dim_alpha = average(mol_alpha)
+    dim_beta = average(mol_beta)
 
     sumY = sum(((mol_alpha[i] / dim_alpha) - (mol_beta[i] / dim_beta))**2 for i in range(num))
     Springborg_2 = math.sqrt((2 / (numb_atoms * (numb_atoms - 1))) * sumY)
