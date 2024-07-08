@@ -1,4 +1,4 @@
-averageimport os
+import os
 import math
 import glob
 import multiprocessing
