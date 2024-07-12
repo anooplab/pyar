@@ -104,8 +104,7 @@ def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=Fals
     move_to = direction * maximum_distance_to_move
     monomer.translate(move_to)
 
-    contact = check_close_contact(seed, monomer, distance_scaling)
-    if contact:
+    if contact := check_close_contact(seed, monomer, distance_scaling):
         tabu_logger.debug("Large step was not enough")
         while contact:
             tabu_logger.debug("moving by small steps")
@@ -345,10 +344,10 @@ def create_trial_geometries(molecule_id, seed, monomer,
     """
     if monomer.number_of_atoms == 1:
         tabu_check_for_angles = False
-        proximity_factor = 1.0
+        proximity_factor = 1.2
     else:
         tabu_check_for_angles = True
-        proximity_factor = 2.3
+        proximity_factor = 1.5
 
     tabu_logger.debug('Generating points')
     points_and_angles = generate_points(number_of_orientations, tabu_on,
