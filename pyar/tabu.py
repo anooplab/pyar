@@ -10,6 +10,8 @@ import logging
 
 import numpy as np
 from numpy import pi, cos, sin
+from scipy.spatial.distance import cosine
+from scipy.stats import qmc
 
 from pyar.Molecule import Molecule
 # from pyar.property import get_connectivity
@@ -120,7 +122,6 @@ def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=Fals
     return orientation
 
 
-
 def ellipsoid_wall_potential(coordinates, a, b, c, k=100.0):
     """
     Apply an ellipsoid wall potential to keep molecules within bounds.
@@ -166,258 +167,93 @@ def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
     return composite
 
 
-# def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None,  distance_scaling=1.5):
-#     """
+def spherical_to_cartesian(r, theta, phi):
+    """
+    Convert spherical coordinates to Cartesian coordinates.
 
-#     :param ndarray vector: the direction for placing the monomer
-#     :param seed_input: Seed () -> Molecule
-#     :type seed_input: Seed molecule
-#     :param molecule monomer_input: Monomer molecule
-#     :param bool freeze_fragments: Whether to rotate the monomer
-#     :param site: weighted atom centres for placing
-#     :type site: Union[list, None]
-#     :param float distance_scaling: minimum separation between the
-#         two fragments in merged molecule is sum_of_covalent_radii
-#         * distance_scaling
-#     :return: merged molecule
-#     """
+    :param r: Radius
+    :param theta: Polar angle
+    :param phi: Azimuthal angle
+    :return: Cartesian coordinates (x, y, z)
+    """
+    x = r * sin(theta) * cos(phi)
+    y = r * sin(theta) * sin(phi)
+    z = r * cos(theta)
+    return np.array([x, y, z])
 
-#     x, y, z, theta, phi, psi = vector
-#     direction = np.array([x, y, z])
-#     tiny_steps = direction / 10
-#     seed = copy.deepcopy(seed_input)
-#     monomer = copy.deepcopy(monomer_input)
-#     tabu_logger.debug('Merging two molecules')
-#     if freeze_fragments is False:
-#         seed.move_to_origin()
-#     monomer.move_to_origin()
-
-#     if monomer.number_of_atoms > 1:
-#         monomer.rotate_3d((theta, phi, psi))
-#     tabu_logger.debug('checking close contact')
-
-#     tabu_logger.debug('Taking a large first step')
-#     r_max_of_seed = np.max([np.linalg.norm(c) for c in seed.coordinates])
-#     r_max_of_monomer = np.max([np.linalg.norm(c) for c in monomer.coordinates])
-#     maximum_distance_to_move = r_max_of_seed + r_max_of_monomer + 1.0
-#     move_to = direction * maximum_distance_to_move
-#     monomer.translate(move_to)
-
-#     if contact := check_close_contact(seed, monomer, distance_scaling):
-#         tabu_logger.debug("Large step was not enough")
-#         while contact:
-#             tabu_logger.debug("moving by small steps")
-#             monomer.translate(tiny_steps)
-#             contact = check_close_contact(seed, monomer, distance_scaling)
-#     else:
-#         while contact:
-#             monomer.translate(-1 * tiny_steps)
-#             contact = check_close_contact(seed, monomer, distance_scaling)
-
-#     #     lower_distance = np.zeros(3)
-#     #     upper_distance = move_to
-#     #     move_to = (upper_distance + lower_distance) / 2
-#     #     tabu_logger.debug("Binary steps")
-#     #     for _ in range(100):
-#     #         monomer.move_to_origin()
-#     #         monomer.translate(move_to)
-#     #         step_counter += 1
-#     #         contact = check_close_contact(seed, monomer, distance_scaling)
-#     #         if contact:
-#     #             lower_distance = move_to
-#     #         else:
-#     #             upper_distance = move_to
-#     #         move_to = (upper_distance + lower_distance) / 2
-#     #         if np.linalg.norm(upper_distance - lower_distance) < 0.01:
-#     #             break
-#     # tabu_logger.debug(f"Total steps taken {step_counter}")
-
-#     # is_in_cage = True
-#     # while check_close_contact(seed, monomer, distance_scaling) or is_in_cage:
-#     #     print("in loop")
-#     #     minimum_sep_1 = minimum_separation(seed, monomer)
-#     #     monomer.translate(translate_by)
-#     #     minimum_sep_2 = minimum_separation(seed, monomer)
-#     #     if minimum_sep_2 > minimum_sep_1:
-#     #         if is_in_cage is True:
-#     #             is_in_cage = 'BorW'
-#     #         if is_in_cage == 'BorW':
-#     #             is_in_cage = False
-
-#     orientation = seed + monomer
-#     if site is not None:
-#         atoms_in_self = site[0]
-#         atoms_in_other = site[1]
-#     else:
-#         atoms_in_self = list(range(seed.number_of_atoms))
-#         atoms_in_other = list(range(seed.number_of_atoms,
-#                                     orientation.number_of_atoms))
-#     orientation.fragments = [atoms_in_self, atoms_in_other]
-#     tabu_logger.debug('Merged.')
-#     return orientation
-
-
-def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
-                      angle_tabu):
+def check_tabu_status(point_n_angle, d_threshold, tabu_list):
     """
     Check if the given point (point_n_angle) is within the proximity (set by
-    d_threshold and a_threshold
+    d_threshold) of any point in the tabu list using cosine similarity.
 
-    :type point_n_angle: Numpy.ndarray
-    :param point_n_angle: six numbers (x, y, z, theta, phi, psi)
+    :type point_n_angle: ndarray
+    :param point_n_angle: Five numbers (theta, phi, angle1, angle2, angle3)
     :type d_threshold: float
-    :param d_threshold: minimum distance for Tabu
-    :type a_threshold: float
-    :param a_threshold: minimum angle (in radian) for Tabu
-    :type tabu_list: ndarray
-    :param tabu_list: the saved points and angles
-    :param bool angle_tabu: boolean if True consider also angles for checking the proximity
-    :type angle_tabu: bool
-    :param angle_tabu: boolean if True consider also angles for checking the proximity
+    :param d_threshold: Minimum cosine similarity for Tabu check
+    :type tabu_list: list
+    :param tabu_list: The saved points and angles
     :rtype: bool
-    :return: True if the new points is within the proximity of saved points
+    :return: True if the new point is within the proximity of saved points
     """
-    if tabu_list is None:
-        return False
-    tabu = False
     for each_saved_entry in tabu_list:
-        distance = np.linalg.norm(each_saved_entry[:3] - point_n_angle[:3])
-        if distance < d_threshold:
-            tabu = True
-        if tabu and angle_tabu is True:
-            delta_theta = abs(each_saved_entry[3] - point_n_angle[3])
-            delta_phi = abs(each_saved_entry[4] - point_n_angle[4])
-            delta_psi = abs(each_saved_entry[5] - point_n_angle[5])
-            tabu = (
-                    delta_theta < a_threshold
-                    and delta_phi < a_threshold
-                    and delta_psi < a_threshold
-            )
+        if 1 - cosine(each_saved_entry, point_n_angle) > d_threshold:
+            return True
+    return False
 
-    return tabu
-
-
-# def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
-#     """
-
-#     :param seed: seed molecule
-#     :type seed: Molecule.Molecule
-#     :type monomer: Molecule.Molecule
-#     :param monomer: monomer molecule
-#     :param points_and_angles: a set of 3 points and 3 angles
-#     :type points_and_angles: ndarray
-#     :param d_scale: the minimum distance between two fragment is scaled by
-#         sumo of covalent radii * d_scale
-#     :type d_scale: float
-#     :returns a composite molecule
-#     :rtype Molecule.Molecule
-#     """
-#     composite = copy.deepcopy(seed)
-#     for vector in points_and_angles:
-#         composite = merge_two_molecules(vector, composite, monomer,
-#                                         freeze_fragments=False,
-#                                         distance_scaling=d_scale)
-#     return composite
-
-
-def distribute_points_uniformly(points_and_angles):
+def generate_points(number_of_orientations, tabu_on, d_threshold=0.95):
     """
-    Code from Simon Tatham
-    https://www.chiark.greenend.org.uk/~sgtatham/polyhedra/
-    modified
+    Generate points using LHS for both spherical coordinates and angles, and convert to Cartesian coordinates.
 
-    :param points_and_angles:
-    :return: ndarray containing three points and angles
-    :rtype ndarray
-    """
-    angles = points_and_angles[:, 3:]
-    points = points_and_angles[:, :3]
-    for _ in range(100000):
-        forces = []
-        number_of_points = len(points)
-        for ith in range(number_of_points):
-            p = points[ith]
-            forces_on_p = np.zeros(3)
-            for jth in range(number_of_points):
-                if ith == jth:
-                    continue
-                q = points[jth]
-                v = p - q
-                r = np.linalg.norm(v)
-                f = v / r ** 3
-                forces_on_p += f
-            forces.append(forces_on_p)
-        forces = np.array(forces)
-        total_forces = np.sqrt(np.sum(forces ** 2))
-        scale_force = 0.25 / total_forces if total_forces > 0.25 else 1
-        dist = 0
-        for ith in range(len(points)):
-            p = points[ith]
-            f = forces[ith]
-            moved_point = (p + f * scale_force)
-            moved_point /= np.linalg.norm(moved_point)
-            dist += np.linalg.norm(p - moved_point)
-            points[ith] = moved_point
-
-        if dist < 1e-6:
-            return np.concatenate((points, angles), axis=1)
-
-
-def make_5d_coords(grid_location):
-    """
-
-    :type grid_location: ndarray
-    :param grid_location: In grid based generation of points, this will choose the grid.
-    :return: a set of three points and three angles
+    :type number_of_orientations: int
+    :param number_of_orientations: Number of orientations
+    :type tabu_on: bool
+    :param tabu_on: Use tabu or not
+    :type d_threshold: float
+    :param d_threshold: Cosine similarity threshold for Tabu check
+    :return: Numpy array of generated points in Cartesian coordinates and three angles
     :rtype: ndarray
     """
-    xyz = np.random.uniform(-0.5, 0.5, size=3)
-    xyz += grid_location
-    xyz /= np.linalg.norm(xyz, axis=0)
-    theta_phi = np.random.uniform(0, 2 * pi, size=3)
-    return np.concatenate((xyz, theta_phi), axis=0)
+    # Create a Latin Hypercube sampler for 5 dimensions (theta, phi, angle1, angle2, angle3)
+    sampler = qmc.LatinHypercube(d=5)
+    samples = sampler.random(n=number_of_orientations * 10)  # Generate more samples initially
 
+    # Scale the first dimension to range [0, pi] for theta
+    samples[:, 0] = samples[:, 0] * pi  # theta
 
-def generate_points(number_of_orientations, tabu_on, grid_on, check_angle,
-                    d_threshold=0.3, a_threshold=15.0):
-    """
-    Generate points
+    # Scale the second dimension to range [0, 2*pi] for phi
+    samples[:, 1] = samples[:, 1] * 2 * pi  # phi
 
-    :type a_threshold: float
-    :param a_threshold:
-    :type d_threshold: float
-    :param d_threshold:
-    :param bool check_angle: Should it check tabu list for angles
-    :param int number_of_orientations: Number of orientations
-    :param bool grid_on: Use Grid or not
-    :param bool tabu_on: Use tabu or not
-    :return:
-    """
+    # Scale the last three dimensions to range [0, 2*pi] for angles
+    samples[:, 2] = samples[:, 2] * 2 * pi  # angle1
+    samples[:, 3] = samples[:, 3] * 2 * pi  # angle2
+    samples[:, 4] = samples[:, 4] * 2 * pi  # angle3
 
-    if grid_on:
-        choose_grid = itertools.cycle([(0.5, 0.5, 0.5), (-0.5, -0.5, -0.5),
-                                       (0.5, 0.5, -0.5), (-0.5, -0.5, 0.5),
-                                       (0.5, -0.5, 0.5), (-0.5, 0.5, -0.5),
-                                       (0.5, -0.5, -0.5), (-0.5, 0.5, 0.5)])
-    else:
-        choose_grid = itertools.cycle([0, 0, 0])
+    tabu_list = []
+    valid_samples = 0
+    i = 0
 
-    tabu_list = [make_5d_coords(next(choose_grid))]
-    for _ in range(number_of_orientations - 1):
-        current_grid = next(choose_grid)
-        point_n_angle = make_5d_coords(current_grid)
+    while valid_samples < number_of_orientations and i < len(samples):
+        point_n_angle = samples[i]
         if tabu_on:
-            tries = 1
-            while check_tabu_status(point_n_angle, d_threshold, a_threshold,
-                                    tabu_list, check_angle) is True:
-                point_n_angle = make_5d_coords(current_grid)
-                tries += 1
-                if tries > 10000:
-                    d_threshold *= 0.95
+            if not check_tabu_status(point_n_angle, d_threshold, tabu_list):
+                tabu_list.append(point_n_angle)
+                valid_samples += 1
+        else:
+            tabu_list.append(point_n_angle)
+            valid_samples += 1
+        i += 1
 
-        tabu_list.append(point_n_angle)
-    return np.array(tabu_list)
+    if valid_samples < number_of_orientations:
+        raise ValueError("Unable to generate enough valid points with the given constraints.")
 
+    # Convert to Cartesian coordinates with three angles
+    result_points = []
+    for point in tabu_list:
+        theta, phi, angle1, angle2, angle3 = point
+        cartesian_coords = spherical_to_cartesian(1, theta, phi)
+        result_points.append(np.concatenate((cartesian_coords, [angle1, angle2, angle3])))
+
+    return np.array(result_points)
 
 def create_trial_geometries(molecule_id, seed, monomer,
                             number_of_orientations,
@@ -533,6 +369,7 @@ def get_connectivity(coordinates: np.ndarray, covalent_radii: List[float],
                 bonds.append((i, j))
     return bonds
 
+
 def broken(molobj) -> bool:
     """
     Check if the molecule is fragmented.
@@ -549,9 +386,9 @@ def broken(molobj) -> bool:
     # Check if the graph is connected
     return not nx.is_connected(G)
 
+
 if __name__ == "__main__":
     import sys
-
 
     input_xyz = sys.argv[1]
     mol = Molecule.from_xyz(input_xyz)
