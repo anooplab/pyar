@@ -35,14 +35,12 @@ def polar_to_cartesian(r, theta, phi):
 
 def check_close_contact(mol_1, mol_2, factor):
     """
-    Checks for close contacts between two molecules.  If the distance between
-    any pair of atoms is less than the sum of van der Waals radii (scaled by
-    factor), then it is assumed to have a close contact.
+    Checks for close contacts between two molecules.
 
-    :return: boolean
-    :type mol_1: Callable[..., Molecule]
-    :type mol_2: () -> Molecule
-    :type factor: float
+    :param mol_1: First molecule
+    :param mol_2: Second molecule
+    :param factor: Scaling factor for van der Waals radii
+    :return: boolean indicating close contact
     """
     fragment_one, fragment_two = mol_1.coordinates, mol_2.coordinates
     radius_one, radius_two = mol_1.covalent_radius, mol_2.covalent_radius
@@ -67,83 +65,48 @@ def minimum_separation(mol_1, mol_2):
                    itertools.product(mol_1.coordinates, mol_2.coordinates)])
 
 
-def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None,  distance_scaling=1.5):
+def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None, distance_scaling=1.5):
     """
+    Merge two molecules with improved proximity control.
 
-    :param ndarray vector: the direction for placing the monomer
-    :param seed_input: Seed () -> Molecule
-    :type seed_input: Seed molecule
-    :param molecule monomer_input: Monomer molecule
-    :param bool freeze_fragments: Whether to rotate the monomer
+    :param vector: the direction for placing the monomer
+    :param seed_input: Seed molecule
+    :param monomer_input: Monomer molecule
+    :param freeze_fragments: Whether to rotate the monomer
     :param site: weighted atom centres for placing
-    :type site: Union[list, None]
-    :param float distance_scaling: minimum separation between the
-        two fragments in merged molecule is sum_of_covalent_radii
-        * distance_scaling
+    :param distance_scaling: minimum separation between fragments
     :return: merged molecule
     """
-
     x, y, z, theta, phi, psi = vector
     direction = np.array([x, y, z])
-    tiny_steps = direction / 10
+    tiny_steps = direction / 20  # Reduced step size for finer control
     seed = copy.deepcopy(seed_input)
     monomer = copy.deepcopy(monomer_input)
     tabu_logger.debug('Merging two molecules')
-    if freeze_fragments is False:
+    
+    if not freeze_fragments:
         seed.move_to_origin()
     monomer.move_to_origin()
 
     if monomer.number_of_atoms > 1:
         monomer.rotate_3d((theta, phi, psi))
-    tabu_logger.debug('checking close contact')
+    
+    tabu_logger.debug('Checking close contact')
 
-    tabu_logger.debug('Taking a large first step')
+    # Calculate initial placement distance
     r_max_of_seed = np.max([np.linalg.norm(c) for c in seed.coordinates])
     r_max_of_monomer = np.max([np.linalg.norm(c) for c in monomer.coordinates])
-    maximum_distance_to_move = r_max_of_seed + r_max_of_monomer + 1.0
-    move_to = direction * maximum_distance_to_move
+    initial_distance = r_max_of_seed + r_max_of_monomer + 0.5  # Reduced initial distance
+    
+    move_to = direction * initial_distance
     monomer.translate(move_to)
 
-    if contact := check_close_contact(seed, monomer, distance_scaling):
-        tabu_logger.debug("Large step was not enough")
-        while contact:
-            tabu_logger.debug("moving by small steps")
-            monomer.translate(tiny_steps)
-            contact = check_close_contact(seed, monomer, distance_scaling)
-    else:
-        while contact:
-            monomer.translate(-1 * tiny_steps)
-            contact = check_close_contact(seed, monomer, distance_scaling)
-
-    #     lower_distance = np.zeros(3)
-    #     upper_distance = move_to
-    #     move_to = (upper_distance + lower_distance) / 2
-    #     tabu_logger.debug("Binary steps")
-    #     for _ in range(100):
-    #         monomer.move_to_origin()
-    #         monomer.translate(move_to)
-    #         step_counter += 1
-    #         contact = check_close_contact(seed, monomer, distance_scaling)
-    #         if contact:
-    #             lower_distance = move_to
-    #         else:
-    #             upper_distance = move_to
-    #         move_to = (upper_distance + lower_distance) / 2
-    #         if np.linalg.norm(upper_distance - lower_distance) < 0.01:
-    #             break
-    # tabu_logger.debug(f"Total steps taken {step_counter}")
-
-    # is_in_cage = True
-    # while check_close_contact(seed, monomer, distance_scaling) or is_in_cage:
-    #     print("in loop")
-    #     minimum_sep_1 = minimum_separation(seed, monomer)
-    #     monomer.translate(translate_by)
-    #     minimum_sep_2 = minimum_separation(seed, monomer)
-    #     if minimum_sep_2 > minimum_sep_1:
-    #         if is_in_cage is True:
-    #             is_in_cage = 'BorW'
-    #         if is_in_cage == 'BorW':
-    #             is_in_cage = False
+    # Gradually move monomer closer to seed
+    while not check_close_contact(seed, monomer, distance_scaling):
+        monomer.translate(-1 * tiny_steps)
+    
+    # Fine-tune the position
+    monomer.translate(tiny_steps)
 
     orientation = seed + monomer
     if site is not None:
@@ -151,11 +114,147 @@ def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=Fals
         atoms_in_other = site[1]
     else:
         atoms_in_self = list(range(seed.number_of_atoms))
-        atoms_in_other = list(range(seed.number_of_atoms,
-                                    orientation.number_of_atoms))
+        atoms_in_other = list(range(seed.number_of_atoms, orientation.number_of_atoms))
     orientation.fragments = [atoms_in_self, atoms_in_other]
     tabu_logger.debug('Merged.')
     return orientation
+
+
+
+def ellipsoid_wall_potential(coordinates, a, b, c, k=100.0):
+    """
+    Apply an ellipsoid wall potential to keep molecules within bounds.
+
+    :param coordinates: numpy array of shape (n_atoms, 3) with atomic coordinates
+    :param a: semi-major axis in x direction
+    :param b: semi-major axis in y direction
+    :param c: semi-major axis in z direction
+    :param k: force constant for the wall potential
+    :return: potential energy from the wall
+    """
+    x, y, z = coordinates.T
+    r = np.sqrt((x/a)**2 + (y/b)**2 + (z/c)**2)
+    return np.sum(k * np.maximum(r - 1, 0)**2)
+
+
+def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
+    """
+    Create a composite molecule with ellipsoid wall potential.
+
+    :param seed: seed molecule
+    :param monomer: monomer molecule
+    :param points_and_angles: a set of 3 points and 3 angles
+    :param d_scale: distance scaling factor
+    :return: a composite molecule
+    """
+    composite = copy.deepcopy(seed)
+    a, b, c = 1.0, 1.0, 1.0  # Initial ellipsoid parameters
+    
+    for vector in points_and_angles:
+        composite = merge_two_molecules(vector, composite, monomer,
+                                        freeze_fragments=False,
+                                        distance_scaling=d_scale)
+        
+        # Update ellipsoid parameters based on current molecule size
+        max_coords = np.max(composite.coordinates, axis=0)
+        min_coords = np.min(composite.coordinates, axis=0)
+        a, b, c = (max_coords - min_coords) / 2 + 1.0  # Add buffer
+        
+        # Apply wall potential
+        ellipsoid_wall_potential(composite.coordinates, a, b, c)
+    
+    return composite
+
+
+# def merge_two_molecules(vector, seed_input, monomer_input, freeze_fragments=False, site=None,  distance_scaling=1.5):
+#     """
+
+#     :param ndarray vector: the direction for placing the monomer
+#     :param seed_input: Seed () -> Molecule
+#     :type seed_input: Seed molecule
+#     :param molecule monomer_input: Monomer molecule
+#     :param bool freeze_fragments: Whether to rotate the monomer
+#     :param site: weighted atom centres for placing
+#     :type site: Union[list, None]
+#     :param float distance_scaling: minimum separation between the
+#         two fragments in merged molecule is sum_of_covalent_radii
+#         * distance_scaling
+#     :return: merged molecule
+#     """
+
+#     x, y, z, theta, phi, psi = vector
+#     direction = np.array([x, y, z])
+#     tiny_steps = direction / 10
+#     seed = copy.deepcopy(seed_input)
+#     monomer = copy.deepcopy(monomer_input)
+#     tabu_logger.debug('Merging two molecules')
+#     if freeze_fragments is False:
+#         seed.move_to_origin()
+#     monomer.move_to_origin()
+
+#     if monomer.number_of_atoms > 1:
+#         monomer.rotate_3d((theta, phi, psi))
+#     tabu_logger.debug('checking close contact')
+
+#     tabu_logger.debug('Taking a large first step')
+#     r_max_of_seed = np.max([np.linalg.norm(c) for c in seed.coordinates])
+#     r_max_of_monomer = np.max([np.linalg.norm(c) for c in monomer.coordinates])
+#     maximum_distance_to_move = r_max_of_seed + r_max_of_monomer + 1.0
+#     move_to = direction * maximum_distance_to_move
+#     monomer.translate(move_to)
+
+#     if contact := check_close_contact(seed, monomer, distance_scaling):
+#         tabu_logger.debug("Large step was not enough")
+#         while contact:
+#             tabu_logger.debug("moving by small steps")
+#             monomer.translate(tiny_steps)
+#             contact = check_close_contact(seed, monomer, distance_scaling)
+#     else:
+#         while contact:
+#             monomer.translate(-1 * tiny_steps)
+#             contact = check_close_contact(seed, monomer, distance_scaling)
+
+#     #     lower_distance = np.zeros(3)
+#     #     upper_distance = move_to
+#     #     move_to = (upper_distance + lower_distance) / 2
+#     #     tabu_logger.debug("Binary steps")
+#     #     for _ in range(100):
+#     #         monomer.move_to_origin()
+#     #         monomer.translate(move_to)
+#     #         step_counter += 1
+#     #         contact = check_close_contact(seed, monomer, distance_scaling)
+#     #         if contact:
+#     #             lower_distance = move_to
+#     #         else:
+#     #             upper_distance = move_to
+#     #         move_to = (upper_distance + lower_distance) / 2
+#     #         if np.linalg.norm(upper_distance - lower_distance) < 0.01:
+#     #             break
+#     # tabu_logger.debug(f"Total steps taken {step_counter}")
+
+#     # is_in_cage = True
+#     # while check_close_contact(seed, monomer, distance_scaling) or is_in_cage:
+#     #     print("in loop")
+#     #     minimum_sep_1 = minimum_separation(seed, monomer)
+#     #     monomer.translate(translate_by)
+#     #     minimum_sep_2 = minimum_separation(seed, monomer)
+#     #     if minimum_sep_2 > minimum_sep_1:
+#     #         if is_in_cage is True:
+#     #             is_in_cage = 'BorW'
+#     #         if is_in_cage == 'BorW':
+#     #             is_in_cage = False
+
+#     orientation = seed + monomer
+#     if site is not None:
+#         atoms_in_self = site[0]
+#         atoms_in_other = site[1]
+#     else:
+#         atoms_in_self = list(range(seed.number_of_atoms))
+#         atoms_in_other = list(range(seed.number_of_atoms,
+#                                     orientation.number_of_atoms))
+#     orientation.fragments = [atoms_in_self, atoms_in_other]
+#     tabu_logger.debug('Merged.')
+#     return orientation
 
 
 def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
@@ -198,27 +297,27 @@ def check_tabu_status(point_n_angle, d_threshold, a_threshold, tabu_list,
     return tabu
 
 
-def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
-    """
+# def create_composite_molecule(seed, monomer, points_and_angles, d_scale):
+#     """
 
-    :param seed: seed molecule
-    :type seed: Molecule.Molecule
-    :type monomer: Molecule.Molecule
-    :param monomer: monomer molecule
-    :param points_and_angles: a set of 3 points and 3 angles
-    :type points_and_angles: ndarray
-    :param d_scale: the minimum distance between two fragment is scaled by
-        sumo of covalent radii * d_scale
-    :type d_scale: float
-    :returns a composite molecule
-    :rtype Molecule.Molecule
-    """
-    composite = copy.deepcopy(seed)
-    for vector in points_and_angles:
-        composite = merge_two_molecules(vector, composite, monomer,
-                                        freeze_fragments=False,
-                                        distance_scaling=d_scale)
-    return composite
+#     :param seed: seed molecule
+#     :type seed: Molecule.Molecule
+#     :type monomer: Molecule.Molecule
+#     :param monomer: monomer molecule
+#     :param points_and_angles: a set of 3 points and 3 angles
+#     :type points_and_angles: ndarray
+#     :param d_scale: the minimum distance between two fragment is scaled by
+#         sumo of covalent radii * d_scale
+#     :type d_scale: float
+#     :returns a composite molecule
+#     :rtype Molecule.Molecule
+#     """
+#     composite = copy.deepcopy(seed)
+#     for vector in points_and_angles:
+#         composite = merge_two_molecules(vector, composite, monomer,
+#                                         freeze_fragments=False,
+#                                         distance_scaling=d_scale)
+#     return composite
 
 
 def distribute_points_uniformly(points_and_angles):
