@@ -215,11 +215,10 @@ def generate_points(number_of_orientations, tabu_on, d_threshold=0.95):
     """
     # Create a Latin Hypercube sampler for 5 dimensions (theta, phi, angle1, angle2, angle3)
     sampler = qmc.LatinHypercube(d=5)
-    samples = sampler.random(n=number_of_orientations * 10)  # Generate more samples initially
+    samples = sampler.random(n=number_of_orientations * 100)  # Generate more samples initially
 
     # Scale the first dimension to range [0, pi] for theta
-    samples[:, 0] = samples[:, 0] * pi  # theta
-
+    samples[:, 0] = np.arccos(1 - 2 * samples[:, 0])  # theta
     # Scale the second dimension to range [0, 2*pi] for phi
     samples[:, 1] = samples[:, 1] * 2 * pi  # phi
 
