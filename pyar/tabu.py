@@ -284,8 +284,7 @@ def create_trial_geometries(molecule_id, seed, monomer,
         proximity_factor = 1.5
 
     tabu_logger.debug('Generating points')
-    points_and_angles = generate_points(number_of_orientations, tabu_on,
-                                        grid_on, tabu_check_for_angles)
+    points_and_angles = generate_points(number_of_orientations, tabu_on)
     tabu_logger.debug('Generated points')
     write_tabu_list(points_and_angles, 'tabu.dat')
     # plot_points(pts)
