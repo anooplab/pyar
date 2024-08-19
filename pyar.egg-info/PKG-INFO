@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: pyar
+Version: 1.0
+Summary: A Python Code for Aggregation and Reaction
+Home-page: https://github.com/anooplab/pyar
+Author: Anoop et al
+Author-email: anoop@chem.iitkgp.ac.in
+License: GPL v3
+Keywords: computational chemistry global minima aggregation automated reaction
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Topic :: Scientific/Engineering :: Chemistry
+Requires-Python: >=3.6
+License-File: LICENSE
+
+UNKNOWN
+

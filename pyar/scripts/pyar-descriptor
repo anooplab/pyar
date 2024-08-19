@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import numpy as np
+import warnings
+from ase.io import read, write
+from scipy.spatial import ConvexHull
+import MDAnalysis as mda
+import pandas as pd
+import argparse
+import glob
+
+# Suppress specific warnings from MDAnalysis
+warnings.filterwarnings("ignore", category=UserWarning, module="MDAnalysis.analysis.base")
+
+def calculate_properties(atoms):
+    # Calculate cluster size (number of atoms)
+    cluster_size = len(atoms)
+
+    # Calculate the convex hull to approximate the cluster volume and surface area
+    points = atoms.get_positions()
+    hull = ConvexHull(points)
+
+    # Volume and surface area from convex hull
+    volume = hull.volume
+    surface_area = hull.area
+
+    # Calculate the maximum distance between any two atoms (maximum length)
+    distances = np.linalg.norm(points[:, np.newaxis, :] - points[np.newaxis, :, :], axis=-1)
+    max_length = np.max(distances)
+
+    # Calculate gyration radius as an additional size measure
+    rgyr = np.sqrt(np.mean(np.sum((points - np.mean(points, axis=0))**2, axis=1)))
+
+    return cluster_size, volume, surface_area, max_length, rgyr
+
+def create_combined_descriptor(properties):
+    # Normalize the properties
+    normalized = np.array(properties) / np.sum(properties)
+    
+    # Create a combined descriptor
+    combined = np.prod(normalized)
+    
+    return combined
+
+def main(args):
+    xyz_files = []
+    for pattern in args.input_files:
+        xyz_files.extend(glob.glob(pattern))
+    
+    if not xyz_files:
+        print("No XYZ files found.")
+        sys.exit(1)
+
+    data = []
+    unique_descriptors = {}
+    unique_atoms = []
+    duplicate_atoms = []
+
+    for filename in xyz_files:
+        atoms = read(filename)
+        properties = calculate_properties(atoms)
+        combined_descriptor = create_combined_descriptor(properties)
+        
+        # Create .mb file
+        basename = os.path.splitext(os.path.basename(filename))[0]
+        mb_filename = f"{basename}.mb"
+        with open(mb_filename, 'w') as f:
+            f.write(f"{combined_descriptor}\n")
+        
+        # Check if this descriptor is unique
+        if combined_descriptor not in unique_descriptors:
+            unique_descriptors[combined_descriptor] = filename
+            data.append([filename] + list(properties) + [combined_descriptor])
+            unique_atoms.append(atoms)
+        else:
+            duplicate_atoms.append(atoms)
+
+    # Create a DataFrame and save it as CSV
+    columns = ["Filename", "Cluster Size", "Volume (Å³)", "Surface Area (Å²)", "Maximum Length (Å)", "Radius of Gyration (Å)", "Combined Descriptor"]
+    df = pd.DataFrame(data, columns=columns)
+    df.to_csv("unique_cluster_properties.csv", index=False)
+
+    # Write trajectory files
+    write("unique_files.xyz", unique_atoms)
+    write("duplicate_files.xyz", duplicate_atoms)
+
+    print(f"Processed {len(xyz_files)} XYZ files.")
+    print(f"Found {len(unique_atoms)} unique structures and {len(duplicate_atoms)} duplicates.")
+    print("Results saved in unique_cluster_properties.csv, unique_files.xyz, and duplicate_files.xyz.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Analyze molecular cluster XYZ files.")
+    parser.add_argument("input_files", metavar='files', type=str, nargs='+',
+                        help='input coordinate files (supports wildcards)')
+    args = parser.parse_args()
+    main(args)

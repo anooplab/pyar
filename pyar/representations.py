@@ -328,7 +328,33 @@ def mbtr_descriptor(atoms_list, coordinates):
 
     return mbtr_output
 
+
+
+
+
+
+# def mbtr_descriptor(atoms_list, coordinates):
+#     # Create an Atoms object from the atoms_list and coordinates
+#     molecule = Atoms(atoms_list, positions=coordinates)
+
+#     # Get unique species from atoms_list
+#     unique_species = list(set(atoms_list))
     
+#     k2min, k2max, k2n = 0.7, 2.0, 100
+    
+#     mbtr = MBTR(
+#         species=unique_species,
+#         geometry={"function": "distance"},
+#         grid={"min": k2min, "max": k2max, "n": k2n, "sigma": 0.000000001},
+#         weighting={"function": "exp", "scale": 0.5, "threshold": 3e-3},
+#         periodic=False,
+#         normalization="l2_each",
+#     )
+
+#     # Create MBTR output for the molecule
+#     mbtr_output = mbtr.create(molecule)
+
+#     return mbtr_output
 
 
 def soap_descriptor(atoms_list, coordinates):
