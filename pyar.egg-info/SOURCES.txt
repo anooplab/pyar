@@ -102,6 +102,8 @@ pyar/mlatom/interfaces/xtb_interface.py
 pyar/scripts/__init__.py
 pyar/scripts/pyar-cli
 pyar/scripts/pyar-clustering
+pyar/scripts/pyar-descriptor
 pyar/scripts/pyar-optimiser
 pyar/scripts/pyar-similarity
 pyar/scripts/pyar-tabu
+test/test-descriptor.py

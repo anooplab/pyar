@@ -126,6 +126,7 @@ def choose_geometries(list_of_molecules, features='mbtr', maximum_number_of_seed
         dt_array = np.array(dt)
     elif features == 'mbtr':
         dt = [pyar.representations.mbtr_descriptor(i.atoms_list, i.coordinates) for i in list_of_molecules]
+        # dt = [d.get_k2()['element_Z'] for d in dt] 
     elif features == 'soap':
         dt = [pyar.representations.soap_descriptor(i.atoms_list, i.coordinates) for i in list_of_molecules]
         dt = [d.todense() for d in dt]  # Convert sparse arrays to dense arrays
@@ -145,9 +146,7 @@ def choose_geometries(list_of_molecules, features='mbtr', maximum_number_of_seed
 
     dt = np.around(dt, decimals=5)
 
-    # df = pd.DataFrame(dt)
-    # df.to_csv("features.csv")
-    # Assuming 'dt' is a list of LMBTR descriptors for multiple molecules
+    
     dt_array = np.array(dt)
 
     # Reshape the array into a 2-dimensional array
@@ -157,8 +156,7 @@ def choose_geometries(list_of_molecules, features='mbtr', maximum_number_of_seed
     df = pd.DataFrame(dt_reshaped)
     df.to_csv("features.csv")
 
-    # scale_it = RobustScaler()
-    # dt = scale_it.fit_transform(dt)
+
     scale_it = RobustScaler()
     dt = scale_it.fit_transform(dt_reshaped)
 
