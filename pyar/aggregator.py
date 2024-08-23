@@ -426,6 +426,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         else:
             aggregator_logger.info("  Clustering")
             selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, maximum_number_of_seeds=maximum_number_of_seeds)
+            # selected_seeds = clustering.choose_geometries(list_of_optimized_molecules, 
+            #                                   maximum_number_of_seeds=maximum_number_of_seeds,
+            #                                   algorithm=args.clustering_algorithm)
 
         os.chdir('selected')
         qc_params["opt_threshold"] = 'normal'
