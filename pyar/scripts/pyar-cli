@@ -21,7 +21,7 @@ import sys
 import time
 from collections import defaultdict
 import pyar.data_analysis.clustering
-from pyar import aggregator, Molecule
+from pyar import aggregator, Molecule, reactor
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
