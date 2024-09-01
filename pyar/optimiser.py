@@ -58,12 +58,8 @@ def optimise(molecule, qc_params):
         from pyar.interface import xtb
         geometry = xtb.Xtb(molecule, qc_params)
     elif software == 'xtb_turbo':
-        if gamma == 0.0:
-            from pyar.interface import xtb
-            geometry = xtb.Xtb(molecule, qc_params)
-        else:
-            from pyar.interface import xtbturbo
-            geometry = xtbturbo.XtbTurbo(molecule, qc_params)
+        from pyar.interface import xtbturbo
+        geometry = xtbturbo.XtbTurbo(molecule, qc_params)
     elif software == 'turbomole':
         from pyar.interface import turbomole
         geometry = turbomole.Turbomole(molecule, qc_params)

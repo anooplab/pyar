@@ -90,7 +90,7 @@ class Turbomole(SF):
         self.basis = qc_params['basis']
         self.method = qc_params['method']
 
-    def optimize(self, options):
+    def optimize(self):
         """This is the python implementation  of jobex of turbomole
 
         :returns: Union(True,
@@ -101,16 +101,19 @@ class Turbomole(SF):
                   False)
 
         """
-        max_cycles = options['opt_cycles']
-        gamma = options['gamma']
-        convergence = options['opt_threshold']
+        # max_cycles = options['opt_cycles']
+        # gamma = options['gamma']
+        # convergence = options['opt_threshold']
 
-        if convergence == 'loose':
-            scf_conv = 6
-        elif convergence == 'tight':
-            scf_conv = 8
-        else:
-            scf_conv = 7
+        # if convergence == 'loose':
+        #     scf_conv = 6
+        # elif convergence == 'tight':
+        #     scf_conv = 8
+        # else:
+        #     scf_conv = 7
+        scf_conv = 6
+        gamma = 100.0
+        max_cycles = 200
         basis_set = self.basis
         functional = 'bp'
         if self.method.lower() == 'bp86':

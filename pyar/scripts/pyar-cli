@@ -21,7 +21,7 @@ import sys
 import time
 from collections import defaultdict
 import pyar.data_analysis.clustering
-from pyar import aggregator, Molecule, reactor
+from pyar import aggregator, Molecule, reactor, scan
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
@@ -251,8 +251,22 @@ def main():
     logger.addHandler(handler)
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
+    
+
     logger.info(
-        f'==============================Starting pyar at {time_now}==============================')
+     f"""
++-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|  _ \ _   _   / \  |  _ \
+| |_) | | | | / _ \ | |_) |
+|  __/| |_| |/ ___ \|  _ <
+|_|    \__, /_/   \_\_| \_\
+       |___/
+                 Aggregation and Reaction            
++-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+"""
+)
+    logger.info(
+        f'==============================Starting at {time_now}==============================')
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
@@ -422,6 +436,12 @@ def main():
         logger.info('Total Time: {}'.format(time.time() - t1_0))
         logger.info("Started at {}\nEnded at {}".format(time_started,
                                                         datetime.datetime.now()))
+
+
+
+
+#reaction part
+
 
     if run_parameters['react']:
         minimum_gamma = run_parameters['gmin']
