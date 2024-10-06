@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+"""
+pyar-explore - Generate geometries based on formula
+
+This script provides a command-line interface for generating geometries
+based on a given formula using the PyAR project's tabu and aggregator modules.
+"""
+import argparse
+import os
+import copy
+import numpy as np
+from pyar.Molecule import Molecule
+from pyar.tabu import merge_two_molecules, generate_points
+from collections import OrderedDict
+import random
+from pyar.data import new_atomic_data as atomic_data
+import logging
+
+# Set up logging
+logging.basicConfig(filename='pyar_explore.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Generate geometries based on formula.')
+    parser.add_argument('seed_file', type=str, help='XYZ file for the seed monomer.')
+    parser.add_argument('monomer_file', type=str, help='XYZ file for the monomer.')
+    parser.add_argument('--formula', type=str, required=True, help='Target formula, e.g., C5H4.')
+    parser.add_argument('--pop', type=int, required=True, help='Number of geometries to generate.')
+    return parser.parse_args()
+
+def parse_formula(formula):
+    atom_counts = OrderedDict()
+    current_atom = ''
+    for char in formula:
+        if char.isalpha():
+            if current_atom:
+                atom_counts[current_atom] = atom_counts.get(current_atom, 0) + 1
+            current_atom = char
+        else:
+            atom_counts[current_atom] = atom_counts.get(current_atom, 0) + int(char)
+    if current_atom:
+        atom_counts[current_atom] = atom_counts.get(current_atom, 0) + 1
+    return atom_counts
+
+def generate_chemical_pathway(atom_counts, seed):
+    pathway = []
+    seed_atom_counts = {}
+    
+    # Count atoms in the seed
+    for atom in seed.atoms_list:
+        seed_atom_counts[atom] = seed_atom_counts.get(atom, 0) + 1
+    
+    # Sort atoms by atomic number (descending)
+    sorted_atoms = sorted(atom_counts.items(), key=lambda x: atomic_data.atomic_number[x[0]], reverse=True)
+    
+    for atom, count in sorted_atoms:
+        # Subtract the number of atoms already in the seed
+        remaining_count = count - seed_atom_counts.get(atom, 0)
+        if remaining_count > 0:
+            pathway.extend([atom] * remaining_count)
+    
+    return pathway
+
+def create_composite_molecule_wrapper(seed, monomer, pathway):
+    composite = copy.deepcopy(seed)
+    points = generate_points(len(pathway), True, 0.95)
+    
+    logging.info(f"Starting pathway: {pathway}")
+    logging.info(f"Initial composite atoms: {composite.atoms_list}")
+    
+    for i, (atom, point) in enumerate(zip(pathway, points)):
+        if atom == monomer.atoms_list[0]:
+            new_monomer = copy.deepcopy(monomer)
+        else:
+            new_monomer = Molecule([atom], np.array([[0.0, 0.0, 0.0]], dtype=np.float64))
+        
+        # Ensure point is a numpy array of float64
+        point_array = np.array(point, dtype=np.float64)
+        composite = merge_two_molecules(point_array, composite, new_monomer, freeze_fragments=False, distance_scaling=1.5)
+        
+        logging.info(f"Step {i+1}: Added {atom}, current atoms: {composite.atoms_list}")
+    
+    return composite
+
+def main():
+    args = parse_arguments()
+    
+    logging.info(f"Starting geometry generation for formula: {args.formula}")
+    
+    # Load seed and monomer molecules
+    seed = Molecule.from_xyz(args.seed_file)
+    monomer = Molecule.from_xyz(args.monomer_file)
+    
+    logging.info(f"Seed molecule: {seed.atoms_list}")
+    logging.info(f"Monomer molecule: {monomer.atoms_list}")
+    
+    # Parse formula and determine the number of each atom type
+    atom_counts = parse_formula(args.formula)
+    
+    # Generate chemical pathways
+    base_pathway = generate_chemical_pathway(atom_counts, seed)
+    
+    logging.info(f"Base pathway: {base_pathway}")
+    
+    # Generate geometries
+    geometries = []
+    for i in range(args.pop):
+        logging.info(f"Generating geometry {i+1}/{args.pop}")
+        
+        # Introduce some randomness in the pathway while maintaining chemical logic
+        pathway = copy.copy(base_pathway)
+        random.shuffle(pathway)
+        
+        try:
+            composite = create_composite_molecule_wrapper(seed, monomer, pathway)
+            geometries.append(composite)
+            logging.info(f"Geometry {i+1} generated successfully. Atoms: {composite.atoms_list}")
+        except Exception as e:
+            logging.error(f"Error generating geometry {i+1}: {str(e)}")
+            continue
+    
+    # Save geometries to files
+    for i, geometry in enumerate(geometries):
+        filename = f'geometry_{i:03d}.xyz'
+        try:
+            geometry.mol_to_xyz(filename)
+            logging.info(f'Generated geometry saved to {filename}. Atom count: {len(geometry.atoms_list)}')
+            print(f'Generated geometry saved to {filename}. Atom count: {len(geometry.atoms_list)}')
+        except Exception as e:
+            logging.error(f"Error saving geometry {i} to file: {str(e)}")
+            print(f"Error saving geometry {i} to file: {str(e)}")
+
+    logging.info("Geometry generation completed")
+
+if __name__ == '__main__':
+    main()

@@ -44,7 +44,7 @@ def calc_fingerprint_distance(a, b):
     )
 
 
-def choose_geometries(list_of_molecules, maximum_number_of_seeds=8):
+def choose_geometries(list_of_molecules, maximum_number_of_seeds=12):
     if len(list_of_molecules) < 2:
         cluster_logger.info("Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules

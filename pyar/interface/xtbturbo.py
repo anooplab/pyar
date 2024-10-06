@@ -58,10 +58,13 @@ class XtbTurbo(SF):
         self.energy = None
         self.optimized_coordinates = None
 
-    def optimize(self, options):
-        max_cycles = options['opt_cycles']
-        gamma = options['gamma']
-        convergence = options['opt_threshold']
+    def optimize(self):
+        # max_cycles = options['opt_cycles']
+        # gamma = options['gamma']
+        # convergence = options['opt_threshold']
+        max_cycles = 250
+        gamma = 100.0
+
 
         pyar.interface.turbomole.make_coord(self.atoms_list, self.start_coords, self.coord_file)
         pyar.interface.turbomole.prepare_control()

@@ -57,7 +57,7 @@ quantum_chemistry_group = parser.add_argument_group('calculation',
 quantum_chemistry_group.add_argument("--software", type=str,
                                      choices=['gaussian', 'mopac', 'obabel', 'orca',
                                               'psi4', 'turbomole', 'xtb',
-                                              'xtb_turbo', 'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom'],
+                                              'xtb_turbo', 'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom', 'xtb-aimnet2', 'xtb-aiqm1'],
                                      required=True, help="Software")
 
 quantum_chemistry_group.add_argument('-nprocs', '--nprocs', type=int, nargs=1,

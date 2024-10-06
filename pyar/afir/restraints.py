@@ -39,6 +39,25 @@ def get_covalent_radius(z):
     """
     return pyar.data.units.angstrom2bohr(covalent_radii[z.lower()])
 
+def get_data_structure(atoms, max_cycles):
+    coord_size = 3 * len(atoms)
+    _1d = (max_cycles,)
+    _2d = (max_cycles, coord_size)
+    _3d = (max_cycles, coord_size, coord_size)
+
+    get_data_structure = {
+        "cart_coords": _2d,
+        "energy": _1d,
+        "forces": _2d,
+        "hessian": _3d,
+        "true_energy": _1d,
+        "true_forces": _2d,
+        "true_hessian": _3d,
+    }
+
+    return get_data_structure
+
+
 
 def isotropic(fragment_indices, atoms_list, coordinates, force):
     parameter = 6.0  # inverse distance weighting parameter
@@ -46,7 +65,10 @@ def isotropic(fragment_indices, atoms_list, coordinates, force):
     r_zero = pyar.data.units.angstrom2bohr(3.8164)
     gamma = pyar.data.units.kilojoules2atomic_units(force)
     #    eqn. 3 JCTC 2011,7,2335
-    alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + np.sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
+    if gamma == 0.0:
+        alpha = 0.0
+    else:
+        alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + np.sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
 
     fragment_one, fragment_two = [coordinates[fragment_list, :] for fragment_list in fragment_indices]
     al1, al2 = [np.array(atoms_list)[fragment_list] for fragment_list in fragment_indices]

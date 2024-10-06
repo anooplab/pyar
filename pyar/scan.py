@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 import pyar.tabu
-from pyar import optimiser
+from pyar import old_optimiser
 from pyar.data_analysis import clustering
 
 
@@ -117,7 +117,7 @@ def scan_distance(input_molecules, site_atoms, number_of_orientations,
             file_manager.make_directories(job_dir)
             os.chdir(job_dir)
             quantum_chemistry_parameters['custom_keyword'] = c_k
-            optimiser.optimise(each_molecule, quantum_chemistry_parameters)
+            old_optimiser.optimise(each_molecule, quantum_chemistry_parameters)
             os.chdir(cwd)
         else:
             print('Optimization with %s is not implemented '

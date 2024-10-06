@@ -151,6 +151,9 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
         start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
 
         start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
+        # Update qc_param with the current gamma and index
+        # qc_param['gamma'] = gamma
+        # qc_param['index'] = len(this_molecule.atoms_list)-1
 
         status = optimise(this_molecule, qc_param)
         before_relax = copy.copy(this_molecule)
