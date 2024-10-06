@@ -9,6 +9,7 @@ pyar/checkpt.py
 pyar/checkvalidity.py
 pyar/crawler.py
 pyar/file_manager.py
+pyar/old_optimiser.py
 pyar/optimiser.py
 pyar/property.py
 pyar/reactor.py
@@ -37,6 +38,7 @@ pyar/data/new_atomic_data.py
 pyar/data/units.py
 pyar/data_analysis/__init__.py
 pyar/data_analysis/clustering.py
+pyar/data_analysis/old_clustering.py
 pyar/interface/ASE.py
 pyar/interface/__init__.py
 pyar/interface/aimnet_2.py
@@ -47,7 +49,9 @@ pyar/interface/gaussian.py
 pyar/interface/mlatom_aiqm1.py
 pyar/interface/mlopt.py
 pyar/interface/mopac.py
+pyar/interface/orca-afir.py
 pyar/interface/orca.py
+pyar/interface/orca_aiqm1.py
 pyar/interface/psi4.py
 pyar/interface/turbomole.py
 pyar/interface/xtb.py
@@ -103,7 +107,8 @@ pyar/scripts/__init__.py
 pyar/scripts/pyar-cli
 pyar/scripts/pyar-clustering
 pyar/scripts/pyar-descriptor
+pyar/scripts/pyar-explore
 pyar/scripts/pyar-optimiser
+pyar/scripts/pyar-react
 pyar/scripts/pyar-similarity
 pyar/scripts/pyar-tabu
-test/test-descriptor.py

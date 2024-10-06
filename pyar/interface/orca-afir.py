@@ -11,7 +11,7 @@ import glob
 from pyar.interface import SF, write_xyz, which
 
 orca_logger = logging.getLogger('pyar.orca')
-
+Bohr2Angstrom =  0.52917721092
 
 class Orca(SF):
     def __init__(self, molecule, qc_params):
@@ -124,6 +124,63 @@ class Orca(SF):
         results["forces"] = force
 
         return results
+    
+    def parse_orca_output(self, molecule):
+        natom = len(molecule.atoms)
+        
+        if self.calculate_energy:
+            if not self.calculate_energy_gradients:
+                with open(f'{self.inpfile}_property.txt', 'r') as orcaout:
+                    orcaout_lines = orcaout.readlines()
+                    for ii in range(len(orcaout_lines)):
+                        if 'Total Energy' in orcaout_lines[ii]: # ? check SCf energy or total enenrgy
+                            molecule.energy = float(orcaout_lines[ii].split()[-1]) 
+            else:
+                with open(f'{self.inpfile}.engrad', 'r') as orcaout:
+                    orcaout_lines = orcaout.readlines()
+                    for ii in range(len(orcaout_lines)):
+                        if 'total energy' in orcaout_lines[ii]:
+                            molecule.energy = float(orcaout_lines[ii+2])
+
+        if self.calculate_energy_gradients:
+            with open(f'{self.inpfile}.engrad', 'r') as orcaout:
+                orcaout_lines = orcaout.readlines()
+                for ii in range(len(orcaout_lines)):
+                    if 'gradient' in orcaout_lines[ii]:
+                        grad = orcaout_lines[ii+2: ii+2+natom*3]
+                        grad = [float(g.split()[0])/Bohr2Angstrom for g in grad]
+            for ii in range(natom):
+                a = molecule.atoms[ii]
+                a.energy_gradients = grad[3*ii: 3*ii+3] 
+        
+        if self.calculate_hessian:
+
+            with open(f'{self.inpfile}.hess', 'r') as orcaout:
+                orcaout_lines = orcaout.readlines()
+                hessian_index = orcaout_lines.index('$hessian\n') # start from $hessian
+                ncoordinate = int(orcaout_lines[hessian_index+1]) # second line is #coordinates
+                ncircle = int((ncoordinate-0.5) / 5)+1 # blocks
+
+                hessian_matrix = np.zeros((ncoordinate, ncoordinate))
+
+                for ii in range(ncircle):
+                    start_index = hessian_index+2+(ncoordinate+1)*ii
+                    cols_index_list = orcaout_lines[start_index].split()
+                    for jj in range(ncoordinate):
+                        hessian_line = orcaout_lines[start_index+1+jj].split()
+                        for kk in range(len(cols_index_list)):
+                            col_index = cols_index_list[kk]
+                            hessian_matrix[int(hessian_line[0])][int(col_index)] = float(hessian_line[kk+1])/Bohr2Angstrom**2
+            molecule.hessian = hessian_matrix
+
+        if not self.calculate_energy and self.output_keywords:
+            for keyword in self.output_keywords:
+                keyword_name = self.input_file+'_'+keyword.lower().replace(' ', '_')
+                with open(f'{self.inpfile}_property.txt', 'r') as orcaout:
+                    orcaout_lines = orcaout.readlines()
+                    for ii in range(len(orcaout_lines)):
+                        if keyword in orcaout_lines[ii]:
+                            molecule.__dict__[keyword_name] = float(orcaout_lines[ii].split()[-1]) 
 
 
 def main():

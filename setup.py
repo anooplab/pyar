@@ -9,6 +9,8 @@ setup(
     ]),
     scripts=[
         'pyar/scripts/pyar-cli',
+        'pyar/scripts/pyar-react',
+        'pyar/scripts/pyar-explore',
         'pyar/scripts/pyar-optimiser',
         'pyar/scripts/pyar-tabu',
         'pyar/scripts/pyar-clustering',
@@ -33,6 +35,7 @@ setup(
         'matplotlib',
         'pyh5md',
         'h5py',
+        'hdbscan',
         'networkx',
         'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
         'dscribe'

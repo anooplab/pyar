@@ -9,7 +9,7 @@ import numpy as np
 from pyar import tabu, file_manager
 from pyar.Molecule import Molecule
 from pyar.data_analysis import clustering
-from pyar.optimiser import optimise
+from pyar.old_optimiser import optimise
 import re
 from pyar.Molecule import atomic_data
 aggregator_logger = logging.getLogger('pyar.aggregator')

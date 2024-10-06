@@ -5,6 +5,7 @@ pandas
 matplotlib
 pyh5md
 h5py
+hdbscan
 networkx
 DBCV@ git+https://github.com/christopherjenness/DBCV.git
 dscribe
