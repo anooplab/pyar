@@ -7,7 +7,6 @@ pyar/__init__.py
 pyar/aggregator.py
 pyar/checkpt.py
 pyar/checkvalidity.py
-pyar/crawler.py
 pyar/file_manager.py
 pyar/old_optimiser.py
 pyar/optimiser.py

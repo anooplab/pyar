@@ -15,6 +15,7 @@ import os
 
 from pyar import file_manager
 from pyar.Molecule import Molecule
+from pyar.optimiser import apply_geometry_result, is_usable
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
@@ -35,6 +36,7 @@ def optimise(molecule, qc_params):
         read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
         molecule.energy = read_molecule.energy
         molecule.optimized_coordinates = read_molecule.coordinates
+        molecule.coordinates = read_molecule.coordinates
         optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
         os.chdir(cwd)
         return True
@@ -85,10 +87,9 @@ def optimise(molecule, qc_params):
     
     optimize_status = geometry.optimize()
     # if optimize_status is True or optimize_status == 'converged' or optimize_status == 'CycleExceeded':
-    if optimize_status is True:
-        molecule.energy = geometry.energy
-        # molecule.coordinates = geometry.optimized_coordinates
-        optimiser_logger.info(f'     {molecule.name:35s}: {float(geometry.energy):15.6f}')
+    if is_usable(optimize_status):
+        apply_geometry_result(molecule, geometry)
+        optimiser_logger.info(f'     {molecule.name:35s}: {float(molecule.energy):15.6f}')
         # optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy}')
     # elif optimize_status == 'SCFFailed':
     #     from numpy.random import uniform
@@ -115,7 +116,7 @@ def bulk_optimize(input_molecules, qc_params):
     return [
         n
         for n, s in zip(input_molecules, status_list)
-        if s is True or s == 'cycleexceeded'
+        if is_usable(s)
     ]
 
 

@@ -10,6 +10,7 @@ from pyar import tabu, file_manager
 from pyar.Molecule import Molecule
 from pyar.data_analysis import clustering
 from pyar.old_optimiser import optimise
+from pyar.optimiser import is_cycle_exceeded, is_success
 import re
 from pyar.Molecule import atomic_data
 aggregator_logger = logging.getLogger('pyar.aggregator')
@@ -391,9 +392,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                     aggregator_logger.info(f"    Round {i + 1:d} of block optimizations with {len(not_converged):d} molecules")
                     qc_params["opt_threshold"] = 'loose'
                     status_list = [optimise(each_mol, qc_params) for each_mol in not_converged]
-                    converged = [n for n, s in zip(not_converged, status_list) if s is True]
+                    converged = [n for n, s in zip(not_converged, status_list) if is_success(s)]
                     list_of_optimized_molecules.extend(converged)
-                    not_converged = [n for n, s in zip(not_converged, status_list) if s == 'CycleExceeded' and not tabu.broken(n)]
+                    not_converged = [n for n, s in zip(not_converged, status_list) if is_cycle_exceeded(s) and not tabu.broken(n)]
                     not_converged = clustering.remove_similar(not_converged)
                 else:
                     aggregator_logger.info("    All molecules are processed")
@@ -401,7 +402,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             else:
                 aggregator_logger.info("    The following molecules are not converged after 10 rounds")
                 for n, s in zip(not_converged, status_list):
-                    if s == 'CycleExceeded' and not tabu.broken(n):
+                    if is_cycle_exceeded(s) and not tabu.broken(n):
                         aggregator_logger.info("      ", n.name)
             os.chdir(cwd)
         
@@ -438,7 +439,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         for each_file in selected_seeds:
             not_refined = copy.deepcopy(each_file)
             status = optimise(each_file, qc_params)
-            if status is True:
+            if is_success(status):
                 xyz_file = f'job_{each_file.name}/result_{each_file.name}.xyz'
                 shutil.copy(xyz_file, '.')
             else:

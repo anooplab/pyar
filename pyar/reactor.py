@@ -10,7 +10,7 @@ import pyar.interface.babel
 import pyar.scan
 from pyar import tabu, file_manager
 from pyar.data_analysis import clustering
-from pyar.optimiser import optimise
+from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
 
 reactor_logger = logging.getLogger('pyar.reactor')
 
@@ -159,7 +159,7 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
         before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
         reactor_logger.info('... completed')
-        if status is True or status == 'converged' or status == 'cycle_exceeded':
+        if is_usable(status):
             reactor_logger.info("      E({}): {:12.7f}".format(job_name, this_molecule.energy))
 
             if this_molecule.is_bonded():
@@ -168,7 +168,7 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                 this_molecule.name = 'relax'
                 status = optimise(this_molecule, qc_param)
                 this_molecule.name = job_name
-                if status is True or status == 'converged':
+                if is_success(status):
                     this_molecule.mol_to_xyz('result_relax.xyz')
                     current_inchi = pyar.interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
 
@@ -202,7 +202,7 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                         os.chdir(cwd)
                         updtchk(chkdict, 'ori', job_name, reactor_logger, workdir)
                         continue
-                elif status == 'cycle_exceeded':
+                elif is_cycle_exceeded(status):
                     table_of_optimized_molecules.append(before_relax)
                     reactor_logger.info(f'{job_name} is added to the table to optimize with higher gamma')
 

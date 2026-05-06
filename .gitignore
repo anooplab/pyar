@@ -1,2 +1,6 @@
- pyar.egg-info/
+pyar.egg-info/
 test/
+.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]

@@ -323,18 +323,14 @@ class Molecule(object):
         """
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
-        if isinstance(radius_one, np.float) and isinstance(radius_two,
-                                                           np.float64):
-            # noinspection PyPep8Naming
-            R = radius_one + radius_two
-            r = np.linalg.norm(fragment_one - fragment_two)
-            return r < R
-        else:
-            # noinspection PyPep8Naming
-            R = [x + y for x, y in itertools.product(radius_one, radius_two)]
-            r = [np.linalg.norm(a - b) for a, b in
-                 itertools.product(fragment_one, fragment_two)]
-            return any(a < b for a, b in zip(r, R))
+        radii_sum = [
+            r1 + r2 for r1, r2 in itertools.product(radius_one, radius_two)
+        ]
+        distances = [
+            np.linalg.norm(a - b)
+            for a, b in itertools.product(fragment_one, fragment_two)
+        ]
+        return any(distance < radius for distance, radius in zip(distances, radii_sum))
 
     @property
     def moments_of_inertia_tensor(self):
