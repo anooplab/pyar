@@ -79,6 +79,11 @@ pip install git+https://github.com/christopherjenness/DBCV.git
 ## AIMNet2
 ```pyar-cli -s water.xyz water.xyz --software aimnet_2  -ss 10  -N 16 -c 0 0 -m 1 1```
 
+PyAR bundles AIMNet2 model assets for the AIMNet2 interfaces. AIMNet2 is a
+third-party project from the Isayev Lab and is MIT licensed upstream. See
+`THIRD_PARTY_LICENSES/AIMNet2-LICENSE` and
+`THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md` for license and provenance details.
+
 This will generate a molecules  upto maximum 6 carbon and 6 hydrogens with **mlatom_aiqm1** potential using 8 trial orientations.
 Here c.xyz and h.xyz are standard cartesian coordinate files. 
 ```bash
@@ -127,3 +132,4 @@ between them
 
 1. "A Global Optimizer for Nanoclusters ", Maya Khatun, Rajat Shubhro Majumdar, Anakuthil Anoop <a href="https://www.frontiersin.org/articles/10.3389/fchem.2019.00644/full">Frontiers in Chemistry 2019, 644</a>
 1. "A tabu-search based strategy for modeling molecular aggregates and binary reactions" S Nandi, SR McAnanama-Brereton, MP Waller, A Anoop, <a href="https://www.sciencedirect.com/science/article/pii/S2210271X17301627">Computational and Theoretical Chemistry 2017, 1111, 69-81</a>  
+1. "AIMNet2: A Neural Network Potential to Meet your Neutral, Charged, Organic, and Elemental-Organic Needs" D. M. Anstine, R. Zubatyuk, O. Isayev, <a href="https://doi.org/10.1039/D4SC08572H">Chemical Science 2025, 16, 10228-10244</a>

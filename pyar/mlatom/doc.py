@@ -825,19 +825,19 @@ class Doc():
                                                                         data should be in the same format as our in our database QDDSET-1 especially when QDmodelType=OSTL or AIQD.
         n_states=[number of states or sites, integer]	                Default is 2 for SB and 7 for FMO. It defines the number of states (SB) or sites (FMO).
         initState=[number of initial site]	                            Default value is 1 (Initial exictation is on site-1). It represents initial site in FMO complex and it is required when we propagate dynamics with OSTL or AIQD method
-        time=[propagation time]	                                        Default is 20\Delta for SB and 50ps for FMO	complex.
-        time_step=[time step of propagation]	                        Default is 0.05\Delta for SB and 0.005ps for FMO complex.
-        energyDiff=[energy difference]	                                Default value is 1.0\Delta. In the case of SB, it defines the energy difference between the states and it is required when QDmodelType=OSTL or AIQD.
+        time=[propagation time]	                                        Default is 20\\Delta for SB and 50ps for FMO	complex.
+        time_step=[time step of propagation]	                        Default is 0.05\\Delta for SB and 0.005ps for FMO complex.
+        energyDiff=[energy difference]	                                Default value is 1.0\\Delta. In the case of SB, it defines the energy difference between the states and it is required when QDmodelType=OSTL or AIQD.
         Delta=[tunneling matrix element]	                            Default value is 1.0. It is adopted as a energy unit in SB and defines the tunneling matrix element. It is required only when QDmodelType = OSTL or AIQD.
-        gamma=[characteristic frequency]	                            Default value is 10\Delta for SB and 500cm^-1 for FMO. It defines the characteristic frequency and required only when QDmodelType=OSTL or AIQD.
-        lamb=[system-bath coupling strength]	                        Default value is 1.0\Delta for SB and 520cm^-1 for FMO. It defines system-bath coupling strength and required only when QDmodelType=OSTL or AIQD.
-        temp=[temperature]	                                            Default value is 1.0\Delta for SB and 510cm^-1 for FMO.	It defines temperature (K) in the case FMO complex and inverse temperature in the case of SB. 
+        gamma=[characteristic frequency]	                            Default value is 10\\Delta for SB and 500cm^-1 for FMO. It defines the characteristic frequency and required only when QDmodelType=OSTL or AIQD.
+        lamb=[system-bath coupling strength]	                        Default value is 1.0\\Delta for SB and 520cm^-1 for FMO. It defines system-bath coupling strength and required only when QDmodelType=OSTL or AIQD.
+        temp=[temperature]	                                            Default value is 1.0\\Delta for SB and 510cm^-1 for FMO.	It defines temperature (K) in the case FMO complex and inverse temperature in the case of SB. 
                                                                         We need to define it when QDmodelType=OSTL or AIQD.
-        energyNorm=[normalizer]	                                        Default value is 1.0\Delta. It is a Normalizer for the energy difference between the states (SB). 
+        energyNorm=[normalizer]	                                        Default value is 1.0\\Delta. It is a Normalizer for the energy difference between the states (SB). 
         energyNorm=[normalizer]	                                        Default value is 1.0. It serves as a Normalizer for the tunneling matrix element in the case of SB.
-        gammaNorm=[normalizer]	                                        Default value is 10\Delta (in the case of SB) and 500cm^-1 (in the case of FMO). It serves as a Normalizer for characteristic frequency.
-        lambNorm=[normalizer]	                                        Default value is 1.0\Delta (in the case of SB) and 520cm^-1 (in the case of FMO). It serves as a Normalizer for system-bath coupling strength.
-        tempNorm=[normalizer]	                                        Default value is 1.0\Delta (in the case of SB) and 510cm^-1 (in the case of FMO). It serves as a Normalizer for temperature (FMO) or inverse temperature (SB).
+        gammaNorm=[normalizer]	                                        Default value is 10\\Delta (in the case of SB) and 500cm^-1 (in the case of FMO). It serves as a Normalizer for characteristic frequency.
+        lambNorm=[normalizer]	                                        Default value is 1.0\\Delta (in the case of SB) and 520cm^-1 (in the case of FMO). It serves as a Normalizer for system-bath coupling strength.
+        tempNorm=[normalizer]	                                        Default value is 1.0\\Delta (in the case of SB) and 510cm^-1 (in the case of FMO). It serves as a Normalizer for temperature (FMO) or inverse temperature (SB).
         numLogf=[number of logistic functions]	                        Default value is 1. It defines the number of logistic functions in AIQD which is used to normalize the dimension of time.
         LogCa=[coefficient]	                                            Default value is 1.0. It defines coefficient “a” in the logistic function.
         LogCb=[coefficient]	                                            Default value is 15.0. It defines coefficient “b” in the logistic function.

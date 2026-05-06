@@ -47,7 +47,7 @@ def guess_pybel_type(filename):
 
 
 def guess_charge(mol):
-    m = re.search('charge: (-?\d+)', mol.title)
+    m = re.search(r'charge: (-?\d+)', mol.title)
     if m:
         charge = int(m.group(1))
     else:

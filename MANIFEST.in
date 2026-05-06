@@ -1,1 +1,4 @@
-include pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt
+recursive-include pyar/AIMNet2/models *.jpt
+recursive-include pyar/mlatom/aiqm1_model *.pt
+include THIRD_PARTY_LICENSES/AIMNet2-LICENSE
+include THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md

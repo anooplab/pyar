@@ -411,9 +411,9 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
         with open(define_input_file, "w") as fdefine:
             fdefine.write("\n\n")
             fdefine.write("a coord\n")
-            if coordinates is 'internal':
+            if coordinates == 'internal':
                 fdefine.write("ired\n*\n")
-            elif coordinates is 'cartesian':
+            elif coordinates == 'cartesian':
                 fdefine.write("*\nno\n")
             fdefine.write("bb all %s\n*\n" % basis)
             fdefine.write("eht\n\n")

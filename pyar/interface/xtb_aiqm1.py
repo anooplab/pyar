@@ -31,7 +31,7 @@ class XtbAIQM1(SF):
             self.xtb_cmd = "{} -chrg {}".format(self.xtb_cmd, self.charge)
         if self.multiplicity != 1:
             self.xtb_cmd = "{} -uhf {}".format(self.xtb_cmd, self.multiplicity)
-        if self.multiplicity == 1 and self.scftype is not 'rhf':
+        if self.multiplicity == 1 and self.scftype != 'rhf':
             self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
 
         self.aiqm1_cmd = f"python {aiqm1_opt} {self.xtb_optimized_xyz_file} -c {self.charge} -m {self.multiplicity}  {self.aiqm1_optimized_xyz_file}"

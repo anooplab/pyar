@@ -23,7 +23,7 @@ class aiqm1(models.torchani_model):
     The Artificial intelligence–quantum mechanical method as in the `AIQM1 paper`_.
 
     Arguments:
-        method (str, optional): AIQM method used. Currently supports AIQM1, AIQM1\@DFT*, and AIQM1\@DFT. Default value: AIQM1.
+        method (str, optional): AIQM method used. Currently supports AIQM1, AIQM1\\@DFT*, and AIQM1\\@DFT. Default value: AIQM1.
         qm_program (str): The QM program used in the calculation of ODM2* part. Currently supports MNDO and Sparrow program. 
         qm_program_kwargs (dictionary, optional): Keywords passed to QM program.
  

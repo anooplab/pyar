@@ -38,7 +38,7 @@ class XtbAimnet2(SF):
             self.xtb_cmd = "{} -chrg {}".format(self.xtb_cmd, self.charge)
         if self.multiplicity != 1:
             self.xtb_cmd = "{} -uhf {}".format(self.xtb_cmd, self.multiplicity)
-        if self.multiplicity == 1 and self.scftype is not 'rhf':
+        if self.multiplicity == 1 and self.scftype != 'rhf':
             self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
 
         self.aimnet2_cmd = f"python {aimnet2_script} {model_path} --traj result.traj {self.xtb_optimized_xyz_file} {self.aimnet2_optimized_xyz_file}"

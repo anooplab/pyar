@@ -44,7 +44,7 @@ class Xtb(SF):
             self.cmd = "{} -chrg {}".format(self.cmd, self.charge)
         if self.multiplicity != 1:
             self.cmd = "{} -uhf {}".format(self.cmd, self.multiplicity)
-        if self.multiplicity == 1 and self.scftype is not 'rhf':  # noqa: F632
+        if self.multiplicity == 1 and self.scftype != 'rhf':
             self.cmd = "{} -{}".format(self.cmd, self.scftype)
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'

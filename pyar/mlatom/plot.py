@@ -113,7 +113,7 @@ class plot(object):
 
         if self.plot2Ys:
             colors = ['r']
-            labels = ['TD $\omega$B97-XD/def2-TZVP', 'TD $\omega$B97XD']
+            labels = [r'TD $\omega$B97-XD/def2-TZVP', r'TD $\omega$B97XD']
             ax2 = ax.twinx()
             ax2.set_ylabel('Oscillator strength $f$',
                            fontsize=18, color='black')
@@ -134,7 +134,7 @@ class plot(object):
                 matplotlib.ticker.OldScalarFormatter())
 
             ax3.set_ylabel(
-                'Cross section, $\AA^2$ molecule$^{-1}$', fontsize=18, color='black')
+                r'Cross section, $\AA^2$ molecule$^{-1}$', fontsize=18, color='black')
             ax3.set_ylim(ymin=0.0, ymax=max(self.y3y) * 1.1)
             ax3.get_yaxis().set_visible(True)
             lines.append(ax3.plot(self.x3y, self.y3y,
@@ -156,4 +156,3 @@ class plot(object):
             plt.savefig('%s' % self.savein, dpi=300, bbox_inches='tight')
         plt.show()
         plt.close()
-

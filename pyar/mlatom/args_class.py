@@ -661,7 +661,7 @@ class mlatom_args(ArgsBase):
         self._hyperopt_str_dict = {}
         self.hyperparameter_optimization['maximum_evaluations'] = int(self.hyperopt.max_evals)  
         for arg in self.args2pass:
-            if bool(re.search('hyperopt\..+?\(.+?\)',arg)):
+            if bool(re.search(r'hyperopt\..+?\(.+?\)', arg)):
                 key, value = arg.split('=')
                 self.hyperparameter_optimization['hyperparameters'].append(key.split('.')[-1])
                 self._hyperopt_str_dict[key.split('.')[-1]] = value

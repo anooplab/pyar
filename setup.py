@@ -20,7 +20,10 @@ setup(
         'pyar/AIMNet2/calculators/aimnet2_ase_opt.py'
     ],
     package_data={
-        'pyar': ['AIMNet2/models/aimnet2_wb97m-d3_0.jpt']
+        'pyar': [
+            'AIMNet2/models/*.jpt',
+            'mlatom/aiqm1_model/*.pt'
+        ]
     },
     url='https://github.com/anooplab/pyar',
     license='GPL v3',
@@ -52,4 +55,3 @@ setup(
     ],
     python_requires='>=3.6',
 )
-

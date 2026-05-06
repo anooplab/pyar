@@ -4,3 +4,4 @@ test/
 __pycache__/
 **/__pycache__/
 *.py[cod]
+pyar.log

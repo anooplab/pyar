@@ -639,11 +639,11 @@ def sampling(args=None, XYZfile=None, XfileIn=None, sampling=None, Nuse=None,
             if iTestOut:       os.system(f'cp {tmpdirname}/itest.dat {iTestOut}')
             if args.CVtest and iCVtestPrefOut: 
                 if args.CVopt and iCVoptPrefOut:
-                    os.system(f"find {tmpdirname} -name '*icvopt*' -exec bash -c ' mv $0 ${{0/\"icvopt\"/\"{iCVoptPrefOut}\"}}' {{}} \;")
+                    os.system(f"find {tmpdirname} -name '*icvopt*' -exec bash -c ' mv $0 ${{0/\"icvopt\"/\"{iCVoptPrefOut}\"}}' {{}} \\;")
                     args.iCVoptPrefIn = iCVoptPrefOut
-                os.system(f"find {tmpdirname} -name 'icvtest*' -exec bash -c ' cp $0 ${{0/\"{tmpdirname}/icvtest\"/\"{iCVtestPrefOut}\"}}' {{}} \;")
+                os.system(f"find {tmpdirname} -name 'icvtest*' -exec bash -c ' cp $0 ${{0/\"{tmpdirname}/icvtest\"/\"{iCVtestPrefOut}\"}}' {{}} \\;")
             elif args.CVopt and iCVoptPrefOut: 
-                os.system(f"find {tmpdirname} -name 'icvopt*' -exec bash -c ' cp $0 ${{0/\"{tmpdirname}/icvopt\"/\"{iCVoptPrefOut}\"}}' {{}} \;")
+                os.system(f"find {tmpdirname} -name 'icvopt*' -exec bash -c ' cp $0 ${{0/\"{tmpdirname}/icvopt\"/\"{iCVoptPrefOut}\"}}' {{}} \\;")
     
         if args.iTrainIn:
             i_train = np.loadtxt(args.iTrainIn).astype(int) - 1 

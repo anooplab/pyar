@@ -203,7 +203,7 @@ def read_energy_from_xyz_file(xyz_file):
     except (IndexError, ValueError):
         with open(xyz_file, 'r') as fr:
             comments_line = fr.readlines()[1].rstrip()
-            energy = float(re.split(':|=|\s+', comments_line)[1])
+            energy = float(re.split(r':|=|\s+', comments_line)[1])
 
     return energy
 
@@ -225,4 +225,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

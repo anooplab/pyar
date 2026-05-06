@@ -274,7 +274,8 @@ class Molecule(object):
 
         """
 
-        return [self.atoms_list[fragment_atoms, :] for fragment_atoms in
+        atoms = np.array(self.atoms_list)
+        return [atoms[fragment_atoms].tolist() for fragment_atoms in
                 self.fragments]
 
     def split_covalent_radii_list(self):
@@ -430,7 +431,7 @@ def read_xyz(filename):
         sys.exit(f'Error in reading {filename}')
     mol_title = f[1].rstrip()
     try:
-        energy = float(re.split(':|=|\s+', mol_title)[1])
+        energy = float(re.split(r':|=|\s+', mol_title)[1])
     except Exception as e:
         molecule_logger.debug(f"No energy found\n{e}")
         energy = None

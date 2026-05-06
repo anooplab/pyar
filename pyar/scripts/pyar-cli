@@ -1,4 +1,4 @@
-#!/home/20cy91r19/miniconda3.7/bin/python
+#!/usr/bin/env python3
 # encoding: utf-8
 """
 pyar-cli - Command-line interface for the PyAR project
@@ -20,8 +20,10 @@ import os
 import sys
 import time
 from collections import defaultdict
-import pyar.data_analysis.clustering
-from pyar import aggregator, Molecule, reactor, scan
+
+if __package__ is None:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
@@ -221,6 +223,8 @@ def main():
 
     args = vars(argument_parse())
 
+    from pyar import aggregator, Molecule, reactor, scan
+
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
 
     for key, value in args.items():
@@ -254,7 +258,7 @@ def main():
     
 
     logger.info(
-     f"""
+     r"""
 +-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |  _ \ _   _   / \  |  _ \
 | |_) | | | | / _ \ | |_) |
@@ -347,6 +351,12 @@ def main():
             logger.critical(f"File {each_file} does not exist")
             sys.exit()
 
+    if run_parameters['formula']:
+        input_molecules = [
+            aggregator.generate_molecule_from_formula(run_parameters['formula'])
+        ]
+
+    custom_keywords = run_parameters['custom_keywords']
     quantum_chemistry_parameters = {
         'basis': run_parameters['basis'],
         'method': run_parameters['method'],
@@ -357,7 +367,8 @@ def main():
         'scf_threshold': run_parameters['scf_threshold'],
         'nprocs': run_parameters['nprocs'],
         'gamma': run_parameters['gamma'],
-        'custom_keyword': run_parameters['custom_keyword'],
+        'custom_keywords': custom_keywords,
+        'custom_keyword': custom_keywords,
         'model': run_parameters['model']
     }
 
@@ -400,11 +411,6 @@ def main():
         logger.info('Total Time: {}'.format(time.time() - t1_0))
         logger.info("Started at {}\nEnded at {}".format(time_started,
                                                         datetime.datetime.now()))
-    if run_parameters['formula']:
-        # Generate molecule from formula
-        molecule = aggregator.generate_molecule_from_formula(args.formula)
-        input_molecules = [molecule]
-
     if run_parameters['solvate']:
         number_of_solvent_molecules = run_parameters['solvation_size']
         if number_of_solvent_molecules is None:

@@ -45,7 +45,7 @@ class Psi4(SF):
     def prepare_input(self, keyword=""):
         coords = self.start_coords
         f1 = open(self.inp_file, "w")
-        if self.scftype is 'uks':
+        if self.scftype == 'uks':
             keyword += 'UKS'
         f1.write(keyword + "\n")
         f1.write("molecule {\n")
