@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: pyar
-Version: 1.0
+Version: 1.1.0
 Summary: A Python Code for Aggregation and Reaction
 Home-page: https://github.com/anooplab/pyar
 Author: Anoop et al
@@ -19,4 +19,3 @@ Requires-Python: >=3.6
 License-File: LICENSE
 
 UNKNOWN
-

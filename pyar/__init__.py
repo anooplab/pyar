@@ -20,6 +20,6 @@
 
 __docformat__ = 'restructuredtext'
 
-__version__ = '1.0'
+__version__ = '1.1.0'
 __author__ = 'Anakuthil Anoop'
 __credits__ = 'IIT Kharagpur'
