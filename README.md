@@ -3,14 +3,13 @@ PyAR stands for "Python program for aggregation and reaction"
 
 # Installation
 
-Download the file pyar-master.zip. Unzip it. Go the the folder and ```sudo python3 setup.py install```
-This will create python package in the path **/usr/local/lib/python3.6/dist-packages/pyar/**
-and will create the command line interface ```pyar-cli``` in **/usr/local/bin**
+Download the file `pyar-master.zip`. Unzip it. Go to the folder and run:
 
-or
+```bash
+python -m pip install .
+```
 
-Run the following command in the pyar folder
-```sudo -H pip install .```
+This will install the `pyar` package and create the `pyar-cli` command line tool.
 # Features:
 * Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
@@ -46,7 +45,7 @@ alias dftd4bin="dftd4"
 ```
 
 ```bash
-#DBCV is not directly accessable via scikit-learn
+# DBCV is not directly accessible via scikit-learn
 pip install hdbscan
 pip install git+https://github.com/christopherjenness/DBCV.git
 ```
@@ -54,10 +53,15 @@ pip install git+https://github.com/christopherjenness/DBCV.git
 ## Requirements 
 * python >= 3.6
 * numpy>=1.18.4
+* autograd>=1.3
+* ase
+* torch
+* torchani
+* MDAnalysis
 * pandas>=1.0.5
 * scipy>=1.5.2
 * scikit-learn>=0.23.2
-* autograd>=1.3
+* dscribe
 
 # Interfaced with electronic structure theory programmes
 - mlatom_aiqm1
@@ -70,22 +74,34 @@ pip install git+https://github.com/christopherjenness/DBCV.git
 
 # Molecule generations 
 
-```pyar-cli -a c.xyz h.xyz -N 8 -as 6 6 --software aiqm1_mlatom  -m 1 2 ```
+```bash
+pyar-cli -a c.xyz h.xyz -N 8 -as 6 6 --software aiqm1_mlatom -m 1 2
+```
+
+You can also generate from a formula in aggregate mode:
+
+```bash
+pyar-cli --aggregate --formula C5H4 -N 8 -as 1
+```
 
 # Molecular clusters
 
 ## XTB
-```pyar-cli -s water.xyz water.xyz --software xtb -ss 10  -N 16 -c 0 0 -m 1 1```
+```bash
+pyar-cli -s water.xyz water.xyz --software xtb -ss 10 -N 16 -c 0 0 -m 1 1
+```
 ## AIMNet2
-```pyar-cli -s water.xyz water.xyz --software aimnet_2  -ss 10  -N 16 -c 0 0 -m 1 1```
+```bash
+pyar-cli -s water.xyz water.xyz --software aimnet_2 -ss 10 -N 16 -c 0 0 -m 1 1
+```
 
 PyAR bundles AIMNet2 model assets for the AIMNet2 interfaces. AIMNet2 is a
 third-party project from the Isayev Lab and is MIT licensed upstream. See
 `THIRD_PARTY_LICENSES/AIMNet2-LICENSE` and
 `THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md` for license and provenance details.
 
-This will generate a molecules  upto maximum 6 carbon and 6 hydrogens with **mlatom_aiqm1** potential using 8 trial orientations.
-Here c.xyz and h.xyz are standard cartesian coordinate files. 
+This will generate molecules up to a maximum of 6 carbon and 6 hydrogens with **mlatom_aiqm1** potential using 8 trial orientations.
+Here `c.xyz` and `h.xyz` are standard Cartesian coordinate files.
 ```bash
 1
 carbon
@@ -100,9 +116,18 @@ H  0.0  0.0   0.0
 
 To study the reaction between two reactants A and B using ORCA software interface, with force from 100 to 1000 using N=8 trial orientation, the commandline line argument is,
 
-```pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --ssoftware orca```
+```bash
+pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software orca
+```
 
-A.xyz and B.xyz are the cartesian coordinate files of the reactants
+A.xyz and B.xyz are the cartesian coordinate files of the reactants.
+
+For `pyar-cli`:
+
+- `--react` requires exactly two XYZ input files.
+- `--scan-bond` requires exactly two XYZ input files.
+- `--solvate` requires at least two XYZ input files.
+- `--formula` is only supported together with `--aggregate` in this CLI.
 
 ## pyar-cli
 The main program can be used as below:

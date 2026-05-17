@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
-# encoding: utf-8
-"""Command line interface for pymlgen"""
+"""Importable `pyar-similarity` entrypoint."""
 
-import os
-import math
+import argparse
 import glob
+import math
 import multiprocessing
 import time
-import sys
+
 import numpy as np
-import argparse
-import itertools
 
-# Global variable
 numb_atoms = 0
-
 Atomic_number = {
     '89': 'Ac', '13': 'Al', '95': 'Am', '51': 'Sb', '18': 'Ar', '33': 'As',
     '85': 'At', '16': 'S', '56': 'Ba', '4': 'Be', '97': 'Bk', '83': 'Bi',
@@ -56,29 +51,19 @@ def Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coo
                          array_coord_x_2, array_coord_y_2, array_coord_z_2):
     distance_alpha = []
     distance_beta = []
-
     for i in range(numb_atoms):
         for j in range(i + 1, numb_atoms):
-            distance_alpha.append(Euclidean_distance(
-                array_coord_x_1[i], array_coord_y_1[i], array_coord_z_1[i],
-                array_coord_x_1[j], array_coord_y_1[j], array_coord_z_1[j]
-            ))
-            distance_beta.append(Euclidean_distance(
-                array_coord_x_2[i], array_coord_y_2[i], array_coord_z_2[i],
-                array_coord_x_2[j], array_coord_y_2[j], array_coord_z_2[j]
-            ))
-
+            distance_alpha.append(Euclidean_distance(array_coord_x_1[i], array_coord_y_1[i], array_coord_z_1[i],
+                                                     array_coord_x_1[j], array_coord_y_1[j], array_coord_z_1[j]))
+            distance_beta.append(Euclidean_distance(array_coord_x_2[i], array_coord_y_2[i], array_coord_z_2[i],
+                                                    array_coord_x_2[j], array_coord_y_2[j], array_coord_z_2[j]))
     mol_alpha = sorted(distance_alpha)
     mol_beta = sorted(distance_beta)
-
     num = len(mol_alpha)
     dim_alpha = average(mol_alpha)
     dim_beta = average(mol_beta)
-
     sumY = sum(((mol_alpha[i] / dim_alpha) - (mol_beta[i] / dim_beta)) ** 2 for i in range(num))
-    Springborg_2 = math.sqrt((2 / (numb_atoms * (numb_atoms - 1))) * sumY)
-
-    return Springborg_2
+    return math.sqrt((2 / (numb_atoms * (numb_atoms - 1))) * sumY)
 
 
 def uniq(lst):
@@ -95,37 +80,25 @@ def process_files(x, array_keys, Info_Coords, threshold_duplicate, file_tmp, fil
     for y in range(x + 1, len(array_keys)):
         matrix_1 = Info_Coords[array_keys[x]]
         matrix_2 = Info_Coords[array_keys[y]]
-
-        array_name_atoms_1 = []
         array_coord_x_1 = []
         array_coord_y_1 = []
         array_coord_z_1 = []
-
-        array_name_atoms_2 = []
         array_coord_x_2 = []
         array_coord_y_2 = []
         array_coord_z_2 = []
-
         for i in range(numb_atoms):
             array_tabs_1 = matrix_1[i].split()
-            radii_val = Atomic_number.get(array_tabs_1[0], array_tabs_1[0])
-            array_name_atoms_1.append(radii_val)
+            Atomic_number.get(array_tabs_1[0], array_tabs_1[0])
             array_coord_x_1.append(float(array_tabs_1[1]))
             array_coord_y_1.append(float(array_tabs_1[2]))
             array_coord_z_1.append(float(array_tabs_1[3]))
-
             array_tabs_2 = matrix_2[i].split()
-            radii_val = Atomic_number.get(array_tabs_2[0], array_tabs_2[0])
-            array_name_atoms_2.append(radii_val)
+            Atomic_number.get(array_tabs_2[0], array_tabs_2[0])
             array_coord_x_2.append(float(array_tabs_2[1]))
             array_coord_y_2.append(float(array_tabs_2[2]))
             array_coord_z_2.append(float(array_tabs_2[3]))
-
-        Springborg = Grigoryan_Springborg(
-            numb_atoms, array_coord_x_1, array_coord_y_1, array_coord_z_1,
-            array_coord_x_2, array_coord_y_2, array_coord_z_2
-        )
-
+        Springborg = Grigoryan_Springborg(numb_atoms, array_coord_x_1, array_coord_y_1, array_coord_z_1,
+                                          array_coord_x_2, array_coord_y_2, array_coord_z_2)
         if Springborg < threshold_duplicate:
             number = f"{Springborg:.6f}"
             with open(file_tmp, "a") as file:
@@ -137,22 +110,17 @@ def process_files(x, array_keys, Info_Coords, threshold_duplicate, file_tmp, fil
                 logfile.write("------------------------\n")
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Grigoryan Springborg Similarity')
-    parser.add_argument('-f', '--files', default='*.xyz', help='File pattern to match XYZ files (default: *.xyz)')
-    parser.add_argument('-t', '--threshold', type=float, default=0.005, help='Threshold value (default: 0.005)')
+    parser.add_argument('-f', '--files', default='*.xyz')
+    parser.add_argument('-t', '--threshold', type=float, default=0.005)
     args = parser.parse_args()
-
-    file_pattern = args.files
     threshold_duplicate = args.threshold
-
     start_time = time.time()
-
     Info_Coords = {}
     array_keys = []
-
-    files_xyz = glob.glob(file_pattern, recursive=True)
-
+    files_xyz = glob.glob(args.files, recursive=True)
+    global numb_atoms
     for i, file in enumerate(files_xyz):
         data = read_file(file)
         numb_atoms = int(data[0])
@@ -160,53 +128,35 @@ if __name__ == "__main__":
         idx = f"{i:06d}"
         Info_Coords[idx] = data
         array_keys.append(idx)
-
-    ncpus = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(ncpus)
-
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
     file_tmp = "Dupli.tmp"
     file_log = "Info_Duplicates.txt"
-
     open(file_tmp, "w").close()
     with open(file_log, "w") as logfile:
         logfile.write("\n# # # SUMMARY SIMILAR STRUCTURES # # #\n\n")
-
     results = []
     for x in range(len(array_keys)):
-        result = pool.apply_async(process_files,
-                                  (x, array_keys, Info_Coords, threshold_duplicate, file_tmp, file_log, files_xyz))
-        results.append(result)
-
+        results.append(pool.apply_async(process_files,
+                                        (x, array_keys, Info_Coords, threshold_duplicate, file_tmp, file_log, files_xyz)))
     for result in results:
         result.get()
-
     pool.close()
     pool.join()
-
     with open(file_tmp, "r") as file:
         data_tmp = file.read().splitlines()
-
     duplicates_name = [info for info in data_tmp if "Value" not in info]
-    Value_simi = [info.split()[-1] for info in data_tmp if "Value" in info]
-
     index_files = index_elements(duplicates_name, array_keys)
-
     file_xyz = "02Duplicates_coords.xyz"
     with open(file_xyz, "w") as file:
-        count_sim_struc = 0
         for id_index in index_files:
             coords_dup = Info_Coords[array_keys[id_index]]
             file.write(str(len(coords_dup)) + "\n")
             file.write(f"Duplicate Structure {files_xyz[id_index]}\n")
             file.write("\n".join(coords_dup) + "\n")
-            count_sim_struc += 1
-
     with open(file_log, "a") as logfile:
-        logfile.write(f"\nNumber of Similar Structures = {count_sim_struc}\n")
-
+        logfile.write(f"\nNumber of Similar Structures = {len(index_files)}\n")
     for k in index_files:
         del Info_Coords[array_keys[k]]
-
     file_x = "01Clean_Duplicates_coords.xyz"
     with open(file_x, "w") as file:
         for key in sorted(Info_Coords.keys()):
@@ -214,9 +164,8 @@ if __name__ == "__main__":
             file.write(str(len(new_matrix)) + "\n")
             file.write(f"Unique Structure {files_xyz[int(key)]}\n")
             file.write("\n".join(new_matrix) + "\n")
+    print(f"\n\tExecution Time: {time.time() - start_time:.2f} seconds\n")
 
-    end_time = time.time()
-    execution_time = end_time - start_time
-    print(f"\n\tExecution Time: {execution_time:.2f} seconds\n")
 
-    os.remove(file_tmp)
+if __name__ == "__main__":
+    main()

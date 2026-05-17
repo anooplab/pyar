@@ -1,4 +1,5 @@
 pyar.egg-info/
+docs/_build/
 test/
 .venv/
 __pycache__/

@@ -1,22 +1,17 @@
-#!/usr/bin/env python
-# encoding: utf-8
-"""
-pyar-react - Command-line interface for PyAR reactor
+#!/usr/bin/env python3
+"""Importable `pyar-react` entrypoint."""
 
-This script provides a command-line interface for the PyAR project,
-including setting up the environment, checking dependencies, and
-executing specific commands.
-"""
 import argparse
 import logging
-import os
 import sys
 from collections import defaultdict
-from pyar import reactor, Molecule
-import pyar.data_analysis.clustering
+
+from pyar import reactor
+from pyar.Molecule import Molecule
 
 logger = logging.getLogger('pyar-react')
 handler = logging.FileHandler('pyar-react.log', 'a')
+
 
 def argument_parse():
     parser = argparse.ArgumentParser(description="pyar-react - Command-line interface for PyAR reactor")
@@ -28,15 +23,17 @@ def argument_parse():
     parser.add_argument('--index', type=int, help='Index for splitting the molecule (final index of the first reactant, i.e., number of atoms - 1). If not provided, it will be calculated from the first input file.')
     return parser.parse_args()
 
+
 def calculate_index_from_xyz(filename):
     with open(filename, 'r') as f:
         num_atoms = int(f.readline().strip())
-    return num_atoms - 1  
+    return num_atoms - 1
+
 
 def main():
     args = argument_parse()
     run_parameters = defaultdict(lambda: None, vars(args))
-    
+
     input_molecules = []
     for file in run_parameters['input_files']:
         try:
@@ -46,22 +43,18 @@ def main():
             logger.critical(f"File {file} does not exist")
             sys.exit()
 
-    # Determine the index
     if run_parameters['index'] is None:
-        # Calculate the index based on the number of atoms in the first reactant
         index = calculate_index_from_xyz(run_parameters['input_files'][0])
     else:
         index = run_parameters['index']
 
     logger.info(f"Using index: {index} (final index of the first reactant)")
+    qc_params = {'software': run_parameters['software'], 'index': index}
+    reactor.react(input_molecules[0], input_molecules[1],
+                  run_parameters['gmin'], run_parameters['gmax'],
+                  int(run_parameters['how_many_orientations']), qc_params,
+                  None, 2.3, True, True)
 
-    qc_params = {
-        'software': run_parameters['software'],
-        'index': index
-    }
-    
-    reactor.react(input_molecules[0], input_molecules[1], run_parameters['gmin'], run_parameters['gmax'],
-                  int(run_parameters['how_many_orientations']), qc_params, None, 2.3, True, True)
-    
+
 if __name__ == "__main__":
     main()

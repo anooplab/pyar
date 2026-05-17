@@ -7,18 +7,6 @@ setup(
     packages=find_packages(include=[
         'pyar', 'pyar.*'
     ]),
-    scripts=[
-        'pyar/scripts/pyar-cli',
-        'pyar/scripts/pyar-react',
-        'pyar/scripts/pyar-explore',
-        'pyar/scripts/pyar-optimiser',
-        'pyar/scripts/pyar-tabu',
-        'pyar/scripts/pyar-clustering',
-        'pyar/scripts/pyar-similarity',
-        'pyar/scripts/pyar-descriptor',
-        'pyar/interface/mlopt.py',
-        'pyar/AIMNet2/calculators/aimnet2_ase_opt.py'
-    ],
     package_data={
         'pyar': [
             'AIMNet2/models/*.jpt',
@@ -32,6 +20,11 @@ setup(
     description='A Python Code for Aggregation and Reaction',
     install_requires=[
         'numpy',
+        'autograd',
+        'ase',
+        'torch',
+        'torchani',
+        'MDAnalysis',
         'scikit-learn',
         'scipy',
         'pandas',
@@ -54,4 +47,18 @@ setup(
         'Topic :: Scientific/Engineering :: Chemistry'
     ],
     python_requires='>=3.6',
+    entry_points={
+        'console_scripts': [
+            'pyar-cli=pyar.cli:main',
+            'pyar-react=pyar.scripts.react:main',
+            'pyar-explore=pyar.scripts.explore:main',
+            'pyar-optimiser=pyar.scripts.optimiser:main',
+            'pyar-tabu=pyar.scripts.tabu:main',
+            'pyar-clustering=pyar.scripts.clustering:main',
+            'pyar-similarity=pyar.scripts.similarity:main',
+            'pyar-descriptor=pyar.scripts.descriptor:main',
+            'pyar-mlopt=pyar.interface.mlopt:main',
+            'pyar-aimnet2-ase-opt=pyar.AIMNet2.calculators.aimnet2_ase_opt:main',
+        ],
+    },
 )

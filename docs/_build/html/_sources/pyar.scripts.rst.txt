@@ -1,5 +1,0 @@
-pyarCommand line interface
-======================
-
-pymlgen-cli
-
