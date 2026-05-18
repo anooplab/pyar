@@ -44,32 +44,15 @@ def aggregate(molecules,
               tabu_on,
               grid_on,
               site):
-    """
-    New aggregate module
+    """Run an aggregate or cluster generation workflow.
 
-    :param grid_on: Toggle the use of grid in generation of trial geometries.
-    :param tabu_on: Toggle use of Tabu list in generation of trial geometries.
-    :param site: Not used now, but needed for create_trial_molecules().
-    :type number_of_pathways: int
-    :param number_of_pathways: For cluster or aggregate containing different
-        types of molecules or atoms, there are many pathways to explore. This
-        parameter determines how many pathways to explore.
-    :type first_pathway: int
-    :param first_pathway: The starting pathway. This helps in restarting the
-    broken job.
-    :param molecules: molecules or atoms for aggregation or cluster formation.
-    :type molecules: list(Molecules)
-    :param aggregate_sizes: the number of each atom in the final cluster.
-    :type aggregate_sizes: list(int)
-    :param hm_orientations: Number of trial orientations.
-    :type hm_orientations: int
-    :param qc_params: Parameters for Quantum Chemistry Calculations.
-    :type qc_params: dict
-    :param maximum_number_of_seeds: The maximum number of seeds to be selected
-        for the next cycle.
-    :type maximum_number_of_seeds: int
-    :return: None
+    The workflow starts from one or more molecules, generates trial aggregate
+    orientations, optimizes selected structures, and repeats pathway exploration
+    until the requested aggregate sizes are reached.
 
+    Parameters are the input molecules, target aggregate sizes, orientation
+    count, quantum-chemistry settings, seed-selection limit, pathway bounds,
+    and toggles for the Tabu and grid-based search steps.
     """
 
     if check_stop_signal():

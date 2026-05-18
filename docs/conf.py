@@ -20,6 +20,24 @@ autodoc_default_options = {
     "show-inheritance": True,
 }
 
+autodoc_mock_imports = [
+    "ase",
+    "autograd",
+    "dscribe",
+    "h5py",
+    "hdbscan",
+    "matplotlib",
+    "MDAnalysis",
+    "networkx",
+    "numpy",
+    "pandas",
+    "pyh5md",
+    "scipy",
+    "sklearn",
+    "torch",
+    "torchani",
+]
+
 templates_path = ["_templates"]
 exclude_patterns = ["_build"]
 

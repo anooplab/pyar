@@ -35,10 +35,3 @@ Supporting utilities
 .. automodule:: pyar.property
    :members:
    :undoc-members:
-
-Command-line entry point
-------------------------
-
-.. automodule:: pyar.cli
-   :members: argument_parse, main
-   :undoc-members:
