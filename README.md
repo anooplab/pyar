@@ -1,6 +1,12 @@
 # PyAR
 PyAR stands for "Python program for aggregation and reaction"
 
+Documentation:
+
+* Local source: `docs/`
+* Read the Docs: add `.readthedocs.yml` at the repo root and connect the
+  repository to Read the Docs to publish the built site
+
 # Installation
 
 Download the file `pyar-master.zip`. Unzip it. Go to the folder and run:
