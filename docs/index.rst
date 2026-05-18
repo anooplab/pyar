@@ -16,3 +16,4 @@ This documentation covers:
    installation
    usage
    api
+   reference
