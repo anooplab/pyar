@@ -3,9 +3,10 @@ PyAR stands for "Python program for aggregation and reaction"
 
 Documentation:
 
-* Local source: `docs/`
-* Read the Docs: add `.readthedocs.yml` at the repo root and connect the
-  repository to Read the Docs to publish the built site
+[![Documentation Status](https://readthedocs.org/projects/pyar/badge/?version=latest)](https://pyar.readthedocs.io/en/latest/?badge=latest)
+
+* Local source: [`docs/`](docs/)
+* Hosted docs: https://pyar.readthedocs.io/
 
 # Installation
 
