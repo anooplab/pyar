@@ -19,25 +19,32 @@ GNU General Public License for more details.
 """
 
 import os
-import subprocess as subp
-import sys
+import logging
 
 import numpy as np
 
 from pyar import interface
 from pyar.interface import SF, which
+from pyar.interface.subprocess_utils import run_command
+
+mopac_logger = logging.getLogger("pyar.mopac")
 
 
 class Mopac(SF):
+    """MOPAC optimization wrapper for PyAR."""
+
     def __init__(self, molecule, qc_params):
+        """Prepare a MOPAC job from a PyAR molecule and QC settings."""
 
         if which('mopac') is None:
-            print('Install Mopac or set MOPAC path')
-            sys.exit()
+            message = 'Install Mopac or set MOPAC path'
+            mopac_logger.error(message)
+            raise FileNotFoundError(message)
 
         if which('obabel') is None:
-            print('Install opanbabel')
-            sys.exit()
+            message = 'Install OpenBabel or set OBABEL path'
+            mopac_logger.error(message)
+            raise FileNotFoundError(message)
 
         super(Mopac, self).__init__(molecule)
 
@@ -50,55 +57,47 @@ class Mopac(SF):
         self.prepare_input(keyword=keyword)
 
     def prepare_input(self, keyword=""):
-        """
-        Create a Mopac input
-
-        :param keyword: this is the keyword for optimizations. This parameter
-            should be a strings of characters which are mopac keywords
-        :return: exit status.
-
-        """
+        """Create the MOPAC input file for the current structure."""
         keyword_line = '-xkPM7' if not keyword else '-xk' + keyword
-        with open(self.inp_file, 'w') as fminp, open('tmp.log', 'w') as ferr:
-            out = subp.Popen(["obabel", "-ixyz", self.start_xyz_file, "-omop", keyword_line],
-                             stdout=fminp, stderr=ferr)
-            output, error = out.communicate()
-        exit_status = out.returncode
+        exit_status = run_command(["obabel", "-ixyz", self.start_xyz_file, "-omop", keyword_line],
+                                  stdout_path=self.inp_file, stderr_path='tmp.log')
         if exit_status == 0:
             os.remove('tmp.log')
         return exit_status
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
+        """Optimize the current structure with MOPAC.
+
+        Returns:
+            bool: ``True`` when MOPAC finishes normally, otherwise ``False``.
         """
-        :return:This object will return the optimization status. It will
-        optimize a structure.
-        """
-        # TODO: Add a return 'CycleExceeded'
 
         logfile = "trial_{}.log".format(self.job_name)
-        with open(logfile, 'w') as fopt:
-            out = subp.Popen(["mopac", self.inp_file], stdout=fopt, stderr=fopt)
-        out.communicate()
-        out.poll()
-        exit_status = out.returncode
+        exit_status = run_command(["mopac", self.inp_file], stdout_path=logfile, stderr_path=logfile)
         if exit_status == 0:
             if os.path.exists(self.arc_file):
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
                 interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                                     self.job_name, energy=self.energy)
+                mopac_logger.info(
+                    "mopac optimization completed job=%s input=%s arc=%s log=%s result=%s energy=%s",
+                    self.job_name, self.inp_file, self.arc_file, logfile, self.result_xyz_file, self.energy,
+                )
                 return True
-            else:
-                print("Error: File ", self.arc_file, "was not found.")
-                print("Check for partial optimization.")
-                print("Location: {}".format(os.getcwd()))
-                return False
+            mopac_logger.error(
+                "mopac run completed but arc file missing job=%s input=%s arc=%s log=%s cwd=%s",
+                self.job_name, self.inp_file, self.arc_file, logfile, os.getcwd(),
+            )
+            return False
+        mopac_logger.error(
+            "mopac command returned non-zero job=%s input=%s log=%s cwd=%s",
+            self.job_name, self.inp_file, logfile, os.getcwd(),
+        )
+        return False
 
     def get_energy(self):
-        """
-        :return:This object will return energy from a mopac calculation. It will return both the kj/my_mol and
-        kcal/my_mol units.
-        """
+        """Return the MOPAC heat of formation converted to Hartree."""
         en_kcal = 0.0
         en_kj = 0.0
         try:
@@ -111,13 +110,11 @@ class Mopac(SF):
                     en_kj = float(line_cont[2].split()[0])
                     break
         except IOError:
-            print("Warning: File ", self.arc_file, "was not found.")
+            mopac_logger.warning("mopac arc file missing job=%s arc=%s", self.job_name, self.arc_file)
         return en_kcal / 627.51
 
     def get_coords(self):
-        """
-        :return: coords It will return coordinates
-        """
+        """Return the optimized Cartesian coordinates from the ARC file."""
         number_of_atoms = None
         with open(self.arc_file) as arc_out:
             arc_cont = arc_out.readlines()
@@ -138,7 +135,8 @@ class Mopac(SF):
 
 
 def main():
-    pass
+    """Module entrypoint retained for parity with the other interfaces."""
+    return None
 
 
 if __name__ == "__main__":

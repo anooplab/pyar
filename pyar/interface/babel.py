@@ -1,5 +1,5 @@
 """
-mopac.py - interface to mopac program
+babel.py - OpenBabel helpers for PyAR
 
 Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
 Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
@@ -18,20 +18,27 @@ GNU General Public License for more details.
 """
 
 import os
-import subprocess as subp
+import logging
 import sys
 
 import numpy as np
 
 from pyar.interface import SF, which
+from pyar.interface.subprocess_utils import run_command, run_output
+
+babel_logger = logging.getLogger("pyar.babel")
 
 
 class OBabel(SF):
+    """OpenBabel-backed XYZ optimization helper for PyAR."""
+
     def __init__(self, molecule, forcefield=None):
+        """Prepare an OpenBabel workflow helper for a PyAR molecule."""
 
         if which('obabel') is None:
-            print('setup OBabel path')
-            sys.exit()
+            message = 'setup OBabel path'
+            babel_logger.error(message)
+            raise FileNotFoundError(message)
 
         super(OBabel, self).__init__(molecule)
 
@@ -41,102 +48,85 @@ class OBabel(SF):
         self.energy = 0.0
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
-        """
-        """
-        # TODO: Add a return 'CycleExceeded'
+        """Optimize the current structure with OpenBabel."""
 
-        with open('tmp.log', 'w') as logfile, open('tmp.xyz', 'w') as xyzfile:
-            try:
-                subp.check_call(["obminimize", "-ff", "uff", '-n',
-                                 max_cycles, self.start_xyz_file],
-                                stdout=xyzfile, stderr=logfile)
-            except subp.CalledProcessError as e:
-                print('done')
+        run_command(["obminimize", "-ff", "uff", '-n', max_cycles, self.start_xyz_file],
+                    stdout_path='tmp.xyz', stderr_path='tmp.log')
         with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
             for line in xyzfile:
                 if 'WARNING' not in line:
                     result_xyz_file.write(line)
+        babel_logger.info(
+            "obabel optimization completed job=%s input=%s result=%s tmp_xyz=%s",
+            self.job_name, self.start_xyz_file, self.result_xyz_file, 'tmp.xyz',
+        )
         self.energy = self.get_energy()
         self.optimized_coordinates = self.get_coords()
         return True
 
     def get_coords(self):
-        """
-        :return: It will return coordinates
-        """
+        """Return the optimized Cartesian coordinates from the XYZ file."""
         return np.loadtxt(self.result_xyz_file, dtype=float, skiprows=2, usecols=(1, 2, 3))
 
     def get_energy(self):
-        """
-        """
-        with open(self.job_name + '.ene', 'w') as energy_file:
-            out = subp.Popen(["obenergy", "-ff", "uff", self.result_xyz_file], stdout=energy_file, stderr=energy_file)
-        output, error = out.communicate()
-        poll = out.poll()
-        exit_status = out.returncode
-        if exit_status is None:
+        """Return the OpenBabel energy in Hartree if the calculation completed."""
+        energy_path = self.job_name + '.ene'
+        exit_status = run_command(["obenergy", "-ff", "uff", self.result_xyz_file],
+                                  stdout_path=energy_path, stderr_path=energy_path)
+        if exit_status == 0:
             with open(self.job_name + '.ene', 'r') as energy_file:
                 return float(energy_file.readlines()[-1].split()[3])
 
 
 def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
-    """
-    Convert xyz file to mopac input
-
-    :param xyzfile: input xyz file
-    :param mopac_input_file: Mopac input file to be written
-    :param keyword: this is the keyword for optimizations. This parameter
-        should be a strings of characters which are mopac keywords
-    :return: It will not return anything. It will prepare the input file for
-        the purpose given in the keyword. Note that babel will be used to prepare
-        the input(.mop) file.
-    """
+    """Convert an XYZ file to a Mopac input file with OpenBabel."""
     keyword_line = '-xkPM7' if keyword is None else '-xk' + keyword
-    with open('tmp.log', 'w') as fminp:
-        subp.call(["babel", "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line], stderr=fminp, stdout=fminp)
-    print(open('tmp.log').readlines()[0])
+    run_command(["babel", "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line],
+                stdout_path='tmp.log', stderr_path='tmp.log')
+    with open('tmp.log') as log_file:
+        first_line = log_file.readline().strip()
+    babel_logger.info("babel mopac conversion xyz=%s output=%s note=%s", xyzfile, mopac_input_file, first_line)
     os.remove('tmp.log')
 
 
 def xyz_to_sdf_file(xyz_input_files, sdf_output_file):
-    print(xyz_input_files)
-    with open('tmp.log', 'w') as fminp:
-        subp.call(["babel", "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file], stderr=fminp, stdout=fminp)
+    """Convert one or more XYZ files to a single SDF file."""
+    run_command(["babel", "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file],
+                stdout_path='tmp.log', stderr_path='tmp.log')
+    babel_logger.info("babel sdf conversion inputs=%s output=%s", xyz_input_files, sdf_output_file)
     os.remove('tmp.log')
 
 
 def make_inchi_string_from_xyz(xyzfile):
-    """This function will make a inchi string from a xyz file with
-       babel as the tools
-    """
+    """Return an InChI string for a molecule stored in an XYZ file."""
     if os.path.isfile(xyzfile):
-        with open('OBabel.log', 'w') as ferr:
-            inchi = subp.check_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr=ferr)
+        inchi = run_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr_path='OBabel.log')
+        babel_logger.info("babel inchi conversion input=%s log=%s", xyzfile, 'OBabel.log')
         return inchi.decode("utf-8").strip()
     else:
         raise IOError("file %s does not exists" % xyzfile)
 
 
 def make_smile_string_from_xyz(xyzfile):
-    """This function will make smile string from a xyz file.
-       if more than one xyz file provide, it will return smiles
-       in a list. if one xyz file supplied, it will return the
-       string
-    """
+    """Return a SMILES string for a molecule stored in an XYZ file."""
     if os.path.isfile(xyzfile):
         with open('OBabel.log', 'w') as ferr:
             try:
-                pre_smile = subp.check_output(["babel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr=ferr)
+                pre_smile = run_output(["babel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr_path='OBabel.log')
                 smile = pre_smile.decode("utf-8").strip()
             except Exception as e:
                 ferr.write(str(e))
+                babel_logger.exception("babel smiles conversion failed input=%s log=%s", xyzfile, 'OBabel.log')
                 smile = ''
+            else:
+                babel_logger.info("babel smiles conversion input=%s log=%s", xyzfile, 'OBabel.log')
             return smile
     else:
         raise IOError("file %s does not exists" % xyzfile)
 
 
 def main(input_files):
+    """Run the OpenBabel optimization workflow for one or more XYZ files."""
     from pyar import Molecule
     for f in input_files:
         mol = Molecule.Molecule.from_xyz(f)

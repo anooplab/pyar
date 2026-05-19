@@ -16,16 +16,22 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
+import logging
 import os
-import subprocess as subp
 
 import numpy as np
 
 from pyar.interface import SF, write_xyz
+from pyar.interface.subprocess_utils import run_command
+
+psi4_logger = logging.getLogger("pyar.psi4")
 
 
 class Psi4(SF):
+    """Psi4 optimization wrapper for PyAR."""
+
     def __init__(self, molecule, method, custom_keyword=None):
+        """Prepare a Psi4 job from a PyAR molecule and QC settings."""
 
         super(Psi4, self).__init__(molecule)
 
@@ -43,53 +49,57 @@ class Psi4(SF):
         self.prepare_input(keyword=keyword)
 
     def prepare_input(self, keyword=""):
+        """Write the Psi4 input file for the current molecule."""
         coords = self.start_coords
-        f1 = open(self.inp_file, "w")
         if self.scftype == 'uks':
             keyword += 'UKS'
-        f1.write(keyword + "\n")
-        f1.write("molecule {\n")
-        f1.write("{0} {1}\n".format(str(self.charge), str(self.multiplicity)))
-        for i in range(self.number_of_atoms):
-            f1.write(
-                " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
-        f1.write("}\n")
-        f1.write("optimize(\"B97-D\")")
-        f1.close()
+        with open(self.inp_file, "w") as f1:
+            f1.write(keyword + "\n")
+            f1.write("molecule {\n")
+            f1.write("{0} {1}\n".format(str(self.charge), str(self.multiplicity)))
+            for i in range(self.number_of_atoms):
+                f1.write(
+                    " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
+            f1.write("}\n")
+            f1.write("optimize(\"B97-D\")")
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """
-        :return:This object will return the optimization status. It will
-        optimize a structure.
-        """
-        # TODO: Add a return 'CycleExceeded'
+        Optimize the current structure with Psi4.
 
-        with open(self.out_file, 'w') as fopt:
-            out = subp.Popen(["psi4", self.inp_file], stdout=fopt, stderr=fopt)
-        out.communicate()
-        out.poll()
-        exit_status = out.returncode
+        Returns:
+            bool: ``True`` when Psi4 finishes normally, otherwise ``False``.
+        """
+
+        exit_status = run_command(["psi4", self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
-            f = open(self.out_file, "r")
-            if "  **** Optimization is complete!" in f.read():
-                print("Optimized")
+            with open(self.out_file, "r") as f:
+                output = f.read()
+            if "  **** Optimization is complete!" in output:
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coordinates()
                 write_xyz(self.atoms_list,
                           self.optimized_coordinates,
                           self.result_xyz_file, energy=self.energy)
-                f.close()
+                psi4_logger.info(
+                    "psi4 optimization completed job=%s input=%s output=%s result=%s energy=%s",
+                    self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+                )
                 return True
-            else:
-                print("Error: OPTIMIZATION PROBABLY FAILED. "
-                      "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
-                print("Check for partial optimization.")
-                print("Location: {}".format(os.getcwd()))
-                return False
+            psi4_logger.error(
+                "psi4 optimization did not terminate normally job=%s input=%s output=%s cwd=%s",
+                self.job_name, self.inp_file, self.out_file, os.getcwd(),
+            )
+            return False
+        psi4_logger.error(
+            "psi4 command returned non-zero job=%s input=%s output=%s cwd=%s",
+            self.job_name, self.inp_file, self.out_file, os.getcwd(),
+        )
+        return False
 
     def get_energy(self):
         """
-        :return:This object will return energy from an psi4 calculation. It will return Hartree units.
+        Return the final Psi4 energy in Hartree.
         """
         try:
             energy_in_hartrees = None
@@ -100,11 +110,11 @@ class Psi4(SF):
                         energy_in_hartrees = float((line.strip().split())[-1])
             return energy_in_hartrees
         except IOError:
-            print("Warning: File ", self.out_file, "was not found.")
+            psi4_logger.warning("psi4 output file missing job=%s output=%s", self.job_name, self.out_file)
 
     def get_coordinates(self):
         """
-        :return:This object will return energy from an psi4 calculation. It will return Hartree units.
+        Return the optimized Cartesian coordinates from the Psi4 log.
         """
         try:
             with open(self.out_file, "r") as out:
@@ -119,14 +129,17 @@ class Psi4(SF):
                             _, x, y, z = lc
                             coords.append([float(x), float(y), float(z)])
                         except Exception as e:
-                            print(e)
-                            print("some problem", line)
+                            psi4_logger.exception(
+                                "psi4 coordinate parse failed job=%s output=%s line=%s",
+                                self.job_name, self.out_file, line.rstrip(),
+                            )
             return np.array(coords)
         except IOError:
-            print("Warning: File ", self.out_file, "was not found.")
+            psi4_logger.warning("psi4 output file missing job=%s output=%s", self.job_name, self.out_file)
 
 
 def main():
+    """Run the Psi4 workflow from the command line."""
     from pyar.Molecule import Molecule
     import sys
     mol = Molecule.from_xyz(sys.argv[1])

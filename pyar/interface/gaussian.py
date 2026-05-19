@@ -18,16 +18,22 @@ GNU General Public License for more details.
 """
 
 import os
-import subprocess as subp
+import logging
 
 import numpy as np
 
 from pyar import interface
 from pyar.interface import SF
+from pyar.interface.subprocess_utils import run_command
+
+gaussian_logger = logging.getLogger("pyar.gaussian")
 
 
 class Gaussian(SF):
+    """Gaussian single-point and optimization wrapper for PyAR."""
+
     def __init__(self, molecule, qc_params):
+        """Prepare a Gaussian job from a PyAR molecule and QC settings."""
 
         super(Gaussian, self).__init__(molecule)
 
@@ -39,47 +45,35 @@ class Gaussian(SF):
         basis = qc_params['basis']
         if basis.lower() == 'def2-svp':
             basis = 'def2SVP'
-        self.keyword = f"%nprocshared={qc_params['nprocs']}3\n" \
+        self.keyword = f"%nprocshared={qc_params['nprocs']}\n" \
                        f"%chk=trial_{self.job_name}.chk\n" \
                        f"%mem=2GB\n" \
                        f"# {qc_params['method']} {basis} " \
                        f"SCF=(MaxCycle={qc_params['scf_cycles']})"
 
     def prepare_input(self):
+        """Write the Gaussian input file for the current molecule."""
         coords = self.start_coords
-        f1 = open(self.inp_file, "w")
-        f1.write(f"{self.keyword}\n\n")
-        f1.write(f"{self.job_name}\n\n")
-        f1.write(f"{str(self.charge)} {str(self.multiplicity)}\n")
-        for i in range(self.number_of_atoms):
-            f1.write(f"{self.atoms_list[i]:>3}  {coords[i][0]:10.7f}  {coords[i][1]:10.7f} {coords[i][2]:10.7f}\n")
-        f1.write(f"\n")
-        f1.close()
+        with open(self.inp_file, "w") as f1:
+            f1.write(f"{self.keyword}\n\n")
+            f1.write(f"{self.job_name}\n\n")
+            f1.write(f"{str(self.charge)} {str(self.multiplicity)}\n")
+            for i in range(self.number_of_atoms):
+                f1.write(f"{self.atoms_list[i]:>3}  {coords[i][0]:10.7f}  {coords[i][1]:10.7f} {coords[i][2]:10.7f}\n")
+            f1.write("\n")
 
     def optimize(self):
         """
-        :return:This object will return the optimization status. It will
-        optimize a structure.
-        """
-        # TODO: Add a return 'CycleExceeded'
-        logfile = "trial_{}.out".format(self.job_name)
+        Optimize the current structure with Gaussian.
 
-        # max_opt_cycles = options['opt_cycles']
-        # gamma = options['gamma']
-        # opt_keywords = f"maxcycles={max_opt_cycles}"
-        # convergence = options['opt_threshold']
-        # if convergence != 'normal':
-        #     opt_keywords += f", {convergence}"
-        # self.keyword += f" opt=({opt_keywords})"
+        Returns:
+            bool: ``True`` when Gaussian finishes normally, otherwise ``False``.
+        """
         self.prepare_input()
-        with open(self.out_file, 'w') as fopt:
-            out = subp.Popen(["g16", self.inp_file], stdout=fopt, stderr=fopt)
-        out.communicate()
-        out.poll()
-        exit_status = out.returncode
+        exit_status = run_command(["g16", self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
-            file_pointer = open(self.out_file, "r")
-            this_line = file_pointer.readlines()
+            with open(self.out_file, "r") as file_pointer:
+                this_line = file_pointer.readlines()
             check_1 = 0
             check_2 = 0
 
@@ -94,16 +88,25 @@ class Gaussian(SF):
                 self.optimized_coordinates = self.get_coords()
                 interface.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
                                     energy=self.energy)
-                file_pointer.close()
+                gaussian_logger.info(
+                    "gaussian optimization completed job=%s input=%s output=%s result=%s energy=%s",
+                    self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+                )
                 return True
-            else:
-                print("Error: OPTIMIZATION PROBABLY FAILED.")
-                print("Location: {}".format(os.getcwd()))
-                return False
+            gaussian_logger.error(
+                "gaussian optimization did not terminate normally job=%s input=%s output=%s cwd=%s",
+                self.job_name, self.inp_file, self.out_file, os.getcwd(),
+            )
+            return False
+        gaussian_logger.error(
+            "gaussian command returned non-zero job=%s input=%s output=%s cwd=%s",
+            self.job_name, self.inp_file, self.out_file, os.getcwd(),
+        )
+        return False
 
     def get_coords(self):
         """
-        :return: coords It will return coordinates
+        Return the optimized Cartesian coordinates from the Gaussian log.
         """
         opt_status = False
         coordinates = []
@@ -123,7 +126,7 @@ class Gaussian(SF):
 
     def get_energy(self):
         """
-        :return:This object will return energy from an orca calculation. It will return Hartree units.
+        Return the final SCF energy in Hartree.
         """
         try:
             with open(self.out_file, "r") as out:
@@ -135,11 +138,12 @@ class Gaussian(SF):
                 en_Eh = float((en_steps[-1].strip().split())[4])
             return en_Eh
         except IOError:
-            print("Warning: File ", self.out_file, "was not found.")
+            gaussian_logger.warning("gaussian output file missing job=%s output=%s", self.job_name, self.out_file)
 
 
 def main():
-    pass
+    """Module entrypoint retained for parity with the other interfaces."""
+    return None
 
 
 if __name__ == "__main__":

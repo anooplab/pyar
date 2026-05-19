@@ -19,17 +19,20 @@ GNU General Public License for more details.
 
 import logging
 import os
-import subprocess as subp
 
 import numpy as np
 
 from pyar.interface import SF, write_xyz, which
+from pyar.interface.subprocess_utils import run_command
 
 orca_logger = logging.getLogger('pyar.orca')
 
 
 class Orca(SF):
+    """ORCA single-point and optimization wrapper for PyAR."""
+
     def __init__(self, molecule, qc_params):
+        """Prepare an ORCA job from a PyAR molecule and QC settings."""
 
         super(Orca, self).__init__(molecule)
 
@@ -54,6 +57,7 @@ class Orca(SF):
         self.keyword = keyword
 
     def prepare_input(self):
+        """Write the ORCA input file for the current molecule."""
         keyword = self.keyword
         coords = self.start_coords
         with open(self.inp_file, "w") as f1:
@@ -66,26 +70,19 @@ class Orca(SF):
 
     def optimize(self):
         """
-        :return:This object will return the optimization status. It will
-        optimize a structure.
-        """
-        # TODO: Add a return 'CycleExceeded'
+        Optimize the current structure with ORCA.
 
-        # max_cycles = options['opt_cycles']  # noqa: F841
-        # gamma = options['gamma']  # noqa: F841
-        # convergence = options['opt_threshold']  # noqa: F841
+        Returns:
+            bool: ``True`` when ORCA finishes normally, otherwise ``False``.
+        """
 
         self.keyword = self.keyword + '!Opt'
         self.prepare_input()
 
-        with open(self.out_file, 'w') as fopt:
-            out = subp.Popen([which("orca"), self.inp_file], stdout=fopt, stderr=fopt)
-        out.communicate()
-        out.poll()
-        exit_status = out.returncode
+        exit_status = run_command([which("orca"), self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
-            f = open(self.out_file, "r")
-            line = f.readlines()
+            with open(self.out_file, "r") as f:
+                line = f.readlines()
             if "****ORCA TERMINATED NORMALLY****" in line[-2]:
                 self.energy = self.get_energy()
                 self.optimized_coordinates = np.loadtxt(self.inp_file[:-4] + ".xyz", dtype=float, skiprows=2,
@@ -93,18 +90,25 @@ class Orca(SF):
                 write_xyz(self.atoms_list,
                           self.optimized_coordinates,
                           self.result_xyz_file, energy=self.energy)
-                f.close()
+                orca_logger.info(
+                    "orca optimization completed job=%s input=%s output=%s result=%s energy=%s",
+                    self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+                )
                 return True
-            else:
-                print("Error: OPTIMIZATION PROBABLY FAILED. "
-                      "CHECK THE .out FILE FOR PARTIAL OPTIMIZTION ")
-                print("Check for partial optimization.")
-                print("Location: {}".format(os.getcwd()))
-                return False
+            orca_logger.error(
+                "orca optimization did not terminate normally job=%s input=%s output=%s cwd=%s",
+                self.job_name, self.inp_file, self.out_file, os.getcwd(),
+            )
+            return False
+        orca_logger.error(
+            "orca command returned non-zero job=%s input=%s output=%s cwd=%s",
+            self.job_name, self.inp_file, self.out_file, os.getcwd(),
+        )
+        return False
 
     def get_energy(self):
         """
-        :return:This object will return energy from an orca calculation. It will return Hartree units.
+        Return the final single-point energy in Hartree.
         """
         try:
             with open(self.out_file, "r") as out:
@@ -117,11 +121,12 @@ class Orca(SF):
                     energy_in_hartrees = 0.0
             return energy_in_hartrees
         except IOError:
-            print("Warning: File ", self.out_file, "was not found.")
+            orca_logger.warning("orca output file missing job=%s output=%s", self.job_name, self.out_file)
 
 
 def main():
-    pass
+    """Module entrypoint retained for parity with the other interfaces."""
+    return None
 
 
 if __name__ == "__main__":
