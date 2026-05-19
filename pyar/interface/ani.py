@@ -1,110 +1,152 @@
-import ase.optimize
-from ase.calculators.calculator import Calculator
+#!/usr/bin/env python3
+"""TorchANI-based ANI calculator and CLI wrapper."""
+
+import argparse
 import logging
 
-logger = logging.getLogger('ani_interface')
+import ase.io
+import ase.optimize
+from ase.calculators.calculator import Calculator, all_changes
+import torch
+
+logger = logging.getLogger("pyar.interface.ani")
+
+_MODEL_ALIASES = {
+    "ANI-1x": "ANI1x",
+    "ANI-1ccx": "ANI1ccx",
+    "ANI-2x": "ANI2x",
+}
 
 try:
     import torchani
 except ImportError:  # pragma: no cover - optional runtime dependency
     torchani = None
 
+
 class ANICalculationFailed(Exception):
-    pass
+    """Raised when an ANI model lookup, evaluation, or workflow step fails."""
+
+
+def _require_torchani():
+    """Return the optional TorchANI import or raise a clear import error."""
+    if torchani is None:
+        raise ImportError("torchani is required for pyar.interface.ani")
+    return torchani
+
+
+def _load_model(model_name):
+    """Load a TorchANI model by name, honoring PyAR compatibility aliases."""
+    torchani_mod = _require_torchani()
+    normalized_name = _MODEL_ALIASES.get(model_name, model_name)
+    try:
+        return torchani_mod.models.__dict__[normalized_name]()
+    except KeyError as exc:
+        msg = f"Model '{model_name}' not found in torchani models."
+        logger.error(msg)
+        raise ANICalculationFailed(msg) from exc
+
 
 class ANI(Calculator):
+    """ASE calculator backed by a TorchANI potential."""
 
-    def __init__(self, species, model='ANI-1x'):
+    implemented_properties = ["energy"]
+
+    def __init__(self, species, model="ANI-1x"):
+        """Create a calculator for a given species list and ANI model."""
+        super().__init__()
         self.species = species
-        if torchani is None:
-            raise ImportError(
-                "torchani is required for pyar.interface.ani"
+        self.model_name = model
+        self.model = _load_model(model)
+
+    def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
+        """Compute the potential energy for an ASE atoms object."""
+        super().calculate(atoms, properties, system_changes)
+        if atoms is None:
+            raise ANICalculationFailed("Atoms are required for an ANI calculation")
+
+        try:
+            species = torch.as_tensor(
+                [atoms.get_atomic_numbers()],
+                dtype=torch.long,
             )
-        try:
-            self.model = torchani.models.__dict__[model]()
-        except KeyError:
-            msg = f"Model '{model}' not found in torchani models."
+            positions = torch.as_tensor(
+                [atoms.get_positions()],
+                dtype=torch.float32,
+            )
+            energy = self.model((species, positions)).energies.squeeze(0).item()
+        except Exception as exc:
+            msg = f"ANI model calculation failed: {exc}"
             logger.error(msg)
-            raise ANICalculationFailed(msg)
+            raise ANICalculationFailed(msg) from exc
 
-    def calculate(self, atoms=None, properties=['energy'], system_changes=[]):
-        try:
-            positions = atoms.get_positions()
-            species = atoms.get_chemical_symbols()
-        except Exception as e:
-            msg = f"Error getting atoms properties: {e}"
-            logger.error(msg)
-            raise ANICalculationFailed(msg)
+        self.results = {"energy": energy}
 
-        try:
-            energy = self.model((species, positions)).energy
-        except Exception as e:
-            msg = f"ANI model calculation failed: {e}"
-            logger.error(msg)
-            raise ANICalculationFailed(msg)
-            
-        self.results = {'energy': energy}
-
-def optimize(atoms):
-    try:
-        dyn = ase.optimize.BFGS(atoms, trajectory='optimization.traj')
-        dyn.run(fmax=0.001)
-    except Exception as e:
-        msg = f"Geometry optimization failed: {e}"
-        logger.error(msg)
-        raise ANICalculationFailed(msg)
-
-    try:
-        energy = atoms.get_potential_energy()
-    except Exception as e:
-        msg = f"Getting potential energy failed: {e}"
-        logger.error(msg)
-        raise ANICalculationFailed(msg)
-
-    return energy
-
-# singlepoint implementation same as before...
 
 class ANIInterface:
+    """Small convenience wrapper for single-point and optimization jobs."""
 
     def __init__(self, xyzfile):
+        """Load an XYZ file into an ASE atoms object."""
         try:
-            self.molecules = ase.io.read(xyzfile)
-        except OSError:
+            self.atoms = ase.io.read(xyzfile)
+        except OSError as exc:
             msg = f"Could not read XYZ file {xyzfile}"
             logger.error(msg)
-            raise ANICalculationFailed(msg)
+            raise ANICalculationFailed(msg) from exc
 
-    def optimize(self):
+    def _attach_calculator(self, model):
+        """Attach the requested ANI calculator to the loaded structure."""
+        self.atoms.calc = ANI(self.atoms.get_chemical_symbols(), model=model)
+
+    def optimize(self, model="ANI-1x", fmax=1e-3, trajectory="optimization.traj"):
+        """Run an ASE geometry optimization and return the final energy."""
         try:
-            energy = optimize(self.molecules)
-        except ANICalculationFailed as e:
-            logger.error("Geometry optimization failed")
-            raise e
-            
-        # write optimized geometry
-        return energy
-    
-        
-        
+            self._attach_calculator(model)
+            dyn = ase.optimize.BFGS(self.atoms, trajectory=trajectory)
+            dyn.run(fmax=fmax)
+            return self.atoms.get_potential_energy()
+        except ANICalculationFailed:
+            raise
+        except Exception as exc:
+            msg = f"Geometry optimization failed: {exc}"
+            logger.error(msg)
+            raise ANICalculationFailed(msg) from exc
 
-    # singlepoint implementation same as before...
+    def singlepoint(self, model="ANI-1x"):
+        """Return a single-point ANI energy for the loaded structure."""
+        try:
+            self._attach_calculator(model)
+            return self.atoms.get_potential_energy()
+        except ANICalculationFailed:
+            raise
+        except Exception as exc:
+            msg = f"Single-point calculation failed: {exc}"
+            logger.error(msg)
+            raise ANICalculationFailed(msg) from exc
 
-# ani_interface.py
-
-import argparse
 
 def main():
-    parser = argparse.ArgumentParser()
+    """Run the ANI helper CLI."""
+    parser = argparse.ArgumentParser(description="TorchANI helper for PyAR")
     parser.add_argument("command", choices=["optimize", "singlepoint"])
     parser.add_argument("xyzfile")
+    parser.add_argument("--model", default="ANI-1x")
+    parser.add_argument("--fmax", type=float, default=1e-3)
+    parser.add_argument("--trajectory", default="optimization.traj")
     args = parser.parse_args()
 
     interface = ANIInterface(args.xyzfile)
-    
     if args.command == "optimize":
-        energy = interface.optimize()
-    elif args.command == "singlepoint":
-        energy = interface.singlepoint()
-        
+        energy = interface.optimize(
+            model=args.model,
+            fmax=args.fmax,
+            trajectory=args.trajectory,
+        )
+    else:
+        energy = interface.singlepoint(model=args.model)
+
     print(energy)
+
+
+if __name__ == "__main__":
+    main()

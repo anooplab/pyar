@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-'''
-  !---------------------------------------------------------------------------! 
-  ! MLatomF_interface: Interface between MLatomF and MLatom.py                ! 
-  ! Implementations by: Pavlo O. Dral and Fuchun Ge                           ! 
-  !---------------------------------------------------------------------------! 
-'''
+"""Bridge between the bundled MLatomF executable and the Python wrapper."""
 
 import sys, os, subprocess, re
 from shutil import which
@@ -13,6 +8,7 @@ mlatomdir = os.path.dirname(__file__)
 
 
 def _resolve_mlatomf_bin():
+    """Find the bundled MLatomF executable or a system-wide fallback."""
     local_bin = os.path.join(mlatomdir, 'MLatomF')
     if os.path.isfile(local_bin) and os.access(local_bin, os.X_OK):
         return local_bin
@@ -26,9 +22,12 @@ def _resolve_mlatomf_bin():
         'Expected it next to pyar.mlatom or on PATH.'
     )
 
-class ifMLatomCls(object):           
+class ifMLatomCls(object):
+    """Compatibility wrapper for running MLatomF from PyAR."""
+
     @classmethod
     def run(cls, argsMLatomF, shutup=False, cwdpath='.'):
+        """Run MLatomF with sanitized arguments and capture its output."""
         mlatomfbin = _resolve_mlatomf_bin()
         result = {}
         t_train=0

@@ -1,3 +1,5 @@
+"""Reaction workflow orchestration for PyAR."""
+
 import copy
 import logging
 import os
@@ -20,25 +22,24 @@ saved_smile_strings = {}
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
-    pass
+    """Log a concise header for a reactor run."""
+    reactor_logger.info(
+        "==================== PyAR Reaction Workflow ====================")
+    reactor_logger.info(f"Gamma range: {gamma_min} to {gamma_max}")
+    reactor_logger.info(f"Orientations: {hm_orientations}")
+    reactor_logger.info(f"Software: {software}")
+    reactor_logger.info(
+        "===============================================================")
 
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
           site, proximity_factor, tabu_on=None, grid_on=None):
-    """
-    The Reactor module
-
-    This is the outer loop generates all the orientations
-    loop over all the gamma values optimize all orientations
-    in each gamma after eliminating the products or failed geometries.
-
-    """
+    """Run the reaction-search workflow for two reactants."""
     global workdir
     workdir = os.getcwd()
 
     if readchk(workdir) is not None:
         chk = readchk(workdir)
-        import shutil
         # shutil.move('pyar.log','pyar_old.log')
         reactor_logger.info('====================Reading from Checkpoint====================')
         gamma_list = list(chk.keys()).copy()
@@ -133,6 +134,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
 
 
 def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
+    """Optimize all trial geometries for one gamma cycle."""
     gamma = qc_param['gamma']
     cwd = os.getcwd()
     table_of_optimized_molecules = []
@@ -218,7 +220,8 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
 
 
 def main():
-    pass
+    """Entry point placeholder retained for compatibility."""
+    return None
 
 
 if __name__ == "__main__":

@@ -1,8 +1,12 @@
+"""Shared interface helpers and public re-exports for PyAR."""
+
 import os
+
 from pyar.mlatom.data import molecule  # noqa: F401
 
 
 def which(program):
+    """Return the absolute path to an executable if it exists on PATH."""
     import os
 
     def is_exe(exec_path):
@@ -24,7 +28,10 @@ def which(program):
 # from pyar.interface.mlatom_aiqm1 import MlatomAiqm1
 
 class SF(object):
+    """Base state for PyAR interface workflows that write XYZ files."""
+
     def __init__(self, molecule):  # noqa: F811
+        """Initialize a workflow helper from a PyAR molecule object."""
         self.job_name = molecule.name
         self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
         self.result_xyz_file = 'result_' + self.job_name + '.xyz'
@@ -41,6 +48,7 @@ class SF(object):
 
 
 def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0):
+    """Write a simple XYZ file with an optional energy label."""
     with open(filename, 'w') as fp:
         fp.write("%3d\n" % len(coordinates))
         fp.write(job_name + ':' + str(energy) + '\n')
@@ -48,39 +56,4 @@ def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0)
             fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
 
 
-import ase.optimize  # noqa: E402
-from ase.calculators.calculator import Calculator  # noqa: E402
-
-
-def _require_torchani():
-    try:
-        import torchani
-    except ImportError as exc:
-        raise ImportError(
-            "torchani is required for pyar.interface.ANI"
-        ) from exc
-    return torchani
-
-
-class ANI(Calculator):
-    def __init__(self, species, model='ANI-1x'):
-        self.species = species
-        torchani = _require_torchani()
-        self.model = torchani.models.__dict__[model]()
-
-    def calculate(self, atoms=None, properties=['energy'], system_changes=[]):
-        positions = atoms.get_positions()
-        species = atoms.get_chemical_symbols()
-        energy = self.model((species, positions)).energy
-        self.results = {'energy': energy}
-
-    def optimize(atoms):
-        dyn = ase.optimize.BFGS(atoms, trajectory='optimization.traj')
-        dyn.run(fmax=0.001)
-        return atoms.get_potential_energy()
-
-    def singlepoint(atoms):
-        calc = ANI(atoms.get_chemical_symbols())
-        atoms.set_calculator(calc)
-        energy = atoms.get_potential_energy()
-        return energy
+from .ani import ANI, ANICalculationFailed, ANIInterface  # noqa: E402,F401
