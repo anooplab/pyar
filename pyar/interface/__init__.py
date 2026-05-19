@@ -1,5 +1,6 @@
 """Shared interface helpers and public re-exports for PyAR."""
 
+import importlib
 import os
 
 from .subprocess_utils import run_command, run_output
@@ -54,8 +55,6 @@ def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0)
             fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
 
 
-from .ani import ANI, ANICalculationFailed, ANIInterface  # noqa: E402,F401
-
 __all__ = [
     "ANI",
     "ANICalculationFailed",
@@ -66,3 +65,16 @@ __all__ = [
     "run_command",
     "run_output",
 ]
+
+
+def __getattr__(name):
+    """Lazily expose optional ANI exports without importing TorchANI eagerly."""
+    if name in {"ANI", "ANICalculationFailed", "ANIInterface"}:
+        ani = importlib.import_module(".ani", __name__)
+        globals().update(
+            ANI=ani.ANI,
+            ANICalculationFailed=ani.ANICalculationFailed,
+            ANIInterface=ani.ANIInterface,
+        )
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

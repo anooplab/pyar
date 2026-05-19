@@ -86,13 +86,13 @@ your own system package or managing dependencies outside pip.
 # Molecule generations 
 
 ```bash
-pyar-cli -a c.xyz h.xyz -N 8 -as 6 6 --software aiqm1_mlatom -m 1 2
+pyar-cli -a C H -N 8 -as 6 6 --software aiqm1_mlatom -m 1 2
 ```
 
 You can also generate from a formula in aggregate mode:
 
 ```bash
-pyar-cli --aggregate --formula C5H4 -N 8 -as 1
+pyar-cli --aggregate --formula C5H4 -N 8
 ```
 
 # Molecular clusters
@@ -111,8 +111,8 @@ third-party project from the Isayev Lab and is MIT licensed upstream. See
 `THIRD_PARTY_LICENSES/AIMNet2-LICENSE` and
 `THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md` for license and provenance details.
 
-This will generate molecules up to a maximum of 6 carbon and 6 hydrogens with **mlatom_aiqm1** potential using 8 trial orientations.
-Here `c.xyz` and `h.xyz` are standard Cartesian coordinate files.
+This will generate molecules up to a maximum of 6 carbon and 6 hydrogens with **aiqm1_mlatom** potential using 8 trial orientations.
+Here `C` and `H` are element-symbol inputs. XYZ files are still accepted when you want to provide explicit starting coordinates:
 ```bash
 1
 carbon

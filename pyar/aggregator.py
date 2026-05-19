@@ -84,6 +84,13 @@ def aggregate(molecules,
     seed_names = string.ascii_lowercase
     ag_id = "ag"
 
+    if len(molecules) == 1 and len(aggregate_sizes) == 1 and aggregate_sizes[0] == 1:
+        formula_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", molecules[0].name)
+        output_file = f"formula_{formula_name}.xyz"
+        molecules[0].mol_to_xyz(output_file)
+        aggregator_logger.info(f"  Formula geometry written to {output_file}")
+        return
+
     monomers_to_be_added = []
     for seed_molecule, seed_name, size_of_this_seed in zip(molecules,
                                                            seed_names,
@@ -521,58 +528,144 @@ def check_stop_signal():
         aggregator_logger.info(f"Found stop file, in {os.getcwd()}")
         return 1
 
-def generate_molecule_from_formula(formula, box_size=None):
+_FORMULA_SYMBOLS = set(atomic_data.atomic_number)
+
+
+def _normalize_symbol(symbol):
+    """Normalize an element token to standard capitalization."""
+    if len(symbol) == 1:
+        return symbol.upper()
+    return symbol[0].upper() + symbol[1:].lower()
+
+
+def _read_formula_symbol(formula, position):
+    """Read one element symbol from a formula string."""
+    char = formula[position]
+    if not char.isalpha():
+        raise ValueError(f"Invalid chemical formula: {formula!r}")
+
+    next_char = formula[position + 1] if position + 1 < len(formula) else ""
+    if char.isupper() and next_char.islower():
+        symbol = _normalize_symbol(formula[position:position + 2])
+        if symbol in _FORMULA_SYMBOLS:
+            return symbol, position + 2
+        raise ValueError(f"Unknown element symbol: {formula[position:position + 2]}")
+
+    if char.islower() and next_char.islower():
+        symbol = _normalize_symbol(formula[position:position + 2])
+        if symbol in _FORMULA_SYMBOLS:
+            return symbol, position + 2
+
+    symbol = _normalize_symbol(char)
+    if symbol in _FORMULA_SYMBOLS:
+        return symbol, position + 1
+
+    if next_char and next_char.islower():
+        raise ValueError(f"Unknown element symbol: {formula[position:position + 2]}")
+    raise ValueError(f"Unknown element symbol: {char}")
+
+
+def _parse_formula(formula):
+    """Expand a chemical formula string into a list of atom symbols."""
+    formula = formula.strip()
+    atoms_list = []
+    position = 0
+    while position < len(formula):
+        if formula[position].isspace():
+            position += 1
+            continue
+
+        symbol, position = _read_formula_symbol(formula, position)
+
+        digit_start = position
+        while position < len(formula) and formula[position].isdigit():
+            position += 1
+        count = int(formula[digit_start:position]) if position > digit_start else 1
+        atoms_list.extend([symbol] * count)
+
+    if not atoms_list:
+        raise ValueError(f"Invalid chemical formula: {formula!r}")
+    return atoms_list
+
+
+def _atom_radius(atom):
+    """Return a packing radius for an element symbol."""
+    radius = atomic_data.vdw_radius.get(atom)
+    if radius is None or np.isnan(radius):
+        radius = atomic_data.covalent_radius[atom]
+    return float(radius)
+
+
+def _estimate_formula_box_size(atoms_list, box_size=None):
+    """Estimate a coordinate box large enough for an initial formula geometry."""
+    if box_size is not None:
+        if box_size <= 0:
+            raise ValueError("box_size must be positive")
+        return float(box_size)
+
+    max_radius = max(_atom_radius(atom) for atom in atoms_list)
+    volume_scale = len(atoms_list) ** (1.0 / 3.0)
+    return max(2.0 * max_radius + 2.0, 2.5 * volume_scale * max_radius + 2.0)
+
+
+def _pack_formula_coordinates(atoms_list, box_size, rng=None, minimum_distance_factor=0.85,
+                              max_attempts=500):
+    """Pack atoms into a box while avoiding obvious overlaps."""
+    rng = np.random.default_rng() if rng is None else rng
+    half_box = box_size / 2.0
+    coordinates = np.zeros((len(atoms_list), 3), dtype=float)
+    placed_indices = []
+    placement_order = sorted(range(len(atoms_list)),
+                             key=lambda index: (-_atom_radius(atoms_list[index]), index))
+
+    for index in placement_order:
+        atom = atoms_list[index]
+        attempts = 0
+        while True:
+            candidate = rng.uniform(-half_box, half_box, size=3)
+            if all(
+                np.linalg.norm(candidate - coordinates[other_index]) >=
+                minimum_distance_factor * (_atom_radius(atom) + _atom_radius(atoms_list[other_index]))
+                for other_index in placed_indices
+            ):
+                coordinates[index] = candidate
+                placed_indices.append(index)
+                break
+
+            attempts += 1
+            if attempts >= max_attempts:
+                box_size *= 1.15
+                half_box = box_size / 2.0
+                attempts = 0
+                aggregator_logger.debug(
+                    "Expanded formula packing box to %s for atom %s", box_size, atom
+                )
+
+    return coordinates
+
+
+def generate_molecule_from_formula(formula, box_size=None, rng=None):
     """
-    Generates a molecule object from a given formula using a Tabu-based approach within a box.
+    Generate a molecule object from a chemical formula.
 
     Args:
         formula (str): The chemical formula of the molecule to generate.
         box_size (float, optional): The size of the box in Angstroms. If None, it will be auto-generated.
+        rng (numpy.random.Generator, optional): Random generator used for packing.
 
     Returns:
         Molecule: The generated molecule object.
     """
-
-    # Parse the formula into a dictionary of element counts
-    element_counts = {}
-    for match in re.findall(r'([A-Z][a-z]*)(\d*)', formula):
-        element, count = match
-        count = int(count) if count else 1
-        element_counts[element] = count
-
-    # Create a list of atoms based on the formula
-    atoms_list = []
-    for element, count in element_counts.items():
-        atoms_list.extend([element] * count)
-
-    # Auto-generate box size if not provided
-    if box_size is None:
-        max_radius = max(atomic_data.vdw_radii[atomic_data.atomic_number[atom]] for atom in atoms_list)
-        box_size = 2 * max_radius + 2.0  # Add some buffer space
-
-    # Generate initial random coordinates within the box
-    coordinates = np.random.uniform(0, box_size, size=(len(atoms_list), 3))
-
-    # Create the initial molecule object
-    molecule = Molecule(atoms_list, coordinates)
-
-    # Use Tabu search to optimize the molecule's geometry
-    tabu_options = {
-        'number_of_orientations': 100,  # Adjust as needed
-        'tabu_on': True,
-        'grid_on': True,
-        'd_threshold': 0.3,  # Adjust as needed
-        'a_threshold': 15.0  # Adjust as needed
-    }
-    optimized_molecule = tabu.create_composite_molecule(molecule, molecule, tabu_options, d_scale=1.5)
-
-    return optimized_molecule
+    atoms_list = _parse_formula(formula)
+    box_size = _estimate_formula_box_size(atoms_list, box_size=box_size)
+    coordinates = _pack_formula_coordinates(atoms_list, box_size, rng=rng)
+    return Molecule(atoms_list, coordinates, name=formula, title=formula)
 
 
 def aggregate_from_formulas(formulas, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
                             first_pathway, number_of_pathways, tabu_on, grid_on, site):
     """
-    Generates aggregates from given formulas using a Tabu-based approach within a box.
+    Generate initial molecules from formulas and run the aggregate workflow.
 
     Args:
         formulas (list): A list of chemical formulas for the molecules to aggregate.
@@ -587,15 +680,14 @@ def aggregate_from_formulas(formulas, aggregate_sizes, hm_orientations, qc_param
         site (list, optional): Not used now, but needed for create_trial_molecules().
     """
 
-    # Generate molecule objects from formulas
     molecules = [generate_molecule_from_formula(formula) for formula in formulas]
 
-    # Call the original aggregate function with the generated molecules
-    aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
-              first_pathway, number_of_pathways, tabu_on, grid_on, site)
+    return aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
+                     first_pathway, number_of_pathways, tabu_on, grid_on, site)
 
 def main():
-    pass
+    """Module entry point reserved for future aggregate-specific commands."""
+    return None
 
 
 if __name__ == "__main__":

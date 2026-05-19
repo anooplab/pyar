@@ -1,6 +1,7 @@
 pyar.egg-info/
 docs/_build/
 test/
+aggregates/
 .venv/
 __pycache__/
 **/__pycache__/

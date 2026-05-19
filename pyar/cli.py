@@ -17,12 +17,26 @@ handler = logging.FileHandler('pyar.log', 'a')
 
 def argument_parse():
     pyar_description = """pyar is a program to predict aggregation, reaction,
-    and clustering. Reactor explores several possible reactions between two
-    given molecules. Aggregator module explores several possible geometries
-    of weakly bound molecular complexes or atomic clusters.
-    """
+and clustering. Reactor explores several possible reactions between two given
+molecules. Aggregator explores several possible geometries of weakly bound
+molecular complexes or atomic clusters.
+"""
+    pyar_epilog = """Examples:
+  pyar-cli -a C H -as 1 4 -N 8
+  pyar-cli --aggregate --formula C5H4 -N 8
+  pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
+  pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
 
-    parser = argparse.ArgumentParser(prog='pyar', description=pyar_description)
+In aggregate mode, each input can be an XYZ file, a bare element symbol, or a
+chemical formula.
+"""
+
+    parser = argparse.ArgumentParser(
+        prog='pyar-cli',
+        description=pyar_description,
+        epilog=pyar_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument('-v', '--verbosity',
                         choices=[0, 1, 2, 3, 4],
                         type=int,
@@ -30,9 +44,11 @@ def argument_parse():
                         help="Choose output verbosity"
                              " (0=Debug; 1 = Info (default); "
                              "2 = Warning; 3 = Error; 4 = Critical)")
-    parser.add_argument("input_files", metavar='file',
+    parser.add_argument("input_files", metavar='input',
                         type=str, nargs='*',
-                        help='input coordinate files in xyz format.')
+                        help='input coordinate files in xyz format. In '
+                             '--aggregate mode, bare element symbols and '
+                             'chemical formulas are also accepted.')
     parser.add_argument('-N', dest='how_many_orientations', metavar='N',
                         required=True,
                         help='The number of orientations to be used')
@@ -41,7 +57,8 @@ def argument_parse():
     parser.add_argument('--grid', choices=['y', 'n'], default='y',
                         help='Toggle the use of grid for search space.')
     parser.add_argument('--formula', type=str,
-                        help='Chemical formula of the molecule to generate')
+                        help='Chemical formula of the molecule to generate '
+                             'in --aggregate mode')
     parser.add_argument('-nprocs', '--nprocs', metavar='n',
                         type=int, help='The number of processors/cores to be '
                                        'used by the quantum chemistry software.'
@@ -80,7 +97,8 @@ def argument_parse():
                         help="Choose the features to be used for clustering")
     parser.add_argument('-as', '--aggregate-size', type=int, nargs='*',
                         metavar=('l', 'm',),
-                        help='number of monomers in aggregate')
+                        help='number of monomers in aggregate; defaults to '
+                             '[1] for single-formula aggregate runs')
     parser.add_argument('--number-of-pathways', type=int, metavar='n',
                         help='How many pathways to be used in binary/ternary aggregation.')
     parser.add_argument('-gmin', type=float, help='minimum value of gamma')
@@ -114,9 +132,29 @@ def argument_parse():
     return parser.parse_args()
 
 
+def _resolve_aggregate_input(spec, aggregate_mode):
+    """Resolve an input spec to a molecule, allowing formulas in aggregate mode."""
+    from pyar import Molecule, aggregator
+
+    if os.path.exists(spec):
+        return Molecule.Molecule.from_xyz(spec)
+
+    if aggregate_mode:
+        if spec.lower().endswith(".xyz") or os.path.sep in spec or (
+            os.path.altsep is not None and os.path.altsep in spec
+        ):
+            raise SystemExit(f"File {spec} does not exist")
+        try:
+            return aggregator.generate_molecule_from_formula(spec)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+
+    raise SystemExit(f"File {spec} does not exist")
+
+
 def main():
     args = vars(argument_parse())
-    from pyar import Molecule, aggregator, reactor, scan
+    from pyar import aggregator, reactor, scan
 
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
 
@@ -193,40 +231,40 @@ def main():
         logger.critical(message)
         sys.exit(message)
 
-    charges = run_parameters['charge'] or [0 for _ in range(number_of_input_files)]
-    if len(charges) != number_of_input_files:
+    input_specs = [run_parameters['formula']] if run_parameters['formula'] else input_files
+    number_of_inputs = len(input_specs)
+
+    charges = run_parameters['charge'] or [0 for _ in range(number_of_inputs)]
+    if len(charges) != number_of_inputs:
         sys.exit('Charges are not specified for all input files')
 
-    multiplicities = run_parameters['multiplicity'] or [1 for _ in range(number_of_input_files)]
-    if len(multiplicities) != number_of_input_files:
+    multiplicities = run_parameters['multiplicity'] or [1 for _ in range(number_of_inputs)]
+    if len(multiplicities) != number_of_inputs:
         sys.exit('Multiplicities are not specified for all input files')
 
-    scftypes = run_parameters['scftype'] or ['rhf' for _ in range(number_of_input_files)]
-    if len(scftypes) != number_of_input_files:
+    scftypes = run_parameters['scftype'] or ['rhf' for _ in range(number_of_inputs)]
+    if len(scftypes) != number_of_inputs:
         sys.exit('SCF Types are not specified for all input files')
 
-    logger.info("Parsing the following files: ")
+    logger.info("Parsing the following inputs: ")
     input_molecules = []
-    for each_file, charge, multiplicity, scftype in zip(input_files, charges, multiplicities, scftypes):
+    for each_file, charge, multiplicity, scftype in zip(input_specs, charges, multiplicities, scftypes):
         try:
-            mol = Molecule.Molecule.from_xyz(each_file)
+            mol = _resolve_aggregate_input(each_file, run_parameters['aggregate'])
             mol.charge = charge
             mol.multiplicity = multiplicity
-            n_electrons = sum(mol.atomic_number) - mol.charge
-            if n_electrons % 2 == 0:
-                if mol.multiplicity % 2 != 1:
-                    sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
-            else:
-                if mol.multiplicity % 2 == 1:
-                    sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
+            if run_parameters['software'] is not None:
+                n_electrons = sum(mol.atomic_number) - mol.charge
+                if n_electrons % 2 == 0:
+                    if mol.multiplicity % 2 != 1:
+                        sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
+                else:
+                    if mol.multiplicity % 2 == 1:
+                        sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
             input_molecules.append(mol)
             logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
-        except IOError:
-            logger.critical(f"File {each_file} does not exist")
-            sys.exit()
-
-    if run_parameters['formula']:
-        input_molecules = [aggregator.generate_molecule_from_formula(run_parameters['formula'])]
+        except SystemExit:
+            raise
 
     custom_keywords = run_parameters['custom_keywords']
     quantum_chemistry_parameters = {
@@ -259,10 +297,17 @@ def main():
 
     if run_parameters['aggregate']:
         size_of_aggregate = run_parameters['aggregate_size']
+        if run_parameters['formula'] and size_of_aggregate is None:
+            size_of_aggregate = [1]
         if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
             message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
             logger.critical(message)
             sys.exit(message)
+        if quantum_chemistry_parameters["software"] is None:
+            logger.info(
+                "No --software specified: aggregate mode will generate trial "
+                "geometries only; no quantum-chemistry optimization will be run."
+            )
         t1_0 = time.time()
         time_started = datetime.datetime.now()
         aggregator.aggregate(input_molecules, size_of_aggregate,
