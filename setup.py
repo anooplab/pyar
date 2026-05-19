@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
 from setuptools import setup, find_packages
 
+INSTALL_REQUIRES = [
+    'numpy>=1.18.4',
+    'autograd>=1.3',
+    'ase',
+    'torch',
+        'torchani==2.0',
+    'MDAnalysis',
+    'pandas>=1.0.5',
+    'scipy>=1.5.2',
+    'scikit-learn>=0.23.2',
+    'dscribe',
+    'pyh5md',
+    'h5py',
+    'networkx',
+    'matplotlib',
+    'hdbscan',
+    'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
+]
+
 setup(
     name='pyar',
     version='1.1.0',
@@ -10,7 +29,10 @@ setup(
     package_data={
         'pyar': [
             'AIMNet2/models/*.jpt',
-            'mlatom/aiqm1_model/*.pt'
+            'mlatom/MLatomF',
+            'mlatom/cs.so',
+            'mlatom/ref.json',
+            'mlatom/aiqm1_model/*.pt',
         ]
     },
     url='https://github.com/anooplab/pyar',
@@ -18,24 +40,7 @@ setup(
     author='Anoop et al',
     author_email='anoop@chem.iitkgp.ac.in',
     description='A Python Code for Aggregation and Reaction',
-    install_requires=[
-        'numpy',
-        'autograd',
-        'ase',
-        'torch',
-        'torchani',
-        'MDAnalysis',
-        'scikit-learn',
-        'scipy',
-        'pandas',
-        'matplotlib',
-        'pyh5md',
-        'h5py',
-        'hdbscan',
-        'networkx',
-        'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
-        'dscribe'
-    ],
+    install_requires=INSTALL_REQUIRES,
     keywords='computational chemistry global minima aggregation automated reaction',
     classifiers=[
         'Development Status :: 5 - Production/Stable',

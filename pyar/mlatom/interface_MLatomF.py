@@ -7,12 +7,29 @@
 '''
 
 import sys, os, subprocess, re
-mlatomdir=os.path.dirname(__file__)
-mlatomfbin="%s/MLatomF" % mlatomdir
+from shutil import which
+
+mlatomdir = os.path.dirname(__file__)
+
+
+def _resolve_mlatomf_bin():
+    local_bin = os.path.join(mlatomdir, 'MLatomF')
+    if os.path.isfile(local_bin) and os.access(local_bin, os.X_OK):
+        return local_bin
+
+    installed_bin = which('MLatomF')
+    if installed_bin:
+        return installed_bin
+
+    raise FileNotFoundError(
+        'Unable to locate the MLatomF executable. '
+        'Expected it next to pyar.mlatom or on PATH.'
+    )
 
 class ifMLatomCls(object):           
     @classmethod
     def run(cls, argsMLatomF, shutup=False, cwdpath='.'):
+        mlatomfbin = _resolve_mlatomf_bin()
         result = {}
         t_train=0
         t_descr=0

@@ -1,4 +1,7 @@
 recursive-include pyar/AIMNet2/models *.jpt
+include pyar/mlatom/MLatomF
+include pyar/mlatom/cs.so
+include pyar/mlatom/ref.json
 recursive-include pyar/mlatom/aiqm1_model *.pt
 include THIRD_PARTY_LICENSES/AIMNet2-LICENSE
 include THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md

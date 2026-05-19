@@ -10,13 +10,14 @@ Documentation:
 
 # Installation
 
-Download the file `pyar-master.zip`. Unzip it. Go to the folder and run:
+From a local checkout, install the package with:
 
 ```bash
 python -m pip install .
 ```
 
-This will install the `pyar` package and create the `pyar-cli` command line tool.
+This installs the `pyar` package, the `pyar-cli` command line tool, and the
+bundled runtime assets used by the MLatom and AIMNet2 interfaces.
 # Features:
 * Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
@@ -51,11 +52,9 @@ conda install -c conda-forge openbabel
 alias dftd4bin="dftd4"
 ```
 
-```bash
-# DBCV is not directly accessible via scikit-learn
-pip install hdbscan
-pip install git+https://github.com/christopherjenness/DBCV.git
-```
+`hdbscan` and `DBCV` are installed automatically when you install PyAR with
+`python -m pip install .`. You only need manual steps here if you are building
+your own system package or managing dependencies outside pip.
 
 ## Requirements 
 * python >= 3.6
@@ -69,6 +68,11 @@ pip install git+https://github.com/christopherjenness/DBCV.git
 * scipy>=1.5.2
 * scikit-learn>=0.23.2
 * dscribe
+* pyh5md
+* h5py
+* networkx
+* matplotlib
+* hdbscan
 
 # Interfaced with electronic structure theory programmes
 - mlatom_aiqm1

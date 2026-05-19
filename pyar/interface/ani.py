@@ -1,9 +1,13 @@
-import torchani
 import ase.optimize
 from ase.calculators.calculator import Calculator
 import logging
 
 logger = logging.getLogger('ani_interface')
+
+try:
+    import torchani
+except ImportError:  # pragma: no cover - optional runtime dependency
+    torchani = None
 
 class ANICalculationFailed(Exception):
     pass
@@ -12,6 +16,10 @@ class ANI(Calculator):
 
     def __init__(self, species, model='ANI-1x'):
         self.species = species
+        if torchani is None:
+            raise ImportError(
+                "torchani is required for pyar.interface.ani"
+            )
         try:
             self.model = torchani.models.__dict__[model]()
         except KeyError:
