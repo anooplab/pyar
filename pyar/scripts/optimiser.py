@@ -68,7 +68,11 @@ def main():
         'custom_keywords': run_parameters['custom_keywords'],
         'custom_keyword': run_parameters['custom_keywords']
     }
-    optimiser_mod.bulk_optimize(input_molecules, quantum_chemistry_parameters)
+    try:
+        optimiser_mod.bulk_optimize(input_molecules, quantum_chemistry_parameters)
+    except FileNotFoundError as exc:
+        logger.critical(str(exc))
+        sys.exit(str(exc))
 
 
 if __name__ == '__main__':

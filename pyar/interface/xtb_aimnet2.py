@@ -6,9 +6,10 @@ import sys
 import numpy as np
 import torch
 
-from pyar.interface import SF, which, write_xyz
+from pyar.interface import SF, require_executable, write_xyz
 import pkg_resources
 import os
+import sys
 
 xtb_aimnet2_logger = logging.getLogger('pyar.xtb_aimnet2')
 
@@ -22,17 +23,11 @@ aimnet2 = torch.jit.load(model_path, map_location=device)
 
 class XtbAimnet2(SF):
     def __init__(self, molecule, method):
-        if which('xtb') is None:
-            xtb_aimnet2_logger.error('set XTB path')
-            sys.exit()
-
-        if which('python') is None:
-            xtb_aimnet2_logger.error('set python3 path')
-            sys.exit()
+        self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(XtbAimnet2, self).__init__(molecule)
 
-        self.xtb_cmd = f"xtb {self.start_xyz_file} -opt {method['opt_threshold']}"
+        self.xtb_cmd = f"{self.xtb_executable} {self.start_xyz_file} -opt {method['opt_threshold']}"
 
         if self.charge != 0:
             self.xtb_cmd = "{} -chrg {}".format(self.xtb_cmd, self.charge)
@@ -41,7 +36,7 @@ class XtbAimnet2(SF):
         if self.multiplicity == 1 and self.scftype != 'rhf':
             self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
 
-        self.aimnet2_cmd = f"python {aimnet2_script} {model_path} --traj result.traj {self.xtb_optimized_xyz_file} {self.aimnet2_optimized_xyz_file}"
+        self.aimnet2_cmd = f"{sys.executable} {aimnet2_script} {model_path} --traj result.traj {self.xtb_optimized_xyz_file} {self.aimnet2_optimized_xyz_file}"
 
         if self.charge != 0:
             self.aimnet2_cmd = "{} -c {}".format(self.aimnet2_cmd, self.charge)

@@ -8,6 +8,16 @@ import subprocess as subp
 logger = logging.getLogger("pyar.interface.subprocess")
 
 
+def _normalize_command(command):
+    """Return a subprocess-safe command list with string arguments."""
+    if isinstance(command, (str, bytes, os.PathLike)):
+        return [os.fspath(command)]
+    return [
+        os.fspath(part) if isinstance(part, os.PathLike) else str(part)
+        for part in command
+    ]
+
+
 def _open_shared(stack, cache, path, mode):
     if path is None:
         return None
@@ -22,6 +32,7 @@ def run_command(command, stdout_path=None, stderr_path=None, stdin_path=None):
     When stdout and stderr should go to the same file, pass the same path for
     both arguments.
     """
+    command = _normalize_command(command)
     cwd = os.getcwd()
     logger.debug(
         "running command=%s cwd=%s stdout=%s stderr=%s stdin=%s",
@@ -51,6 +62,7 @@ def run_output(command, stderr_path=None):
         subprocess.CalledProcessError: If the command exits with a non-zero
             status.
     """
+    command = _normalize_command(command)
     cwd = os.getcwd()
     logger.debug("running command for output=%s cwd=%s stderr=%s", command, cwd, stderr_path)
     with ExitStack() as stack:

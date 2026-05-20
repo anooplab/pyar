@@ -16,12 +16,21 @@ def which(program):
         if is_exe(program):
             return program
     else:
-        for path in os.environ["PATH"].split(os.pathsep):
+        for path in os.environ.get("PATH", "").split(os.pathsep):
             exe_file = os.path.join(path, program)
             if is_exe(exe_file):
                 return exe_file
 
     return None
+
+
+def require_executable(program, friendly_name=None):
+    """Return an executable path or raise a clear FileNotFoundError."""
+    executable = which(program)
+    if executable is None:
+        name = friendly_name or program
+        raise FileNotFoundError(f"{name} executable '{program}' was not found on PATH")
+    return executable
 
 
 # from pyar.interface.mlatom_aiqm1 import MlatomAiqm1
@@ -60,6 +69,7 @@ __all__ = [
     "ANICalculationFailed",
     "ANIInterface",
     "SF",
+    "require_executable",
     "which",
     "write_xyz",
     "run_command",

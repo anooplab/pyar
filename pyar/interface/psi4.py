@@ -21,7 +21,7 @@ import os
 
 import numpy as np
 
-from pyar.interface import SF, write_xyz
+from pyar.interface import SF, require_executable, write_xyz
 from pyar.interface.subprocess_utils import run_command
 
 psi4_logger = logging.getLogger("pyar.psi4")
@@ -34,6 +34,7 @@ class Psi4(SF):
         """Prepare a Psi4 job from a PyAR molecule and QC settings."""
 
         super(Psi4, self).__init__(molecule)
+        self.psi4_executable = require_executable("psi4", "Psi4")
 
         self.start_coords = molecule.coordinates
         self.inp_file = 'trial_' + self.job_name + '.in'
@@ -71,7 +72,7 @@ class Psi4(SF):
             bool: ``True`` when Psi4 finishes normally, otherwise ``False``.
         """
 
-        exit_status = run_command(["psi4", self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
+        exit_status = run_command([self.psi4_executable, self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
             with open(self.out_file, "r") as f:
                 output = f.read()

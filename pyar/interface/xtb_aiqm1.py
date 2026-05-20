@@ -5,9 +5,10 @@ import sys
 
 import numpy as np
 
-from pyar.interface import SF, which, write_xyz
+from pyar.interface import SF, require_executable, write_xyz
 import pkg_resources
 import os
+import sys
 
 xtb_aiqm1_logger = logging.getLogger('pyar.xtb_aiqm1')
 
@@ -15,17 +16,11 @@ aiqm1_opt = pkg_resources.resource_filename('pyar', 'interface/mlopt.py')
 
 class XtbAIQM1(SF):
     def __init__(self, molecule, method):
-        if which('xtb') is None:
-            xtb_aiqm1_logger.error('set XTB path')
-            sys.exit()
-
-        if which('python') is None:
-            xtb_aiqm1_logger.error('set python3 path')
-            sys.exit()
+        self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(XtbAIQM1, self).__init__(molecule)
 
-        self.xtb_cmd = f"xtb {self.start_xyz_file} -opt {method['opt_threshold']}"
+        self.xtb_cmd = f"{self.xtb_executable} {self.start_xyz_file} -opt {method['opt_threshold']}"
 
         if self.charge != 0:
             self.xtb_cmd = "{} -chrg {}".format(self.xtb_cmd, self.charge)
@@ -34,7 +29,7 @@ class XtbAIQM1(SF):
         if self.multiplicity == 1 and self.scftype != 'rhf':
             self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
 
-        self.aiqm1_cmd = f"python {aiqm1_opt} {self.xtb_optimized_xyz_file} -c {self.charge} -m {self.multiplicity}  {self.aiqm1_optimized_xyz_file}"
+        self.aiqm1_cmd = f"{sys.executable} {aiqm1_opt} {self.xtb_optimized_xyz_file} -c {self.charge} -m {self.multiplicity}  {self.aiqm1_optimized_xyz_file}"
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 

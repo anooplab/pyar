@@ -8,7 +8,7 @@ import numpy as np
 import re
 import glob
 
-from pyar.interface import SF, write_xyz, which
+from pyar.interface import SF, require_executable, write_xyz
 
 orca_logger = logging.getLogger('pyar.orca')
 Bohr2Angstrom =  0.52917721092
@@ -17,6 +17,7 @@ class Orca(SF):
     def __init__(self, molecule, qc_params):
 
         super(Orca, self).__init__(molecule)
+        self.orca_executable = require_executable("orca", "ORCA")
 
         self.start_coords = molecule.coordinates
         self.inp_file = 'trial_' + self.job_name + '.inp'
@@ -64,7 +65,7 @@ class Orca(SF):
         self.prepare_input()
 
         with open(self.out_file, 'w') as fopt:
-            out = subp.Popen([which("orca"), self.inp_file], stdout=fopt, stderr=fopt)
+            out = subp.Popen([self.orca_executable, self.inp_file], stdout=fopt, stderr=fopt)
         out.communicate()
         out.poll()
         exit_status = out.returncode

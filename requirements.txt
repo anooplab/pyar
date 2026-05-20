@@ -14,3 +14,4 @@ networkx
 matplotlib
 hdbscan
 DBCV @ git+https://github.com/christopherjenness/DBCV.git
+openbabel-wheel

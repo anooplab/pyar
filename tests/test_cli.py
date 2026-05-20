@@ -201,6 +201,91 @@ class CliSmokeTests(unittest.TestCase):
 
         self.assertEqual(str(ctx.exception), "Unknown element symbol: Xx")
 
+    def test_aggregate_reports_missing_external_program_cleanly(self):
+        def missing_orca(*args, **kwargs):
+            raise FileNotFoundError("ORCA executable 'orca' was not found on PATH")
+
+        sys.modules["pyar.aggregator"].aggregate = missing_orca
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "8",
+            "-m",
+            "1",
+            "--software",
+            "orca",
+        ]
+
+        with self.assertRaises(SystemExit) as ctx:
+            self.cli.main()
+
+        self.assertEqual(str(ctx.exception), "ORCA executable 'orca' was not found on PATH")
+
+    def test_aggregate_software_dependency_contract(self):
+        python_only_backends = {"mlatom_aiqm1", "aiqm1_mlatom", "aimnet_2"}
+        backend_messages = {
+            "gaussian": "Gaussian executable 'g16' was not found on PATH",
+            "mopac": "MOPAC executable 'mopac' was not found on PATH",
+            "obabel": "OpenBabel executable 'obabel' was not found on PATH",
+            "orca": "ORCA executable 'orca' was not found on PATH",
+            "psi4": "Psi4 executable 'psi4' was not found on PATH",
+            "turbomole": "Turbomole executable 'define' was not found on PATH",
+            "xtb": "xTB executable 'xtb' was not found on PATH",
+            "xtb_turbo": "Turbomole executable 'define' was not found on PATH",
+            "xtb-aimnet2": "xTB executable 'xtb' was not found on PATH",
+            "xtb-aiqm1": "xTB executable 'xtb' was not found on PATH",
+        }
+
+        def aggregate_backend_contract(input_molecules, aggregate_sizes, hm_orientations, qc_params,
+                                       maximum_number_of_seeds, first_pathway, number_of_pathways,
+                                       tabu_on, grid_on, site):
+            software = qc_params["software"]
+            if software in python_only_backends:
+                return None
+            raise FileNotFoundError(backend_messages[software])
+
+        sys.modules["pyar.aggregator"].aggregate = aggregate_backend_contract
+
+        for software, expected in backend_messages.items():
+            with self.subTest(software=software):
+                sys.argv = [
+                    "pyar-cli",
+                    "-a",
+                    "--formula",
+                    "C",
+                    "-N",
+                    "8",
+                    "-m",
+                    "1",
+                    "--software",
+                    software,
+                ]
+
+                with self.assertRaises(SystemExit) as ctx:
+                    self.cli.main()
+
+                self.assertEqual(str(ctx.exception), expected)
+
+        for software in sorted(python_only_backends):
+            with self.subTest(software=software):
+                sys.argv = [
+                    "pyar-cli",
+                    "-a",
+                    "--formula",
+                    "C",
+                    "-N",
+                    "8",
+                    "-m",
+                    "1",
+                    "--software",
+                    software,
+                ]
+
+                self.cli.main()
+
 
 if __name__ == "__main__":
     unittest.main()

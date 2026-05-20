@@ -12,7 +12,15 @@ from collections import defaultdict
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
-handler = logging.FileHandler('pyar.log', 'a')
+handler = None
+
+
+def _get_file_handler():
+    """Create the CLI log file handler only when the command actually runs."""
+    global handler
+    if handler is None:
+        handler = logging.FileHandler('pyar.log', 'a')
+    return handler
 
 
 def argument_parse():
@@ -179,8 +187,10 @@ def main():
         formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.CRITICAL)
 
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    file_handler = _get_file_handler()
+    file_handler.setFormatter(formatter)
+    if file_handler not in logger.handlers:
+        logger.addHandler(file_handler)
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
     logger.info(
@@ -295,81 +305,85 @@ def main():
         site = run_parameters['site']
         site = [site[0], input_molecules[0].number_of_atoms + site[1]]
 
-    if run_parameters['aggregate']:
-        size_of_aggregate = run_parameters['aggregate_size']
-        if run_parameters['formula'] and size_of_aggregate is None:
-            size_of_aggregate = [1]
-        if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
-            message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
-            logger.critical(message)
-            sys.exit(message)
-        if quantum_chemistry_parameters["software"] is None:
-            logger.info(
-                "No --software specified: aggregate mode will generate trial "
-                "geometries only; no quantum-chemistry optimization will be run."
-            )
-        t1_0 = time.time()
-        time_started = datetime.datetime.now()
-        aggregator.aggregate(input_molecules, size_of_aggregate,
-                             number_of_orientations,
-                             quantum_chemistry_parameters,
-                             maximum_number_of_seeds,
-                             run_parameters['first_pathway'],
-                             run_parameters['number_of_pathways'],
-                             run_parameters['tabu'] == 'y',
-                             run_parameters['grid'] == 'y', site)
-        logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+    try:
+        if run_parameters['aggregate']:
+            size_of_aggregate = run_parameters['aggregate_size']
+            if run_parameters['formula'] and size_of_aggregate is None:
+                size_of_aggregate = [1]
+            if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
+                message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
+                logger.critical(message)
+                sys.exit(message)
+            if quantum_chemistry_parameters["software"] is None:
+                logger.info(
+                    "No --software specified: aggregate mode will generate trial "
+                    "geometries only; no quantum-chemistry optimization will be run."
+                )
+            t1_0 = time.time()
+            time_started = datetime.datetime.now()
+            aggregator.aggregate(input_molecules, size_of_aggregate,
+                                 number_of_orientations,
+                                 quantum_chemistry_parameters,
+                                 maximum_number_of_seeds,
+                                 run_parameters['first_pathway'],
+                                 run_parameters['number_of_pathways'],
+                                 run_parameters['tabu'] == 'y',
+                                 run_parameters['grid'] == 'y', site)
+            logger.info('Total Time: {}'.format(time.time() - t1_0))
+            logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
-    if run_parameters['solvate']:
-        number_of_solvent_molecules = run_parameters['solvation_size']
-        if number_of_solvent_molecules is None:
-            sys.exit('For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>')
-        if len(input_molecules) == 1:
-            sys.exit('Please provide more than two molecules.\nThe last input file will be considered as solvent\nand the other molecules as solutes to which solvent\nmolecules will be added.')
-        monomer = input_molecules[-1]
-        seeds = input_molecules[:-1]
-        t1_0 = time.time()
-        time_started = datetime.datetime.now()
-        aggregator.solvate(seeds, monomer,
-                           number_of_solvent_molecules,
-                           number_of_orientations,
-                           quantum_chemistry_parameters,
-                           maximum_number_of_seeds,
-                           run_parameters['tabu'] == 'y',
-                           run_parameters['grid'] == 'y', site)
-        logger.info('Total Time: {}'.format(time.time() - t1_0))
-        logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+        if run_parameters['solvate']:
+            number_of_solvent_molecules = run_parameters['solvation_size']
+            if number_of_solvent_molecules is None:
+                sys.exit('For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>')
+            if len(input_molecules) == 1:
+                sys.exit('Please provide more than two molecules.\nThe last input file will be considered as solvent\nand the other molecules as solutes to which solvent\nmolecules will be added.')
+            monomer = input_molecules[-1]
+            seeds = input_molecules[:-1]
+            t1_0 = time.time()
+            time_started = datetime.datetime.now()
+            aggregator.solvate(seeds, monomer,
+                               number_of_solvent_molecules,
+                               number_of_orientations,
+                               quantum_chemistry_parameters,
+                               maximum_number_of_seeds,
+                               run_parameters['tabu'] == 'y',
+                               run_parameters['grid'] == 'y', site)
+            logger.info('Total Time: {}'.format(time.time() - t1_0))
+            logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
-    if run_parameters['react']:
-        minimum_gamma = run_parameters['gmin']
-        maximum_gamma = run_parameters['gmax']
-        if len(input_molecules) < 2:
-            sys.exit('Missing arguments: provide at least two molecules')
-        if minimum_gamma is None or maximum_gamma is None:
-            sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
-        if number_of_orientations is None:
-            sys.exit('Missing arguments: -N #')
+        if run_parameters['react']:
+            minimum_gamma = run_parameters['gmin']
+            maximum_gamma = run_parameters['gmax']
+            if len(input_molecules) < 2:
+                sys.exit('Missing arguments: provide at least two molecules')
+            if minimum_gamma is None or maximum_gamma is None:
+                sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
+            if number_of_orientations is None:
+                sys.exit('Missing arguments: -N #')
 
-        proximity_factor = 2.3
-        zero_time = time.time()
-        time_started = datetime.datetime.now()
-        reactor.react(input_molecules[0], input_molecules[1],
-                      minimum_gamma, maximum_gamma,
-                      int(number_of_orientations),
-                      quantum_chemistry_parameters,
-                      site, proximity_factor,
-                      run_parameters['tabu'] == 'y', run_parameters['grid'] == 'y')
-        logger.info('Total run time: {}'.format(time.time() - zero_time))
-        logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
-        return
+            proximity_factor = 2.3
+            zero_time = time.time()
+            time_started = datetime.datetime.now()
+            reactor.react(input_molecules[0], input_molecules[1],
+                          minimum_gamma, maximum_gamma,
+                          int(number_of_orientations),
+                          quantum_chemistry_parameters,
+                          site, proximity_factor,
+                          run_parameters['tabu'] == 'y', run_parameters['grid'] == 'y')
+            logger.info('Total run time: {}'.format(time.time() - zero_time))
+            logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
+            return
 
-    if run_parameters['scan_bond']:
-        if number_of_orientations is None:
-            sys.exit('Missing arguments: -N #')
-        scan.scan_distance(input_molecules, run_parameters['scan_bond'],
-                           int(number_of_orientations),
-                           quantum_chemistry_parameters)
+        if run_parameters['scan_bond']:
+            if number_of_orientations is None:
+                sys.exit('Missing arguments: -N #')
+            scan.scan_distance(input_molecules, run_parameters['scan_bond'],
+                               int(number_of_orientations),
+                               quantum_chemistry_parameters)
+    except FileNotFoundError as exc:
+        logger.critical(str(exc))
+        sys.exit(str(exc))
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ import logging
 import numpy as np
 
 from pyar import interface
-from pyar.interface import SF
+from pyar.interface import SF, require_executable
 from pyar.interface.subprocess_utils import run_command
 
 gaussian_logger = logging.getLogger("pyar.gaussian")
@@ -36,6 +36,7 @@ class Gaussian(SF):
         """Prepare a Gaussian job from a PyAR molecule and QC settings."""
 
         super(Gaussian, self).__init__(molecule)
+        self.gaussian_executable = require_executable("g16", "Gaussian")
 
         self.start_coords = molecule.coordinates
         self.inp_file = f'trial_{self.job_name}.com'
@@ -70,7 +71,7 @@ class Gaussian(SF):
             bool: ``True`` when Gaussian finishes normally, otherwise ``False``.
         """
         self.prepare_input()
-        exit_status = run_command(["g16", self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
+        exit_status = run_command([self.gaussian_executable, self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
             with open(self.out_file, "r") as file_pointer:
                 this_line = file_pointer.readlines()

@@ -63,6 +63,7 @@ your own system package or managing dependencies outside pip.
 * ase
 * torch
 * torchani
+* openbabel-wheel
 * MDAnalysis
 * pandas>=1.0.5
 * scipy>=1.5.2
@@ -73,6 +74,10 @@ your own system package or managing dependencies outside pip.
 * networkx
 * matplotlib
 * hdbscan
+
+System executables are still required for the backends that call them directly:
+`orca`, `g16`, `psi4`, `mopac`, `xtb`, `define`, and OpenBabel tools such as
+`obabel`, `babel`, `obminimize`, and `obenergy`.
 
 # Interfaced with electronic structure theory programmes
 - mlatom_aiqm1

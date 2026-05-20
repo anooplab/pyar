@@ -22,7 +22,7 @@ import os
 
 import numpy as np
 
-from pyar.interface import SF, write_xyz, which
+from pyar.interface import SF, require_executable, write_xyz
 from pyar.interface.subprocess_utils import run_command
 
 orca_logger = logging.getLogger('pyar.orca')
@@ -35,6 +35,7 @@ class Orca(SF):
         """Prepare an ORCA job from a PyAR molecule and QC settings."""
 
         super(Orca, self).__init__(molecule)
+        self.orca_executable = require_executable("orca", "ORCA")
 
         self.start_coords = molecule.coordinates
         self.inp_file = 'trial_' + self.job_name + '.inp'
@@ -79,7 +80,7 @@ class Orca(SF):
         self.keyword = self.keyword + '!Opt'
         self.prepare_input()
 
-        exit_status = run_command([which("orca"), self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
+        exit_status = run_command([self.orca_executable, self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
             with open(self.out_file, "r") as f:
                 line = f.readlines()

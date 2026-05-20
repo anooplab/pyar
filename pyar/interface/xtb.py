@@ -24,7 +24,7 @@ import sys
 
 import numpy as np
 
-from pyar.interface import SF, which, write_xyz
+from pyar.interface import SF, require_executable, write_xyz
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
@@ -32,13 +32,11 @@ xtb_logger = logging.getLogger('pyar.xtb')
 class Xtb(SF):
 
     def __init__(self, molecule, method):
-        if which('xtb') is None:
-            xtb_logger.error('set XTB path')
-            sys.exit()
+        self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(Xtb, self).__init__(molecule)
 
-        self.cmd = f"xtb {self.start_xyz_file} -opt {method['opt_threshold']}"
+        self.cmd = f"{self.xtb_executable} {self.start_xyz_file} -opt {method['opt_threshold']}"
 
         if self.charge != 0:
             self.cmd = "{} -chrg {}".format(self.cmd, self.charge)

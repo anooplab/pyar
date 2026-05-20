@@ -6,7 +6,7 @@ INSTALL_REQUIRES = [
     'autograd>=1.3',
     'ase',
     'torch',
-        'torchani==2.0',
+    'torchani==2.0',
     'MDAnalysis',
     'pandas>=1.0.5',
     'scipy>=1.5.2',
@@ -18,6 +18,7 @@ INSTALL_REQUIRES = [
     'matplotlib',
     'hdbscan',
     'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
+    'openbabel-wheel',
 ]
 
 setup(

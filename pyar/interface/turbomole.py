@@ -35,8 +35,7 @@ import numpy as np
 from pyar import interface
 from pyar.afir import restraints
 from pyar.data.units import angstrom2bohr, bohr2angstrom
-from pyar.interface import SF
-from pyar.interface import which
+from pyar.interface import SF, require_executable
 
 turbomole_logger = logging.getLogger('pyar.turbomole')
 
@@ -77,9 +76,7 @@ def sed_inplace(pattern, replace_to, filename='control'):
 class Turbomole(SF):
 
     def __init__(self, molecule, qc_params):
-        if which('define') is None:
-            turbomole_logger.error('set Turbomole path')
-            sys.exit('Set turbomole path')
+        require_executable('define', 'Turbomole')
 
         super(Turbomole, self).__init__(molecule)
 

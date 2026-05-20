@@ -23,7 +23,7 @@ import sys
 
 import numpy as np
 
-from pyar.interface import SF, which
+from pyar.interface import SF, require_executable
 from pyar.interface.subprocess_utils import run_command, run_output
 
 babel_logger = logging.getLogger("pyar.babel")
@@ -35,10 +35,7 @@ class OBabel(SF):
     def __init__(self, molecule, forcefield=None):
         """Prepare an OpenBabel workflow helper for a PyAR molecule."""
 
-        if which('obabel') is None:
-            message = 'setup OBabel path'
-            babel_logger.error(message)
-            raise FileNotFoundError(message)
+        require_executable('obabel', 'OpenBabel')
 
         super(OBabel, self).__init__(molecule)
 
@@ -50,8 +47,17 @@ class OBabel(SF):
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """Optimize the current structure with OpenBabel."""
 
-        run_command(["obminimize", "-ff", "uff", '-n', max_cycles, self.start_xyz_file],
-                    stdout_path='tmp.xyz', stderr_path='tmp.log')
+        exit_status = run_command(
+            [require_executable("obminimize", "OpenBabel"), "-ff", "uff", '-n', max_cycles, self.start_xyz_file],
+            stdout_path='tmp.xyz',
+            stderr_path='tmp.log',
+        )
+        if exit_status != 0:
+            babel_logger.error(
+                "obabel optimization failed job=%s input=%s log=%s cwd=%s",
+                self.job_name, self.start_xyz_file, 'tmp.log', os.getcwd(),
+            )
+            return False
         with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
             for line in xyzfile:
                 if 'WARNING' not in line:
@@ -71,17 +77,22 @@ class OBabel(SF):
     def get_energy(self):
         """Return the OpenBabel energy in Hartree if the calculation completed."""
         energy_path = self.job_name + '.ene'
-        exit_status = run_command(["obenergy", "-ff", "uff", self.result_xyz_file],
+        exit_status = run_command([require_executable("obenergy", "OpenBabel"), "-ff", "uff", self.result_xyz_file],
                                   stdout_path=energy_path, stderr_path=energy_path)
         if exit_status == 0:
             with open(self.job_name + '.ene', 'r') as energy_file:
                 return float(energy_file.readlines()[-1].split()[3])
+        babel_logger.error(
+            "obabel energy command failed job=%s input=%s log=%s cwd=%s",
+            self.job_name, self.result_xyz_file, energy_path, os.getcwd(),
+        )
+        return None
 
 
 def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
     """Convert an XYZ file to a Mopac input file with OpenBabel."""
     keyword_line = '-xkPM7' if keyword is None else '-xk' + keyword
-    run_command(["babel", "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line],
+    run_command([require_executable("babel", "OpenBabel"), "-ixyz", xyzfile, "-omop", mopac_input_file, keyword_line],
                 stdout_path='tmp.log', stderr_path='tmp.log')
     with open('tmp.log') as log_file:
         first_line = log_file.readline().strip()
@@ -91,7 +102,7 @@ def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):
 
 def xyz_to_sdf_file(xyz_input_files, sdf_output_file):
     """Convert one or more XYZ files to a single SDF file."""
-    run_command(["babel", "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file],
+    run_command([require_executable("babel", "OpenBabel"), "-ixyz"] + xyz_input_files + ["-osdf", sdf_output_file],
                 stdout_path='tmp.log', stderr_path='tmp.log')
     babel_logger.info("babel sdf conversion inputs=%s output=%s", xyz_input_files, sdf_output_file)
     os.remove('tmp.log')
@@ -100,7 +111,7 @@ def xyz_to_sdf_file(xyz_input_files, sdf_output_file):
 def make_inchi_string_from_xyz(xyzfile):
     """Return an InChI string for a molecule stored in an XYZ file."""
     if os.path.isfile(xyzfile):
-        inchi = run_output(["babel", "-ixyz", str(xyzfile), "-oinchi"], stderr_path='OBabel.log')
+        inchi = run_output([require_executable("babel", "OpenBabel"), "-ixyz", str(xyzfile), "-oinchi"], stderr_path='OBabel.log')
         babel_logger.info("babel inchi conversion input=%s log=%s", xyzfile, 'OBabel.log')
         return inchi.decode("utf-8").strip()
     else:
@@ -112,7 +123,7 @@ def make_smile_string_from_xyz(xyzfile):
     if os.path.isfile(xyzfile):
         with open('OBabel.log', 'w') as ferr:
             try:
-                pre_smile = run_output(["babel", "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr_path='OBabel.log')
+                pre_smile = run_output([require_executable("babel", "OpenBabel"), "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr_path='OBabel.log')
                 smile = pre_smile.decode("utf-8").strip()
             except Exception as e:
                 ferr.write(str(e))

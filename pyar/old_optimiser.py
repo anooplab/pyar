@@ -15,7 +15,7 @@ import os
 
 from pyar import file_manager
 from pyar.Molecule import Molecule
-from pyar.optimiser import apply_geometry_result, is_usable
+from pyar.optimiser import apply_geometry_result, build_geometry, is_usable
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
@@ -32,75 +32,26 @@ def optimise(molecule, qc_params):
     if not os.path.exists(job_dir):
         file_manager.make_directories(job_dir)
     os.chdir(job_dir)
-    if os.path.exists(f'result_{molecule.name}.xyz'):
-        read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
-        molecule.energy = read_molecule.energy
-        molecule.optimized_coordinates = read_molecule.coordinates
-        molecule.coordinates = read_molecule.coordinates
-        optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
+    try:
+        if os.path.exists(f'result_{molecule.name}.xyz'):
+            read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
+            molecule.energy = read_molecule.energy
+            molecule.optimized_coordinates = read_molecule.coordinates
+            molecule.coordinates = read_molecule.coordinates
+            optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
+            return True
+
+        geometry = build_geometry(molecule, qc_params)
+        optimize_status = geometry.optimize()
+        if is_usable(optimize_status):
+            apply_geometry_result(molecule, geometry)
+            optimiser_logger.info(f'     {molecule.name:35s}: {float(molecule.energy):15.6f}')
+        else:
+            molecule.energy = None
+            molecule.coordinates = None
+        return optimize_status
+    finally:
         os.chdir(cwd)
-        return True
-    software = qc_params['software']
-    
-    if software == 'mlatom_aiqm1':
-        from pyar.interface import mlatom_aiqm1
-        geometry = mlatom_aiqm1.MlatomAiqm1(molecule, qc_params)
-        # geometry.run()
-        # molecule.energy = geometry.energy
-        # molecule.coordinates = geometry.optimized_coordinates
-        # optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy:15.6f}')
-        
-        # os.chdir(cwd)
-        # return True
-    
-    elif software == "orca":
-        from pyar.interface import orca
-        geometry = orca.Orca(molecule, qc_params)
-    elif software == "xtb":
-        from pyar.interface import xtb
-        geometry = xtb.Xtb(molecule, qc_params)
-    elif software == 'xtb_turbo':
-        from pyar.interface import xtbturbo
-        geometry = xtbturbo.XtbTurbo(molecule, qc_params)
-    elif software == 'turbomole':
-        from pyar.interface import turbomole
-        geometry = turbomole.Turbomole(molecule, qc_params)
-    elif software == "mopac":
-        from pyar.interface import mopac
-        geometry = mopac.Mopac(molecule, qc_params)
-    elif software == "aimnet_2":
-        from pyar.interface import aimnet_2
-        geometry = aimnet_2.Aimnet2(molecule, qc_params)
-    elif software == "aiqm1_mlatom":
-         from pyar.interface import aiqm1_mlatom
-         geometry = aiqm1_mlatom.AIQM1(molecule, qc_params) # noqa: F401
-    elif software == "xtb-aimnet2":
-        from pyar.interface import xtb_aimnet2
-        geometry = xtb_aimnet2.XtbAimnet2(molecule, qc_params)
-    elif software == "xtb-aiqm1":
-        from pyar.interface import xtb_aiqm1
-        geometry = xtb_aiqm1.XtbAIQM1(molecule, qc_params)
-    elif software == 'obabel': 
-        from pyar.interface import babel
-        geometry = babel.OBabel(molecule)
-    
-    
-    optimize_status = geometry.optimize()
-    # if optimize_status is True or optimize_status == 'converged' or optimize_status == 'CycleExceeded':
-    if is_usable(optimize_status):
-        apply_geometry_result(molecule, geometry)
-        optimiser_logger.info(f'     {molecule.name:35s}: {float(molecule.energy):15.6f}')
-        # optimiser_logger.info(f'     {molecule.name:35s}: {geometry.energy}')
-    # elif optimize_status == 'SCFFailed':
-    #     from numpy.random import uniform
-    #     molecule.coordinates += uniform(-0.1, 0.1, (molecule.number_of_atoms, 3))
-    #     os.chdir(cwd)
-    #     optimize_status = optimise(molecule, qc_params)
-    else:
-        molecule.energy = None
-        molecule.coordinates = None
-    os.chdir(cwd)
-    return optimize_status
 
 
 def write_csv_file(csv_filename, energy_dict):

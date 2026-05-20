@@ -50,10 +50,14 @@ def main():
 
     logger.info(f"Using index: {index} (final index of the first reactant)")
     qc_params = {'software': run_parameters['software'], 'index': index}
-    reactor.react(input_molecules[0], input_molecules[1],
-                  run_parameters['gmin'], run_parameters['gmax'],
-                  int(run_parameters['how_many_orientations']), qc_params,
-                  None, 2.3, True, True)
+    try:
+        reactor.react(input_molecules[0], input_molecules[1],
+                      run_parameters['gmin'], run_parameters['gmax'],
+                      int(run_parameters['how_many_orientations']), qc_params,
+                      None, 2.3, True, True)
+    except FileNotFoundError as exc:
+        logger.critical(str(exc))
+        sys.exit(str(exc))
 
 
 if __name__ == "__main__":

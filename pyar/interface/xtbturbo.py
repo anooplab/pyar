@@ -26,7 +26,7 @@ import pyar.interface.turbomole
 from pyar import interface
 from pyar.afir import restraints
 from pyar.data.units import angstrom2bohr, bohr2angstrom
-from pyar.interface import SF
+from pyar.interface import SF, require_executable
 
 xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
 
@@ -35,12 +35,8 @@ class XtbTurbo(SF):
 
     def __init__(self, molecule, method):
 
-        if interface.which('define') is None:
-            print('set Turbomole path')
-            sys.exit()
-        if interface.which('xtb') is None:
-            print('set XTB path')
-            sys.exit()
+        self.define_executable = require_executable('define', 'Turbomole')
+        self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(XtbTurbo, self).__init__(molecule)
 
@@ -50,7 +46,7 @@ class XtbTurbo(SF):
         self.coord_file = 'coord'
         self.energy_file = 'energy'
 
-        self.egrad_program = ['xtb', 'coord', '-grad']
+        self.egrad_program = [self.xtb_executable, 'coord', '-grad']
         if self.charge > 0:
             self.egrad_program += ['-chrg', str(self.charge)]
         if self.multiplicity != 1:

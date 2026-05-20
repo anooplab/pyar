@@ -1,15 +1,14 @@
 import logging
-import pyar  # noqa: F401
-# from time import sleep
-from pyar.interface import SF, write_xyz, which  # noqa: F401
 import os
+import pkg_resources
 import subprocess as subp
+import sys
+
 import numpy as np
+import pyar  # noqa: F401
 from pyar.AIMNet2.calculators import aimnet2_ase_opt  # noqa: F401
 from pyar.AIMNet2.calculators import aimnet2ase  # noqa: F401
-import sys
-import pkg_resources
-import os
+from pyar.interface import SF, write_xyz  # noqa: F401
 
 Aimnet2_logger = logging.getLogger('pyar.aimnet-2')
 
@@ -31,11 +30,6 @@ aimnet2 = torch.jit.load(model_path, map_location=device)
 
 class Aimnet2(SF):
     def __init__(self, molecule, qc_params):
-        if which('python') is None:
-            Aimnet2_logger.error('set python3 path')
-            sys.exit()
-
-
         super(Aimnet2, self).__init__(molecule)
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.traj'
@@ -50,7 +44,7 @@ class Aimnet2(SF):
         self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
         self.out_file = 'trial_' + self.job_name + '.out'
         
-        self.cmd = f"python {aimnet2_script} {model_path} --traj result.traj {self.inp_file} {self.inp_min_file}"
+        self.cmd = f"{sys.executable} {aimnet2_script} {model_path} --traj result.traj {self.inp_file} {self.inp_min_file}"
         if self.charge != 0:
             self.cmd = "{} -c {}".format(self.cmd, self.charge)
 

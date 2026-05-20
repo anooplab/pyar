@@ -40,6 +40,7 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "hdbscan",
     "DBCV @ git+https://github.com/christopherjenness/DBCV.git",
+    "openbabel-wheel",
 ]
 ENTRY_POINTS = [
     "pyar-cli=pyar.cli:main",

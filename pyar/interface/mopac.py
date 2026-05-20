@@ -24,7 +24,7 @@ import logging
 import numpy as np
 
 from pyar import interface
-from pyar.interface import SF, which
+from pyar.interface import SF, require_executable
 from pyar.interface.subprocess_utils import run_command
 
 mopac_logger = logging.getLogger("pyar.mopac")
@@ -36,15 +36,8 @@ class Mopac(SF):
     def __init__(self, molecule, qc_params):
         """Prepare a MOPAC job from a PyAR molecule and QC settings."""
 
-        if which('mopac') is None:
-            message = 'Install Mopac or set MOPAC path'
-            mopac_logger.error(message)
-            raise FileNotFoundError(message)
-
-        if which('obabel') is None:
-            message = 'Install OpenBabel or set OBABEL path'
-            mopac_logger.error(message)
-            raise FileNotFoundError(message)
+        require_executable('mopac', 'MOPAC')
+        require_executable('obabel', 'OpenBabel')
 
         super(Mopac, self).__init__(molecule)
 
@@ -59,7 +52,7 @@ class Mopac(SF):
     def prepare_input(self, keyword=""):
         """Create the MOPAC input file for the current structure."""
         keyword_line = '-xkPM7' if not keyword else '-xk' + keyword
-        exit_status = run_command(["obabel", "-ixyz", self.start_xyz_file, "-omop", keyword_line],
+        exit_status = run_command([require_executable("obabel", "OpenBabel"), "-ixyz", self.start_xyz_file, "-omop", keyword_line],
                                   stdout_path=self.inp_file, stderr_path='tmp.log')
         if exit_status == 0:
             os.remove('tmp.log')
@@ -73,7 +66,7 @@ class Mopac(SF):
         """
 
         logfile = "trial_{}.log".format(self.job_name)
-        exit_status = run_command(["mopac", self.inp_file], stdout_path=logfile, stderr_path=logfile)
+        exit_status = run_command([require_executable("mopac", "MOPAC"), self.inp_file], stdout_path=logfile, stderr_path=logfile)
         if exit_status == 0:
             if os.path.exists(self.arc_file):
                 self.energy = self.get_energy()
