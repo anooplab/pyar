@@ -1,18 +1,31 @@
 PyAR Documentation
 ==================
 
-PyAR is a Python package for aggregation and reaction searches in molecular systems.
+PyAR is a command-line package for aggregation, reaction, solvation, and bond
+scanning workflows in molecular systems.
 
-This documentation covers:
+Start here
+----------
 
-* installation
-* basic command-line usage
-* the public Python package entry points
+* :doc:`quickstart`
+* :doc:`workflows`
+* :doc:`installation`
+* :doc:`usage`
+* :doc:`api`
+* :doc:`reference`
+
+The fastest way to verify a local install is:
+
+.. code-block:: bash
+
+   pyar-cli --help
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents
 
+   quickstart
+   workflows
    installation
    usage
    api
