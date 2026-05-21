@@ -57,8 +57,16 @@ def choose_geometries(list_of_molecules, maximum_number_of_seeds=12):
     algorithm = os.environ.get('PYAR_CLUSTERING_ALGORITHM', 'hdbscan').lower()
     cluster_logger.info(f'Clustering on {len(list_of_molecules)} geometries using {algorithm}')
 
-    # Use MBTR for feature representation
-    dt = np.array([pyar.representations.mbtr_descriptor(m.atoms_list, m.coordinates) for m in list_of_molecules])
+    # Use MBTR for feature representation. Older DScribe/ASE combinations can
+    # raise during conversion, so fall back to similarity pruning in that case.
+    try:
+        dt = np.array([pyar.representations.mbtr_descriptor(m.atoms_list, m.coordinates) for m in list_of_molecules])
+    except Exception as exc:
+        cluster_logger.warning(
+            "MBTR clustering unavailable, falling back to similarity pruning: %s",
+            exc,
+        )
+        return remove_similar(list_of_molecules)
 
     # Scale the data
     scaler = StandardScaler()

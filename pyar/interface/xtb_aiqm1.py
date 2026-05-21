@@ -2,17 +2,15 @@ import logging
 import os
 import subprocess as subp
 import sys
+from importlib import resources
 
 import numpy as np
 
 from pyar.interface import SF, require_executable, write_xyz
-import pkg_resources
-import os
-import sys
 
 xtb_aiqm1_logger = logging.getLogger('pyar.xtb_aiqm1')
 
-aiqm1_opt = pkg_resources.resource_filename('pyar', 'interface/mlopt.py')
+aiqm1_opt = str(resources.files('pyar').joinpath('interface/mlopt.py'))
 
 class XtbAIQM1(SF):
     def __init__(self, molecule, method):

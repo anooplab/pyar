@@ -1,8 +1,8 @@
 import logging
 import os
-import pkg_resources
 import subprocess as subp
 import sys
+from importlib import resources
 
 import numpy as np
 
@@ -11,7 +11,7 @@ from pyar.interface import SF, write_xyz  # noqa: F401
 
 mlatom_logger = logging.getLogger('pyar.mlatom')
 
-aiqm1_opt = pkg_resources.resource_filename('pyar', 'interface/mlopt.py')
+aiqm1_opt = str(resources.files('pyar').joinpath('interface/mlopt.py'))
 
 class AIQM1(SF):
     def __init__(self, molecule, qc_params):

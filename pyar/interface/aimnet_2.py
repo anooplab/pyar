@@ -1,8 +1,8 @@
 import logging
 import os
-import pkg_resources
 import subprocess as subp
 import sys
+from importlib import resources
 
 import numpy as np
 import pyar  # noqa: F401
@@ -23,8 +23,8 @@ torch.backends.cudnn.allow_tf32 = False
 device = torch.device('cpu')
 print(device)
 
-model_path = pkg_resources.resource_filename('pyar', 'AIMNet2/models/aimnet2_wb97m-d3_0.jpt')
-aimnet2_script = pkg_resources.resource_filename('pyar', 'AIMNet2/calculators/aimnet2_ase_opt.py')
+model_path = str(resources.files('pyar').joinpath('AIMNet2/models/aimnet2_wb97m-d3_0.jpt'))
+aimnet2_script = str(resources.files('pyar').joinpath('AIMNet2/calculators/aimnet2_ase_opt.py'))
 # Load the model
 aimnet2 = torch.jit.load(model_path, map_location=device)
 
