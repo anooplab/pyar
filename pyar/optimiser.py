@@ -34,6 +34,17 @@ def is_usable(status):
     return is_success(status) or is_cycle_exceeded(status)
 
 
+def _status_label(status):
+    """Return a normalized human-readable optimization status label."""
+    if is_success(status):
+        return "success"
+    if is_cycle_exceeded(status):
+        return "cycle_exceeded_usable"
+    if status is None:
+        return "failed_none_status"
+    return f"failed:{status}"
+
+
 def apply_geometry_result(molecule, geometry):
     molecule.energy = geometry.energy
     if hasattr(geometry, 'optimized_coordinates'):
@@ -99,6 +110,7 @@ def build_geometry(molecule, qc_params):
 
 
 def optimise(molecule, qc_params):
+    """Run one optimization job and return the backend status object."""
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'Opt job'
@@ -107,23 +119,55 @@ def optimise(molecule, qc_params):
         file_manager.make_directories(job_dir)
     os.chdir(job_dir)
     try:
+        software = qc_params.get('software', 'unknown')
+        gamma = qc_params.get('gamma', None)
+        optimiser_logger.debug(
+            "Optimization job start: name=%s software=%s gamma=%s dir=%s",
+            molecule.name,
+            software,
+            gamma,
+            os.path.abspath(job_dir),
+        )
         if os.path.exists(f'result_{molecule.name}.xyz'):
             read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
             molecule.energy = read_molecule.energy
             molecule.optimized_coordinates = read_molecule.coordinates
             molecule.coordinates = read_molecule.coordinates
+            optimiser_logger.info(
+                "Optimization reused cached result: name=%s status=success energy=%15.6f",
+                molecule.name,
+                float(molecule.energy),
+            )
             optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
             return True
 
         geometry = build_geometry(molecule, qc_params)
         optimize_status = geometry.optimize()
+        normalized_status = _status_label(optimize_status)
         if is_usable(optimize_status):
             apply_geometry_result(molecule, geometry)
+            optimiser_logger.info(
+                "Optimization completed: name=%s status=%s energy=%15.6f",
+                molecule.name,
+                normalized_status,
+                float(molecule.energy),
+            )
             optimiser_logger.info(f'     {molecule.name:35s}: {float(molecule.energy):15.6f}')
         else:
             molecule.energy = None
             molecule.coordinates = None
+            optimiser_logger.warning(
+                "Optimization failed: name=%s status=%s software=%s",
+                molecule.name,
+                normalized_status,
+                software,
+            )
         return optimize_status
+    except Exception:
+        optimiser_logger.exception("Optimization crashed: name=%s", molecule.name)
+        molecule.energy = None
+        molecule.coordinates = None
+        return None
     finally:
         os.chdir(cwd)
 
@@ -137,7 +181,18 @@ def write_csv_file(csv_filename, energy_dict):
 
 
 def bulk_optimize(input_molecules, qc_params):
+    """Optimize molecules and keep only usable results."""
     status_list = [optimise(each_mol, qc_params) for each_mol in input_molecules]
+    status_counts = {}
+    for status in status_list:
+        key = _status_label(status)
+        status_counts[key] = status_counts.get(key, 0) + 1
+    optimiser_logger.info(
+        "Bulk optimization summary: total=%d usable=%d status_counts=%s",
+        len(input_molecules),
+        sum(1 for s in status_list if is_usable(s)),
+        status_counts,
+    )
     return [
         n
         for n, s in zip(input_molecules, status_list)

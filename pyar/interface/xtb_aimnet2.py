@@ -3,6 +3,7 @@ import os
 import subprocess as subp
 import sys
 from importlib import resources
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -12,7 +13,7 @@ from pyar.interface import SF, require_executable, write_xyz
 xtb_aimnet2_logger = logging.getLogger('pyar.xtb_aimnet2')
 
 device = torch.device('cpu')
-print(device)
+xtb_aimnet2_logger.debug("xTB-AIMNet2 torch device: %s", device)
 
 model_path = str(resources.files('pyar').joinpath('AIMNet2/models/aimnet2_wb97m-d3_0.jpt'))
 aimnet2_script = str(resources.files('pyar').joinpath('AIMNet2/calculators/aimnet2_ase_opt.py'))
@@ -34,12 +35,36 @@ class XtbAimnet2(SF):
         if self.multiplicity == 1 and self.scftype != 'rhf':
             self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
 
-        self.aimnet2_cmd = f"{sys.executable} {aimnet2_script} {model_path} --traj result.traj {self.xtb_optimized_xyz_file} {self.aimnet2_optimized_xyz_file}"
+        self._validate_runtime_files()
+        self.aimnet2_cmd = [
+            sys.executable,
+            aimnet2_script,
+            model_path,
+            '--traj',
+            'result.traj',
+            self.xtb_optimized_xyz_file,
+            self.aimnet2_optimized_xyz_file,
+        ]
 
         if self.charge != 0:
-            self.aimnet2_cmd = "{} -c {}".format(self.aimnet2_cmd, self.charge)
+            self.aimnet2_cmd.extend(["-c", str(self.charge)])
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
+
+    @staticmethod
+    def _validate_runtime_files():
+        """Validate packaged AIMNet2 runtime assets before running jobs."""
+        missing = []
+        if not Path(model_path).is_file():
+            missing.append(model_path)
+        if not Path(aimnet2_script).is_file():
+            missing.append(aimnet2_script)
+        if missing:
+            raise FileNotFoundError(
+                "AIMNet2 runtime files are missing: "
+                + ", ".join(missing)
+                + ". Reinstall pyar package including AIMNet2 assets."
+            )
 
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
         # XTB optimization
@@ -61,7 +86,7 @@ class XtbAimnet2(SF):
         # AIMNet2 optimization
         with open('aimnet2.out', 'w') as output_file_pointer:
             try:
-                out = subp.check_call(self.aimnet2_cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
+                subp.check_call(self.aimnet2_cmd, stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
                 xtb_aimnet2_logger.info('    AIMNet2 optimization failed')
                 xtb_aimnet2_logger.error(f"      {e}")

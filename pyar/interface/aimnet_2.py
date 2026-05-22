@@ -3,6 +3,7 @@ import os
 import subprocess as subp
 import sys
 from importlib import resources
+from pathlib import Path
 
 import numpy as np
 import pyar  # noqa: F401
@@ -21,7 +22,7 @@ torch.backends.cudnn.allow_tf32 = False
 
 # device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 device = torch.device('cpu')
-print(device)
+Aimnet2_logger.debug("AIMNet2 torch device: %s", device)
 
 model_path = str(resources.files('pyar').joinpath('AIMNet2/models/aimnet2_wb97m-d3_0.jpt'))
 aimnet2_script = str(resources.files('pyar').joinpath('AIMNet2/calculators/aimnet2_ase_opt.py'))
@@ -43,10 +44,34 @@ class Aimnet2(SF):
         self.inp_file = 'trial_' + self.job_name + '.xyz'
         self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
         self.out_file = 'trial_' + self.job_name + '.out'
-        
-        self.cmd = f"{sys.executable} {aimnet2_script} {model_path} --traj result.traj {self.inp_file} {self.inp_min_file}"
+
+        self._validate_runtime_files()
+        self.cmd = [
+            sys.executable,
+            aimnet2_script,
+            model_path,
+            '--traj',
+            'result.traj',
+            self.inp_file,
+            self.inp_min_file,
+        ]
         if self.charge != 0:
-            self.cmd = "{} -c {}".format(self.cmd, self.charge)
+            self.cmd.extend(["-c", str(self.charge)])
+
+    @staticmethod
+    def _validate_runtime_files():
+        """Validate packaged AIMNet2 runtime assets before running jobs."""
+        missing = []
+        if not Path(model_path).is_file():
+            missing.append(model_path)
+        if not Path(aimnet2_script).is_file():
+            missing.append(aimnet2_script)
+        if missing:
+            raise FileNotFoundError(
+                "AIMNet2 runtime files are missing: "
+                + ", ".join(missing)
+                + ". Reinstall pyar package including AIMNet2 assets."
+            )
 
     def prepare_input(self):
         coords = self.start_coords      
@@ -70,7 +95,7 @@ class Aimnet2(SF):
 
         with open('aimnet2.out', 'w') as output_file_pointer:
             try:
-                out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)  # noqa: F841
+                subp.check_call(self.cmd, stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
                 Aimnet2_logger.info('    Optimization failed')
                 Aimnet2_logger.error(f"      {e}")

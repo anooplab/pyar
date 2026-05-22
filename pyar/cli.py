@@ -23,6 +23,30 @@ def _get_file_handler():
     return handler
 
 
+def _active_run_mode(run_parameters):
+    """Return the active top-level workflow mode name."""
+    if run_parameters['aggregate']:
+        return 'aggregate'
+    if run_parameters['solvate']:
+        return 'solvate'
+    if run_parameters['react']:
+        return 'react'
+    if run_parameters['scan_bond']:
+        return 'scan-bond'
+    return 'unknown'
+
+
+def _verbosity_name(level):
+    """Map CLI verbosity integer to logging level label."""
+    return {
+        0: 'DEBUG',
+        1: 'INFO',
+        2: 'WARNING',
+        3: 'ERROR',
+        4: 'CRITICAL',
+    }.get(level, 'INFO')
+
+
 def argument_parse():
     pyar_description = """pyar is a program to predict aggregation, reaction,
 and clustering. Reactor explores several possible reactions between two given
@@ -233,6 +257,16 @@ def main():
     input_files = run_parameters['input_files'] or []
     number_of_input_files = len(input_files)
     logger.debug(f"{number_of_input_files} input files")
+    run_mode = _active_run_mode(run_parameters)
+    logger.info(f'Run mode: {run_mode}')
+    logger.info(f'Log level: {_verbosity_name(run_parameters["verbosity"])}')
+    if run_parameters['formula']:
+        logger.info(f'Formula input: {run_parameters["formula"]}')
+    else:
+        logger.info(f'Input specs: {input_files}')
+    logger.info(f'Tabu search: {"on" if run_parameters["tabu"] == "y" else "off"}')
+    logger.info(f'Grid search: {"on" if run_parameters["grid"] == "y" else "off"}')
+    logger.debug(f'Parsed CLI options: {dict(run_parameters)}')
 
     if run_parameters['formula']:
         if not run_parameters['aggregate']:
@@ -291,6 +325,7 @@ def main():
             multiplicity = 1 if n_electrons % 2 == 0 else 2
             multiplicities.append(multiplicity)
             mol.multiplicity = multiplicity
+        logger.info('Multiplicity not provided: inferred defaults from electron parity.')
 
     if run_parameters['software'] is not None:
         for mol in input_molecules:
@@ -319,6 +354,15 @@ def main():
     }
 
     logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
+    logger.info(
+        f'QC settings: method={quantum_chemistry_parameters["method"]} '
+        f'basis={quantum_chemistry_parameters["basis"]} '
+        f'opt_threshold={quantum_chemistry_parameters["opt_threshold"]} '
+        f'opt_cycles={quantum_chemistry_parameters["opt_cycles"]} '
+        f'scf_threshold={quantum_chemistry_parameters["scf_threshold"]} '
+        f'scf_cycles={quantum_chemistry_parameters["scf_cycles"]}'
+    )
+    logger.debug(f'QC parameter object: {quantum_chemistry_parameters}')
 
     number_of_orientations = run_parameters['how_many_orientations']
     logger.info(f'Number of orientations: {number_of_orientations}')
@@ -330,6 +374,29 @@ def main():
     else:
         site = run_parameters['site']
         site = [site[0], input_molecules[0].number_of_atoms + site[1]]
+    logger.info(f'Site constraint: {site}')
+    if run_mode == 'aggregate':
+        planned_aggregate_sizes = formula_aggregate_sizes if run_parameters['formula'] else run_parameters['aggregate_size']
+        logger.info(
+            f'Plan: aggregate fragments={len(input_molecules)} '
+            f'sizes={planned_aggregate_sizes} pathways={run_parameters["number_of_pathways"]} '
+            f'first_pathway={run_parameters["first_pathway"]}'
+        )
+    elif run_mode == 'solvate':
+        logger.info(
+            f'Plan: solvate seeds={max(len(input_molecules) - 1, 0)} '
+            f'solvent_count={run_parameters["solvation_size"]}'
+        )
+    elif run_mode == 'react':
+        logger.info(
+            f'Plan: react gamma_range=({run_parameters["gmin"]}, {run_parameters["gmax"]}) '
+            f'orientations={number_of_orientations}'
+        )
+    elif run_mode == 'scan-bond':
+        logger.info(
+            f'Plan: scan-bond pair={run_parameters["scan_bond"]} '
+            f'orientations={number_of_orientations}'
+        )
 
     try:
         if run_parameters['aggregate']:

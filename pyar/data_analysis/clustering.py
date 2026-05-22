@@ -13,6 +13,8 @@ import pyar.property
 import pyar.representations
 
 cluster_logger = logging.getLogger('pyar.cluster')
+_MBTR_RUNTIME_DISABLED = False
+_MBTR_DISABLE_REASON = None
 
 def remove_similar(list_of_molecules):
     final_list = list_of_molecules[:]
@@ -45,6 +47,7 @@ def calc_fingerprint_distance(a, b):
 
 
 def choose_geometries(list_of_molecules, maximum_number_of_seeds=12):
+    global _MBTR_RUNTIME_DISABLED, _MBTR_DISABLE_REASON
     if len(list_of_molecules) < 2:
         cluster_logger.info("Not enough data to cluster (only %d), returning original" % len(list_of_molecules))
         return list_of_molecules
@@ -57,13 +60,23 @@ def choose_geometries(list_of_molecules, maximum_number_of_seeds=12):
     algorithm = os.environ.get('PYAR_CLUSTERING_ALGORITHM', 'hdbscan').lower()
     cluster_logger.info(f'Clustering on {len(list_of_molecules)} geometries using {algorithm}')
 
-    # Use MBTR for feature representation. Older DScribe/ASE combinations can
-    # raise during conversion, so fall back to similarity pruning in that case.
+    if _MBTR_RUNTIME_DISABLED:
+        cluster_logger.info(
+            "MBTR clustering disabled for this run (%s). Falling back to similarity pruning.",
+            _MBTR_DISABLE_REASON,
+        )
+        return remove_similar(list_of_molecules)
+
+    # Use MBTR for feature representation. Some DScribe/ASE combinations can
+    # fail during conversion, so disable MBTR for the current run after first
+    # failure and use similarity pruning thereafter.
     try:
         dt = np.array([pyar.representations.mbtr_descriptor(m.atoms_list, m.coordinates) for m in list_of_molecules])
     except Exception as exc:
+        _MBTR_RUNTIME_DISABLED = True
+        _MBTR_DISABLE_REASON = str(exc)
         cluster_logger.warning(
-            "MBTR clustering unavailable, falling back to similarity pruning: %s",
+            "MBTR clustering unavailable, disabling MBTR for this run and falling back to similarity pruning: %s",
             exc,
         )
         return remove_similar(list_of_molecules)

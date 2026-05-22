@@ -1,5 +1,6 @@
 import itertools
 from itertools import product
+import warnings
 
 import numpy as np
 
@@ -323,8 +324,15 @@ def mbtr_descriptor(atoms_list, coordinates):
         normalization="l2",
 )
 
-    # Create LMBTR output for the molecule
-    mbtr_output = mbtr.create(molecule)
+    # DScribe can emit an ASE deprecation warning ("Please use atoms.calc")
+    # from its internal conversion path. Suppress only that warning.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Please use atoms\\.calc",
+            category=FutureWarning,
+        )
+        mbtr_output = mbtr.create(molecule)
 
     return mbtr_output
 

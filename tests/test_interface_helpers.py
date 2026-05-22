@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest import mock
 from pathlib import Path
 
-from pyar import old_optimiser
+from pyar import optimiser
 from pyar.interface import require_executable
 from pyar.interface.subprocess_utils import run_command, run_output
 
@@ -43,7 +43,7 @@ class InterfaceHelperTests(unittest.TestCase):
 
         self.assertTrue(output.decode("utf-8").strip())
 
-    def test_old_optimiser_reports_missing_backend_and_restores_cwd(self):
+    def test_optimiser_restores_cwd_on_missing_backend(self):
         molecule = SimpleNamespace(
             name="carbon",
             title="carbon",
@@ -62,13 +62,9 @@ class InterfaceHelperTests(unittest.TestCase):
                 os.chdir(tmpdir)
                 run_cwd = os.getcwd()
                 with mock.patch.dict(os.environ, {"PATH": ""}):
-                    with self.assertRaises(FileNotFoundError) as ctx:
-                        old_optimiser.optimise(molecule, qc_params)
+                    status = optimiser.optimise(molecule, qc_params)
 
-                self.assertEqual(
-                    str(ctx.exception),
-                    "Gaussian executable 'g16' was not found on PATH",
-                )
+                self.assertIsNone(status)
                 self.assertEqual(os.getcwd(), run_cwd)
             finally:
                 os.chdir(original_cwd)
