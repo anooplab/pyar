@@ -84,13 +84,6 @@ def aggregate(molecules,
     seed_names = string.ascii_lowercase
     ag_id = "ag"
 
-    if len(molecules) == 1 and len(aggregate_sizes) == 1 and aggregate_sizes[0] == 1:
-        formula_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", molecules[0].name)
-        output_file = f"formula_{formula_name}.xyz"
-        molecules[0].mol_to_xyz(output_file)
-        aggregator_logger.info(f"  Formula geometry written to {output_file}")
-        return
-
     monomers_to_be_added = []
     for seed_molecule, seed_name, size_of_this_seed in zip(molecules,
                                                            seed_names,
@@ -586,6 +579,20 @@ def _parse_formula(formula):
     if not atoms_list:
         raise ValueError(f"Invalid chemical formula: {formula!r}")
     return atoms_list
+
+
+def expand_formula_to_aggregate_inputs(formula):
+    """Convert a formula into aggregate input symbols and multiplicities."""
+    atoms_list = _parse_formula(formula)
+    fragments = []
+    aggregate_sizes = []
+    for atom in atoms_list:
+        if fragments and fragments[-1] == atom:
+            aggregate_sizes[-1] += 1
+        else:
+            fragments.append(atom)
+            aggregate_sizes.append(1)
+    return fragments, aggregate_sizes
 
 
 def _atom_radius(atom):

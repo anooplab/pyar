@@ -160,6 +160,26 @@ def _resolve_aggregate_input(spec, aggregate_mode):
     raise SystemExit(f"File {spec} does not exist")
 
 
+def _expand_formula_inputs(formula):
+    """Expand a formula into aggregate fragment specs and multiplicities."""
+    from pyar import aggregator
+
+    try:
+        return aggregator.expand_formula_to_aggregate_inputs(formula)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+
+def _normalize_parameter_list(values, default_value, number_of_inputs, label):
+    """Expand a single provided value or validate a full per-input list."""
+    resolved = values or [default_value for _ in range(number_of_inputs)]
+    if len(resolved) == 1 and number_of_inputs > 1:
+        return resolved * number_of_inputs
+    if len(resolved) != number_of_inputs:
+        sys.exit(f'{label} are not specified for all input files')
+    return resolved
+
+
 def main():
     args = vars(argument_parse())
     from pyar import aggregator, reactor, scan
@@ -241,20 +261,16 @@ def main():
         logger.critical(message)
         sys.exit(message)
 
-    input_specs = [run_parameters['formula']] if run_parameters['formula'] else input_files
+    if run_parameters['formula']:
+        input_specs, formula_aggregate_sizes = _expand_formula_inputs(run_parameters['formula'])
+    else:
+        input_specs = input_files
+        formula_aggregate_sizes = None
     number_of_inputs = len(input_specs)
 
-    charges = run_parameters['charge'] or [0 for _ in range(number_of_inputs)]
-    if len(charges) != number_of_inputs:
-        sys.exit('Charges are not specified for all input files')
-
-    multiplicities = run_parameters['multiplicity'] or [1 for _ in range(number_of_inputs)]
-    if len(multiplicities) != number_of_inputs:
-        sys.exit('Multiplicities are not specified for all input files')
-
-    scftypes = run_parameters['scftype'] or ['rhf' for _ in range(number_of_inputs)]
-    if len(scftypes) != number_of_inputs:
-        sys.exit('SCF Types are not specified for all input files')
+    charges = _normalize_parameter_list(run_parameters['charge'], 0, number_of_inputs, 'Charges')
+    multiplicities = _normalize_parameter_list(run_parameters['multiplicity'], 1, number_of_inputs, 'Multiplicities')
+    scftypes = _normalize_parameter_list(run_parameters['scftype'], 'rhf', number_of_inputs, 'SCF Types')
 
     logger.info("Parsing the following inputs: ")
     input_molecules = []
@@ -263,18 +279,28 @@ def main():
             mol = _resolve_aggregate_input(each_file, run_parameters['aggregate'])
             mol.charge = charge
             mol.multiplicity = multiplicity
-            if run_parameters['software'] is not None:
-                n_electrons = sum(mol.atomic_number) - mol.charge
-                if n_electrons % 2 == 0:
-                    if mol.multiplicity % 2 != 1:
-                        sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
-                else:
-                    if mol.multiplicity % 2 == 1:
-                        sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
             input_molecules.append(mol)
             logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
         except SystemExit:
             raise
+
+    if run_parameters['multiplicity'] is None:
+        multiplicities = []
+        for mol, charge in zip(input_molecules, charges):
+            n_electrons = sum(mol.atomic_number) - charge
+            multiplicity = 1 if n_electrons % 2 == 0 else 2
+            multiplicities.append(multiplicity)
+            mol.multiplicity = multiplicity
+
+    if run_parameters['software'] is not None:
+        for mol in input_molecules:
+            n_electrons = sum(mol.atomic_number) - mol.charge
+            if n_electrons % 2 == 0:
+                if mol.multiplicity % 2 != 1:
+                    sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
+            else:
+                if mol.multiplicity % 2 == 1:
+                    sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
 
     custom_keywords = run_parameters['custom_keywords']
     quantum_chemistry_parameters = {
@@ -308,8 +334,8 @@ def main():
     try:
         if run_parameters['aggregate']:
             size_of_aggregate = run_parameters['aggregate_size']
-            if run_parameters['formula'] and size_of_aggregate is None:
-                size_of_aggregate = [1]
+            if run_parameters['formula']:
+                size_of_aggregate = formula_aggregate_sizes
             if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
                 message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
                 logger.critical(message)

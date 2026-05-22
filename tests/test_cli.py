@@ -55,6 +55,18 @@ class CliSmokeTests(unittest.TestCase):
                     delattr(pyar_pkg, attr)
 
     def _install_stub_modules(self):
+        def expand_formula_to_aggregate_inputs(formula):
+            token = formula.strip()
+            if token.lower() == "c":
+                return ["C"], [1]
+            if token.lower() == "h":
+                return ["H"], [1]
+            if token.lower() == "ch4":
+                return ["C", "H"], [1, 4]
+            if token.lower() == "c5h4":
+                return ["C", "H"], [5, 4]
+            raise ValueError(f"Unknown element symbol: {formula.strip()}")
+
         def molecule_from_formula(formula):
             symbol = formula.strip().capitalize()
             if symbol not in {"C", "H"}:
@@ -84,6 +96,7 @@ class CliSmokeTests(unittest.TestCase):
             aggregate=lambda *args, **kwargs: None,
             solvate=lambda *args, **kwargs: None,
             generate_molecule_from_formula=molecule_from_formula,
+            expand_formula_to_aggregate_inputs=expand_formula_to_aggregate_inputs,
         )
         reactor_mod = make_stub_module("pyar.reactor", react=lambda *args, **kwargs: None)
         scan_mod = make_stub_module("pyar.scan", scan_distance=lambda *args, **kwargs: None)
@@ -137,6 +150,34 @@ class CliSmokeTests(unittest.TestCase):
 
         self.cli.main()
 
+    def test_formula_expands_to_standard_aggregate_inputs(self):
+        captured = {}
+
+        def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
+                              maximum_number_of_seeds, first_pathway, number_of_pathways,
+                              tabu_on, grid_on, site):
+            captured["names"] = [mol.name for mol in input_molecules]
+            captured["sizes"] = aggregate_sizes
+            captured["software"] = qc_params["software"]
+
+        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "-N",
+            "1",
+            "--formula",
+            "ch4",
+            "--software",
+            "aimnet_2",
+        ]
+
+        self.cli.main()
+
+        self.assertEqual(captured["names"], ["C", "H"])
+        self.assertEqual(captured["sizes"], [1, 4])
+        self.assertEqual(captured["software"], "aimnet_2")
+
     def test_react_requires_exactly_two_xyz_inputs(self):
         sys.argv = [
             "pyar-cli",
@@ -165,6 +206,35 @@ class CliSmokeTests(unittest.TestCase):
         ]
 
         self.cli.main()
+
+    def test_aggregate_infers_multiplicity_when_not_provided(self):
+        captured = {}
+
+        def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
+                              maximum_number_of_seeds, first_pathway, number_of_pathways,
+                              tabu_on, grid_on, site):
+            captured["multiplicities"] = [mol.multiplicity for mol in input_molecules]
+            captured["charges"] = [mol.charge for mol in input_molecules]
+
+        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "C",
+            "H",
+            "-as",
+            "1",
+            "4",
+            "-N",
+            "1",
+            "--software",
+            "aimnet_2",
+        ]
+
+        self.cli.main()
+
+        self.assertEqual(captured["charges"], [0, 0])
+        self.assertEqual(captured["multiplicities"], [1, 2])
 
     def test_aggregate_without_software_logs_geometry_only_mode(self):
         sys.argv = [
