@@ -14,11 +14,20 @@ def main():
                         help="input xyz files for analysis")
     parser.add_argument('-m', '--mode', choices=['filter', 'cluster'],
                         default='cluster')
-    parser.add_argument('-cf', '--clustering_features',
-                        choices=['fingerprint', 'scm', 'moi', 'fsmd', 'soap',
-                                 'mbtr', 'ani', 'lmbtr', 'acsf', 'sinematrix',
-                                 'vallornav'],
-                        default='fingerprint')
+    parser.add_argument(
+        '-a', '--algorithm',
+        choices=['hybrid', 'hdbscan', 'optics', 'spectral', 'dbscan',
+                 'kmeans', 'meanshift', 'affinity', 'agglomerative',
+                 'gaussian_mixture', 'maxmin', 'max-min', 'max_min'],
+        default='hybrid',
+        help="selection algorithm used in cluster mode",
+    )
+    parser.add_argument(
+        '-n', '--maximum-number-of-seeds',
+        type=int,
+        default=12,
+        help="maximum number of geometries to keep",
+    )
     args = parser.parse_args()
     input_files = args.input_files
     if len(input_files) < 2:
@@ -31,12 +40,25 @@ def main():
         mol.energy = clustering.read_energy_from_xyz_file(each_file)
         mols.append(mol)
 
-    clustering.plot_energy_histogram(mols)
+    clustering.print_energy_table(
+        mols,
+        stream=sys.stdout,
+        title="Input pool energies:",
+    )
     selected = []
     if args.mode == 'cluster':
-        selected = clustering.choose_geometries(mols, features=args.clustering_features)
+        selected = clustering.choose_geometries(
+            mols,
+            maximum_number_of_seeds=args.maximum_number_of_seeds,
+            algorithm=args.algorithm,
+        )
     if args.mode == 'filter':
         selected = clustering.remove_similar(mols)
+    clustering.print_energy_table(
+        selected,
+        stream=sys.stdout,
+        title="Selected pool energies:",
+    )
     print(' '.join(one.name + '.xyz' for one in selected))
 
 

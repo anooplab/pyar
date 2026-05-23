@@ -154,8 +154,8 @@ pyar-cli options files
 
 There are other scripts for a few automation tasks.
 
-## pyar-tabu
-pyar-tabu can be used for
+## pyar-trial-generation
+`pyar-trial-generation` can be used for
 * for making different orientations of two molecules.
 * Making a composite molecule containing a _seed_ molecule and __N__ number of monomer molecules.
 * Orient two molecules such that _i_'th atom of one molecule and _j_ 'th atom of second molecule have shortest distance

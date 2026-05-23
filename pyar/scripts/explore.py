@@ -2,7 +2,7 @@
 """Importable `pyar-explore` entrypoint."""
 
 import argparse
-import copy
+from copy import deepcopy
 import logging
 import random
 from collections import OrderedDict
@@ -11,7 +11,7 @@ import numpy as np
 
 from pyar.Molecule import Molecule
 from pyar.data import new_atomic_data as atomic_data
-from pyar.tabu import generate_points, merge_two_molecules
+from pyar.trial_generation import generate_points, merge_two_molecules
 
 logging.basicConfig(filename='pyar_explore.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -54,13 +54,20 @@ def generate_chemical_pathway(atom_counts, seed):
     return pathway
 
 
-def create_composite_molecule_wrapper(seed, monomer, pathway):
-    composite = copy.deepcopy(seed)
-    points = generate_points(len(pathway), True, 0.95)
-    logging.info(f"Starting pathway: {pathway}")
+def _copy_molecule(molecule):
+    """Return a copied molecule-like object."""
+    if hasattr(molecule, "copy"):
+        return molecule.copy()
+    return deepcopy(molecule)
+
+
+def create_composite_molecule_wrapper(seed, monomer, pathway, sequence_offset=0):
+    composite = _copy_molecule(seed)
+    points = generate_points(len(pathway), sequence_offset=sequence_offset)
+    logging.info("Starting pathway with sequence offset %d: %s", sequence_offset, pathway)
     for atom, point in zip(pathway, points):
         if atom == monomer.atoms_list[0]:
-            new_monomer = copy.deepcopy(monomer)
+            new_monomer = _copy_molecule(monomer)
         else:
             new_monomer = Molecule([atom], np.array([[0.0, 0.0, 0.0]], dtype=np.float64))
         composite = merge_two_molecules(np.array(point, dtype=np.float64), composite, new_monomer,
@@ -75,11 +82,18 @@ def main():
     atom_counts = parse_formula(args.formula)
     base_pathway = generate_chemical_pathway(atom_counts, seed)
     geometries = []
-    for _ in range(args.pop):
-        pathway = copy.copy(base_pathway)
+    for population_index in range(args.pop):
+        pathway = base_pathway.copy()
         random.shuffle(pathway)
         try:
-            geometries.append(create_composite_molecule_wrapper(seed, monomer, pathway))
+            geometries.append(
+                create_composite_molecule_wrapper(
+                    seed,
+                    monomer,
+                    pathway,
+                    sequence_offset=population_index,
+                )
+            )
         except Exception as e:
             logging.error(str(e))
     for i, geometry in enumerate(geometries):

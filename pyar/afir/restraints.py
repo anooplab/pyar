@@ -99,7 +99,7 @@ def isotropic(fragment_indices, atoms_list, coordinates, force):
 
 def main():
     import sys
-    from pyar.tabu import merge_two_molecules as merge
+    from pyar.trial_generation import merge_two_molecules as merge
     a, b = sys.argv[1:3]
     force = float(sys.argv[3])
     mol_a = Molecule.from_xyz(a)

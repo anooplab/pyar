@@ -1,7 +1,5 @@
 values = {'input_files': [''],
           'how_many_orientations': 8,
-          'tabu_on': True,
-          'grid_on': True,
           'charge': None, 'multiplicity': None, 'scftype': None,
           'scf_threshold': 'loose', 'scf_cycles': 1000,
           'opt_threshold': 'loose', 'opt_cycles': 350,

@@ -154,8 +154,7 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways,
-                              tabu_on, grid_on, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             captured["names"] = [mol.name for mol in input_molecules]
             captured["sizes"] = aggregate_sizes
             captured["software"] = qc_params["software"]
@@ -211,8 +210,7 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways,
-                              tabu_on, grid_on, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             captured["multiplicities"] = [mol.multiplicity for mol in input_molecules]
             captured["charges"] = [mol.charge for mol in input_molecules]
 
@@ -311,8 +309,7 @@ class CliSmokeTests(unittest.TestCase):
         }
 
         def aggregate_backend_contract(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                                       maximum_number_of_seeds, first_pathway, number_of_pathways,
-                                       tabu_on, grid_on, site):
+                                       maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             software = qc_params["software"]
             if software in python_only_backends:
                 return None
@@ -361,8 +358,7 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways,
-                              tabu_on, grid_on, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             captured["qc_params"] = qc_params
 
         sys.modules["pyar.aggregator"].aggregate = capture_aggregate
@@ -449,8 +445,7 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways,
-                              tabu_on, grid_on, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             captured["qc_params"] = qc_params
 
         sys.modules["pyar.aggregator"].aggregate = capture_aggregate

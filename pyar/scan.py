@@ -3,14 +3,13 @@ import time
 
 import numpy as np
 
-import pyar.tabu
+import pyar.trial_generation as trial_generation
 from pyar import optimiser
 from pyar.data_analysis import clustering
 
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
                                number_of_orientations, d_scale):
-    # pts = pyar.tabu.generate_points(1, True, True, True, 0.3, 5.0)
     from scipy.optimize import differential_evolution as global_opt
     from functools import partial
     my_bounds = [(-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5), (0, 2 * np.pi),
@@ -22,7 +21,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
                        polish=True, disp=True, workers=-1)
         print(x.message)
         filename_prefix = "aai_"
-        each_orientation = pyar.tabu.merge_two_molecules(x.x, seed, monomer,
+        each_orientation = trial_generation.merge_two_molecules(x.x, seed, monomer,
                                                          site=[a, b],
                                                          distance_scaling=d_scale)
         each_orientation_id = f"{i:03d}_{molecule_id}"
@@ -39,25 +38,24 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
 
 
 def ab_dist(a, b, monomer, seed, pts):
-    orientation = pyar.tabu.merge_two_molecules(pts, seed, monomer, site=[a, b])
+    orientation = trial_generation.merge_two_molecules(pts, seed, monomer, site=[a, b])
     coordinates = orientation.coordinates
     return np.linalg.norm(coordinates[a] - coordinates[b])
 
 
 def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, number_of_orientations, d_scale):
-    tabu_check_for_angles = monomer.number_of_atoms != 1
     saved_pts = []
     orientations = []
-    for _ in range(number_of_orientations):
+    for population_index in range(number_of_orientations):
         t1 = time.time()
-        pts = pyar.tabu.generate_points(32, True, True, True, 0.3, 5.0)
+        pts = trial_generation.generate_points(32, sequence_offset=population_index)
         t2 = time.time()
-        pyar.tabu.tabu_logger.debug(f'Created points: in {t2 - t1} seconds')
+        trial_generation.trial_generation_logger.debug(f'Created points: in {t2 - t1} seconds')
         t1 = time.time()
-        current_orientations = [pyar.tabu.merge_two_molecules(vector, seed, monomer, site=[a, b]) for vector in pts]
+        current_orientations = [trial_generation.merge_two_molecules(vector, seed, monomer, site=[a, b]) for vector in pts]
 
         t2 = time.time()
-        pyar.tabu.tabu_logger.debug(f'Created orientations {t2 - t1} seconds')
+        trial_generation.trial_generation_logger.debug(f'Created orientations {t2 - t1} seconds')
         t1 = time.time()
         stored_orientations = {}
         for j, each_orientation in enumerate(current_orientations):
@@ -66,13 +64,13 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, num
             stored_orientations[j] = dist
         best_orientation = min(stored_orientations, key=stored_orientations.get)
         best_point = pts[best_orientation]
-        pyar.tabu.tabu_logger.debug(f"{best_orientation} {stored_orientations[best_orientation]}")
+        trial_generation.trial_generation_logger.debug(f"{best_orientation} {stored_orientations[best_orientation]}")
 
 
         saved_pts.append(best_point)
         orientations.append(current_orientations[best_orientation])
         t2 = time.time()
-        pyar.tabu.tabu_logger.debug(f'Found best orientation in {t2 - t1} seconds')
+        trial_generation.trial_generation_logger.debug(f'Found best orientation in {t2 - t1} seconds')
 
     t1 = time.time()
     filename_prefix = 'trial_'
@@ -83,8 +81,8 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, num
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
         each_orientation.mol_to_xyz(each_orientation_xyz_file)
     t2 = time.time()
-    pyar.tabu.tabu_logger.debug(f'Wrote files in {t2 - t1} seconds')
-    pyar.tabu.write_tabu_list(saved_pts, 'tabu.dat')
+    trial_generation.trial_generation_logger.debug(f'Wrote files in {t2 - t1} seconds')
+    trial_generation.write_trial_vectors(saved_pts, 'trial_vectors.dat')
     return orientations
 
 

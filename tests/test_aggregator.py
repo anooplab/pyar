@@ -51,7 +51,7 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 qc_params = {"software": "aimnet_2", "opt_threshold": None, "_two_layer_optimization": False}
-                with mock.patch.object(aggregator.tabu, "create_trial_geometries", return_value=[trial_a, trial_b]):
+                with mock.patch.object(aggregator.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
                     with mock.patch.object(aggregator, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(aggregator.clustering, "choose_geometries", return_value=[trial_a, trial_b]) as chooser:
                             result = aggregator.add_one(
@@ -61,17 +61,22 @@ class AggregatorTests(unittest.TestCase):
                                 hm_orientations=2,
                                 qc_params=qc_params,
                                 maximum_number_of_seeds=2,
-                                tabu_on=True,
-                                grid_on=True,
                                 site=None,
                             )
+                snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
+                second_snapshot_exists = Path(tmpdir, "selected", "result_trial_b.xyz").is_file()
+                nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
             finally:
                 os.chdir(cwd)
 
         self.assertEqual(thresholds, [None, None])
         chooser.assert_called_once()
         self.assertTrue(chooser.call_args.kwargs["persist_basin_memory"])
+        self.assertFalse(chooser.call_args.kwargs["group_basin_by_stoichiometry"])
         self.assertEqual([m.name for m in result], ["trial_a", "trial_b"])
+        self.assertTrue(snapshot_exists)
+        self.assertTrue(second_snapshot_exists)
+        self.assertFalse(nested_selected_exists)
 
     def test_two_stage_backend_uses_loose_then_normal(self):
         seed = DummyMolecule("seed", n_atoms=2)
@@ -93,7 +98,7 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 qc_params = {"software": "xtb", "opt_threshold": "normal", "_two_layer_optimization": True}
-                with mock.patch.object(aggregator.tabu, "create_trial_geometries", return_value=[trial_a, trial_b]):
+                with mock.patch.object(aggregator.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
                     with mock.patch.object(aggregator, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(aggregator.shutil, "copy", return_value=None):
                             with mock.patch.object(aggregator.clustering, "choose_geometries", return_value=[trial_a]) as chooser:
@@ -104,22 +109,21 @@ class AggregatorTests(unittest.TestCase):
                                 hm_orientations=2,
                                 qc_params=qc_params,
                                 maximum_number_of_seeds=2,
-                                tabu_on=True,
-                                grid_on=True,
                                 site=None,
                             )
-                snapshot_exists = Path(tmpdir, "selected", "stoichiometry_H", "result_trial_a.xyz").is_file()
-                registry_exists = Path(tmpdir, "selected", "stoichiometry_H", "basin_registry.json").is_file()
-                nested_selected_exists = Path(tmpdir, "selected", "selected").exists()
+                snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
+                registry_exists = Path(tmpdir, "selected", "basin_registry.json").is_file()
+                nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
             finally:
                 os.chdir(cwd)
 
         self.assertEqual(thresholds, ["loose", "loose", "normal"])
         chooser.assert_called_once()
         self.assertFalse(chooser.call_args.kwargs["persist_basin_memory"])
+        self.assertFalse(chooser.call_args.kwargs["group_basin_by_stoichiometry"])
         self.assertEqual([m.name for m in result], ["trial_a"])
         self.assertTrue(snapshot_exists)
-        self.assertTrue(registry_exists)
+        self.assertFalse(registry_exists)
         self.assertFalse(nested_selected_exists)
 
     def test_two_stage_refinement_does_not_skip_after_failure(self):
@@ -144,7 +148,7 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 qc_params = {"software": "xtb", "opt_threshold": "normal", "_two_layer_optimization": True}
-                with mock.patch.object(aggregator.tabu, "create_trial_geometries", return_value=[trial_a, trial_b]):
+                with mock.patch.object(aggregator.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
                     with mock.patch.object(aggregator, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(aggregator.shutil, "copy", return_value=None):
                             with mock.patch.object(aggregator.clustering, "choose_geometries", return_value=[trial_a, trial_b]):
@@ -155,8 +159,6 @@ class AggregatorTests(unittest.TestCase):
                                     hm_orientations=2,
                                     qc_params=qc_params,
                                     maximum_number_of_seeds=2,
-                                    tabu_on=True,
-                                    grid_on=True,
                                     site=None,
                                 )
             finally:
@@ -196,12 +198,101 @@ class AggregatorTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                snapshot_dir = aggregator._snapshot_selected_geometries(selected)
+                snapshot_dir = aggregator._snapshot_selected_geometries(
+                    selected,
+                    group_by_stoichiometry=True,
+                )
                 self.assertEqual(snapshot_dir, "selected/stoichiometry_CH4")
                 self.assertTrue(Path(tmpdir, "selected", "stoichiometry_CH4", "result_sel_1.xyz").is_file())
                 self.assertTrue(Path(tmpdir, "selected", "stoichiometry_CH4", "result_sel_2.xyz").is_file())
             finally:
                 os.chdir(cwd)
+
+    def test_pathway_snapshot_replaces_obsolete_flat_results(self):
+        previous = DummyMolecule("previous", n_atoms=2)
+        current = DummyMolecule("current", n_atoms=2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                aggregator._snapshot_selected_geometries(
+                    [previous],
+                    output_root="selected",
+                    group_by_stoichiometry=False,
+                )
+                aggregator._snapshot_selected_geometries(
+                    [current],
+                    output_root="selected",
+                    group_by_stoichiometry=False,
+                )
+                result_files = sorted(path.name for path in Path("selected").glob("result_*.xyz"))
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(result_files, ["result_current.xyz"])
+
+    def test_final_selected_geometries_cluster_across_pathways(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                Path("ag_a_001_000", "selected").mkdir(parents=True)
+                Path("ag_a_002_000", "selected").mkdir(parents=True)
+                Path("ag_a_001_000", "selected", "result_one.xyz").write_text(
+                    "5\none: -1.0\n"
+                    "C 0 0 0\n"
+                    "H 0 0 1\n"
+                    "H 0 1 0\n"
+                    "H 1 0 0\n"
+                    "H 0 0 -1\n"
+                )
+                Path("ag_a_002_000", "selected", "result_two.xyz").write_text(
+                    "5\ntwo: -2.0\n"
+                    "C 0 0 0\n"
+                    "H 0 0 1\n"
+                    "H 0 1 0\n"
+                    "H 1 0 0\n"
+                    "H 0 0 -1\n"
+                )
+                Path("ag_a_002_000", "selected", "stoichiometry_CH4").mkdir()
+                Path(
+                    "ag_a_002_000", "selected", "stoichiometry_CH4", "result_old_layout.xyz"
+                ).write_text(
+                    "5\nold layout: -10.0\n"
+                    "C 0 0 0\n"
+                    "H 0 0 1\n"
+                    "H 0 1 0\n"
+                    "H 1 0 0\n"
+                    "H 0 0 -1\n"
+                )
+
+                with mock.patch.object(
+                    aggregator.clustering,
+                    "choose_geometries",
+                    side_effect=lambda molecules, **kwargs: [molecules[0]],
+                ) as chooser:
+                    stale_final_dir = Path(tmpdir, "selected", "stoichiometry_CH4")
+                    stale_final_dir.mkdir(parents=True)
+                    stale_result = stale_final_dir / "result_stale.xyz"
+                    stale_result.write_text("1\nstale: -3.0\nH 0 0 0\n")
+                    selected = aggregator._finalize_selected_geometries(
+                        aggregate_root='.',
+                        maximum_number_of_seeds=1,
+                        algorithm='maxmin',
+                    )
+                final_snapshot_exists = Path(tmpdir, "selected", "stoichiometry_CH4").exists()
+                final_readme_exists = Path(tmpdir, "selected", "stoichiometry_CH4", "README.txt").is_file()
+                stale_final_result_exists = stale_result.exists()
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(len(selected), 1)
+        self.assertTrue(final_snapshot_exists)
+        self.assertTrue(final_readme_exists)
+        self.assertFalse(stale_final_result_exists)
+        self.assertFalse(chooser.call_args.kwargs["apply_basin_memory"])
+        self.assertEqual(len(chooser.call_args.args[0]), 2)
 
     def test_aggregate_ignores_stale_restart_paths_without_aggregates_directory(self):
         molecules = [DummyMolecule("a", n_atoms=1), DummyMolecule("b", n_atoms=1)]
@@ -222,8 +313,6 @@ class AggregatorTests(unittest.TestCase):
                                     maximum_number_of_seeds=2,
                                     first_pathway=0,
                                     number_of_pathways=1,
-                                    tabu_on=True,
-                                    grid_on=True,
                                     site=None,
                                 )
 
@@ -251,8 +340,6 @@ class AggregatorTests(unittest.TestCase):
                     maximum_number_of_seeds=2,
                     first_pathway=0,
                     number_of_pathways=1,
-                    tabu_on=True,
-                    grid_on=True,
                     site=None,
                 )
 

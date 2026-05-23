@@ -129,6 +129,29 @@ class ClusteringTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_pathway_basin_registry_can_be_kept_in_flat_selected_folder(self):
+        molecule = SimpleNamespace(
+            name="m0",
+            atoms_list=["H"],
+            coordinates=[[0.0, 0.0, 0.0]],
+            energy=0.0,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                os.makedirs("selected")
+                clustering.choose_geometries(
+                    [molecule],
+                    maximum_number_of_seeds=1,
+                    group_basin_by_stoichiometry=False,
+                )
+                self.assertTrue(os.path.exists(os.path.join("selected", "basin_registry.json")))
+                self.assertFalse(os.path.exists(os.path.join("selected", "stoichiometry_H")))
+            finally:
+                os.chdir(cwd)
+
     def test_remove_similar_handles_overlapping_atoms(self):
         molecules = [
             SimpleNamespace(name="a", atoms_list=["H", "H"], coordinates=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], energy=0.0),
@@ -188,7 +211,7 @@ class ClusteringTests(unittest.TestCase):
         ]
 
         with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
-            with mock.patch("pyar.tabu.broken", side_effect=lambda mol: mol.name == "broken"):
+            with mock.patch("pyar.trial_generation.broken", side_effect=lambda mol: mol.name == "broken"):
                 result = clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
 
         self.assertEqual([m.name for m in result], ["connected"])
@@ -422,6 +445,31 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual(set(descriptor_calls), {0.0, 1.0, 4.0, 5.0})
         self.assertEqual(len(descriptor_calls), 4)
+        self.assertEqual(len(result), 2)
+
+    def test_basin_memory_can_be_disabled_for_final_consolidation(self):
+        molecules = [
+            SimpleNamespace(name=f"m{i}", atoms_list=["H"], coordinates=[[float(i), 0.0, 0.0]], energy=float(i))
+            for i in range(4)
+        ]
+
+        with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.data_analysis.clustering._load_basin_registry") as loader:
+                with mock.patch("pyar.data_analysis.clustering._apply_basin_memory") as applier:
+                    with mock.patch(
+                        "pyar.representations.mbtr_descriptor",
+                        side_effect=lambda _atoms, coordinates: [coordinates[0][0]],
+                    ):
+                        result = clustering.choose_geometries(
+                            molecules,
+                            maximum_number_of_seeds=2,
+                            persist_basin_memory=False,
+                            apply_basin_memory=False,
+                            algorithm="maxmin",
+                        )
+
+        loader.assert_not_called()
+        applier.assert_not_called()
         self.assertEqual(len(result), 2)
 
     def test_basin_registry_persists_unique_entries(self):

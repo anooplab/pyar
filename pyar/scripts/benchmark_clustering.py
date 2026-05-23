@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import time
 from collections import Counter
 from pathlib import Path
@@ -102,15 +101,15 @@ def _benchmark_algorithm(pool, algorithm, max_seeds):
     clustering._MBTR_RUNTIME_DISABLED = False
     clustering._MBTR_DISABLE_REASON = None
 
-    with mock.patch.dict(os.environ, {"PYAR_CLUSTERING_ALGORITHM": algorithm}):
-        with mock.patch("pyar.data_analysis.clustering._load_basin_registry", return_value=[]):
-            start = time.perf_counter()
-            selected = clustering.choose_geometries(
-                pool,
-                maximum_number_of_seeds=max_seeds,
-                persist_basin_memory=False,
-            )
-            runtime = time.perf_counter() - start
+    with mock.patch("pyar.data_analysis.clustering._load_basin_registry", return_value=[]):
+        start = time.perf_counter()
+        selected = clustering.choose_geometries(
+            pool,
+            maximum_number_of_seeds=max_seeds,
+            persist_basin_memory=False,
+            algorithm=algorithm,
+        )
+        runtime = time.perf_counter() - start
 
     best_energy = min(float(molecule.energy) for molecule in selected) if selected else float("inf")
     spread = _pairwise_mean_distance(selected)

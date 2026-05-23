@@ -268,10 +268,6 @@ chemical formula.
     parser.add_argument('-N', dest='how_many_orientations', metavar='N',
                         required=True,
                         help='The number of orientations to be used')
-    parser.add_argument('--tabu', choices=['y', 'n'], default='y',
-                        help='Toggle Tabu search algorithm. Default is on (y)')
-    parser.add_argument('--grid', choices=['y', 'n'], default='y',
-                        help='Toggle the use of grid for search space.')
     parser.add_argument('--formula', type=str,
                         help='Chemical formula of the molecule to generate '
                              'in --aggregate mode')
@@ -350,10 +346,11 @@ chemical formula.
 
 def _resolve_aggregate_input(spec, aggregate_mode):
     """Resolve an input spec to a molecule, allowing formulas in aggregate mode."""
-    from pyar import Molecule, aggregator
+    from pyar.Molecule import Molecule
+    from pyar import aggregator
 
     if os.path.exists(spec):
-        return Molecule.Molecule.from_xyz(spec)
+        return Molecule.from_xyz(spec)
 
     if aggregate_mode:
         if spec.lower().endswith(".xyz") or os.path.sep in spec or (
@@ -448,8 +445,10 @@ def main():
         logger.info(f'Formula input: {run_parameters["formula"]}')
     else:
         logger.info(f'Input specs: {input_files}')
-    logger.info(f'Tabu search: {"on" if run_parameters["tabu"] == "y" else "off"}')
-    logger.info(f'Grid search: {"on" if run_parameters["grid"] == "y" else "off"}')
+    logger.info(
+        "Trial sampling: Fibonacci approach directions with quaternion rotations "
+        "for multi-atom monomers"
+    )
     logger.debug(f'Parsed CLI options: {dict(run_parameters)}')
 
     if run_parameters['formula']:
@@ -646,8 +645,7 @@ def main():
                                  maximum_number_of_seeds,
                                  run_parameters['first_pathway'],
                                  run_parameters['number_of_pathways'],
-                                 run_parameters['tabu'] == 'y',
-                                 run_parameters['grid'] == 'y', site)
+                                 site)
             logger.info('Total Time: {}'.format(time.time() - t1_0))
             logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
@@ -666,8 +664,7 @@ def main():
                                number_of_orientations,
                                quantum_chemistry_parameters,
                                maximum_number_of_seeds,
-                               run_parameters['tabu'] == 'y',
-                               run_parameters['grid'] == 'y', site)
+                               site)
             logger.info('Total Time: {}'.format(time.time() - t1_0))
             logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
@@ -688,8 +685,7 @@ def main():
                           minimum_gamma, maximum_gamma,
                           int(number_of_orientations),
                           quantum_chemistry_parameters,
-                          site, proximity_factor,
-                          run_parameters['tabu'] == 'y', run_parameters['grid'] == 'y')
+                          site, proximity_factor)
             logger.info('Total run time: {}'.format(time.time() - zero_time))
             logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
             return

@@ -8,7 +8,8 @@ import os
 import sys
 from collections import defaultdict
 
-from pyar import Molecule, optimiser as optimiser_mod
+from pyar.Molecule import Molecule
+from pyar import optimiser as optimiser_mod
 from pyar.data import defualt_parameters
 
 logger = logging.getLogger('pyar')
@@ -48,7 +49,7 @@ def main():
     input_molecules = []
     for each_file in run_parameters['input_files']:
         try:
-            mol = Molecule.Molecule.from_xyz(each_file)
+            mol = Molecule.from_xyz(each_file)
             for prop in ['charge', 'multiplicity', 'scftype']:
                 vars(mol)[prop] = run_parameters[prop]
             input_molecules.append(mol)

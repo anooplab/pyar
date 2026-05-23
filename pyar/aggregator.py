@@ -4,10 +4,12 @@ import os
 import random
 import shutil
 import string
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, defaultdict
+from pathlib import Path
 import numpy as np
-from pyar import tabu, file_manager
+from pyar import trial_generation, file_manager
 from pyar.Molecule import Molecule
+from pyar import molecule_io
 from pyar.data_analysis import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, optimise
 import re
@@ -38,28 +40,31 @@ def _stoichiometry_label(molecule):
     return ''.join(parts) if parts else 'unknown'
 
 
-def _snapshot_selected_geometries(selected_seeds, output_root='selected', summary_lines=None):
-    """Persist the selected geometries in a stoichiometry-specific folder."""
+def _snapshot_selected_geometries(
+    selected_seeds,
+    output_root='selected',
+    summary_lines=None,
+    group_by_stoichiometry=False,
+):
+    """Persist the selected geometries to disk."""
     if not selected_seeds:
         return None
 
-    stoichiometry = _stoichiometry_label(selected_seeds[0])
-    snapshot_dir = os.path.join(output_root, f'stoichiometry_{stoichiometry}')
+    snapshot_dir = output_root
+    if group_by_stoichiometry:
+        stoichiometry = _stoichiometry_label(selected_seeds[0])
+        snapshot_dir = os.path.join(output_root, f'stoichiometry_{stoichiometry}')
+    else:
+        stoichiometry = _stoichiometry_label(selected_seeds[0])
     if not os.path.exists(snapshot_dir):
         file_manager.make_directories(snapshot_dir)
+    else:
+        for old_result in Path(snapshot_dir).glob('result_*.xyz'):
+            old_result.unlink()
 
     for molecule in selected_seeds:
         target_file = os.path.join(snapshot_dir, f'result_{molecule.name}.xyz')
-        if hasattr(molecule, 'mol_to_xyz'):
-            molecule.mol_to_xyz(target_file)
-        else:
-            with open(target_file, 'w') as fp:
-                fp.write(f"{len(molecule.atoms_list):3d}\n")
-                fp.write(f"{getattr(molecule, 'title', molecule.name)}: {getattr(molecule, 'energy', 0.0)}\n")
-                for element_symbol, atom_coordinate in zip(molecule.atoms_list, molecule.coordinates):
-                    fp.write(("%-2s%12.5f%12.5f%12.5f\n" % (
-                        element_symbol, atom_coordinate[0], atom_coordinate[1], atom_coordinate[2]
-                    )))
+        molecule_io.write_xyz(molecule, target_file)
 
     if summary_lines:
         summary_path = os.path.join(snapshot_dir, 'README.txt')
@@ -75,6 +80,74 @@ def _snapshot_selected_geometries(selected_seeds, output_root='selected', summar
         snapshot_dir,
     )
     return snapshot_dir
+
+
+def _discover_selected_result_files(aggregate_root):
+    """Return result files collected from all pathway-level selected folders."""
+    root_path = Path(aggregate_root)
+    result_files = set()
+    for ag_dir in root_path.glob('ag_*'):
+        if not ag_dir.is_dir():
+            continue
+        result_files.update(ag_dir.rglob('selected/result_*.xyz'))
+    return sorted(result_files)
+
+
+def _selection_name_from_path(result_file, aggregate_root):
+    """Build a filesystem-safe name from a collected result path."""
+    result_path = Path(result_file)
+    try:
+        relative_path = result_path.relative_to(Path(aggregate_root))
+    except ValueError:
+        relative_path = result_path
+    return str(relative_path.with_suffix('')).replace(os.sep, '_')
+
+
+def _finalize_selected_geometries(aggregate_root='.', maximum_number_of_seeds=12, algorithm='hybrid'):
+    """Cluster pathway-level selected results into the final stoichiometry groups."""
+    result_files = _discover_selected_result_files(aggregate_root)
+    if not result_files:
+        aggregator_logger.info("No pathway-level selected results were found for final clustering.")
+        return []
+
+    grouped = defaultdict(list)
+    for each_file in result_files:
+        molecule = Molecule.from_xyz(str(each_file))
+        molecule.energy = clustering.read_energy_from_xyz_file(str(each_file))
+        molecule.name = _selection_name_from_path(each_file, aggregate_root)
+        grouped[_stoichiometry_label(molecule)].append(molecule)
+
+    final_selected = []
+    selected_root = os.path.join(aggregate_root, 'selected')
+    if not os.path.exists(selected_root):
+        file_manager.make_directories(selected_root)
+    for stoichiometry, molecules in sorted(grouped.items()):
+        aggregator_logger.info(
+            "Final clustering for stoichiometry %s from %d pathway results",
+            stoichiometry,
+            len(molecules),
+        )
+        selected = clustering.choose_geometries(
+            molecules,
+            maximum_number_of_seeds=maximum_number_of_seeds,
+            apply_basin_memory=False,
+            algorithm=algorithm,
+        )
+        final_selected.extend(selected)
+        _snapshot_selected_geometries(
+            selected,
+            output_root=selected_root,
+            summary_lines=[
+                f"Stoichiometry: {stoichiometry}",
+                "Selection mode: final cross-path clustering",
+                f"Source geometries: {len(molecules)}",
+                f"Selected geometries: {len(selected)}",
+                f"Algorithm: {algorithm}",
+            ],
+            group_by_stoichiometry=True,
+        )
+
+    return final_selected
 
 
 def _supports_two_layer_optimization(qc_params):
@@ -119,8 +192,6 @@ def aggregate(molecules,
               maximum_number_of_seeds,
               first_pathway,
               number_of_pathways,
-              tabu_on,
-              grid_on,
               site):
     """Run an aggregate or cluster generation workflow.
 
@@ -130,7 +201,7 @@ def aggregate(molecules,
 
     Parameters are the input molecules, target aggregate sizes, orientation
     count, quantum-chemistry settings, seed-selection limit, pathway bounds,
-    and toggles for the Tabu and grid-based search steps.
+    and optional site constraints.
     """
 
     if check_stop_signal():
@@ -167,10 +238,7 @@ def aggregate(molecules,
         len(molecules), aggregate_sizes, hm_orientations, qc_params.get('software'),
         maximum_number_of_seeds, number_of_pathways, first_pathway,
     )
-    aggregator_logger.debug(
-        "Aggregate flags: tabu=%s grid=%s site=%s restart=%s",
-        tabu_on, grid_on, site, restart,
-    )
+    aggregator_logger.debug("Aggregate site=%s restart=%s", site, restart)
 
     seed_names = string.ascii_lowercase
     ag_id = "ag"
@@ -228,7 +296,7 @@ def aggregate(molecules,
                                           number_of_orientations,
                                           qc_params,
                                           maximum_number_of_seeds,
-                                          tabu_on, grid_on, site)
+                                          site)
             os.chdir(starting_directory)
             if len(seed_storage[ag_id]) == 0:
                 aggregator_logger.info(f"No molecules were found from {ag_id}"
@@ -240,6 +308,17 @@ def aggregate(molecules,
         outside_counter += 1
         seed_storage = copy.copy(initial_storage)
         ag_id = initial_aggregate_id
+
+    final_selected = _finalize_selected_geometries(
+        aggregate_root='.',
+        maximum_number_of_seeds=maximum_number_of_seeds,
+        algorithm='hybrid',
+    )
+    if final_selected:
+        aggregator_logger.info(
+            "Final cross-path selected geometries written: %d",
+            len(final_selected),
+        )
 
     if hm_orientations == 'auto' and number_of_orientations <= 256:
         number_of_orientations += 8
@@ -267,8 +346,7 @@ def select_pathways(monomers_to_be_added, number_of_pathways):
 
 
 def solvate(seeds, monomer, aggregate_size, hm_orientations,
-            qc_params, maximum_number_of_seeds, tabu_on=None, grid_on=None,
-            site=None):
+            qc_params, maximum_number_of_seeds, site=None):
     """
     All monomer to seeds.
 
@@ -278,8 +356,6 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
     :param hm_orientations:
     :param qc_params:
     :param maximum_number_of_seeds:
-    :param tabu_on:
-    :param grid_on:
     :param site:
     :return:
     """
@@ -311,8 +387,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations,
         aggregator_logger.info(f"Solvation cycle start: {aggregation_counter}")
 
         seeds = add_one(aggregate_id, seeds, monomer, number_of_orientations,
-                        qc_params, maximum_number_of_seeds, tabu_on, grid_on,
-                        site)
+                        qc_params, maximum_number_of_seeds, site)
 
         aggregator_logger.info(f"Solvation cycle completed: {aggregation_counter}")
 
@@ -331,7 +406,7 @@ def read_orientations(molecule_id, noo):
         orientations.append(new_orientation)
     return orientations
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, tabu_on, grid_on, site):
+def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, site):
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
@@ -368,7 +443,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             mol_id = f'{seed_id}_{aggregate_id}'
             aggregator_logger.debug('Making orientations')
             if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(hm_orientations)):
-                all_orientations = tabu.create_trial_geometries(mol_id, seeds[seed_count], monomer, hm_orientations, tabu_on, grid_on, site)
+                all_orientations = trial_generation.create_trial_geometries(
+                    mol_id, seeds[seed_count], monomer, hm_orientations, site
+                )
                 aggregator_logger.debug('Orientations are made.')
             else:
                 all_orientations = read_orientations(mol_id, hm_orientations)
@@ -382,7 +459,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                     status_list = [optimise(each_mol, qc_params) for each_mol in not_converged]
                     converged = [n for n, s in zip(not_converged, status_list) if is_success(s)]
                     list_of_optimized_molecules.extend(converged)
-                    not_converged = [n for n, s in zip(not_converged, status_list) if is_cycle_exceeded(s) and not tabu.broken(n)]
+                    not_converged = [n for n, s in zip(not_converged, status_list) if is_cycle_exceeded(s) and not trial_generation.broken(n)]
                     not_converged = clustering.remove_similar(not_converged)
                 else:
                     aggregator_logger.info("    All trial molecules processed for this seed")
@@ -390,7 +467,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             else:
                 aggregator_logger.info("    Molecules still unconverged after 10 rounds:")
                 for n, s in zip(not_converged, status_list):
-                    if is_cycle_exceeded(s) and not tabu.broken(n):
+                    if is_cycle_exceeded(s) and not trial_generation.broken(n):
                         aggregator_logger.info("      %s", n.name)
             os.chdir(cwd)
 
@@ -412,6 +489,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             list_of_optimized_molecules,
             maximum_number_of_seeds=maximum_number_of_seeds,
             persist_basin_memory=not staged_optimization,
+            group_basin_by_stoichiometry=False,
         )
         selected_seeds = selected_from_restart + selected_seeds
         if len(selected_seeds) > maximum_number_of_seeds:
@@ -436,6 +514,7 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                     f"Backend: {qc_params.get('software')}",
                     f"Selected geometries: {len(selected_seeds)}",
                 ],
+                group_by_stoichiometry=False,
             )
             return selected_seeds
 
@@ -457,7 +536,6 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         selected_seeds = refined_seeds
         if len(selected_seeds) != 0:
             aggregator_logger.info("Selection result: %d refined molecules", len(selected_seeds))
-            clustering.record_selected_basins(selected_seeds, output_root='.')
             _snapshot_selected_geometries(
                 selected_seeds,
                 output_root='.',
@@ -468,10 +546,10 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                     f"Backend: {qc_params.get('software')}",
                     f"Selected geometries: {len(selected_seeds)}",
                 ],
+                group_by_stoichiometry=False,
             )
             return selected_seeds
         aggregator_logger.info("Selection result: no refined molecules, returning loose set (%d)", len(less_than_ideal))
-        clustering.record_selected_basins(less_than_ideal, output_root='.')
         _snapshot_selected_geometries(
             less_than_ideal,
             output_root='.',
@@ -482,11 +560,16 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                 f"Backend: {qc_params.get('software')}",
                 f"Selected geometries: {len(less_than_ideal)}",
             ],
+            group_by_stoichiometry=False,
         )
         return less_than_ideal
     
     else:
         # without software specified
+        # TODO: geometry-only growth currently carries every trial orientation
+        # forward to the next stoichiometry because there is no energy-based
+        # seed selection step in this branch. Add a bounded diversity-based
+        # selection path here so large builds do not expand combinatorially.
         all_orientations = []
         total_seeds = len(seeds)
         for seed_count, each_seed in enumerate(seeds):
@@ -508,9 +591,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             if len(each_seed) == 1:
                 hm_orientations = 1
             mol_id = f'{seed_id}_{aggregate_id}'
-            orientations = generate_orientations(grid_on, hm_orientations,
-                                                 mol_id, monomer, seed_count,
-                                                 seeds, site, tabu_on)
+            orientations = generate_orientations(
+                hm_orientations, mol_id, monomer, seed_count, seeds, site
+            )
             all_orientations.extend(orientations)
             os.chdir(cwd)
 
@@ -537,18 +620,16 @@ def check_for_the_finished_jobs_on_restart(list_of_optimized_molecules, cwd):
         os.chdir(cwd)
 
 
-def generate_orientations(use_grid, num_orientations, mol_id, monomer,
-                          seed_counter, seeds, site, use_tabu):
+def generate_orientations(num_orientations, mol_id, monomer,
+                          seed_counter, seeds, site):
     aggregator_logger.debug('Making orientations')
     if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz")
                for i in range(num_orientations)):
-        yield from tabu.create_trial_geometries(
+        yield from trial_generation.create_trial_geometries(
             mol_id,
             seeds[seed_counter],
             monomer,
             num_orientations,
-            use_tabu,
-            use_grid,
             site,
         )
         aggregator_logger.debug('Orientations are made.')
@@ -730,7 +811,7 @@ def generate_molecule_from_formula(formula, box_size=None, rng=None):
 
 
 def aggregate_from_formulas(formulas, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
-                            first_pathway, number_of_pathways, tabu_on, grid_on, site):
+                            first_pathway, number_of_pathways, site):
     """
     Generate initial molecules from formulas and run the aggregate workflow.
 
@@ -742,15 +823,13 @@ def aggregate_from_formulas(formulas, aggregate_sizes, hm_orientations, qc_param
         maximum_number_of_seeds (int): The maximum number of seeds to be selected for the next cycle.
         first_pathway (int): The starting pathway.
         number_of_pathways (int): The number of pathways to explore.
-        tabu_on (bool): Toggle the use of Tabu list.
-        grid_on (bool): Toggle the use of Grid.
         site (list, optional): Not used now, but needed for create_trial_molecules().
     """
 
     molecules = [generate_molecule_from_formula(formula) for formula in formulas]
 
     return aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
-                     first_pathway, number_of_pathways, tabu_on, grid_on, site)
+                     first_pathway, number_of_pathways, site)
 
 def main():
     """Module entry point reserved for future aggregate-specific commands."""

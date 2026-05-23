@@ -13,6 +13,7 @@ Start here
 * :doc:`usage`
 * :doc:`molecule`
 * :doc:`xtb`
+* :doc:`orientation_sampling`
 * :doc:`api`
 * :doc:`reference`
 
@@ -32,5 +33,6 @@ The fastest way to verify a local install is:
    usage
    molecule
    xtb
+   orientation_sampling
    api
    reference

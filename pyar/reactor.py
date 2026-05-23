@@ -1,6 +1,5 @@
 """Reaction workflow orchestration for PyAR."""
 
-import copy
 import logging
 import os
 import shutil
@@ -10,7 +9,7 @@ import numpy as np
 from pyar.checkpt import dumpchk, readchk, updtchk
 import pyar.interface.babel
 import pyar.scan
-from pyar import tabu, file_manager
+from pyar import trial_generation, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
 
@@ -31,7 +30,7 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
 
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
-          site, proximity_factor, tabu_on=None, grid_on=None):
+          site, proximity_factor):
     """Run the reaction-search workflow for two reactants."""
     global workdir
     workdir = os.getcwd()
@@ -55,7 +54,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
             "Reaction config: orientations=%s gamma_min=%s gamma_max=%s site=%s proximity_factor=%s",
             hm_orientations, gamma_min, gamma_max, site, proximity_factor,
         )
-        reactor_logger.debug("Reaction flags: tabu=%s grid=%s qc_params=%s", tabu_on, grid_on, qc_params)
+        reactor_logger.debug("Reaction qc_params=%s", qc_params)
 
         reactor_logger.debug(f'Current working directory: {cwd}')
 
@@ -68,11 +67,9 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         file_manager.make_directories('trial_geometries')
         os.chdir('trial_geometries')
         if site is None:
-            all_orientations = tabu.create_trial_geometries('geom', reactant_a,
+            all_orientations = trial_generation.create_trial_geometries('geom', reactant_a,
                                                             reactant_b,
                                                             hm_orientations,
-                                                            tabu_on,
-                                                            grid_on,
                                                             site)
         else:
             all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
@@ -155,10 +152,10 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
         # qc_param['index'] = len(this_molecule.atoms_list)-1
 
         status = optimise(this_molecule, qc_param)
-        before_relax = copy.copy(this_molecule)
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
         if is_usable(status):
+            before_relax = this_molecule.copy()
             reactor_logger.info("Energy E({}): {:12.7f}".format(job_name, this_molecule.energy))
 
             if this_molecule.is_bonded():

@@ -59,13 +59,15 @@ def _stoichiometry_label(molecule):
     return ''.join(parts) if parts else 'unknown'
 
 
-def _basin_registry_path(molecule, output_root='selected'):
+def _basin_registry_path(molecule, output_root='selected', group_by_stoichiometry=True):
     """Return the persistence path for basin memory."""
-    return os.path.join(
-        output_root,
-        f'stoichiometry_{_stoichiometry_label(molecule)}',
-        'basin_registry.json',
-    )
+    if group_by_stoichiometry:
+        return os.path.join(
+            output_root,
+            f'stoichiometry_{_stoichiometry_label(molecule)}',
+            'basin_registry.json',
+        )
+    return os.path.join(output_root, 'basin_registry.json')
 
 
 def _fingerprint_signature(molecule):
@@ -214,7 +216,7 @@ def _prefer_connected_structures(molecules):
         return molecules
 
     try:
-        from pyar import tabu
+        from pyar import trial_generation
     except Exception as exc:
         cluster_logger.debug(
             "Connectivity filter unavailable, keeping original candidate pool: %s",
@@ -226,7 +228,7 @@ def _prefer_connected_structures(molecules):
     disconnected = []
     for molecule in molecules:
         try:
-            if tabu.broken(molecule):
+            if trial_generation.broken(molecule):
                 disconnected.append(molecule)
             else:
                 connected.append(molecule)
@@ -541,17 +543,30 @@ def calc_fingerprint_distance(a, b):
     )
 
 
-def choose_geometries(list_of_molecules, maximum_number_of_seeds=12, persist_basin_memory=True):
+def choose_geometries(
+    list_of_molecules,
+    maximum_number_of_seeds=12,
+    persist_basin_memory=True,
+    apply_basin_memory=True,
+    algorithm=None,
+    group_basin_by_stoichiometry=True,
+):
     global _MBTR_RUNTIME_DISABLED, _MBTR_DISABLE_REASON
     if len(list_of_molecules) < 2:
         _log_seed_shortfall(maximum_number_of_seeds, len(list_of_molecules), "selection")
-        basin_registry_path = _basin_registry_path(list_of_molecules[0]) if list_of_molecules and os.path.isdir('selected') else None
+        basin_registry_path = _basin_registry_path(
+            list_of_molecules[0],
+            group_by_stoichiometry=group_basin_by_stoichiometry,
+        ) if list_of_molecules and os.path.isdir('selected') else None
         write_path = basin_registry_path if persist_basin_memory else None
         return _finalize_selection(list_of_molecules, write_path)
 
     if len(list_of_molecules) <= maximum_number_of_seeds:
         cluster_logger.info('Not enough data for clustering. Removing similar geometries from the list')
-        basin_registry_path = _basin_registry_path(list_of_molecules[0]) if os.path.isdir('selected') else None
+        basin_registry_path = _basin_registry_path(
+            list_of_molecules[0],
+            group_by_stoichiometry=group_basin_by_stoichiometry,
+        ) if os.path.isdir('selected') else None
         write_path = basin_registry_path if persist_basin_memory else None
         selected = _limit_seed_count(
             remove_similar(list_of_molecules),
@@ -561,14 +576,19 @@ def choose_geometries(list_of_molecules, maximum_number_of_seeds=12, persist_bas
         return _finalize_selection(selected, write_path)
 
     # Read selection algorithm from environment variable, default to the
-    # hybrid cluster-plus-fill behavior.
-    algorithm = os.environ.get('PYAR_CLUSTERING_ALGORITHM', 'hybrid').lower()
+    # hybrid cluster-plus-fill behavior when no explicit algorithm is provided.
+    if algorithm is None:
+        algorithm = os.environ.get('PYAR_CLUSTERING_ALGORITHM', 'hybrid')
+    algorithm = algorithm.lower()
     cluster_logger.info(f'Seed selection on {len(list_of_molecules)} geometries using {algorithm}')
 
     pruned_molecules = remove_similar(list_of_molecules)
-    basin_registry_path = _basin_registry_path(pruned_molecules[0]) if pruned_molecules and os.path.isdir('selected') else None
+    basin_registry_path = _basin_registry_path(
+        pruned_molecules[0],
+        group_by_stoichiometry=group_basin_by_stoichiometry,
+    ) if pruned_molecules and os.path.isdir('selected') else None
     write_path = basin_registry_path if persist_basin_memory else None
-    basin_entries = _load_basin_registry(basin_registry_path)
+    basin_entries = _load_basin_registry(basin_registry_path) if apply_basin_memory else []
     if basin_entries:
         pruned_molecules = _apply_basin_memory(pruned_molecules, maximum_number_of_seeds, basin_entries)
     pruned_molecules = _prefer_connected_structures(pruned_molecules)
@@ -861,14 +881,28 @@ def select_best_from_each_cluster(labels, list_of_molecules):
 def get_the_best_molecule(list_of_molecules):
     return min(list_of_molecules, key=lambda m: m.energy)
 
-def print_energy_table(molecules):
+def print_energy_table(molecules, stream=None, title=None):
+    """Report energies with relative values against the global minimum."""
     e_dict = {i.name: float(i.energy) for i in molecules}
-    if len(e_dict) > 1:
-        ref = min(e_dict.values())
-        cluster_logger.info(f"{'Name':>35}:{'Energy':>12}{'R. E. (kcal/mol)':>18}")
-        for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1), reverse=True):
-            cluster_logger.info(f"{name:>35}:{energy:12.6f}{(energy - ref) * 627.51:12.2f}")
-        cluster_logger.info("")
+    if not e_dict:
+        return
+
+    ref = min(e_dict.values())
+    lines = []
+    if title:
+        lines.append(title)
+    lines.append(f"{'Name':>35}  {'Energy':>12}  {'R. E. (kcal/mol)':>18}")
+    for name, energy in sorted(e_dict.items(), key=operator.itemgetter(1)):
+        lines.append(f"{name:>35}  {energy:12.6f}  {(energy - ref) * 627.51:18.2f}")
+    lines.append(f"Global minimum: {min(e_dict, key=e_dict.get)} ({ref:12.6f} Eh)")
+    lines.append("")
+
+    if stream is not None:
+        for line in lines:
+            print(line, file=stream)
+    else:
+        for line in lines:
+            cluster_logger.info(line)
 
 
 

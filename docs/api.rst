@@ -8,6 +8,18 @@ Core package
    :members:
    :undoc-members:
 
+.. automodule:: pyar.molecule_io
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.molecule_geometry
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.molecule_merge
+   :members:
+   :undoc-members:
+
 Command-line entry point
 ------------------------
 
@@ -35,6 +47,17 @@ xTB interface
    :undoc-members:
 
 .. automodule:: pyar.interface.xtb_turbo
+   :members:
+   :undoc-members:
+
+Sampling API
+------------
+
+.. automodule:: pyar.orientation_sampling
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.trial_generation
    :members:
    :undoc-members:
 

@@ -138,9 +138,9 @@ def make_smile_string_from_xyz(xyzfile):
 
 def main(input_files):
     """Run the OpenBabel optimization workflow for one or more XYZ files."""
-    from pyar import Molecule
+    from pyar.Molecule import Molecule
     for f in input_files:
-        mol = Molecule.Molecule.from_xyz(f)
+        mol = Molecule.from_xyz(f)
         g = OBabel(mol)
         g.optimize()
 
