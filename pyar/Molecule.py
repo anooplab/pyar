@@ -68,10 +68,11 @@ def parse_xyz(filename: str) -> Tuple[list, np.ndarray, str, str, Optional[float
         raise XYZParseError(f"{filename!r} is missing the title/comment line")
 
     mol_title = text[1].rstrip("\n")
-    try:
-        energy = float(re.split(r':|=|\\s+', mol_title)[1])
-    except Exception:
-        energy = None
+    energy_match = re.search(
+        r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][-+]?\d+)?\s*$",
+        mol_title,
+    )
+    energy = float(energy_match.group()) if energy_match else None
 
     geometry_lines = [line.split() for line in text[2:] if len(line.split()) >= 4]
     if len(geometry_lines) != number_of_atoms:
@@ -216,8 +217,6 @@ class Molecule(object):
 
         self.energy = energy
 
-        # Derived caches (kept as attributes for backward compatibility).
-        self._invalidate_geometry_cache()
         # self.centre_of_mass = pyar.property.get_centre_of_mass(
         #     self.coordinates, self.atomic_mass)
         # self.average_radius = pyar.property.get_average_radius(
@@ -236,20 +235,25 @@ class Molecule(object):
             self.fragments_coordinates = self.split_coordinates()
             self.fragments_atoms_list = self.split_atoms_lists()
 
-    def _invalidate_geometry_cache(self):
-        """Invalidate cached geometry-derived attributes."""
-        self.centroid = pyar.property.get_centroid(self._coordinates)
-
     @property
-    def coordinates(self) -> np.ndarray:
-        """Cartesian coordinates in Angstrom, shape (N, 3)."""
+    def coordinates(self) -> Optional[np.ndarray]:
+        """Cartesian coordinates in Angstrom, or ``None`` after failure."""
         return self._coordinates
 
     @coordinates.setter
     def coordinates(self, value):
+        if value is None:
+            self._coordinates = None
+            return
         self._coordinates = _as_coordinates_array(value)
         self.number_of_atoms = int(self._coordinates.shape[0])
-        self._invalidate_geometry_cache()
+
+    @property
+    def centroid(self) -> Optional[np.ndarray]:
+        """Return the current geometry centroid, if coordinates exist."""
+        if self._coordinates is None:
+            return None
+        return pyar.property.get_centroid(self._coordinates)
 
     def __str__(self):
         return f"Name: {self.name}\n Coordinates:{self.coordinates}"

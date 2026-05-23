@@ -23,6 +23,16 @@ class MoleculeTests(unittest.TestCase):
             self.assertEqual(title, "job: -1.23")
             self.assertAlmostEqual(float(energy), -1.23)
 
+    def test_parse_xyz_reads_energy_from_whitespace_title(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "a.xyz"
+            path.write_text(
+                "1\n"
+                "job -1.25\n"
+                "H 0 0 0\n"
+            )
+            self.assertAlmostEqual(parse_xyz(str(path))[-1], -1.25)
+
     def test_parse_xyz_raises_on_bad_header(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "bad.xyz"
@@ -43,6 +53,17 @@ class MoleculeTests(unittest.TestCase):
         self.assertTrue(np.allclose(mol.centroid, [0.0, 0.0, 0.0]))
         mol.translate(np.array([1.0, 0.0, 0.0]))
         self.assertTrue(np.allclose(mol.coordinates[0], [-1.0, 0.0, 0.0]))
+
+    def test_coordinates_can_be_cleared_after_failed_job(self):
+        mol = Molecule(["H"], [[0, 0, 0]])
+        mol.coordinates = None
+        self.assertIsNone(mol.coordinates)
+        self.assertIsNone(mol.centroid)
+
+    def test_centroid_reflects_in_place_coordinate_changes(self):
+        mol = Molecule(["H", "H"], [[0, 0, 0], [2, 0, 0]])
+        mol.coordinates[:] += np.array([4.0, 0.0, 0.0])
+        self.assertTrue(np.allclose(mol.centroid, [5.0, 0.0, 0.0]))
 
     def test_non_mutating_transforms_leave_original_unchanged(self):
         mol = Molecule(["H"], np.array([[0.0, 0.0, 0.0]]))
@@ -65,4 +86,3 @@ class MoleculeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
