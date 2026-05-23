@@ -256,6 +256,7 @@ class CliSmokeTests(unittest.TestCase):
             "geometries only; no quantum-chemistry optimization will be run.",
             Path("pyar.log").read_text(),
         )
+        self.assertIn("Backend family: none", Path("pyar.log").read_text())
 
     def test_aggregate_rejects_unknown_element_symbol(self):
         sys.argv = [
@@ -355,6 +356,112 @@ class CliSmokeTests(unittest.TestCase):
                 ]
 
                 self.cli.main()
+
+    def test_aimnet2_warns_for_unsupported_qc_flags(self):
+        captured = {}
+
+        def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
+                              maximum_number_of_seeds, first_pathway, number_of_pathways,
+                              tabu_on, grid_on, site):
+            captured["qc_params"] = qc_params
+
+        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "8",
+            "-m",
+            "1",
+            "--software",
+            "aimnet_2",
+            "--basis",
+            "def2-SVP",
+            "--method",
+            "B3LYP",
+            "--scf-threshold",
+            "tight",
+            "--opt-cycles",
+            "50",
+            "--model",
+            "requested-model",
+            "--nprocs",
+            "2",
+        ]
+
+        self.cli.main()
+        log_text = Path("pyar.log").read_text()
+        current_run_log = log_text.split("Backend 'aimnet_2' ignores unsupported options:")[-1]
+        self.assertIn("Backend family: mlip", log_text)
+        self.assertIn("ignores unsupported options", log_text)
+        self.assertIn("--basis (basis set)", log_text)
+        self.assertIn("--scf-threshold", log_text)
+        self.assertIn("--opt-cycles", log_text)
+        self.assertIn("--model", log_text)
+        self.assertIn("--nprocs", log_text)
+        self.assertIn("Ignored QC options:", log_text)
+        self.assertIsNone(captured["qc_params"]["basis"])
+        self.assertIsNone(captured["qc_params"]["method"])
+        self.assertIsNone(captured["qc_params"]["scf_threshold"])
+        self.assertIsNone(captured["qc_params"]["opt_threshold"])
+        self.assertIsNone(captured["qc_params"]["opt_cycles"])
+        self.assertIsNone(captured["qc_params"]["scf_cycles"])
+        self.assertIsNone(captured["qc_params"]["model"])
+        self.assertIsNone(captured["qc_params"]["nprocs"])
+        self.assertNotIn("basis=def2-SVP", current_run_log)
+        self.assertNotIn("method=B3LYP", current_run_log)
+        self.assertNotIn("scf_cycles=", current_run_log)
+
+    def test_orca_does_not_warn_for_supported_dft_flags(self):
+        def aggregate_noop(*args, **kwargs):
+            return None
+
+        sys.modules["pyar.aggregator"].aggregate = aggregate_noop
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "8",
+            "-m",
+            "1",
+            "--software",
+            "orca",
+            "--basis",
+            "def2-SVP",
+            "--method",
+            "B3LYP",
+            "--scf-cycles",
+            "200",
+            "--nprocs",
+            "4",
+        ]
+
+        self.cli.main()
+        log_text = Path("pyar.log").read_text()
+        self.assertIn("Backend family: dft_qc", log_text)
+        self.assertIn("Ignored QC options: none", log_text)
+
+    def test_capability_table_rejects_unwired_qc_options(self):
+        _, psi4_ignored = self.cli._validate_backend_qc_options(
+            "psi4",
+            {"method", "basis", "custom_keywords"},
+        )
+        _, orca_ignored = self.cli._validate_backend_qc_options(
+            "orca",
+            {"custom_keywords", "opt_threshold"},
+        )
+        _, xtb_ignored = self.cli._validate_backend_qc_options(
+            "xtb",
+            {"method", "opt_threshold", "opt_cycles"},
+        )
+
+        self.assertEqual(psi4_ignored, ["basis", "custom_keywords", "method"])
+        self.assertEqual(orca_ignored, ["custom_keywords", "opt_threshold"])
+        self.assertEqual(xtb_ignored, ["method", "opt_cycles"])
 
 
 if __name__ == "__main__":

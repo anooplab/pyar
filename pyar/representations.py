@@ -10,6 +10,7 @@ from pyar.Molecule import Molecule
 # import torchani
 # from DBCV import DBCV
 from dscribe.descriptors import MBTR, SOAP, LMBTR, ACSF, SineMatrix, ValleOganov
+from dscribe.core.system import System
 # from ase.io import read
 from ase import Atoms
 # import glob
@@ -109,13 +110,15 @@ def coulomb_matrix(atoms_list, coordinates):
     # charges = [atomic_data.atomic_number[c.capitalize()] for c in atoms_list]
     charges = [atomic_data.atomic_number[c.capitalize()] if isinstance(c, str) else c for c in atoms_list]
     number_of_atoms = len(atoms_list)
-    coords = coordinates
+    coords = np.asarray(coordinates, dtype=float)
     c_matrix = np.zeros((number_of_atoms, number_of_atoms))
     for i, j in product(range(number_of_atoms), range(number_of_atoms)):
         if i == j:
             c_matrix[i, j] = 0.5 * charges[i]**2.4
         else:
             r_ij = np.linalg.norm(coords[i, :] - coords[j, :])
+            if r_ij < 1e-12:
+                r_ij = 1e-12
             c_matrix[i, j] = charges[i] * charges[j] / r_ij
     return c_matrix
 
@@ -186,10 +189,26 @@ def coulomb_matrix(atoms_list, coordinates):
 
 
 def fingerprint(atoms_list, coordinates):
-    eigenvalues = np.linalg.eigvals(coulomb_matrix(atoms_list, coordinates))
-    # eigenvalues[::-1].sort()
-    eigenvalues = np.sort(eigenvalues)[::-1]
-    return eigenvalues
+    try:
+        eigenvalues = np.linalg.eigvals(coulomb_matrix(atoms_list, coordinates))
+        eigenvalues = np.sort(eigenvalues)[::-1]
+        return np.real_if_close(eigenvalues)
+    except (FloatingPointError, np.linalg.LinAlgError, ValueError) as exc:
+        molecule_count = len(atoms_list)
+        warnings.warn(
+            f"Falling back from Coulomb fingerprint for {molecule_count} atoms: {exc}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        # Preserve a finite, deterministic fingerprint so clustering can
+        # continue even when the Coulomb matrix becomes numerically unstable.
+        coords = np.asarray(coordinates, dtype=float)
+        centroid = np.mean(coords, axis=0) if len(coords) else np.zeros(3)
+        radial_distances = np.sort(np.linalg.norm(coords - centroid, axis=1))[::-1]
+        padded = np.zeros(molecule_count + 1, dtype=float)
+        padded[:molecule_count] = radial_distances[:molecule_count]
+        padded[-1] = float(molecule_count)
+        return padded
 
 def cutoff_func(r, Rc):
     return 0.5 * (np.cos(np.pi * r / Rc) + 1) if r < Rc else 0
@@ -308,8 +327,9 @@ def valleoganov_descriptor(atoms_list, coordinates):
 
 
 def mbtr_descriptor(atoms_list, coordinates):
-    # Create an Atoms object from the atoms_list and coordinates
-    molecule = Atoms(atoms_list, positions=coordinates)
+    # Create a DScribe System directly so MBTR does not inherit ASE calculator
+    # state from a converted Atoms object.
+    molecule = System(symbols=atoms_list, positions=coordinates)
 
     # Get unique species from atoms_list
     unique_species = list(set(atoms_list))
@@ -324,15 +344,23 @@ def mbtr_descriptor(atoms_list, coordinates):
         normalization="l2",
 )
 
-    # DScribe can emit an ASE deprecation warning ("Please use atoms.calc")
-    # from its internal conversion path. Suppress only that warning.
+    # DScribe can emit an ASE deprecation warning in other versions; suppress
+    # only that warning if it appears.
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
             message="Please use atoms\\.calc",
             category=FutureWarning,
         )
-        mbtr_output = mbtr.create(molecule)
+        original_from_atoms = System.from_atoms
+        try:
+            # DScribe 1.x re-wraps the input through System.from_atoms(), which
+            # is incompatible with the ASE version shipped here. Returning the
+            # already-built System avoids the broken positional re-construction.
+            System.from_atoms = staticmethod(lambda atoms: atoms)
+            mbtr_output = mbtr.create(molecule)
+        finally:
+            System.from_atoms = original_from_atoms
 
     return mbtr_output
 

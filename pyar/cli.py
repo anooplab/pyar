@@ -14,6 +14,92 @@ from pyar.data import defualt_parameters
 logger = logging.getLogger('pyar')
 handler = None
 
+BACKEND_PROFILES = {
+    "gaussian": {
+        "family": "dft_qc",
+        "supports": {"method", "basis", "scf_cycles", "nprocs"},
+    },
+    "orca": {
+        "family": "dft_qc",
+        "supports": {"method", "basis", "scf_cycles", "nprocs"},
+    },
+    "psi4": {
+        "family": "dft_qc",
+        "supports": set(),
+    },
+    "turbomole": {
+        "family": "dft_qc",
+        "supports": {"method", "basis"},
+    },
+    "mopac": {
+        "family": "semiempirical",
+        "supports": set(),
+    },
+    "xtb": {
+        "family": "semiempirical",
+        "staged_optimization": True,
+        "supports": {"opt_threshold"},
+    },
+    "xtb_turbo": {
+        "family": "semiempirical",
+        "staged_optimization": False,
+        "supports": set(),
+    },
+    "obabel": {
+        "family": "semiempirical",
+        "supports": set(),
+    },
+    "aimnet_2": {
+        "family": "mlip",
+        "supports": set(),
+    },
+    "aiqm1_mlatom": {
+        "family": "mlip",
+        "supports": set(),
+    },
+    "mlatom_aiqm1": {
+        "family": "mlip",
+        "supports": set(),
+    },
+    "xtb-aimnet2": {
+        "family": "hybrid",
+        "staged_optimization": True,
+        "supports": {"opt_threshold"},
+    },
+    "xtb-aiqm1": {
+        "family": "hybrid",
+        "staged_optimization": True,
+        "supports": {"opt_threshold"},
+    },
+}
+
+QC_OPTION_ALIASES = {
+    "basis": "--basis (basis set)",
+    "method": "--method (functional/method)",
+    "opt_threshold": "--opt-threshold",
+    "opt_cycles": "--opt-cycles",
+    "scf_threshold": "--scf-threshold",
+    "scf_cycles": "--scf-cycles",
+    "nprocs": "--nprocs",
+    "custom_keywords": "--custom-keywords",
+    "gamma": "--gmin/--gmax",
+    "model": "--model",
+}
+
+QC_PARAMETER_KEYS = {
+    "basis",
+    "method",
+    "opt_cycles",
+    "opt_threshold",
+    "scf_cycles",
+    "scf_threshold",
+    "nprocs",
+    "gamma",
+    "custom_keywords",
+    "custom_keyword",
+    "model",
+}
+
 
 def _get_file_handler():
     """Create the CLI log file handler only when the command actually runs."""
@@ -45,6 +131,74 @@ def _verbosity_name(level):
         3: 'ERROR',
         4: 'CRITICAL',
     }.get(level, 'INFO')
+
+
+def _provided_qc_options(args):
+    """Return QC option keys explicitly provided by user on CLI."""
+    provided = set()
+    if args.get("basis") is not None:
+        provided.add("basis")
+    if args.get("method") is not None:
+        provided.add("method")
+    if args.get("model") is not None:
+        provided.add("model")
+    if args.get("custom_keywords") is not None:
+        provided.add("custom_keywords")
+    if args.get("nprocs") is not None:
+        provided.add("nprocs")
+    if "--opt-threshold" in sys.argv:
+        provided.add("opt_threshold")
+    if "--opt-cycles" in sys.argv:
+        provided.add("opt_cycles")
+    if "--scf-threshold" in sys.argv:
+        provided.add("scf_threshold")
+    if "--scf-cycles" in sys.argv:
+        provided.add("scf_cycles")
+    if args.get("gmin") is not None or args.get("gmax") is not None:
+        provided.add("gamma")
+    return provided
+
+
+def _validate_backend_qc_options(software, provided_options):
+    """Return backend family and unsupported provided options for a backend."""
+    profile = BACKEND_PROFILES.get(software)
+    if profile is None:
+        return "unknown", []
+    unsupported = sorted(provided_options - set(profile["supports"]))
+    return profile["family"], unsupported
+
+
+def _supports_staged_optimization(software):
+    """Return True when the backend has wired loose/normal staged optimization."""
+    profile = BACKEND_PROFILES.get(software)
+    if profile is None:
+        return False
+    return bool(profile.get("staged_optimization", False))
+
+
+def _mask_unsupported_qc_parameters(qc_params, software):
+    """Return QC params with backend-unsupported options set to None."""
+    masked = dict(qc_params)
+    profile = BACKEND_PROFILES.get(software)
+    if profile is None:
+        return masked
+    unsupported_options = QC_PARAMETER_KEYS - set(profile["supports"])
+    for option in unsupported_options:
+        if option in masked:
+            masked[option] = None
+        if option == "custom_keywords":
+            masked["custom_keyword"] = None
+    return masked
+
+
+def _format_effective_qc_settings(qc_params):
+    """Format active QC parameters without listing ignored/None values."""
+    labels = []
+    for key in sorted(QC_PARAMETER_KEYS):
+        value = qc_params.get(key)
+        if value is not None and key != "custom_keyword":
+            labels.append(f"{key}={value}")
+    return " ".join(labels) if labels else "none"
 
 
 def argument_parse():
@@ -338,6 +492,24 @@ def main():
                     sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
 
     custom_keywords = run_parameters['custom_keywords']
+    provided_qc_options = _provided_qc_options(args)
+    backend_family = "none"
+    staged_optimization = False
+    ignored_qc_options = []
+    if run_parameters["software"] is not None:
+        backend_family, ignored_qc_options = _validate_backend_qc_options(
+            run_parameters["software"], provided_qc_options
+        )
+        staged_optimization = _supports_staged_optimization(run_parameters["software"])
+        if ignored_qc_options:
+            ignored_labels = [QC_OPTION_ALIASES.get(k, k) for k in ignored_qc_options]
+            logger.warning(
+                "Backend '%s' ignores unsupported options: %s",
+                run_parameters["software"],
+                ", ".join(ignored_labels),
+            )
+    effective_qc_options = sorted(provided_qc_options - set(ignored_qc_options))
+
     quantum_chemistry_parameters = {
         'basis': run_parameters['basis'],
         'method': run_parameters['method'],
@@ -352,16 +524,30 @@ def main():
         'custom_keyword': custom_keywords,
         'model': run_parameters['model']
     }
+    quantum_chemistry_parameters['_two_layer_optimization'] = staged_optimization
+    quantum_chemistry_parameters = _mask_unsupported_qc_parameters(
+        quantum_chemistry_parameters,
+        run_parameters["software"],
+    )
 
     logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
+    logger.info(f'Backend family: {backend_family}')
     logger.info(
-        f'QC settings: method={quantum_chemistry_parameters["method"]} '
-        f'basis={quantum_chemistry_parameters["basis"]} '
-        f'opt_threshold={quantum_chemistry_parameters["opt_threshold"]} '
-        f'opt_cycles={quantum_chemistry_parameters["opt_cycles"]} '
-        f'scf_threshold={quantum_chemistry_parameters["scf_threshold"]} '
-        f'scf_cycles={quantum_chemistry_parameters["scf_cycles"]}'
+        "Optimization layers: %s",
+        "two-stage" if staged_optimization else "single-stage",
     )
+    if ignored_qc_options:
+        logger.info(
+            "Ignored QC options: %s",
+            ", ".join(QC_OPTION_ALIASES.get(k, k) for k in ignored_qc_options),
+        )
+    else:
+        logger.info("Ignored QC options: none")
+    logger.info(
+        "Effective QC options: %s",
+        ", ".join(QC_OPTION_ALIASES.get(k, k) for k in effective_qc_options) if effective_qc_options else "defaults-only",
+    )
+    logger.info("QC settings: %s", _format_effective_qc_settings(quantum_chemistry_parameters))
     logger.debug(f'QC parameter object: {quantum_chemistry_parameters}')
 
     number_of_orientations = run_parameters['how_many_orientations']

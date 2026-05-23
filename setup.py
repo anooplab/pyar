@@ -61,6 +61,7 @@ setup(
             'pyar-optimiser=pyar.scripts.optimiser:main',
             'pyar-tabu=pyar.scripts.tabu:main',
             'pyar-clustering=pyar.scripts.clustering:main',
+            'pyar-benchmark-clustering=pyar.scripts.benchmark_clustering:main',
             'pyar-similarity=pyar.scripts.similarity:main',
             'pyar-descriptor=pyar.scripts.descriptor:main',
             'pyar-mlopt=pyar.interface.mlopt:main',
