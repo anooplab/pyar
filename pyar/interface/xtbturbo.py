@@ -27,6 +27,7 @@ from pyar import interface
 from pyar.afir import restraints
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF, require_executable
+from pyar.interface.xtb_utils import xtb_parallel_args
 
 xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
 
@@ -47,6 +48,7 @@ class XtbTurbo(SF):
         self.energy_file = 'energy'
 
         self.egrad_program = [self.xtb_executable, 'coord', '-grad']
+        self.egrad_program.extend(xtb_parallel_args(method))
         if self.charge > 0:
             self.egrad_program += ['-chrg', str(self.charge)]
         if self.multiplicity != 1:

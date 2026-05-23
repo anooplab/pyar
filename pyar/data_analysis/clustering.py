@@ -208,6 +208,51 @@ def _apply_basin_memory(molecules, maximum_number_of_seeds, basin_entries):
     return selected
 
 
+def _prefer_connected_structures(molecules):
+    """Prefer geometries that remain connected under a covalent-radius graph."""
+    if len(molecules) < 2:
+        return molecules
+
+    try:
+        from pyar import tabu
+    except Exception as exc:
+        cluster_logger.debug(
+            "Connectivity filter unavailable, keeping original candidate pool: %s",
+            exc,
+        )
+        return molecules
+
+    connected = []
+    disconnected = []
+    for molecule in molecules:
+        try:
+            if tabu.broken(molecule):
+                disconnected.append(molecule)
+            else:
+                connected.append(molecule)
+        except Exception as exc:
+            cluster_logger.debug(
+                "Connectivity check failed for %s, keeping it in the connected pool: %s",
+                getattr(molecule, 'name', 'unknown'),
+                exc,
+            )
+            connected.append(molecule)
+
+    if not connected:
+        cluster_logger.warning(
+            "All candidate geometries are disconnected; continuing with the original pool."
+        )
+        return molecules
+
+    if disconnected:
+        cluster_logger.info(
+            "Discarded %d disconnected candidate geometries before clustering.",
+            len(disconnected),
+        )
+
+    return connected
+
+
 def _finalize_selection(selected_molecules, basin_registry_path, existing_entries=None):
     """Persist basin memory and return the selected molecules."""
     if basin_registry_path:
@@ -526,6 +571,7 @@ def choose_geometries(list_of_molecules, maximum_number_of_seeds=12, persist_bas
     basin_entries = _load_basin_registry(basin_registry_path)
     if basin_entries:
         pruned_molecules = _apply_basin_memory(pruned_molecules, maximum_number_of_seeds, basin_entries)
+    pruned_molecules = _prefer_connected_structures(pruned_molecules)
 
     if len(pruned_molecules) <= maximum_number_of_seeds:
         cluster_logger.info(

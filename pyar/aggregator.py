@@ -38,7 +38,7 @@ def _stoichiometry_label(molecule):
     return ''.join(parts) if parts else 'unknown'
 
 
-def _snapshot_selected_geometries(selected_seeds, output_root='selected'):
+def _snapshot_selected_geometries(selected_seeds, output_root='selected', summary_lines=None):
     """Persist the selected geometries in a stoichiometry-specific folder."""
     if not selected_seeds:
         return None
@@ -60,6 +60,14 @@ def _snapshot_selected_geometries(selected_seeds, output_root='selected'):
                     fp.write(("%-2s%12.5f%12.5f%12.5f\n" % (
                         element_symbol, atom_coordinate[0], atom_coordinate[1], atom_coordinate[2]
                     )))
+
+    if summary_lines:
+        summary_path = os.path.join(snapshot_dir, 'README.txt')
+        with open(summary_path, 'w') as fp:
+            fp.write(f"Selected geometries for stoichiometry {stoichiometry}\n")
+            fp.write("=" * 60 + "\n")
+            for line in summary_lines:
+                fp.write(f"{line}\n")
 
     aggregator_logger.info(
         "Saved %d selected geometries to %s",
@@ -175,6 +183,9 @@ def aggregate(molecules,
         monomers_to_be_added.extend(
             seed_molecule for _ in range(size_of_this_seed))
         ag_id += f"_{seed_name}_000"
+
+    aggregator_logger.info("Aggregate identifier: %s", ag_id)
+    aggregator_logger.info("Aggregate output root: %s/%s", starting_directory, ag_id)
 
     if len(molecules) == 1:
         pathways_to_calculate = [monomers_to_be_added]
@@ -418,7 +429,14 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             aggregator_logger.info(
                 "Backend does not support staged optimization; returning selected seeds after a single pass."
             )
-            _snapshot_selected_geometries(selected_seeds)
+            _snapshot_selected_geometries(
+                selected_seeds,
+                summary_lines=[
+                    "Selection mode: single-stage",
+                    f"Backend: {qc_params.get('software')}",
+                    f"Selected geometries: {len(selected_seeds)}",
+                ],
+            )
             return selected_seeds
 
         os.chdir('selected')
@@ -440,11 +458,31 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         if len(selected_seeds) != 0:
             aggregator_logger.info("Selection result: %d refined molecules", len(selected_seeds))
             clustering.record_selected_basins(selected_seeds, output_root='.')
-            _snapshot_selected_geometries(selected_seeds, output_root='.')
+            _snapshot_selected_geometries(
+                selected_seeds,
+                output_root='.',
+                summary_lines=[
+                    "Selection mode: two-stage",
+                    "Stage 1: loose preselection",
+                    "Stage 2: normal-threshold refinement",
+                    f"Backend: {qc_params.get('software')}",
+                    f"Selected geometries: {len(selected_seeds)}",
+                ],
+            )
             return selected_seeds
         aggregator_logger.info("Selection result: no refined molecules, returning loose set (%d)", len(less_than_ideal))
         clustering.record_selected_basins(less_than_ideal, output_root='.')
-        _snapshot_selected_geometries(less_than_ideal, output_root='.')
+        _snapshot_selected_geometries(
+            less_than_ideal,
+            output_root='.',
+            summary_lines=[
+                "Selection mode: two-stage",
+                "Stage 1: loose preselection",
+                "Stage 2: normal-threshold refinement failed for all selected seeds",
+                f"Backend: {qc_params.get('software')}",
+                f"Selected geometries: {len(less_than_ideal)}",
+            ],
+        )
         return less_than_ideal
     
     else:

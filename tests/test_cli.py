@@ -445,21 +445,48 @@ class CliSmokeTests(unittest.TestCase):
         self.assertIn("Backend family: dft_qc", log_text)
         self.assertIn("Ignored QC options: none", log_text)
 
+    def test_xtb_uses_parallel_threads(self):
+        captured = {}
+
+        def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
+                              maximum_number_of_seeds, first_pathway, number_of_pathways,
+                              tabu_on, grid_on, site):
+            captured["qc_params"] = qc_params
+
+        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "--formula",
+            "ch4",
+            "-N",
+            "8",
+            "--software",
+            "xtb",
+            "--nprocs",
+            "16",
+        ]
+
+        self.cli.main()
+        log_text = Path("pyar.log").read_text()
+        self.assertIn("xTB parallel threads: 16", log_text)
+        self.assertEqual(captured["qc_params"]["nprocs"], 16)
+
     def test_capability_table_rejects_unwired_qc_options(self):
         _, psi4_ignored = self.cli._validate_backend_qc_options(
             "psi4",
-            {"method", "basis", "custom_keywords"},
+            {"method", "basis", "custom_keywords", "nprocs"},
         )
         _, orca_ignored = self.cli._validate_backend_qc_options(
             "orca",
-            {"custom_keywords", "opt_threshold"},
+            {"custom_keywords", "opt_threshold", "nprocs"},
         )
         _, xtb_ignored = self.cli._validate_backend_qc_options(
             "xtb",
-            {"method", "opt_threshold", "opt_cycles"},
+            {"method", "opt_threshold", "opt_cycles", "nprocs"},
         )
 
-        self.assertEqual(psi4_ignored, ["basis", "custom_keywords", "method"])
+        self.assertEqual(psi4_ignored, ["basis", "custom_keywords", "method", "nprocs"])
         self.assertEqual(orca_ignored, ["custom_keywords", "opt_threshold"])
         self.assertEqual(xtb_ignored, ["method", "opt_cycles"])
 

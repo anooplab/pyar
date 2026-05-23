@@ -171,6 +171,28 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual([m.name for m in result], ["a", "b"])
 
+    def test_choose_geometries_discards_disconnected_candidates_when_connected_options_exist(self):
+        molecules = [
+            SimpleNamespace(
+                name="connected",
+                atoms_list=["H", "H"],
+                coordinates=[[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]],
+                energy=0.0,
+            ),
+            SimpleNamespace(
+                name="broken",
+                atoms_list=["H", "H"],
+                coordinates=[[0.0, 0.0, 0.0], [5.0, 0.0, 0.0]],
+                energy=0.1,
+            ),
+        ]
+
+        with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.tabu.broken", side_effect=lambda mol: mol.name == "broken"):
+                result = clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
+
+        self.assertEqual([m.name for m in result], ["connected"])
+
     def test_rmsd_duplicate_test_detects_same_geometry_under_translation(self):
         a = SimpleNamespace(
             name="a",

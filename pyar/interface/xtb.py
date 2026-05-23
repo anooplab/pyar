@@ -25,6 +25,7 @@ import sys
 import numpy as np
 
 from pyar.interface import SF, require_executable, write_xyz
+from pyar.interface.xtb_utils import xtb_parallel_args
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
@@ -36,14 +37,16 @@ class Xtb(SF):
 
         super(Xtb, self).__init__(molecule)
 
-        self.cmd = f"{self.xtb_executable} {self.start_xyz_file} -opt {method['opt_threshold']}"
+        self.cmd = [self.xtb_executable, self.start_xyz_file]
+        self.cmd.extend(xtb_parallel_args(method))
+        self.cmd.extend(["-opt", method['opt_threshold']])
 
         if self.charge != 0:
-            self.cmd = "{} -chrg {}".format(self.cmd, self.charge)
+            self.cmd.extend(["-chrg", str(self.charge)])
         if self.multiplicity != 1:
-            self.cmd = "{} -uhf {}".format(self.cmd, self.multiplicity)
+            self.cmd.extend(["-uhf", str(self.multiplicity)])
         if self.multiplicity == 1 and self.scftype != 'rhf':
-            self.cmd = "{} -{}".format(self.cmd, self.scftype)
+            self.cmd.append(f"-{self.scftype}")
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
@@ -61,7 +64,7 @@ class Xtb(SF):
 
         with open('xtb.out', 'w') as output_file_pointer:
             try:
-                out = subp.check_call(self.cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)  # noqa: F841
+                out = subp.check_call(self.cmd, stdout=output_file_pointer, stderr=output_file_pointer)  # noqa: F841
             except Exception as e:
                 xtb_logger.info('    Optimization failed')
                 xtb_logger.error(f"      {e}")

@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 from pyar.interface import SF, require_executable, write_xyz
+from pyar.interface.xtb_utils import xtb_parallel_args
 
 xtb_aimnet2_logger = logging.getLogger('pyar.xtb_aimnet2')
 
@@ -26,14 +27,16 @@ class XtbAimnet2(SF):
 
         super(XtbAimnet2, self).__init__(molecule)
 
-        self.xtb_cmd = f"{self.xtb_executable} {self.start_xyz_file} -opt {method['opt_threshold']}"
+        self.xtb_cmd = [self.xtb_executable, self.start_xyz_file]
+        self.xtb_cmd.extend(xtb_parallel_args(method))
+        self.xtb_cmd.extend(["-opt", method['opt_threshold']])
 
         if self.charge != 0:
-            self.xtb_cmd = "{} -chrg {}".format(self.xtb_cmd, self.charge)
+            self.xtb_cmd.extend(["-chrg", str(self.charge)])
         if self.multiplicity != 1:
-            self.xtb_cmd = "{} -uhf {}".format(self.xtb_cmd, self.multiplicity)
+            self.xtb_cmd.extend(["-uhf", str(self.multiplicity)])
         if self.multiplicity == 1 and self.scftype != 'rhf':
-            self.xtb_cmd = "{} -{}".format(self.xtb_cmd, self.scftype)
+            self.xtb_cmd.append(f"-{self.scftype}")
 
         self._validate_runtime_files()
         self.aimnet2_cmd = [
@@ -70,7 +73,7 @@ class XtbAimnet2(SF):
         # XTB optimization
         with open('xtb.out', 'w') as output_file_pointer:
             try:
-                out = subp.check_call(self.xtb_cmd.split(), stdout=output_file_pointer, stderr=output_file_pointer)
+                out = subp.check_call(self.xtb_cmd, stdout=output_file_pointer, stderr=output_file_pointer)
             except Exception as e:
                 xtb_aimnet2_logger.info('    XTB optimization failed')
                 xtb_aimnet2_logger.error(f"      {e}")

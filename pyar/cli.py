@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
 
@@ -38,12 +38,12 @@ BACKEND_PROFILES = {
     "xtb": {
         "family": "semiempirical",
         "staged_optimization": True,
-        "supports": {"opt_threshold"},
+        "supports": {"opt_threshold", "nprocs"},
     },
     "xtb_turbo": {
         "family": "semiempirical",
         "staged_optimization": False,
-        "supports": set(),
+        "supports": {"nprocs"},
     },
     "obabel": {
         "family": "semiempirical",
@@ -64,12 +64,12 @@ BACKEND_PROFILES = {
     "xtb-aimnet2": {
         "family": "hybrid",
         "staged_optimization": True,
-        "supports": {"opt_threshold"},
+        "supports": {"opt_threshold", "nprocs"},
     },
     "xtb-aiqm1": {
         "family": "hybrid",
         "staged_optimization": True,
-        "supports": {"opt_threshold"},
+        "supports": {"opt_threshold", "nprocs"},
     },
 }
 
@@ -199,6 +199,36 @@ def _format_effective_qc_settings(qc_params):
         if value is not None and key != "custom_keyword":
             labels.append(f"{key}={value}")
     return " ".join(labels) if labels else "none"
+
+
+def _aggregate_stoichiometry_label(input_molecules, aggregate_sizes):
+    """Return the aggregate stoichiometry label implied by the inputs."""
+    parts = []
+    for molecule, count in zip(input_molecules, aggregate_sizes):
+        count = int(count)
+        atoms_list = getattr(molecule, "atoms_list", None)
+        if atoms_list:
+            counts = Counter(atoms_list * count)
+            fragment = []
+            if 'C' in counts:
+                carbon = counts.pop('C')
+                fragment.append('C' if carbon == 1 else f'C{carbon}')
+            if 'H' in counts:
+                hydrogen = counts.pop('H')
+                fragment.append('H' if hydrogen == 1 else f'H{hydrogen}')
+            for element in sorted(counts):
+                element_count = counts[element]
+                fragment.append(element if element_count == 1 else f'{element}{element_count}')
+            parts.append(''.join(fragment))
+        else:
+            label = getattr(molecule, "name", None) or getattr(molecule, "title", None) or "unknown"
+            if count == 1:
+                parts.append(label)
+            elif len(label) == 1 and label.isalpha():
+                parts.append(f"{label}{count}")
+            else:
+                parts.append(f"{label}x{count}")
+    return ''.join(parts) if parts else 'unknown'
 
 
 def argument_parse():
@@ -549,6 +579,11 @@ def main():
     )
     logger.info("QC settings: %s", _format_effective_qc_settings(quantum_chemistry_parameters))
     logger.debug(f'QC parameter object: {quantum_chemistry_parameters}')
+    if run_parameters['software'] in {'xtb', 'xtb_turbo', 'xtb-aimnet2', 'xtb-aiqm1'}:
+        if run_parameters['nprocs'] is not None:
+            logger.info("xTB parallel threads: %s", run_parameters['nprocs'])
+        else:
+            logger.info("xTB parallel threads: not requested; xTB will run serially")
 
     number_of_orientations = run_parameters['how_many_orientations']
     logger.info(f'Number of orientations: {number_of_orientations}')
@@ -600,6 +635,11 @@ def main():
                 )
             t1_0 = time.time()
             time_started = datetime.datetime.now()
+            selected_stoichiometry = _aggregate_stoichiometry_label(input_molecules, size_of_aggregate)
+            logger.info(
+                "Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
+                selected_stoichiometry,
+            )
             aggregator.aggregate(input_molecules, size_of_aggregate,
                                  number_of_orientations,
                                  quantum_chemistry_parameters,
