@@ -34,7 +34,7 @@ xTB interface
    :members:
    :undoc-members:
 
-.. automodule:: pyar.interface.xtbturbo
+.. automodule:: pyar.interface.xtb_turbo
    :members:
    :undoc-members:
 

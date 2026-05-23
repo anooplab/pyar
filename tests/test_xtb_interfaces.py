@@ -57,11 +57,11 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("-opt", runner.cmd)
 
     def test_xtb_turbo_wrapper_uses_parallel_threads(self):
-        from pyar.interface import xtbturbo
+        from pyar.interface import xtb_turbo
 
         with tempfile.TemporaryDirectory():
-            with mock.patch.object(xtbturbo, "require_executable", side_effect=["define", "xtb"]):
-                runner = xtbturbo.XtbTurbo(self.molecule, {"nprocs": 12})
+            with mock.patch.object(xtb_turbo, "require_executable", side_effect=["define", "xtb"]):
+                runner = xtb_turbo.XtbTurbo(self.molecule, {"nprocs": 12})
 
         self.assertIn("--parallel", runner.egrad_program)
         self.assertIn("12", runner.egrad_program)

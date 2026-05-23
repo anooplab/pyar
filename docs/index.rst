@@ -11,6 +11,7 @@ Start here
 * :doc:`workflows`
 * :doc:`installation`
 * :doc:`usage`
+* :doc:`molecule`
 * :doc:`xtb`
 * :doc:`api`
 * :doc:`reference`
@@ -29,6 +30,7 @@ The fastest way to verify a local install is:
    workflows
    installation
    usage
+   molecule
    xtb
    api
    reference

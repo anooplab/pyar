@@ -82,8 +82,8 @@ def build_geometry(molecule, qc_params):
         if gamma == 0.0:
             from pyar.interface import xtb
             return xtb.Xtb(molecule, qc_params)
-        from pyar.interface import xtbturbo
-        return xtbturbo.XtbTurbo(molecule, qc_params)
+        from pyar.interface import xtb_turbo
+        return xtb_turbo.XtbTurbo(molecule, qc_params)
     if software == 'turbomole':
         from pyar.interface import turbomole
         return turbomole.Turbomole(molecule, qc_params)

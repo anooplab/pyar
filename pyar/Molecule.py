@@ -1,19 +1,24 @@
-# -*- coding: utf-8 -*-
-"""
-    Molecule Class
-    --------------
+"""PyAR Molecule object.
 
-    While running from command-line interface,
-    the molecule object is created by reading the
-    .xyz file and stores the atom lists and coordinates.
-    During the job, new molecule objects are created by
-    the aggregator or reactor modules.
+This module defines :class:`~pyar.Molecule.Molecule`, a lightweight domain
+object used throughout PyAR. It is intentionally small and dependency-light.
+
+Compatibility notes
+-------------------
+
+PyAR has historically treated XYZ parsing errors as fatal and exited the
+process. That behavior is preserved by :func:`read_xyz`. New code should prefer
+the exception-based :func:`parse_xyz` helper for improved testability.
 """
+
 import itertools
 import logging
 import re
 import sys
+from copy import deepcopy
 from math import cos, sin
+from pathlib import Path
+from typing import Iterable, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -21,6 +26,75 @@ import pyar.data.new_atomic_data as atomic_data
 import pyar.property
 
 molecule_logger = logging.getLogger('pyar.molecule')
+
+
+class XYZParseError(ValueError):
+    """Raised when an XYZ file cannot be parsed."""
+
+
+def _as_coordinates_array(value) -> np.ndarray:
+    """Normalize coordinate inputs to a float ndarray of shape (N, 3)."""
+    arr = np.asarray(value, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] != 3:
+        raise ValueError(f"coordinates must have shape (N, 3); got {arr.shape!r}")
+    return arr
+
+
+def parse_xyz(filename: str) -> Tuple[list, np.ndarray, str, str, Optional[float]]:
+    """Parse an XYZ file and return atoms, coordinates, name, title, energy.
+
+    This is the exception-based core used by :func:`read_xyz`.
+    """
+    path = Path(filename)
+    try:
+        text = path.read_text().splitlines()
+    except OSError as exc:
+        raise XYZParseError(f"Could not read XYZ file {filename!r}: {exc}") from exc
+
+    if not text:
+        raise XYZParseError(f"XYZ file {filename!r} is empty")
+
+    try:
+        number_of_atoms = int(text[0].strip())
+    except Exception as exc:
+        raise XYZParseError(
+            f"{filename!r} should have number of atoms in the first line; found {text[0]!r}"
+        ) from exc
+
+    if number_of_atoms < 1:
+        raise XYZParseError(f"{filename!r} has invalid atom count {number_of_atoms}")
+
+    if len(text) < 2:
+        raise XYZParseError(f"{filename!r} is missing the title/comment line")
+
+    mol_title = text[1].rstrip("\n")
+    try:
+        energy = float(re.split(r':|=|\\s+', mol_title)[1])
+    except Exception:
+        energy = None
+
+    geometry_lines = [line.split() for line in text[2:] if len(line.split()) >= 4]
+    if len(geometry_lines) != number_of_atoms:
+        raise XYZParseError(
+            f"{filename!r} has {len(geometry_lines)} coordinate lines but declares {number_of_atoms} atoms"
+        )
+
+    atoms_list = []
+    coords = []
+    for i, fields in enumerate(geometry_lines, start=1):
+        try:
+            symbol = fields[0].capitalize()
+            x_coord = float(fields[1])
+            y_coord = float(fields[2])
+            z_coord = float(fields[3])
+        except Exception as exc:
+            raise XYZParseError(f"Bad XYZ geometry line {i} in {filename!r}: {fields!r}") from exc
+        atoms_list.append(symbol)
+        coords.append([x_coord, y_coord, z_coord])
+
+    mol_coordinates = _as_coordinates_array(coords)
+    mol_name = str(path)[:-4] if str(path).lower().endswith(".xyz") else str(path)
+    return atoms_list, mol_coordinates, mol_name, mol_title, energy
 
 
 class Molecule(object):
@@ -91,9 +165,18 @@ class Molecule(object):
 
     """
 
-    def __init__(self, atoms_list, coordinates, name=None,
-                 title=None, fragments=None, charge=0,
-                 multiplicity=1, scftype='rhf', energy=None):
+    def __init__(
+        self,
+        atoms_list,
+        coordinates,
+        name=None,
+        title=None,
+        fragments=None,
+        charge=0,
+        multiplicity=1,
+        scftype='rhf',
+        energy=None,
+    ):
         """
         Init function for Molecule
 
@@ -110,10 +193,9 @@ class Molecule(object):
         :param fragments: The list of atoms in each fragment required for the Reaction module.
 
         """
-
-        self.number_of_atoms = len(coordinates)
         self.atoms_list = [c.capitalize() for c in atoms_list]
-        self.coordinates = coordinates
+        self._coordinates = _as_coordinates_array(coordinates)
+        self.number_of_atoms = int(self._coordinates.shape[0])
         self.charge = charge
         self.multiplicity = multiplicity
         self.scftype = scftype
@@ -134,7 +216,8 @@ class Molecule(object):
 
         self.energy = energy
 
-        self.centroid = pyar.property.get_centroid(self.coordinates)
+        # Derived caches (kept as attributes for backward compatibility).
+        self._invalidate_geometry_cache()
         # self.centre_of_mass = pyar.property.get_centre_of_mass(
         #     self.coordinates, self.atomic_mass)
         # self.average_radius = pyar.property.get_average_radius(
@@ -153,6 +236,21 @@ class Molecule(object):
             self.fragments_coordinates = self.split_coordinates()
             self.fragments_atoms_list = self.split_atoms_lists()
 
+    def _invalidate_geometry_cache(self):
+        """Invalidate cached geometry-derived attributes."""
+        self.centroid = pyar.property.get_centroid(self._coordinates)
+
+    @property
+    def coordinates(self) -> np.ndarray:
+        """Cartesian coordinates in Angstrom, shape (N, 3)."""
+        return self._coordinates
+
+    @coordinates.setter
+    def coordinates(self, value):
+        self._coordinates = _as_coordinates_array(value)
+        self.number_of_atoms = int(self._coordinates.shape[0])
+        self._invalidate_geometry_cache()
+
     def __str__(self):
         return f"Name: {self.name}\n Coordinates:{self.coordinates}"
 
@@ -160,7 +258,7 @@ class Molecule(object):
         return f"Molecule.from_xyz('{self.name}.xyz')"
 
     def __iter__(self):
-        pass
+        return iter(zip(self.atoms_list, self.coordinates))
 
     def __len__(self):
         return self.number_of_atoms
@@ -211,6 +309,25 @@ class Molecule(object):
         merged.scftype = combined_scftype
         return merged
 
+    def copy(self):
+        """Return a deep copy of this molecule."""
+        new = Molecule(
+            list(self.atoms_list),
+            np.array(self.coordinates, dtype=float, copy=True),
+            name=self.name,
+            title=self.title,
+            fragments=deepcopy(getattr(self, "fragments", [])),
+            charge=self.charge,
+            multiplicity=self.multiplicity,
+            scftype=self.scftype,
+            energy=self.energy,
+        )
+        # Preserve optional workflow attributes when present.
+        for attr in ("fragments_history", "optimized_coordinates"):
+            if hasattr(self, attr):
+                setattr(new, attr, deepcopy(getattr(self, attr)))
+        return new
+
     @classmethod
     def from_xyz(cls, filename):
         """
@@ -227,9 +344,7 @@ class Molecule(object):
         :rtype: object
 
         """
-
-        atoms_list, mol_coordinates, mol_name, mol_title, energy = read_xyz(
-            filename)
+        atoms_list, mol_coordinates, mol_name, mol_title, energy = read_xyz(filename)
         return cls(atoms_list, mol_coordinates, name=mol_name,
                    title=mol_title, energy=energy)
 
@@ -390,7 +505,7 @@ class Molecule(object):
         return self
 
     def translate(self, magnitude):
-        self.coordinates -= magnitude
+        self.coordinates = self.coordinates - magnitude
         return self
 
     def align(self):
@@ -416,55 +531,57 @@ class Molecule(object):
         self.coordinates = np.dot(transformed_coordinates, move_axes)
         return self
 
+    # Non-mutating transform helpers (additive API).
+
+    def translated(self, magnitude):
+        """Return a translated copy of this molecule."""
+        return self.copy().translate(magnitude)
+
+    def rotated_3d(self, angles):
+        """Return a rotated copy of this molecule."""
+        return self.copy().rotate_3d(angles)
+
+    def aligned(self):
+        """Return an aligned copy of this molecule."""
+        return self.copy().align()
+
+    def moved_to_origin(self):
+        """Return a translated copy moved to the origin."""
+        return self.copy().move_to_origin()
+
+    def moved_to_centre_of_mass(self):
+        """Return a translated copy moved to its center of mass."""
+        return self.copy().move_to_centre_of_mass()
+
+    def to_ase_atoms(self):
+        """Convert this molecule into an ASE Atoms object (optional dependency)."""
+        from ase import Atoms  # optional dependency; imported lazily
+        return Atoms(self.atoms_list, positions=self.coordinates)
+
+    @classmethod
+    def from_ase_atoms(cls, atoms, name=None, title=None, charge=0, multiplicity=1, scftype="rhf", energy=None):
+        """Create a Molecule from an ASE Atoms object (optional dependency)."""
+        atoms_list = atoms.get_chemical_symbols()
+        coords = np.asarray(atoms.get_positions(), dtype=float)
+        return cls(
+            atoms_list,
+            coords,
+            name=name,
+            title=title,
+            fragments=None,
+            charge=charge,
+            multiplicity=multiplicity,
+            scftype=scftype,
+            energy=energy,
+        )
+
 
 def read_xyz(filename):
-    with open(filename) as fp:
-        f = fp.readlines()
     try:
-        number_of_atoms = int(f[0])
-    except Exception as e:
-        molecule_logger.error(e)
-        molecule_logger.error(f"{filename} should have number of atoms in the first line")
-
-        molecule_logger.error("but we found\n %s" % f[0])
-        molecule_logger.error("Is it an xyz file?")
+        return parse_xyz(filename)
+    except XYZParseError as exc:
+        molecule_logger.error(str(exc))
         sys.exit(f'Error in reading {filename}')
-    mol_title = f[1].rstrip()
-    try:
-        energy = float(re.split(r':|=|\s+', mol_title)[1])
-    except Exception as e:
-        molecule_logger.debug(f"No energy found\n{e}")
-        energy = None
-    try:
-        geometry_section = [each_line.split() for each_line in f[2:] if len(each_line) >= 4]
-
-    except Exception as e:
-        molecule_logger.error(e)
-        molecule_logger.error("Something wrong with reading the geometry section")
-        sys.exit(f'Error in reading {filename}')
-    if len(geometry_section) != number_of_atoms:
-        molecule_logger.error("Number of geometric coordinates is not equal to number of atoms")
-
-        molecule_logger.error("Is something wrong?")
-        sys.exit(f'Error in reading {filename}')
-    atoms_list = []
-    coordinates = []
-    for i, c in enumerate(geometry_section):
-        try:
-            symbol = c[0].capitalize()
-            x_coord = float(c[1])
-            y_coord = float(c[2])
-            z_coord = float(c[3])
-        except Exception as e:
-            molecule_logger.error(e)
-            molecule_logger.error("Something wrong in line: %d" % (i + 1))
-            molecule_logger.error(c)
-            sys.exit(f'Error in reading {filename}')
-        atoms_list.append(symbol)
-        coordinates.append([x_coord, y_coord, z_coord])
-    mol_coordinates = np.array(coordinates)
-    mol_name = filename[:-4]
-    return atoms_list, mol_coordinates, mol_name, mol_title, energy
 
 
 def main():
