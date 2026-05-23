@@ -1,3 +1,5 @@
+"""xTB followed by AIMNet2 refinement."""
+
 import logging
 import os
 import subprocess as subp
@@ -6,37 +8,35 @@ from importlib import resources
 from pathlib import Path
 
 import numpy as np
-import torch
 
 from pyar.interface import SF, require_executable, write_xyz
-from pyar.interface.xtb_utils import xtb_parallel_args
+from pyar.interface.xtb_utils import build_xtb_command
 
 xtb_aimnet2_logger = logging.getLogger('pyar.xtb_aimnet2')
 
-device = torch.device('cpu')
-xtb_aimnet2_logger.debug("xTB-AIMNet2 torch device: %s", device)
-
 model_path = str(resources.files('pyar').joinpath('AIMNet2/models/aimnet2_wb97m-d3_0.jpt'))
 aimnet2_script = str(resources.files('pyar').joinpath('AIMNet2/calculators/aimnet2_ase_opt.py'))
-# Load the model
-aimnet2 = torch.jit.load(model_path, map_location=device)
 
 class XtbAimnet2(SF):
+    """Run xTB, then refine the xTB minimum with AIMNet2."""
+
     def __init__(self, molecule, method):
+        """Build the two-stage xTB + AIMNet2 command sequence."""
         self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(XtbAimnet2, self).__init__(molecule)
 
-        self.xtb_cmd = [self.xtb_executable, self.start_xyz_file]
-        self.xtb_cmd.extend(xtb_parallel_args(method))
-        self.xtb_cmd.extend(["-opt", method['opt_threshold']])
-
-        if self.charge != 0:
-            self.xtb_cmd.extend(["-chrg", str(self.charge)])
-        if self.multiplicity != 1:
-            self.xtb_cmd.extend(["-uhf", str(self.multiplicity)])
-        if self.multiplicity == 1 and self.scftype != 'rhf':
-            self.xtb_cmd.append(f"-{self.scftype}")
+        self.xtb_cmd = build_xtb_command(
+            self.xtb_executable,
+            self.start_xyz_file,
+            {
+                **method,
+                "charge": self.charge,
+                "multiplicity": self.multiplicity,
+                "scftype": self.scftype,
+            },
+            opt_threshold=method['opt_threshold'],
+        )
 
         self._validate_runtime_files()
         self.aimnet2_cmd = [

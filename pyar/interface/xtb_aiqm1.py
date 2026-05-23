@@ -1,3 +1,5 @@
+"""xTB followed by AIQM1 refinement."""
+
 import logging
 import os
 import subprocess as subp
@@ -7,28 +9,32 @@ from importlib import resources
 import numpy as np
 
 from pyar.interface import SF, require_executable, write_xyz
-from pyar.interface.xtb_utils import xtb_parallel_args
+from pyar.interface.xtb_utils import build_xtb_command
 
 xtb_aiqm1_logger = logging.getLogger('pyar.xtb_aiqm1')
 
 aiqm1_opt = str(resources.files('pyar').joinpath('interface/mlopt.py'))
 
 class XtbAIQM1(SF):
+    """Run xTB, then refine the xTB minimum with AIQM1."""
+
     def __init__(self, molecule, method):
+        """Build the two-stage xTB + AIQM1 command sequence."""
         self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(XtbAIQM1, self).__init__(molecule)
 
-        self.xtb_cmd = [self.xtb_executable, self.start_xyz_file]
-        self.xtb_cmd.extend(xtb_parallel_args(method))
-        self.xtb_cmd.extend(["-opt", method['opt_threshold']])
-
-        if self.charge != 0:
-            self.xtb_cmd.extend(["-chrg", str(self.charge)])
-        if self.multiplicity != 1:
-            self.xtb_cmd.extend(["-uhf", str(self.multiplicity)])
-        if self.multiplicity == 1 and self.scftype != 'rhf':
-            self.xtb_cmd.append(f"-{self.scftype}")
+        self.xtb_cmd = build_xtb_command(
+            self.xtb_executable,
+            self.start_xyz_file,
+            {
+                **method,
+                "charge": self.charge,
+                "multiplicity": self.multiplicity,
+                "scftype": self.scftype,
+            },
+            opt_threshold=method['opt_threshold'],
+        )
 
         self.aiqm1_cmd = f"{sys.executable} {aiqm1_opt} {self.xtb_optimized_xyz_file} -c {self.charge} -m {self.multiplicity}  {self.aiqm1_optimized_xyz_file}"
 

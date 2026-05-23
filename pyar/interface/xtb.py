@@ -1,22 +1,4 @@
-"""
-xtb.py - interface to mopac program
-
-Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
-Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
-Universitaet Muenster, Germany
-
-This file is part of the PyAR project.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation version 2 of the License.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-"""
+"""Pure xTB geometry optimization interface."""
 import logging
 import os
 import subprocess as subp
@@ -25,40 +7,31 @@ import sys
 import numpy as np
 
 from pyar.interface import SF, require_executable, write_xyz
-from pyar.interface.xtb_utils import xtb_parallel_args
+from pyar.interface.xtb_utils import build_xtb_command
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
 
 class Xtb(SF):
+    """Run a standalone xTB optimization for a single molecule."""
 
     def __init__(self, molecule, method):
+        """Build the xTB command for a molecule and QC parameter set."""
         self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(Xtb, self).__init__(molecule)
 
-        self.cmd = [self.xtb_executable, self.start_xyz_file]
-        self.cmd.extend(xtb_parallel_args(method))
-        self.cmd.extend(["-opt", method['opt_threshold']])
-
-        if self.charge != 0:
-            self.cmd.extend(["-chrg", str(self.charge)])
-        if self.multiplicity != 1:
-            self.cmd.extend(["-uhf", str(self.multiplicity)])
-        if self.multiplicity == 1 and self.scftype != 'rhf':
-            self.cmd.append(f"-{self.scftype}")
+        self.cmd = build_xtb_command(
+            self.xtb_executable,
+            self.start_xyz_file,
+            method,
+            opt_threshold=method['opt_threshold'],
+        )
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
-        """
-        :returns: True,
-                  'SCFFailed',
-                  'GradFailed',
-                  'UpdateFailed',
-                  'CycleExceeded',
-                  False
-        """
+        """Execute xTB and return a success flag or failure status string."""
         if gamma is not None:
             xtb_logger.error('not implemented in this module. Use xtb_turbo')
 
@@ -87,11 +60,12 @@ class Xtb(SF):
 
     @property
     def optimized_coordinates(self):
-        """"""
+        """Read the optimized xTB coordinates from ``xtbopt.xyz``."""
         return np.loadtxt('xtbopt.xyz', dtype=float, skiprows=2, usecols=(1, 2, 3))
 
     @property
     def energy(self):
+        """Read the final total energy from xTB output files."""
         if os.path.exists('energy'):
             with open('energy') as fp:
                 return float(fp.readlines()[-2].split()[1])

@@ -1,58 +1,53 @@
+"""Turbomole/AFIR workflow backed by xTB gradients.
+
+This module runs the AFIR/Turbomole optimization loop using xTB for the
+energy and gradient evaluations.
 """
-turbomole.py - interface to turbomole program
 
-Copyright (C) 2016 by Surajit Nandi, Anoop Ayyappan, and Mark P. Waller
-Indian Institute of Technology Kharagpur, India and Westfaelische Wilhelms
-Universitaet Muenster, Germany
-
-This file is part of the PyAR project.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation version 2 of the License.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-"""
 import logging
 import os
 import subprocess as subp
 import sys
 
-import pyar.interface.babel
+import numpy as np
+
 import pyar.interface.turbomole
 from pyar import interface
 from pyar.afir import restraints
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF, require_executable
-from pyar.interface.xtb_utils import xtb_parallel_args
+from pyar.interface.xtb_utils import build_xtb_command
 
 xtb_turbo_logger = logging.getLogger('pyar.xtbturbo')
 
 
 class XtbTurbo(SF):
+    """Run the AFIR/Turbomole optimization loop with xTB gradients."""
 
     def __init__(self, molecule, method):
+        """Build the xTB gradient evaluator used by the AFIR loop."""
 
         self.define_executable = require_executable('define', 'Turbomole')
         self.xtb_executable = require_executable('xtb', 'xTB')
 
         super(XtbTurbo, self).__init__(molecule)
 
-        self.start_coords = angstrom2bohr(molecule.coordinates)
+        self.start_coords = angstrom2bohr(np.asarray(molecule.coordinates, dtype=float))
         self.atoms_in_fragments = molecule.fragments
         self.job_dir = '{}/job_{}'.format(os.getcwd(), self.job_name)
         self.coord_file = 'coord'
         self.energy_file = 'energy'
 
-        self.egrad_program = [self.xtb_executable, 'coord', '-grad']
-        self.egrad_program.extend(xtb_parallel_args(method))
-        if self.charge > 0:
-            self.egrad_program += ['-chrg', str(self.charge)]
-        if self.multiplicity != 1:
-            self.egrad_program += ['-uhf', str(self.multiplicity)]
+        self.egrad_program = build_xtb_command(
+            self.xtb_executable,
+            'coord',
+            {
+                **method,
+                "charge": self.charge,
+                "multiplicity": self.multiplicity,
+            },
+        )
+        self.egrad_program.append('-grad')
         self.energy = None
         self.optimized_coordinates = None
 
@@ -62,7 +57,6 @@ class XtbTurbo(SF):
         # convergence = options['opt_threshold']
         max_cycles = 250
         gamma = 100.0
-
 
         pyar.interface.turbomole.make_coord(self.atoms_list, self.start_coords, self.coord_file)
         pyar.interface.turbomole.prepare_control()

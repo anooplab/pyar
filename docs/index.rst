@@ -11,6 +11,7 @@ Start here
 * :doc:`workflows`
 * :doc:`installation`
 * :doc:`usage`
+* :doc:`xtb`
 * :doc:`api`
 * :doc:`reference`
 
@@ -28,5 +29,6 @@ The fastest way to verify a local install is:
    workflows
    installation
    usage
+   xtb
    api
    reference

@@ -35,3 +35,5 @@ Supporting utilities
 .. automodule:: pyar.property
    :members:
    :undoc-members:
+
+For xTB-specific APIs, see :doc:`api`.
