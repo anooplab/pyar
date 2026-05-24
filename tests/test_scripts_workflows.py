@@ -112,23 +112,18 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 with mock.patch.object(
-                    reactor.pyar.interface.babel,
-                    "make_inchi_string_from_xyz",
-                    return_value="start-inchi",
-                ):
-                    with mock.patch.object(
-                        reactor.pyar.interface.babel,
-                        "make_smile_string_from_xyz",
-                        return_value="start-smile",
-                    ):
-                        with mock.patch.object(reactor, "optimise", side_effect=fail_optimization):
-                            result = reactor.optimize_all(
-                                "gamma",
-                                [molecule],
-                                None,
-                                tmpdir,
-                                {"gamma": 1.0},
-                            )
+                    reactor,
+                    "molecule_identity_from_xyz",
+                    return_value={"inchi": "start-inchi", "smiles": "start-smile"},
+                ), \
+                    mock.patch.object(reactor, "optimise", side_effect=fail_optimization):
+                    result = reactor.optimize_all(
+                        "gamma",
+                        [molecule],
+                        None,
+                        tmpdir,
+                        {"gamma": 1.0},
+                    )
             finally:
                 os.chdir(cwd)
 
@@ -166,8 +161,11 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 with mock.patch.object(reactor.file_manager, "make_directories", side_effect=lambda path: os.makedirs(path, exist_ok=True)), \
-                    mock.patch.object(reactor.pyar.interface.babel, "make_inchi_string_from_xyz", return_value="same-inchi"), \
-                    mock.patch.object(reactor.pyar.interface.babel, "make_smile_string_from_xyz", return_value="same-smile"), \
+                    mock.patch.object(
+                        reactor,
+                        "molecule_identity_from_xyz",
+                        return_value={"inchi": "same-inchi", "smiles": "same-smile"},
+                    ), \
                     mock.patch.object(reactor, "optimise", side_effect=succeed):
                     reactor.optimize_all(
                         "gamma",
@@ -182,7 +180,27 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(optimization_parameters[0]["gamma"], 100.0)
         self.assertEqual(optimization_parameters[1]["gamma"], 0.0)
 
-    def test_reactor_writes_disconnected_product_reference(self):
+    def test_reactor_deduplicates_by_canonical_inchi_not_smiles_format(self):
+        import pyar.reactor as reactor
+
+        original_registry = dict(reactor.saved_product_identities)
+        try:
+            reactor.saved_product_identities.clear()
+            reactor.saved_product_identities["existing"] = {
+                "inchi": "same-inchi",
+                "smiles": "smiles-a",
+            }
+            self.assertTrue(
+                reactor._is_known_product({"inchi": "same-inchi", "smiles": "smiles-b"})
+            )
+            self.assertFalse(
+                reactor._is_known_product({"inchi": "other-inchi", "smiles": "smiles-a"})
+            )
+        finally:
+            reactor.saved_product_identities.clear()
+            reactor.saved_product_identities.update(original_registry)
+
+    def test_unbiased_relaxation_restores_job_name_after_failure(self):
         import pyar.reactor as reactor
 
         molecule = Molecule(
@@ -192,8 +210,29 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             fragments=[[0], [1]],
         )
         with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(reactor, "optimise", side_effect=RuntimeError("failed")):
+                    with self.assertRaisesRegex(RuntimeError, "failed"):
+                        reactor.relax_without_afir_bias(molecule, {"gamma": 100.0})
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(molecule.name, "candidate")
+
+    def test_reactor_writes_disconnected_product_reference(self):
+        import pyar.reaction_identity as reaction_identity
+
+        molecule = Molecule(
+            ["C", "H"],
+            np.array([[0.0, 0.0, 0.0], [1.1, 0.0, 0.0]]),
+            name="candidate",
+            fragments=[[0], [1]],
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
             output = os.path.join(tmpdir, "reference.xyz")
-            reactor.write_disconnected_reference(molecule, output)
+            reaction_identity.write_disconnected_reference(molecule, output)
             reference = Molecule.from_xyz(output)
 
         self.assertAlmostEqual(reference.coordinates[1, 0] - reference.coordinates[0, 0], 101.1)
@@ -336,6 +375,33 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(first_qc_params["gamma"], 0.1)
         run_state.complete_cycle.assert_called_once_with(0.1, [])
         run_state.finish.assert_called_once_with("completed_no_candidates")
+
+    def test_reactor_reports_product_terminal_state(self):
+        import pyar.reactor as reactor
+
+        original_registry = dict(reactor.saved_product_identities)
+        try:
+            reactor.saved_product_identities.clear()
+            reactor.saved_product_identities["product"] = {
+                "inchi": "product-inchi",
+                "smiles": "product-smiles",
+            }
+            run_state = mock.Mock()
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with mock.patch.object(
+                    reactor,
+                    "initialize_reaction_run",
+                    return_value=(tmpdir, tmpdir, run_state, [100.0], [], tmpdir),
+                ), \
+                    mock.patch.object(reactor, "optimize_all", return_value=[]), \
+                    mock.patch.object(reactor.os, "chdir"):
+                    reactor.react(object(), object(), 100.0, 100.0, 1, {"software": "xtb"}, None, 2.3)
+
+            run_state.complete_cycle.assert_called_once_with(100.0, [])
+            run_state.finish.assert_called_once_with("completed_products_found")
+        finally:
+            reactor.saved_product_identities.clear()
+            reactor.saved_product_identities.update(original_registry)
 
     def test_trial_generation_make_composite_uses_population_offsets(self):
         script = self._import_in_tempdir("pyar.scripts.trial_generation")

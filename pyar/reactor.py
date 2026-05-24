@@ -6,17 +6,20 @@ import shutil
 import sys
 
 import numpy as np
-import pyar.interface.babel
 import pyar.scan
 from pyar import trial_generation, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
+from pyar.reaction_identity import (
+    molecule_identity_from_xyz,
+    same_molecular_identity,
+    write_disconnected_reference,
+)
 from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 
 reactor_logger = logging.getLogger('pyar.reactor')
 
-saved_inchi_strings = {}
-saved_smile_strings = {}
+saved_product_identities = {}
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
@@ -68,18 +71,6 @@ def format_gamma_id(gamma):
     return f"{sign}{magnitude}"
 
 
-def write_disconnected_reference(molecule, path, separation=100.0):
-    """Write an unreacted identity reference with fragments far apart.
-
-    Trial structures are intentionally close enough to interact, which may
-    make OpenBabel perceive an inter-fragment bond before optimization.
-    """
-    reference = molecule.copy()
-    if len(reference.fragments) == 2:
-        reference.coordinates[reference.fragments[1], 0] += separation
-    reference.mol_to_xyz(path)
-
-
 def _molecule_signature(molecule):
     """Return stable input geometry metadata used to validate restarts."""
     return {
@@ -110,11 +101,31 @@ def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
 
 def _restore_product_registry(run_state):
     """Restore saved product identities so resumed runs deduplicate correctly."""
-    saved_inchi_strings.clear()
-    saved_smile_strings.clear()
+    saved_product_identities.clear()
     for job_name, (inchi, smiles) in run_state.saved_product_identities().items():
-        saved_inchi_strings[job_name] = inchi
-        saved_smile_strings[job_name] = smiles
+        saved_product_identities[job_name] = {"inchi": inchi, "smiles": smiles}
+
+
+def _is_known_product(identity):
+    """Return whether the product's canonical molecular identity is known."""
+    return any(
+        same_molecular_identity(identity, recorded_identity)
+        for recorded_identity in saved_product_identities.values()
+    )
+
+
+def relax_without_afir_bias(molecule, qc_params):
+    """Relax a bonded AFIR candidate on the unbiased physical objective."""
+    original_name = molecule.name
+    molecule.mol_to_xyz('trial_relax.xyz')
+    molecule.name = 'relax'
+    try:
+        status = optimise(molecule, without_afir_bias(qc_params))
+    finally:
+        molecule.name = original_name
+    if is_success(status):
+        molecule.mol_to_xyz('result_relax.xyz')
+    return status
 
 
 def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations,
@@ -245,11 +256,11 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
             f"Gamma cycle optimized geometries: {len(optimized_molecules)}")
         if len(optimized_molecules) == 0:
             run_state.complete_cycle(gamma, [])
-            if saved_inchi_strings:
+            if saved_product_identities:
                 reactor_logger.info(
                     "Reaction search completed with %d unique product(s); "
                     "no candidates require higher-gamma optimization.",
-                    len(saved_inchi_strings),
+                    len(saved_product_identities),
                 )
                 run_state.finish("completed_products_found")
             else:
@@ -263,7 +274,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
             orientations_to_optimize = clustering.remove_similar(
                 optimized_molecules)
         run_state.complete_cycle(gamma, orientations_to_optimize)
-        reactor_logger.info(f"Products found so far: {len(saved_inchi_strings)}")
+        reactor_logger.info(f"Products found so far: {len(saved_product_identities)}")
         reactor_logger.info(f"Next cycle candidate geometries: {len(orientations_to_optimize)}")
 
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
@@ -271,7 +282,8 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
             reactor_logger.debug(f"{this_orientation.name}")
 
     os.chdir(workdir)
-    run_state.finish()
+    terminal_status = "completed_products_found" if saved_product_identities else "completed"
+    run_state.finish(terminal_status)
     reactor_logger.info("Reaction workflow completed. State retained in reaction/state.json.")
     return
 
@@ -313,8 +325,7 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         this_molecule.mol_to_xyz(start_xyz_file_name)
         reference_xyz_file_name = f'reactants_{this_molecule.name}.xyz'
         write_disconnected_reference(this_molecule, reference_xyz_file_name)
-        start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(reference_xyz_file_name)
-        start_smile = pyar.interface.babel.make_smile_string_from_xyz(reference_xyz_file_name)
+        start_identity = molecule_identity_from_xyz(reference_xyz_file_name)
         status = optimise(this_molecule, qc_param)
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
@@ -324,24 +335,19 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
 
             if this_molecule.is_bonded():
                 reactor_logger.info("Close contacts detected; running unbiased relaxation (gamma=0.0)")
-                this_molecule.mol_to_xyz('trial_relax.xyz')
-                this_molecule.name = 'relax'
-                status = optimise(this_molecule, without_afir_bias(qc_param))
-                this_molecule.name = job_name
+                status = relax_without_afir_bias(this_molecule, qc_param)
                 if is_success(status):
-                    this_molecule.mol_to_xyz('result_relax.xyz')
-                    current_inchi = pyar.interface.babel.make_inchi_string_from_xyz('result_relax.xyz')
-
-                    current_smile = pyar.interface.babel.make_smile_string_from_xyz('result_relax.xyz')
+                    current_identity = molecule_identity_from_xyz('result_relax.xyz')
+                    current_inchi = current_identity["inchi"]
+                    current_smile = current_identity["smiles"]
 
                     reactor_logger.info('Relaxation completed')
                     reactor_logger.info("Checking product formation using SMILES and InChI")
 
-                    reactor_logger.info(f"Start SMILE: {start_smile} Current SMILE: {current_smile}")
+                    reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
+                    reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
 
-                    reactor_logger.info(f"Start InChi: {start_inchi} Current InChi: {current_inchi}")
-
-                    if start_inchi == current_inchi and start_smile == current_smile:
+                    if same_molecular_identity(start_identity, current_identity):
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
 
@@ -349,14 +355,13 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                         reactor_logger.info("Geometry differs from starting structure.")
 
                         reactor_logger.info("Checking whether product is new")
-                        if current_inchi in saved_inchi_strings.values() or current_smile in saved_smile_strings.values():
+                        if _is_known_product(current_identity):
                             reactor_logger.info("Product matches an existing product; discarded")
                             product_status = "duplicate_product"
 
                         else:
                             reactor_logger.info("New product detected; saving")
-                            saved_inchi_strings[job_name] = current_inchi
-                            saved_smile_strings[job_name] = current_smile
+                            saved_product_identities[job_name] = current_identity
                             shutil.copy('result_relax.xyz', f'{product_dir}/{job_name}.xyz')
                             if run_state is not None:
                                 run_state.record_product(

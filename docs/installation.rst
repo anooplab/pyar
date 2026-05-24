@@ -32,8 +32,7 @@ The backends that must be installed on the system are:
 * MOPAC
 * xTB
 * Turbomole
-* OpenBabel executables such as ``obabel``, ``babel``, ``obminimize``, and
-  ``obenergy``
+* OpenBabel executables such as ``obabel``, ``obminimize``, and ``obenergy``
 
 ``geomeTRIC`` is a Python dependency rather than an external electronic
 structure program. It is used as the internal-coordinate optimizer for AFIR
