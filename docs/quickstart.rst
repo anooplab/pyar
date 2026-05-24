@@ -43,7 +43,7 @@ Run a reaction search:
 
 .. code-block:: bash
 
-   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software orca
+   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
 Scan a bond:
 
@@ -64,3 +64,6 @@ Notes
 * If ``--software`` is omitted for aggregate mode, PyAR logs that it is
   generating trial geometries only and skips quantum-chemistry optimization.
 * ``--formula`` is only valid together with ``--aggregate``.
+* Reaction runs with ``--software xtb`` or ``--software aimnet_2`` use
+  geomeTRIC/TRIC for the AFIR-biased optimization, then use ``gamma=0.0`` for
+  product relaxation.

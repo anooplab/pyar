@@ -17,6 +17,7 @@ INSTALL_REQUIRES = [
     'networkx',
     'matplotlib',
     'hdbscan',
+    'geometric>=1.1',
     'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
     'openbabel-wheel',
 ]

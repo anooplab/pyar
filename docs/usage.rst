@@ -7,7 +7,7 @@ Examples:
 
 .. code-block:: bash
 
-   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software orca
+   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
    pyar-cli -a C H -as 1 4 -N 8
 

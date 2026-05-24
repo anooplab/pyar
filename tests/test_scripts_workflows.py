@@ -145,6 +145,60 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(updated["software"], "xtb")
         self.assertIsNot(updated, qc_params)
 
+    def test_reactor_relaxes_bonded_candidates_without_afir_bias(self):
+        import pyar.reactor as reactor
+
+        molecule = Molecule(
+            ["H", "H"],
+            np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.5]]),
+            name="000_geom",
+            fragments=[[0], [1]],
+        )
+        optimization_parameters = []
+
+        def succeed(current, params):
+            optimization_parameters.append(dict(params))
+            current.energy = -1.0
+            return True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(reactor.file_manager, "make_directories", side_effect=lambda path: os.makedirs(path, exist_ok=True)), \
+                    mock.patch.object(reactor.pyar.interface.babel, "make_inchi_string_from_xyz", return_value="same-inchi"), \
+                    mock.patch.object(reactor.pyar.interface.babel, "make_smile_string_from_xyz", return_value="same-smile"), \
+                    mock.patch.object(reactor, "optimise", side_effect=succeed):
+                    reactor.optimize_all(
+                        "gamma",
+                        [molecule],
+                        None,
+                        tmpdir,
+                        {"software": "xtb", "geometry_optimizer": "geometric", "gamma": 100.0},
+                    )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(optimization_parameters[0]["gamma"], 100.0)
+        self.assertEqual(optimization_parameters[1]["gamma"], 0.0)
+
+    def test_reactor_writes_disconnected_product_reference(self):
+        import pyar.reactor as reactor
+
+        molecule = Molecule(
+            ["C", "H"],
+            np.array([[0.0, 0.0, 0.0], [1.1, 0.0, 0.0]]),
+            name="candidate",
+            fragments=[[0], [1]],
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = os.path.join(tmpdir, "reference.xyz")
+            reactor.write_disconnected_reference(molecule, output)
+            reference = Molecule.from_xyz(output)
+
+        self.assertAlmostEqual(reference.coordinates[1, 0] - reference.coordinates[0, 0], 101.1)
+        self.assertAlmostEqual(molecule.coordinates[1, 0] - molecule.coordinates[0, 0], 1.1)
+
     def test_reactor_build_gamma_schedule_returns_numeric_values(self):
         import pyar.reactor as reactor
 
@@ -155,6 +209,21 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertAlmostEqual(float(schedule[1]), 0.15)
         self.assertAlmostEqual(float(schedule[2]), 0.2)
         self.assertTrue(all(isinstance(value, np.floating) or isinstance(value, float) for value in schedule))
+
+    def test_reactor_rejects_invalid_gamma_schedule(self):
+        import pyar.reactor as reactor
+
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            reactor.build_gamma_schedule(-1.0, 100.0)
+        with self.assertRaisesRegex(ValueError, "greater than or equal"):
+            reactor.build_gamma_schedule(100.0, 10.0)
+
+    def test_reactor_equal_gamma_limits_run_one_cycle(self):
+        import pyar.reactor as reactor
+
+        schedule = reactor.build_gamma_schedule(100.0, 100.0)
+
+        self.assertEqual(schedule.tolist(), [100.0])
 
     def test_reactor_format_gamma_id_uses_zero_padding(self):
         import pyar.reactor as reactor
@@ -265,6 +334,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         first_qc_params = optimize_all.call_args_list[0].args[-1]
         self.assertIsInstance(first_qc_params["gamma"], float)
         self.assertEqual(first_qc_params["gamma"], 0.1)
+        run_state.complete_cycle.assert_called_once_with(0.1, [])
         run_state.finish.assert_called_once_with("completed_no_candidates")
 
     def test_trial_generation_make_composite_uses_population_offsets(self):

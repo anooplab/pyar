@@ -176,6 +176,34 @@ def _supports_staged_optimization(software):
     return bool(profile.get("staged_optimization", False))
 
 
+def _supports_geometric_optimization(software):
+    """Return True when the backend can supply forces to geomeTRIC."""
+    return software in {"xtb", "aimnet_2"}
+
+
+def _configure_reaction_optimizer(run_parameters, run_mode):
+    """Select the external optimizer for supported AFIR reaction backends."""
+    if run_mode != "react" or not _supports_geometric_optimization(run_parameters["software"]):
+        return
+    if run_parameters["opt_target"] == "ts":
+        sys.exit(
+            "Transition-state optimization is reserved for a future "
+            "reaction-product workflow"
+        )
+    explicitly_selected = "--geometry-optimizer" in sys.argv
+    if not explicitly_selected:
+        run_parameters["geometry_optimizer"] = "geometric"
+        logger.info(
+            "Reaction optimizer: selected geomeTRIC for backend energy/forces plus AFIR bias."
+        )
+        return
+    if run_parameters["geometry_optimizer"] != "geometric":
+        sys.exit(
+            "AFIR reaction runs with xtb or aimnet_2 require "
+            "--geometry-optimizer geometric"
+        )
+
+
 def _mask_unsupported_qc_parameters(qc_params, software):
     """Return QC params with backend-unsupported options set to None."""
     masked = dict(qc_params)
@@ -329,6 +357,12 @@ chemical formula.
                                  'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom',
                                  'xtb-aimnet2', 'xtb-aiqm1'],
                         required=False, default=None, help="Software")
+    parser.add_argument('--geometry-optimizer', type=str, default='native',
+                        choices=['native', 'geometric'],
+                        help='Geometry optimizer used for backend gradients')
+    parser.add_argument('--opt-target', type=str, default='minimum',
+                        choices=['minimum', 'ts'],
+                        help='Optimization target for the geometry optimizer')
     parser.add_argument('--opt-threshold', type=str, default='normal',
                         choices=['loose', 'normal', 'tight'],
                         help='Optimization threshold')
@@ -442,6 +476,7 @@ def main():
     run_mode = _active_run_mode(run_parameters)
     logger.info(f'Run mode: {run_mode}')
     logger.info(f'Log level: {_verbosity_name(run_parameters["verbosity"])}')
+    _configure_reaction_optimizer(run_parameters, run_mode)
     if run_parameters['formula']:
         logger.info(f'Formula input: {run_parameters["formula"]}')
     else:
@@ -523,6 +558,8 @@ def main():
 
     custom_keywords = run_parameters['custom_keywords']
     provided_qc_options = _provided_qc_options(args)
+    if run_mode == "react" and run_parameters["geometry_optimizer"] == "geometric":
+        provided_qc_options.discard("gamma")
     backend_family = "none"
     staged_optimization = False
     ignored_qc_options = []
@@ -531,6 +568,10 @@ def main():
             run_parameters["software"], provided_qc_options
         )
         staged_optimization = _supports_staged_optimization(run_parameters["software"])
+        if run_parameters["geometry_optimizer"] == "geometric" and not _supports_geometric_optimization(run_parameters["software"]):
+            sys.exit(
+                f"geometry optimizer 'geometric' currently supports only xtb or aimnet_2, not {run_parameters['software']}"
+            )
         if ignored_qc_options:
             ignored_labels = [QC_OPTION_ALIASES.get(k, k) for k in ignored_qc_options]
             logger.warning(
@@ -544,6 +585,8 @@ def main():
         'basis': run_parameters['basis'],
         'method': run_parameters['method'],
         'software': run_parameters['software'],
+        'geometry_optimizer': run_parameters['geometry_optimizer'],
+        'opt_target': run_parameters['opt_target'],
         'opt_cycles': run_parameters['opt_cycles'],
         'opt_threshold': run_parameters['opt_threshold'],
         'scf_cycles': run_parameters['scf_cycles'],
@@ -561,6 +604,8 @@ def main():
     )
 
     logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
+    logger.info(f'Geometry optimizer: {quantum_chemistry_parameters["geometry_optimizer"]}')
+    logger.info(f'Optimization target: {quantum_chemistry_parameters["opt_target"]}')
     logger.info(f'Backend family: {backend_family}')
     logger.info(
         "Optimization layers: %s",
@@ -697,7 +742,7 @@ def main():
             scan.scan_distance(input_molecules, run_parameters['scan_bond'],
                                int(number_of_orientations),
                                quantum_chemistry_parameters)
-    except (FileNotFoundError, ReactionStateError) as exc:
+    except (FileNotFoundError, ReactionStateError, ValueError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

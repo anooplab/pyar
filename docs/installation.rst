@@ -10,8 +10,9 @@ Install PyAR from a local checkout:
 This installs the package metadata, Python dependencies, and the bundled
 runtime assets used by the MLatom and AIMNet2 interfaces. The packaging
 metadata now carries the dependency set, so users do not need to install
-``hdbscan`` or ``DBCV`` manually for a normal pip-based install. The OpenBabel
-Python binding is also installed as part of the package requirements.
+``hdbscan``, ``DBCV``, or ``geomeTRIC`` manually for a normal pip-based
+install. The OpenBabel Python binding is also installed as part of the package
+requirements.
 
 For development, an editable install works the same way:
 
@@ -33,3 +34,8 @@ The backends that must be installed on the system are:
 * Turbomole
 * OpenBabel executables such as ``obabel``, ``babel``, ``obminimize``, and
   ``obenergy``
+
+``geomeTRIC`` is a Python dependency rather than an external electronic
+structure program. It is used as the internal-coordinate optimizer for AFIR
+reaction calculations with the ``xtb`` and ``aimnet_2`` energy/force
+providers.

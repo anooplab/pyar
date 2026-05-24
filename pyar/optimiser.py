@@ -55,7 +55,17 @@ def apply_geometry_result(molecule, geometry):
 def build_geometry(molecule, qc_params):
     """Create the interface wrapper for a configured software backend."""
     software = qc_params['software']
+    geometry_optimizer = qc_params.get('geometry_optimizer', 'native')
     gamma = qc_params.get('gamma', None)
+
+    if geometry_optimizer == 'geometric':
+        if software not in {'xtb', 'aimnet_2'}:
+            raise ValueError(
+                "geomeTRIC geometry optimization currently supports only 'xtb' "
+                f"and 'aimnet_2' backends, not {software!r}"
+            )
+        from pyar.interface import geometric
+        return geometric.Geometric(molecule, qc_params)
 
     if software == 'mlatom_aiqm1':
         from pyar.interface import mlatom_aiqm1
@@ -122,9 +132,10 @@ def optimise(molecule, qc_params):
         software = qc_params.get('software', 'unknown')
         gamma = qc_params.get('gamma', None)
         optimiser_logger.debug(
-            "Optimization job start: name=%s software=%s gamma=%s dir=%s",
+            "Optimization job start: name=%s software=%s geometry_optimizer=%s gamma=%s dir=%s",
             molecule.name,
             software,
+            qc_params.get('geometry_optimizer', 'native'),
             gamma,
             os.path.abspath(job_dir),
         )

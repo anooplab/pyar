@@ -20,7 +20,18 @@ def argument_parse():
     parser.add_argument('-N', dest='how_many_orientations', metavar='N', required=True, help='The number of orientations to be used')
     parser.add_argument('--gmin', type=float, required=True, help='minimum value of gamma')
     parser.add_argument('--gmax', type=float, required=True, help='maximum value of gamma')
-    parser.add_argument('--software', type=str, required=True, help='Software for optimization e.g., orca-aiqm1')
+    parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
+    parser.add_argument(
+        '--geometry-optimizer',
+        choices=['native', 'geometric'],
+        help='Optimizer for the AFIR objective; defaults to geometric for xtb and aimnet_2',
+    )
+    parser.add_argument(
+        '--opt-target',
+        choices=['minimum', 'ts'],
+        default='minimum',
+        help='Optimization target; ts is reserved for future automatic TS searches',
+    )
     parser.add_argument('--index', type=int, help='Index for splitting the molecule (final index of the first reactant, i.e., number of atoms - 1). If not provided, it will be calculated from the first input file.')
     return parser.parse_args()
 
@@ -50,13 +61,34 @@ def main():
         index = run_parameters['index']
 
     logger.info(f"Using index: {index} (final index of the first reactant)")
-    qc_params = {'software': run_parameters['software'], 'index': index}
+    geometry_optimizer = run_parameters['geometry_optimizer']
+    if run_parameters['software'] in {'xtb', 'aimnet_2'}:
+        if run_parameters['opt_target'] == 'ts':
+            sys.exit(
+                "Transition-state optimization is reserved for a future "
+                "reaction-product workflow"
+            )
+        if geometry_optimizer is None:
+            geometry_optimizer = 'geometric'
+        elif geometry_optimizer != 'geometric':
+            sys.exit(
+                "AFIR reaction runs with xtb or aimnet_2 require "
+                "--geometry-optimizer geometric"
+            )
+    else:
+        geometry_optimizer = geometry_optimizer or 'native'
+    qc_params = {
+        'software': run_parameters['software'],
+        'index': index,
+        'geometry_optimizer': geometry_optimizer,
+        'opt_target': run_parameters['opt_target'],
+    }
     try:
         reactor.react(input_molecules[0], input_molecules[1],
                       run_parameters['gmin'], run_parameters['gmax'],
                       int(run_parameters['how_many_orientations']), qc_params,
                       None, 2.3)
-    except (FileNotFoundError, ReactionStateError) as exc:
+    except (FileNotFoundError, ReactionStateError, ValueError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

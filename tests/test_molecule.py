@@ -121,6 +121,15 @@ class MoleculeTests(unittest.TestCase):
         self.assertEqual(merged.fragments, [[0], [1]])
         self.assertEqual((first + second).atoms_list, merged.atoms_list)
 
+    def test_is_bonded_recognizes_normal_hydrogen_bond_length(self):
+        molecule = Molecule(
+            ["H", "H"],
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.74]],
+            fragments=[[0], [1]],
+        )
+
+        self.assertTrue(molecule.is_bonded())
+
     def test_to_ase_atoms_roundtrip_when_available(self):
         try:
             import ase  # noqa: F401

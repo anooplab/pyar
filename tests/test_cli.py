@@ -219,6 +219,93 @@ class CliSmokeTests(unittest.TestCase):
 
         self.assertEqual(str(ctx.exception), "Existing reaction state does not match this invocation")
 
+    def test_react_xtb_selects_geometric_afir_optimizer(self):
+        captured = {}
+
+        def capture_react(*args):
+            captured["qc_params"] = args[5]
+
+        Path("a.xyz").touch()
+        Path("b.xyz").touch()
+        sys.modules["pyar.reactor"].react = capture_react
+        sys.argv = [
+            "pyar-cli",
+            "-r",
+            "a.xyz",
+            "b.xyz",
+            "-N",
+            "1",
+            "-gmin",
+            "100",
+            "-gmax",
+            "200",
+            "--software",
+            "xtb",
+        ]
+
+        self.cli.main()
+
+        self.assertEqual(captured["qc_params"]["geometry_optimizer"], "geometric")
+        self.assertEqual(captured["qc_params"]["opt_target"], "minimum")
+        current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]
+        self.assertNotIn("ignores unsupported options: --gmin/--gmax", current_log)
+
+    def test_react_xtb_rejects_native_optimizer_that_ignores_afir(self):
+        Path("a.xyz").touch()
+        Path("b.xyz").touch()
+        sys.argv = [
+            "pyar-cli",
+            "-r",
+            "a.xyz",
+            "b.xyz",
+            "-N",
+            "1",
+            "-gmin",
+            "100",
+            "-gmax",
+            "200",
+            "--software",
+            "xtb",
+            "--geometry-optimizer",
+            "native",
+        ]
+
+        with self.assertRaises(SystemExit) as ctx:
+            self.cli.main()
+
+        self.assertEqual(
+            str(ctx.exception),
+            "AFIR reaction runs with xtb or aimnet_2 require --geometry-optimizer geometric",
+        )
+
+    def test_react_xtb_rejects_unimplemented_transition_state_target(self):
+        Path("a.xyz").touch()
+        Path("b.xyz").touch()
+        sys.argv = [
+            "pyar-cli",
+            "-r",
+            "a.xyz",
+            "b.xyz",
+            "-N",
+            "1",
+            "-gmin",
+            "100",
+            "-gmax",
+            "200",
+            "--software",
+            "xtb",
+            "--opt-target",
+            "ts",
+        ]
+
+        with self.assertRaises(SystemExit) as ctx:
+            self.cli.main()
+
+        self.assertEqual(
+            str(ctx.exception),
+            "Transition-state optimization is reserved for a future reaction-product workflow",
+        )
+
     def test_aggregate_accepts_element_symbols(self):
         sys.argv = [
             "pyar-cli",

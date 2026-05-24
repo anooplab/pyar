@@ -22,7 +22,13 @@ Reaction searches operate on exactly two input structures.
 
 .. code-block:: bash
 
-   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software orca
+   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
+
+For ``xtb`` and ``aimnet_2`` reaction runs, PyAR uses geomeTRIC/TRIC to
+optimize the backend energy/force objective plus the AFIR bias. Ordinary
+aggregation and standalone optimization continue to use each backend's native
+optimizer. A bonded reaction candidate is relaxed again with ``gamma=0.0``
+before product identity is assessed.
 
 Reaction restart state is stored as readable JSON and XYZ snapshots:
 

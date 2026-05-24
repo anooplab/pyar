@@ -29,6 +29,8 @@ def main():
     molecule_group.add_argument("--scftype", type=str, choices=['rhf', 'uhf'], default='rhf')
     quantum_chemistry_group = parser.add_argument_group('calculation', 'Calculation specific options')
     quantum_chemistry_group.add_argument("--software", type=str, choices=['gaussian', 'mopac', 'obabel', 'orca', 'psi4', 'turbomole', 'xtb', 'xtb_turbo', 'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom', 'xtb-aimnet2', 'xtb-aiqm1'], required=True)
+    quantum_chemistry_group.add_argument('--geometry-optimizer', type=str, default='native', choices=['native', 'geometric'])
+    quantum_chemistry_group.add_argument('--opt-target', type=str, default='minimum', choices=['minimum', 'ts'])
     quantum_chemistry_group.add_argument('-nprocs', '--nprocs', type=int, nargs=1)
     quantum_chemistry_group.add_argument('-basis', '--basis', type=str)
     quantum_chemistry_group.add_argument('-method', '--method', type=str)
@@ -42,6 +44,11 @@ def main():
     for key, value in args.items():
         if value is not None and run_parameters[key] != value:
             run_parameters[key] = value
+    if run_parameters['geometry_optimizer'] == 'geometric' and run_parameters['opt_target'] == 'ts':
+        sys.exit(
+            "Transition-state optimization is reserved for a future "
+            "reaction-product workflow"
+        )
     logger.setLevel(logging.INFO)
     handler.setFormatter(logging.Formatter('%(message)s'))
     logger.addHandler(handler)
@@ -60,6 +67,8 @@ def main():
         'basis': run_parameters['basis'],
         'method': run_parameters['method'],
         'software': run_parameters['software'],
+        'geometry_optimizer': run_parameters['geometry_optimizer'],
+        'opt_target': run_parameters['opt_target'],
         'opt_cycles': run_parameters['opt_cycles'],
         'opt_threshold': run_parameters['opt_threshold'],
         'scf_cycles': run_parameters['scf_cycles'],

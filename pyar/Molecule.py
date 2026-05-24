@@ -205,8 +205,13 @@ class Molecule(object):
         """Write the geometry in Turbomole ``coord`` format."""
         molecule_io.write_turbomole_coord(self)
 
-    def is_bonded(self):
-        """Return ``True`` when any inter-fragment atom pair is bonded."""
+    def is_bonded(self, bond_scale=1.3):
+        """Return whether any inter-fragment pair forms a covalent bond.
+
+        ``bond_scale`` follows the connectivity convention used elsewhere in
+        PyAR; an unscaled covalent-radius sum is shorter than normal X-H and
+        H-H bond lengths and therefore misses real products.
+        """
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
         radii_sum = [
@@ -216,7 +221,10 @@ class Molecule(object):
             np.linalg.norm(a - b)
             for a, b in itertools.product(fragment_one, fragment_two)
         ]
-        return any(distance < radius for distance, radius in zip(distances, radii_sum))
+        return any(
+            distance < bond_scale * radius
+            for distance, radius in zip(distances, radii_sum)
+        )
 
     @property
     def moments_of_inertia_tensor(self):

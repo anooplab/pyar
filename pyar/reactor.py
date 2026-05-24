@@ -35,8 +35,21 @@ def with_gamma(qc_params, gamma):
     return updated_qc_params
 
 
+def without_afir_bias(qc_params):
+    """Return parameters for unbiased physical relaxation of a reaction candidate."""
+    return with_gamma(qc_params, 0.0)
+
+
 def build_gamma_schedule(gamma_min, gamma_max, steps=10):
     """Build the numeric AFIR gamma schedule used by the reaction workflow."""
+    if not np.isfinite(gamma_min) or not np.isfinite(gamma_max):
+        raise ValueError("AFIR gamma limits must be finite numbers")
+    if gamma_min < 0.0 or gamma_max < 0.0:
+        raise ValueError("AFIR gamma limits must be non-negative")
+    if gamma_max < gamma_min:
+        raise ValueError("AFIR maximum gamma must be greater than or equal to minimum gamma")
+    if gamma_min == gamma_max:
+        return np.asarray([float(gamma_min)])
     return np.linspace(gamma_min, gamma_max, num=steps, dtype=float)
 
 
@@ -53,6 +66,18 @@ def format_gamma_id(gamma):
     else:
         magnitude = magnitude.replace(".", "p").replace("-", "m").replace("+", "")
     return f"{sign}{magnitude}"
+
+
+def write_disconnected_reference(molecule, path, separation=100.0):
+    """Write an unreacted identity reference with fragments far apart.
+
+    Trial structures are intentionally close enough to interact, which may
+    make OpenBabel perceive an inter-fragment bond before optimization.
+    """
+    reference = molecule.copy()
+    if len(reference.fragments) == 2:
+        reference.coordinates[reference.fragments[1], 0] += separation
+    reference.mol_to_xyz(path)
 
 
 def _molecule_signature(molecule):
@@ -219,8 +244,17 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         reactor_logger.info(
             f"Gamma cycle optimized geometries: {len(optimized_molecules)}")
         if len(optimized_molecules) == 0:
-            reactor_logger.info("No orientations left for next gamma cycle.")
-            run_state.finish("completed_no_candidates")
+            run_state.complete_cycle(gamma, [])
+            if saved_inchi_strings:
+                reactor_logger.info(
+                    "Reaction search completed with %d unique product(s); "
+                    "no candidates require higher-gamma optimization.",
+                    len(saved_inchi_strings),
+                )
+                run_state.finish("completed_products_found")
+            else:
+                reactor_logger.info("No orientations left for next gamma cycle.")
+                run_state.finish("completed_no_candidates")
             os.chdir(workdir)
             return
         if len(optimized_molecules) == 1:
@@ -277,9 +311,10 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         reactor_logger.info(f'Optimizing {this_molecule.name}')
         start_xyz_file_name = f'trial_{this_molecule.name}.xyz'
         this_molecule.mol_to_xyz(start_xyz_file_name)
-        start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
-
-        start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
+        reference_xyz_file_name = f'reactants_{this_molecule.name}.xyz'
+        write_disconnected_reference(this_molecule, reference_xyz_file_name)
+        start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(reference_xyz_file_name)
+        start_smile = pyar.interface.babel.make_smile_string_from_xyz(reference_xyz_file_name)
         status = optimise(this_molecule, qc_param)
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
@@ -288,10 +323,10 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
             reactor_logger.info("Energy E({}): {:12.7f}".format(job_name, this_molecule.energy))
 
             if this_molecule.is_bonded():
-                reactor_logger.info("Close contacts detected; running relaxation")
+                reactor_logger.info("Close contacts detected; running unbiased relaxation (gamma=0.0)")
                 this_molecule.mol_to_xyz('trial_relax.xyz')
                 this_molecule.name = 'relax'
-                status = optimise(this_molecule, qc_param)
+                status = optimise(this_molecule, without_afir_bias(qc_param))
                 this_molecule.name = job_name
                 if is_success(status):
                     this_molecule.mol_to_xyz('result_relax.xyz')

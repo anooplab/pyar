@@ -22,15 +22,15 @@ convergence. This has three design consequences:
   by ``react``
 
 ``pyar.afir.restraints.isotropic`` already provides the important reusable
-piece: additive AFIR energy and Cartesian gradient evaluation. It should be
-moved behind a bias-potential interface instead of coupled to Turbomole file
+piece: additive AFIR energy and Cartesian force evaluation. The geomeTRIC
+adapter uses that force directly instead of coupling it to Turbomole file
 rewriting.
 
 Target Objective
 ----------------
 
-The reaction workflow should construct one objective from a physical
-energy/gradient provider and zero or more additive bias potentials:
+The reaction workflow constructs one objective from a physical energy/force
+provider and zero or more additive bias potentials:
 
 .. math::
 
@@ -39,11 +39,12 @@ energy/gradient provider and zero or more additive bias potentials:
 
 .. math::
 
-   g_\mathrm{total}(x) =
-   g_\mathrm{method}(x) + g_\mathrm{AFIR}(x)
+   F_\mathrm{total}(x) =
+   F_\mathrm{method}(x) + F_\mathrm{AFIR}(x)
 
-The optimizer receives only this objective. It is independent of whether
-``E_method`` comes from xTB, AIMNet2, Psi4, ORCA, or another implementation.
+The optimizer receives only this objective. The implemented providers are xTB
+and AIMNet2; Psi4, ORCA, and other engines require energy/force adapters
+before they can use this channel.
 The AFIR gamma value belongs to the bias settings stored in the request and
 run state; it must never be replaced by a wrapper-level constant.
 
@@ -82,7 +83,8 @@ Units are part of this contract:
 
 * coordinates at the objective boundary: Bohr
 * energies: Hartree
-* Cartesian gradients: Hartree/Bohr
+* Cartesian forces or gradients: Hartree/Bohr, with sign translated
+  explicitly at the optimizer boundary
 * stored XYZ and user-facing geometry coordinates: Angstrom
 
 Conversions should occur once at the objective boundary. This aligns the new
@@ -93,8 +95,8 @@ Internal-Coordinate Optimizer Choice
 
 Cartesian ``LBFGS`` and ``FIRE`` are useful baselines and fallbacks, but they
 do not satisfy the primary design requirement: efficient molecular
-optimization in internal coordinates. The first production target for AFIR
-reaction optimization should be **geomeTRIC using TRIC coordinates**.
+optimization in internal coordinates. The implemented xTB and AIMNet2 AFIR
+reaction channels use **geomeTRIC with TRIC coordinates**.
 
 TRIC adds explicit translation and rotation coordinates for each molecular
 fragment alongside intrafragment internal coordinates. This matches an AFIR
@@ -190,27 +192,20 @@ Legacy ``jobs.pkl`` checkpoints are migrated only when their old gamma labels
 map unambiguously to the requested numeric schedule. This gives the later
 internal-coordinate optimizer an inspectable and atomic restart foundation.
 
-Optimizer Migration Sequence
-----------------------------
+Implemented Channel And Next Steps
+----------------------------------
 
-1. Add typed energy/gradient, bias, and optimizer settings objects without
-   changing existing reaction results.
-2. Add unit tests for AFIR energy and gradients, including finite-difference
-   verification and explicit unit conversion tests.
-3. Extract xTB single-point energy and gradient evaluation from
-   ``xtb_turbo`` so it no longer requires Turbomole input files or executable
-   checks.
-4. Add a geomeTRIC/TRIC adapter and run it against the composed xTB plus AFIR
-   objective behind an explicit experimental option.
-5. Extend the existing structured reaction run state with objective
-   components, optimizer step counts, and convergence details.
-6. Compare the new route with the present implementation and Cartesian
-   baselines on a controlled test matrix.
-7. Make the TRIC route the default after reliability evidence is recorded;
-   remove ``xtb_turbo`` and the Turbomole dependency from xTB/AFIR reaction
-   calculations.
-8. Add AIMNet2 and quantum chemistry energy/gradient providers against the
-   same optimizer and bias contracts.
+For ``react`` calculations using ``--software xtb`` or
+``--software aimnet_2``, PyAR now selects the geomeTRIC/TRIC optimizer and
+evaluates the physical energy/forces together with the AFIR force. When a
+bonded candidate is found, product relaxation is repeated without AFIR bias
+(``gamma=0.0``). Native optimizers remain the default for aggregate and
+ordinary backend optimization workflows.
+
+The remaining development work is to store optimizer step and objective
+component details in restart state, benchmark this channel on controlled
+reaction cases, add quantum-chemistry force-provider adapters, and implement
+transition-state optimization as a separate validated workflow.
 
 Validation And Benchmarks
 -------------------------

@@ -50,6 +50,10 @@ xTB interface
    :members:
    :undoc-members:
 
+.. automodule:: pyar.interface.geometric
+   :members:
+   :undoc-members:
+
 Sampling API
 ------------
 
