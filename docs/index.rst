@@ -14,6 +14,8 @@ Start here
 * :doc:`molecule`
 * :doc:`xtb`
 * :doc:`orientation_sampling`
+* :doc:`architecture`
+* :doc:`reaction_optimization`
 * :doc:`api`
 * :doc:`reference`
 
@@ -34,5 +36,7 @@ The fastest way to verify a local install is:
    molecule
    xtb
    orientation_sampling
+   architecture
+   reaction_optimization
    api
    reference
