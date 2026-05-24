@@ -388,6 +388,7 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
 def main():
     args = vars(argument_parse())
     from pyar import aggregator, reactor, scan
+    from pyar.reaction_state import ReactionStateError
 
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
 
@@ -696,7 +697,7 @@ def main():
             scan.scan_distance(input_molecules, run_parameters['scan_bond'],
                                int(number_of_orientations),
                                quantum_chemistry_parameters)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, ReactionStateError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

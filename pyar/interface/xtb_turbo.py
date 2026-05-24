@@ -14,6 +14,7 @@ import numpy as np
 import pyar.interface.turbomole as turbomole
 from pyar import interface
 from pyar.afir import restraints
+from pyar.afir.utils import resolve_gamma
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF, require_executable
 from pyar.interface.xtb_utils import build_xtb_command
@@ -25,7 +26,7 @@ class XtbTurbo(SF):
     """Run the AFIR/Turbomole optimization loop with xTB gradients."""
 
     def __init__(self, molecule, method):
-        """Prepare the xTB gradient command and Turbomole input state."""
+        """Prepare the xTB gradient command, AFIR settings, and Turbomole input state."""
         self.define_command = require_executable("define", "Turbomole")
         self.xtb_executable = require_executable("xtb", "xTB")
 
@@ -48,6 +49,7 @@ class XtbTurbo(SF):
             },
         )
         self.gradient_command.append("-grad")
+        self.gamma = resolve_gamma(method.get("gamma"))
 
         # Backward-compatible names kept for older call sites.
         self.egrad_program = self.gradient_command
@@ -59,7 +61,6 @@ class XtbTurbo(SF):
     def optimize(self):
         """Run the AFIR optimization loop until convergence or failure."""
         max_cycles = 250
-        gamma = 100.0
 
         turbomole.make_coord(self.atoms_list, self.start_coordinates_bohr, self.coordinate_file)
         turbomole.prepare_control()
@@ -75,7 +76,7 @@ class XtbTurbo(SF):
                 self.atoms_in_fragments,
                 self.atoms_list,
                 turbomole.get_coords(),
-                gamma,
+                self.gamma,
             )
             turbomole.rewrite_turbomole_energy_and_gradient_files(
                 self.number_of_atoms,

@@ -8,6 +8,7 @@ from collections import defaultdict
 
 from pyar import reactor
 from pyar.Molecule import Molecule
+from pyar.reaction_state import ReactionStateError
 
 logger = logging.getLogger('pyar-react')
 handler = logging.FileHandler('pyar-react.log', 'a')
@@ -55,7 +56,7 @@ def main():
                       run_parameters['gmin'], run_parameters['gmax'],
                       int(run_parameters['how_many_orientations']), qc_params,
                       None, 2.3)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, ReactionStateError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

@@ -1,8 +1,10 @@
+import os
 import tempfile
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+
+import numpy as np
 
 from pyar.interface.xtb_utils import build_xtb_command, xtb_parallel_args
 
@@ -67,6 +69,35 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("12", runner.egrad_program)
         self.assertIn("-grad", runner.egrad_program)
 
+    def test_xtb_turbo_uses_requested_gamma(self):
+        from pyar.interface import xtb_turbo
+
+        molecule = SimpleNamespace(**self.molecule.__dict__)
+        molecule.coordinates = np.asarray(self.molecule.coordinates, dtype=float)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(xtb_turbo, "require_executable", side_effect=["define", "xtb"]):
+                    runner = xtb_turbo.XtbTurbo(molecule, {"nprocs": 12, "gamma": "37.5"})
+
+                with mock.patch.object(xtb_turbo.turbomole, "make_coord"), \
+                    mock.patch.object(xtb_turbo.turbomole, "prepare_control"), \
+                    mock.patch.object(xtb_turbo.turbomole, "get_coords", return_value=np.zeros((5, 3))), \
+                    mock.patch.object(xtb_turbo.turbomole, "rewrite_turbomole_energy_and_gradient_files"), \
+                    mock.patch.object(xtb_turbo.turbomole, "update_coord", return_value=False), \
+                    mock.patch.object(runner, "calculate_energy_gradient", return_value=(True, [], 1.0, np.zeros((5, 3)))), \
+                    mock.patch.object(xtb_turbo.restraints, "isotropic", return_value=(0.0, np.zeros((5, 3)))) as isotropic:
+                    status = runner.optimize()
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(status, "UpdateFailed")
+        self.assertEqual(runner.gamma, 37.5)
+        isotropic.assert_called_once()
+        self.assertEqual(isotropic.call_args.args[-1], 37.5)
+
     def test_xtb_aiqm1_wrapper_uses_parallel_threads(self):
         from pyar.interface import xtb_aiqm1
 
@@ -88,6 +119,20 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("--parallel", runner.xtb_cmd)
         self.assertIn("6", runner.xtb_cmd)
         self.assertIn("-opt", runner.xtb_cmd)
+
+    def test_turbomole_wrapper_stores_gamma_from_parameters(self):
+        from pyar.interface import turbomole
+
+        molecule = SimpleNamespace(**self.molecule.__dict__)
+        molecule.coordinates = np.asarray(self.molecule.coordinates, dtype=float)
+
+        with mock.patch.object(turbomole, "require_executable", return_value="define"):
+            runner = turbomole.Turbomole(
+                molecule,
+                {"basis": "def2-SVP", "method": "bp86", "gamma": "22.0"},
+            )
+
+        self.assertEqual(runner.gamma, 22.0)
 
 
 if __name__ == "__main__":

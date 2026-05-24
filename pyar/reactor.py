@@ -6,16 +6,15 @@ import shutil
 import sys
 
 import numpy as np
-from pyar.checkpt import dumpchk, readchk, updtchk
 import pyar.interface.babel
 import pyar.scan
 from pyar import trial_generation, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
+from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 
 reactor_logger = logging.getLogger('pyar.reactor')
 
-saved_products = {}
 saved_inchi_strings = {}
 saved_smile_strings = {}
 
@@ -29,109 +28,243 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
     reactor_logger.info("===============================================================")
 
 
+def with_gamma(qc_params, gamma):
+    """Return a copy of ``qc_params`` with the current gamma value applied."""
+    updated_qc_params = dict(qc_params)
+    updated_qc_params['gamma'] = gamma
+    return updated_qc_params
+
+
+def build_gamma_schedule(gamma_min, gamma_max, steps=10):
+    """Build the numeric AFIR gamma schedule used by the reaction workflow."""
+    return np.linspace(gamma_min, gamma_max, num=steps, dtype=float)
+
+
+def format_gamma_id(gamma):
+    """Format a gamma value for directory names and readable job labels."""
+    value = float(gamma)
+    sign = "m" if value < 0.0 else ""
+    magnitude = f"{abs(value):.12g}"
+    if "e" not in magnitude:
+        integer, separator, fraction = magnitude.partition(".")
+        magnitude = integer.zfill(4)
+        if separator:
+            magnitude = f"{magnitude}p{fraction}"
+    else:
+        magnitude = magnitude.replace(".", "p").replace("-", "m").replace("+", "")
+    return f"{sign}{magnitude}"
+
+
+def _molecule_signature(molecule):
+    """Return stable input geometry metadata used to validate restarts."""
+    return {
+        "atoms": list(molecule.atoms_list),
+        "coordinates": np.asarray(molecule.coordinates, dtype=float).tolist(),
+        "charge": molecule.charge,
+        "multiplicity": molecule.multiplicity,
+    }
+
+
+def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
+                           qc_params, site, proximity_factor):
+    """Build the scientific request persisted with reaction restart state."""
+    backend_parameters = dict(qc_params)
+    backend_parameters.pop("gamma", None)
+    return {
+        "gamma_schedule": [float(value) for value in gamma_list],
+        "orientations": int(hm_orientations),
+        "backend_parameters": backend_parameters,
+        "site": None if site is None else list(site),
+        "proximity_factor": float(proximity_factor),
+        "reactants": [
+            _molecule_signature(reactant_a),
+            _molecule_signature(reactant_b),
+        ],
+    }
+
+
+def _restore_product_registry(run_state):
+    """Restore saved product identities so resumed runs deduplicate correctly."""
+    saved_inchi_strings.clear()
+    saved_smile_strings.clear()
+    for job_name, (inchi, smiles) in run_state.saved_product_identities().items():
+        saved_inchi_strings[job_name] = inchi
+        saved_smile_strings[job_name] = smiles
+
+
+def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations,
+                            qc_params, site, proximity_factor):
+    """Prepare a reaction run and return the mutable workflow state."""
+    current_workdir = os.getcwd()
+    requested_gamma_list = build_gamma_schedule(gamma_min, gamma_max)
+    request = build_reaction_request(
+        reactant_a,
+        reactant_b,
+        requested_gamma_list,
+        hm_orientations,
+        qc_params,
+        site,
+        proximity_factor,
+    )
+    run_state = ReactionRunState.load(current_workdir, request)
+    if run_state is None:
+        legacy_checkpoint = read_legacy_checkpoint(current_workdir)
+        if legacy_checkpoint is not None:
+            run_state = ReactionRunState.migrate_legacy(
+                current_workdir, legacy_checkpoint, request
+            )
+            reactor_logger.warning(
+                "Imported legacy jobs.pkl into reaction/state.json; "
+                "legacy product deduplication history is unavailable."
+            )
+
+    if run_state is not None:
+        reactor_logger.info('Reaction state detected: resuming reaction workflow')
+        gamma_list = run_state.remaining_gamma_schedule()
+        orientations_to_optimize = run_state.pending_molecules()
+        os.chdir('reaction')
+        cwd = os.getcwd()
+        product_dir = f'{cwd}/products'
+        _restore_product_registry(run_state)
+        return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
+
+    if os.path.isdir('reaction'):
+        raise ReactionStateError(
+            "Existing reaction directory has no resumable state; "
+            "preserve it and start in a new directory, or remove it explicitly."
+        )
+    os.makedirs('reaction')
+    os.chdir('reaction')
+    cwd = os.getcwd()
+
+    reactor_logger.info('Starting reaction workflow')
+    reactor_logger.info(
+        "Reaction config: orientations=%s gamma_min=%s gamma_max=%s site=%s proximity_factor=%s",
+        hm_orientations, gamma_min, gamma_max, site, proximity_factor,
+    )
+    reactor_logger.debug("Reaction qc_params=%s", qc_params)
+    reactor_logger.debug(f'Current working directory: {cwd}')
+
+    software = qc_params['software']
+    print_header(gamma_max, gamma_min, hm_orientations, software)
+    product_dir = f'{cwd}/products'
+    reactor_logger.debug(f'Product directory: {product_dir}')
+    file_manager.make_directories(product_dir)
+    file_manager.make_directories('trial_geometries')
+    os.chdir('trial_geometries')
+    if site is None:
+        all_orientations = trial_generation.create_trial_geometries(
+            'geom',
+            reactant_a,
+            reactant_b,
+            hm_orientations,
+            site,
+        )
+    else:
+        all_orientations = pyar.scan.generate_guess_for_bonding(
+            'geom',
+            reactant_a,
+            reactant_b,
+            site[0],
+            site[1],
+            hm_orientations,
+            d_scale=proximity_factor,
+        )
+
+    os.chdir(cwd)
+
+    gamma_list = requested_gamma_list
+    orientations_to_optimize = all_orientations[:]
+    run_state = ReactionRunState.create(
+        current_workdir,
+        request,
+        orientations_to_optimize,
+        (reactant_a, reactant_b),
+    )
+    _restore_product_registry(run_state)
+    return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
+
+
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
           site, proximity_factor):
     """Run the reaction-search workflow for two reactants."""
-    global workdir
-    workdir = os.getcwd()
+    workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir = initialize_reaction_run(
+        reactant_a,
+        reactant_b,
+        gamma_min,
+        gamma_max,
+        hm_orientations,
+        qc_params,
+        site,
+        proximity_factor,
+    )
 
-    if readchk(workdir) is not None:
-        chk = readchk(workdir)
-        reactor_logger.info('Checkpoint detected: resuming reaction workflow')
-        gamma_list = list(chk.keys()).copy()
-        orientations_to_optimize = chk[gamma_list[0]].copy()
-        os.chdir('reaction')
-        cwd = os.getcwd()
-        product_dir = f'{cwd}/products'
-
-    else:
-        file_manager.make_directories('reaction')
-        os.chdir('reaction')
-        cwd = os.getcwd()
-
-        reactor_logger.info('Starting reaction workflow')
-        reactor_logger.info(
-            "Reaction config: orientations=%s gamma_min=%s gamma_max=%s site=%s proximity_factor=%s",
-            hm_orientations, gamma_min, gamma_max, site, proximity_factor,
-        )
-        reactor_logger.debug("Reaction qc_params=%s", qc_params)
-
-        reactor_logger.debug(f'Current working directory: {cwd}')
-
-        software = qc_params['software']
-        print_header(gamma_max, gamma_min, hm_orientations, software)
-        # prepare job directories
-        product_dir = f'{cwd}/products'
-        reactor_logger.debug(f'Product directory: {product_dir}')
-        file_manager.make_directories(product_dir)
-        file_manager.make_directories('trial_geometries')
-        os.chdir('trial_geometries')
-        if site is None:
-            all_orientations = trial_generation.create_trial_geometries('geom', reactant_a,
-                                                            reactant_b,
-                                                            hm_orientations,
-                                                            site)
-        else:
-            all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a,
-                                                                    reactant_b,
-                                                                    site[0], site[1],
-                                                                    hm_orientations,
-                                                                    d_scale=proximity_factor)
-
-        os.chdir(cwd)
-
-        gamma_list = np.linspace(gamma_min, gamma_max, num=10, dtype=float)
-        gamma_list = [f"{int(gamma):04d}" for gamma in gamma_list]
-
-        orientations_to_optimize = all_orientations[:]
-        # print(k.name for k in orientations_to_optimize)
-        chk = {gamma: orientations_to_optimize.copy() for gamma in gamma_list}
-        dumpchk(chk, workdir, reactor_logger)
-
-    for en, gamma in enumerate(gamma_list):
-        qc_params['gamma'] = gamma
-        reactor_logger.info(f'Gamma cycle start: {gamma}')
-        gamma_id = f"{int(gamma):04d}"
+    for gamma in gamma_list:
+        gamma_id = format_gamma_id(gamma)
+        reactor_logger.info(f'Gamma cycle start: {gamma_id}')
         gamma_home = f'{cwd}/gamma_{gamma_id}'
         if not os.path.exists(gamma_home):
             file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)
 
-        optimized_molecules = optimize_all(gamma_id, orientations_to_optimize,chk,
-                                           product_dir, qc_params)
+        gamma_qc_params = with_gamma(qc_params, gamma)
+        optimized_molecules = optimize_all(
+            gamma_id,
+            orientations_to_optimize,
+            run_state,
+            product_dir,
+            gamma_qc_params,
+        )
 
         reactor_logger.info(
             f"Gamma cycle optimized geometries: {len(optimized_molecules)}")
         if len(optimized_molecules) == 0:
             reactor_logger.info("No orientations left for next gamma cycle.")
-            chk.clear()
+            run_state.finish("completed_no_candidates")
+            os.chdir(workdir)
             return
         if len(optimized_molecules) == 1:
             orientations_to_optimize = optimized_molecules[:]
         else:
             orientations_to_optimize = clustering.remove_similar(
                 optimized_molecules)
-        if(en != len(gamma_list)-1):
-            chk[gamma_list[en+1]] = orientations_to_optimize
+        run_state.complete_cycle(gamma, orientations_to_optimize)
         reactor_logger.info(f"Products found so far: {len(saved_inchi_strings)}")
         reactor_logger.info(f"Next cycle candidate geometries: {len(orientations_to_optimize)}")
 
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
         for this_orientation in orientations_to_optimize:
             reactor_logger.debug(f"{this_orientation.name}")
-        updtchk(chk,'gamma',gamma,reactor_logger,workdir)
 
     os.chdir(workdir)
-    os.remove('jobs.pkl')
-    reactor_logger.info("Reaction workflow completed. Checkpoint file removed.")
+    run_state.finish()
+    reactor_logger.info("Reaction workflow completed. State retained in reaction/state.json.")
     return
 
 
-def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
+def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
     """Optimize all trial geometries for one gamma cycle."""
     gamma = qc_param['gamma']
     cwd = os.getcwd()
-    table_of_optimized_molecules = []
+    table_of_optimized_molecules = (
+        run_state.current_survivor_molecules()
+        if run_state is not None
+        else []
+    )
+    pending_orientations = list(orientations)
+
+    def record_orientation_completion(job_name, status):
+        """Persist the processed job and any orientations still pending."""
+        pending_orientations.pop(0)
+        if run_state is not None:
+            run_state.record_job(
+                job_name,
+                gamma,
+                status,
+                pending_orientations,
+                table_of_optimized_molecules,
+            )
+
     for this_molecule in orientations:
         job_key = this_molecule.name
         reactor_logger.info(f'   Orientation: {job_key}')
@@ -147,10 +280,6 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
         start_inchi = pyar.interface.babel.make_inchi_string_from_xyz(start_xyz_file_name)
 
         start_smile = pyar.interface.babel.make_smile_string_from_xyz(start_xyz_file_name)
-        # Update qc_param with the current gamma and index
-        # qc_param['gamma'] = gamma
-        # qc_param['index'] = len(this_molecule.atoms_list)-1
-
         status = optimise(this_molecule, qc_param)
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
@@ -182,21 +311,29 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
 
                     else:
-                        saved_products[job_name] = this_molecule
                         reactor_logger.info("Geometry differs from starting structure.")
 
                         reactor_logger.info("Checking whether product is new")
                         if current_inchi in saved_inchi_strings.values() or current_smile in saved_smile_strings.values():
                             reactor_logger.info("Product matches an existing product; discarded")
+                            product_status = "duplicate_product"
 
                         else:
                             reactor_logger.info("New product detected; saving")
                             saved_inchi_strings[job_name] = current_inchi
                             saved_smile_strings[job_name] = current_smile
-                            saved_products[job_name] = this_molecule
                             shutil.copy('result_relax.xyz', f'{product_dir}/{job_name}.xyz')
+                            if run_state is not None:
+                                run_state.record_product(
+                                    job_name,
+                                    gamma,
+                                    current_inchi,
+                                    current_smile,
+                                    f'{product_dir}/{job_name}.xyz',
+                                )
+                            product_status = "new_product"
                         os.chdir(cwd)
-                        updtchk(chkdict, 'ori', job_name, reactor_logger, workdir)
+                        record_orientation_completion(job_name, product_status)
                         continue
                 elif is_cycle_exceeded(status):
                     table_of_optimized_molecules.append(before_relax)
@@ -207,7 +344,7 @@ def optimize_all(gamma_id, orientations, chkdict, product_dir, qc_param):
                 reactor_logger.info('No close contacts found')
                 reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
 
-        updtchk(chkdict, 'ori', job_name, reactor_logger, workdir)
+        record_orientation_completion(job_name, status)
         os.chdir(cwd)
         sys.stdout.flush()
     return table_of_optimized_molecules

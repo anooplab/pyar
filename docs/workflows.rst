@@ -24,6 +24,30 @@ Reaction searches operate on exactly two input structures.
 
    pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software orca
 
+Reaction restart state is stored as readable JSON and XYZ snapshots:
+
+.. code-block:: text
+
+   reaction/
+     state.json
+     state/
+       geometries/
+     gamma_0100/
+     products/
+
+``state.json`` records the numeric gamma schedule, current cycle, pending and
+retained geometries, completed jobs, discovered products, and the calculation
+settings used for restart validation. Re-running the same command in an
+interrupted calculation directory resumes compatible pending work. Completed
+state is retained as a run record. An existing ``reaction/`` directory without
+a compatible state record is never overwritten automatically; start from a new
+directory or remove archived output deliberately.
+
+Legacy ``jobs.pkl`` reaction checkpoints are imported once when their gamma
+schedule is unambiguous. A legacy checkpoint whose formatted keys have lost
+distinct fractional gamma values exits with a clear error instead of resuming
+an uncertain calculation.
+
 Solvation
 ---------
 

@@ -34,6 +34,7 @@ import numpy as np
 
 from pyar import interface
 from pyar.afir import restraints
+from pyar.afir.utils import resolve_gamma
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.interface import SF, require_executable
 
@@ -86,6 +87,7 @@ class Turbomole(SF):
         self.optimized_coordinates = None
         self.basis = qc_params['basis']
         self.method = qc_params['method']
+        self.gamma = resolve_gamma(qc_params.get('gamma'))
 
     def optimize(self):
         """This is the python implementation  of jobex of turbomole
@@ -99,7 +101,6 @@ class Turbomole(SF):
 
         """
         # max_cycles = options['opt_cycles']
-        # gamma = options['gamma']
         # convergence = options['opt_threshold']
 
         # if convergence == 'loose':
@@ -109,7 +110,6 @@ class Turbomole(SF):
         # else:
         #     scf_conv = 7
         scf_conv = 6
-        gamma = 100.0
         max_cycles = 200
         basis_set = self.basis
         functional = 'bp'
@@ -179,8 +179,12 @@ class Turbomole(SF):
 
             # Calculate afir gradient if gamma is greater than zero
             # if gamma > 0.0:
-            afir_energy, afir_gradients = restraints.isotropic(self.atoms_in_fragments, self.atoms_list, get_coords(),
-                                                               gamma)
+            afir_energy, afir_gradients = restraints.isotropic(
+                self.atoms_in_fragments,
+                self.atoms_list,
+                get_coords(),
+                self.gamma,
+            )
             rewrite_turbomole_energy_and_gradient_files(self.number_of_atoms, afir_energy, afir_gradients)
             turbomole_logger.debug(f'restraint energy = {afir_energy:f}')
 

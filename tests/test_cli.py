@@ -6,10 +6,11 @@ import types
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+from pyar.reaction_state import ReactionStateError
 
 
 def make_stub_module(name, **attrs):
@@ -190,6 +191,33 @@ class CliSmokeTests(unittest.TestCase):
             self.cli.main()
 
         self.assertEqual(str(ctx.exception), "Reactor requires exactly two XYZ input files")
+
+    def test_react_reports_restart_state_error_cleanly(self):
+        def fail_resume(*args, **kwargs):
+            raise ReactionStateError("Existing reaction state does not match this invocation")
+
+        Path("a.xyz").touch()
+        Path("b.xyz").touch()
+        sys.modules["pyar.reactor"].react = fail_resume
+        sys.argv = [
+            "pyar-cli",
+            "-r",
+            "a.xyz",
+            "b.xyz",
+            "-N",
+            "1",
+            "-gmin",
+            "100",
+            "-gmax",
+            "200",
+            "--software",
+            "xtb",
+        ]
+
+        with self.assertRaises(SystemExit) as ctx:
+            self.cli.main()
+
+        self.assertEqual(str(ctx.exception), "Existing reaction state does not match this invocation")
 
     def test_aggregate_accepts_element_symbols(self):
         sys.argv = [
