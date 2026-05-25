@@ -11,6 +11,7 @@ Start here
 * :doc:`workflows`
 * :doc:`installation`
 * :doc:`usage`
+* :doc:`energy_table`
 * :doc:`molecule`
 * :doc:`xtb`
 * :doc:`orientation_sampling`
@@ -33,6 +34,7 @@ The fastest way to verify a local install is:
    workflows
    installation
    usage
+   energy_table
    molecule
    xtb
    orientation_sampling

@@ -15,3 +15,15 @@ Examples:
 
 The repository README contains additional examples for clustering,
 aggregation, solvation, and reaction searches.
+
+Energy tables
+-------------
+
+To print a relative-energy table from raw ``.xyz`` files, use:
+
+.. code-block:: bash
+
+   pyar-energy-table *.xyz
+
+The command prints absolute energies, relative energies in kcal/mol, and the
+global minimum directly to the terminal.
