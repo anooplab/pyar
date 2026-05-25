@@ -190,10 +190,13 @@ workflows must use the composable objective:
 
 .. code-block:: python
 
-   class EnergyGradientProvider:
-       def validate(self, request): ...
-       def evaluate(self, coordinates_bohr, request) -> EnergyGradientResult: ...
-       def capabilities(self) -> BackendCapabilities: ...
+   @dataclass(frozen=True)
+   class EnergyGradientResult:
+       energy_hartree: float
+       gradient_hartree_per_bohr: np.ndarray
+
+   class EnergyGradientProvider(Protocol):
+       def evaluate(self, molecule, coordinates_bohr) -> EnergyGradientResult: ...
 
    class BiasPotential:
        def evaluate(self, molecule, coordinates_bohr, settings) -> EnergyGradientResult: ...

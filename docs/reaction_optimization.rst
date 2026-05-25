@@ -42,9 +42,9 @@ provider and zero or more additive bias potentials:
    F_\mathrm{total}(x) =
    F_\mathrm{method}(x) + F_\mathrm{AFIR}(x)
 
-The optimizer receives only this objective. The implemented providers are xTB
-and AIMNet2; Psi4, ORCA, and other engines require energy/force adapters
-before they can use this channel.
+The optimizer receives only this objective. The implemented providers are xTB,
+AIMNet2, ORCA, and Gaussian; other engines require energy/force
+adapters before they can use this channel.
 The AFIR gamma value belongs to the bias settings stored in the request and
 run state; it must never be replaced by a wrapper-level constant.
 
@@ -79,6 +79,10 @@ The initial contracts should be small and testable:
 physical and bias energies separately, and records all optimizer steps for
 restart and diagnosis.
 
+The current registry wires this contract through backend-specific provider
+factories. The provider owns backend settings such as charge, multiplicity,
+and executable details; the objective only sees the result object above.
+
 Units are part of this contract:
 
 * coordinates at the objective boundary: Bohr
@@ -95,8 +99,9 @@ Internal-Coordinate Optimizer Choice
 
 Cartesian ``LBFGS`` and ``FIRE`` are useful baselines and fallbacks, but they
 do not satisfy the primary design requirement: efficient molecular
-optimization in internal coordinates. The implemented xTB and AIMNet2 AFIR
-reaction channels use **geomeTRIC with TRIC coordinates**.
+optimization in internal coordinates. The implemented xTB, AIMNet2, ORCA,
+and Gaussian AFIR reaction channels use **geomeTRIC with TRIC
+coordinates**.
 
 TRIC adds explicit translation and rotation coordinates for each molecular
 fragment alongside intrafragment internal coordinates. This matches an AFIR
@@ -195,8 +200,9 @@ internal-coordinate optimizer an inspectable and atomic restart foundation.
 Implemented Channel And Next Steps
 ----------------------------------
 
-For ``react`` calculations using ``--software xtb`` or
-``--software aimnet_2``, PyAR now selects the geomeTRIC/TRIC optimizer and
+For ``react`` calculations using ``--software xtb``, ``--software aimnet_2``,
+``--software orca``, or ``--software gaussian``, PyAR now selects the
+geomeTRIC/TRIC optimizer and
 evaluates the physical energy/forces together with the AFIR force. When a
 bonded candidate is found, product relaxation is repeated without AFIR bias
 (``gamma=0.0``). Native optimizers remain the default for aggregate and

@@ -15,6 +15,7 @@ import os
 
 from pyar import file_manager
 from pyar.Molecule import Molecule
+from pyar.backend_capabilities import backend_supports_geometry_optimization
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
@@ -59,10 +60,10 @@ def build_geometry(molecule, qc_params):
     gamma = qc_params.get('gamma', None)
 
     if geometry_optimizer == 'geometric':
-        if software not in {'xtb', 'aimnet_2'}:
+        if not backend_supports_geometry_optimization(software):
             raise ValueError(
-                "geomeTRIC geometry optimization currently supports only 'xtb' "
-                f"and 'aimnet_2' backends, not {software!r}"
+                f"Backend {software!r} cannot be used with geomeTRIC AFIR optimisation "
+                "because it does not expose Cartesian energy and gradients."
             )
         from pyar.interface import geometric
         return geometric.Geometric(molecule, qc_params)

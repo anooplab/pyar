@@ -8,6 +8,11 @@ from collections import defaultdict
 
 from pyar import reactor
 from pyar.Molecule import Molecule
+from pyar.backend_capabilities import (
+    backend_supports_geometry_optimization,
+    supported_geometry_backends,
+)
+from pyar.data import defualt_parameters
 from pyar.reaction_state import ReactionStateError
 
 logger = logging.getLogger('pyar-react')
@@ -21,10 +26,14 @@ def argument_parse():
     parser.add_argument('--gmin', type=float, required=True, help='minimum value of gamma')
     parser.add_argument('--gmax', type=float, required=True, help='maximum value of gamma')
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
+    parser.add_argument('--method', default=defualt_parameters.values['method'], help='Electronic-structure method')
+    parser.add_argument('--basis', default=defualt_parameters.values['basis'], help='Basis set')
+    parser.add_argument('--scf-cycles', type=int, default=defualt_parameters.values['scf_cycles'], help='Maximum SCF iterations')
+    parser.add_argument('--nprocs', type=int, default=defualt_parameters.values['nprocs'], help='Number of backend processes or threads')
     parser.add_argument(
         '--geometry-optimizer',
         choices=['native', 'geometric'],
-        help='Optimizer for the AFIR objective; defaults to geometric for xtb and aimnet_2',
+        help='Optimizer for the AFIR objective; defaults to geometric for backends with an energy-gradient provider',
     )
     parser.add_argument(
         '--opt-target',
@@ -62,7 +71,7 @@ def main():
 
     logger.info(f"Using index: {index} (final index of the first reactant)")
     geometry_optimizer = run_parameters['geometry_optimizer']
-    if run_parameters['software'] in {'xtb', 'aimnet_2'}:
+    if backend_supports_geometry_optimization(run_parameters['software']):
         if run_parameters['opt_target'] == 'ts':
             sys.exit(
                 "Transition-state optimization is reserved for a future "
@@ -72,16 +81,26 @@ def main():
             geometry_optimizer = 'geometric'
         elif geometry_optimizer != 'geometric':
             sys.exit(
-                "AFIR reaction runs with xtb or aimnet_2 require "
+                "AFIR reaction runs with "
+                f"{', '.join(supported_geometry_backends())} require "
                 "--geometry-optimizer geometric"
             )
     else:
+        if geometry_optimizer == 'geometric':
+            sys.exit(
+                f"Backend '{run_parameters['software']}' cannot be used with geomeTRIC AFIR "
+                "optimisation because it does not expose Cartesian energy and gradients."
+            )
         geometry_optimizer = geometry_optimizer or 'native'
     qc_params = {
         'software': run_parameters['software'],
         'index': index,
         'geometry_optimizer': geometry_optimizer,
         'opt_target': run_parameters['opt_target'],
+        'method': run_parameters['method'] or defualt_parameters.values['method'],
+        'basis': run_parameters['basis'] or defualt_parameters.values['basis'],
+        'scf_cycles': run_parameters['scf_cycles'] or defualt_parameters.values['scf_cycles'],
+        'nprocs': run_parameters['nprocs'] or defualt_parameters.values['nprocs'],
     }
     try:
         reactor.react(input_molecules[0], input_molecules[1],

@@ -36,5 +36,5 @@ The backends that must be installed on the system are:
 
 ``geomeTRIC`` is a Python dependency rather than an external electronic
 structure program. It is used as the internal-coordinate optimizer for AFIR
-reaction calculations with the ``xtb`` and ``aimnet_2`` energy/force
-providers.
+reaction calculations with the ``xtb``, ``aimnet_2``, ``orca``, and
+``gaussian`` energy/force providers.

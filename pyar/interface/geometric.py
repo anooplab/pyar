@@ -12,29 +12,21 @@ import json
 import logging
 import subprocess as subp
 import sys
-import tempfile
 from pathlib import Path
 
 import numpy as np
-from ase import Atoms
 from ase.calculators.calculator import Calculator, all_changes
 from ase.units import Bohr, Hartree
 
-from pyar import interface
 from pyar.afir import restraints
 from pyar.afir.utils import resolve_gamma
+from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
 from pyar.interface import SF, require_executable, write_xyz
-from pyar.interface.xtb_utils import xtb_parallel_args
 
 geometric_logger = logging.getLogger("pyar.geometric")
 
 _GEOMETRIC_STATE_FILE = "pyar_geometric_state.json"
-
-
-def _as_numpy_positions(atoms):
-    """Return ASE positions as a contiguous float array."""
-    return np.asarray(atoms.get_positions(), dtype=float)
 
 
 def _find_geometric_executable():
@@ -61,120 +53,9 @@ def _read_last_xyz(path):
     return coords
 
 
-def _read_xtb_energy(stdout_lines):
-    """Extract the final xTB total energy from output text."""
-    energy = None
-    for line in stdout_lines:
-        if "TOTAL ENERGY" in line:
-            try:
-                energy = float(line.split()[3])
-            except (IndexError, ValueError):
-                continue
-        elif "total E" in line:
-            try:
-                energy = float(line.split()[-1])
-            except (IndexError, ValueError):
-                continue
-
-    if energy is None:
-        raise ValueError("Could not read xTB total energy from output")
-    return energy
-
-
-def _read_xtb_gradient(gradient_file):
-    """Read an xTB gradient file into a Cartesian gradient array."""
-    gradients = []
-    with open(gradient_file) as fp:
-        for line in fp:
-            parts = line.split()
-            if len(parts) != 3:
-                continue
-            gradients.append([float(xx) for xx in parts])
-    if not gradients:
-        raise ValueError(f"Could not read xTB gradients from {gradient_file}")
-    return np.asarray(gradients, dtype=float)
-
-
-def _backend_result_to_forces(energy_hartree, gradient_hartree_per_bohr):
-    """Convert atomic-unit energy/gradient to ASE eV/forces units."""
-    energy_ev = energy_hartree * Hartree
-    forces_ev_per_angstrom = -gradient_hartree_per_bohr * Hartree / Bohr
-    return energy_ev, forces_ev_per_angstrom
-
-
-def _evaluate_xtb(atoms, qc_params):
-    """Evaluate xTB energy and forces for the current coordinates."""
-    xtb_executable = require_executable("xtb", "xTB")
-    coordinates = _as_numpy_positions(atoms)
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        xyz_path = Path(tmpdir) / "input.xyz"
-        interface.write_xyz(
-            atoms.get_chemical_symbols(),
-            coordinates,
-            str(xyz_path),
-            job_name="pyar_geometric_xtb",
-        )
-        command = [xtb_executable, str(xyz_path)]
-        command.extend(xtb_parallel_args(qc_params))
-        if qc_params.get("charge", 0) != 0:
-            command.extend(["-chrg", str(qc_params["charge"])])
-        multiplicity = int(qc_params.get("multiplicity", 1) or 1)
-        if multiplicity != 1:
-            command.extend(["-uhf", str(max(multiplicity - 1, 1))])
-        scftype = qc_params.get("scftype", "rhf")
-        if multiplicity == 1 and scftype != "rhf":
-            command.append(f"-{scftype}")
-        command.append("--grad")
-        proc = subp.run(
-            command,
-            cwd=tmpdir,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(
-                "xTB energy/gradient evaluation failed: "
-                + (proc.stderr.strip() or proc.stdout.strip() or "unknown error")
-            )
-
-        gradient_path = Path(tmpdir) / "gradient"
-        if not gradient_path.exists():
-            raise RuntimeError("xTB gradient file was not written")
-
-        energy_hartree = _read_xtb_energy(proc.stdout.splitlines())
-        gradient_hartree_per_bohr = _read_xtb_gradient(gradient_path)
-        return _backend_result_to_forces(energy_hartree, gradient_hartree_per_bohr)
-
-
-def _evaluate_aimnet2(atoms, qc_params):
-    """Evaluate AIMNet2 energy and forces for the current coordinates."""
-    from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
-    from pyar.interface.aimnet_2 import aimnet2
-
-    calculator = AIMNet2Calculator(aimnet2, charge=int(qc_params.get("charge", 0) or 0))
-    ase_atoms = Atoms(
-        symbols=atoms.get_chemical_symbols(),
-        positions=_as_numpy_positions(atoms),
-    )
-    ase_atoms.calc = calculator
-    energy_ev = float(ase_atoms.get_potential_energy())
-    forces_ev_per_angstrom = np.asarray(ase_atoms.get_forces(), dtype=float)
-    return energy_ev, forces_ev_per_angstrom
-
-
-def _resolve_backend_evaluator(software):
-    """Return a callable that evaluates the selected backend."""
-    if software == "xtb":
-        return _evaluate_xtb
-    if software == "aimnet_2":
-        return _evaluate_aimnet2
-
-    raise ValueError(
-        "geomeTRIC optimization currently supports only 'xtb' and 'aimnet_2' "
-        f"as backend energy/gradient providers, not {software!r}"
-    )
+def _resolve_backend_evaluator(software, qc_params):
+    """Return the registered backend energy/gradient provider."""
+    return get_energy_gradient_provider(software, qc_params)
 
 
 class PyarGeometricCalculator(Calculator):
@@ -189,7 +70,18 @@ class PyarGeometricCalculator(Calculator):
         self.gamma = resolve_gamma(self.qc_params.get("gamma"), fallback=0.0)
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
-        self._backend_evaluator = _resolve_backend_evaluator(self.software)
+        self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
+
+    @staticmethod
+    def _result_to_ase_units(result):
+        """Convert backend Hartree/Bohr data to ASE energy/force units."""
+        if not isinstance(result, EnergyGradientResult):
+            raise TypeError("backend provider must return EnergyGradientResult")
+        backend_energy_ev = float(result.energy_hartree) * Hartree
+        backend_forces_ev_per_angstrom = (
+            -np.asarray(result.gradient_hartree_per_bohr, dtype=float) * Hartree / Bohr
+        )
+        return backend_energy_ev, backend_forces_ev_per_angstrom
 
     def _afir_contribution(self):
         """Return AFIR energy and forces in ASE units."""
@@ -232,7 +124,9 @@ class PyarGeometricCalculator(Calculator):
         """Compute the backend objective plus the AFIR bias if enabled."""
         super().calculate(atoms, properties, system_changes)
 
-        backend_energy, backend_forces = self._backend_evaluator(self.atoms, self.qc_params)
+        coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
+        backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
+        backend_energy, backend_forces = self._result_to_ase_units(backend_result)
         afir_energy, afir_forces = self._afir_contribution()
         total_energy = backend_energy + afir_energy
         total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(afir_forces, dtype=float)

@@ -39,6 +39,7 @@ INSTALL_REQUIRES = [
     "networkx",
     "matplotlib",
     "hdbscan",
+    "geometric>=1.1",
     "DBCV @ git+https://github.com/christopherjenness/DBCV.git",
     "openbabel-wheel",
 ]
@@ -49,6 +50,7 @@ ENTRY_POINTS = [
     "pyar-optimiser=pyar.scripts.optimiser:main",
     "pyar-trial-generation=pyar.scripts.trial_generation:main",
     "pyar-clustering=pyar.scripts.clustering:main",
+    "pyar-energy-table=pyar.scripts.energy_table:main",
     "pyar-benchmark-clustering=pyar.scripts.benchmark_clustering:main",
     "pyar-benchmark-orientations=pyar.scripts.benchmark_orientations:main",
     "pyar-similarity=pyar.scripts.similarity:main",

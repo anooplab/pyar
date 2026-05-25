@@ -10,7 +10,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from pyar.backend_capabilities import supported_geometry_backends
 from pyar.reaction_state import ReactionStateError
+
+
+class CliRealWorkflowImportsTests(unittest.TestCase):
+    def test_formula_helper_uses_real_aggregate_workflow_module(self):
+        cli = importlib.import_module("pyar.cli")
+
+        self.assertEqual(cli._expand_formula_inputs("CH4"), (["C", "H"], [1, 4]))
 
 
 def make_stub_module(name, **attrs):
@@ -37,7 +45,15 @@ class CliSmokeTests(unittest.TestCase):
         self._original_argv = sys.argv[:]
         self._original_modules = {
             name: sys.modules.get(name)
-            for name in ("pyar.Molecule", "pyar.aggregator", "pyar.reactor", "pyar.scan")
+            for name in (
+                "pyar.Molecule",
+                "pyar.aggregator",
+                "pyar.reactor",
+                "pyar.scan",
+                "pyar.workflows",
+                "pyar.workflows.aggregate",
+                "pyar.workflows.solvation",
+            )
         }
         self._install_stub_modules()
 
@@ -51,7 +67,7 @@ class CliSmokeTests(unittest.TestCase):
 
         pyar_pkg = sys.modules.get("pyar")
         if pyar_pkg is not None:
-            for attr in ("Molecule", "aggregator", "reactor", "scan"):
+            for attr in ("Molecule", "aggregator", "workflows", "reactor", "scan"):
                 if hasattr(pyar_pkg, attr):
                     delattr(pyar_pkg, attr)
 
@@ -92,19 +108,30 @@ class CliSmokeTests(unittest.TestCase):
                 )
 
         molecule_mod = make_stub_module("pyar.Molecule", Molecule=FakeMolecule)
-        aggregator_mod = make_stub_module(
-            "pyar.aggregator",
+        aggregate_workflow_mod = make_stub_module(
+            "pyar.workflows.aggregate",
             aggregate=lambda *args, **kwargs: None,
-            solvate=lambda *args, **kwargs: None,
             generate_molecule_from_formula=molecule_from_formula,
             expand_formula_to_aggregate_inputs=expand_formula_to_aggregate_inputs,
+        )
+        solvation_workflow_mod = make_stub_module(
+            "pyar.workflows.solvation",
+            solvate=lambda *args, **kwargs: None,
+        )
+        workflows_mod = make_stub_module(
+            "pyar.workflows",
+            aggregate=aggregate_workflow_mod,
+            solvation=solvation_workflow_mod,
         )
         reactor_mod = make_stub_module("pyar.reactor", react=lambda *args, **kwargs: None)
         scan_mod = make_stub_module("pyar.scan", scan_distance=lambda *args, **kwargs: None)
 
         for name, module in (
             ("pyar.Molecule", molecule_mod),
-            ("pyar.aggregator", aggregator_mod),
+            ("pyar.aggregator", make_stub_module("pyar.aggregator")),
+            ("pyar.workflows", workflows_mod),
+            ("pyar.workflows.aggregate", aggregate_workflow_mod),
+            ("pyar.workflows.solvation", solvation_workflow_mod),
             ("pyar.reactor", reactor_mod),
             ("pyar.scan", scan_mod),
         ):
@@ -113,7 +140,8 @@ class CliSmokeTests(unittest.TestCase):
         pyar_pkg = sys.modules.get("pyar")
         if pyar_pkg is not None:
             pyar_pkg.Molecule = molecule_mod
-            pyar_pkg.aggregator = aggregator_mod
+            pyar_pkg.aggregator = sys.modules["pyar.aggregator"]
+            pyar_pkg.workflows = workflows_mod
             pyar_pkg.reactor = reactor_mod
             pyar_pkg.scan = scan_mod
 
@@ -160,7 +188,7 @@ class CliSmokeTests(unittest.TestCase):
             captured["sizes"] = aggregate_sizes
             captured["software"] = qc_params["software"]
 
-        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
         sys.argv = [
             "pyar-cli",
             "-a",
@@ -275,7 +303,8 @@ class CliSmokeTests(unittest.TestCase):
 
         self.assertEqual(
             str(ctx.exception),
-            "AFIR reaction runs with xtb or aimnet_2 require --geometry-optimizer geometric",
+            "AFIR reaction runs with "
+            f"{', '.join(supported_geometry_backends())} require --geometry-optimizer geometric",
         )
 
     def test_react_xtb_rejects_unimplemented_transition_state_target(self):
@@ -329,7 +358,7 @@ class CliSmokeTests(unittest.TestCase):
             captured["multiplicities"] = [mol.multiplicity for mol in input_molecules]
             captured["charges"] = [mol.charge for mol in input_molecules]
 
-        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
         sys.argv = [
             "pyar-cli",
             "-a",
@@ -389,7 +418,7 @@ class CliSmokeTests(unittest.TestCase):
         def missing_orca(*args, **kwargs):
             raise FileNotFoundError("ORCA executable 'orca' was not found on PATH")
 
-        sys.modules["pyar.aggregator"].aggregate = missing_orca
+        sys.modules["pyar.workflows.aggregate"].aggregate = missing_orca
         sys.argv = [
             "pyar-cli",
             "-a",
@@ -430,7 +459,7 @@ class CliSmokeTests(unittest.TestCase):
                 return None
             raise FileNotFoundError(backend_messages[software])
 
-        sys.modules["pyar.aggregator"].aggregate = aggregate_backend_contract
+        sys.modules["pyar.workflows.aggregate"].aggregate = aggregate_backend_contract
 
         for software, expected in backend_messages.items():
             with self.subTest(software=software):
@@ -476,7 +505,7 @@ class CliSmokeTests(unittest.TestCase):
                               maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             captured["qc_params"] = qc_params
 
-        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
         sys.argv = [
             "pyar-cli",
             "-a",
@@ -529,7 +558,7 @@ class CliSmokeTests(unittest.TestCase):
         def aggregate_noop(*args, **kwargs):
             return None
 
-        sys.modules["pyar.aggregator"].aggregate = aggregate_noop
+        sys.modules["pyar.workflows.aggregate"].aggregate = aggregate_noop
         sys.argv = [
             "pyar-cli",
             "-a",
@@ -563,7 +592,7 @@ class CliSmokeTests(unittest.TestCase):
                               maximum_number_of_seeds, first_pathway, number_of_pathways, site):
             captured["qc_params"] = qc_params
 
-        sys.modules["pyar.aggregator"].aggregate = capture_aggregate
+        sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
         sys.argv = [
             "pyar-cli",
             "-a",

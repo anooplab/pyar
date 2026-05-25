@@ -1,10 +1,14 @@
 import os
+import importlib
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from pyar import aggregator
+from pyar.workflows import _growth as growth
+
+aggregate_workflow = importlib.import_module("pyar.workflows.aggregate")
 
 
 class DummyMolecule:
@@ -51,9 +55,9 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 qc_params = {"software": "aimnet_2", "opt_threshold": None, "_two_layer_optimization": False}
-                with mock.patch.object(aggregator.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
-                    with mock.patch.object(aggregator, "optimise", side_effect=fake_optimize):
-                        with mock.patch.object(aggregator.clustering, "choose_geometries", return_value=[trial_a, trial_b]) as chooser:
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
+                    with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
+                        with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a, trial_b]) as chooser:
                             result = aggregator.add_one(
                                 aggregate_id="ag_test",
                                 seeds=[seed],
@@ -98,10 +102,10 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 qc_params = {"software": "xtb", "opt_threshold": "normal", "_two_layer_optimization": True}
-                with mock.patch.object(aggregator.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
-                    with mock.patch.object(aggregator, "optimise", side_effect=fake_optimize):
-                        with mock.patch.object(aggregator.shutil, "copy", return_value=None):
-                            with mock.patch.object(aggregator.clustering, "choose_geometries", return_value=[trial_a]) as chooser:
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
+                    with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
+                        with mock.patch.object(growth.shutil, "copy", return_value=None):
+                            with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a]) as chooser:
                                 result = aggregator.add_one(
                                     aggregate_id="ag_test",
                                 seeds=[seed],
@@ -148,10 +152,10 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 qc_params = {"software": "xtb", "opt_threshold": "normal", "_two_layer_optimization": True}
-                with mock.patch.object(aggregator.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
-                    with mock.patch.object(aggregator, "optimise", side_effect=fake_optimize):
-                        with mock.patch.object(aggregator.shutil, "copy", return_value=None):
-                            with mock.patch.object(aggregator.clustering, "choose_geometries", return_value=[trial_a, trial_b]):
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
+                    with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
+                        with mock.patch.object(growth.shutil, "copy", return_value=None):
+                            with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a, trial_b]):
                                 result = aggregator.add_one(
                                     aggregate_id="ag_test",
                                     seeds=[seed],
@@ -268,7 +272,7 @@ class AggregatorTests(unittest.TestCase):
                 )
 
                 with mock.patch.object(
-                    aggregator.clustering,
+                    growth.clustering,
                     "choose_geometries",
                     side_effect=lambda molecules, **kwargs: [molecules[0]],
                 ) as chooser:
@@ -301,20 +305,22 @@ class AggregatorTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with mock.patch.object(aggregator, "read_old_path", return_value=["a"]):
-                    with mock.patch.object(aggregator, "old_path_to_new_path") as restart_paths:
-                        with mock.patch.object(aggregator, "select_pathways", return_value=[[]]) as new_paths:
-                            with self.assertLogs("pyar.aggregator", level="INFO") as captured:
-                                aggregator.aggregate(
-                                    molecules=molecules,
-                                    aggregate_sizes=[1, 1],
-                                    hm_orientations=2,
-                                    qc_params={"software": None},
-                                    maximum_number_of_seeds=2,
-                                    first_pathway=0,
-                                    number_of_pathways=1,
-                                    site=None,
-                                )
+                with mock.patch.object(aggregate_workflow, "read_old_path", return_value=["a"]):
+                    with mock.patch.object(aggregate_workflow, "old_path_to_new_path") as restart_paths:
+                        with mock.patch.object(aggregate_workflow, "select_pathways", return_value=[[]]) as new_paths:
+                            with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
+                                with self.assertLogs("pyar.aggregator", level="INFO") as captured:
+                                    with self.assertWarnsRegex(DeprecationWarning, "pyar.aggregator.aggregate"):
+                                        aggregator.aggregate(
+                                            molecules=molecules,
+                                            aggregate_sizes=[1, 1],
+                                            hm_orientations=2,
+                                            qc_params={"software": None},
+                                            maximum_number_of_seeds=2,
+                                            first_pathway=0,
+                                            number_of_pathways=1,
+                                            site=None,
+                                        )
 
                 self.assertTrue(Path(tmpdir, "aggregates").is_dir())
                 restart_paths.assert_not_called()
@@ -332,16 +338,17 @@ class AggregatorTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                aggregator.aggregate(
-                    molecules=[molecule],
-                    aggregate_sizes=[1],
-                    hm_orientations=2,
-                    qc_params={"software": None},
-                    maximum_number_of_seeds=2,
-                    first_pathway=0,
-                    number_of_pathways=1,
-                    site=None,
-                )
+                with self.assertWarnsRegex(DeprecationWarning, "pyar.aggregator.aggregate"):
+                    aggregator.aggregate(
+                        molecules=[molecule],
+                        aggregate_sizes=[1],
+                        hm_orientations=2,
+                        qc_params={"software": None},
+                        maximum_number_of_seeds=2,
+                        first_pathway=0,
+                        number_of_pathways=1,
+                        site=None,
+                    )
 
                 self.assertTrue(Path(tmpdir, "aggregates").is_dir())
             finally:

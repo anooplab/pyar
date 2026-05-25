@@ -10,68 +10,16 @@ import time
 from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
+from pyar.backend_capabilities import (
+    backend_family,
+    backend_supports_geometry_optimization,
+    backend_supports_staged_optimization,
+    unsupported_qc_options,
+    supported_geometry_backends,
+)
 
 logger = logging.getLogger('pyar')
 handler = None
-
-BACKEND_PROFILES = {
-    "gaussian": {
-        "family": "dft_qc",
-        "supports": {"method", "basis", "scf_cycles", "nprocs"},
-    },
-    "orca": {
-        "family": "dft_qc",
-        "supports": {"method", "basis", "scf_cycles", "nprocs"},
-    },
-    "psi4": {
-        "family": "dft_qc",
-        "supports": set(),
-    },
-    "turbomole": {
-        "family": "dft_qc",
-        "supports": {"method", "basis"},
-    },
-    "mopac": {
-        "family": "semiempirical",
-        "supports": set(),
-    },
-    "xtb": {
-        "family": "semiempirical",
-        "staged_optimization": True,
-        "supports": {"opt_threshold", "nprocs"},
-    },
-    "xtb_turbo": {
-        "family": "semiempirical",
-        "staged_optimization": False,
-        "supports": {"nprocs"},
-    },
-    "obabel": {
-        "family": "semiempirical",
-        "supports": set(),
-    },
-    "aimnet_2": {
-        "family": "mlip",
-        "supports": set(),
-    },
-    "aiqm1_mlatom": {
-        "family": "mlip",
-        "supports": set(),
-    },
-    "mlatom_aiqm1": {
-        "family": "mlip",
-        "supports": set(),
-    },
-    "xtb-aimnet2": {
-        "family": "hybrid",
-        "staged_optimization": True,
-        "supports": {"opt_threshold", "nprocs"},
-    },
-    "xtb-aiqm1": {
-        "family": "hybrid",
-        "staged_optimization": True,
-        "supports": {"opt_threshold", "nprocs"},
-    },
-}
 
 QC_OPTION_ALIASES = {
     "basis": "--basis (basis set)",
@@ -161,29 +109,12 @@ def _provided_qc_options(args):
 
 def _validate_backend_qc_options(software, provided_options):
     """Return backend family and unsupported provided options for a backend."""
-    profile = BACKEND_PROFILES.get(software)
-    if profile is None:
-        return "unknown", []
-    unsupported = sorted(provided_options - set(profile["supports"]))
-    return profile["family"], unsupported
-
-
-def _supports_staged_optimization(software):
-    """Return True when the backend has wired loose/normal staged optimization."""
-    profile = BACKEND_PROFILES.get(software)
-    if profile is None:
-        return False
-    return bool(profile.get("staged_optimization", False))
-
-
-def _supports_geometric_optimization(software):
-    """Return True when the backend can supply forces to geomeTRIC."""
-    return software in {"xtb", "aimnet_2"}
+    return backend_family(software), unsupported_qc_options(software, provided_options)
 
 
 def _configure_reaction_optimizer(run_parameters, run_mode):
     """Select the external optimizer for supported AFIR reaction backends."""
-    if run_mode != "react" or not _supports_geometric_optimization(run_parameters["software"]):
+    if run_mode != "react" or not backend_supports_geometry_optimization(run_parameters["software"]):
         return
     if run_parameters["opt_target"] == "ts":
         sys.exit(
@@ -199,7 +130,8 @@ def _configure_reaction_optimizer(run_parameters, run_mode):
         return
     if run_parameters["geometry_optimizer"] != "geometric":
         sys.exit(
-            "AFIR reaction runs with xtb or aimnet_2 require "
+            "AFIR reaction runs with "
+            f"{', '.join(supported_geometry_backends())} require "
             "--geometry-optimizer geometric"
         )
 
@@ -207,11 +139,7 @@ def _configure_reaction_optimizer(run_parameters, run_mode):
 def _mask_unsupported_qc_parameters(qc_params, software):
     """Return QC params with backend-unsupported options set to None."""
     masked = dict(qc_params)
-    profile = BACKEND_PROFILES.get(software)
-    if profile is None:
-        return masked
-    unsupported_options = QC_PARAMETER_KEYS - set(profile["supports"])
-    for option in unsupported_options:
+    for option in unsupported_qc_options(software, QC_PARAMETER_KEYS):
         if option in masked:
             masked[option] = None
         if option == "custom_keywords":
@@ -381,7 +309,7 @@ chemical formula.
 def _resolve_aggregate_input(spec, aggregate_mode):
     """Resolve an input spec to a molecule, allowing formulas in aggregate mode."""
     from pyar.Molecule import Molecule
-    from pyar import aggregator
+    from pyar.workflows.aggregate import generate_molecule_from_formula
 
     if os.path.exists(spec):
         return Molecule.from_xyz(spec)
@@ -392,7 +320,7 @@ def _resolve_aggregate_input(spec, aggregate_mode):
         ):
             raise SystemExit(f"File {spec} does not exist")
         try:
-            return aggregator.generate_molecule_from_formula(spec)
+            return generate_molecule_from_formula(spec)
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
 
@@ -401,10 +329,10 @@ def _resolve_aggregate_input(spec, aggregate_mode):
 
 def _expand_formula_inputs(formula):
     """Expand a formula into aggregate fragment specs and multiplicities."""
-    from pyar import aggregator
+    from pyar.workflows.aggregate import expand_formula_to_aggregate_inputs
 
     try:
-        return aggregator.expand_formula_to_aggregate_inputs(formula)
+        return expand_formula_to_aggregate_inputs(formula)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
@@ -421,7 +349,9 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
 
 def main():
     args = vars(argument_parse())
-    from pyar import aggregator, reactor, scan
+    from pyar import reactor, scan
+    from pyar.workflows.aggregate import aggregate
+    from pyar.workflows.solvation import solvate
     from pyar.reaction_state import ReactionStateError
 
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
@@ -567,10 +497,11 @@ def main():
         backend_family, ignored_qc_options = _validate_backend_qc_options(
             run_parameters["software"], provided_qc_options
         )
-        staged_optimization = _supports_staged_optimization(run_parameters["software"])
-        if run_parameters["geometry_optimizer"] == "geometric" and not _supports_geometric_optimization(run_parameters["software"]):
+        staged_optimization = backend_supports_staged_optimization(run_parameters["software"])
+        if run_parameters["geometry_optimizer"] == "geometric" and not backend_supports_geometry_optimization(run_parameters["software"]):
             sys.exit(
-                f"geometry optimizer 'geometric' currently supports only xtb or aimnet_2, not {run_parameters['software']}"
+                f"Backend '{run_parameters['software']}' cannot be used with geomeTRIC AFIR "
+                "optimisation because it does not expose Cartesian energy and gradients."
             )
         if ignored_qc_options:
             ignored_labels = [QC_OPTION_ALIASES.get(k, k) for k in ignored_qc_options]
@@ -685,13 +616,16 @@ def main():
                 "Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
                 selected_stoichiometry,
             )
-            aggregator.aggregate(input_molecules, size_of_aggregate,
-                                 number_of_orientations,
-                                 quantum_chemistry_parameters,
-                                 maximum_number_of_seeds,
-                                 run_parameters['first_pathway'],
-                                 run_parameters['number_of_pathways'],
-                                 site)
+            aggregate(
+                input_molecules,
+                size_of_aggregate,
+                number_of_orientations,
+                quantum_chemistry_parameters,
+                maximum_number_of_seeds,
+                run_parameters['first_pathway'],
+                run_parameters['number_of_pathways'],
+                site,
+            )
             logger.info('Total Time: {}'.format(time.time() - t1_0))
             logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
@@ -705,12 +639,15 @@ def main():
             seeds = input_molecules[:-1]
             t1_0 = time.time()
             time_started = datetime.datetime.now()
-            aggregator.solvate(seeds, monomer,
-                               number_of_solvent_molecules,
-                               number_of_orientations,
-                               quantum_chemistry_parameters,
-                               maximum_number_of_seeds,
-                               site)
+            solvate(
+                seeds,
+                monomer,
+                number_of_solvent_molecules,
+                number_of_orientations,
+                quantum_chemistry_parameters,
+                maximum_number_of_seeds,
+                site,
+            )
             logger.info('Total Time: {}'.format(time.time() - t1_0))
             logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 

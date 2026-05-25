@@ -93,6 +93,66 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
 
         self.assertEqual(str(context.exception), "Restart geometry snapshot is unavailable")
 
+    def test_react_selects_geometric_from_backend_capability(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.react")
+                arguments = SimpleNamespace(
+                    input_files=["a.xyz", "b.xyz"],
+                    how_many_orientations="4",
+                    gmin=0.1,
+                    gmax=0.5,
+                    software="future_provider",
+                    geometry_optimizer=None,
+                    opt_target="minimum",
+                    index=0,
+                )
+                with mock.patch.object(script, "argument_parse", return_value=arguments), \
+                    mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
+                    mock.patch.object(script, "backend_supports_geometry_optimization", return_value=True) as supports, \
+                    mock.patch.object(script.reactor, "react") as react:
+                    script.main()
+            finally:
+                os.chdir(cwd)
+
+        supports.assert_called_once_with("future_provider")
+        self.assertEqual(react.call_args.args[5]["geometry_optimizer"], "geometric")
+        self.assertEqual(react.call_args.args[5]["method"], "BP86")
+        self.assertEqual(react.call_args.args[5]["basis"], "def2-SVP")
+        self.assertEqual(react.call_args.args[5]["scf_cycles"], 1000)
+        self.assertEqual(react.call_args.args[5]["nprocs"], 8)
+
+    def test_react_rejects_geometric_backend_without_provider_before_run(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.react")
+                arguments = SimpleNamespace(
+                    input_files=["a.xyz", "b.xyz"],
+                    how_many_orientations="4",
+                    gmin=0.1,
+                    gmax=0.5,
+                    software="mopac",
+                    geometry_optimizer="geometric",
+                    opt_target="minimum",
+                    index=0,
+                )
+                with mock.patch.object(script, "argument_parse", return_value=arguments), \
+                    mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
+                    mock.patch.object(script.reactor, "react") as react:
+                    with self.assertRaisesRegex(
+                        SystemExit,
+                        "does not expose Cartesian energy and gradients",
+                    ):
+                        script.main()
+            finally:
+                os.chdir(cwd)
+
+        react.assert_not_called()
+
     def test_reactor_handles_failed_optimization_without_copying_invalid_geometry(self):
         import pyar.reactor as reactor
 

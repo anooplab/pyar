@@ -54,6 +54,17 @@ xTB interface
    :members:
    :undoc-members:
 
+Backend capabilities and providers
+----------------------------------
+
+.. automodule:: pyar.backend_capabilities
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.energy_gradient_providers
+   :members:
+   :undoc-members:
+
 Sampling API
 ------------
 

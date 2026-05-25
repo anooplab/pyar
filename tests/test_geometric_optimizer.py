@@ -13,6 +13,7 @@ from ase.units import Bohr, Hartree
 from pyar import optimiser
 from pyar.afir import restraints
 from pyar.data.units import angstrom2bohr
+from pyar.energy_gradient_providers import EnergyGradientResult
 
 
 class GeometricOptimizerTests(unittest.TestCase):
@@ -57,9 +58,9 @@ class GeometricOptimizerTests(unittest.TestCase):
         self.assertEqual(geometry.software, "xtb")
 
     def test_build_geometry_rejects_unsupported_backend_for_geometric(self):
-        qc_params = {"software": "orca", "geometry_optimizer": "geometric", "gamma": 0.0}
+        qc_params = {"software": "mopac", "geometry_optimizer": "geometric", "gamma": 0.0}
 
-        with self.assertRaisesRegex(ValueError, "supports only 'xtb' and 'aimnet_2'"):
+        with self.assertRaisesRegex(ValueError, "does not expose Cartesian energy and gradients"):
             optimiser.build_geometry(self.molecule, qc_params)
 
     def test_geometric_calculator_adds_afir_only_when_gamma_nonzero(self):
@@ -69,7 +70,16 @@ class GeometricOptimizerTests(unittest.TestCase):
         backend_energy = 1.5
         backend_forces = np.full((5, 3), 0.25)
 
-        with mock.patch("pyar.interface.geometric._resolve_backend_evaluator", return_value=lambda a, p: (backend_energy, backend_forces)):
+        backend_result = EnergyGradientResult(
+            backend_energy / Hartree,
+            -backend_forces * Bohr / Hartree,
+        )
+
+        class DummyProvider:
+            def evaluate(self, molecule, coordinates_bohr):
+                return backend_result
+
+        with mock.patch("pyar.interface.geometric._resolve_backend_evaluator", return_value=DummyProvider()):
             calculator = PyarGeometricCalculator(
                 {"software": "xtb", "gamma": 0.0, "charge": 0},
                 fragment_indices=self.molecule.fragments,
@@ -95,7 +105,16 @@ class GeometricOptimizerTests(unittest.TestCase):
         afir_energy_hartree = 0.4
         afir_forces_hartree_per_bohr = np.full((5, 3), 0.1)
 
-        with mock.patch("pyar.interface.geometric._resolve_backend_evaluator", return_value=lambda a, p: (backend_energy, backend_forces)), \
+        backend_result = EnergyGradientResult(
+            backend_energy / Hartree,
+            -backend_forces * Bohr / Hartree,
+        )
+
+        class DummyProvider:
+            def evaluate(self, molecule, coordinates_bohr):
+                return backend_result
+
+        with mock.patch("pyar.interface.geometric._resolve_backend_evaluator", return_value=DummyProvider()), \
             mock.patch("pyar.interface.geometric.restraints.isotropic", return_value=(afir_energy_hartree, afir_forces_hartree_per_bohr)) as isotropic:
             calculator = PyarGeometricCalculator(
                 {"software": "xtb", "gamma": 37.5, "charge": 0},
