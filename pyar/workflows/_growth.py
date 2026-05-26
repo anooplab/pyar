@@ -247,6 +247,9 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
     if qc_params.get("software"):
         list_of_optimized_molecules = []
         staged_optimization = _supports_two_layer_optimization(qc_params)
+        preselection_qc_params = dict(qc_params)
+        if staged_optimization:
+            preselection_qc_params["opt_threshold"] = "loose"
         aggregator_logger.info(
             "Optimization layers: %s",
             "two-stage (loose then normal)" if staged_optimization else "single-stage",
@@ -265,46 +268,46 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             seeds_home = f"seed_{seed_id}"
             if not os.path.exists(seeds_home):
                 file_manager.make_directories(seeds_home)
-            os.chdir(seeds_home)
-            each_seed.mol_to_xyz("seed.xyz")
-            monomer.mol_to_xyz("monomer.xyz")
-            seed_orientations = _seed_specific_orientation_count(each_seed, hm_orientations)
-            mol_id = f"{seed_id}_{aggregate_id}"
-            aggregator_logger.debug("Making orientations")
-            if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(seed_orientations)):
-                all_orientations = trial_generation.create_trial_geometries(
-                    mol_id, seeds[seed_count], monomer, seed_orientations, site
-                )
-                aggregator_logger.debug("Orientations are made.")
-            else:
-                all_orientations = read_orientations(mol_id, seed_orientations)
-            not_converged = all_orientations[:]
-            status_list = [False for _ in not_converged]
-            for i in range(10):
-                if len(not_converged) > 0:
-                    aggregator_logger.info(
-                        f"    Optimization round {i + 1:d}: pending={len(not_converged):d}"
+            with _working_directory(seeds_home):
+                each_seed.mol_to_xyz("seed.xyz")
+                monomer.mol_to_xyz("monomer.xyz")
+                seed_orientations = _seed_specific_orientation_count(each_seed, hm_orientations)
+                mol_id = f"{seed_id}_{aggregate_id}"
+                aggregator_logger.debug("Making orientations")
+                if not all(os.path.exists(f"trial_{i:03d}_{mol_id}.xyz") for i in range(seed_orientations)):
+                    all_orientations = trial_generation.create_trial_geometries(
+                        mol_id, seeds[seed_count], monomer, seed_orientations, site
                     )
-                    if staged_optimization:
-                        qc_params["opt_threshold"] = "loose"
-                    status_list = [optimise(each_mol, qc_params) for each_mol in not_converged]
-                    converged = [n for n, s in zip(not_converged, status_list) if is_success(s)]
-                    list_of_optimized_molecules.extend(converged)
-                    not_converged = [
-                        n
-                        for n, s in zip(not_converged, status_list)
-                        if is_cycle_exceeded(s) and not trial_generation.broken(n)
-                    ]
-                    not_converged = clustering.remove_similar(not_converged)
+                    aggregator_logger.debug("Orientations are made.")
                 else:
-                    aggregator_logger.info("    All trial molecules processed for this seed")
-                    break
-            else:
-                aggregator_logger.info("    Molecules still unconverged after 10 rounds:")
-                for n, s in zip(not_converged, status_list):
-                    if is_cycle_exceeded(s) and not trial_generation.broken(n):
-                        aggregator_logger.info("      %s", n.name)
-            os.chdir(cwd)
+                    all_orientations = read_orientations(mol_id, seed_orientations)
+                not_converged = all_orientations[:]
+                status_list = [False for _ in not_converged]
+                for i in range(10):
+                    if len(not_converged) > 0:
+                        aggregator_logger.info(
+                            f"    Optimization round {i + 1:d}: pending={len(not_converged):d}"
+                        )
+                        status_list = [
+                            optimise(each_mol, preselection_qc_params)
+                            for each_mol in not_converged
+                        ]
+                        converged = [n for n, s in zip(not_converged, status_list) if is_success(s)]
+                        list_of_optimized_molecules.extend(converged)
+                        not_converged = [
+                            n
+                            for n, s in zip(not_converged, status_list)
+                            if is_cycle_exceeded(s) and not trial_generation.broken(n)
+                        ]
+                        not_converged = clustering.remove_similar(not_converged)
+                    else:
+                        aggregator_logger.info("    All trial molecules processed for this seed")
+                        break
+                else:
+                    aggregator_logger.info("    Molecules still unconverged after 10 rounds:")
+                    for n, s in zip(not_converged, status_list):
+                        if is_cycle_exceeded(s) and not trial_generation.broken(n):
+                            aggregator_logger.info("      %s", n.name)
 
         selected_from_restart = []
         if os.path.exists("selected"):
@@ -353,54 +356,55 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             )
             return selected_seeds
 
-        os.chdir("selected")
-        qc_params["opt_threshold"] = "normal"
-        aggregator_logger.info("Refining selected geometries with normal threshold")
+        refinement_qc_params = dict(qc_params)
+        refinement_qc_params["opt_threshold"] = "normal"
+        with _working_directory("selected"):
+            aggregator_logger.info("Refining selected geometries with normal threshold")
 
-        less_than_ideal = []
-        refined_seeds = []
-        for each_file in selected_seeds:
-            not_refined = copy.deepcopy(each_file)
-            status = optimise(each_file, qc_params)
-            if is_success(status):
-                xyz_file = f"job_{each_file.name}/result_{each_file.name}.xyz"
-                shutil.copy(xyz_file, ".")
-                refined_seeds.append(each_file)
-            else:
-                less_than_ideal.append(not_refined)
-        selected_seeds = refined_seeds
-        if len(selected_seeds) != 0:
-            aggregator_logger.info("Selection result: %d refined molecules", len(selected_seeds))
+            less_than_ideal = []
+            refined_seeds = []
+            for each_file in selected_seeds:
+                not_refined = copy.deepcopy(each_file)
+                status = optimise(each_file, refinement_qc_params)
+                if is_success(status):
+                    xyz_file = f"job_{each_file.name}/result_{each_file.name}.xyz"
+                    shutil.copy(xyz_file, ".")
+                    refined_seeds.append(each_file)
+                else:
+                    less_than_ideal.append(not_refined)
+            selected_seeds = refined_seeds
+            if len(selected_seeds) != 0:
+                aggregator_logger.info("Selection result: %d refined molecules", len(selected_seeds))
+                _snapshot_selected_geometries(
+                    selected_seeds,
+                    output_root=".",
+                    summary_lines=[
+                        "Selection mode: two-stage",
+                        "Stage 1: loose preselection",
+                        "Stage 2: normal-threshold refinement",
+                        f"Backend: {qc_params.get('software')}",
+                        f"Selected geometries: {len(selected_seeds)}",
+                    ],
+                    group_by_stoichiometry=False,
+                )
+                return selected_seeds
+            aggregator_logger.info(
+                "Selection result: no refined molecules, returning loose set (%d)",
+                len(less_than_ideal),
+            )
             _snapshot_selected_geometries(
-                selected_seeds,
+                less_than_ideal,
                 output_root=".",
                 summary_lines=[
                     "Selection mode: two-stage",
                     "Stage 1: loose preselection",
-                    "Stage 2: normal-threshold refinement",
+                    "Stage 2: normal-threshold refinement failed for all selected seeds",
                     f"Backend: {qc_params.get('software')}",
-                    f"Selected geometries: {len(selected_seeds)}",
+                    f"Selected geometries: {len(less_than_ideal)}",
                 ],
                 group_by_stoichiometry=False,
             )
-            return selected_seeds
-        aggregator_logger.info(
-            "Selection result: no refined molecules, returning loose set (%d)",
-            len(less_than_ideal),
-        )
-        _snapshot_selected_geometries(
-            less_than_ideal,
-            output_root=".",
-            summary_lines=[
-                "Selection mode: two-stage",
-                "Stage 1: loose preselection",
-                "Stage 2: normal-threshold refinement failed for all selected seeds",
-                f"Backend: {qc_params.get('software')}",
-                f"Selected geometries: {len(less_than_ideal)}",
-            ],
-            group_by_stoichiometry=False,
-        )
-        return less_than_ideal
+            return less_than_ideal
 
     # without software specified
     # TODO: geometry-only growth currently carries every trial orientation
@@ -422,16 +426,15 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
         seeds_home = f"seed_{seed_id}"
         if not os.path.exists(seeds_home):
             file_manager.make_directories(seeds_home)
-        os.chdir(seeds_home)
-        each_seed.mol_to_xyz("seed.xyz")
-        monomer.mol_to_xyz("monomer.xyz")
-        seed_orientations = _seed_specific_orientation_count(each_seed, hm_orientations)
-        mol_id = f"{seed_id}_{aggregate_id}"
-        orientations = generate_orientations(
-            seed_orientations, mol_id, monomer, seed_count, seeds, site
-        )
-        all_orientations.extend(orientations)
-        os.chdir(cwd)
+        with _working_directory(seeds_home):
+            each_seed.mol_to_xyz("seed.xyz")
+            monomer.mol_to_xyz("monomer.xyz")
+            seed_orientations = _seed_specific_orientation_count(each_seed, hm_orientations)
+            mol_id = f"{seed_id}_{aggregate_id}"
+            orientations = generate_orientations(
+                seed_orientations, mol_id, monomer, seed_count, seeds, site
+            )
+            all_orientations.extend(orientations)
 
     aggregator_logger.info(
         "Generated %d trial geometries without QM optimization", len(all_orientations)

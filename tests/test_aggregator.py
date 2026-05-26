@@ -101,20 +101,20 @@ class AggregatorTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                qc_params = {"software": "xtb", "opt_threshold": "normal", "_two_layer_optimization": True}
+                qc_params = {"software": "xtb", "opt_threshold": "tight", "_two_layer_optimization": True}
                 with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
                     with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(growth.shutil, "copy", return_value=None):
                             with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a]) as chooser:
                                 result = aggregator.add_one(
                                     aggregate_id="ag_test",
-                                seeds=[seed],
-                                monomer=monomer,
-                                hm_orientations=2,
-                                qc_params=qc_params,
-                                maximum_number_of_seeds=2,
-                                site=None,
-                            )
+                                    seeds=[seed],
+                                    monomer=monomer,
+                                    hm_orientations=2,
+                                    qc_params=qc_params,
+                                    maximum_number_of_seeds=2,
+                                    site=None,
+                                )
                 snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
                 registry_exists = Path(tmpdir, "selected", "basin_registry.json").is_file()
                 nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
@@ -122,6 +122,7 @@ class AggregatorTests(unittest.TestCase):
                 os.chdir(cwd)
 
         self.assertEqual(thresholds, ["loose", "loose", "normal"])
+        self.assertEqual(qc_params["opt_threshold"], "tight")
         chooser.assert_called_once()
         self.assertFalse(chooser.call_args.kwargs["persist_basin_memory"])
         self.assertFalse(chooser.call_args.kwargs["group_basin_by_stoichiometry"])
@@ -170,6 +171,92 @@ class AggregatorTests(unittest.TestCase):
 
         self.assertEqual(refined_names, ["trial_a", "trial_b"])
         self.assertEqual([m.name for m in result], ["trial_b"])
+
+    def test_add_one_restores_cwd_when_seed_optimization_raises(self):
+        seed = DummyMolecule("seed", n_atoms=2)
+        monomer = DummyMolecule("monomer", n_atoms=1)
+        trial = DummyMolecule("trial", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                qc_params = {"software": "xtb", "_two_layer_optimization": True}
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
+                    with mock.patch.object(growth, "optimise", side_effect=RuntimeError("seed optimization failed")):
+                        with self.assertRaisesRegex(RuntimeError, "seed optimization failed"):
+                            aggregator.add_one(
+                                aggregate_id="ag_test",
+                                seeds=[seed],
+                                monomer=monomer,
+                                hm_orientations=1,
+                                qc_params=qc_params,
+                                maximum_number_of_seeds=1,
+                                site=None,
+                            )
+                self.assertEqual(os.getcwd(), tmpdir)
+            finally:
+                os.chdir(cwd)
+
+    def test_add_one_restores_cwd_when_refinement_raises(self):
+        seed = DummyMolecule("seed", n_atoms=2)
+        monomer = DummyMolecule("monomer", n_atoms=1)
+        trial = DummyMolecule("trial", n_atoms=1)
+        trial.energy = 0.0
+
+        def fail_during_refinement(molecule, qc_params):
+            if qc_params.get("opt_threshold") == "normal":
+                raise RuntimeError("refinement failed")
+            return True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                qc_params = {"software": "xtb", "_two_layer_optimization": True}
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
+                    with mock.patch.object(growth, "optimise", side_effect=fail_during_refinement):
+                        with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial]):
+                            with self.assertRaisesRegex(RuntimeError, "refinement failed"):
+                                aggregator.add_one(
+                                    aggregate_id="ag_test",
+                                    seeds=[seed],
+                                    monomer=monomer,
+                                    hm_orientations=1,
+                                    qc_params=qc_params,
+                                    maximum_number_of_seeds=1,
+                                    site=None,
+                                )
+                self.assertEqual(os.getcwd(), tmpdir)
+            finally:
+                os.chdir(cwd)
+
+    def test_geometry_only_add_one_restores_cwd_when_generation_raises(self):
+        seed = DummyMolecule("seed", n_atoms=2)
+        monomer = DummyMolecule("monomer", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(
+                    growth.trial_generation,
+                    "create_trial_geometries",
+                    side_effect=RuntimeError("orientation generation failed"),
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "orientation generation failed"):
+                        aggregator.add_one(
+                            aggregate_id="ag_test",
+                            seeds=[seed],
+                            monomer=monomer,
+                            hm_orientations=1,
+                            qc_params={},
+                            maximum_number_of_seeds=1,
+                            site=None,
+                        )
+                self.assertEqual(os.getcwd(), tmpdir)
+            finally:
+                os.chdir(cwd)
 
     def test_restart_finished_jobs_mutates_remaining_molecules_safely(self):
         done = DummyMolecule("done", n_atoms=1)
