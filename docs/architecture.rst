@@ -133,7 +133,8 @@ stabilized before modules are physically moved:
 * ``pyar/trial_generation.py`` becomes ``sampling/trial_generator.py``.
 * ``pyar/data_analysis/clustering.py`` splits into selection services.
 * ``pyar/aggregator.py`` becomes ``workflows/aggregate.py``.
-* ``pyar/reactor.py`` becomes ``workflows/reaction.py``.
+* ``pyar/reactor.py`` has moved to ``workflows/reaction.py``; the legacy path
+  is retained as a compatibility alias.
 * Legacy ``pyar/checkpt.py`` has been replaced for reaction workflows by
   ``pyar/reaction_state.py``; aggregation now uses ``pyar/aggregate_state.py``
   and solvation uses ``pyar/solvation_state.py``. Future workflow migration
@@ -381,8 +382,8 @@ complete and are kept here as history; item 10 is in progress.
 Open plan:
 
 10. Move modules to the target layout only in a major-version development
-    branch. Core, sampling, state, and backend implementations have moved;
-    compatibility aliases remain while workflow and bias moves are completed.
+    branch. Core, sampling, state, backend, and workflow implementations have
+    moved; compatibility aliases remain while the bias move is completed.
 11. Decide whether to vendor or externalize MLatom.
 12. Publish migration documentation and reproducibility examples.
 

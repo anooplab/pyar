@@ -6,7 +6,6 @@ import logging
 import sys
 from collections import defaultdict
 
-from pyar import reactor
 from pyar.Molecule import Molecule
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
@@ -14,6 +13,7 @@ from pyar.backend_capabilities import (
 )
 from pyar.data import defualt_parameters
 from pyar.state.reaction import ReactionStateError
+from pyar.workflows import reaction as reaction_workflow
 
 logger = logging.getLogger('pyar-react')
 handler = logging.FileHandler('pyar-react.log', 'a')
@@ -103,10 +103,16 @@ def main():
         'nprocs': run_parameters['nprocs'] or defualt_parameters.values['nprocs'],
     }
     try:
-        reactor.react(input_molecules[0], input_molecules[1],
-                      run_parameters['gmin'], run_parameters['gmax'],
-                      int(run_parameters['how_many_orientations']), qc_params,
-                      None, 2.3)
+        reaction_workflow.react(
+            input_molecules[0],
+            input_molecules[1],
+            run_parameters['gmin'],
+            run_parameters['gmax'],
+            int(run_parameters['how_many_orientations']),
+            qc_params,
+            None,
+            2.3,
+        )
     except (FileNotFoundError, ReactionStateError, ValueError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))

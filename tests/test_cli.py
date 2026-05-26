@@ -53,6 +53,7 @@ class CliSmokeTests(unittest.TestCase):
                 "pyar.scan",
                 "pyar.workflows",
                 "pyar.workflows.aggregate",
+                "pyar.workflows.reaction",
                 "pyar.workflows.solvation",
             )
         }
@@ -119,9 +120,14 @@ class CliSmokeTests(unittest.TestCase):
             "pyar.workflows.solvation",
             solvate=lambda *args, **kwargs: None,
         )
+        reaction_workflow_mod = make_stub_module(
+            "pyar.workflows.reaction",
+            react=lambda *args, **kwargs: None,
+        )
         workflows_mod = make_stub_module(
             "pyar.workflows",
             aggregate=aggregate_workflow_mod,
+            reaction=reaction_workflow_mod,
             solvation=solvation_workflow_mod,
         )
         reactor_mod = make_stub_module("pyar.reactor", react=lambda *args, **kwargs: None)
@@ -132,6 +138,7 @@ class CliSmokeTests(unittest.TestCase):
             ("pyar.aggregator", make_stub_module("pyar.aggregator")),
             ("pyar.workflows", workflows_mod),
             ("pyar.workflows.aggregate", aggregate_workflow_mod),
+            ("pyar.workflows.reaction", reaction_workflow_mod),
             ("pyar.workflows.solvation", solvation_workflow_mod),
             ("pyar.reactor", reactor_mod),
             ("pyar.scan", scan_mod),
@@ -227,7 +234,7 @@ class CliSmokeTests(unittest.TestCase):
 
         Path("a.xyz").touch()
         Path("b.xyz").touch()
-        sys.modules["pyar.reactor"].react = fail_resume
+        sys.modules["pyar.workflows.reaction"].react = fail_resume
         sys.argv = [
             "pyar-cli",
             "-r",
@@ -256,7 +263,7 @@ class CliSmokeTests(unittest.TestCase):
 
         Path("a.xyz").touch()
         Path("b.xyz").touch()
-        sys.modules["pyar.reactor"].react = capture_react
+        sys.modules["pyar.workflows.reaction"].react = capture_react
         sys.argv = [
             "pyar-cli",
             "-r",
@@ -373,7 +380,7 @@ class CliSmokeTests(unittest.TestCase):
                     "xtb",
                 ]
 
-                with mock.patch.object(sys.modules["pyar.reactor"], "react") as react:
+                with mock.patch.object(sys.modules["pyar.workflows.reaction"], "react") as react:
                     self.cli.main()
             finally:
                 os.chdir(cwd)

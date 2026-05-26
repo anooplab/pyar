@@ -83,11 +83,11 @@ Main workflows
    :members:
    :undoc-members:
 
-.. automodule:: pyar.workflows.solvation
+.. automodule:: pyar.workflows.reaction
    :members:
    :undoc-members:
 
-.. automodule:: pyar.reactor
+.. automodule:: pyar.workflows.solvation
    :members:
    :undoc-members:
 

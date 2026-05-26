@@ -57,7 +57,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 )
                 with mock.patch.object(script, "argument_parse", return_value=arguments):
                     with mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]):
-                        with mock.patch.object(script.reactor, "react") as react:
+                        with mock.patch.object(script.reaction_workflow, "react") as react:
                             script.main()
             finally:
                 os.chdir(cwd)
@@ -83,7 +83,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 with mock.patch.object(script, "argument_parse", return_value=arguments), \
                     mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
                     mock.patch.object(
-                        script.reactor,
+                        script.reaction_workflow,
                         "react",
                         side_effect=ReactionStateError("Restart geometry snapshot is unavailable"),
                     ):
@@ -113,7 +113,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 with mock.patch.object(script, "argument_parse", return_value=arguments), \
                     mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
                     mock.patch.object(script, "backend_supports_geometry_optimization", return_value=True) as supports, \
-                    mock.patch.object(script.reactor, "react") as react:
+                    mock.patch.object(script.reaction_workflow, "react") as react:
                     script.main()
             finally:
                 os.chdir(cwd)
@@ -143,7 +143,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 )
                 with mock.patch.object(script, "argument_parse", return_value=arguments), \
                     mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
-                    mock.patch.object(script.reactor, "react") as react:
+                    mock.patch.object(script.reaction_workflow, "react") as react:
                     with self.assertRaisesRegex(
                         SystemExit,
                         "does not expose Cartesian energy and gradients",

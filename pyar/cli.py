@@ -375,10 +375,11 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
 
 def main():
     args = vars(argument_parse())
-    from pyar import reactor, scan
+    from pyar import scan
     from pyar.state.aggregate import AggregateStateError
     from pyar.state.solvation import SolvationStateError
     from pyar.workflows.aggregate import aggregate
+    from pyar.workflows import reaction as reaction_workflow
     from pyar.workflows.solvation import solvate
     from pyar.state.reaction import ReactionStateError
 
@@ -692,11 +693,16 @@ def main():
             proximity_factor = 2.3
             zero_time = time.time()
             time_started = datetime.datetime.now()
-            reactor.react(input_molecules[0], input_molecules[1],
-                          minimum_gamma, maximum_gamma,
-                          int(number_of_orientations),
-                          quantum_chemistry_parameters,
-                          site, proximity_factor)
+            reaction_workflow.react(
+                input_molecules[0],
+                input_molecules[1],
+                minimum_gamma,
+                maximum_gamma,
+                int(number_of_orientations),
+                quantum_chemistry_parameters,
+                site,
+                proximity_factor,
+            )
             logger.info('Total run time: {}'.format(time.time() - zero_time))
             logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
             return

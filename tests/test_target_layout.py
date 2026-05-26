@@ -10,6 +10,7 @@ class TargetLayoutImportTests(unittest.TestCase):
         from pyar.io import AggregateResult, ReactionResult, SolvationResult, WorkflowResult
         from pyar.io import results
         from pyar import backends
+        from pyar import reactor as package_legacy_reaction_workflow
         from pyar.interface import xtb as legacy_xtb
         from pyar import sampling
         from pyar.state.aggregate import AggregateRunState as AggregateRunStateImpl
@@ -17,6 +18,8 @@ class TargetLayoutImportTests(unittest.TestCase):
         from pyar.state.solvation import SolvationRunState as SolvationRunStateImpl
         from pyar.state import AggregateRunState, ReactionRunState, SolvationRunState
         from pyar.workflows.reaction import react
+        from pyar.workflows import reaction as reaction_workflow
+        import pyar.reactor as legacy_reaction_workflow
 
         self.assertTrue(hasattr(Molecule, "from_xyz"))
         self.assertTrue(hasattr(geometry, "rotate_3d"))
@@ -36,6 +39,8 @@ class TargetLayoutImportTests(unittest.TestCase):
         self.assertIsNotNone(ReactionRunState)
         self.assertIsNotNone(SolvationRunState)
         self.assertTrue(callable(react))
+        self.assertIs(legacy_reaction_workflow, reaction_workflow)
+        self.assertIs(package_legacy_reaction_workflow, reaction_workflow)
         self.assertIs(AggregateRunState, AggregateRunStateImpl)
         self.assertIs(ReactionRunState, ReactionRunStateImpl)
         self.assertIs(SolvationRunState, SolvationRunStateImpl)
