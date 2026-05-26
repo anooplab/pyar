@@ -1,17 +1,42 @@
-#!/usr/bin/env python3
-from pyar.mlatom import data, plot, simulations, stats, xyz
-from pyar.mlatom.simulations import optimize_geometry, irc, freq, thermochemistry, generate_initial_conditions
-from pyar.mlatom.data import molecule
+"""Compatibility adapter for the external MLatom package."""
 
-class LazyLoad:
-    def __init__(self):
-        self._models = None
+from importlib import import_module
 
-    @property
-    def models(self):
-        if self._models is None:
-            import importlib
-            self._models = importlib.import_module('pyar.mlatom.models')
-        return self._models
+import mlatom as _mlatom
 
-lazy_loader = LazyLoad()
+data = _mlatom.data
+plot = _mlatom.plot
+simulations = _mlatom.simulations
+stats = _mlatom.stats
+xyz = _mlatom.xyz
+models = import_module("mlatom.models")
+constants = import_module("mlatom.constants")
+stopper = import_module("mlatom.stopper")
+interface_MLatomF = import_module("mlatom.interface_MLatomF")
+shell_cmd = import_module("mlatom.shell_cmd")
+
+optimize_geometry = _mlatom.optimize_geometry
+irc = _mlatom.irc
+freq = _mlatom.freq
+thermochemistry = _mlatom.thermochemistry
+generate_initial_conditions = _mlatom.generate_initial_conditions
+molecule = _mlatom.data.molecule
+
+__all__ = [
+    "constants",
+    "data",
+    "freq",
+    "generate_initial_conditions",
+    "interface_MLatomF",
+    "irc",
+    "models",
+    "molecule",
+    "optimize_geometry",
+    "plot",
+    "shell_cmd",
+    "simulations",
+    "stats",
+    "stopper",
+    "thermochemistry",
+    "xyz",
+]

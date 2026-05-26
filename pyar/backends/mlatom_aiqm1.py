@@ -1,9 +1,9 @@
 """MLatom AIQM1 backend implementation."""
 
 import logging  # noqa: F401
-import pyar.mlatom as ml
+import mlatom as ml
 from time import sleep  # noqa: F401
-from pyar.mlatom.data import molecule  # noqa: F401
+from mlatom.data import molecule  # noqa: F401
 import numpy as np
 from pyar import backends
 from pyar.backends import SF  # noqa: F811

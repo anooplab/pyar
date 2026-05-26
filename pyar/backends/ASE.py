@@ -7,8 +7,8 @@ from ase.thermochemistry import IdealGasThermo
 import ase.units as units
 import numpy as np
 
-from pyar.mlatom import constants
-from pyar.mlatom import data, stopper
+from mlatom import constants
+from mlatom import data, stopper
 import copy, tempfile
 
 def optimize_geometry(initial_molecule, model, convergence_criterion_for_forces, maximum_number_of_steps, optimization_algorithm='LBFGS'):

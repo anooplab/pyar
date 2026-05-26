@@ -20,6 +20,7 @@ INSTALL_REQUIRES = [
     'geometric>=1.1',
     'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
     'openbabel-wheel',
+    'mlatom',
 ]
 
 setup(
@@ -31,10 +32,6 @@ setup(
     package_data={
         'pyar': [
             'AIMNet2/models/*.jpt',
-            'mlatom/MLatomF',
-            'mlatom/cs.so',
-            'mlatom/ref.json',
-            'mlatom/aiqm1_model/*.pt',
         ]
     },
     url='https://github.com/anooplab/pyar',

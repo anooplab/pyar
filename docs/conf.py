@@ -30,6 +30,7 @@ autodoc_mock_imports = [
     "MDAnalysis",
     "networkx",
     "numpy",
+    "mlatom",
     "pandas",
     "pyh5md",
     "scipy",

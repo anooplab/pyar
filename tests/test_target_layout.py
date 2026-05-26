@@ -18,6 +18,8 @@ class TargetLayoutImportTests(unittest.TestCase):
         from pyar.state.solvation import SolvationRunState as SolvationRunStateImpl
         from pyar.biases import afir as bias_afir
         import pyar.afir.restraints as legacy_afir_restraints
+        import mlatom as external_mlatom
+        from pyar import mlatom as pyar_mlatom
         from pyar.state import AggregateRunState, ReactionRunState, SolvationRunState
         from pyar.workflows.reaction import react
         from pyar.workflows import reaction as reaction_workflow
@@ -41,6 +43,9 @@ class TargetLayoutImportTests(unittest.TestCase):
         self.assertIsNotNone(ReactionRunState)
         self.assertIsNotNone(SolvationRunState)
         self.assertTrue(callable(react))
+        self.assertIs(pyar_mlatom.data, external_mlatom.data)
+        self.assertIs(pyar_mlatom.models, external_mlatom.models)
+        self.assertIs(pyar_mlatom.optimize_geometry, external_mlatom.optimize_geometry)
         self.assertIs(legacy_afir_restraints, bias_afir)
         self.assertIs(legacy_reaction_workflow, reaction_workflow)
         self.assertIs(package_legacy_reaction_workflow, reaction_workflow)

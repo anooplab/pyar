@@ -7,8 +7,9 @@ Install PyAR from a local checkout:
 
    python -m pip install .
 
-This installs the package metadata, Python dependencies, and the bundled
-runtime assets used by the MLatom and AIMNet2 interfaces. The packaging
+This installs the package metadata, Python dependencies, and the runtime
+dependencies used by the MLatom and AIMNet2 interfaces. PyAR now depends on
+the external ``mlatom`` package rather than bundling it. The packaging
 metadata now carries the dependency set, so users do not need to install
 ``hdbscan``, ``DBCV``, or ``geomeTRIC`` manually for a normal pip-based
 install. The OpenBabel Python binding is also installed as part of the package
@@ -27,6 +28,8 @@ External program requirements are still separate from Python dependencies.
 PyAR will report a clear error and exit if an executable backend is missing.
 The backends that must be installed on the system are:
 
+* MLatom via ``pip install mlatom`` if you are working outside the normal
+  PyAR dependency install
 * ORCA
 * Gaussian
 * MOPAC

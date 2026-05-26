@@ -2,7 +2,7 @@
 
 import argparse
 
-import pyar.mlatom as ml
+import mlatom as ml
 
 
 def main():

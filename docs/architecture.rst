@@ -353,6 +353,8 @@ The professional package baseline should include:
 
 Bundled code such as ``pyar/mlatom/`` should either become an explicitly
 maintained vendored dependency or be replaced by an optional external adapter.
+PyAR now prefers the external ``mlatom`` package at runtime and keeps the
+vendored tree only as a compatibility fallback during the transition.
 
 Migration Plan
 --------------
@@ -385,7 +387,8 @@ Open plan:
 10. Move modules to the target layout only in a major-version development
     branch. Core, sampling, state, backend, workflow, and bias implementations
     have moved; compatibility aliases remain for legacy callers.
-11. Decide whether to vendor or externalize MLatom.
+11. MLatom has been externalized; keep the vendored compatibility tree only
+    until downstream consumers no longer need it.
 12. Publish migration documentation and reproducibility examples.
 
 Immediate Priority
