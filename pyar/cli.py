@@ -48,6 +48,13 @@ QC_PARAMETER_KEYS = {
     "model",
 }
 
+_SUBCOMMAND_ALIASES = {
+    "aggregate": "--aggregate",
+    "react": "--react",
+    "solvate": "--solvate",
+    "scan-bond": "--scan-bond",
+}
+
 
 def _get_file_handler():
     """Create the CLI log file handler only when the command actually runs."""
@@ -187,13 +194,32 @@ def _aggregate_stoichiometry_label(input_molecules, aggregate_sizes):
     return ''.join(parts) if parts else 'unknown'
 
 
-def argument_parse():
+def _normalize_subcommand_argv(argv):
+    """Translate subcommand style invocation into the existing flag-based CLI."""
+    if not argv:
+        return argv
+    alias = _SUBCOMMAND_ALIASES.get(argv[0])
+    if alias is None:
+        return argv
+    return [alias, *argv[1:]]
+
+
+def argument_parse(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    else:
+        argv = list(argv)
+    argv = _normalize_subcommand_argv(argv)
     pyar_description = """pyar is a program to predict aggregation, reaction,
 and clustering. Reactor explores several possible reactions between two given
 molecules. Aggregator explores several possible geometries of weakly bound
 molecular complexes or atomic clusters.
 """
     pyar_epilog = """Examples:
+  pyar-cli aggregate C H -as 1 4 -N 8
+  pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
+  pyar-cli solvate solute.xyz solvent.xyz -ss 10 -N 16
+  pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8
   pyar-cli -a C H -as 1 4 -N 8
   pyar-cli --aggregate --formula C5H4 -N 8
   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
@@ -303,7 +329,7 @@ chemical formula.
                         help='Maximum SCF cycles.')
     parser.add_argument('--custom-keywords', type=str,
                         help='Software related custom keywords.')
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _resolve_aggregate_input(spec, aggregate_mode):
@@ -350,11 +376,11 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
 def main():
     args = vars(argument_parse())
     from pyar import reactor, scan
-    from pyar.aggregate_state import AggregateStateError
-    from pyar.solvation_state import SolvationStateError
+    from pyar.state.aggregate import AggregateStateError
+    from pyar.state.solvation import SolvationStateError
     from pyar.workflows.aggregate import aggregate
     from pyar.workflows.solvation import solvate
-    from pyar.reaction_state import ReactionStateError
+    from pyar.state.reaction import ReactionStateError
 
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
 

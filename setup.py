@@ -67,7 +67,7 @@ setup(
             'pyar-benchmark-orientations=pyar.scripts.benchmark_orientations:main',
             'pyar-similarity=pyar.scripts.similarity:main',
             'pyar-descriptor=pyar.scripts.descriptor:main',
-            'pyar-mlopt=pyar.interface.mlopt:main',
+            'pyar-mlopt=pyar.backends.mlopt:main',
             'pyar-aimnet2-ase-opt=pyar.AIMNet2.calculators.aimnet2_ase_opt:main',
         ],
     },

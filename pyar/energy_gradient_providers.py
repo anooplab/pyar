@@ -13,7 +13,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Hartree
 
-from pyar import interface
+from pyar import backends
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
     get_backend_capabilities,
@@ -21,8 +21,8 @@ from pyar.backend_capabilities import (
     supported_geometry_backends,
 )
 from pyar.data.units import bohr2angstrom
-from pyar.interface import require_executable
-from pyar.interface.xtb_utils import xtb_parallel_args
+from pyar.backends import require_executable
+from pyar.backends.xtb_utils import xtb_parallel_args
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ class XtbEnergyGradientProvider:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             xyz_path = Path(tmpdir) / "input.xyz"
-            interface.write_xyz(
+            backends.write_xyz(
                 molecule.get_chemical_symbols(),
                 coordinates_angstrom,
                 str(xyz_path),
@@ -152,7 +152,7 @@ class Aimnet2EnergyGradientProvider:
 
     def evaluate(self, molecule, coordinates_bohr):
         from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
-        from pyar.interface.aimnet_2 import aimnet2
+        from pyar.backends.aimnet_2 import aimnet2
 
         coordinates_bohr = _as_numpy_positions(coordinates_bohr)
         coordinates_angstrom = bohr2angstrom(coordinates_bohr)

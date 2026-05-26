@@ -7,12 +7,19 @@ from unittest import mock
 from pathlib import Path
 
 from pyar import optimiser
-from pyar.interface import babel
-from pyar.interface import require_executable
-from pyar.interface.subprocess_utils import run_command, run_output
+from pyar.backends import babel
+from pyar.backends import require_executable
+from pyar.backends.subprocess_utils import run_command, run_output
+from pyar.interface._compat import expose_backend
 
 
 class InterfaceHelperTests(unittest.TestCase):
+    def test_legacy_backend_launcher_preserves_direct_module_execution(self):
+        with mock.patch("pyar.interface._compat.runpy.run_module") as run_module:
+            expose_backend("__main__", "pyar.backends.xtb")
+
+        run_module.assert_called_once_with("pyar.backends.xtb", run_name="__main__")
+
     def test_require_executable_reports_missing_program_cleanly(self):
         with self.assertRaises(FileNotFoundError) as ctx:
             require_executable("__pyar_missing_program__", "MissingTool")

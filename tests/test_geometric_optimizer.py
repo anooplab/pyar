@@ -46,12 +46,12 @@ class GeometricOptimizerTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with mock.patch("pyar.interface.geometric._find_geometric_executable", return_value="geometric-optimize"):
+                with mock.patch("pyar.backends.geometric._find_geometric_executable", return_value="geometric-optimize"):
                     geometry = optimiser.build_geometry(self.molecule, qc_params)
             finally:
                 os.chdir(cwd)
 
-        from pyar.interface.geometric import Geometric
+        from pyar.backends.geometric import Geometric
 
         self.assertIsInstance(geometry, Geometric)
         self.assertEqual(geometry.gamma, 0.0)
@@ -64,7 +64,7 @@ class GeometricOptimizerTests(unittest.TestCase):
             optimiser.build_geometry(self.molecule, qc_params)
 
     def test_geometric_calculator_adds_afir_only_when_gamma_nonzero(self):
-        from pyar.interface.geometric import PyarGeometricCalculator
+        from pyar.backends.geometric import PyarGeometricCalculator
 
         atoms = Atoms(symbols=self.molecule.atoms_list, positions=self.molecule.coordinates)
         backend_energy = 1.5
@@ -79,7 +79,7 @@ class GeometricOptimizerTests(unittest.TestCase):
             def evaluate(self, molecule, coordinates_bohr):
                 return backend_result
 
-        with mock.patch("pyar.interface.geometric._resolve_backend_evaluator", return_value=DummyProvider()):
+        with mock.patch("pyar.backends.geometric._resolve_backend_evaluator", return_value=DummyProvider()):
             calculator = PyarGeometricCalculator(
                 {"software": "xtb", "gamma": 0.0, "charge": 0},
                 fragment_indices=self.molecule.fragments,
@@ -97,7 +97,7 @@ class GeometricOptimizerTests(unittest.TestCase):
         np.testing.assert_allclose(calculator.results["forces"], backend_forces)
 
     def test_geometric_calculator_combines_backend_and_afir(self):
-        from pyar.interface.geometric import PyarGeometricCalculator
+        from pyar.backends.geometric import PyarGeometricCalculator
 
         atoms = Atoms(symbols=self.molecule.atoms_list, positions=self.molecule.coordinates)
         backend_energy = 2.0
@@ -114,8 +114,8 @@ class GeometricOptimizerTests(unittest.TestCase):
             def evaluate(self, molecule, coordinates_bohr):
                 return backend_result
 
-        with mock.patch("pyar.interface.geometric._resolve_backend_evaluator", return_value=DummyProvider()), \
-            mock.patch("pyar.interface.geometric.restraints.isotropic", return_value=(afir_energy_hartree, afir_forces_hartree_per_bohr)) as isotropic:
+        with mock.patch("pyar.backends.geometric._resolve_backend_evaluator", return_value=DummyProvider()), \
+            mock.patch("pyar.backends.geometric.restraints.isotropic", return_value=(afir_energy_hartree, afir_forces_hartree_per_bohr)) as isotropic:
             calculator = PyarGeometricCalculator(
                 {"software": "xtb", "gamma": 37.5, "charge": 0},
                 fragment_indices=self.molecule.fragments,
@@ -143,7 +143,7 @@ class GeometricOptimizerTests(unittest.TestCase):
         self.assertLess(afir_force[1, 0], 0.0)
 
     def test_geometric_preserves_molecular_charge_and_spin_for_backend(self):
-        from pyar.interface.geometric import Geometric
+        from pyar.backends.geometric import Geometric
 
         molecule = SimpleNamespace(**self.molecule.__dict__)
         molecule.charge = -1
@@ -153,7 +153,7 @@ class GeometricOptimizerTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with mock.patch("pyar.interface.geometric._find_geometric_executable", return_value="geometric-optimize"):
+                with mock.patch("pyar.backends.geometric._find_geometric_executable", return_value="geometric-optimize"):
                     geometry = Geometric(molecule, {"software": "xtb", "gamma": 0.0})
             finally:
                 os.chdir(cwd)
@@ -163,13 +163,13 @@ class GeometricOptimizerTests(unittest.TestCase):
         self.assertEqual(geometry.qc_params["scftype"], "uhf")
 
     def test_geometric_uses_valid_convergence_preset_syntax(self):
-        from pyar.interface.geometric import Geometric
+        from pyar.backends.geometric import Geometric
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with mock.patch("pyar.interface.geometric._find_geometric_executable", return_value="geometric-optimize"):
+                with mock.patch("pyar.backends.geometric._find_geometric_executable", return_value="geometric-optimize"):
                     geometry = Geometric(
                         self.molecule,
                         {"software": "xtb", "gamma": 0.0, "opt_threshold": "tight"},
@@ -183,7 +183,7 @@ class GeometricOptimizerTests(unittest.TestCase):
         self.assertLess(command.index(geometry.start_xyz_file), convergence_index)
 
     def test_geometric_executable_lookup_keeps_virtual_environment_path(self):
-        from pyar.interface.geometric import _find_geometric_executable
+        from pyar.backends.geometric import _find_geometric_executable
 
         with tempfile.TemporaryDirectory() as tmpdir:
             bin_dir = Path(tmpdir) / "bin"
@@ -196,19 +196,19 @@ class GeometricOptimizerTests(unittest.TestCase):
             executable.touch()
 
             with mock.patch.object(sys, "executable", str(environment_python)), \
-                mock.patch("pyar.interface.geometric.require_executable") as fallback:
+                mock.patch("pyar.backends.geometric.require_executable") as fallback:
                 self.assertEqual(_find_geometric_executable(), str(executable))
 
             fallback.assert_not_called()
 
     def test_transition_target_is_reserved_for_future_implementation(self):
-        from pyar.interface.geometric import Geometric
+        from pyar.backends.geometric import Geometric
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with mock.patch("pyar.interface.geometric._find_geometric_executable", return_value="geometric-optimize"):
+                with mock.patch("pyar.backends.geometric._find_geometric_executable", return_value="geometric-optimize"):
                     geometry = Geometric(
                         self.molecule,
                         {"software": "xtb", "gamma": 0.0, "opt_target": "ts"},

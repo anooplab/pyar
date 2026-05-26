@@ -1,6 +1,5 @@
-"""Compatibility wrapper for the renamed xTB turbo module.
+"""Compatibility alias for :mod:`pyar.backends.xtbturbo`."""
 
-Import :mod:`pyar.interface.xtb_turbo` for new code.
-"""
+from pyar.interface._compat import expose_backend
 
-from .xtb_turbo import *  # noqa: F401,F403
+expose_backend(__name__, "pyar.backends.xtbturbo")

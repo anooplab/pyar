@@ -1,6 +1,7 @@
 """Tests for structured reaction restart state."""
 
 import json
+import pickle
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from pyar.Molecule import Molecule
-from pyar.reaction_state import ReactionRunState, ReactionStateError
+from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 
 
 class ReactionRunStateTests(unittest.TestCase):
@@ -151,6 +152,21 @@ class ReactionRunStateTests(unittest.TestCase):
             Path(tmpdir, "reaction").mkdir()
             with self.assertRaisesRegex(ReactionStateError, "cannot be safely resumed"):
                 ReactionRunState.migrate_legacy(tmpdir, {"0000": [self.orientation]}, request)
+
+    def test_read_legacy_checkpoint_rejects_empty_state(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with Path(tmpdir, "jobs.pkl").open("wb") as fp:
+                pickle.dump({}, fp)
+
+            with self.assertRaisesRegex(ReactionStateError, "has no pending state"):
+                read_legacy_checkpoint(tmpdir)
+
+    def test_read_legacy_checkpoint_wraps_invalid_pickle_errors(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            Path(tmpdir, "jobs.pkl").write_bytes(b"not a pickle")
+
+            with self.assertRaisesRegex(ReactionStateError, "Could not read legacy reaction checkpoint"):
+                read_legacy_checkpoint(tmpdir)
 
 
 if __name__ == "__main__":

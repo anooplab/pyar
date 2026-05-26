@@ -4,15 +4,15 @@ API Reference
 Core package
 ------------
 
-.. automodule:: pyar
+.. automodule:: pyar.core.molecule
    :members:
    :undoc-members:
 
-.. automodule:: pyar.molecule_io
+.. automodule:: pyar.io.xyz
    :members:
    :undoc-members:
 
-.. automodule:: pyar.molecule_geometry
+.. automodule:: pyar.core.geometry
    :members:
    :undoc-members:
 
@@ -27,30 +27,30 @@ Command-line entry point
    :members: argument_parse, main
    :undoc-members:
 
-xTB interface
+xTB backends
 -------------
 
-.. automodule:: pyar.interface.xtb_utils
+.. automodule:: pyar.backends.xtb_utils
    :members:
    :undoc-members:
 
-.. automodule:: pyar.interface.xtb
+.. automodule:: pyar.backends.xtb
    :members:
    :undoc-members:
 
-.. automodule:: pyar.interface.xtb_aiqm1
+.. automodule:: pyar.backends.xtb_aiqm1
    :members:
    :undoc-members:
 
-.. automodule:: pyar.interface.xtb_aimnet2
+.. automodule:: pyar.backends.xtb_aimnet2
    :members:
    :undoc-members:
 
-.. automodule:: pyar.interface.xtb_turbo
+.. automodule:: pyar.backends.xtb_turbo
    :members:
    :undoc-members:
 
-.. automodule:: pyar.interface.geometric
+.. automodule:: pyar.backends.geometric
    :members:
    :undoc-members:
 
@@ -68,11 +68,19 @@ Backend capabilities and providers
 Sampling API
 ------------
 
-.. automodule:: pyar.orientation_sampling
+.. automodule:: pyar.sampling.sphere
    :members:
    :undoc-members:
 
-.. automodule:: pyar.trial_generation
+.. automodule:: pyar.sampling.rotation
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.sampling.metrics
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.sampling.trial_generator
    :members:
    :undoc-members:
 

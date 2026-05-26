@@ -936,6 +936,58 @@ def plot_energy_histogram(molecules):
     plt.ylabel('Population')
     plt.title('Histogram of energies')
 
+
+# Rebind the public selection helpers to the focused service modules.
+# The legacy module stays import-compatible, but the implementation now lives
+# in pyar.selection.* so it can be maintained as smaller services.
+from pyar.selection.basin_memory import (  # noqa: E402
+    _apply_basin_memory,
+    _basin_novelty_scores,
+    _basin_registry_path,
+    _entry_fingerprint,
+    _fingerprint_signature,
+    _load_basin_registry,
+    _persist_basin_registry,
+    _stoichiometry_label,
+    record_selected_basins,
+)
+from pyar.selection.clustering import (  # noqa: E402
+    agglomerative_clustering,
+    affinity_propagation_clustering,
+    determine_dbscan_params,
+    generate_labels,
+    gaussian_mixture_clustering,
+    get_the_best_molecule,
+    hdbscan_clustering,
+    kmeans_clustering,
+    mean_shift_clustering,
+    optics_clustering,
+    print_energy_table,
+    rbf_kernel_clustering,
+    select_best_from_each_cluster,
+    spectral_clustering,
+)
+from pyar.selection.deduplication import (  # noqa: E402
+    _adaptive_duplicate_rmsd_threshold,
+    _assigned_element_order,
+    _equivalent_atom_groups,
+    _exact_element_orders,
+    _iterative_assigned_rmsd,
+    _kabsch_rotation,
+    _kabsch_rmsd,
+    _prefer_connected_structures,
+    _rmsd_after_alignment,
+    _structure_is_similar,
+    calc_fingerprint_distance,
+    remove_similar,
+)
+from pyar.selection.diversity import (  # noqa: E402
+    _finalize_selection,
+    _limit_seed_count,
+    _log_seed_shortfall,
+    _max_min_diversity_select,
+)
+
     
 def main():
     pass

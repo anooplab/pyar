@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pyar.interface import babel
+from pyar.backends import babel
 
 
 def write_disconnected_reference(molecule, path, separation=100.0):

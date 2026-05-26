@@ -13,7 +13,7 @@ from pyar.backend_capabilities import (
     supported_geometry_backends,
 )
 from pyar.data import defualt_parameters
-from pyar.reaction_state import ReactionStateError
+from pyar.state.reaction import ReactionStateError
 
 logger = logging.getLogger('pyar-react')
 handler = logging.FileHandler('pyar-react.log', 'a')

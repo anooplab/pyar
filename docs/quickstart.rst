@@ -31,6 +31,7 @@ Aggregate two one-atom fragments:
 
 .. code-block:: bash
 
+   pyar-cli aggregate C H -as 1 4 -N 8
    pyar-cli -a C H -as 1 4 -N 8
 
 Generate a starting aggregate from a formula:
@@ -43,18 +44,21 @@ Run a reaction search:
 
 .. code-block:: bash
 
+   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
    pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
 Scan a bond:
 
 .. code-block:: bash
 
+   pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8
    pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
 
 Run a solvation search:
 
 .. code-block:: bash
 
+   pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
    pyar-cli -s solute.xyz solvent.xyz --software xtb -ss 10 -N 16
 
 Notes

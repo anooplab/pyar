@@ -5,6 +5,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -349,6 +350,35 @@ class CliSmokeTests(unittest.TestCase):
         ]
 
         self.cli.main()
+
+    def test_react_subcommand_alias_dispatches_to_reactor(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                Path("a.xyz").write_text("1\na\nH 0.0 0.0 0.0\n")
+                Path("b.xyz").write_text("1\nb\nH 0.0 0.0 0.0\n")
+                sys.argv = [
+                    "pyar-cli",
+                    "react",
+                    "a.xyz",
+                    "b.xyz",
+                    "-N",
+                    "4",
+                    "-gmin",
+                    "0.1",
+                    "-gmax",
+                    "0.2",
+                    "--software",
+                    "xtb",
+                ]
+
+                with mock.patch.object(sys.modules["pyar.reactor"], "react") as react:
+                    self.cli.main()
+            finally:
+                os.chdir(cwd)
+
+        react.assert_called_once()
 
     def test_aggregate_infers_multiplicity_when_not_provided(self):
         captured = {}

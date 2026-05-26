@@ -9,7 +9,7 @@ chemistry backends without assigning coordinate-update policy to a backend.
 Current Problem
 ---------------
 
-The current route through ``pyar.interface.xtb_turbo`` evaluates an xTB
+The compatibility route through ``pyar.backends.xtb_turbo`` evaluates an xTB
 gradient, adds the AFIR contribution, writes the modified energy and gradient
 into Turbomole files, and asks Turbomole to update the coordinates and check
 convergence. This has three design consequences:

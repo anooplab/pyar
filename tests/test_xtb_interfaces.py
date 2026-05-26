@@ -6,7 +6,7 @@ from unittest import mock
 
 import numpy as np
 
-from pyar.interface.xtb_utils import build_xtb_command, xtb_parallel_args
+from pyar.backends.xtb_utils import build_xtb_command, xtb_parallel_args
 
 
 class XtbInterfaceTests(unittest.TestCase):
@@ -48,7 +48,7 @@ class XtbInterfaceTests(unittest.TestCase):
         )
 
     def test_xtb_wrapper_uses_parallel_threads(self):
-        from pyar.interface import xtb
+        from pyar.backends import xtb
 
         with tempfile.TemporaryDirectory():
             with mock.patch.object(xtb, "require_executable", return_value="xtb"):
@@ -59,7 +59,7 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("-opt", runner.cmd)
 
     def test_xtb_turbo_wrapper_uses_parallel_threads(self):
-        from pyar.interface import xtb_turbo
+        from pyar.backends import xtb_turbo
 
         with tempfile.TemporaryDirectory():
             with mock.patch.object(xtb_turbo, "require_executable", side_effect=["define", "xtb"]):
@@ -70,7 +70,7 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("-grad", runner.egrad_program)
 
     def test_xtb_turbo_uses_requested_gamma(self):
-        from pyar.interface import xtb_turbo
+        from pyar.backends import xtb_turbo
 
         molecule = SimpleNamespace(**self.molecule.__dict__)
         molecule.coordinates = np.asarray(self.molecule.coordinates, dtype=float)
@@ -99,7 +99,7 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertEqual(isotropic.call_args.args[-1], 37.5)
 
     def test_xtb_aiqm1_wrapper_uses_parallel_threads(self):
-        from pyar.interface import xtb_aiqm1
+        from pyar.backends import xtb_aiqm1
 
         with tempfile.TemporaryDirectory():
             with mock.patch.object(xtb_aiqm1, "require_executable", return_value="xtb"):
@@ -110,7 +110,7 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("-opt", runner.xtb_cmd)
 
     def test_xtb_aimnet2_wrapper_uses_parallel_threads(self):
-        from pyar.interface import xtb_aimnet2
+        from pyar.backends import xtb_aimnet2
 
         with tempfile.TemporaryDirectory():
             with mock.patch.object(xtb_aimnet2, "require_executable", return_value="xtb"):
@@ -121,7 +121,7 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("-opt", runner.xtb_cmd)
 
     def test_turbomole_wrapper_stores_gamma_from_parameters(self):
-        from pyar.interface import turbomole
+        from pyar.backends import turbomole
 
         molecule = SimpleNamespace(**self.molecule.__dict__)
         molecule.coordinates = np.asarray(self.molecule.coordinates, dtype=float)

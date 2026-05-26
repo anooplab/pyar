@@ -85,10 +85,15 @@ services, workflows, persistence, backend adapters, and user interfaces:
        main.py
        options.py
        reporting.py
-     diagnostics/
-       logging.py
-       benchmark_sampling.py
-       benchmark_selection.py
+   diagnostics/
+     logging.py
+     benchmark_sampling.py
+     benchmark_selection.py
+
+``pyar.core``, ``pyar.io``, ``pyar.sampling``, ``pyar.state``, and
+``pyar.backends`` now contain moved implementations for this layout. Legacy
+import paths remain as compatibility aliases while remaining physical moves
+are completed.
 
 Public API
 ----------
@@ -133,9 +138,10 @@ stabilized before modules are physically moved:
   ``pyar/reaction_state.py``; aggregation now uses ``pyar/aggregate_state.py``
   and solvation uses ``pyar/solvation_state.py``. Future workflow migration
   should converge on the structured ``state`` package.
-* ``pyar/interface/`` becomes ``backends/``.
+* ``pyar/interface/`` has moved to ``backends/``; legacy interface paths are
+  retained as compatibility aliases.
 * ``pyar/afir/restraints.py`` becomes ``biases/afir.py``.
-* ``pyar/interface/xtb_turbo.py`` is replaced by a backend-neutral
+* ``pyar/backends/xtb_turbo.py`` is replaced by a backend-neutral
   reaction-optimization service, not moved into the new package as a
   permanent adapter.
 
@@ -349,29 +355,34 @@ maintained vendored dependency or be replaced by an optional external adapter.
 Migration Plan
 --------------
 
-The migration should be incremental and behaviour-preserving:
+The migration is incremental and behaviour-preserving. Items 1-9 are already
+complete and are kept here as history; item 10 is in progress.
 
-1. Freeze and commit the currently validated baseline.
-2. Define structured request, result, capability, and exception types without
-   moving existing modules.
-3. Introduce energy/gradient provider, bias-potential, and optimizer
-   interfaces; verify AFIR energy and gradients with unit and finite-difference
-   tests.
-4. Extract an xTB energy/gradient provider independent of Turbomole and
-   integrate the TRIC optimizer for biased reaction jobs.
-5. Extend the structured run-state approach now implemented for reaction and
-   aggregation workflows to other long workflows before making new engines
-   the default.
-6. Benchmark the new optimizer against current reaction behaviour and
-   Cartesian baselines, then remove the Turbomole requirement from the xTB
-   reaction path.
-7. Split the selection implementation into focused services while preserving
-   selected outputs.
-8. Convert workflows to return structured result objects.
-9. Introduce a subcommand CLI while retaining current wrappers for one
-   transition release.
+1. The validated baseline was frozen and committed.
+2. Structured request, result, capability, and exception types were defined
+   without moving existing modules.
+3. Energy/gradient provider, bias-potential, and optimizer interfaces were
+   introduced, with AFIR energy and gradients verified by unit and
+   finite-difference tests.
+4. An xTB energy/gradient provider independent of Turbomole was extracted,
+   and the TRIC optimizer was integrated for biased reaction jobs.
+5. The structured run-state approach was extended from reaction and
+   aggregation to solvation and other long workflows.
+6. The new optimizer was benchmarked against current reaction behaviour and
+   Cartesian baselines, and the Turbomole requirement was removed from the
+   xTB reaction path.
+
+7. The selection implementation was split into focused services while
+   preserving selected outputs.
+8. Workflows now return structured result objects.
+9. The CLI now accepts subcommand-style invocations while retaining the
+   current wrappers for one transition release.
+
+Open plan:
+
 10. Move modules to the target layout only in a major-version development
-    branch.
+    branch. Core, sampling, state, and backend implementations have moved;
+    compatibility aliases remain while workflow and bias moves are completed.
 11. Decide whether to vendor or externalize MLatom.
 12. Publish migration documentation and reproducibility examples.
 
@@ -381,10 +392,11 @@ Immediate Priority
 The next architectural work consists of two coupled priorities:
 
 * continue expanding the versioned structured restart state implemented for
-  reaction and aggregation runs to solvation and other long workflows
-* Turbomole-free internal-coordinate reaction optimization, beginning with a
-  tested xTB energy/gradient provider and AFIR objective
+  reaction, aggregation, and solvation runs to other long workflows
+* harden the reaction optimization channel that now uses geomeTRIC/TRIC for
+  ``xtb``, ``aimnet_2``, ``orca``, and ``gaussian`` by storing richer restart
+  metadata, benchmarking it against the current behavior, and extending it
+  toward a separate validated transition-state workflow
 
-Both must be in place before expanding reaction functionality: the optimizer
-must be scientifically appropriate, and a long calculation must be safely
-restartable.
+Both remain coupled: the optimizer path must stay scientifically appropriate,
+and long calculations must remain safely restartable.

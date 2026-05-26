@@ -10,8 +10,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pyar.aggregate_state import AggregateRunState, AggregateStateError
+from pyar.state.aggregate import AggregateRunState, AggregateStateError
 from pyar import file_manager
+from pyar.workflow_results import AggregateResult
 from pyar.workflows._growth import (
     add_one,
     aggregator_logger,
@@ -102,7 +103,13 @@ def aggregate(
     """Run an aggregate or cluster generation workflow."""
     if check_stop_signal():
         aggregator_logger.info("Function: aggregate")
-        return StopIteration
+        run_directory = str(Path.cwd().resolve() / "aggregates")
+        return AggregateResult(
+            workflow="aggregate",
+            status="stopped",
+            run_directory=run_directory,
+            state_path=str(Path(run_directory) / "state.json"),
+        )
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
 
@@ -260,11 +267,25 @@ def aggregate(
                 len(final_selected),
             )
         run_state.finish(_selected_result_paths("selected/**/result_*.xyz"))
+        result = AggregateResult(
+            workflow="aggregate",
+            status=run_state.data["status"],
+            run_directory=str(Path(root_directory).resolve() / "aggregates"),
+            state_path=str(Path(root_directory).resolve() / "aggregates" / "state.json"),
+            selected_paths=tuple(run_state.data.get("final_selected_results", [])),
+            metadata={
+                "pathways": tuple(run_state.data.get("pathways", [])),
+                "completed_pathways": tuple(
+                    record["label"] for record in run_state.data.get("completed_pathways", [])
+                ),
+                "legacy_import": run_state.data.get("legacy_import"),
+            },
+        )
 
         if hm_orientations == "auto" and number_of_orientations <= 256:
             number_of_orientations += 8
         aggregator_logger.info("Aggregation workflow completed.")
-        return
+        return result
 
 
 def aggregate_from_formulas(

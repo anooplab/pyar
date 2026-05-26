@@ -8,6 +8,7 @@ from unittest import mock
 
 from pyar.solvation_state import SolvationStateError
 from pyar.workflows import solvation
+from pyar.workflow_results import SolvationResult
 
 
 class DummyMolecule:
@@ -59,7 +60,10 @@ class SolvationWorkflowTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
-        self.assertIsNone(result)
+        self.assertIsInstance(result, SolvationResult)
+        self.assertEqual(result.workflow, "solvation")
+        self.assertEqual(result.status, "completed")
+        self.assertTrue(result.state_path.endswith("solvation/state.json"))
         self.assertTrue(state_exists)
 
     def test_solvation_resumes_from_saved_state(self):
@@ -107,7 +111,9 @@ class SolvationWorkflowTests(unittest.TestCase):
         self.assertEqual(first_calls, ["002", "003"])
         self.assertEqual(resumed_add.call_count, 2)
         self.assertEqual([call.args[0] for call in resumed_add.call_args_list], ["003", "004"])
-        self.assertIsNone(result)
+        self.assertIsInstance(result, SolvationResult)
+        self.assertEqual(result.status, "completed")
+        self.assertGreaterEqual(len(result.selected_paths), 1)
 
     def test_solvation_refuses_changed_request(self):
         seed = DummyMolecule("seed", n_atoms=1)

@@ -10,6 +10,7 @@ import numpy as np
 
 from pyar.Molecule import Molecule
 from pyar.reaction_state import ReactionStateError
+from pyar.workflow_results import ReactionResult
 
 
 class StandaloneWorkflowScriptTests(unittest.TestCase):
@@ -409,6 +410,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 run_state = mock.Mock()
+                run_state.data = {"products": []}
                 with mock.patch.object(
                     reactor,
                     "initialize_reaction_run",
@@ -416,7 +418,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 ), \
                     mock.patch.object(reactor, "optimize_all", return_value=[]) as optimize_all, \
                     mock.patch.object(reactor.os, "chdir"):
-                    reactor.react(
+                    result = reactor.react(
                         object(),
                         object(),
                         0.1,
@@ -435,6 +437,9 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(first_qc_params["gamma"], 0.1)
         run_state.complete_cycle.assert_called_once_with(0.1, [])
         run_state.finish.assert_called_once_with("completed_no_candidates")
+        self.assertIsInstance(result, ReactionResult)
+        self.assertEqual(result.workflow, "reaction")
+        self.assertEqual(result.status, "completed_no_candidates")
 
     def test_reactor_reports_product_terminal_state(self):
         import pyar.reactor as reactor
@@ -447,6 +452,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 "smiles": "product-smiles",
             }
             run_state = mock.Mock()
+            run_state.data = {"products": [{"path": "products/product.xyz"}]}
             with tempfile.TemporaryDirectory() as tmpdir:
                 with mock.patch.object(
                     reactor,
@@ -455,10 +461,13 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 ), \
                     mock.patch.object(reactor, "optimize_all", return_value=[]), \
                     mock.patch.object(reactor.os, "chdir"):
-                    reactor.react(object(), object(), 100.0, 100.0, 1, {"software": "xtb"}, None, 2.3)
+                    result = reactor.react(object(), object(), 100.0, 100.0, 1, {"software": "xtb"}, None, 2.3)
 
             run_state.complete_cycle.assert_called_once_with(100.0, [])
             run_state.finish.assert_called_once_with("completed_products_found")
+            self.assertIsInstance(result, ReactionResult)
+            self.assertEqual(result.status, "completed_products_found")
+            self.assertEqual(result.selected_paths, ("products/product.xyz",))
         finally:
             reactor.saved_product_identities.clear()
             reactor.saved_product_identities.update(original_registry)

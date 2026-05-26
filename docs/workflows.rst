@@ -12,6 +12,10 @@ Examples:
 
 .. code-block:: bash
 
+   pyar-cli aggregate C H -as 1 4 -N 8
+   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
+   pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
+   pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8
    pyar-cli -a C H -as 1 4 -N 8
    pyar-cli --aggregate --formula C5H4 -N 8
 
@@ -41,6 +45,7 @@ Reaction searches operate on exactly two input structures.
 .. code-block:: bash
 
    pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
+   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
 For ``xtb`` and ``aimnet_2`` reaction runs, PyAR uses geomeTRIC/TRIC to
 optimize the backend energy/force objective plus the AFIR bias. Ordinary
@@ -80,6 +85,7 @@ Solvation takes a solute and a solvent fragment and explores solvent placement.
 .. code-block:: bash
 
    pyar-cli -s solute.xyz solvent.xyz --software xtb -ss 10 -N 16
+   pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
 
 Solvation restart state is stored as readable JSON:
 
@@ -105,3 +111,4 @@ Bond scanning evaluates a distance scan between two fragments.
 .. code-block:: bash
 
    pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
+   pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8

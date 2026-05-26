@@ -10,16 +10,34 @@ import pyar.scan
 from pyar import trial_generation, file_manager
 from pyar.data_analysis import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
+from pyar.workflow_results import ReactionResult
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
     same_molecular_identity,
     write_disconnected_reference,
 )
-from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
+from pyar.state.reaction import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 
 reactor_logger = logging.getLogger('pyar.reactor')
 
 saved_product_identities = {}
+
+
+def _build_reaction_result(workdir, status, product_dir, run_state, gamma_list, orientations):
+    """Package the current reaction outcome as a structured result."""
+    return ReactionResult(
+        workflow="reaction",
+        status=status,
+        run_directory=str(os.path.join(workdir, "reaction")),
+        state_path=str(os.path.join(workdir, "reaction", "state.json")),
+        selected_paths=tuple(product["path"] for product in run_state.data.get("products", [])),
+        metadata={
+            "gamma_schedule": tuple(float(value) for value in gamma_list),
+            "products": tuple(run_state.data.get("products", [])),
+            "product_directory": product_dir,
+            "remaining_orientations": len(orientations),
+        },
+    )
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
@@ -263,11 +281,20 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
                     len(saved_product_identities),
                 )
                 run_state.finish("completed_products_found")
+                result_status = "completed_products_found"
             else:
                 reactor_logger.info("No orientations left for next gamma cycle.")
                 run_state.finish("completed_no_candidates")
+                result_status = "completed_no_candidates"
             os.chdir(workdir)
-            return
+            return _build_reaction_result(
+                workdir,
+                result_status,
+                product_dir,
+                run_state,
+                gamma_list,
+                orientations_to_optimize,
+            )
         if len(optimized_molecules) == 1:
             orientations_to_optimize = optimized_molecules[:]
         else:
@@ -285,7 +312,14 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     terminal_status = "completed_products_found" if saved_product_identities else "completed"
     run_state.finish(terminal_status)
     reactor_logger.info("Reaction workflow completed. State retained in reaction/state.json.")
-    return
+    return _build_reaction_result(
+        workdir,
+        terminal_status,
+        product_dir,
+        run_state,
+        gamma_list,
+        orientations_to_optimize,
+    )
 
 
 def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):

@@ -9,6 +9,7 @@ from unittest import mock
 from pyar import aggregator
 from pyar.aggregate_state import AggregateStateError
 from pyar.workflows import _growth as growth
+from pyar.workflow_results import AggregateResult
 
 aggregate_workflow = importlib.import_module("pyar.workflows.aggregate")
 
@@ -471,7 +472,7 @@ class AggregatorTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 with self.assertWarnsRegex(DeprecationWarning, "pyar.aggregator.aggregate"):
-                    aggregator.aggregate(
+                    result = aggregator.aggregate(
                         molecules=[molecule],
                         aggregate_sizes=[1],
                         hm_orientations=2,
@@ -488,6 +489,10 @@ class AggregatorTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+        self.assertIsInstance(result, AggregateResult)
+        self.assertEqual(result.workflow, "aggregate")
+        self.assertEqual(result.status, "completed")
+        self.assertTrue(result.state_path.endswith("aggregates/state.json"))
         self.assertEqual(state["workflow"], "aggregate")
         self.assertEqual(state["status"], "completed")
         self.assertEqual(state["request"]["fragments"][0]["scftype"], "rhf")

@@ -6,9 +6,7 @@ This page collects the main modules that make up PyAR.
 Core types
 ----------
 
-.. automodule:: pyar.Molecule
-   :members:
-   :undoc-members:
+Canonical core, I/O, and sampling APIs are documented in :doc:`api`.
 
 Main workflows
 --------------
@@ -17,19 +15,75 @@ Main workflows
    :members:
    :undoc-members:
 
+.. automodule:: pyar.workflow_results
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.orca
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.orca_aiqm1
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.psi4
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.gaussian
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.babel
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.mopac
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.ani
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.aimnet_2
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.aiqm1_mlatom
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.mlatom_aiqm1
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.backends.mlopt
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.state.aggregate
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.state.reaction
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.state.solvation
+   :members:
+   :undoc-members:
+
 .. automodule:: pyar.workflows.aggregate
    :members:
    :undoc-members:
 
 .. automodule:: pyar.workflows.solvation
-   :members:
-   :undoc-members:
-
-.. automodule:: pyar.aggregate_state
-   :members:
-   :undoc-members:
-
-.. automodule:: pyar.solvation_state
    :members:
    :undoc-members:
 
@@ -49,6 +103,25 @@ Supporting utilities
 --------------------
 
 .. automodule:: pyar.property
+   :members:
+   :undoc-members:
+
+Selection services
+------------------
+
+.. automodule:: pyar.selection.basin_memory
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.selection.deduplication
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.selection.diversity
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.selection.clustering
    :members:
    :undoc-members:
 

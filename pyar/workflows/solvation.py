@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
-from pyar.solvation_state import SolvationRunState, SolvationStateError
+from pyar.state.solvation import SolvationRunState, SolvationStateError
+from pyar import file_manager
+from pyar.workflow_results import SolvationResult
 from pyar.workflows._growth import (
     add_one,
     aggregator_logger,
@@ -44,7 +47,13 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
     """Add solvent molecules to the current seeds."""
     if check_stop_signal():
         aggregator_logger.info("Function: solvate")
-        return StopIteration
+        run_directory = str(Path.cwd().resolve() / "solvation")
+        return SolvationResult(
+            workflow="solvation",
+            status="stopped",
+            run_directory=run_directory,
+            state_path=str(Path(run_directory) / "state.json"),
+        )
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
 
@@ -90,7 +99,19 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
         if len(seeds) == 0:
             aggregator_logger.info("No seeds to process")
             run_state.finish("completed_no_seeds")
-            return
+            return SolvationResult(
+                workflow="solvation",
+                status=run_state.data["status"],
+                run_directory=str(Path(root_directory).resolve() / "solvation"),
+                state_path=str(Path(root_directory).resolve() / "solvation" / "state.json"),
+                selected_paths=tuple(run_state.data.get("final_seeds", [])),
+                metadata={
+                    "completed_cycles": tuple(
+                        record["cycle"] for record in run_state.data.get("completed_cycles", [])
+                    ),
+                    "next_cycle": run_state.data.get("next_cycle"),
+                },
+            )
         aggregate_id = "{:03d}".format(aggregation_counter)
         aggregate_home = f"aggregate_{aggregate_id}"
         file_manager.make_directories(aggregate_home)
@@ -111,3 +132,16 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
         if hm_orientations == "auto" and number_of_orientations <= 256:
             number_of_orientations *= 2
     run_state.finish()
+    return SolvationResult(
+        workflow="solvation",
+        status=run_state.data["status"],
+        run_directory=str(Path(root_directory).resolve() / "solvation"),
+        state_path=str(Path(root_directory).resolve() / "solvation" / "state.json"),
+        selected_paths=tuple(run_state.data.get("final_seeds", [])),
+        metadata={
+            "completed_cycles": tuple(
+                record["cycle"] for record in run_state.data.get("completed_cycles", [])
+            ),
+            "next_cycle": run_state.data.get("next_cycle"),
+        },
+    )

@@ -7,6 +7,14 @@ from pyar import trial_generation
 
 
 class TrialGenerationTests(unittest.TestCase):
+    def test_broken_remains_available_through_legacy_module(self):
+        separated = Molecule(
+            ["H", "H"],
+            np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]),
+        )
+
+        self.assertTrue(trial_generation.broken(separated))
+
     def test_placement_finishes_when_radial_approach_misses_seed_atoms(self):
         seed = Molecule(
             ["C", "C"],
