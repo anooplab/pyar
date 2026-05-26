@@ -130,8 +130,9 @@ stabilized before modules are physically moved:
 * ``pyar/aggregator.py`` becomes ``workflows/aggregate.py``.
 * ``pyar/reactor.py`` becomes ``workflows/reaction.py``.
 * Legacy ``pyar/checkpt.py`` has been replaced for reaction workflows by
-  ``pyar/reaction_state.py``; future workflow migration should converge on
-  the structured ``state`` package.
+  ``pyar/reaction_state.py``; aggregation now uses ``pyar/aggregate_state.py``.
+  Future workflow migration should converge on the structured ``state``
+  package.
 * ``pyar/interface/`` becomes ``backends/``.
 * ``pyar/afir/restraints.py`` becomes ``biases/afir.py``.
 * ``pyar/interface/xtb_turbo.py`` is replaced by a backend-neutral
@@ -234,10 +235,13 @@ Restart And Output State
 ------------------------
 
 Restart reliability is the highest-priority architectural improvement.
-Reaction workflows now use ``reaction/state.json`` together with XYZ
-snapshots instead of mutable pickle checkpoints. Other workflows should
-converge on the same principle: JSON metadata together with XYZ geometries
-and human-readable summaries:
+Reaction workflows use ``reaction/state.json`` together with XYZ snapshots
+instead of mutable pickle checkpoints. Aggregation workflows now use
+``aggregates/state.json`` to validate the request, persist pathway order,
+record completed pathways and selected outputs, and resume interrupted
+pathways without relying on log parsing. Other workflows should converge on
+the same principle: JSON metadata together with XYZ geometries and
+human-readable summaries:
 
 .. code-block:: text
 
@@ -355,8 +359,9 @@ The migration should be incremental and behaviour-preserving:
    tests.
 4. Extract an xTB energy/gradient provider independent of Turbomole and
    integrate the TRIC optimizer for biased reaction jobs.
-5. Extend the structured run-state approach now implemented for reaction
-   workflows to other long workflows before making new engines the default.
+5. Extend the structured run-state approach now implemented for reaction and
+   aggregation workflows to other long workflows before making new engines
+   the default.
 6. Benchmark the new optimizer against current reaction behaviour and
    Cartesian baselines, then remove the Turbomole requirement from the xTB
    reaction path.
@@ -375,8 +380,8 @@ Immediate Priority
 
 The next architectural work consists of two coupled priorities:
 
-* expand the versioned structured restart state already implemented for
-  reaction runs to other long workflows
+* continue expanding the versioned structured restart state implemented for
+  reaction and aggregation runs to solvation and other long workflows
 * Turbomole-free internal-coordinate reaction optimization, beginning with a
   tested xTB energy/gradient provider and AFIR objective
 

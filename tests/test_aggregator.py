@@ -1,3 +1,4 @@
+import json
 import os
 import importlib
 import tempfile
@@ -6,6 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from pyar import aggregator
+from pyar.aggregate_state import AggregateStateError
 from pyar.workflows import _growth as growth
 
 aggregate_workflow = importlib.import_module("pyar.workflows.aggregate")
@@ -279,6 +281,17 @@ class AggregatorTests(unittest.TestCase):
         self.assertEqual([m.name for m in result], ["done"])
         self.assertEqual([m.name for m in molecules], ["pending"])
 
+    def test_legacy_path_conversion_preserves_repeated_fragment_counts(self):
+        fragment_a = DummyMolecule("a", n_atoms=1)
+        fragment_b = DummyMolecule("b", n_atoms=1)
+
+        pathways = aggregator.old_path_to_new_path(
+            [fragment_a, fragment_b, fragment_b],
+            ["  abb  "],
+        )
+
+        self.assertEqual([[molecule.name for molecule in path] for path in pathways], [["a", "b", "b"]])
+
     def test_selected_snapshot_is_grouped_by_stoichiometry(self):
         selected = [
             DummyMolecule("sel_1", n_atoms=5, atoms_list=["C", "H", "H", "H", "H"]),
@@ -418,6 +431,38 @@ class AggregatorTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_aggregate_imports_legacy_path_markers_into_state(self):
+        molecules = [DummyMolecule("input_a", n_atoms=1), DummyMolecule("input_b", n_atoms=1)]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                Path("aggregates").mkdir()
+                with mock.patch.object(aggregate_workflow, "read_old_path", return_value=["  ab  "]):
+                    with mock.patch.object(aggregate_workflow, "select_pathways") as new_paths:
+                        with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
+                            with self.assertLogs("pyar.aggregator", level="WARNING"):
+                                aggregate_workflow.aggregate(
+                                    molecules=molecules,
+                                    aggregate_sizes=[1, 1],
+                                    hm_orientations=2,
+                                    qc_params={"software": None},
+                                    maximum_number_of_seeds=2,
+                                    first_pathway=0,
+                                    number_of_pathways=1,
+                                    site=None,
+                                )
+                with Path("aggregates", "state.json").open() as fp:
+                    state = json.load(fp)
+            finally:
+                os.chdir(cwd)
+
+        new_paths.assert_not_called()
+        self.assertEqual(state["legacy_import"], "pyar.log")
+        self.assertEqual(state["pathways"], ["ab"])
+        self.assertEqual(state["status"], "completed")
+
     def test_aggregate_api_starts_without_existing_log(self):
         molecule = DummyMolecule("seed", n_atoms=1)
 
@@ -438,8 +483,97 @@ class AggregatorTests(unittest.TestCase):
                     )
 
                 self.assertTrue(Path(tmpdir, "aggregates").is_dir())
+                with Path(tmpdir, "aggregates", "state.json").open() as fp:
+                    state = json.load(fp)
             finally:
                 os.chdir(cwd)
+
+        self.assertEqual(state["workflow"], "aggregate")
+        self.assertEqual(state["status"], "completed")
+        self.assertEqual(state["request"]["fragments"][0]["scftype"], "rhf")
+        self.assertEqual(state["request"]["fragments"][0]["fragment_definition"], [0])
+
+    def test_aggregate_refuses_existing_output_without_resumable_state(self):
+        molecule = DummyMolecule("seed", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                Path("aggregates", "archived_output").mkdir(parents=True)
+                with mock.patch.object(aggregate_workflow, "read_old_path", return_value=None):
+                    with self.assertRaisesRegex(AggregateStateError, "has no resumable state"):
+                        aggregate_workflow.aggregate(
+                            molecules=[molecule],
+                            aggregate_sizes=[1],
+                            hm_orientations=2,
+                            qc_params={"software": None},
+                            maximum_number_of_seeds=2,
+                            first_pathway=0,
+                            number_of_pathways=1,
+                            site=None,
+                        )
+            finally:
+                os.chdir(cwd)
+
+    def test_aggregate_resumes_only_uncompleted_persisted_pathways(self):
+        molecule_a = DummyMolecule("input_a", n_atoms=1)
+        molecule_b = DummyMolecule("input_b", n_atoms=1)
+        calls = []
+
+        def stop_on_second_path(*args, **kwargs):
+            calls.append(args[0])
+            if len(calls) == 2:
+                raise RuntimeError("interrupted second pathway")
+            return []
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(
+                    aggregate_workflow,
+                    "select_pathways",
+                    return_value=[(molecule_a, molecule_b), (molecule_b, molecule_a)],
+                ):
+                    with mock.patch.object(aggregate_workflow, "add_one", side_effect=stop_on_second_path):
+                        with self.assertRaisesRegex(RuntimeError, "interrupted second pathway"):
+                            aggregate_workflow.aggregate(
+                                molecules=[molecule_a, molecule_b],
+                                aggregate_sizes=[1, 1],
+                                hm_orientations=2,
+                                qc_params={"software": None},
+                                maximum_number_of_seeds=2,
+                                first_pathway=0,
+                                number_of_pathways=2,
+                                site=None,
+                            )
+                with Path("aggregates", "state.json").open() as fp:
+                    interrupted_state = json.load(fp)
+
+                with mock.patch.object(aggregate_workflow, "select_pathways") as selected_paths:
+                    with mock.patch.object(aggregate_workflow, "add_one", return_value=[]) as resumed_add:
+                        aggregate_workflow.aggregate(
+                            molecules=[molecule_a, molecule_b],
+                            aggregate_sizes=[1, 1],
+                            hm_orientations=2,
+                            qc_params={"software": None},
+                            maximum_number_of_seeds=2,
+                            first_pathway=0,
+                            number_of_pathways=2,
+                            site=None,
+                        )
+                with Path("aggregates", "state.json").open() as fp:
+                    completed_state = json.load(fp)
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(interrupted_state["pathways"], ["ab", "ba"])
+        self.assertEqual(len(interrupted_state["completed_pathways"]), 1)
+        selected_paths.assert_not_called()
+        resumed_add.assert_called_once()
+        self.assertEqual(completed_state["status"], "completed")
+        self.assertEqual(len(completed_state["completed_pathways"]), 2)
 
 
 if __name__ == "__main__":

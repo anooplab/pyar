@@ -350,6 +350,7 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
 def main():
     args = vars(argument_parse())
     from pyar import reactor, scan
+    from pyar.aggregate_state import AggregateStateError
     from pyar.workflows.aggregate import aggregate
     from pyar.workflows.solvation import solvate
     from pyar.reaction_state import ReactionStateError
@@ -679,7 +680,7 @@ def main():
             scan.scan_distance(input_molecules, run_parameters['scan_bond'],
                                int(number_of_orientations),
                                quantum_chemistry_parameters)
-    except (FileNotFoundError, ReactionStateError, ValueError) as exc:
+    except (FileNotFoundError, AggregateStateError, ReactionStateError, ValueError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

@@ -208,12 +208,18 @@ def read_old_path():
 
 
 def old_path_to_new_path(monomers_to_be_added, old_path):
+    monomers_by_name = {}
+    for monomer in monomers_to_be_added:
+        monomers_by_name.setdefault(monomer.name, monomer)
     complete_pathways = []
     for each in old_path:
-        tmp = []
-        for e in each:
-            tmp.extend(a for a in monomers_to_be_added if a.name == e)
-        complete_pathways.append(tuple(tmp))
+        label = str(each).strip()
+        try:
+            complete_pathways.append(tuple(monomers_by_name[name] for name in label))
+        except KeyError as exc:
+            raise ValueError(
+                f"Legacy aggregation path {label!r} contains unknown fragment {exc.args[0]!r}."
+            ) from exc
     return complete_pathways
 
 

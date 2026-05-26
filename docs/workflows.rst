@@ -15,6 +15,24 @@ Examples:
    pyar-cli -a C H -as 1 4 -N 8
    pyar-cli --aggregate --formula C5H4 -N 8
 
+Aggregation restart state is stored as readable JSON:
+
+.. code-block:: text
+
+   aggregates/
+     state.json
+     ag_.../
+       selected/
+     selected/
+       stoichiometry_.../
+
+``state.json`` records the input geometry and calculation settings, selected
+pathway order, completed pathways, pathway-level selected results, and final
+selected results. Re-running an interrupted aggregation with the same request
+resumes only unfinished pathways while reusing their existing step outputs.
+Legacy ``pyar.log`` pathway markers are imported once into JSON state when an
+older ``aggregates/`` calculation is resumed.
+
 Reaction
 --------
 
