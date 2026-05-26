@@ -141,7 +141,8 @@ stabilized before modules are physically moved:
   should converge on the structured ``state`` package.
 * ``pyar/interface/`` has moved to ``backends/``; legacy interface paths are
   retained as compatibility aliases.
-* ``pyar/afir/restraints.py`` becomes ``biases/afir.py``.
+* ``pyar/afir/restraints.py`` has moved to ``biases/afir.py``; the legacy
+  path is retained as a compatibility alias.
 * ``pyar/backends/xtb_turbo.py`` is replaced by a backend-neutral
   reaction-optimization service, not moved into the new package as a
   permanent adapter.
@@ -382,8 +383,8 @@ complete and are kept here as history; item 10 is in progress.
 Open plan:
 
 10. Move modules to the target layout only in a major-version development
-    branch. Core, sampling, state, backend, and workflow implementations have
-    moved; compatibility aliases remain while the bias move is completed.
+    branch. Core, sampling, state, backend, workflow, and bias implementations
+    have moved; compatibility aliases remain for legacy callers.
 11. Decide whether to vendor or externalize MLatom.
 12. Publish migration documentation and reproducibility examples.
 

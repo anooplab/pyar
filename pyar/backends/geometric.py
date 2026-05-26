@@ -18,7 +18,7 @@ import numpy as np
 from ase.calculators.calculator import Calculator, all_changes
 from ase.units import Bohr, Hartree
 
-from pyar.afir import restraints
+from pyar.biases import afir as restraints
 from pyar.afir.utils import resolve_gamma
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr

@@ -33,7 +33,7 @@ import time
 import numpy as np
 
 from pyar import backends
-from pyar.afir import restraints
+from pyar.biases import afir as restraints
 from pyar.afir.utils import resolve_gamma
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.backends import SF, require_executable

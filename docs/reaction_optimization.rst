@@ -21,7 +21,7 @@ convergence. This has three design consequences:
   ``gamma = 100.0`` internally, instead of using the gamma schedule supplied
   by ``react``
 
-``pyar.afir.restraints.isotropic`` already provides the important reusable
+``pyar.biases.afir.isotropic`` already provides the important reusable
 piece: additive AFIR energy and Cartesian force evaluation. The geomeTRIC
 adapter uses that force directly instead of coupling it to Turbomole file
 rewriting.
