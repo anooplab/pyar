@@ -25,6 +25,14 @@ Main workflows
    :members:
    :undoc-members:
 
+.. automodule:: pyar.aggregate_state
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.solvation_state
+   :members:
+   :undoc-members:
+
 .. automodule:: pyar.reactor
    :members:
    :undoc-members:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from pyar import file_manager
+from pyar.solvation_state import SolvationRunState, SolvationStateError
 from pyar.workflows._growth import (
     add_one,
     aggregator_logger,
@@ -16,6 +16,30 @@ from pyar.workflows._growth import (
 __all__ = ["solvate"]
 
 
+def _molecule_signature(molecule):
+    return {
+        "name": molecule.name,
+        "atoms": list(molecule.atoms_list),
+        "coordinates": [[float(coord) for coord in row] for row in molecule.coordinates],
+        "charge": molecule.charge,
+        "multiplicity": molecule.multiplicity,
+        "scftype": molecule.scftype,
+        "fragment_definition": getattr(molecule, "fragments", []),
+    }
+
+
+def _build_solvation_request(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_number_of_seeds, site):
+    return {
+        "aggregate_size": int(aggregate_size),
+        "orientations": hm_orientations,
+        "backend_parameters": dict(qc_params),
+        "maximum_number_of_seeds": int(maximum_number_of_seeds),
+        "site": None if site is None else list(site),
+        "seeds": [_molecule_signature(seed) for seed in seeds],
+        "monomer": _molecule_signature(monomer),
+    }
+
+
 def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_number_of_seeds, site=None):
     """Add solvent molecules to the current seeds."""
     if check_stop_signal():
@@ -24,8 +48,35 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
 
+    root_directory = os.getcwd()
+    request = _build_solvation_request(
+        seeds,
+        monomer,
+        aggregate_size,
+        hm_orientations,
+        qc_params,
+        maximum_number_of_seeds,
+        site,
+    )
+    run_state = SolvationRunState.load(root_directory, request)
+    if run_state is None:
+        if os.path.isdir("solvation") and any(os.scandir("solvation")):
+            raise SolvationStateError(
+                "Existing solvation directory has no resumable state; "
+                "preserve it and start in a new directory, or remove it explicitly."
+            )
+        file_manager.make_directories("solvation")
+        run_state = SolvationRunState.create(root_directory, request, seeds)
+    else:
+        seeds = run_state.current_seed_molecules()
+
     starting_directory = os.getcwd()
     aggregator_logger.info(f"Starting solvation in {starting_directory}")
+    aggregator_logger.info(
+        "Solvation state detected: %s; next cycle=%d",
+        "resuming" if run_state.data.get("completed_cycles") else "starting fresh",
+        run_state.data["next_cycle"],
+    )
     aggregator_logger.info(
         "Solvation config: seeds=%d solvent=%s solvent_count=%d orientations=%s software=%s max_seeds=%s",
         len(seeds),
@@ -35,9 +86,10 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
         qc_params.get("software"),
         maximum_number_of_seeds,
     )
-    for aggregation_counter in range(2, aggregate_size + 2):
+    for aggregation_counter in range(run_state.data["next_cycle"], aggregate_size + 2):
         if len(seeds) == 0:
             aggregator_logger.info("No seeds to process")
+            run_state.finish("completed_no_seeds")
             return
         aggregate_id = "{:03d}".format(aggregation_counter)
         aggregate_home = f"aggregate_{aggregate_id}"
@@ -54,6 +106,8 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
                 site,
             )
             aggregator_logger.info(f"Solvation cycle completed: {aggregation_counter}")
+        run_state.complete_cycle(aggregation_counter, seeds)
 
         if hm_orientations == "auto" and number_of_orientations <= 256:
             number_of_orientations *= 2
+    run_state.finish()

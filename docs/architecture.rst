@@ -130,9 +130,9 @@ stabilized before modules are physically moved:
 * ``pyar/aggregator.py`` becomes ``workflows/aggregate.py``.
 * ``pyar/reactor.py`` becomes ``workflows/reaction.py``.
 * Legacy ``pyar/checkpt.py`` has been replaced for reaction workflows by
-  ``pyar/reaction_state.py``; aggregation now uses ``pyar/aggregate_state.py``.
-  Future workflow migration should converge on the structured ``state``
-  package.
+  ``pyar/reaction_state.py``; aggregation now uses ``pyar/aggregate_state.py``
+  and solvation uses ``pyar/solvation_state.py``. Future workflow migration
+  should converge on the structured ``state`` package.
 * ``pyar/interface/`` becomes ``backends/``.
 * ``pyar/afir/restraints.py`` becomes ``biases/afir.py``.
 * ``pyar/interface/xtb_turbo.py`` is replaced by a backend-neutral

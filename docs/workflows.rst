@@ -81,6 +81,22 @@ Solvation takes a solute and a solvent fragment and explores solvent placement.
 
    pyar-cli -s solute.xyz solvent.xyz --software xtb -ss 10 -N 16
 
+Solvation restart state is stored as readable JSON:
+
+.. code-block:: text
+
+   solvation/
+     state.json
+     state/
+       geometries/
+   aggregate_002/
+   aggregate_003/
+
+``state.json`` records the input seeds, solvent fragment, calculation
+settings, next cycle, completed cycles, and the current seeds to continue
+from. Re-running an interrupted solvation with the same request resumes from
+the last completed cycle and reuses the stored seed geometries.
+
 Bond scan
 ---------
 
