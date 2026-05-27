@@ -73,13 +73,12 @@ class ReactionTraceTests(unittest.TestCase):
                 os.chdir(cwd)
 
             trace_records = load_trace_records(Path(tmpdir) / "reaction_trace")
-
-        self.assertEqual(len(trace_records), 2)
-        self.assertAlmostEqual(trace_records[0]["backend_energy_hartree"], 1.2)
-        self.assertAlmostEqual(trace_records[0]["total_energy_hartree"], 1.6)
-        self.assertIn("current_bonds", trace_records[0])
-        self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
-        self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
+            self.assertEqual(len(trace_records), 2)
+            self.assertAlmostEqual(trace_records[0]["backend_energy_hartree"], 1.2)
+            self.assertAlmostEqual(trace_records[0]["total_energy_hartree"], 1.6)
+            self.assertIn("current_bonds", trace_records[0])
+            self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
+            self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
 
     def test_trace_pipeline_smoke_flow_uses_mocked_calculator_calls(self):
         from pyar.backends.geometric import PyarGeometricCalculator
@@ -132,16 +131,15 @@ class ReactionTraceTests(unittest.TestCase):
 
             summary = analyse_reaction_trace(Path(tmpdir))
             trace_records = load_trace_records(Path(tmpdir) / "reaction_trace")
-
-        self.assertEqual(len(trace_records), 3)
-        self.assertIsNotNone(summary)
-        self.assertTrue((Path(tmpdir) / "path_summary.csv").exists())
-        self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_backend_energy.xyz").exists())
-        self.assertTrue((Path(tmpdir) / "candidate_ts" / "pre_product_geometry.xyz").exists())
-        self.assertTrue((Path(tmpdir) / "candidate_ts" / "max_bond_change.xyz").exists())
-        self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_total_energy.xyz").exists())
-        self.assertEqual(summary["highest_backend_energy_index"], 1)
-        self.assertIn("2", Path(tmpdir, "candidate_ts", "highest_backend_energy.xyz").read_text())
+            self.assertEqual(len(trace_records), 3)
+            self.assertIsNotNone(summary)
+            self.assertTrue((Path(tmpdir) / "path_summary.csv").exists())
+            self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_backend_energy.xyz").exists())
+            self.assertTrue((Path(tmpdir) / "candidate_ts" / "pre_product_geometry.xyz").exists())
+            self.assertTrue((Path(tmpdir) / "candidate_ts" / "max_bond_change.xyz").exists())
+            self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_total_energy.xyz").exists())
+            self.assertEqual(summary["highest_backend_energy_index"], 1)
+            self.assertIn("2", Path(tmpdir, "candidate_ts", "highest_backend_energy.xyz").read_text())
 
     def test_reaction_trace_analysis_selects_backend_energy_not_total_energy(self):
         with tempfile.TemporaryDirectory() as tmpdir:
