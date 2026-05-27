@@ -193,6 +193,13 @@ the numeric gamma schedule, pending and retained current-cycle geometries,
 completed jobs, products, and invocation settings. Resume is rejected if the
 new invocation changes scientific inputs or backend settings.
 
+GeomeTRIC-backed AFIR runs also write a lightweight path trace under each job
+directory in ``reaction_trace/``. The trace contains a JSONL record for every
+backend evaluation plus matching XYZ snapshots, and successful paths add a
+``path_summary.csv`` file together with ``candidate_ts/`` geometries for the
+highest backend energy, highest total energy, pre-product, and largest bond
+change points.
+
 Legacy ``jobs.pkl`` checkpoints are migrated only when their old gamma labels
 map unambiguously to the requested numeric schedule. This gives the later
 internal-coordinate optimizer an inspectable and atomic restart foundation.

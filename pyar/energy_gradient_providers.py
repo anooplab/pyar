@@ -32,6 +32,40 @@ class EnergyGradientResult:
     energy_hartree: float
     gradient_hartree_per_bohr: np.ndarray
 
+    def __post_init__(self):
+        """Validate and normalize the returned energy/gradient pair."""
+        try:
+            energy = float(self.energy_hartree)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"energy_hartree must be a finite scalar; got {self.energy_hartree!r}"
+            ) from exc
+        if not np.isfinite(energy):
+            raise ValueError(
+                f"energy_hartree must be a finite scalar; got {self.energy_hartree!r}"
+            )
+
+        try:
+            gradient = np.asarray(self.gradient_hartree_per_bohr, dtype=float)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "gradient_hartree_per_bohr must be a finite array with shape (natoms, 3); "
+                f"got invalid data {self.gradient_hartree_per_bohr!r}"
+            ) from exc
+        if gradient.ndim != 2 or gradient.shape[1] != 3:
+            raise ValueError(
+                "gradient_hartree_per_bohr must be a finite array with shape (natoms, 3); "
+                f"got shape {gradient.shape!r}"
+            )
+        if not np.all(np.isfinite(gradient)):
+            raise ValueError(
+                "gradient_hartree_per_bohr must contain only finite values; "
+                f"got array with shape {gradient.shape!r}"
+            )
+
+        object.__setattr__(self, "energy_hartree", energy)
+        object.__setattr__(self, "gradient_hartree_per_bohr", gradient)
+
 
 @runtime_checkable
 class EnergyGradientProvider(Protocol):

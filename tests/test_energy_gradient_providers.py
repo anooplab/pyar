@@ -21,6 +21,20 @@ from pyar.energy_gradient_providers import (
 
 
 class EnergyGradientProviderTests(unittest.TestCase):
+    def test_energy_gradient_result_rejects_nonfinite_energy(self):
+        with self.assertRaisesRegex(ValueError, "finite scalar"):
+            EnergyGradientResult(np.nan, np.zeros((1, 3)))
+
+    def test_energy_gradient_result_rejects_invalid_gradient_shape(self):
+        with self.assertRaisesRegex(ValueError, "shape \\(natoms, 3\\)"):
+            EnergyGradientResult(1.0, np.zeros((3,)))
+
+    def test_energy_gradient_result_rejects_nonfinite_gradient_values(self):
+        gradient = np.zeros((2, 3))
+        gradient[1, 2] = np.inf
+        with self.assertRaisesRegex(ValueError, "finite values"):
+            EnergyGradientResult(1.0, gradient)
+
     def test_registered_geometric_providers_are_accessible(self):
         self.assertIn("xtb", ENERGY_GRADIENT_PROVIDERS)
         self.assertIn("aimnet_2", ENERGY_GRADIENT_PROVIDERS)

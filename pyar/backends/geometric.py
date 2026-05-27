@@ -23,6 +23,7 @@ from pyar.afir.utils import resolve_gamma
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
 from pyar.backends import SF, require_executable, write_xyz
+from pyar.reaction_trace import ReactionTraceRecorder
 
 geometric_logger = logging.getLogger("pyar.geometric")
 
@@ -71,6 +72,15 @@ class PyarGeometricCalculator(Calculator):
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
+        self.trace_enabled = bool(
+            self.qc_params.get("trace_enabled") or self.qc_params.get("reaction_trace")
+        )
+        self._trace_recorder = None
+        if self.trace_enabled:
+            self._trace_recorder = ReactionTraceRecorder(
+                Path.cwd(),
+                trace_name=self.qc_params.get("trace_name", "reaction_trace"),
+            )
 
     @staticmethod
     def _result_to_ase_units(result):
@@ -84,10 +94,11 @@ class PyarGeometricCalculator(Calculator):
         return backend_energy_ev, backend_forces_ev_per_angstrom
 
     def _afir_contribution(self):
-        """Return AFIR energy and forces in ASE units."""
+        """Return AFIR energy and forces in both atomic and ASE units."""
         if self.gamma == 0.0:
             natoms = len(self.atoms)
-            return 0.0, np.zeros((natoms, 3), dtype=float)
+            zero_forces = np.zeros((natoms, 3), dtype=float)
+            return 0.0, zero_forces, 0.0, zero_forces
 
         if not self.fragment_indices or len(self.fragment_indices) != 2:
             raise ValueError(
@@ -101,10 +112,16 @@ class PyarGeometricCalculator(Calculator):
             coordinates_bohr,
             self.gamma,
         )
+        afir_forces_hartree_per_bohr = np.asarray(afir_force_hartree_per_bohr, dtype=float)
         afir_energy_ev = afir_energy_hartree * Hartree
         # ``restraints.isotropic`` returns -dE/dx, i.e. force, in atomic units.
-        afir_forces_ev_per_angstrom = afir_force_hartree_per_bohr * Hartree / Bohr
-        return afir_energy_ev, afir_forces_ev_per_angstrom
+        afir_forces_ev_per_angstrom = afir_forces_hartree_per_bohr * Hartree / Bohr
+        return (
+            float(afir_energy_hartree),
+            afir_forces_hartree_per_bohr,
+            afir_energy_ev,
+            afir_forces_ev_per_angstrom,
+        )
 
     def _write_state(self, energy, forces):
         """Persist the latest evaluation so the parent process can recover it."""
@@ -127,13 +144,45 @@ class PyarGeometricCalculator(Calculator):
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
         backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
         backend_energy, backend_forces = self._result_to_ase_units(backend_result)
-        afir_energy, afir_forces = self._afir_contribution()
+        backend_energy_hartree = float(backend_result.energy_hartree)
+        backend_forces_hartree_per_bohr = np.asarray(backend_result.gradient_hartree_per_bohr, dtype=float)
+
+        (
+            afir_energy_hartree,
+            afir_forces_hartree_per_bohr,
+            afir_energy,
+            afir_forces,
+        ) = self._afir_contribution()
         total_energy = backend_energy + afir_energy
         total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(afir_forces, dtype=float)
+        total_energy_hartree = backend_energy_hartree + afir_energy_hartree
+        total_forces_hartree_per_bohr = backend_forces_hartree_per_bohr + afir_forces_hartree_per_bohr
+
+        backend_force_norm = float(np.linalg.norm(backend_forces_hartree_per_bohr))
+        afir_force_norm = float(np.linalg.norm(afir_forces_hartree_per_bohr))
+        total_force_norm = float(np.linalg.norm(total_forces_hartree_per_bohr))
+        max_force = float(np.max(np.linalg.norm(total_forces_hartree_per_bohr, axis=1)))
 
         self.results["energy"] = float(total_energy)
         self.results["forces"] = total_forces
         self._write_state(total_energy, total_forces)
+
+        if self._trace_recorder is not None:
+            self._trace_recorder.record(
+                symbols=self.atoms.get_chemical_symbols(),
+                coordinates_angstrom=np.asarray(self.atoms.get_positions(), dtype=float),
+                backend_energy_hartree=backend_energy_hartree,
+                afir_energy_hartree=afir_energy_hartree,
+                total_energy_hartree=total_energy_hartree,
+                backend_forces_hartree_per_bohr=backend_forces_hartree_per_bohr,
+                afir_forces_hartree_per_bohr=afir_forces_hartree_per_bohr,
+                total_forces_hartree_per_bohr=total_forces_hartree_per_bohr,
+                backend_force_norm=backend_force_norm,
+                afir_force_norm=afir_force_norm,
+                total_force_norm=total_force_norm,
+                max_force=max_force,
+                fragment_indices=self.fragment_indices,
+            )
 
 
 class Geometric(SF):

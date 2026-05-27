@@ -12,6 +12,7 @@ from pyar.data_analysis import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
 from pyar.sampling import trial_generator as trial_generation
 from pyar.workflow_results import ReactionResult
+from pyar import reaction_analysis
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
     same_molecular_identity,
@@ -54,6 +55,12 @@ def with_gamma(qc_params, gamma):
     """Return a copy of ``qc_params`` with the current gamma value applied."""
     updated_qc_params = dict(qc_params)
     updated_qc_params['gamma'] = gamma
+    trace_enabled = (
+        updated_qc_params.get("geometry_optimizer") == "geometric"
+        and float(gamma) != 0.0
+    )
+    updated_qc_params["trace_enabled"] = trace_enabled
+    updated_qc_params["reaction_trace"] = trace_enabled
     return updated_qc_params
 
 
@@ -385,7 +392,6 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                     if same_molecular_identity(start_identity, current_identity):
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
-
                     else:
                         reactor_logger.info("Geometry differs from starting structure.")
 
@@ -393,7 +399,6 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                         if _is_known_product(current_identity):
                             reactor_logger.info("Product matches an existing product; discarded")
                             product_status = "duplicate_product"
-
                         else:
                             reactor_logger.info("New product detected; saving")
                             saved_product_identities[job_name] = current_identity
@@ -405,6 +410,18 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                                     current_inchi,
                                     current_smile,
                                     f'{product_dir}/{job_name}.xyz',
+                                )
+                            trace_directory = os.path.join(os.getcwd(), f'job_{job_name}')
+                            try:
+                                trace_summary = reaction_analysis.analyse_reaction_trace(trace_directory)
+                                reactor_logger.info(
+                                    "Reaction trace analyzed for %s: %s",
+                                    job_name,
+                                    trace_summary["candidate_ts_directory"] if trace_summary else "no trace records",
+                                )
+                            except Exception:
+                                reactor_logger.exception(
+                                    "Reaction trace analysis failed for %s", job_name
                                 )
                             product_status = "new_product"
                         os.chdir(cwd)
