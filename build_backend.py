@@ -41,7 +41,7 @@ INSTALL_REQUIRES = [
     "hdbscan",
     "geometric>=1.1",
     "DBCV @ git+https://github.com/christopherjenness/DBCV.git",
-    "openbabel-wheel",
+    "openbabel>=3.2.0",
 ]
 ENTRY_POINTS = [
     "pyar-cli=pyar.cli:main",
