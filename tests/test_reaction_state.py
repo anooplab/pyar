@@ -121,6 +121,36 @@ class ReactionRunStateTests(unittest.TestCase):
             {"product_0": ("inchi-0", "smiles-0")},
         )
 
+    def test_record_product_persists_trace_summary_metadata(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            products = Path(tmpdir, "reaction", "products")
+            products.mkdir(parents=True)
+            state = ReactionRunState.create(
+                tmpdir,
+                self.request,
+                [self.orientation],
+                (self.reactant_a, self.reactant_b),
+            )
+            product_path = products / "product_0.xyz"
+            self.orientation.mol_to_xyz(str(product_path))
+            state.record_product(
+                "product_0",
+                100.0,
+                "inchi-0",
+                "smiles-0",
+                product_path,
+                trace_summary={
+                    "path_summary_csv": "reaction/path_summary.csv",
+                    "candidate_ts_directory": "reaction/candidate_ts",
+                },
+            )
+            loaded = ReactionRunState.load(tmpdir, self.request)
+
+        self.assertEqual(
+            loaded.data["products"][0]["trace_summary"]["candidate_ts_directory"],
+            "reaction/candidate_ts",
+        )
+
     def test_missing_geometry_snapshot_reports_restart_state_error(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "reaction").mkdir()

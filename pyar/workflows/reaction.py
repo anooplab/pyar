@@ -403,15 +403,8 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                             reactor_logger.info("New product detected; saving")
                             saved_product_identities[job_name] = current_identity
                             shutil.copy('result_relax.xyz', f'{product_dir}/{job_name}.xyz')
-                            if run_state is not None:
-                                run_state.record_product(
-                                    job_name,
-                                    gamma,
-                                    current_inchi,
-                                    current_smile,
-                                    f'{product_dir}/{job_name}.xyz',
-                                )
                             trace_directory = os.path.join(os.getcwd(), f'job_{job_name}')
+                            trace_summary = None
                             try:
                                 trace_summary = reaction_analysis.analyse_reaction_trace(trace_directory)
                                 reactor_logger.info(
@@ -419,9 +412,27 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                                     job_name,
                                     trace_summary["candidate_ts_directory"] if trace_summary else "no trace records",
                                 )
+                                if trace_summary is not None:
+                                    reactor_logger.info(
+                                        "Trace candidates for %s: highest_backend=%s pre_product=%s max_bond_change=%s highest_total=%s",
+                                        job_name,
+                                        trace_summary.get("highest_backend_energy_index"),
+                                        trace_summary.get("pre_product_index"),
+                                        trace_summary.get("max_bond_change_index"),
+                                        trace_summary.get("highest_total_energy_index"),
+                                    )
                             except Exception:
                                 reactor_logger.exception(
                                     "Reaction trace analysis failed for %s", job_name
+                                )
+                            if run_state is not None:
+                                run_state.record_product(
+                                    job_name,
+                                    gamma,
+                                    current_inchi,
+                                    current_smile,
+                                    f'{product_dir}/{job_name}.xyz',
+                                    trace_summary=trace_summary,
                                 )
                             product_status = "new_product"
                         os.chdir(cwd)

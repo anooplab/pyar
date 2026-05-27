@@ -198,7 +198,9 @@ directory in ``reaction_trace/``. The trace contains a JSONL record for every
 backend evaluation plus matching XYZ snapshots, and successful paths add a
 ``path_summary.csv`` file together with ``candidate_ts/`` geometries for the
 highest backend energy, highest total energy, pre-product, and largest bond
-change points.
+change points. Trace recording is restart-safe: resumed runs append to the
+existing trace instead of deleting it, and successful products keep a compact
+reference to the generated trace-analysis outputs in the reaction state file.
 
 Legacy ``jobs.pkl`` checkpoints are migrated only when their old gamma labels
 map unambiguously to the requested numeric schedule. This gives the later

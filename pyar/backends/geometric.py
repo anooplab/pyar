@@ -77,9 +77,15 @@ class PyarGeometricCalculator(Calculator):
         )
         self._trace_recorder = None
         if self.trace_enabled:
+            trace_name = self.qc_params.get("trace_name", "reaction_trace")
+            trace_root = Path.cwd() / trace_name
+            trace_mode = self.qc_params.get("trace_mode")
+            if trace_mode is None:
+                trace_mode = "append" if (trace_root / "trace.jsonl").exists() else "write"
             self._trace_recorder = ReactionTraceRecorder(
                 Path.cwd(),
-                trace_name=self.qc_params.get("trace_name", "reaction_trace"),
+                trace_name=trace_name,
+                mode=trace_mode,
             )
 
     @staticmethod

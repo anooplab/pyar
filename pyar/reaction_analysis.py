@@ -11,6 +11,11 @@ from pyar.backends import write_xyz
 from pyar.reaction_trace import load_trace_records
 
 
+def _sorted_records(records):
+    """Return records ordered by their recorded step index."""
+    return sorted(records, key=lambda record: int(record.get("step_index", 0)))
+
+
 def _write_xyz_record(path, record, energy_key):
     """Write one trace record as an XYZ file."""
     write_xyz(
@@ -28,20 +33,52 @@ def _record_index_with_max(records, key):
     return int(np.argmax(values))
 
 
+def _bond_sets(records):
+    """Return bond sets normalized as tuples for every record."""
+    bond_sets = []
+    for record in records:
+        current_bonds = {
+            tuple(pair)
+            for pair in record.get("current_bonds", [])
+        }
+        bond_sets.append(current_bonds)
+    return bond_sets
+
+
+def _persistent_transition_index(records):
+    """Return the first bond-change step that persists beyond one frame."""
+    if len(records) < 2:
+        return 0
+
+    bond_sets = _bond_sets(records)
+    for index in range(1, len(records)):
+        if bond_sets[index] == bond_sets[index - 1]:
+            continue
+        if index == len(records) - 1:
+            return index
+        if bond_sets[index] == bond_sets[index + 1]:
+            return index
+        if index + 2 < len(records) and bond_sets[index] == bond_sets[index + 1] == bond_sets[index + 2]:
+            return index
+
+    for index in range(1, len(records)):
+        if bond_sets[index] != bond_sets[index - 1]:
+            return index
+    return 0
+
+
 def _pre_product_index(records):
-    """Return the record just before the first bond-forming event."""
-    for index, record in enumerate(records):
-        if record.get("formed_bonds"):
-            return max(index - 1, 0)
-        if record.get("broken_bonds"):
-            return max(index - 1, 0)
-    return _record_index_with_max(records, "backend_energy_hartree")
+    """Return the geometry immediately preceding the first persistent bond event."""
+    transition_index = _persistent_transition_index(records)
+    if transition_index <= 0:
+        return _record_index_with_max(records, "backend_energy_hartree")
+    return transition_index - 1
 
 
 def analyse_reaction_trace(job_directory):
     """Write a compact summary and TS-candidate geometries for one path."""
     job_directory = Path(job_directory)
-    trace_records = load_trace_records(job_directory / "reaction_trace")
+    trace_records = _sorted_records(load_trace_records(job_directory / "reaction_trace"))
     if not trace_records:
         return None
 
@@ -73,6 +110,7 @@ def analyse_reaction_trace(job_directory):
     highest_total_index = _record_index_with_max(trace_records, "total_energy_hartree")
     max_bond_change_index = _record_index_with_max(trace_records, "bond_change_count")
     pre_product_index = _pre_product_index(trace_records)
+    transition_index = _persistent_transition_index(trace_records)
 
     _write_xyz_record(
         candidate_directory / "highest_backend_energy.xyz",
@@ -102,4 +140,5 @@ def analyse_reaction_trace(job_directory):
         "pre_product_index": pre_product_index,
         "max_bond_change_index": max_bond_change_index,
         "highest_total_energy_index": highest_total_index,
+        "persistent_transition_index": transition_index,
     }

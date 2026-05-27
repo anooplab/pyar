@@ -13,6 +13,7 @@ from pyar.data import new_atomic_data
 
 _BOND_ON_SCALE = 1.15
 _BOND_OFF_SCALE = 1.35
+_VALID_TRACE_MODES = {"write", "append"}
 
 
 def _symbol_radius(symbol):
@@ -80,22 +81,83 @@ def min_interfragment_distance(coordinates_angstrom, fragment_indices):
     return None if not np.isfinite(minimum) else float(minimum)
 
 
+def _read_xyz_frame(path):
+    """Read one XYZ frame and return symbols plus coordinates."""
+    lines = Path(path).read_text().splitlines()
+    if len(lines) < 2:
+        raise ValueError(f"Invalid XYZ trace file: {path}")
+
+    natoms = int(lines[0].strip())
+    if len(lines) < natoms + 2:
+        raise ValueError(f"Invalid XYZ trace file: {path}")
+
+    symbols = []
+    coordinates = []
+    for line in lines[2:2 + natoms]:
+        parts = line.split()
+        if len(parts) < 4:
+            raise ValueError(f"Invalid XYZ trace file: {path}")
+        symbols.append(parts[0])
+        coordinates.append([float(parts[1]), float(parts[2]), float(parts[3])])
+    return symbols, np.asarray(coordinates, dtype=float)
+
+
+def _discover_next_step_index(step_directory):
+    """Return the next available step index from XYZ snapshots."""
+    step_numbers = []
+    for path in Path(step_directory).glob("step_*.xyz"):
+        stem = path.stem
+        try:
+            step_numbers.append(int(stem.split("_")[-1]))
+        except ValueError:
+            continue
+    return (max(step_numbers) + 1) if step_numbers else 0
+
+
 class ReactionTraceRecorder:
     """Append geomeTRIC evaluation data to JSONL and XYZ trace files."""
 
-    def __init__(self, job_directory, trace_name="reaction_trace"):
+    def __init__(self, job_directory, trace_name="reaction_trace", mode="write"):
         self.job_directory = Path(job_directory)
         self.trace_directory = self.job_directory / trace_name
         self.step_directory = self.trace_directory / "steps"
         self.trace_file = self.trace_directory / "trace.jsonl"
+        self.mode = str(mode).lower()
+        if self.mode not in _VALID_TRACE_MODES:
+            raise ValueError(
+                f"Unsupported trace mode {mode!r}; expected one of {sorted(_VALID_TRACE_MODES)}"
+            )
         self.step_index = 0
         self.previous_bonds = None
 
         self.trace_directory.mkdir(parents=True, exist_ok=True)
         self.step_directory.mkdir(parents=True, exist_ok=True)
-        self.trace_file.unlink(missing_ok=True)
-        for existing in self.step_directory.glob("step_*.xyz"):
-            existing.unlink()
+        if self.mode == "write":
+            self.trace_file.unlink(missing_ok=True)
+            for existing in self.step_directory.glob("step_*.xyz"):
+                existing.unlink()
+            return
+
+        existing_records = load_trace_records(self.trace_file)
+        if existing_records:
+            last_record = max(
+                existing_records,
+                key=lambda record: int(record.get("step_index", -1)),
+            )
+            self.step_index = int(last_record.get("step_index", len(existing_records) - 1)) + 1
+            previous_bonds = last_record.get("current_bonds") or []
+            self.previous_bonds = {tuple(pair) for pair in previous_bonds}
+            return
+
+        self.step_index = _discover_next_step_index(self.step_directory)
+        if self.step_index > 0:
+            last_step_path = self.step_directory / f"step_{self.step_index - 1:06d}.xyz"
+            try:
+                symbols, coordinates = _read_xyz_frame(last_step_path)
+            except (OSError, ValueError):
+                self.previous_bonds = None
+            else:
+                self.previous_bonds = infer_bonds(symbols, coordinates)
 
     def record(
         self,

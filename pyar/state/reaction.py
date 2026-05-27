@@ -206,17 +206,18 @@ class ReactionRunState:
         self._replace_current_survivors(current_survivors)
         self.save()
 
-    def record_product(self, job_name, gamma, inchi, smiles, path):
+    def record_product(self, job_name, gamma, inchi, smiles, path, trace_summary=None):
         """Record and immediately persist one newly discovered product."""
-        self.data["products"].append(
-            {
-                "job_name": job_name,
-                "gamma": float(gamma),
-                "inchi": inchi,
-                "smiles": smiles,
-                "path": str(Path(path).resolve().relative_to(self.reaction_directory)),
-            }
-        )
+        product = {
+            "job_name": job_name,
+            "gamma": float(gamma),
+            "inchi": inchi,
+            "smiles": smiles,
+            "path": str(Path(path).resolve().relative_to(self.reaction_directory)),
+        }
+        if trace_summary:
+            product["trace_summary"] = _json_value(trace_summary)
+        self.data["products"].append(product)
         self.save()
 
     def complete_cycle(self, gamma, next_orientations):

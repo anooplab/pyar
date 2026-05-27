@@ -15,6 +15,49 @@ from pyar.reaction_trace import bond_changes, infer_bonds, load_trace_records
 
 
 class ReactionTraceTests(unittest.TestCase):
+    def test_trace_recorder_append_mode_preserves_existing_steps(self):
+        from pyar.reaction_trace import ReactionTraceRecorder
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            first = ReactionTraceRecorder(tmpdir, mode="write")
+            first.record(
+                symbols=["H", "H"],
+                coordinates_angstrom=[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+                backend_energy_hartree=1.0,
+                afir_energy_hartree=0.0,
+                total_energy_hartree=1.0,
+                backend_forces_hartree_per_bohr=np.zeros((2, 3)),
+                afir_forces_hartree_per_bohr=np.zeros((2, 3)),
+                total_forces_hartree_per_bohr=np.zeros((2, 3)),
+                backend_force_norm=0.0,
+                afir_force_norm=0.0,
+                total_force_norm=0.0,
+                max_force=0.0,
+                fragment_indices=[[0], [1]],
+            )
+
+            second = ReactionTraceRecorder(tmpdir, mode="append")
+            second.record(
+                symbols=["H", "H"],
+                coordinates_angstrom=[[0.0, 0.0, 0.0], [0.8, 0.0, 0.0]],
+                backend_energy_hartree=2.0,
+                afir_energy_hartree=0.0,
+                total_energy_hartree=2.0,
+                backend_forces_hartree_per_bohr=np.zeros((2, 3)),
+                afir_forces_hartree_per_bohr=np.zeros((2, 3)),
+                total_forces_hartree_per_bohr=np.zeros((2, 3)),
+                backend_force_norm=0.0,
+                afir_force_norm=0.0,
+                total_force_norm=0.0,
+                max_force=0.0,
+                fragment_indices=[[0], [1]],
+            )
+
+            records = load_trace_records(Path(tmpdir) / "reaction_trace")
+            self.assertEqual([record["step_index"] for record in records], [0, 1])
+            self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
+            self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
+
     def test_bond_change_heuristic_detects_forming_and_breaking_bonds(self):
         symbols = ["C", "H"]
         far_geometry = np.asarray([[0.0, 0.0, 0.0], [2.2, 0.0, 0.0]])
@@ -140,6 +183,112 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_total_energy.xyz").exists())
             self.assertEqual(summary["highest_backend_energy_index"], 1)
             self.assertIn("2", Path(tmpdir, "candidate_ts", "highest_backend_energy.xyz").read_text())
+
+    def test_analysis_prefers_persistent_bond_event_over_flicker(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            job_dir = Path(tmpdir)
+            trace_dir = job_dir / "reaction_trace"
+            trace_dir.mkdir()
+
+            records = [
+                {
+                    "step_index": 0,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [2.2, 0.0, 0.0]],
+                    "backend_energy_hartree": 0.4,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": 0.4,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [],
+                    "formed_bonds": [],
+                    "broken_bonds": [],
+                    "bond_change_count": 0,
+                    "min_interfragment_distance_angstrom": 2.2,
+                },
+                {
+                    "step_index": 1,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.05, 0.0, 0.0]],
+                    "backend_energy_hartree": 1.5,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": 1.5,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [[0, 1]],
+                    "broken_bonds": [],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 1.05,
+                },
+                {
+                    "step_index": 2,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [2.1, 0.0, 0.0]],
+                    "backend_energy_hartree": 2.0,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": 2.0,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [],
+                    "formed_bonds": [],
+                    "broken_bonds": [[0, 1]],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 2.1,
+                },
+                {
+                    "step_index": 3,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+                    "backend_energy_hartree": 3.0,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": 3.0,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [[0, 1]],
+                    "broken_bonds": [],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 1.0,
+                },
+                {
+                    "step_index": 4,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [0.98, 0.0, 0.0]],
+                    "backend_energy_hartree": 2.5,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": 2.5,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [],
+                    "broken_bonds": [],
+                    "bond_change_count": 0,
+                    "min_interfragment_distance_angstrom": 0.98,
+                },
+            ]
+
+            with (trace_dir / "trace.jsonl").open("w", encoding="utf-8") as fp:
+                for record in records:
+                    json.dump(record, fp)
+                    fp.write("\n")
+
+            summary = analyse_reaction_trace(job_dir)
+
+            self.assertEqual(summary["persistent_transition_index"], 3)
+            self.assertEqual(summary["pre_product_index"], 2)
+            pre_product = Path(job_dir / "candidate_ts" / "pre_product_geometry.xyz").read_text()
+            self.assertIn("2.10000", pre_product)
 
     def test_reaction_trace_analysis_selects_backend_energy_not_total_energy(self):
         with tempfile.TemporaryDirectory() as tmpdir:
