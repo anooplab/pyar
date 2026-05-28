@@ -20,6 +20,7 @@ extensions = [
 ]
 
 autosummary_generate = True
+autosectionlabel_prefix_document = True
 autodoc_typehints = "description"
 autodoc_member_order = "bysource"
 autodoc_default_options = {
@@ -47,11 +48,17 @@ autodoc_mock_imports = [
 ]
 
 API_EXCLUDED_MODULES = {
+    "pyar",
     "pyar.tests",
 }
 
 API_EXCLUDED_PREFIXES = (
     "pyar.tests.",
+    "pyar.AIMNet2.",
+    "pyar.backends.",
+    "pyar.checkvalidity",
+    "pyar.interface.",
+    "pyar.mlatom.",
 )
 
 templates_path = ["_templates"]
@@ -83,6 +90,8 @@ def _discover_pyar_modules():
             continue
         module_name = _module_name_from_path(path)
         if not module_name or module_name in API_EXCLUDED_MODULES:
+            continue
+        if "-" in module_name:
             continue
         if any(module_name.startswith(prefix) for prefix in API_EXCLUDED_PREFIXES):
             continue
@@ -125,6 +134,7 @@ def _write_generated_api(_app):
             "~" * len(module),
             "",
             f".. automodule:: {module}",
+            "   :no-index:",
             "   :members:",
             "   :undoc-members:",
             "   :show-inheritance:",
