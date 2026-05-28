@@ -8,8 +8,8 @@ PyAR helps you search chemically meaningful structures:
 * microsolvation shells around a solute
 * bond scans between two fragments
 
-If you want to see published chemistry problems that used these workflows,
-see :doc:`publications`.
+If you want to see published chemistry problems that used these tasks, see
+:doc:`publications`.
 
 .. seealso::
 
@@ -37,8 +37,8 @@ Check the CLI
 
    pyar-cli --help
 
-Choose a workflow
------------------
+Choose a chemistry task
+-----------------------
 
 Aggregate two one-atom fragments when you want to find low-energy dimer or
 cluster geometries:
@@ -71,7 +71,7 @@ Scan a bond when you want a simple reaction-coordinate probe:
    pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
 
 Run a solvation search when you want to add units around a central core.
-Microsolvation is the classic case, but the same workflow is also useful for
+Microsolvation is the classic case, but the same task is also useful for
 building coordination complexes, such as adding ligands to a transition metal
 center:
 
@@ -87,6 +87,6 @@ Notes
 * If ``--software`` is omitted for aggregate mode, PyAR generates trial
   geometries only and skips quantum-chemistry optimization.
 * ``--formula`` is only valid together with ``--aggregate``.
-* Reaction runs with ``--software xtb`` or ``--software aimnet_2`` use
-  geomeTRIC/TRIC for the AFIR-biased optimization, then use ``gamma=0.0`` for
-  product relaxation.
+* Reaction runs with registered energy-gradient providers such as ``xtb`` and
+  ``aimnet_2`` use geomeTRIC/TRIC for AFIR-biased optimization, then use
+  ``gamma=0.0`` for product relaxation.
