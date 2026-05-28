@@ -90,7 +90,19 @@ Tools and references
 * :doc:`energy_table`
 * :doc:`molecule`
 * :doc:`orientation_sampling`
+* :doc:`backends`
+
+Backend guides
+--------------
+
+* :doc:`backends`
 * :doc:`xtb`
+* :doc:`aimnet2_backend`
+* :doc:`orca_backend`
+* :doc:`gaussian_backend`
+* :doc:`mopac_backend`
+* :doc:`obabel_backend`
+* :doc:`psi4_backend`
 
 Developer and API details
 -------------------------
@@ -154,7 +166,19 @@ The fastest way to verify a local install is:
    energy_table
    molecule
    orientation_sampling
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Backend guides
+
+   backends
    xtb
+   aimnet2_backend
+   orca_backend
+   gaussian_backend
+   mopac_backend
+   obabel_backend
+   psi4_backend
 
 .. toctree::
    :maxdepth: 2
