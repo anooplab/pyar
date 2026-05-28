@@ -1,24 +1,31 @@
 PyAR Documentation
 ==================
 
-PyAR is a command-line package for chemistry-focused structure search:
-aggregation of noncovalent complexes and clusters, AFIR-style reaction
-searches, microsolvation, and bond scans.
+PyAR is a chemistry-focused structure-search package. It helps generate,
+optimise, select, and inspect plausible molecular structures before committing
+to higher-level electronic-structure calculations.
 
-It is most useful when you want to:
+PyAR is most useful when you want to:
 
 * explore low-energy cluster geometries for a set of fragments
 * search for products or close-contact reaction candidates between two
   reactants
-* place solvent molecules around a solute and follow growth cycles
+* place solvent molecules or ligands around a central structure
 * scan a bond distance between two fragments as a simple reaction-coordinate
   probe
+
+For most chemistry users, start with the task that matches your problem:
+
+* :doc:`aggregation` for clusters, aggregates, and noncovalent complexes
+* :doc:`reaction` for AFIR-style product and close-contact searches
+* :doc:`solvation` for microsolvation, ligand addition, and growth around a core
+* :doc:`bond_scan` for a simple distance-coordinate probe
 
 .. rubric:: Cite this work
 
 If you use PyAR in a project, start with :doc:`publications` and cite the
-workflow paper that best matches your chemistry problem. The sections below
-show the most common mappings.
+paper that best matches your chemistry problem. The sections below show the
+most common mappings.
 
 Why chemists use PyAR
 ---------------------
@@ -34,19 +41,19 @@ practice that means:
 * testing solvation and coordination growth around a central core
 * following a simple bond coordinate when you want a quick structural probe
 
-If you are a student or researcher, start with :doc:`quickstart` and
-:doc:`workflows` to see which command matches your chemistry problem. If you
-want examples of published uses, see :doc:`publications`.
+If you are a student or researcher, start with :doc:`quickstart`, then move to
+one of the chemistry task pages above. If you want examples of published uses,
+see :doc:`publications`.
 
 Which paper matches my problem?
---------------------------------
+-------------------------------
 
 .. list-table::
    :header-rows: 1
    :widths: 30 22 48
 
    * - Chemistry problem
-     - Workflow
+     - Command/task
      - Example publications
    * - Noncovalent cluster growth and aggregation
      - ``aggregate``
@@ -69,19 +76,30 @@ Start here
 ----------
 
 * :doc:`quickstart`
-* :doc:`workflows`
+* :doc:`aggregation`
+* :doc:`reaction`
+* :doc:`solvation`
+* :doc:`bond_scan`
 * :doc:`usage`
 * :doc:`publications`
 * :doc:`installation`
+
+Tools and references
+--------------------
+
 * :doc:`energy_table`
-* :doc:`reaction_optimization`
 * :doc:`molecule`
 * :doc:`orientation_sampling`
 * :doc:`xtb`
 
-Developer and API details are still available later in the manual if you need
-them:
+Developer and API details
+-------------------------
 
+These pages are useful when you are modifying PyAR or trying to understand its
+internal design:
+
+* :doc:`workflows`
+* :doc:`reaction_optimization`
 * :doc:`api`
 * :doc:`reference`
 * :doc:`architecture`
@@ -91,8 +109,8 @@ How to cite PyAR
 
 There is no single citation that covers every PyAR use case. In general:
 
-* cite the workflow paper that best matches what you used
-* if you used more than one workflow, cite the relevant workflow papers
+* cite the paper that best matches what you used
+* if you used more than one task, cite the relevant papers
 * use :doc:`publications` as the short list of chemistry-facing examples
 
 For a general citation, the two original papers that introduced the main build
@@ -112,17 +130,36 @@ The fastest way to verify a local install is:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents
+   :caption: Getting started
 
    quickstart
-   workflows
+   installation
    usage
    publications
-   installation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Chemistry tasks
+
+   aggregation
+   reaction
+   solvation
+   bond_scan
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tools and reference
+
    energy_table
    molecule
    orientation_sampling
    xtb
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer documentation
+
+   workflows
    reaction_optimization
    api
    reference
