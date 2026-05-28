@@ -211,10 +211,38 @@ directory in ``reaction_trace/``. The trace contains a JSONL record for every
 backend evaluation plus matching XYZ snapshots, and successful paths add a
 ``path_summary.csv`` file together with ``candidate_ts/`` geometries for the
 highest backend energy, highest total energy, pre-product, and largest bond
-change points. The summary now carries the absolute energies, first-frame
-relative energies in kcal/mol, and the XYZ snapshot file name for each step.
-Candidate geometries also receive a ``candidate_ts/metadata.json`` sidecar and
-a richer XYZ comment with the selected step index and energy context. Trace
+change points.
+
+The trace-analysis output has the following structure:
+
+.. code-block:: text
+
+   reaction_trace/
+     trace.jsonl
+     steps/step_*.xyz
+   path_summary.csv
+   candidate_ts/
+     highest_backend_energy.xyz
+     highest_total_energy.xyz
+     pre_product_geometry.xyz
+     max_bond_change.xyz
+     metadata.json
+   trace_plots/
+     reaction_profile.png
+
+``backend_energy_hartree`` is the physical backend energy without AFIR.
+``total_energy_hartree`` includes the AFIR bias and is the optimization
+objective followed by geomeTRIC. Relative energies in ``path_summary.csv`` are
+reported relative to the first recorded trace frame, not relative to the
+minimum along the trace. This is useful for following the energetic climb from
+the AFIR starting geometry. A later analysis layer may additionally report
+minimum-referenced profiles.
+
+Candidate geometries receive a ``candidate_ts/metadata.json`` sidecar and a
+richer XYZ comment with the selected step index and energy context. Files in
+``candidate_ts/`` are candidate geometries for later path refinement. They are
+not confirmed transition states. Confirmation requires a separate NEB, string,
+dimer, or TS optimization and an IRC or downhill connectivity check. Trace
 recording is restart-safe: resumed runs append to the existing trace instead
 of deleting it, and successful products keep a compact reference to the
 generated trace-analysis outputs in the reaction state file.
@@ -228,9 +256,10 @@ Implemented Channel And Next Steps
 
 For ``react`` calculations using ``--software xtb``, ``--software aimnet_2``,
 ``--software orca``, or ``--software gaussian``, PyAR now selects the
-geomeTRIC/TRIC optimizer and
-evaluates the physical energy/forces together with the AFIR force. When a
-bonded candidate is found, product relaxation is repeated without AFIR bias
+geomeTRIC/TRIC optimizer and evaluates the physical energy/forces together
+with the AFIR force. In practice, ORCA and Gaussian require the corresponding
+executable and should be validated on the target installation. When a bonded
+candidate is found, product relaxation is repeated without AFIR bias
 (``gamma=0.0``). Native optimizers remain the default for aggregate and
 ordinary backend optimization workflows.
 
@@ -276,7 +305,7 @@ The implementation should cite the algorithm that is actually used:
   Journal of Physical Chemistry A **113**, 11856-11865 (2009), DOI
   ``10.1021/jp9028968``. This documents DLC/HDLC-capable optimizer
   infrastructure.
-* C. Peng, P. Y. Ayala, H. B. Schlegel, and M. J. Frisch, *Using redundant
+* C. Peng, P. Y. Ayala, H. B. Schlegel, and J. M. Frisch, *Using redundant
   internal coordinates to optimize equilibrium geometries and transition
   states*, Journal of Computational Chemistry **17**, 49-56 (1996), DOI
   ``10.1002/(SICI)1096-987X(19960115)17:1<49::AID-JCC5>3.0.CO;2-0``.
