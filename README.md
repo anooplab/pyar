@@ -138,6 +138,22 @@ pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software orca
 
 A.xyz and B.xyz are the cartesian coordinate files of the reactants.
 
+After a successful geomeTRIC-backed AFIR reaction run, analyse one orientation
+job directory with:
+
+```bash
+pyar-reaction-trace reaction/gamma_0100/orientation_xxxxx --plot
+```
+
+or, from inside the orientation directory:
+
+```bash
+pyar-reaction-trace . --plot
+```
+
+This writes `path_summary.csv`, candidate geometries in `candidate_ts/`, and
+optional plots in `trace_plots/`.
+
 For `pyar-cli`:
 
 - `--react` requires exactly two XYZ input files.
