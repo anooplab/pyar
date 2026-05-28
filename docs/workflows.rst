@@ -58,11 +58,14 @@ reaction discovery, bond formation, or close-contact pathway exploration.
    pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
    pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
-For ``xtb`` and ``aimnet_2`` reaction runs, PyAR uses geomeTRIC/TRIC to
-optimize the backend energy/force objective plus the AFIR bias. Ordinary
-aggregation and standalone optimization continue to use each backend's native
-optimizer. A bonded reaction candidate is relaxed again with ``gamma=0.0``
-before product identity is assessed.
+The geomeTRIC/TRIC reaction route is used for registered energy-gradient
+providers. At present, this route is wired for ``xtb``, ``aimnet_2``,
+``orca``, and ``gaussian``. In practice, ``xtb`` and ``aimnet_2`` are the
+easier immediately usable options; ``orca`` and ``gaussian`` require the
+corresponding executable and should be validated on the target installation.
+Ordinary aggregation and standalone optimization continue to use each
+backend's native optimizer. A bonded reaction candidate is relaxed again with
+``gamma=0.0`` before product identity is assessed.
 
 For a chemist, the reaction workflow is useful when you want to:
 
@@ -93,10 +96,32 @@ directory or remove archived output deliberately.
 
 Useful files to inspect are:
 
-* ``reaction/state.json`` for restart state
-* ``reaction_trace/trace.jsonl`` for the raw evaluation history
-* ``path_summary.csv`` for a compact energy/bond summary
-* ``candidate_ts/`` for candidate geometries of interest
+.. code-block:: text
+
+   reaction/
+     state.json
+     gamma_.../
+       orientation_.../
+         reaction_trace/
+           trace.jsonl
+           steps/step_*.xyz
+         path_summary.csv
+         candidate_ts/
+           highest_backend_energy.xyz
+           highest_total_energy.xyz
+           pre_product_geometry.xyz
+           max_bond_change.xyz
+           metadata.json
+         trace_plots/
+           reaction_profile.png
+
+``backend_energy_hartree`` is the physical backend energy without the AFIR
+bias. ``total_energy_hartree`` is the optimization objective, including AFIR,
+that geomeTRIC follows. The candidate file
+``candidate_ts/highest_backend_energy.xyz`` is usually the first structure to
+inspect for later NEB, string, dimer, or TS attempts. The file
+``candidate_ts/pre_product_geometry.xyz`` is based on the first persistent
+connectivity change and should not be treated as a confirmed transition state.
 
 Legacy ``jobs.pkl`` reaction checkpoints are imported once when their gamma
 schedule is unambiguous. A legacy checkpoint whose formatted keys have lost
