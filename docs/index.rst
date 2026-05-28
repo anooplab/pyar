@@ -102,6 +102,7 @@ internal design:
 * :doc:`reaction_optimization`
 * :doc:`api`
 * :doc:`reference`
+* :doc:`generated_api`
 * :doc:`architecture`
 
 How to cite PyAR
@@ -163,4 +164,5 @@ The fastest way to verify a local install is:
    reaction_optimization
    api
    reference
+   generated_api
    architecture
