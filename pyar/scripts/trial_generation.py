@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Command-line interface for trial geometry generation."""
+"""Command-line interface for trial geometry generation.
+
+This utility exposes the orientation-sampling and fragment-merging helpers
+used by the aggregation and reaction workflows. It can generate approach
+directions, create candidate configurations, and export simple trial spheres.
+"""
 
 import argparse
 import os

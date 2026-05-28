@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Importable `pyar-explore` entrypoint."""
+"""Importable ``pyar-explore`` entrypoint.
+
+This script generates candidate composite geometries by combining a seed
+molecule, a monomer, and a formula-derived pathway. It is a convenience
+driver around the trial-generation and molecule-merging helpers used by the
+aggregation workflow.
+"""
 
 import argparse
 from copy import deepcopy
@@ -18,6 +24,7 @@ logging.basicConfig(filename='pyar_explore.log', level=logging.INFO,
 
 
 def parse_arguments():
+    """Parse the `pyar-explore` command-line arguments."""
     parser = argparse.ArgumentParser(description='Generate geometries based on formula.')
     parser.add_argument('seed_file', type=str, help='XYZ file for the seed monomer.')
     parser.add_argument('monomer_file', type=str, help='XYZ file for the monomer.')
@@ -27,6 +34,7 @@ def parse_arguments():
 
 
 def parse_formula(formula):
+    """Parse a chemical formula into an ordered atom-count mapping."""
     atom_counts = OrderedDict()
     current_atom = ''
     for char in formula:
@@ -42,6 +50,7 @@ def parse_formula(formula):
 
 
 def generate_chemical_pathway(atom_counts, seed):
+    """Return the list of atoms that still need to be added to the seed."""
     pathway = []
     seed_atom_counts = {}
     for atom in seed.atoms_list:
@@ -62,6 +71,12 @@ def _copy_molecule(molecule):
 
 
 def create_composite_molecule_wrapper(seed, monomer, pathway, sequence_offset=0):
+    """Create one candidate composite geometry for a pathway.
+
+    The wrapper seeds the orientation generator with ``sequence_offset`` so
+    repeated populations are reproducible while still producing distinct
+    geometry sets.
+    """
     composite = _copy_molecule(seed)
     points = generate_points(len(pathway), sequence_offset=sequence_offset)
     logging.info("Starting pathway with sequence offset %d: %s", sequence_offset, pathway)
@@ -76,6 +91,7 @@ def create_composite_molecule_wrapper(seed, monomer, pathway, sequence_offset=0)
 
 
 def main():
+    """Generate one or more composite geometries from a formula."""
     args = parse_arguments()
     seed = Molecule.from_xyz(args.seed_file)
     monomer = Molecule.from_xyz(args.monomer_file)

@@ -1,4 +1,18 @@
-"""Reaction workflow orchestration for PyAR."""
+"""Reaction workflow orchestration for PyAR.
+
+This module owns the AFIR reaction-search pipeline:
+
+* build the numeric gamma schedule
+* prepare and persist restartable reaction state
+* generate trial orientations for each gamma cycle
+* optimize each orientation with the selected backend
+* perform unbiased relaxation when a bonded candidate is found
+* deduplicate and persist unique products
+* emit trace-analysis summaries for successful paths
+
+The module is the implementation behind the legacy ``pyar.reactor`` import
+path and the ``pyar-react`` command-line entry point.
+"""
 
 import logging
 import os
@@ -26,7 +40,13 @@ saved_product_identities = {}
 
 
 def _build_reaction_result(workdir, status, product_dir, run_state, gamma_list, orientations):
-    """Package the current reaction outcome as a structured result."""
+    """Package the current reaction outcome as a structured result.
+
+    The returned :class:`~pyar.workflow_results.ReactionResult` captures the
+    final workflow state, the reaction run directory, the persisted restart
+    state, and the remaining orientation set so callers can inspect or report
+    the result without parsing the on-disk state tree.
+    """
     return ReactionResult(
         workflow="reaction",
         status=status,
@@ -43,7 +63,12 @@ def _build_reaction_result(workdir, status, product_dir, run_state, gamma_list, 
 
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
-    """Log a concise header for a reactor run."""
+    """Log the fixed header used at the start of a reaction run.
+
+    The header mirrors the historical reactor logging style and gives the
+    caller a single place to confirm the gamma range, orientation count, and
+    backend before the workflow begins mutating the working directory.
+    """
     reactor_logger.info("==================== PyAR Reaction Workflow ====================")
     reactor_logger.info(f"Gamma range: {gamma_min} to {gamma_max}")
     reactor_logger.info(f"Orientations: {hm_orientations}")
@@ -52,7 +77,12 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
 
 
 def with_gamma(qc_params, gamma):
-    """Return a copy of ``qc_params`` with the current gamma value applied."""
+    """Return a copy of ``qc_params`` with a specific AFIR gamma applied.
+
+    The helper also enables trace recording only for geomeTRIC-backed runs
+    with a non-zero gamma, because those are the only configurations that
+    produce the path trace used by the analysis tooling.
+    """
     updated_qc_params = dict(qc_params)
     updated_qc_params['gamma'] = gamma
     trace_enabled = (
@@ -65,12 +95,23 @@ def with_gamma(qc_params, gamma):
 
 
 def without_afir_bias(qc_params):
-    """Return parameters for unbiased physical relaxation of a reaction candidate."""
+    """Return parameters for unbiased physical relaxation.
+
+    This is the relaxation step applied after a bonded AFIR candidate has
+    been identified. It preserves the physical backend configuration while
+    forcing ``gamma=0.0`` so the candidate can be re-optimized without the
+    AFIR bias.
+    """
     return with_gamma(qc_params, 0.0)
 
 
 def build_gamma_schedule(gamma_min, gamma_max, steps=10):
-    """Build the numeric AFIR gamma schedule used by the reaction workflow."""
+    """Build the numeric AFIR gamma schedule used by the reaction workflow.
+
+    The schedule is inclusive and monotonic. A single-valued schedule is
+    returned when the limits are equal; otherwise the workflow uses evenly
+    spaced values between the endpoints.
+    """
     if not np.isfinite(gamma_min) or not np.isfinite(gamma_max):
         raise ValueError("AFIR gamma limits must be finite numbers")
     if gamma_min < 0.0 or gamma_max < 0.0:
@@ -83,7 +124,12 @@ def build_gamma_schedule(gamma_min, gamma_max, steps=10):
 
 
 def format_gamma_id(gamma):
-    """Format a gamma value for directory names and readable job labels."""
+    """Format a gamma value for directory names and readable job labels.
+
+    The formatter keeps directory names stable and lexicographically useful
+    by zero-padding the integral part and encoding the decimal separator as
+    ``p``.
+    """
     value = float(gamma)
     sign = "m" if value < 0.0 else ""
     magnitude = f"{abs(value):.12g}"
@@ -98,7 +144,12 @@ def format_gamma_id(gamma):
 
 
 def _molecule_signature(molecule):
-    """Return stable input geometry metadata used to validate restarts."""
+    """Return stable input geometry metadata used to validate restarts.
+
+    The signature is deliberately small and deterministic so restart
+    validation can reject changed reactants before the workflow mutates the
+    reaction directory.
+    """
     return {
         "atoms": list(molecule.atoms_list),
         "coordinates": np.asarray(molecule.coordinates, dtype=float).tolist(),
@@ -109,7 +160,13 @@ def _molecule_signature(molecule):
 
 def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
                            qc_params, site, proximity_factor):
-    """Build the scientific request persisted with reaction restart state."""
+    """Build the scientific request persisted with reaction restart state.
+
+    The request captures the scientifically relevant inputs that must remain
+    fixed across restarts: the gamma schedule, the backend configuration, the
+    selected site constraint, the proximity factor, and a signature of both
+    reactants.
+    """
     backend_parameters = dict(qc_params)
     backend_parameters.pop("gamma", None)
     return {
@@ -133,7 +190,12 @@ def _restore_product_registry(run_state):
 
 
 def _is_known_product(identity):
-    """Return whether the product's canonical molecular identity is known."""
+    """Return whether the product's canonical molecular identity is known.
+
+    The registry stores canonical InChI/SMILES pairs for already accepted
+    products, so this check prevents emitting duplicate products when a run
+    discovers the same structure through a different orientation or gamma.
+    """
     return any(
         same_molecular_identity(identity, recorded_identity)
         for recorded_identity in saved_product_identities.values()
@@ -141,7 +203,12 @@ def _is_known_product(identity):
 
 
 def relax_without_afir_bias(molecule, qc_params):
-    """Relax a bonded AFIR candidate on the unbiased physical objective."""
+    """Relax a bonded AFIR candidate on the unbiased physical objective.
+
+    The molecule is written to temporary XYZ snapshots before and after the
+    relaxation so callers can inspect the pre- and post-relaxation geometries
+    if the optimization succeeds.
+    """
     original_name = molecule.name
     molecule.mol_to_xyz('trial_relax.xyz')
     molecule.name = 'relax'
@@ -156,7 +223,13 @@ def relax_without_afir_bias(molecule, qc_params):
 
 def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations,
                             qc_params, site, proximity_factor):
-    """Prepare a reaction run and return the mutable workflow state."""
+    """Prepare a reaction run and return the mutable workflow state.
+
+    This function owns the restart contract for the reaction workflow. It
+    either resumes an existing reaction state, migrates a legacy checkpoint,
+    or creates a new ``reaction/`` tree with all trial geometries staged for
+    the first gamma cycle.
+    """
     current_workdir = os.getcwd()
     requested_gamma_list = build_gamma_schedule(gamma_min, gamma_max)
     request = build_reaction_request(
@@ -249,7 +322,12 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
 
 def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
           site, proximity_factor):
-    """Run the reaction-search workflow for two reactants."""
+    """Run the reaction-search workflow for two reactants.
+
+    The workflow iterates over the gamma schedule, optimizes each orientation,
+    records products and trace summaries, and returns a structured result that
+    summarizes the final reaction state.
+    """
     workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir = initialize_reaction_run(
         reactant_a,
         reactant_b,
@@ -331,7 +409,12 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
 
 
 def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
-    """Optimize all trial geometries for one gamma cycle."""
+    """Optimize all trial geometries for one gamma cycle.
+
+    Each orientation is written to its own job directory, optimized with the
+    current gamma, and then either retained for the next gamma value or
+    promoted to a unique product if it survives the unbiased relaxation step.
+    """
     gamma = qc_param['gamma']
     cwd = os.getcwd()
     table_of_optimized_molecules = (
@@ -454,7 +537,7 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
 
 
 def main():
-    """Entry point placeholder retained for compatibility."""
+    """Compatibility entry point retained for older imports and scripts."""
     return None
 
 

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Importable `pyar-react` entrypoint."""
+"""Importable ``pyar-react`` entrypoint.
+
+This script provides the historical reaction-search command-line interface
+that wraps :func:`pyar.workflows.reaction.react`. It converts CLI arguments
+into the backend parameter dictionary expected by the workflow and applies
+the same geometry-optimizer guardrails as the main ``pyar-cli`` entrypoint.
+"""
 
 import argparse
 import logging
@@ -20,6 +26,7 @@ handler = logging.FileHandler('pyar-react.log', 'a')
 
 
 def argument_parse():
+    """Parse the reaction-search command-line arguments."""
     parser = argparse.ArgumentParser(description="pyar-react - Command-line interface for PyAR reactor")
     parser.add_argument("input_files", metavar='file', type=str, nargs='+', help='input coordinate files in xyz format.')
     parser.add_argument('-N', dest='how_many_orientations', metavar='N', required=True, help='The number of orientations to be used')
@@ -46,12 +53,14 @@ def argument_parse():
 
 
 def calculate_index_from_xyz(filename):
+    """Return the zero-based index separating the two reactants in ``filename``."""
     with open(filename, 'r') as f:
         num_atoms = int(f.readline().strip())
     return num_atoms - 1
 
 
 def main():
+    """Run the legacy reaction-search command-line workflow."""
     args = argument_parse()
     run_parameters = defaultdict(lambda: None, vars(args))
 

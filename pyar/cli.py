@@ -204,6 +204,13 @@ def _normalize_subcommand_argv(argv):
     return [alias, *argv[1:]]
 
 
+def _dispatch_trace_subcommand(argv):
+    """Run the reaction-trace CLI from pyar-cli."""
+    from pyar.scripts.reaction_trace import main as reaction_trace_main
+
+    reaction_trace_main(argv)
+
+
 def argument_parse(argv=None):
     if argv is None:
         argv = sys.argv[1:]
@@ -224,6 +231,9 @@ molecular complexes or atomic clusters.
   pyar-cli --aggregate --formula C5H4 -N 8
   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
   pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
+  pyar-cli trace .
+  pyar-cli trace . --plot
+  pyar-cli trace . --plot-only
 
 In aggregate mode, each input can be an XYZ file, a bare element symbol, or a
 chemical formula.
@@ -374,6 +384,9 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
+        _dispatch_trace_subcommand(sys.argv[2:])
+        return
     args = vars(argument_parse())
     from pyar import scan
     from pyar.state.aggregate import AggregateStateError

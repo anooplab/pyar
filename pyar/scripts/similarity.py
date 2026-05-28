@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Importable `pyar-similarity` entrypoint."""
+"""Importable ``pyar-similarity`` entrypoint.
+
+This utility computes Grigoryan-Springborg similarity across a pool of XYZ
+files, writes duplicate and unique structure collections, and records a
+summary file for the rejected pairs.
+"""
 
 import argparse
 import glob
@@ -111,6 +116,7 @@ def process_files(x, array_keys, Info_Coords, threshold_duplicate, file_tmp, fil
 
 
 def main():
+    """Scan XYZ files for near-duplicate structures and write summary files."""
     parser = argparse.ArgumentParser(description='Grigoryan Springborg Similarity')
     parser.add_argument('-f', '--files', default='*.xyz')
     parser.add_argument('-t', '--threshold', type=float, default=0.005)

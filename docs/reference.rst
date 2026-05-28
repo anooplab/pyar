@@ -15,6 +15,50 @@ Main workflows
    :members:
    :undoc-members:
 
+.. automodule:: pyar.scripts.explore
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.optimiser
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.react
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.reaction_trace
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.energy_table
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.trial_generation
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.clustering
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.similarity
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.descriptor
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.benchmark_clustering
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.scripts.benchmark_orientations
+   :members:
+   :undoc-members:
+
 .. automodule:: pyar.workflow_results
    :members:
    :undoc-members:
@@ -83,11 +127,23 @@ Main workflows
    :members:
    :undoc-members:
 
+.. automodule:: pyar.reaction_analysis
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.reaction_trace
+   :members:
+   :undoc-members:
+
 .. automodule:: pyar.workflows.reaction
    :members:
    :undoc-members:
 
 .. automodule:: pyar.workflows.solvation
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.solvation_state
    :members:
    :undoc-members:
 

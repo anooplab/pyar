@@ -214,6 +214,19 @@ class CliSmokeTests(unittest.TestCase):
         self.assertEqual(captured["sizes"], [1, 4])
         self.assertEqual(captured["software"], "aimnet_2")
 
+    def test_trace_subcommand_dispatches_to_reaction_trace_cli(self):
+        sys.argv = [
+            "pyar-cli",
+            "trace",
+            "/tmp/reaction-job",
+            "--plot-only",
+        ]
+
+        with mock.patch.object(self.cli, "_dispatch_trace_subcommand") as dispatch:
+            self.cli.main()
+
+        dispatch.assert_called_once_with(["/tmp/reaction-job", "--plot-only"])
+
     def test_react_requires_exactly_two_xyz_inputs(self):
         sys.argv = [
             "pyar-cli",

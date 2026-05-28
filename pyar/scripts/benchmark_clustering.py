@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Benchmark clustering/selection algorithms on one or more XYZ pools."""
+"""Benchmark clustering/selection algorithms on one or more XYZ pools.
+
+This utility compares the geometry-selection algorithms exposed by
+``pyar.data_analysis.clustering`` and reports selection quality, diversity,
+and runtime for one or more pools of XYZ files.
+"""
 
 from __future__ import annotations
 

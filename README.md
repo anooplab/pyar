@@ -154,6 +154,11 @@ pyar-cli options files
 
 There are other scripts for a few automation tasks.
 
+* `pyar-reaction-trace` analyzes a reaction trace in a job directory or
+  `reaction_trace/` directory and can write PNG plots with `--plot`.
+  Use `--plot-only` to skip rewriting the summary files.
+* `pyar-cli trace` runs the same reaction-trace analysis from the main CLI.
+
 ## pyar-trial-generation
 `pyar-trial-generation` can be used for
 * for making different orientations of two molecules.

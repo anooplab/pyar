@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Importable `pyar-optimiser` entrypoint."""
+"""Importable ``pyar-optimiser`` entrypoint.
+
+This utility runs the general-purpose geometry optimizer over one or more
+input structures without going through the aggregation, reaction, or solvation
+workflow state machines.
+"""
 
 import argparse
 import datetime
@@ -17,6 +22,7 @@ handler = logging.FileHandler('pyar-optimiser.log', 'w')
 
 
 def main():
+    """Parse optimizer options, load input molecules, and run bulk optimization."""
     parser = argparse.ArgumentParser(prog='pyar', description='pyar is a program to predict aggregation, reaction, clustering.')
     parser.add_argument('-v', '--verbosity', choices=[0, 1, 2, 3, 4], type=int)
     parser.add_argument("input_files", metavar='files', type=str, nargs='+')

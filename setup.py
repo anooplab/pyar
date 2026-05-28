@@ -60,6 +60,7 @@ setup(
             'pyar-trial-generation=pyar.scripts.trial_generation:main',
             'pyar-clustering=pyar.scripts.clustering:main',
             'pyar-energy-table=pyar.scripts.energy_table:main',
+            'pyar-reaction-trace=pyar.scripts.reaction_trace:main',
             'pyar-benchmark-clustering=pyar.scripts.benchmark_clustering:main',
             'pyar-benchmark-orientations=pyar.scripts.benchmark_orientations:main',
             'pyar-similarity=pyar.scripts.similarity:main',

@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+import csv
 
 import numpy as np
 from ase import Atoms
@@ -11,6 +12,7 @@ from ase.units import Bohr, Hartree
 
 from pyar.energy_gradient_providers import EnergyGradientResult
 from pyar.reaction_analysis import analyse_reaction_trace
+from pyar.reaction_analysis import plot_reaction_trace
 from pyar.reaction_trace import bond_changes, infer_bonds, load_trace_records
 
 
@@ -123,6 +125,34 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
             self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
 
+    def test_load_trace_records_rejects_malformed_record(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace_dir = Path(tmpdir) / "reaction_trace"
+            trace_dir.mkdir()
+            malformed = {
+                "step_index": 0,
+                "symbols": ["C", "H"],
+                "coordinates_angstrom": [[0.0, 0.0, 0.0]],
+                "backend_energy_hartree": 0.4,
+                "afir_energy_hartree": 0.0,
+                "total_energy_hartree": 0.4,
+                "backend_force_norm": 0.1,
+                "afir_force_norm": 0.0,
+                "total_force_norm": 0.1,
+                "max_force": 0.1,
+                "current_bonds": [],
+                "formed_bonds": [],
+                "broken_bonds": [],
+                "bond_change_count": 0,
+                "min_interfragment_distance_angstrom": 1.5,
+            }
+            with (trace_dir / "trace.jsonl").open("w", encoding="utf-8") as fp:
+                json.dump(malformed, fp)
+                fp.write("\n")
+
+            with self.assertRaisesRegex(ValueError, "coordinates_angstrom"):
+                load_trace_records(trace_dir)
+
     def test_trace_pipeline_smoke_flow_uses_mocked_calculator_calls(self):
         from pyar.backends.geometric import PyarGeometricCalculator
 
@@ -177,12 +207,25 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertEqual(len(trace_records), 3)
             self.assertIsNotNone(summary)
             self.assertTrue((Path(tmpdir) / "path_summary.csv").exists())
+            self.assertTrue((Path(tmpdir) / "candidate_ts" / "metadata.json").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_backend_energy.xyz").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "pre_product_geometry.xyz").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "max_bond_change.xyz").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_total_energy.xyz").exists())
             self.assertEqual(summary["highest_backend_energy_index"], 1)
             self.assertIn("2", Path(tmpdir, "candidate_ts", "highest_backend_energy.xyz").read_text())
+
+            with Path(tmpdir, "path_summary.csv").open(newline="", encoding="utf-8") as fp:
+                rows = list(csv.DictReader(fp))
+            self.assertIn("backend_relative_kcalmol", rows[0])
+            self.assertIn("afir_relative_kcalmol", rows[0])
+            self.assertIn("total_relative_kcalmol", rows[0])
+            self.assertIn("xyz_file", rows[0])
+            self.assertEqual(rows[0]["xyz_file"], "reaction_trace/steps/step_000000.xyz")
+            self.assertAlmostEqual(float(rows[0]["backend_relative_kcalmol"]), 0.0, places=10)
+            metadata = json.loads(Path(tmpdir, "candidate_ts", "metadata.json").read_text())
+            self.assertIn("candidate_files", metadata)
+            self.assertEqual(metadata["candidate_files"]["highest_backend_energy"]["xyz_file"], "highest_backend_energy.xyz")
 
     def test_analysis_prefers_persistent_bond_event_over_flicker(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -351,3 +394,109 @@ class ReactionTraceTests(unittest.TestCase):
             highest_total = Path(job_dir / "candidate_ts" / "highest_total_energy.xyz").read_text()
             self.assertIn("2.5", highest_backend)
             self.assertIn("3.0", highest_total)
+
+    def test_analyse_reaction_trace_rejects_duplicate_step_indices(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            job_dir = Path(tmpdir)
+            trace_dir = job_dir / "reaction_trace"
+            trace_dir.mkdir()
+
+            records = [
+                {
+                    "step_index": 0,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.5, 0.0, 0.0]],
+                    "backend_energy_hartree": 0.5,
+                    "afir_energy_hartree": 0.1,
+                    "total_energy_hartree": 0.6,
+                    "backend_force_norm": 1.0,
+                    "afir_force_norm": 0.2,
+                    "total_force_norm": 1.2,
+                    "max_force": 0.8,
+                    "current_bonds": [],
+                    "formed_bonds": [],
+                    "broken_bonds": [],
+                    "bond_change_count": 0,
+                    "min_interfragment_distance_angstrom": 1.5,
+                },
+                {
+                    "step_index": 0,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.1, 0.0, 0.0]],
+                    "backend_energy_hartree": 2.5,
+                    "afir_energy_hartree": 0.5,
+                    "total_energy_hartree": 3.0,
+                    "backend_force_norm": 2.0,
+                    "afir_force_norm": 0.3,
+                    "total_force_norm": 2.3,
+                    "max_force": 1.7,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [[0, 1]],
+                    "broken_bonds": [],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 1.1,
+                },
+            ]
+
+            with (trace_dir / "trace.jsonl").open("w", encoding="utf-8") as fp:
+                for record in records:
+                    json.dump(record, fp)
+                    fp.write("\n")
+
+            with self.assertRaisesRegex(ValueError, "Duplicate trace step_index"):
+                analyse_reaction_trace(job_dir)
+
+    def test_plot_reaction_trace_writes_png_files(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            job_dir = Path(tmpdir)
+            trace_dir = job_dir / "reaction_trace"
+            trace_dir.mkdir()
+
+            records = [
+                {
+                    "step_index": 0,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.5, 0.0, 0.0]],
+                    "backend_energy_hartree": 0.5,
+                    "afir_energy_hartree": 0.1,
+                    "total_energy_hartree": 0.6,
+                    "backend_force_norm": 1.0,
+                    "afir_force_norm": 0.2,
+                    "total_force_norm": 1.2,
+                    "max_force": 0.8,
+                    "current_bonds": [],
+                    "formed_bonds": [],
+                    "broken_bonds": [],
+                    "bond_change_count": 0,
+                    "min_interfragment_distance_angstrom": 1.5,
+                },
+                {
+                    "step_index": 1,
+                    "symbols": ["C", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.1, 0.0, 0.0]],
+                    "backend_energy_hartree": 2.5,
+                    "afir_energy_hartree": 0.5,
+                    "total_energy_hartree": 3.0,
+                    "backend_force_norm": 2.0,
+                    "afir_force_norm": 0.3,
+                    "total_force_norm": 2.3,
+                    "max_force": 1.7,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [[0, 1]],
+                    "broken_bonds": [],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 1.1,
+                },
+            ]
+
+            with (trace_dir / "trace.jsonl").open("w", encoding="utf-8") as fp:
+                for record in records:
+                    json.dump(record, fp)
+                    fp.write("\n")
+
+            plot_summary = plot_reaction_trace(job_dir)
+
+            self.assertIsNotNone(plot_summary)
+            self.assertTrue(Path(plot_summary["plots"]["reaction_trace_energies"]).exists())
+            self.assertTrue(Path(plot_summary["plots"]["reaction_trace_metrics"]).exists())
+            self.assertEqual(plot_summary["plot_directory"], str(job_dir / "trace_plots"))

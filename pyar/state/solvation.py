@@ -1,4 +1,9 @@
-"""Versioned, inspectable restart state for solvation workflows."""
+"""Versioned, inspectable restart state for solvation workflows.
+
+The solvation workflow persists a compact JSON state file plus geometry
+snapshots so interrupted runs can resume without redoing completed cycles or
+losing the selected seed geometries.
+"""
 
 from __future__ import annotations
 
@@ -49,9 +54,16 @@ def _molecule_signature(molecule):
 
 
 class SolvationRunState:
-    """Persist completed solvation cycles independently of optimizer objects."""
+    """Persist completed solvation cycles independently of optimizer objects.
+
+    The state tracks the requested solvation calculation, the current seed
+    geometries, the completed cycle history, and the terminal output paths.
+    It is designed to be human-inspectable and safe to validate before a
+    resumed run mutates the working directory.
+    """
 
     def __init__(self, root_directory, data):
+        """Bind the run state to the solvation directory tree on disk."""
         self.root_directory = Path(root_directory).resolve()
         self.solvation_directory = self.root_directory / "solvation"
         self.state_directory = self.solvation_directory / "state"
@@ -61,7 +73,11 @@ class SolvationRunState:
 
     @classmethod
     def create(cls, root_directory, request, current_seeds):
-        """Create and persist state for a new solvation run."""
+        """Create and persist state for a new solvation run.
+
+        The initial state stores the request payload, snapshots of the input
+        seed geometries, and the cycle counter used to drive the growth loop.
+        """
         data = {
             "version": STATE_VERSION,
             "workflow": "solvation",
@@ -82,7 +98,12 @@ class SolvationRunState:
 
     @classmethod
     def load(cls, root_directory, expected_request):
-        """Load a running solvation state file and validate its request."""
+        """Load a running solvation state file and validate its request.
+
+        A matching request is required for restart. If the state file belongs
+        to a different calculation, the load is rejected rather than silently
+        mutating an unrelated run directory.
+        """
         state_file = Path(root_directory).resolve() / "solvation" / STATE_FILENAME
         if not state_file.is_file():
             return None
@@ -130,7 +151,12 @@ class SolvationRunState:
         return [self._load_molecule(reference) for reference in self.data.get("current_seeds", [])]
 
     def complete_cycle(self, cycle_number, selected_molecules):
-        """Persist a completed cycle and update seeds for the next cycle."""
+        """Persist a completed cycle and update seeds for the next cycle.
+
+        The selected molecules are snapshotted to disk so the next cycle can
+        be resumed from an inspectable geometry set rather than from in-memory
+        optimizer objects.
+        """
         expected_cycle = self.data.get("next_cycle")
         if cycle_number != expected_cycle:
             raise SolvationStateError(
@@ -177,12 +203,15 @@ class SolvationRunState:
         os.replace(temporary_path, self.state_file)
 
     def _replace_current_seeds(self, molecules):
+        """Replace the current seed list with snapshots of ``molecules``."""
         self.data["current_seeds"] = self._snapshot_molecules(molecules)
 
     def _snapshot_molecules(self, molecules):
+        """Return persistent snapshot metadata for a sequence of molecules."""
         return [self._snapshot_molecule(molecule) for molecule in molecules]
 
     def _snapshot_molecule(self, molecule):
+        """Write one molecule snapshot and return its persisted metadata."""
         sequence = self.data["next_snapshot"]
         self.data["next_snapshot"] += 1
         filename = f"{sequence:06d}_{_safe_name(molecule.name)}.xyz"
@@ -208,6 +237,7 @@ class SolvationRunState:
         }
 
     def _load_molecule(self, reference):
+        """Load one snapshot from disk and reconstruct the molecule object."""
         source = self.solvation_directory / reference["path"]
         try:
             loaded = Molecule.from_xyz(str(source))

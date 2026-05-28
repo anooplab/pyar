@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Importable `pyar-energy-table` entrypoint."""
+"""Importable ``pyar-energy-table`` entrypoint.
+
+This utility prints a relative-energy table for one or more XYZ files. It is
+used as a lightweight inspection tool for comparing geometries without
+running a full workflow.
+"""
 
 import argparse
 import sys
@@ -10,6 +15,7 @@ from pyar.data_analysis import clustering
 
 
 def main():
+    """Read XYZ files, attach energies, and print a ranked energy table."""
     parser = argparse.ArgumentParser(
         prog="pyar-energy-table",
         description="Print a relative-energy table from one or more XYZ files.",

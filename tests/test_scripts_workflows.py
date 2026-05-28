@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -124,6 +125,95 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(react.call_args.args[5]["basis"], "def2-SVP")
         self.assertEqual(react.call_args.args[5]["scf_cycles"], 1000)
         self.assertEqual(react.call_args.args[5]["nprocs"], 8)
+
+    def test_reaction_trace_script_analyzes_and_plots(self):
+        import json
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.reaction_trace")
+                trace_dir = Path(tmpdir) / "reaction_trace"
+                trace_dir.mkdir()
+                record = {
+                    "step_index": 0,
+                    "symbols": ["H", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]],
+                    "backend_energy_hartree": -1.0,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": -1.0,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [[0, 1]],
+                    "broken_bonds": [],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 0.7,
+                }
+                with (trace_dir / "trace.jsonl").open("w", encoding="utf-8") as fp:
+                    json.dump(record, fp)
+                    fp.write("\n")
+
+                with mock.patch.object(script, "argument_parse", return_value=SimpleNamespace(
+                    path=tmpdir,
+                    plot=True,
+                    plot_directory=None,
+                )):
+                    script.main()
+
+                self.assertTrue((Path(tmpdir) / "path_summary.csv").exists())
+                self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_energies.png").exists())
+                self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_metrics.png").exists())
+            finally:
+                os.chdir(cwd)
+
+    def test_reaction_trace_script_plot_only_skips_summary_generation(self):
+        import json
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.reaction_trace")
+                trace_dir = Path(tmpdir) / "reaction_trace"
+                trace_dir.mkdir()
+                record = {
+                    "step_index": 0,
+                    "symbols": ["H", "H"],
+                    "coordinates_angstrom": [[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]],
+                    "backend_energy_hartree": -1.0,
+                    "afir_energy_hartree": 0.0,
+                    "total_energy_hartree": -1.0,
+                    "backend_force_norm": 0.1,
+                    "afir_force_norm": 0.0,
+                    "total_force_norm": 0.1,
+                    "max_force": 0.1,
+                    "current_bonds": [[0, 1]],
+                    "formed_bonds": [[0, 1]],
+                    "broken_bonds": [],
+                    "bond_change_count": 1,
+                    "min_interfragment_distance_angstrom": 0.7,
+                }
+                with (trace_dir / "trace.jsonl").open("w", encoding="utf-8") as fp:
+                    json.dump(record, fp)
+                    fp.write("\n")
+
+                with mock.patch.object(script, "argument_parse", return_value=SimpleNamespace(
+                    path=tmpdir,
+                    plot=False,
+                    plot_only=True,
+                    plot_directory=None,
+                )):
+                    script.main()
+
+                self.assertFalse((Path(tmpdir) / "path_summary.csv").exists())
+                self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_energies.png").exists())
+                self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_metrics.png").exists())
+            finally:
+                os.chdir(cwd)
 
     def test_react_rejects_geometric_backend_without_provider_before_run(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -3,6 +3,9 @@
 This module is retained as a compatibility shim. New code should import the
 workflow entrypoints from :mod:`pyar.workflows.aggregate` and
 :mod:`pyar.workflows.solvation`.
+
+The shim keeps older imports working while the actual aggregation and
+solvation implementations live in the workflow package.
 """
 
 from __future__ import annotations
@@ -61,6 +64,7 @@ __all__ = [
 
 
 def _warn_legacy(name):
+    """Warn that a legacy aggregator symbol was imported."""
     warnings.warn(
         f"pyar.aggregator.{name} is deprecated; import from pyar.workflows instead.",
         DeprecationWarning,

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Benchmark direction samplers used for trial geometry placement."""
+"""Benchmark direction samplers used for trial geometry placement.
+
+The benchmark compares the available placement-direction generators used by
+the trial-geometry code paths and reports sphere-coverage statistics plus
+runtime.
+"""
 
 from __future__ import annotations
 

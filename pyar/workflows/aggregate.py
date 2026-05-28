@@ -1,4 +1,18 @@
-"""Aggregate workflow entrypoint."""
+"""Aggregate workflow orchestration for PyAR.
+
+This module owns the aggregation and cluster-generation workflow used by
+``pyar-cli -a`` and the legacy aggregator compatibility layer. It is
+responsible for:
+
+* validating the aggregate request and restart state
+* selecting pathways and orientation sets
+* creating the working directory tree under ``aggregates/``
+* running the backend optimization steps for each pathway
+* collecting the selected geometries and workflow result metadata
+
+The public entry points are :func:`aggregate` and
+:func:`aggregate_from_formulas`.
+"""
 
 from __future__ import annotations
 
@@ -59,7 +73,13 @@ def _build_aggregate_request(
     number_of_pathways,
     site,
 ):
-    """Build the scientific request persisted with aggregation state."""
+    """Build the scientific request persisted with aggregation state.
+
+    The persisted request is the restart contract for aggregation. It captures
+    the fragment composition, orientation count, backend configuration, and
+    pathway-selection controls so a resumed run can reject incompatible input
+    changes.
+    """
     return {
         "aggregate_sizes": [int(size) for size in aggregate_sizes],
         "orientations": hm_orientations,
@@ -73,7 +93,12 @@ def _build_aggregate_request(
 
 
 def _pathway_from_label(monomers_to_be_added, label):
-    """Restore one persisted pathway label to its input molecule objects."""
+    """Restore one persisted pathway label to its input molecule objects.
+
+    Pathways are persisted as labels so they can survive restarts and legacy
+    checkpoint migration. This helper maps a stored label back to the concrete
+    molecule objects used in the current run.
+    """
     by_name = {}
     for molecule in monomers_to_be_added:
         by_name.setdefault(molecule.name, molecule)
@@ -100,7 +125,13 @@ def aggregate(
     number_of_pathways,
     site,
 ):
-    """Run an aggregate or cluster generation workflow."""
+    """Run an aggregate or cluster-generation workflow.
+
+    The function creates or resumes the aggregation state, iterates over the
+    selected pathways, runs the per-orientation optimization for each path,
+    and returns an :class:`~pyar.workflow_results.AggregateResult` describing
+    the final run state.
+    """
     if check_stop_signal():
         aggregator_logger.info("Function: aggregate")
         run_directory = str(Path.cwd().resolve() / "aggregates")
@@ -298,7 +329,12 @@ def aggregate_from_formulas(
     number_of_pathways,
     site,
 ):
-    """Generate initial molecules from formulas and run the aggregate workflow."""
+    """Generate initial molecules from formulas and run the aggregate workflow.
+
+    This is the convenience entry point used by ``--formula`` aggregation
+    runs. It converts the provided formulas into molecule objects and then
+    delegates to :func:`aggregate`.
+    """
     molecules = [generate_molecule_from_formula(formula) for formula in formulas]
     return aggregate(
         molecules,

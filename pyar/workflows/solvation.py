@@ -1,4 +1,10 @@
-"""Solvation workflow entrypoint."""
+"""Solvation workflow orchestration for PyAR.
+
+This module owns the growth workflow behind ``pyar-cli --solvate``. It
+persists a restartable solvation state, generates trial orientations for each
+cycle, and returns a structured result that describes the final selected
+seed geometries.
+"""
 
 from __future__ import annotations
 
@@ -20,6 +26,7 @@ __all__ = ["solvate"]
 
 
 def _molecule_signature(molecule):
+    """Return stable molecule metadata used to validate solvation restarts."""
     return {
         "name": molecule.name,
         "atoms": list(molecule.atoms_list),
@@ -32,6 +39,12 @@ def _molecule_signature(molecule):
 
 
 def _build_solvation_request(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_number_of_seeds, site):
+    """Build the persisted request used to validate solvation restarts.
+
+    The request captures the seed geometries, solvent monomer, cycle size,
+    orientation count, backend configuration, and site constraint so a future
+    invocation can only resume if the scientific inputs are unchanged.
+    """
     return {
         "aggregate_size": int(aggregate_size),
         "orientations": hm_orientations,
@@ -44,7 +57,14 @@ def _build_solvation_request(seeds, monomer, aggregate_size, hm_orientations, qc
 
 
 def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_number_of_seeds, site=None):
-    """Add solvent molecules to the current seeds."""
+    """Run the solvation workflow for the provided seeds and solvent.
+
+    The workflow either resumes an existing ``solvation/`` state tree or
+    creates a new one, then iterates over the requested growth cycles while
+    recording the seed geometries selected for the next cycle. The returned
+    :class:`~pyar.workflow_results.SolvationResult` describes the final run
+    state and the output directory.
+    """
     if check_stop_signal():
         aggregator_logger.info("Function: solvate")
         run_directory = str(Path.cwd().resolve() / "solvation")

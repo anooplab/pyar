@@ -48,6 +48,19 @@ adapters before they can use this channel.
 The AFIR gamma value belongs to the bias settings stored in the request and
 run state; it must never be replaced by a wrapper-level constant.
 
+AFIR Bias
+---------
+
+AFIR adds an artificial force term to the objective to drive fragments
+together or apart while the optimizer follows the combined energy landscape.
+In PyAR, the AFIR bias is an additive term on top of the backend energy and
+forces, so the workflow can explore reaction channels, weak complexes, and
+ligand-association events without giving the backend control over coordinate
+updates.
+
+The implementation here follows the isotropic AFIR formulation described by
+Maeda et al. [AFIR2016]_.
+
 Core Interfaces
 ---------------
 
@@ -198,9 +211,13 @@ directory in ``reaction_trace/``. The trace contains a JSONL record for every
 backend evaluation plus matching XYZ snapshots, and successful paths add a
 ``path_summary.csv`` file together with ``candidate_ts/`` geometries for the
 highest backend energy, highest total energy, pre-product, and largest bond
-change points. Trace recording is restart-safe: resumed runs append to the
-existing trace instead of deleting it, and successful products keep a compact
-reference to the generated trace-analysis outputs in the reaction state file.
+change points. The summary now carries the absolute energies, first-frame
+relative energies in kcal/mol, and the XYZ snapshot file name for each step.
+Candidate geometries also receive a ``candidate_ts/metadata.json`` sidecar and
+a richer XYZ comment with the selected step index and energy context. Trace
+recording is restart-safe: resumed runs append to the existing trace instead
+of deleting it, and successful products keep a compact reference to the
+generated trace-analysis outputs in the reaction state file.
 
 Legacy ``jobs.pkl`` checkpoints are migrated only when their old gamma labels
 map unambiguously to the requested numeric schedule. This gives the later
@@ -269,3 +286,8 @@ The implementation should cite the algorithm that is actually used:
 The new implementation should integrate and test an established
 internal-coordinate optimizer rather than reimplement the Pulay/Schlegel
 coordinate transformation machinery from scratch.
+
+.. [AFIR2016] Satoshi Maeda, Yu Harabuchi, Makito Takagi, Tetsuya Taketsugu,
+   and Keiji Morokuma, *Artificial Force Induced Reaction (AFIR) Method for
+   Exploring Quantum Chemical Potential Energy Surfaces*, *Chemical Record*
+   16(5), 2232-2248 (2016), DOI ``10.1002/tcr.201600043``.

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Importable `pyar-descriptor` entrypoint."""
+"""Importable ``pyar-descriptor`` entrypoint.
+
+This utility computes a compact cluster-shape descriptor for each XYZ file
+and writes per-structure descriptor files alongside summary CSV output.
+"""
 
 import argparse
 import glob
@@ -17,6 +21,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="MDAnalysis.analy
 
 
 def calculate_properties(atoms):
+    """Return the basic shape descriptors used to characterize one cluster."""
     cluster_size = len(atoms)
     points = atoms.get_positions()
     hull = ConvexHull(points)
@@ -29,11 +34,13 @@ def calculate_properties(atoms):
 
 
 def create_combined_descriptor(properties):
+    """Combine the basic descriptors into a single normalized score."""
     normalized = np.array(properties) / np.sum(properties)
     return np.prod(normalized)
 
 
 def main(args=None):
+    """Compute and write descriptors for one or more XYZ files."""
     if args is None:
         parser = argparse.ArgumentParser(description="Analyze molecular cluster XYZ files.")
         parser.add_argument("input_files", metavar='files', type=str, nargs='+',
