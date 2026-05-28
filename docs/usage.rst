@@ -44,6 +44,19 @@ The command writes ``path_summary.csv`` and ``candidate_ts/`` in the job
 directory unless ``--plot-only`` is used, and places plots in
 ``trace_plots/`` unless ``--plot-directory`` is set.
 
+The summary distinguishes the physical backend energy from the AFIR-biased
+optimization objective:
+
+* ``backend_energy_hartree``: backend electronic, ML, or xTB energy without AFIR
+* ``afir_energy_hartree``: artificial AFIR contribution
+* ``total_energy_hartree``: optimization objective used by geomeTRIC
+* ``backend_relative_kcalmol``: backend-energy change relative to the first
+  recorded trace frame
+
+The candidate file ``candidate_ts/highest_backend_energy.xyz`` is usually the
+first structure to inspect for future NEB, string, dimer, or TS workflows. It
+is not a confirmed transition state.
+
 Utilities
 ---------
 
