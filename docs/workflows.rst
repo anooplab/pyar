@@ -1,16 +1,19 @@
-Workflows
-=========
+Workflow Internals
+==================
 
-This page describes the main chemistry workflows exposed by ``pyar-cli``.
-Use it to choose the right command for the kind of structure search you want
-to run.
+This page is a technical map of the main PyAR workflow implementations. If you
+are using PyAR for chemistry, start with the task pages instead:
+:doc:`aggregation`, :doc:`reaction`, :doc:`solvation`, and :doc:`bond_scan`.
 
-Aggregation
------------
+The word "workflow" is used here in the developer sense: a coordinated set of
+sampling, optimisation, selection, restart, and reporting steps.
 
-Aggregation searches for low-energy packings of one or more fragments. This
-is the workflow to use for molecular clusters, noncovalent complexes, and
-small aggregate models.
+Aggregation internals
+---------------------
+
+Aggregation searches for low-energy packings of one or more fragments. This is
+the internal route behind molecular clusters, noncovalent complexes, and small
+aggregate models.
 
 Examples:
 
@@ -47,8 +50,8 @@ For a chemistry researcher, the main outputs to inspect are:
 * ``selected/`` for the chosen low-energy candidates
 * the energy table output for quick ranking of the structures
 
-Reaction
---------
+Reaction internals
+------------------
 
 Reaction searches operate on exactly two input structures and are meant for
 reaction discovery, bond formation, or close-contact pathway exploration.
@@ -128,10 +131,10 @@ schedule is unambiguous. A legacy checkpoint whose formatted keys have lost
 distinct fractional gamma values exits with a clear error instead of resuming
 an uncertain calculation.
 
-Solvation
----------
+Solvation internals
+-------------------
 
-``solvate`` is the command name, but the workflow is broader than solvent
+``solvate`` is the command name, but the internal route is broader than solvent
 placement. It explores how a central core grows when units are added around
 it. Microsolvation is a common use case, and so is adding ligands to a
 transition metal center to build an organometallic complex.
@@ -163,8 +166,8 @@ For a chemistry researcher, the main outputs to inspect are:
 * ``solvation/state/geometries/`` for saved seed structures
 * the selected seed geometries from the final cycle
 
-Bond scan
----------
+Bond-scan internals
+-------------------
 
 Bond scanning evaluates a distance scan between two fragments. It is a simple
 way to probe whether a bond-forming or bond-breaking coordinate behaves as
