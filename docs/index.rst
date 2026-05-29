@@ -16,6 +16,7 @@ PyAR is most useful when you want to:
 
 For most chemistry users, start with the task that matches your problem:
 
+* :doc:`first_run` for a complete first calculation
 * :doc:`aggregation` for clusters, aggregates, and noncovalent complexes
 * :doc:`reaction` for AFIR-style product and close-contact searches
 * :doc:`solvation` for microsolvation, ligand addition, and growth around a core
@@ -75,6 +76,7 @@ Which paper matches my problem?
 Start here
 ----------
 
+* :doc:`first_run`
 * :doc:`quickstart`
 * :doc:`aggregation`
 * :doc:`reaction`
@@ -145,6 +147,7 @@ The fastest way to verify a local install is:
    :maxdepth: 2
    :caption: Getting started
 
+   first_run
    quickstart
    installation
    usage
