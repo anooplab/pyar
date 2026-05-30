@@ -42,6 +42,7 @@ INSTALL_REQUIRES = [
     "geometric>=1.1",
     "DBCV @ git+https://github.com/christopherjenness/DBCV.git",
     "openbabel-wheel",
+    "mlatom",
 ]
 ENTRY_POINTS = [
     "pyar-cli=pyar.cli:main",
@@ -56,7 +57,7 @@ ENTRY_POINTS = [
     "pyar-benchmark-orientations=pyar.scripts.benchmark_orientations:main",
     "pyar-similarity=pyar.scripts.similarity:main",
     "pyar-descriptor=pyar.scripts.descriptor:main",
-    "pyar-mlopt=pyar.interface.mlopt:main",
+    "pyar-mlopt=pyar.backends.mlopt:main",
     "pyar-aimnet2-ase-opt=pyar.AIMNet2.calculators.aimnet2_ase_opt:main",
 ]
 

@@ -1,31 +1,22 @@
 #!/usr/bin/env python3
 from setuptools import setup, find_packages
 
-INSTALL_REQUIRES = [
-    'numpy>=1.18.4',
-    'autograd>=1.3',
-    'ase',
-    'torch',
-    'torchani==2.0',
-    'MDAnalysis',
-    'pandas>=1.0.5',
-    'scipy>=1.5.2',
-    'scikit-learn>=0.23.2',
-    'dscribe',
-    'pyh5md',
-    'h5py',
-    'networkx',
-    'matplotlib',
-    'hdbscan',
-    'geometric>=1.1',
-    'DBCV @ git+https://github.com/christopherjenness/DBCV.git',
-    'openbabel-wheel',
-    'mlatom',
-]
+from build_backend import (
+    AUTHOR,
+    AUTHOR_EMAIL,
+    ENTRY_POINTS,
+    HOME_PAGE,
+    INSTALL_REQUIRES,
+    LICENSE,
+    NAME,
+    REQUIRES_PYTHON,
+    SUMMARY,
+    VERSION,
+)
 
 setup(
-    name='pyar',
-    version='1.1.0',
+    name=NAME,
+    version=VERSION,
     packages=find_packages(include=[
         'pyar', 'pyar.*'
     ]),
@@ -34,11 +25,11 @@ setup(
             'AIMNet2/models/*.jpt',
         ]
     },
-    url='https://github.com/anooplab/pyar',
-    license='GPL v3',
-    author='Anoop et al',
-    author_email='anoop@chem.iitkgp.ac.in',
-    description='A Python Code for Aggregation and Reaction',
+    url=HOME_PAGE,
+    license=LICENSE,
+    author=AUTHOR,
+    author_email=AUTHOR_EMAIL,
+    description=SUMMARY,
     install_requires=INSTALL_REQUIRES,
     keywords='computational chemistry global minima aggregation automated reaction',
     classifiers=[
@@ -50,23 +41,8 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Topic :: Scientific/Engineering :: Chemistry'
     ],
-    python_requires='>=3.6',
+    python_requires=REQUIRES_PYTHON,
     entry_points={
-        'console_scripts': [
-            'pyar-cli=pyar.cli:main',
-            'pyar-react=pyar.scripts.react:main',
-            'pyar-explore=pyar.scripts.explore:main',
-            'pyar-optimiser=pyar.scripts.optimiser:main',
-            'pyar-trial-generation=pyar.scripts.trial_generation:main',
-            'pyar-clustering=pyar.scripts.clustering:main',
-            'pyar-energy-table=pyar.scripts.energy_table:main',
-            'pyar-reaction-trace=pyar.scripts.reaction_trace:main',
-            'pyar-benchmark-clustering=pyar.scripts.benchmark_clustering:main',
-            'pyar-benchmark-orientations=pyar.scripts.benchmark_orientations:main',
-            'pyar-similarity=pyar.scripts.similarity:main',
-            'pyar-descriptor=pyar.scripts.descriptor:main',
-            'pyar-mlopt=pyar.backends.mlopt:main',
-            'pyar-aimnet2-ase-opt=pyar.AIMNet2.calculators.aimnet2_ase_opt:main',
-        ],
+        'console_scripts': ENTRY_POINTS,
     },
 )
