@@ -12,7 +12,7 @@ class PackagingMetadataTests(unittest.TestCase):
         import pyar
 
         self.assertEqual(pyar.__name__, "pyar")
-        self.assertEqual(version("pyar-chem"), "1.1.0")
+        self.assertEqual(version("pyar-chem"), "1.1.1")
 
     def test_cli_help_starts(self):
         result = subprocess.run(

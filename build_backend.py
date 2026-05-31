@@ -16,7 +16,7 @@ import zipfile
 
 
 NAME = "pyar"
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 SUMMARY = "A Python Code for Aggregation and Reaction"
 HOME_PAGE = "https://github.com/anooplab/pyar"
 AUTHOR = "Anoop et al"
