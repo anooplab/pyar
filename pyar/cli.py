@@ -3,8 +3,10 @@
 
 import argparse
 import datetime
+import importlib.util
 import logging
 import os
+import shutil
 import sys
 import time
 from collections import Counter, defaultdict
@@ -383,11 +385,210 @@ def _normalize_parameter_list(values, default_value, number_of_inputs, label):
     return resolved
 
 
+def _validate_cli_request_shape(run_parameters, number_of_input_files):
+    """Validate CLI-only constraints before importing workflow modules."""
+    if run_parameters['formula']:
+        if not run_parameters['aggregate']:
+            sys.exit('--formula can only be used with --aggregate in pyar-cli')
+        if number_of_input_files != 0:
+            sys.exit('Do not provide XYZ input files when using --formula')
+    elif number_of_input_files == 0:
+        sys.exit('Provide at least one XYZ input file, or use --formula with --aggregate')
+
+    if run_parameters['react'] and number_of_input_files != 2:
+        sys.exit('Reactor requires exactly two XYZ input files')
+    if run_parameters['scan_bond'] and number_of_input_files != 2:
+        sys.exit('Bond scanning requires exactly two XYZ input files')
+    if run_parameters['solvate'] and number_of_input_files < 2:
+        sys.exit('Solvation requires at least two XYZ input files')
+
+
+def _missing_module_message(module_name, install_hint):
+    """Return a short install hint for a missing Python module."""
+    return (
+        f"Missing Python package '{module_name}'. "
+        f"Install it with {install_hint}."
+    )
+
+
+def _missing_executable_message(program, friendly_name, install_hint):
+    """Return a short install hint for a missing executable."""
+    return (
+        f"Missing executable '{program}' for {friendly_name}. "
+        f"Install it with {install_hint} and make sure '{program}' is on PATH."
+    )
+
+
+def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
+    """Return user-facing messages for missing requirements on the active path."""
+    missing = []
+
+    if geometry_optimizer == "geometric" and software is not None:
+        if importlib.util.find_spec("ase") is None:
+            missing.append(
+                _missing_module_message(
+                    "ase",
+                    'python -m pip install "pyar-chem[xtb]"',
+                )
+            )
+        if importlib.util.find_spec("geometric") is None:
+            missing.append(
+                _missing_module_message(
+                    "geometric",
+                    'python -m pip install "pyar-chem[xtb]"',
+                )
+            )
+        if shutil.which("geometric-optimize") is None:
+            missing.append(
+                _missing_executable_message(
+                    "geometric-optimize",
+                    "geomeTRIC",
+                    'python -m pip install "pyar-chem[xtb]"',
+                )
+            )
+
+    if software == "obabel":
+        for executable in ("obabel", "obminimize", "obenergy"):
+            if shutil.which(executable) is None:
+                missing.append(
+                    _missing_executable_message(
+                        executable,
+                        "OpenBabel",
+                        'conda install -c conda-forge openbabel',
+                    )
+                )
+    elif software == "mopac":
+        if shutil.which("mopac") is None:
+            missing.append(
+                _missing_executable_message(
+                    "mopac",
+                    "MOPAC",
+                    'conda install -c conda-forge mopac',
+                )
+            )
+        if shutil.which("obabel") is None:
+            missing.append(
+                _missing_executable_message(
+                    "obabel",
+                    "OpenBabel",
+                    'conda install -c conda-forge openbabel',
+                )
+            )
+    elif software in {"xtb", "xtb-aimnet2", "xtb-aiqm1"}:
+        if shutil.which("xtb") is None:
+            missing.append(
+                _missing_executable_message(
+                    "xtb",
+                    "xTB",
+                    'conda install -c conda-forge xtb',
+                )
+            )
+    elif software == "xtb_turbo":
+        if shutil.which("define") is None:
+            missing.append(
+                _missing_executable_message(
+                    "define",
+                    "Turbomole",
+                    'conda install -c conda-forge turbomole',
+                )
+            )
+        if shutil.which("xtb") is None:
+            missing.append(
+                _missing_executable_message(
+                    "xtb",
+                    "xTB",
+                    'conda install -c conda-forge xtb',
+                )
+            )
+    elif software == "orca":
+        if shutil.which("orca") is None:
+            missing.append(
+                _missing_executable_message(
+                    "orca",
+                    "ORCA",
+                    'install ORCA and add it to PATH',
+                )
+            )
+    elif software == "gaussian":
+        if shutil.which("g16") is None:
+            missing.append(
+                _missing_executable_message(
+                    "g16",
+                    "Gaussian",
+                    'install Gaussian and add g16 to PATH',
+                )
+            )
+    elif software == "psi4":
+        if shutil.which("psi4") is None:
+            missing.append(
+                _missing_executable_message(
+                    "psi4",
+                    "Psi4",
+                    'python -m pip install psi4',
+                )
+            )
+    elif software == "turbomole":
+        if shutil.which("define") is None:
+            missing.append(
+                _missing_executable_message(
+                    "define",
+                    "Turbomole",
+                    'install Turbomole and add define to PATH',
+                )
+            )
+    elif software in {"mlatom_aiqm1", "aiqm1_mlatom"}:
+        if importlib.util.find_spec("mlatom") is None:
+            missing.append(
+                _missing_module_message(
+                    "mlatom",
+                    'python -m pip install "pyar-chem[ml]"',
+                )
+            )
+    elif software == "aimnet_2":
+        for module_name in ("ase", "torch"):
+            if importlib.util.find_spec(module_name) is None:
+                missing.append(
+                    _missing_module_message(
+                        module_name,
+                        'python -m pip install "pyar-chem[aimnet2]"',
+                    )
+                )
+
+    return missing
+
+
+def _preflight_cli_requirements(run_mode, software, geometry_optimizer):
+    """Fail fast when the selected workflow path is missing requirements."""
+    missing = _workflow_requirement_messages(run_mode, software, geometry_optimizer)
+    if missing:
+        raise SystemExit(
+            "Missing requirements for the selected workflow:\n- " + "\n- ".join(missing)
+        )
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
         _dispatch_trace_subcommand(sys.argv[2:])
         return
     args = vars(argument_parse())
+
+    run_parameters = defaultdict(lambda: None, defualt_parameters.values)
+
+    for key, value in args.items():
+        if value is not None and run_parameters[key] != value:
+            run_parameters[key] = value
+
+    run_mode = _active_run_mode(run_parameters)
+    input_files = run_parameters['input_files'] or []
+    number_of_input_files = len(input_files)
+    _validate_cli_request_shape(run_parameters, number_of_input_files)
+    _configure_reaction_optimizer(run_parameters, run_mode)
+    _preflight_cli_requirements(
+        run_mode,
+        run_parameters["software"],
+        run_parameters["geometry_optimizer"],
+    )
+
     from pyar import scan
     from pyar.state.aggregate import AggregateStateError
     from pyar.state.solvation import SolvationStateError
@@ -395,12 +596,6 @@ def main():
     from pyar.workflows import reaction as reaction_workflow
     from pyar.workflows.solvation import solvate
     from pyar.state.reaction import ReactionStateError
-
-    run_parameters = defaultdict(lambda: None, defualt_parameters.values)
-
-    for key, value in args.items():
-        if value is not None and run_parameters[key] != value:
-            run_parameters[key] = value
 
     if run_parameters['verbosity'] == 0:
         logger.setLevel(logging.DEBUG)
@@ -442,13 +637,9 @@ def main():
     logger.info(f'Job directory: {os.getcwd()}')
     logger.debug(f'Logging level is {{{logger.level}}}')
 
-    input_files = run_parameters['input_files'] or []
-    number_of_input_files = len(input_files)
     logger.debug(f"{number_of_input_files} input files")
-    run_mode = _active_run_mode(run_parameters)
     logger.info(f'Run mode: {run_mode}')
     logger.info(f'Log level: {_verbosity_name(run_parameters["verbosity"])}')
-    _configure_reaction_optimizer(run_parameters, run_mode)
     if run_parameters['formula']:
         logger.info(f'Formula input: {run_parameters["formula"]}')
     else:
@@ -458,33 +649,6 @@ def main():
         "for multi-atom monomers"
     )
     logger.debug(f'Parsed CLI options: {dict(run_parameters)}')
-
-    if run_parameters['formula']:
-        if not run_parameters['aggregate']:
-            message = '--formula can only be used with --aggregate in pyar-cli'
-            logger.critical(message)
-            sys.exit(message)
-        if number_of_input_files != 0:
-            message = 'Do not provide XYZ input files when using --formula'
-            logger.critical(message)
-            sys.exit(message)
-    elif number_of_input_files == 0:
-        message = 'Provide at least one XYZ input file, or use --formula with --aggregate'
-        logger.critical(message)
-        sys.exit(message)
-
-    if run_parameters['react'] and number_of_input_files != 2:
-        message = 'Reactor requires exactly two XYZ input files'
-        logger.critical(message)
-        sys.exit(message)
-    if run_parameters['scan_bond'] and number_of_input_files != 2:
-        message = 'Bond scanning requires exactly two XYZ input files'
-        logger.critical(message)
-        sys.exit(message)
-    if run_parameters['solvate'] and number_of_input_files < 2:
-        message = 'Solvation requires at least two XYZ input files'
-        logger.critical(message)
-        sys.exit(message)
 
     if run_parameters['formula']:
         input_specs, formula_aggregate_sizes = _expand_formula_inputs(run_parameters['formula'])

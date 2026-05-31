@@ -1,4 +1,6 @@
-pyar.egg-info/
+build/
+dist/
+*.egg-info/
 docs/_build/
 test/
 aggregates/
@@ -10,3 +12,4 @@ pyar.log
 pyar-optimiser.log
 pyar-react.log
 pyar_explore.log
+AGEMTS.md

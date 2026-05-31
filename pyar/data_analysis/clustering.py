@@ -6,28 +6,62 @@ import operator
 import os
 from collections import Counter
 import numpy as np
-import pandas as pd
 from scipy.optimize import linear_sum_assignment
-from sklearn.cluster import (
-    DBSCAN,
-    OPTICS,
-    AffinityPropagation,
-    AgglomerativeClustering,
-    KMeans,
-    MeanShift,
-    SpectralClustering,
-    estimate_bandwidth,
-)
-from sklearn.mixture import GaussianMixture
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics.pairwise import rbf_kernel
-import hdbscan
 import pyar.property
 import pyar.representations
+from pyar.optional_dependencies import optional_dependency_error
 
 cluster_logger = logging.getLogger('pyar.cluster')
 _MBTR_RUNTIME_DISABLED = False
 _MBTR_DISABLE_REASON = None
+
+
+def _require_hdbscan():
+    try:
+        import hdbscan
+    except ImportError as exc:
+        raise optional_dependency_error("hdbscan", feature="HDBSCAN selection") from exc
+    return hdbscan
+
+
+def _require_pandas():
+    try:
+        import pandas as pd
+    except ImportError as exc:
+        raise optional_dependency_error("pandas", feature="selection CSV output") from exc
+    return pd
+
+
+def _require_sklearn_cluster(name):
+    try:
+        import sklearn.cluster as cluster
+    except ImportError as exc:
+        raise optional_dependency_error("sklearn", feature="selection clustering") from exc
+    return getattr(cluster, name)
+
+
+def _require_sklearn_mixture(name):
+    try:
+        import sklearn.mixture as mixture
+    except ImportError as exc:
+        raise optional_dependency_error("sklearn", feature="selection clustering") from exc
+    return getattr(mixture, name)
+
+
+def _require_sklearn_preprocessing(name):
+    try:
+        import sklearn.preprocessing as preprocessing
+    except ImportError as exc:
+        raise optional_dependency_error("sklearn", feature="selection clustering") from exc
+    return getattr(preprocessing, name)
+
+
+def _require_sklearn_pairwise(name):
+    try:
+        import sklearn.metrics.pairwise as pairwise
+    except ImportError as exc:
+        raise optional_dependency_error("sklearn", feature="selection clustering") from exc
+    return getattr(pairwise, name)
 
 
 def _log_seed_shortfall(requested, available, context):
@@ -632,10 +666,12 @@ def choose_geometries(
         return _finalize_selection(selected, write_path, existing_entries=basin_entries)
 
     # Scale descriptor features before diversity/clustering selection.
+    StandardScaler = _require_sklearn_preprocessing("StandardScaler")
     scaler = StandardScaler()
     dt_scaled = scaler.fit_transform(dt)
 
     if os.environ.get("PYAR_SAVE_MBTR_FEATURES") == "1":
+        pd = _require_pandas()
         pd.DataFrame(dt_scaled).to_csv("mbtr_features.csv")
 
     if algorithm in {"maxmin", "max-min", "max_min"}:
@@ -755,30 +791,37 @@ def generate_labels(dt, algorithm='hdbscan', maximum_number_of_seeds=8):
         return hdbscan_clustering(dt)
 
 def kmeans_clustering(dt, n_clusters):
+    KMeans = _require_sklearn_cluster("KMeans")
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     return kmeans.fit_predict(dt)
 
 def dbscan_clustering(dt):
+    DBSCAN = _require_sklearn_cluster("DBSCAN")
     eps, min_samples = determine_dbscan_params(dt)
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     return dbscan.fit_predict(dt)
 
 
 def optics_clustering(dt):
+    OPTICS = _require_sklearn_cluster("OPTICS")
     clusterer = OPTICS(min_samples=2, xi=0.05, min_cluster_size=2)
     return clusterer.fit_predict(dt)
 
 def hdbscan_clustering(dt):
+    hdbscan = _require_hdbscan()
     clusterer = hdbscan.HDBSCAN(min_cluster_size=2, min_samples=1)
     return clusterer.fit_predict(dt)
 
 
 def affinity_propagation_clustering(dt):
+    AffinityPropagation = _require_sklearn_cluster("AffinityPropagation")
     clusterer = AffinityPropagation(random_state=42)
     return clusterer.fit_predict(dt)
 
 
 def mean_shift_clustering(dt):
+    MeanShift = _require_sklearn_cluster("MeanShift")
+    estimate_bandwidth = _require_sklearn_cluster("estimate_bandwidth")
     bandwidth = estimate_bandwidth(dt, quantile=0.2, n_samples=min(len(dt), 500))
     if not np.isfinite(bandwidth) or bandwidth <= 0:
         bandwidth = None
@@ -787,6 +830,7 @@ def mean_shift_clustering(dt):
 
 
 def spectral_clustering(dt, n_clusters):
+    SpectralClustering = _require_sklearn_cluster("SpectralClustering")
     n_clusters = max(2, min(n_clusters, len(dt)))
     n_neighbors = max(1, min(10, len(dt) - 1))
     clusterer = SpectralClustering(
@@ -800,15 +844,18 @@ def spectral_clustering(dt, n_clusters):
 
 
 def agglomerative_clustering(dt, n_clusters):
+    AgglomerativeClustering = _require_sklearn_cluster("AgglomerativeClustering")
     n_clusters = max(2, min(n_clusters, len(dt)))
     clusterer = AgglomerativeClustering(n_clusters=n_clusters, linkage='ward')
     return clusterer.fit_predict(dt)
 
 def gaussian_mixture_clustering(dt, n_components):
+    GaussianMixture = _require_sklearn_mixture("GaussianMixture")
     gm = GaussianMixture(n_components=n_components, random_state=42)
     return gm.fit_predict(dt)
 
 def rbf_kernel_clustering(dt, threshold=0.99):
+    rbf_kernel = _require_sklearn_pairwise("rbf_kernel")
     similarities = rbf_kernel(dt)
     n_samples = similarities.shape[0]
     labels = np.zeros(n_samples, dtype=int)

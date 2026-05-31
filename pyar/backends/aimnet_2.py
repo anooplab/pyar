@@ -9,13 +9,18 @@ from pathlib import Path
 
 import numpy as np
 import pyar  # noqa: F401
-from pyar.AIMNet2.calculators import aimnet2_ase_opt  # noqa: F401
-from pyar.AIMNet2.calculators import aimnet2ase  # noqa: F401
 from pyar.backends import SF, write_xyz  # noqa: F401
+from pyar.optional_dependencies import optional_dependency_error
 
 Aimnet2_logger = logging.getLogger('pyar.aimnet-2')
 
-import torch  # noqa: E402
+try:
+    import torch  # noqa: E402
+    from pyar.AIMNet2.calculators import aimnet2_ase_opt  # noqa: F401
+    from pyar.AIMNet2.calculators import aimnet2ase  # noqa: F401
+except ImportError as exc:
+    module_name = getattr(exc, "name", None) or "torch"
+    raise optional_dependency_error(module_name, feature="AIMNet2 backend", extra="aimnet2") from exc
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False

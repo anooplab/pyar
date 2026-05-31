@@ -11,13 +11,26 @@ import os
 import sys
 import warnings
 
-import MDAnalysis as mda
 import numpy as np
-import pandas as pd
-from ase.io import read, write
 from scipy.spatial import ConvexHull
 
-warnings.filterwarnings("ignore", category=UserWarning, module="MDAnalysis.analysis.base")
+from pyar.optional_dependencies import optional_dependency_error
+
+
+def _require_descriptor_dependencies():
+    try:
+        import MDAnalysis as mda  # noqa: F401
+        import pandas as pd
+        from ase.io import read, write
+    except ImportError as exc:
+        module_name = getattr(exc, "name", None) or "MDAnalysis"
+        raise optional_dependency_error(
+            module_name,
+            feature="descriptor script",
+            extra="selection",
+        ) from exc
+    warnings.filterwarnings("ignore", category=UserWarning, module="MDAnalysis.analysis.base")
+    return pd, read, write
 
 
 def calculate_properties(atoms):
@@ -52,6 +65,7 @@ def main(args=None):
     if not xyz_files:
         print("No XYZ files found.")
         sys.exit(1)
+    pd, read, write = _require_descriptor_dependencies()
     data = []
     unique_descriptors = {}
     unique_atoms = []

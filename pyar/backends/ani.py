@@ -4,10 +4,16 @@
 import argparse
 import logging
 
-import ase.io
-import ase.optimize
-from ase.calculators.calculator import Calculator, all_changes
-import torch
+from pyar.optional_dependencies import optional_dependency_error
+
+try:
+    import ase.io
+    import ase.optimize
+    from ase.calculators.calculator import Calculator, all_changes
+    import torch
+except ImportError as exc:
+    module_name = getattr(exc, "name", None) or "torchani"
+    raise optional_dependency_error(module_name, feature="ANI backend", extra="ml") from exc
 
 logger = logging.getLogger("pyar.backends.ani")
 
@@ -30,7 +36,7 @@ class ANICalculationFailed(Exception):
 def _require_torchani():
     """Return the optional TorchANI import or raise a clear import error."""
     if torchani is None:
-        raise ImportError("torchani is required for pyar.backends.ani")
+        raise optional_dependency_error("torchani", feature="ANI backend", extra="ml")
     return torchani
 
 

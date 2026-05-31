@@ -1,15 +1,20 @@
 """MLatom AIQM1 backend implementation."""
 
 import logging  # noqa: F401
-import mlatom as ml
 from time import sleep  # noqa: F401
-from mlatom.data import molecule  # noqa: F401
 import numpy as np
 from pyar import backends
 from pyar.backends import SF  # noqa: F811
+from pyar.optional_dependencies import optional_dependency_error
 import os
 # import time
 import sys  # noqa: F401
+
+try:
+    import mlatom as ml
+    from mlatom.data import molecule  # noqa: F401
+except ImportError as exc:
+    raise optional_dependency_error("mlatom", feature="MLatom AIQM1 backend", extra="ml") from exc
 
 mlatom_logger = logging.getLogger('pyar.mlatom')
 

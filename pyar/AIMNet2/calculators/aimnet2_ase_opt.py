@@ -1,24 +1,29 @@
 import os
 import re
 
-import ase
-import ase.units
 import numpy as np
-import torch
-from ase.optimize import LBFGS
-
-from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+from pyar.optional_dependencies import optional_dependency_error
 
 pybel = None
 
 
 def optimize(atoms, prec=1e-3, steps=1000, traj=None):
+    try:
+        import torch
+        from ase.optimize import LBFGS
+    except ImportError as exc:
+        module_name = getattr(exc, "name", None) or "torch"
+        raise optional_dependency_error(module_name, feature="AIMNet2 optimizer", extra="aimnet2") from exc
     with torch.jit.optimized_execution(False):
         opt = LBFGS(atoms, trajectory=traj)
         opt.run(prec, steps)
 
 
 def pybel2atoms(mol):
+    try:
+        import ase
+    except ImportError as exc:
+        raise optional_dependency_error("ase", feature="AIMNet2 optimizer", extra="aimnet2") from exc
     coord = np.array([a.coords for a in mol.atoms])
     numbers = np.array([a.atomicnum for a in mol.atoms])
     atoms = ase.Atoms(positions=coord, numbers=numbers)
@@ -59,14 +64,6 @@ def guess_charge(mol):
 def main():
     import argparse
     global pybel
-    try:
-        from openbabel import pybel as openbabel_pybel
-    except ImportError as exc:
-        raise SystemExit(
-            "openbabel is required for pyar-aimnet2-ase-opt"
-        ) from exc
-    pybel = openbabel_pybel
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--charge', type=int, default=None,
                         help='Molecular charge (default: check molecule title for "charge: {int}" or get total charge from OpenBabel).')
@@ -76,6 +73,25 @@ def main():
     parser.add_argument('in_file')
     parser.add_argument('out_file')
     args = parser.parse_args()
+
+    try:
+        import torch
+        from openbabel import pybel as openbabel_pybel
+        from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+    except ImportError as exc:
+        module_name = getattr(exc, "name", None) or "openbabel"
+        if module_name == "openbabel":
+            raise SystemExit(
+                'openbabel is required for pyar-aimnet2-ase-opt. '
+                'Install with `python -m pip install "pyar-chem[openbabel]"`.'
+            ) from exc
+        raise optional_dependency_error(
+            module_name,
+            feature="AIMNet2 optimizer",
+            extra="aimnet2",
+        ) from exc
+    pybel = openbabel_pybel
+
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

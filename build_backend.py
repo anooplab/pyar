@@ -1,7 +1,7 @@
-"""Minimal PEP 517 backend for PyAR.
+"""Legacy minimal backend retained for reference only.
 
-This backend keeps installation self-contained and offline-friendly while
-preserving editable installs via a generated .pth file.
+Packaging metadata is now authoritative in pyproject.toml and this module is
+no longer used as the build backend.
 """
 
 from __future__ import annotations

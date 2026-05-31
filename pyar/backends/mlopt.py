@@ -2,7 +2,7 @@
 
 import argparse
 
-import mlatom as ml
+from pyar.optional_dependencies import optional_dependency_error
 
 
 def main():
@@ -16,6 +16,11 @@ def main():
     parser.add_argument('final_molecule', metavar='final_molecule', type=str,
                         help='the path to the final molecule file')
     args = parser.parse_args()
+
+    try:
+        import mlatom as ml
+    except ImportError as exc:
+        raise optional_dependency_error("mlatom", feature="MLatom optimizer", extra="ml") from exc
 
     initmol = ml.data.molecule.from_xyz_file(args.input_molecule)
     initmol.charge = args.charge

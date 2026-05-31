@@ -368,6 +368,18 @@ pyar.optimiser
    :undoc-members:
    :show-inheritance:
 
+Optional Dependencies
+---------------------
+
+pyar.optional_dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.optional_dependencies
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Orientation Sampling
 --------------------
 

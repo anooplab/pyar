@@ -44,6 +44,16 @@ class CliSmokeTests(unittest.TestCase):
 
     def setUp(self):
         self._original_argv = sys.argv[:]
+        self._preflight_patcher = None
+        self._preflight_mock = None
+        if self._testMethodName != "test_preflight_reports_missing_workflow_requirements":
+            self._preflight_patcher = mock.patch.object(
+                self.cli,
+                "_preflight_cli_requirements",
+                autospec=True,
+                return_value=None,
+            )
+            self._preflight_mock = self._preflight_patcher.start()
         self._original_modules = {
             name: sys.modules.get(name)
             for name in (
@@ -61,6 +71,8 @@ class CliSmokeTests(unittest.TestCase):
 
     def tearDown(self):
         sys.argv = self._original_argv
+        if self._preflight_patcher is not None:
+            self._preflight_patcher.stop()
         for name, module in self._original_modules.items():
             if module is None:
                 sys.modules.pop(name, None)
@@ -240,6 +252,7 @@ class CliSmokeTests(unittest.TestCase):
             self.cli.main()
 
         self.assertEqual(str(ctx.exception), "Reactor requires exactly two XYZ input files")
+        self._preflight_mock.assert_not_called()
 
     def test_react_reports_restart_state_error_cleanly(self):
         def fail_resume(*args, **kwargs):
@@ -296,6 +309,7 @@ class CliSmokeTests(unittest.TestCase):
 
         self.assertEqual(captured["qc_params"]["geometry_optimizer"], "geometric")
         self.assertEqual(captured["qc_params"]["opt_target"], "minimum")
+        self._preflight_mock.assert_called_once_with("react", "xtb", "geometric")
         current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]
         self.assertNotIn("ignores unsupported options: --gmin/--gmax", current_log)
 
@@ -547,6 +561,18 @@ class CliSmokeTests(unittest.TestCase):
                 ]
 
                 self.cli.main()
+
+    def test_preflight_reports_missing_workflow_requirements(self):
+        with mock.patch.object(self.cli.shutil, "which", return_value=None), \
+             mock.patch.object(self.cli.importlib.util, "find_spec", return_value=None):
+            with self.assertRaises(SystemExit) as ctx:
+                self.cli._preflight_cli_requirements("react", "obabel", "geometric")
+
+        message = str(ctx.exception)
+        self.assertIn("Missing requirements for the selected workflow:", message)
+        self.assertIn("OpenBabel", message)
+        self.assertIn("geomeTRIC", message)
+        self.assertIn('python -m pip install "pyar-chem[xtb]"', message)
 
     def test_aimnet2_warns_for_unsupported_qc_flags(self):
         captured = {}

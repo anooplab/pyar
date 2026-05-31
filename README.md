@@ -10,14 +10,38 @@ Documentation:
 
 # Installation
 
-From a local checkout, install the package with:
+The PyPI distribution name is `pyar-chem`. The import namespace remains
+`pyar`, and the main command-line entry point is `pyar-cli`.
+
+From PyPI:
 
 ```bash
-python -m pip install .
+python -m pip install pyar-chem
+```
+
+From a local checkout, install the package for development with:
+
+```bash
+python -m pip install -e .
 ```
 
 This installs the `pyar` package, the `pyar-cli` command line tool, and the
 bundled runtime assets used by the MLatom and AIMNet2 interfaces.
+
+Optional Python extras install feature-specific dependencies:
+
+```bash
+python -m pip install "pyar-chem[selection]"
+python -m pip install "pyar-chem[ml]"
+python -m pip install "pyar-chem[aimnet2]"
+python -m pip install "pyar-chem[openbabel]"
+python -m pip install "pyar-chem[test]"
+python -m pip install "pyar-chem[docs]"
+python -m pip install "pyar-chem[all]"
+```
+
+For a local checkout, use the same extras with `-e`, for example
+`python -m pip install -e ".[test,selection]"`.
 # Features:
 * Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.
@@ -52,32 +76,39 @@ conda install -c conda-forge openbabel
 alias dftd4bin="dftd4"
 ```
 
-`hdbscan` and `DBCV` are installed automatically when you install PyAR with
-`python -m pip install .`. You only need manual steps here if you are building
-your own system package or managing dependencies outside pip.
-
 ## Requirements 
-* python >= 3.6
-* numpy>=1.18.4
-* autograd>=1.3
-* ase
-* torch
-* torchani
-* openbabel-wheel
-* MDAnalysis
-* pandas>=1.0.5
-* scipy>=1.5.2
-* scikit-learn>=0.23.2
-* dscribe
-* pyh5md
-* h5py
-* networkx
-* matplotlib
-* hdbscan
+Core Python dependencies are declared in `pyproject.toml` and installed
+automatically with `python -m pip install pyar-chem`. The default install is
+kept small enough for `import pyar`, `pyar-cli --help`, basic molecule helpers,
+and sampling/trial-generation utilities.
 
-System executables are still required for the backends that call them directly:
-`orca`, `g16`, `psi4`, `mopac`, `xtb`, `define`, and OpenBabel tools such as
-`obabel`, `babel`, `obminimize`, and `obenergy`.
+Optional extras:
+
+* `[selection]` for DScribe/MBTR descriptors, HDBSCAN, MDAnalysis,
+  matplotlib, pandas, scikit-learn, and ASE-backed clustering/descriptor
+  helpers
+* `[ml]` for MLatom, TorchANI, PyTorch, H5MD, and related ML interfaces
+* `[aimnet2]` for AIMNet2 runtime support with PyTorch and ASE
+* `[xtb]` for Python-side geomeTRIC/ASE support used by xTB-style reaction
+  optimization paths
+* `[openbabel]` for the OpenBabel Python binding (`openbabel>=3.2.0`)
+* `[test]` for pytest, build, and twine
+* `[docs]` for Sphinx documentation builds
+* `[all]` for the combined optional Python dependency set
+
+### External programs required by backend
+
+External executables are not Python dependencies and must be installed
+separately for the corresponding backend:
+
+* ORCA: `orca`
+* Gaussian: `g16`
+* Psi4: `psi4`
+* MOPAC: `mopac`
+* xTB: `xtb`
+* Turbomole: `define` and related Turbomole tools
+* OpenBabel tools: `obabel`, `babel`, `obminimize`, `obenergy`
+* Dispersion correction utilities: `dftd4` when using workflows that call it
 
 # Interfaced with electronic structure theory programmes
 - mlatom_aiqm1

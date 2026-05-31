@@ -2,7 +2,12 @@
 
 from importlib import import_module
 
-import mlatom as _mlatom
+from pyar.optional_dependencies import optional_dependency_error
+
+try:
+    import mlatom as _mlatom
+except ImportError as exc:
+    raise optional_dependency_error("mlatom", feature="MLatom compatibility adapter") from exc
 
 data = _mlatom.data
 plot = _mlatom.plot

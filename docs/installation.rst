@@ -13,19 +13,37 @@ separate programs. They do not automatically come with PyAR.
 Install PyAR
 ------------
 
+The PyPI distribution name is ``pyar-chem``. The import namespace remains
+``pyar`` and the main CLI stays ``pyar-cli``.
+
 From a local checkout:
 
 .. code-block:: bash
 
    git clone https://github.com/anooplab/pyar.git
    cd pyar
-   python -m pip install .
+   python -m pip install -e .
 
-For development:
+From PyPI:
 
 .. code-block:: bash
 
-   python -m pip install -e .
+   python -m pip install pyar-chem
+
+Optional Python extras install feature-specific dependencies:
+
+.. code-block:: bash
+
+   python -m pip install "pyar-chem[selection]"
+   python -m pip install "pyar-chem[ml]"
+   python -m pip install "pyar-chem[aimnet2]"
+   python -m pip install "pyar-chem[openbabel]"
+   python -m pip install "pyar-chem[test]"
+   python -m pip install "pyar-chem[docs]"
+   python -m pip install "pyar-chem[all]"
+
+For a local checkout, use the same extras with ``-e``, for example
+``python -m pip install -e ".[test,selection]"``.
 
 Check that the command-line entry point is available:
 
@@ -36,14 +54,42 @@ Check that the command-line entry point is available:
 What PyAR installs automatically
 --------------------------------
 
-A normal pip-based PyAR install installs the Python package metadata and Python
-dependencies declared by PyAR. Python dependencies include libraries used by
-PyAR itself, such as clustering, data handling, and optimisation helpers.
+A normal pip-based PyAR install now keeps Python dependencies minimal. The core
+install supports ``import pyar``, ``pyar-cli --help``, basic molecule helpers,
+and sampling/trial-generation utilities.
+
+Optional Python dependency groups:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Extra
+     - Purpose
+   * - ``selection``
+     - DScribe/MBTR descriptors, HDBSCAN, MDAnalysis, matplotlib, pandas,
+       scikit-learn, and ASE-backed clustering/descriptor helpers
+   * - ``ml``
+     - MLatom, TorchANI, PyTorch, H5MD, and related ML interfaces
+   * - ``aimnet2``
+     - AIMNet2 runtime support with PyTorch and ASE
+   * - ``xtb``
+     - Python-side geomeTRIC/ASE support used by xTB-style reaction
+       optimization paths
+   * - ``openbabel``
+     - OpenBabel Python bindings, ``openbabel>=3.2.0``
+   * - ``test``
+     - pytest, build, and twine
+   * - ``docs``
+     - Sphinx and sphinx-rtd-theme
+   * - ``all``
+     - Combined optional Python dependency set
 
 ``geomeTRIC`` is a Python dependency rather than an external electronic-
-structure program. It is used as the internal-coordinate optimiser for AFIR
-reaction calculations with registered energy/force providers such as ``xtb``,
-``aimnet_2``, ``orca``, and ``gaussian``.
+structure program. It is part of the ``xtb`` extra because that extra covers
+Python-side support for xTB-style geomeTRIC reaction paths. The same geomeTRIC
+optimizer is also used by registered energy/force providers such as
+``aimnet_2``, ``orca``, and ``gaussian`` when those routes are selected.
 
 OpenBabel has two parts:
 
@@ -52,8 +98,8 @@ OpenBabel has two parts:
   ``obenergy`` must still be available on your system if you use the OpenBabel
   backend route
 
-External programs not installed by PyAR
----------------------------------------
+External programs required by backend
+-------------------------------------
 
 The following programs are separate from PyAR. Install only the ones you need.
 
@@ -90,6 +136,10 @@ The following programs are separate from PyAR. Install only the ones you need.
      - Free/open source
      - Homepage: https://openbabel.org/ ; installation instructions:
        https://openbabel.org/docs/Installation/install.html
+   * - dftd4
+     - Free/open source
+     - Install from conda-forge or upstream instructions when using routes that
+       call the ``dftd4`` executable
    * - Turbomole
      - Commercial software
      - Homepage: https://www.turbomole.org/

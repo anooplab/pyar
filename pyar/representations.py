@@ -6,14 +6,53 @@ import numpy as np
 
 import pyar.property
 from pyar.Molecule import Molecule
-# import torch
-# import torchani
-# from DBCV import DBCV
-from dscribe.descriptors import MBTR, SOAP, LMBTR, ACSF, SineMatrix, ValleOganov
-from dscribe.core.system import System
-# from ase.io import read
-from ase import Atoms
-# import glob
+from pyar.optional_dependencies import optional_dependency_error
+
+Atoms = None
+MBTR = None
+SOAP = None
+LMBTR = None
+ACSF = None
+SineMatrix = None
+ValleOganov = None
+System = None
+
+
+def _require_ase_atoms(feature):
+    global Atoms
+    if Atoms is not None:
+        return Atoms
+    try:
+        from ase import Atoms as ase_atoms
+    except ImportError as exc:
+        raise optional_dependency_error("ase", feature=feature, extra="selection") from exc
+    Atoms = ase_atoms
+    return Atoms
+
+
+def _require_dscribe_descriptor(name, feature):
+    descriptor = globals().get(name)
+    if descriptor is not None:
+        return descriptor
+    try:
+        from dscribe import descriptors
+    except ImportError as exc:
+        raise optional_dependency_error("dscribe", feature=feature, extra="selection") from exc
+    descriptor = getattr(descriptors, name)
+    globals()[name] = descriptor
+    return descriptor
+
+
+def _require_dscribe_system(feature):
+    global System
+    if System is not None:
+        return System
+    try:
+        from dscribe.core.system import System as dscribe_system
+    except ImportError as exc:
+        raise optional_dependency_error("dscribe", feature=feature, extra="selection") from exc
+    System = dscribe_system
+    return System
 
 def get_rsmd(mol):
     """Molecular Descriptor written by Rajat Shubhro Majumdar"""
@@ -245,6 +284,8 @@ def generate_aev(atom_list, coordinates):
 
 # LMBTR Descriptor
 def lmbtr_descriptor(atoms_list, coordinates):
+    Atoms = _require_ase_atoms("LMBTR descriptor")
+    LMBTR = _require_dscribe_descriptor("LMBTR", "LMBTR descriptor")
     # Create an ASE Atoms object from the atoms_list and coordinates
     molecule = Atoms(atoms_list, positions=coordinates)
 
@@ -268,6 +309,8 @@ def lmbtr_descriptor(atoms_list, coordinates):
 
 
 def acsf_descriptor(atoms_list, coordinates):
+    Atoms = _require_ase_atoms("ACSF descriptor")
+    ACSF = _require_dscribe_descriptor("ACSF", "ACSF descriptor")
     # Create an Atoms object from the atoms_list and coordinates
     molecule = Atoms(atoms_list, positions=coordinates)
     unique_species = list(set(atoms_list))
@@ -287,6 +330,8 @@ def acsf_descriptor(atoms_list, coordinates):
 
 
 def sinematrix_descriptor(atoms_list, coordinates):
+    Atoms = _require_ase_atoms("SineMatrix descriptor")
+    SineMatrix = _require_dscribe_descriptor("SineMatrix", "SineMatrix descriptor")
     # Create an Atoms object from the atoms_list and coordinates
     molecule = Atoms(atoms_list, positions=coordinates)
     
@@ -306,6 +351,8 @@ def sinematrix_descriptor(atoms_list, coordinates):
 
 
 def valleoganov_descriptor(atoms_list, coordinates):    
+    Atoms = _require_ase_atoms("Valle-Oganov descriptor")
+    ValleOganov = _require_dscribe_descriptor("ValleOganov", "Valle-Oganov descriptor")
     # Create an Atoms object from the atoms_list and coordinates
     molecule = Atoms(atoms_list, positions=coordinates)
     unique_species = list(set(atoms_list))
@@ -327,6 +374,8 @@ def valleoganov_descriptor(atoms_list, coordinates):
 
 
 def mbtr_descriptor(atoms_list, coordinates):
+    MBTR = _require_dscribe_descriptor("MBTR", "MBTR descriptor")
+    System = _require_dscribe_system("MBTR descriptor")
     # Create a DScribe System directly so MBTR does not inherit ASE calculator
     # state from a converted Atoms object.
     molecule = System(symbols=atoms_list, positions=coordinates)
@@ -394,6 +443,8 @@ def mbtr_descriptor(atoms_list, coordinates):
 
 
 def soap_descriptor(atoms_list, coordinates):
+    Atoms = _require_ase_atoms("SOAP descriptor")
+    SOAP = _require_dscribe_descriptor("SOAP", "SOAP descriptor")
     # Create an Atoms object from the atoms_list and coordinates
     molecule = Atoms(atoms_list, positions=coordinates)
     # Get unique species from atoms_list
