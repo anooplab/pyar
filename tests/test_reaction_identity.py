@@ -5,7 +5,7 @@ from unittest import mock
 
 import numpy as np
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar import reaction_identity
 
 

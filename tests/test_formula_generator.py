@@ -14,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 class FormulaGeneratorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.aggregator = importlib.import_module("pyar.aggregator")
+        cls.aggregator = importlib.import_module("pyar.workflows.aggregate")
 
     def test_generate_molecule_from_formula_builds_valid_geometry(self):
         rng = np.random.default_rng(0)

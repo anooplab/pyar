@@ -9,7 +9,7 @@ from unittest import mock
 
 import numpy as np
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.reaction_state import ReactionStateError
 from pyar.workflow_results import ReactionResult
 
@@ -245,7 +245,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         react.assert_not_called()
 
     def test_reactor_handles_failed_optimization_without_copying_invalid_geometry(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         molecule = Molecule(
             ["H", "H"],
@@ -281,7 +281,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(result, [])
 
     def test_reactor_with_gamma_copies_parameters(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         qc_params = {"software": "xtb", "gamma": 100.0, "basis": "def2-SVP"}
         updated = reactor.with_gamma(qc_params, 125.0)
@@ -292,7 +292,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertIsNot(updated, qc_params)
 
     def test_reactor_relaxes_bonded_candidates_without_afir_bias(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         molecule = Molecule(
             ["H", "H"],
@@ -332,7 +332,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(optimization_parameters[1]["gamma"], 0.0)
 
     def test_reactor_deduplicates_by_canonical_inchi_not_smiles_format(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         original_registry = dict(reactor.saved_product_identities)
         try:
@@ -352,7 +352,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             reactor.saved_product_identities.update(original_registry)
 
     def test_unbiased_relaxation_restores_job_name_after_failure(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         molecule = Molecule(
             ["C", "H"],
@@ -390,7 +390,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertAlmostEqual(molecule.coordinates[1, 0] - molecule.coordinates[0, 0], 1.1)
 
     def test_reactor_build_gamma_schedule_returns_numeric_values(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         schedule = reactor.build_gamma_schedule(0.1, 0.2, steps=3)
 
@@ -401,7 +401,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertTrue(all(isinstance(value, np.floating) or isinstance(value, float) for value in schedule))
 
     def test_reactor_rejects_invalid_gamma_schedule(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         with self.assertRaisesRegex(ValueError, "non-negative"):
             reactor.build_gamma_schedule(-1.0, 100.0)
@@ -409,21 +409,21 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             reactor.build_gamma_schedule(100.0, 10.0)
 
     def test_reactor_equal_gamma_limits_run_one_cycle(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         schedule = reactor.build_gamma_schedule(100.0, 100.0)
 
         self.assertEqual(schedule.tolist(), [100.0])
 
     def test_reactor_format_gamma_id_uses_zero_padding(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         self.assertEqual(reactor.format_gamma_id(0.1), "0000p1")
         self.assertEqual(reactor.format_gamma_id(12.9), "0012p9")
         self.assertEqual(reactor.format_gamma_id(100.0), "0100")
 
     def test_reactor_initialize_reaction_run_prepares_fresh_state(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         reactant_a = Molecule(["H"], np.array([[0.0, 0.0, 0.0]]), name="a")
         reactant_b = Molecule(["H"], np.array([[0.0, 0.0, 1.0]]), name="b")
@@ -461,7 +461,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertTrue(product_dir.endswith("/products"))
 
     def test_reactor_does_not_delete_existing_directory_without_restart_state(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         reactant_a = Molecule(["H"], np.array([[0.0, 0.0, 0.0]]), name="a")
         reactant_b = Molecule(["H"], np.array([[0.0, 0.0, 1.0]]), name="b")
@@ -491,7 +491,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(marker))
 
     def test_reactor_uses_numeric_gamma_schedule(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         with tempfile.TemporaryDirectory() as tmpdir:
             reaction_dir = os.path.join(tmpdir, "reaction")
@@ -532,7 +532,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(result.status, "completed_no_candidates")
 
     def test_reactor_reports_product_terminal_state(self):
-        import pyar.reactor as reactor
+        from pyar.workflows import reaction as reactor
 
         original_registry = dict(reactor.saved_product_identities)
         try:

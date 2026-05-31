@@ -13,7 +13,7 @@ import os
 import sys
 from collections import defaultdict
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar import optimiser as optimiser_mod
 from pyar.data import defualt_parameters
 

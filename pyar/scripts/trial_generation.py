@@ -12,9 +12,9 @@ import sys
 
 import numpy as np
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 import pyar.scan
-import pyar.trial_generation as generation
+import pyar.sampling.trial_generator as generation
 
 
 def main():

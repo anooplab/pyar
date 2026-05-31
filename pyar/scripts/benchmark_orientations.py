@@ -13,7 +13,8 @@ import time
 
 import numpy as np
 
-from pyar.orientation_sampling import generate_directions, sphere_coverage_metrics
+from pyar.sampling.metrics import sphere_coverage_metrics
+from pyar.sampling.sphere import generate_directions
 
 
 DEFAULT_METHODS = [

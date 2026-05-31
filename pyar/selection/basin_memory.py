@@ -70,7 +70,7 @@ def _load_basin_registry(registry_path):
         with open(registry_path, 'r') as fp:
             payload = json.load(fp)
     except Exception as exc:
-        from pyar.data_analysis import clustering
+        from pyar.selection import clustering
 
         clustering.cluster_logger.warning("Could not load basin registry %s: %s", registry_path, exc)
         return []
@@ -121,7 +121,7 @@ def _persist_basin_registry(registry_path, selected_molecules, existing_entries=
     with open(registry_path, 'w') as fp:
         json.dump(payload, fp, indent=2)
 
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     clustering.cluster_logger.info(
         "Updated basin registry with %d selected geometries at %s",
@@ -177,7 +177,7 @@ def _apply_basin_memory(molecules, maximum_number_of_seeds, basin_entries):
         selected.append(molecule)
         selected_ids.add(id(molecule))
 
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     clustering.cluster_logger.info(
         "Basin memory reduced candidate pool from %d to %d before MBTR selection.",

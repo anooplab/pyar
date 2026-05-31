@@ -57,9 +57,7 @@ class CliSmokeTests(unittest.TestCase):
         self._original_modules = {
             name: sys.modules.get(name)
             for name in (
-                "pyar.Molecule",
-                "pyar.aggregator",
-                "pyar.reactor",
+                "pyar.core.molecule",
                 "pyar.scan",
                 "pyar.workflows",
                 "pyar.workflows.aggregate",
@@ -81,7 +79,7 @@ class CliSmokeTests(unittest.TestCase):
 
         pyar_pkg = sys.modules.get("pyar")
         if pyar_pkg is not None:
-            for attr in ("Molecule", "aggregator", "workflows", "reactor", "scan"):
+            for attr in ("workflows", "scan"):
                 if hasattr(pyar_pkg, attr):
                     delattr(pyar_pkg, attr)
 
@@ -121,7 +119,7 @@ class CliSmokeTests(unittest.TestCase):
                     number_of_atoms=2,
                 )
 
-        molecule_mod = make_stub_module("pyar.Molecule", Molecule=FakeMolecule)
+        molecule_mod = make_stub_module("pyar.core.molecule", Molecule=FakeMolecule)
         aggregate_workflow_mod = make_stub_module(
             "pyar.workflows.aggregate",
             aggregate=lambda *args, **kwargs: None,
@@ -142,27 +140,21 @@ class CliSmokeTests(unittest.TestCase):
             reaction=reaction_workflow_mod,
             solvation=solvation_workflow_mod,
         )
-        reactor_mod = make_stub_module("pyar.reactor", react=lambda *args, **kwargs: None)
         scan_mod = make_stub_module("pyar.scan", scan_distance=lambda *args, **kwargs: None)
 
         for name, module in (
-            ("pyar.Molecule", molecule_mod),
-            ("pyar.aggregator", make_stub_module("pyar.aggregator")),
+            ("pyar.core.molecule", molecule_mod),
             ("pyar.workflows", workflows_mod),
             ("pyar.workflows.aggregate", aggregate_workflow_mod),
             ("pyar.workflows.reaction", reaction_workflow_mod),
             ("pyar.workflows.solvation", solvation_workflow_mod),
-            ("pyar.reactor", reactor_mod),
             ("pyar.scan", scan_mod),
         ):
             sys.modules[name] = module
 
         pyar_pkg = sys.modules.get("pyar")
         if pyar_pkg is not None:
-            pyar_pkg.Molecule = molecule_mod
-            pyar_pkg.aggregator = sys.modules["pyar.aggregator"]
             pyar_pkg.workflows = workflows_mod
-            pyar_pkg.reactor = reactor_mod
             pyar_pkg.scan = scan_mod
 
     def test_formula_rejects_xyz_inputs(self):

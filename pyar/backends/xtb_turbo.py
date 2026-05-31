@@ -14,7 +14,7 @@ import numpy as np
 import pyar.backends.turbomole as turbomole
 from pyar import backends
 from pyar.biases import afir as restraints
-from pyar.afir.utils import resolve_gamma
+from pyar.biases.afir import resolve_gamma
 from pyar.data.units import angstrom2bohr, bohr2angstrom
 from pyar.backends import SF, require_executable
 from pyar.backends.xtb_utils import build_xtb_command
@@ -146,7 +146,7 @@ def main():
 
 
 if __name__ == "__main__":
-    from pyar.Molecule import Molecule
+    from pyar.core.molecule import Molecule
 
     my_mol = Molecule.from_xyz(sys.argv[1])
     geometry = XtbTurbo(my_mol, method={})

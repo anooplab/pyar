@@ -11,10 +11,6 @@ Canonical core, I/O, and sampling APIs are documented in :doc:`api`.
 Main workflows
 --------------
 
-.. automodule:: pyar.aggregator
-   :members:
-   :undoc-members:
-
 .. automodule:: pyar.scripts.explore
    :members:
    :undoc-members:

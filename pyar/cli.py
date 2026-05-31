@@ -346,7 +346,7 @@ chemical formula.
 
 def _resolve_aggregate_input(spec, aggregate_mode):
     """Resolve an input spec to a molecule, allowing formulas in aggregate mode."""
-    from pyar.Molecule import Molecule
+    from pyar.core.molecule import Molecule
     from pyar.workflows.aggregate import generate_molecule_from_formula
 
     if os.path.exists(spec):

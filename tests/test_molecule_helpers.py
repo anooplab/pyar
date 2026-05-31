@@ -4,9 +4,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pyar.Molecule import Molecule
-from pyar.molecule_geometry import moments_of_inertia_tensor, rotate_3d
-from pyar.molecule_io import (
+from pyar.core.molecule import Molecule
+from pyar.core.geometry import moments_of_inertia_tensor, rotate_3d
+from pyar.io.xyz import (
     as_coordinates_array,
     parse_xyz,
     validate_fragments,

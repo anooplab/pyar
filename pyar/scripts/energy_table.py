@@ -10,8 +10,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from pyar.Molecule import Molecule
-from pyar.data_analysis import clustering
+from pyar.core.molecule import Molecule
+from pyar.selection import clustering
 
 
 def main():

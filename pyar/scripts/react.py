@@ -12,7 +12,7 @@ import logging
 import sys
 from collections import defaultdict
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
     supported_geometry_backends,
@@ -60,7 +60,7 @@ def calculate_index_from_xyz(filename):
 
 
 def main():
-    """Run the legacy reaction-search command-line workflow."""
+    """Run the reaction-search command-line workflow."""
     args = argument_parse()
     run_parameters = defaultdict(lambda: None, vars(args))
 

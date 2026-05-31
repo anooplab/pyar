@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 
 

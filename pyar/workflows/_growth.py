@@ -13,12 +13,14 @@ from pathlib import Path
 
 import numpy as np
 
-from pyar import file_manager, molecule_io, trial_generation
-from pyar.Molecule import Molecule, atomic_data
-from pyar.data_analysis import clustering
+from pyar import file_manager
+from pyar.core.molecule import Molecule, atomic_data
+from pyar.io import xyz as molecule_io
+from pyar.selection import clustering
+from pyar.sampling import trial_generator as trial_generation
 from pyar.optimiser import is_cycle_exceeded, is_success, optimise
 
-aggregator_logger = logging.getLogger("pyar.aggregator")
+aggregator_logger = logging.getLogger("pyar.workflows.aggregate")
 
 
 @contextmanager

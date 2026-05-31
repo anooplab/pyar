@@ -150,6 +150,7 @@ The fastest way to verify a local install is:
    first_run
    quickstart
    installation
+   migration_2_0
    usage
    publications
 

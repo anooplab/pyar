@@ -3,7 +3,7 @@
 import tempfile
 import unittest
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.solvation_state import SolvationRunState, SolvationStateError
 
 

@@ -1,10 +1,14 @@
 from itertools import product
+import logging
+import math
 
 import autograd.numpy as np
 from autograd import grad
 
 import pyar.data.units
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
+
+afir_logger = logging.getLogger("pyar.biases.afir")
 
 # covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
 # values for metals decreased by 10 %
@@ -29,6 +33,13 @@ covalent_radii = {'x ': 0.00,
                   'tl': 1.30, 'pb': 1.30, 'bi': 1.36, 'po': 1.31, 'at': 1.38,
                   'rn': 1.42, 'fr': 2.01, 'ra': 1.81, 'ac': 1.67, 'th': 1.58,
                   'pa': 1.52, 'u': 1.53, 'np': 1.54, 'pu': 1.55}
+
+__all__ = [
+    "get_covalent_radius",
+    "get_data_structure",
+    "isotropic",
+    "resolve_gamma",
+]
 
 
 def get_covalent_radius(z):
@@ -57,6 +68,19 @@ def get_data_structure(atoms, max_cycles):
     }
 
     return get_data_structure
+
+
+def resolve_gamma(value, fallback=100.0):
+    """Return a finite numeric AFIR gamma value."""
+    if value is None:
+        return float(fallback)
+    try:
+        gamma = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid AFIR gamma value: {value!r}") from None
+    if not math.isfinite(gamma):
+        raise ValueError(f"Invalid AFIR gamma value: {value!r}")
+    return gamma
 
 
 def isotropic(fragment_indices, atoms_list, coordinates, force):
@@ -99,7 +123,7 @@ def isotropic(fragment_indices, atoms_list, coordinates, force):
 
 def main():
     import sys
-    from pyar.trial_generation import merge_two_molecules as merge
+    from pyar.sampling.trial_generator import merge_two_molecules as merge
     a, b = sys.argv[1:3]
     force = float(sys.argv[3])
     mol_a = Molecule.from_xyz(a)

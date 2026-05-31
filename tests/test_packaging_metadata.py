@@ -49,25 +49,25 @@ class PackagingMetadataTests(unittest.TestCase):
 
     def test_clustering_import_without_selection_extra(self):
         original_import = builtins.__import__
-        original_module = sys.modules.get("pyar.data_analysis.clustering")
-        import pyar.data_analysis
+        original_module = sys.modules.get("pyar.selection.clustering")
+        import pyar.selection
 
         def block_selection_stack(name, *args, **kwargs):
             if name == "hdbscan" or name.startswith("sklearn") or name == "pandas":
                 raise ImportError(f"blocked {name}")
             return original_import(name, *args, **kwargs)
 
-        sys.modules.pop("pyar.data_analysis.clustering", None)
+        sys.modules.pop("pyar.selection.clustering", None)
         with mock.patch("builtins.__import__", side_effect=block_selection_stack):
-            clustering = importlib.import_module("pyar.data_analysis.clustering")
+            clustering = importlib.import_module("pyar.selection.clustering")
             with self.assertRaises(ImportError) as ctx:
                 clustering.hdbscan_clustering([[0.0], [1.0]])
 
         self.assertIn("selection", str(ctx.exception))
         self.assertIn("pyar-chem[selection]", str(ctx.exception))
         if original_module is not None:
-            sys.modules["pyar.data_analysis.clustering"] = original_module
-            pyar.data_analysis.clustering = original_module
+            sys.modules["pyar.selection.clustering"] = original_module
+            pyar.selection.clustering = original_module
 
 
 if __name__ == "__main__":

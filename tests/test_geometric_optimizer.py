@@ -11,7 +11,7 @@ from ase import Atoms
 from ase.units import Bohr, Hartree
 
 from pyar import optimiser
-from pyar.afir import restraints
+from pyar.biases import afir as restraints
 from pyar.data.units import angstrom2bohr
 from pyar.energy_gradient_providers import EnergyGradientResult
 

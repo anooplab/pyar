@@ -141,7 +141,7 @@ class Psi4(SF):
 
 def main():
     """Run the Psi4 workflow from the command line."""
-    from pyar.Molecule import Molecule
+    from pyar.core.molecule import Molecule
     import sys
     mol = Molecule.from_xyz(sys.argv[1])
     method = {'charge': 0, 'multiplicity': 1, 'scftype': 'rhf'}

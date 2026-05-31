@@ -42,6 +42,16 @@ python -m pip install "pyar-chem[all]"
 
 For a local checkout, use the same extras with `-e`, for example
 `python -m pip install -e ".[test,selection]"`.
+
+## Python API
+
+PyAR 2.0 has a narrowed public Python API. Use `import pyar`,
+`pyar.workflows`, `pyar.sampling`, `pyar.selection`, and `pyar.backends` for
+supported imports. Legacy paths such as `pyar.trial_generation`,
+`pyar.orientation_sampling`, `pyar.aggregator`, `pyar.reactor`,
+`pyar.interface`, and `pyar.data_analysis.clustering` are not supported in
+2.0; see `docs/migration_2_0.rst` for the import mapping.
+
 # Features:
 * Automated prediction of unknown reactions between two reactants (A+B)
 * Automated prediction of the geometries of aggregates, atomic clusters etc.

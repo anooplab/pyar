@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from pyar import aggregator
+from pyar.workflows import _growth as aggregator
 from pyar.aggregate_state import AggregateStateError
 from pyar.workflows import _growth as growth
 from pyar.workflow_results import AggregateResult
@@ -410,18 +410,17 @@ class AggregatorTests(unittest.TestCase):
                     with mock.patch.object(aggregate_workflow, "old_path_to_new_path") as restart_paths:
                         with mock.patch.object(aggregate_workflow, "select_pathways", return_value=[[]]) as new_paths:
                             with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
-                                with self.assertLogs("pyar.aggregator", level="INFO") as captured:
-                                    with self.assertWarnsRegex(DeprecationWarning, "pyar.aggregator.aggregate"):
-                                        aggregator.aggregate(
-                                            molecules=molecules,
-                                            aggregate_sizes=[1, 1],
-                                            hm_orientations=2,
-                                            qc_params={"software": None},
-                                            maximum_number_of_seeds=2,
-                                            first_pathway=0,
-                                            number_of_pathways=1,
-                                            site=None,
-                                        )
+                                with self.assertLogs("pyar.workflows.aggregate", level="INFO") as captured:
+                                    aggregate_workflow.aggregate(
+                                        molecules=molecules,
+                                        aggregate_sizes=[1, 1],
+                                        hm_orientations=2,
+                                        qc_params={"software": None},
+                                        maximum_number_of_seeds=2,
+                                        first_pathway=0,
+                                        number_of_pathways=1,
+                                        site=None,
+                                    )
 
                 self.assertTrue(Path(tmpdir, "aggregates").is_dir())
                 restart_paths.assert_not_called()
@@ -443,7 +442,7 @@ class AggregatorTests(unittest.TestCase):
                 with mock.patch.object(aggregate_workflow, "read_old_path", return_value=["  ab  "]):
                     with mock.patch.object(aggregate_workflow, "select_pathways") as new_paths:
                         with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
-                            with self.assertLogs("pyar.aggregator", level="WARNING"):
+                            with self.assertLogs("pyar.workflows.aggregate", level="WARNING"):
                                 aggregate_workflow.aggregate(
                                     molecules=molecules,
                                     aggregate_sizes=[1, 1],
@@ -471,17 +470,16 @@ class AggregatorTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with self.assertWarnsRegex(DeprecationWarning, "pyar.aggregator.aggregate"):
-                    result = aggregator.aggregate(
-                        molecules=[molecule],
-                        aggregate_sizes=[1],
-                        hm_orientations=2,
-                        qc_params={"software": None},
-                        maximum_number_of_seeds=2,
-                        first_pathway=0,
-                        number_of_pathways=1,
-                        site=None,
-                    )
+                result = aggregate_workflow.aggregate(
+                    molecules=[molecule],
+                    aggregate_sizes=[1],
+                    hm_orientations=2,
+                    qc_params={"software": None},
+                    maximum_number_of_seeds=2,
+                    first_pathway=0,
+                    number_of_pathways=1,
+                    site=None,
+                )
 
                 self.assertTrue(Path(tmpdir, "aggregates").is_dir())
                 with Path(tmpdir, "aggregates", "state.json").open() as fp:

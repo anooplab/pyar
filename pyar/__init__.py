@@ -21,11 +21,30 @@
 __docformat__ = 'restructuredtext'
 
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+import tomllib
+
+from pyar.core.molecule import Molecule
+
+
+def _local_version_fallback():
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    try:
+        with pyproject.open("rb") as handle:
+            return tomllib.load(handle)["project"]["version"]
+    except (OSError, KeyError, tomllib.TOMLDecodeError):
+        return "0+unknown"
 
 
 try:
     __version__ = version("pyar-chem")
 except PackageNotFoundError:
-    __version__ = "1.1.0"
+    __version__ = _local_version_fallback()
+
 __author__ = 'Anakuthil Anoop'
 __credits__ = 'IIT Kharagpur'
+
+__all__ = [
+    "Molecule",
+    "__version__",
+]

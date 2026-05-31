@@ -1,11 +1,25 @@
 import io
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import numpy as np
 
-from pyar import orientation_sampling
+from pyar.sampling.metrics import quaternion_coverage_metrics, sphere_coverage_metrics
+from pyar.sampling.rotation import halton_quaternions
+from pyar.sampling.sphere import fibonacci_sphere, generate_directions, maximin_select
+from pyar.sampling.trial_generator import generate_trial_vectors
 from pyar.scripts import benchmark_orientations
+
+orientation_sampling = SimpleNamespace(
+    fibonacci_sphere=fibonacci_sphere,
+    maximin_select=maximin_select,
+    sphere_coverage_metrics=sphere_coverage_metrics,
+    generate_directions=generate_directions,
+    halton_quaternions=halton_quaternions,
+    quaternion_coverage_metrics=quaternion_coverage_metrics,
+    generate_trial_vectors=generate_trial_vectors,
+)
 
 
 class OrientationSamplingTests(unittest.TestCase):

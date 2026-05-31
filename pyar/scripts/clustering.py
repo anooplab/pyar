@@ -2,15 +2,15 @@
 """Importable ``pyar-clustering`` entrypoint.
 
 This utility clusters or filters XYZ pools using the selection algorithms
-implemented in :mod:`pyar.data_analysis.clustering`. It prints the energy
+implemented in :mod:`pyar.selection.clustering`. It prints the energy
 table for the input pool and then emits the selected geometries.
 """
 
 import argparse
 import sys
 
-from pyar.data_analysis import clustering
-from pyar.Molecule import Molecule
+from pyar.selection import clustering
+from pyar.core.molecule import Molecule
 
 
 def main():

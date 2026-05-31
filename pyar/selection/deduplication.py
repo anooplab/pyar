@@ -22,9 +22,9 @@ def calc_fingerprint_distance(a, b):
 
 def _structure_is_similar(candidate, kept):
     """Quick prefilter using fingerprint distance."""
-    # Resolve through the legacy facade so existing extensions and tests that
-    # patch this selection seam remain effective after the module split.
-    from pyar.data_analysis import clustering
+    # Resolve through the canonical clustering module so tests and extensions
+    # can patch one selection seam.
+    from pyar.selection import clustering
 
     fingerprint_distance = clustering.calc_fingerprint_distance(candidate, kept)
     return abs(fingerprint_distance) < 1.0
@@ -194,7 +194,7 @@ def _rmsd_after_alignment(candidate, kept):
 
 def remove_similar(list_of_molecules):
     """Remove near-duplicate geometries from a candidate pool."""
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     ordered_molecules = sorted(list_of_molecules, key=lambda molecule: (float(molecule.energy), molecule.name))
     final_list = []
@@ -216,7 +216,7 @@ def remove_similar(list_of_molecules):
         if not duplicate:
             final_list.append(candidate)
     clustering.cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
-    from pyar.data_analysis.clustering import print_energy_table
+    from pyar.selection.clustering import print_energy_table
 
     print_energy_table(final_list)
     return final_list
@@ -228,9 +228,9 @@ def _prefer_connected_structures(molecules):
         return molecules
 
     try:
-        from pyar import trial_generation
+        from pyar.sampling import trial_generator as trial_generation
     except Exception as exc:
-        from pyar.data_analysis import clustering
+        from pyar.selection import clustering
 
         clustering.cluster_logger.debug(
             "Connectivity filter unavailable, keeping original candidate pool: %s",
@@ -247,7 +247,7 @@ def _prefer_connected_structures(molecules):
             else:
                 connected.append(molecule)
         except Exception as exc:
-            from pyar.data_analysis import clustering
+            from pyar.selection import clustering
 
             clustering.cluster_logger.debug(
                 "Connectivity check failed for %s, keeping it in the connected pool: %s",
@@ -257,7 +257,7 @@ def _prefer_connected_structures(molecules):
             connected.append(molecule)
 
     if not connected:
-        from pyar.data_analysis import clustering
+        from pyar.selection import clustering
 
         clustering.cluster_logger.warning(
             "All candidate geometries are disconnected; continuing with the original pool."
@@ -265,7 +265,7 @@ def _prefer_connected_structures(molecules):
         return molecules
 
     if disconnected:
-        from pyar.data_analysis import clustering
+        from pyar.selection import clustering
 
         clustering.cluster_logger.info(
             "Discarded %d disconnected candidate geometries before clustering.",

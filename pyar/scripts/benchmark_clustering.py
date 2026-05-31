@@ -2,7 +2,7 @@
 """Benchmark clustering/selection algorithms on one or more XYZ pools.
 
 This utility compares the geometry-selection algorithms exposed by
-``pyar.data_analysis.clustering`` and reports selection quality, diversity,
+``pyar.selection.clustering`` and reports selection quality, diversity,
 and runtime for one or more pools of XYZ files.
 """
 
@@ -16,9 +16,9 @@ from unittest import mock
 
 import numpy as np
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar import representations
-from pyar.data_analysis import clustering
+from pyar.selection import clustering
 
 
 DEFAULT_ALGORITHMS = [
@@ -106,7 +106,7 @@ def _benchmark_algorithm(pool, algorithm, max_seeds):
     clustering._MBTR_RUNTIME_DISABLED = False
     clustering._MBTR_DISABLE_REASON = None
 
-    with mock.patch("pyar.data_analysis.clustering._load_basin_registry", return_value=[]):
+    with mock.patch("pyar.selection.clustering._load_basin_registry", return_value=[]):
         start = time.perf_counter()
         selected = clustering.choose_geometries(
             pool,

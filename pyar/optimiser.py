@@ -14,7 +14,7 @@ import logging
 import os
 
 from pyar import file_manager
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import backend_supports_geometry_optimization
 
 optimiser_logger = logging.getLogger('pyar.optimiser')

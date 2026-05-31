@@ -2,12 +2,12 @@ import unittest
 
 import numpy as np
 
-from pyar.Molecule import Molecule
-from pyar import trial_generation
+from pyar.core.molecule import Molecule
+from pyar.sampling import trial_generator as trial_generation
 
 
 class TrialGenerationTests(unittest.TestCase):
-    def test_broken_remains_available_through_legacy_module(self):
+    def test_broken_remains_available_from_canonical_module(self):
         separated = Molecule(
             ["H", "H"],
             np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]]),

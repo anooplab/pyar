@@ -1,4 +1,4 @@
-"""Merge helpers for :mod:`pyar.Molecule`."""
+"""Merge helpers for :mod:`pyar.core.molecule`."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def combine_multiplicity(first, second) -> int:
 
 def merged_with(first, second):
     """Return a molecule containing ``first`` and ``second`` as fragments."""
-    from pyar.Molecule import Molecule
+    from pyar.core.molecule import Molecule
 
     atoms_list = first.atoms_list + second.atoms_list
     coordinates = np.concatenate((first.coordinates, second.coordinates), axis=0)

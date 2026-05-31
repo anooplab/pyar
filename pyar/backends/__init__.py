@@ -1,8 +1,17 @@
-"""Shared backend helpers and public re-exports for PyAR."""
+"""Public backend helpers for PyAR 2.0."""
 
-import importlib
 import os
 
+from pyar.backend_capabilities import (
+    BackendCapabilities,
+    backend_family,
+    backend_supports_geometry_optimization,
+    backend_supports_staged_optimization,
+    get_backend_capabilities,
+    register_backend_capabilities,
+    supported_geometry_backends,
+    unsupported_qc_options,
+)
 from .subprocess_utils import run_command, run_output
 
 
@@ -65,26 +74,18 @@ def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0)
 
 
 __all__ = [
-    "ANI",
-    "ANICalculationFailed",
-    "ANIInterface",
+    "BackendCapabilities",
     "SF",
+    "backend_family",
+    "backend_supports_geometry_optimization",
+    "backend_supports_staged_optimization",
+    "get_backend_capabilities",
+    "register_backend_capabilities",
     "require_executable",
+    "supported_geometry_backends",
+    "unsupported_qc_options",
     "which",
     "write_xyz",
     "run_command",
     "run_output",
 ]
-
-
-def __getattr__(name):
-    """Lazily expose optional ANI exports without importing TorchANI eagerly."""
-    if name in {"ANI", "ANICalculationFailed", "ANIInterface"}:
-        ani = importlib.import_module(".ani", __name__)
-        globals().update(
-            ANI=ani.ANI,
-            ANICalculationFailed=ani.ANICalculationFailed,
-            ANIInterface=ani.ANIInterface,
-        )
-        return globals()[name]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -1,7 +1,7 @@
 """Aggregate workflow orchestration for PyAR.
 
 This module owns the aggregation and cluster-generation workflow used by
-``pyar-cli -a`` and the legacy aggregator compatibility layer. It is
+``pyar-cli -a``. It is
 responsible for:
 
 * validating the aggregate request and restart state

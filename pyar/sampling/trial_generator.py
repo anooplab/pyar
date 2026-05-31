@@ -18,7 +18,7 @@ from pyar.sampling.rotation import (
 )
 from pyar.sampling.sphere import generate_directions
 
-trial_generation_logger = logging.getLogger('pyar.trial_generation')
+trial_generation_logger = logging.getLogger('pyar.sampling.trial_generator')
 
 
 def polar_to_cartesian(r, theta, phi):

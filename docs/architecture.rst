@@ -122,8 +122,7 @@ user-facing interfaces.
 Current Module Mapping
 ----------------------
 
-The current codebase already contains useful boundaries. These should be
-stabilized before modules are physically moved:
+PyAR 2.0 uses these canonical module boundaries:
 
 * ``pyar/Molecule.py`` becomes ``core/molecule.py``.
 * ``pyar/molecule_geometry.py`` becomes ``core/geometry.py``.
@@ -133,16 +132,13 @@ stabilized before modules are physically moved:
 * ``pyar/trial_generation.py`` becomes ``sampling/trial_generator.py``.
 * ``pyar/data_analysis/clustering.py`` splits into selection services.
 * ``pyar/aggregator.py`` becomes ``workflows/aggregate.py``.
-* ``pyar/reactor.py`` has moved to ``workflows/reaction.py``; the legacy path
-  is retained as a compatibility alias.
+* ``pyar/reactor.py`` has moved to ``workflows/reaction.py``.
 * Legacy ``pyar/checkpt.py`` has been replaced for reaction workflows by
   ``pyar/reaction_state.py``; aggregation now uses ``pyar/aggregate_state.py``
   and solvation uses ``pyar/solvation_state.py``. Future workflow migration
   should converge on the structured ``state`` package.
-* ``pyar/interface/`` has moved to ``backends/``; legacy interface paths are
-  retained as compatibility aliases.
-* ``pyar/afir/restraints.py`` has moved to ``biases/afir.py``; the legacy
-  path is retained as a compatibility alias.
+* ``pyar/interface/`` has moved to ``backends/``.
+* ``pyar/afir/restraints.py`` has moved to ``biases/afir.py``.
 * ``pyar/backends/xtb_turbo.py`` is replaced by a backend-neutral
   reaction-optimization service, not moved into the new package as a
   permanent adapter.
@@ -384,9 +380,8 @@ complete and are kept here as history; item 10 is in progress.
 
 Open plan:
 
-10. Move modules to the target layout only in a major-version development
-    branch. Core, sampling, state, backend, workflow, and bias implementations
-    have moved; compatibility aliases remain for legacy callers.
+10. Core, sampling, state, backend, workflow, and bias implementations have
+    moved to canonical package boundaries for the 2.0 API.
 11. MLatom has been externalized; keep the vendored compatibility tree only
     until downstream consumers no longer need it.
 12. Publish migration documentation and reproducibility examples.

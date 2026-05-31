@@ -15,9 +15,9 @@ from collections import OrderedDict
 
 import numpy as np
 
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.data import new_atomic_data as atomic_data
-from pyar.trial_generation import generate_points, merge_two_molecules
+from pyar.sampling.trial_generator import generate_points, merge_two_molecules
 
 logging.basicConfig(filename='pyar_explore.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')

@@ -42,7 +42,7 @@ Standalone commands that request multiple generated populations use a
 deterministic ``sequence_offset`` for each population. This retains
 reproducibility while avoiding repeated copies of the same point design.
 
-The implementation is exposed by ``pyar.trial_generation`` and the
+The implementation is exposed by ``pyar.sampling.trial_generator`` and the
 ``pyar-trial-generation`` command.
 
 Literature Basis

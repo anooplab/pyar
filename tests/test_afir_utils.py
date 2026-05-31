@@ -2,7 +2,7 @@
 
 import unittest
 
-from pyar.afir.utils import resolve_gamma
+from pyar.biases.afir import resolve_gamma
 
 
 class AfirUtilsTests(unittest.TestCase):

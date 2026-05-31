@@ -7,7 +7,7 @@ import numpy as np
 
 def _log_seed_shortfall(requested, available, context):
     """Log that fewer unique geometries exist than the requested seed count."""
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     clustering.cluster_logger.info(
         "Requested %d seeds, but only %d unique geometries were available after %s.",
@@ -28,7 +28,7 @@ def _finalize_selection(selected_molecules, basin_registry_path, existing_entrie
 
 def _limit_seed_count(molecules, maximum_number_of_seeds, reason):
     """Enforce a hard upper bound on selected molecules."""
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     if len(molecules) <= maximum_number_of_seeds:
         if len(molecules) < maximum_number_of_seeds:
@@ -51,7 +51,7 @@ def _max_min_diversity_select(features, molecules, maximum_number_of_seeds, init
     When initial_selected_indices is provided, those points are treated as fixed
     anchors and only the additional selected molecules are returned.
     """
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     if initial_selected_indices is None:
         initial_selected_indices = []
@@ -104,6 +104,6 @@ def _max_min_diversity_select(features, molecules, maximum_number_of_seeds, init
 
 def print_energy_table(molecules, stream=None, title=None):
     """Report energies with relative values against the global minimum."""
-    from pyar.data_analysis import clustering
+    from pyar.selection import clustering
 
     return clustering.print_energy_table(molecules, stream=stream, title=title)

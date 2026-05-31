@@ -10,8 +10,8 @@ This module owns the AFIR reaction-search pipeline:
 * deduplicate and persist unique products
 * emit trace-analysis summaries for successful paths
 
-The module is the implementation behind the legacy ``pyar.reactor`` import
-path and the ``pyar-react`` command-line entry point.
+The module is the canonical implementation behind the ``pyar-react``
+command-line entry point.
 """
 
 import logging
@@ -22,7 +22,7 @@ import sys
 import numpy as np
 import pyar.scan
 from pyar import file_manager
-from pyar.data_analysis import clustering
+from pyar.selection import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
 from pyar.sampling import trial_generator as trial_generation
 from pyar.workflow_results import ReactionResult
@@ -34,7 +34,7 @@ from pyar.reaction_identity import (
 )
 from pyar.state.reaction import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 
-reactor_logger = logging.getLogger('pyar.reactor')
+reactor_logger = logging.getLogger('pyar.workflows.reaction')
 
 saved_product_identities = {}
 

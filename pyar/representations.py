@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 
 import pyar.property
-from pyar.Molecule import Molecule
+from pyar.core.molecule import Molecule
 from pyar.optional_dependencies import optional_dependency_error
 
 Atoms = None

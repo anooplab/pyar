@@ -57,7 +57,6 @@ API_EXCLUDED_PREFIXES = (
     "pyar.AIMNet2.",
     "pyar.backends.",
     "pyar.checkvalidity",
-    "pyar.interface.",
     "pyar.mlatom.",
 )
 

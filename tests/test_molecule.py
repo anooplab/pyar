@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pyar.Molecule import Molecule, XYZParseError, parse_xyz, read_xyz
+from pyar.core.molecule import Molecule, XYZParseError, parse_xyz, read_xyz
 
 
 class MoleculeTests(unittest.TestCase):

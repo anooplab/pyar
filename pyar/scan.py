@@ -3,9 +3,9 @@ import time
 
 import numpy as np
 
-import pyar.trial_generation as trial_generation
+import pyar.sampling.trial_generator as trial_generation
 from pyar import optimiser
-from pyar.data_analysis import clustering
+from pyar.selection import clustering
 
 
 def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,

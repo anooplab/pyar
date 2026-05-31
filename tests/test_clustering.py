@@ -7,7 +7,7 @@ from unittest import mock
 
 import numpy as np
 
-from pyar.data_analysis import clustering
+from pyar.selection import clustering
 
 
 class ClusteringTests(unittest.TestCase):
@@ -22,7 +22,7 @@ class ClusteringTests(unittest.TestCase):
         ]
 
         with mock.patch("pyar.representations.mbtr_descriptor", side_effect=TypeError("boom")):
-            with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules) as remover:
+            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules) as remover:
                 result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         remover.assert_called_once_with(molecules)
@@ -44,13 +44,13 @@ class ClusteringTests(unittest.TestCase):
         ]
 
         with mock.patch("pyar.representations.mbtr_descriptor", side_effect=TypeError("mbtr boom")) as mbtr_mock:
-            with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
                 clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
 
         self.assertEqual(mbtr_mock.call_count, 1)
 
         with mock.patch("pyar.representations.mbtr_descriptor") as mbtr_mock:
-            with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
                 result = clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
 
         mbtr_mock.assert_not_called()
@@ -63,7 +63,7 @@ class ClusteringTests(unittest.TestCase):
         ]
 
         with mock.patch("pyar.representations.mbtr_descriptor", side_effect=TypeError("mbtr boom")):
-            with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
                 result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         self.assertEqual(len(result), 2)
@@ -77,7 +77,7 @@ class ClusteringTests(unittest.TestCase):
 
         with self.assertLogs("pyar.cluster", level="WARNING") as captured:
             with mock.patch("pyar.representations.mbtr_descriptor", return_value=[0.0]):
-                with mock.patch("pyar.data_analysis.clustering.generate_labels", side_effect=RuntimeError("cluster fail")):
+                with mock.patch("pyar.selection.clustering.generate_labels", side_effect=RuntimeError("cluster fail")):
                     result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         self.assertEqual(len(result), 2)
@@ -101,7 +101,7 @@ class ClusteringTests(unittest.TestCase):
             try:
                 os.mkdir("selected")
                 with mock.patch("pyar.representations.mbtr_descriptor", return_value=[0.0]):
-                    with mock.patch("pyar.data_analysis.clustering.generate_labels", side_effect=RuntimeError("cluster fail")):
+                    with mock.patch("pyar.selection.clustering.generate_labels", side_effect=RuntimeError("cluster fail")):
                         clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
                 registry_path = os.path.join("selected", "stoichiometry_H", "basin_registry.json")
@@ -178,7 +178,7 @@ class ClusteringTests(unittest.TestCase):
             ),
         ]
 
-        with mock.patch("pyar.data_analysis.clustering.calc_fingerprint_distance", return_value=0.5):
+        with mock.patch("pyar.selection.clustering.calc_fingerprint_distance", return_value=0.5):
             result = clustering.remove_similar(molecules)
 
         self.assertEqual([m.name for m in result], ["low"])
@@ -189,7 +189,7 @@ class ClusteringTests(unittest.TestCase):
             SimpleNamespace(name="b", atoms_list=["H"], coordinates=[[10.0, 0.0, 0.0]], energy=0.0),
         ]
 
-        with mock.patch("pyar.data_analysis.clustering.calc_fingerprint_distance", return_value=5.0):
+        with mock.patch("pyar.selection.clustering.calc_fingerprint_distance", return_value=5.0):
             result = clustering.remove_similar(molecules)
 
         self.assertEqual([m.name for m in result], ["a", "b"])
@@ -210,8 +210,8 @@ class ClusteringTests(unittest.TestCase):
             ),
         ]
 
-        with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
-            with mock.patch("pyar.trial_generation.broken", side_effect=lambda mol: mol.name == "broken"):
+        with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.sampling.trial_generator.broken", side_effect=lambda mol: mol.name == "broken"):
                 result = clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
 
         self.assertEqual([m.name for m in result], ["connected"])
@@ -230,7 +230,7 @@ class ClusteringTests(unittest.TestCase):
             energy=0.0,
         )
 
-        with mock.patch("pyar.data_analysis.clustering.calc_fingerprint_distance", return_value=0.5):
+        with mock.patch("pyar.selection.clustering.calc_fingerprint_distance", return_value=0.5):
             self.assertLess(clustering._rmsd_after_alignment(a, b), 1e-6)
 
     def test_rmsd_duplicate_test_detects_same_geometry_under_rotation(self):
@@ -316,7 +316,7 @@ class ClusteringTests(unittest.TestCase):
             SimpleNamespace(name="c", atoms_list=["H", "H"], coordinates=[[0.0, 0.0, 0.0], [1.5, 0.0, 0.0]], energy=0.2),
         ]
 
-        with mock.patch("pyar.data_analysis.clustering.calc_fingerprint_distance", return_value=0.5):
+        with mock.patch("pyar.selection.clustering.calc_fingerprint_distance", return_value=0.5):
             threshold = clustering._adaptive_duplicate_rmsd_threshold(molecules)
 
         self.assertGreaterEqual(threshold, 0.05)
@@ -354,7 +354,7 @@ class ClusteringTests(unittest.TestCase):
             return [coordinates[0][0]]
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "maxmin"}):
-            with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=pruned):
+            with mock.patch("pyar.selection.clustering.remove_similar", return_value=pruned):
                 with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
                     result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
@@ -374,7 +374,7 @@ class ClusteringTests(unittest.TestCase):
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "hybrid"}):
             with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
-                with mock.patch("pyar.data_analysis.clustering.generate_labels", return_value=[0, 0, 1, 1]):
+                with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 1, 1]):
                     result = clustering.choose_geometries(molecules, maximum_number_of_seeds=3)
 
         self.assertEqual([m.name for m in result], ["m0", "m2", "m3"])
@@ -392,7 +392,7 @@ class ClusteringTests(unittest.TestCase):
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "hybrid"}):
             with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
-                    with mock.patch("pyar.data_analysis.clustering.generate_labels", return_value=[0, 1, 2, 3]):
+                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 1, 2, 3]):
                         result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         self.assertEqual([m.name for m in result], ["m0", "m3"])
@@ -437,8 +437,8 @@ class ClusteringTests(unittest.TestCase):
             return [coordinates[0][0]]
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "maxmin"}):
-            with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
-                with mock.patch("pyar.data_analysis.clustering._load_basin_registry", return_value=basin_entries):
+            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
+                with mock.patch("pyar.selection.clustering._load_basin_registry", return_value=basin_entries):
                     with mock.patch("pyar.representations.fingerprint", side_effect=fingerprint_from_coordinate):
                         with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
                             result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
@@ -453,9 +453,9 @@ class ClusteringTests(unittest.TestCase):
             for i in range(4)
         ]
 
-        with mock.patch("pyar.data_analysis.clustering.remove_similar", return_value=molecules):
-            with mock.patch("pyar.data_analysis.clustering._load_basin_registry") as loader:
-                with mock.patch("pyar.data_analysis.clustering._apply_basin_memory") as applier:
+        with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.selection.clustering._load_basin_registry") as loader:
+                with mock.patch("pyar.selection.clustering._apply_basin_memory") as applier:
                     with mock.patch(
                         "pyar.representations.mbtr_descriptor",
                         side_effect=lambda _atoms, coordinates: [coordinates[0][0]],
