@@ -1,8 +1,15 @@
 import json
-import sys,os
+import os
+import sys
 
 def printHeader(args):
-    with open(os.path.dirname(__file__)+'/ref.json','r') as f:
+    ref_path = os.path.join(os.path.dirname(__file__), 'ref.json')
+    if not os.path.isfile(ref_path):
+        raise FileNotFoundError(
+            'MLatom reference metadata is not bundled in the pyar-chem wheel. '
+            'Install the external MLatom package or provide ref.json separately.'
+        )
+    with open(ref_path, 'r') as f:
         refs = json.load(f)
     refItems = {}
 

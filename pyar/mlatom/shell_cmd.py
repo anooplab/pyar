@@ -1,4 +1,4 @@
-"""Shell helpers for launching MLatom and the bundled MLatomF binary."""
+"""Shell helpers for launching MLatom and the MLatomF binary."""
 
 import sys
 import os
@@ -18,8 +18,8 @@ def _resolve_mlatomf_bin():
         return installed_bin
 
     raise FileNotFoundError(
-        'Unable to locate the MLatomF executable. '
-        'Expected it next to pyar.mlatom or on PATH.'
+        'MLatomF is not bundled in the pyar-chem wheel. '
+        'Install MLatomF separately or place it on PATH.'
     )
 
 def mlatom():

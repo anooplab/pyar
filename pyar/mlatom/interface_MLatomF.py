@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bridge between the bundled MLatomF executable and the Python wrapper."""
+"""Bridge between the MLatomF executable and the Python wrapper."""
 
 import sys, os, subprocess, re
 from shutil import which
@@ -8,7 +8,7 @@ mlatomdir = os.path.dirname(__file__)
 
 
 def _resolve_mlatomf_bin():
-    """Find the bundled MLatomF executable or a system-wide fallback."""
+    """Find the MLatomF executable or a system-wide fallback."""
     local_bin = os.path.join(mlatomdir, 'MLatomF')
     if os.path.isfile(local_bin) and os.access(local_bin, os.X_OK):
         return local_bin
@@ -18,8 +18,8 @@ def _resolve_mlatomf_bin():
         return installed_bin
 
     raise FileNotFoundError(
-        'Unable to locate the MLatomF executable. '
-        'Expected it next to pyar.mlatom or on PATH.'
+        'MLatomF is not bundled in the pyar-chem wheel. '
+        'Install MLatomF separately or place it on PATH.'
     )
 
 class ifMLatomCls(object):

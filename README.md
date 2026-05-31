@@ -27,7 +27,7 @@ pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
 
 ## External Program Requirements
 
-Some workflows rely on external executables such as xTB, ORCA, Gaussian, Psi4, MOPAC, Turbomole, OpenBabel, MLatom, and DFT-D4. See [docs/external_programs.rst](docs/external_programs.rst) for the official project websites and installation notes.
+Some workflows rely on external executables such as xTB, ORCA, Gaussian, Psi4, MOPAC, Turbomole, OpenBabel, MLatom, and DFT-D4. The optional extras install Python dependencies only; they do not bundle large model or vendor files into the main `pyar-chem` wheel. AIMNet2 `.jpt` models, AIQM1 `.pt` models, and vendored MLatom binaries must come from the upstream project or another separate model/package source. See [docs/external_programs.rst](docs/external_programs.rst) for the official project websites and installation notes.
 
 ## Documentation
 

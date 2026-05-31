@@ -1,9 +1,11 @@
 import builtins
 import importlib
+import zipfile
 import subprocess
 import sys
 import unittest
 from importlib.metadata import version
+from pathlib import Path
 from unittest import mock
 
 
@@ -24,6 +26,24 @@ class PackagingMetadataTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("usage", result.stdout.lower())
+
+    def test_built_wheel_excludes_large_model_assets(self):
+        wheels = sorted(Path("dist").glob("pyar_chem-*.whl"))
+        if not wheels:
+            self.skipTest("built wheel not available")
+
+        with zipfile.ZipFile(wheels[-1]) as archive:
+            names = set(archive.namelist())
+
+        for path in [
+            "pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt",
+            "pyar/AIMNet2/models/aimnet2_b973c_0.jpt",
+            "pyar/mlatom/MLatomF",
+            "pyar/mlatom/cs.so",
+            "pyar/mlatom/ref.json",
+            "pyar/mlatom/aiqm1_model/aiqm1_cc_cv0.pt",
+        ]:
+            self.assertNotIn(path, names)
 
     def test_representations_import_without_selection_extra(self):
         original_import = builtins.__import__
