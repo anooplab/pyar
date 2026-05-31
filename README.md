@@ -32,6 +32,7 @@ Some workflows rely on external executables such as xTB, ORCA, Gaussian, Psi4, M
 ## Documentation
 
 Full documentation: [docs/](docs/) and https://pyar.readthedocs.io/
+Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ## Citation
 
