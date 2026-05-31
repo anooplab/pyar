@@ -5,6 +5,7 @@ from unittest import mock
 
 import numpy as np
 from ase import Atoms
+from ase.units import Hartree
 
 from pyar.backend_capabilities import (
     BackendCapabilities,
@@ -64,6 +65,38 @@ class EnergyGradientProviderTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "not 'psi4'"):
             get_energy_gradient_provider("psi4")
+
+    def test_aimnet2_provider_loads_model_lazily(self):
+        class FakeCalculator:
+            def __init__(self, model, charge=0):
+                self.model = model
+                self.charge = charge
+
+            def get_potential_energy(self, atoms=None):
+                return 1.0
+
+            def get_forces(self, atoms=None):
+                return np.zeros((2, 3), dtype=float)
+
+        provider = get_energy_gradient_provider("aimnet_2", {"charge": 1})
+        molecule = Atoms(symbols=["H", "H"], positions=np.zeros((2, 3)))
+        coordinates_bohr = np.zeros((2, 3), dtype=float)
+
+        with (
+            mock.patch(
+                "pyar.backends.aimnet_2.load_default_aimnet2_model",
+                return_value=object(),
+            ) as load_model,
+            mock.patch(
+                "pyar.AIMNet2.calculators.aimnet2ase.AIMNet2Calculator",
+                FakeCalculator,
+            ),
+        ):
+            result = provider.evaluate(molecule, coordinates_bohr)
+
+        load_model.assert_called_once_with()
+        self.assertAlmostEqual(result.energy_hartree, 1.0 / Hartree)
+        np.testing.assert_allclose(result.gradient_hartree_per_bohr, np.zeros((2, 3)))
 
     def test_orca_provider_runs_single_point_and_reads_engrad(self):
         provider = get_energy_gradient_provider(

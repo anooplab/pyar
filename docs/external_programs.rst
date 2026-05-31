@@ -47,8 +47,10 @@ Official project sites
 What PyAR installs
 ------------------
 
-PyAR installs the Python package and its bundled runtime assets. It does not
-install the external executables above.
+PyAR installs the Python package and small support files. It does not install
+the external executables above, and the ``pyar-chem`` wheel does not bundle
+large AIMNet2 or MLatom model/vendor assets. Optional extras install Python
+dependencies only.
 
 See also
 --------

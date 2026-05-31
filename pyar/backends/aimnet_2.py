@@ -4,12 +4,16 @@ import logging
 import os
 import subprocess as subp
 import sys
-from importlib import resources
-from pathlib import Path
+from functools import lru_cache
 
 import numpy as np
 import pyar  # noqa: F401
 from pyar.backends import SF, write_xyz  # noqa: F401
+from pyar.backends.aimnet2_assets import (
+    MODEL_PATH,
+    SCRIPT_PATH,
+    validate_aimnet2_runtime_assets,
+)
 from pyar.optional_dependencies import optional_dependency_error
 
 Aimnet2_logger = logging.getLogger('pyar.aimnet-2')
@@ -25,13 +29,16 @@ except ImportError as exc:
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
-
-
 device = torch.device('cpu')
 Aimnet2_logger.debug("AIMNet2 torch device: %s", device)
 
-MODEL_PATH = str(resources.files("pyar").joinpath("AIMNet2/models/aimnet2_wb97m-d3_0.jpt"))
-SCRIPT_PATH = str(resources.files("pyar").joinpath("AIMNet2/calculators/aimnet2_ase_opt.py"))
+
+@lru_cache(maxsize=1)
+def load_default_aimnet2_model():
+    """Load the default AIMNet2 model lazily when energy/gradient evaluation starts."""
+    validate_aimnet2_runtime_assets(include_script=False)
+    return torch.jit.load(MODEL_PATH, map_location=device)
+
 
 class Aimnet2(SF):
     def __init__(self, molecule, qc_params):
@@ -65,18 +72,7 @@ class Aimnet2(SF):
     @staticmethod
     def _validate_runtime_files():
         """Validate AIMNet2 runtime assets before running jobs."""
-        missing = []
-        if not Path(MODEL_PATH).is_file():
-            missing.append(MODEL_PATH)
-        if not Path(SCRIPT_PATH).is_file():
-            missing.append(SCRIPT_PATH)
-        if missing:
-            raise FileNotFoundError(
-                "AIMNet2 runtime assets are not bundled in the pyar-chem wheel. "
-                "Provide the model files separately or install AIMNet2 from a source checkout. "
-                "Missing files: "
-                + ", ".join(missing)
-            )
+        validate_aimnet2_runtime_assets()
 
     def prepare_input(self):
         coords = self.start_coords

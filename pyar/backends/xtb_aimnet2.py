@@ -4,18 +4,19 @@ import logging
 import os
 import subprocess as subp
 import sys
-from importlib import resources
-from pathlib import Path
 
 import numpy as np
 
 from pyar.backends import SF, require_executable, write_xyz
+from pyar.backends.aimnet2_assets import (
+    MODEL_PATH,
+    SCRIPT_PATH,
+    validate_aimnet2_runtime_assets,
+)
 from pyar.backends.xtb_utils import build_xtb_command
 
 xtb_aimnet2_logger = logging.getLogger('pyar.xtb_aimnet2')
 
-MODEL_PATH = str(resources.files("pyar").joinpath("AIMNet2/models/aimnet2_wb97m-d3_0.jpt"))
-SCRIPT_PATH = str(resources.files("pyar").joinpath("AIMNet2/calculators/aimnet2_ase_opt.py"))
 
 class XtbAimnet2(SF):
     """Run xTB, then refine the xTB minimum with AIMNet2."""
@@ -57,18 +58,7 @@ class XtbAimnet2(SF):
     @staticmethod
     def _validate_runtime_files():
         """Validate AIMNet2 runtime assets before running jobs."""
-        missing = []
-        if not Path(MODEL_PATH).is_file():
-            missing.append(MODEL_PATH)
-        if not Path(SCRIPT_PATH).is_file():
-            missing.append(SCRIPT_PATH)
-        if missing:
-            raise FileNotFoundError(
-                "AIMNet2 runtime assets are not bundled in the pyar-chem wheel. "
-                "Provide the model files separately or install AIMNet2 from a source checkout. "
-                "Missing files: "
-                + ", ".join(missing)
-            )
+        validate_aimnet2_runtime_assets()
 
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
         # XTB optimization

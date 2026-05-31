@@ -187,11 +187,14 @@ class Aimnet2EnergyGradientProvider:
 
     def evaluate(self, molecule, coordinates_bohr):
         from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
-        from pyar.backends.aimnet_2 import aimnet2
+        from pyar.backends.aimnet_2 import load_default_aimnet2_model
 
         coordinates_bohr = _as_numpy_positions(coordinates_bohr)
         coordinates_angstrom = bohr2angstrom(coordinates_bohr)
-        calculator = AIMNet2Calculator(aimnet2, charge=int(self.qc_params.get("charge", 0) or 0))
+        calculator = AIMNet2Calculator(
+            load_default_aimnet2_model(),
+            charge=int(self.qc_params.get("charge", 0) or 0),
+        )
         ase_atoms = Atoms(
             symbols=molecule.get_chemical_symbols(),
             positions=coordinates_angstrom,

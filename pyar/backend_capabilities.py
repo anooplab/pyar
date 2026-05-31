@@ -145,7 +145,7 @@ BACKEND_CAPABILITIES = {
         required_python_modules=frozenset({"torch"}),
         optional_extra_hint="aimnet2",
         supported_options=frozenset(),
-        notes="Uses packaged AIMNet2 assets and the Cartesian energy/gradient provider."
+        notes="Uses external AIMNet2 model assets and the Cartesian energy/gradient provider."
     ),
     "aiqm1_mlatom": BackendCapabilities(
         family="mlip",

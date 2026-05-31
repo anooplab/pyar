@@ -1,9 +1,9 @@
 import builtins
 import importlib
-import zipfile
 import subprocess
 import sys
 import unittest
+import zipfile
 from importlib.metadata import version
 from pathlib import Path
 from unittest import mock
@@ -35,15 +35,36 @@ class PackagingMetadataTests(unittest.TestCase):
         with zipfile.ZipFile(wheels[-1]) as archive:
             names = set(archive.namelist())
 
-        for path in [
-            "pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt",
-            "pyar/AIMNet2/models/aimnet2_b973c_0.jpt",
+        blocked_exact = {
             "pyar/mlatom/MLatomF",
             "pyar/mlatom/cs.so",
             "pyar/mlatom/ref.json",
-            "pyar/mlatom/aiqm1_model/aiqm1_cc_cv0.pt",
-        ]:
-            self.assertNotIn(path, names)
+        }
+        blocked_patterns = (
+            ("pyar/AIMNet2/models/", ".jpt"),
+            ("pyar/mlatom/aiqm1_model/", ".pt"),
+        )
+        offenders = sorted(
+            name
+            for name in names
+            if name in blocked_exact
+            or any(
+                name.startswith(prefix) and name.endswith(suffix)
+                for prefix, suffix in blocked_patterns
+            )
+        )
+        self.assertEqual(offenders, [])
+
+    def test_aimnet2_missing_asset_error_describes_external_model_policy(self):
+        from pyar.backends import aimnet2_assets
+
+        with mock.patch.object(
+            aimnet2_assets,
+            "missing_aimnet2_assets",
+            return_value=["missing-model.jpt"],
+        ):
+            with self.assertRaisesRegex(FileNotFoundError, "not bundled"):
+                aimnet2_assets.validate_aimnet2_runtime_assets()
 
     def test_representations_import_without_selection_extra(self):
         original_import = builtins.__import__
