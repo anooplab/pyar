@@ -52,7 +52,7 @@ class ReactionRunState:
         self.data = data
 
     @classmethod
-    def create(cls, root_directory, request, orientations, reactants):
+    def create(cls, root_directory, request, orientations, reactants, sampling=None):
         """Create and persist state for a fresh reaction calculation."""
         data = {
             "version": STATE_VERSION,
@@ -70,6 +70,8 @@ class ReactionRunState:
             "input_reactants": [],
             "next_snapshot": 0,
         }
+        if sampling is not None:
+            data["sampling"] = _json_value(sampling)
         state = cls(root_directory, data)
         state.geometry_directory.mkdir(parents=True, exist_ok=True)
         state.data["input_reactants"] = [
@@ -105,7 +107,7 @@ class ReactionRunState:
         return state
 
     @classmethod
-    def migrate_legacy(cls, root_directory, checkpoint, request):
+    def migrate_legacy(cls, root_directory, checkpoint, request, sampling=None):
         """Convert an unambiguous legacy ``jobs.pkl`` checkpoint to JSON state."""
         requested_schedule = [float(value) for value in request["gamma_schedule"]]
         legacy_label_map = {}
@@ -164,6 +166,8 @@ class ReactionRunState:
             "next_snapshot": 0,
             "legacy_import": "jobs.pkl",
         }
+        if sampling is not None:
+            data["sampling"] = _json_value(sampling)
         state = cls(root_directory, data)
         state.geometry_directory.mkdir(parents=True, exist_ok=True)
         state._replace_pending_orientations(checkpoint[next(iter(checkpoint))])

@@ -49,6 +49,7 @@ Next Steps
 If you want to use PyAR for a similar chemistry problem:
 
 * start with :doc:`quickstart` to choose the right command
+* use :doc:`aggregate`, :doc:`react`, and :doc:`solvate` for the main tasks
 * use :doc:`workflows` to see what each workflow writes to disk
 * use :doc:`usage` for helper commands and analysis tools
 

@@ -15,6 +15,7 @@ from collections import defaultdict
 from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
+    normalize_backend_name,
     supported_geometry_backends,
 )
 from pyar.data import defualt_parameters
@@ -29,7 +30,13 @@ def argument_parse():
     """Parse the reaction-search command-line arguments."""
     parser = argparse.ArgumentParser(description="pyar-react - Command-line interface for PyAR reactor")
     parser.add_argument("input_files", metavar='file', type=str, nargs='+', help='input coordinate files in xyz format.')
-    parser.add_argument('-N', dest='how_many_orientations', metavar='N', required=True, help='The number of orientations to be used')
+    parser.add_argument(
+        '-N',
+        dest='how_many_orientations',
+        metavar='N',
+        required=True,
+        help='Number of trial orientations to generate.',
+    )
     parser.add_argument('--gmin', type=float, required=True, help='minimum value of gamma')
     parser.add_argument('--gmax', type=float, required=True, help='maximum value of gamma')
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
@@ -80,7 +87,8 @@ def main():
 
     logger.info(f"Using index: {index} (final index of the first reactant)")
     geometry_optimizer = run_parameters['geometry_optimizer']
-    if backend_supports_geometry_optimization(run_parameters['software']):
+    software = normalize_backend_name(run_parameters['software'])
+    if backend_supports_geometry_optimization(software):
         if run_parameters['opt_target'] == 'ts':
             sys.exit(
                 "Transition-state optimization is reserved for a future "

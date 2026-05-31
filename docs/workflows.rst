@@ -3,7 +3,7 @@ Workflow Internals
 
 This page is a technical map of the main PyAR workflow implementations. If you
 are using PyAR for chemistry, start with the task pages instead:
-:doc:`aggregation`, :doc:`reaction`, :doc:`solvation`, and :doc:`bond_scan`.
+:doc:`aggregate`, :doc:`react`, :doc:`solvate`, and :doc:`bond_scan`.
 
 The word "workflow" is used here in the developer sense: a coordinated set of
 sampling, optimisation, selection, restart, and reporting steps.

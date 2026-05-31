@@ -44,7 +44,7 @@ class AggregateRunState:
         self.data = data
 
     @classmethod
-    def create(cls, root_directory, request, pathway_labels, legacy_import=None):
+    def create(cls, root_directory, request, pathway_labels, legacy_import=None, sampling=None):
         """Create and persist state for a new or imported aggregation run."""
         data = {
             "version": STATE_VERSION,
@@ -56,6 +56,8 @@ class AggregateRunState:
             "completed_pathways": [],
             "final_selected_results": [],
         }
+        if sampling is not None:
+            data["sampling"] = _json_value(sampling)
         if legacy_import is not None:
             data["legacy_import"] = str(legacy_import)
         state = cls(root_directory, data)

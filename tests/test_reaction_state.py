@@ -32,6 +32,14 @@ class ReactionRunStateTests(unittest.TestCase):
             "proximity_factor": 2.3,
             "reactants": [],
         }
+        self.sampling = {
+            "direction_method": "fibonacci",
+            "rotation_method": "halton",
+            "number_of_orientations": 1,
+            "sequence_offset": 0,
+            "oversample_factor": 8,
+            "use_angles": True,
+        }
 
     def test_create_writes_json_and_roundtrips_pending_geometry_metadata(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -41,6 +49,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             loaded_state = ReactionRunState.load(tmpdir, self.request)
             molecule = loaded_state.pending_molecules()[0]
@@ -50,6 +59,7 @@ class ReactionRunStateTests(unittest.TestCase):
 
         self.assertEqual(raw_state["version"], 2)
         self.assertEqual(raw_state["gamma_schedule"], [100.0, 200.0])
+        self.assertEqual(raw_state["sampling"], self.sampling)
         self.assertEqual(molecule.fragments, [[0], [1]])
         self.assertEqual(molecule.multiplicity, 2)
         np.testing.assert_allclose(molecule.coordinates, self.orientation.coordinates)
@@ -62,6 +72,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             changed = {**self.request, "gamma_schedule": [100.0, 300.0]}
 
@@ -76,6 +87,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             state.record_job("job_0", 100.0, "success", [], [self.orientation])
             state.complete_cycle(100.0, [self.orientation])
@@ -93,6 +105,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             state.record_job("job_0", 100.0, "success", [], [self.orientation])
             resumed = ReactionRunState.load(tmpdir, self.request)
@@ -110,6 +123,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             product_path = products / "product_0.xyz"
             self.orientation.mol_to_xyz(str(product_path))
@@ -130,6 +144,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             product_path = products / "product_0.xyz"
             self.orientation.mol_to_xyz(str(product_path))
@@ -159,6 +174,7 @@ class ReactionRunStateTests(unittest.TestCase):
                 self.request,
                 [self.orientation],
                 (self.reactant_a, self.reactant_b),
+                sampling=self.sampling,
             )
             pending_path = state.reaction_directory / state.data["pending_orientations"][0]["path"]
             pending_path.unlink()
@@ -171,10 +187,16 @@ class ReactionRunStateTests(unittest.TestCase):
         legacy = {"0200": [self.orientation]}
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "reaction").mkdir()
-            state = ReactionRunState.migrate_legacy(tmpdir, legacy, self.request)
+            state = ReactionRunState.migrate_legacy(
+                tmpdir,
+                legacy,
+                self.request,
+                sampling=self.sampling,
+            )
 
         self.assertEqual(state.data["current_cycle"], 1)
         self.assertEqual(state.remaining_gamma_schedule(), [200.0])
+        self.assertEqual(state.data["sampling"], self.sampling)
 
     def test_legacy_import_rejects_collapsed_fractional_schedule(self):
         request = {**self.request, "gamma_schedule": [0.1, 0.2]}

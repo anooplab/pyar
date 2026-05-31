@@ -20,6 +20,39 @@ pyar.AIMNet2
    :undoc-members:
    :show-inheritance:
 
+Molecule
+--------
+
+pyar.Molecule
+~~~~~~~~~~~~~
+
+.. automodule:: pyar.Molecule
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Afir
+----
+
+pyar.afir
+~~~~~~~~~
+
+.. automodule:: pyar.afir
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.afir.restraints
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.afir.restraints
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Aggregate State
 ---------------
 
@@ -27,6 +60,18 @@ pyar.aggregate_state
 ~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.aggregate_state
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Aggregator
+----------
+
+pyar.aggregator
+~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.aggregator
    :no-index:
    :members:
    :undoc-members:
@@ -167,6 +212,27 @@ pyar.data.units
    :undoc-members:
    :show-inheritance:
 
+Data Analysis
+-------------
+
+pyar.data_analysis
+~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.data_analysis
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.data_analysis.clustering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.data_analysis.clustering
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Energy Gradient Providers
 -------------------------
 
@@ -186,6 +252,27 @@ pyar.file_manager
 ~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.file_manager
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Interface
+---------
+
+pyar.interface
+~~~~~~~~~~~~~~
+
+.. automodule:: pyar.interface
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.interface.mlopt
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.interface.mlopt
    :no-index:
    :members:
    :undoc-members:
@@ -233,6 +320,30 @@ pyar.mlatom
    :undoc-members:
    :show-inheritance:
 
+Molecule Geometry
+-----------------
+
+pyar.molecule_geometry
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.molecule_geometry
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Molecule Io
+-----------
+
+pyar.molecule_io
+~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.molecule_io
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Molecule Merge
 --------------
 
@@ -264,6 +375,18 @@ pyar.optional_dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.optional_dependencies
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Orientation Sampling
+--------------------
+
+pyar.orientation_sampling
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.orientation_sampling
    :no-index:
    :members:
    :undoc-members:
@@ -324,6 +447,18 @@ pyar.reaction_trace
 ~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.reaction_trace
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Reactor
+-------
+
+pyar.reactor
+~~~~~~~~~~~~
+
+.. automodule:: pyar.reactor
    :no-index:
    :members:
    :undoc-members:
@@ -560,6 +695,15 @@ pyar.selection.diversity
    :undoc-members:
    :show-inheritance:
 
+pyar.selection.reports
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.reports
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Similarity
 ----------
 
@@ -618,6 +762,18 @@ pyar.state.solvation
 ~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.state.solvation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Trial Generation
+----------------
+
+pyar.trial_generation
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.trial_generation
    :no-index:
    :members:
    :undoc-members:

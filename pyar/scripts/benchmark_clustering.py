@@ -19,6 +19,7 @@ import numpy as np
 from pyar.core.molecule import Molecule
 from pyar import representations
 from pyar.selection import clustering
+from pyar.selection import reports as selection_reports
 
 
 DEFAULT_ALGORITHMS = [
@@ -49,7 +50,7 @@ def _load_pool(path: Path):
     molecules = []
     for each_file in files:
         mol = Molecule.from_xyz(str(each_file))
-        mol.energy = clustering.read_energy_from_xyz_file(str(each_file))
+        mol.energy = selection_reports.read_energy_from_xyz_file(str(each_file))
         molecules.append(mol)
     return molecules
 

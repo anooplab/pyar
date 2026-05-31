@@ -13,7 +13,7 @@ from pyar.backends import SF, write_xyz  # noqa: F401
 
 mlatom_logger = logging.getLogger('pyar.mlatom')
 
-aiqm1_opt = str(resources.files('pyar').joinpath('interface/mlopt.py'))
+aiqm1_opt = str(resources.files('pyar').joinpath('backends/mlopt.py'))
 
 class AIQM1(SF):
     def __init__(self, molecule, qc_params):

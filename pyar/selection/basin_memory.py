@@ -10,6 +10,18 @@ import numpy as np
 
 import pyar.representations
 
+__all__ = [
+    "_apply_basin_memory",
+    "_basin_novelty_scores",
+    "_basin_registry_path",
+    "_entry_fingerprint",
+    "_fingerprint_signature",
+    "_load_basin_registry",
+    "_persist_basin_registry",
+    "_stoichiometry_label",
+    "record_selected_basins",
+]
+
 
 def _stoichiometry_label(molecule):
     """Return a compact stoichiometry label for basin snapshots."""

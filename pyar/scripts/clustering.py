@@ -10,6 +10,7 @@ import argparse
 import sys
 
 from pyar.selection import clustering
+from pyar.selection import reports as selection_reports
 from pyar.core.molecule import Molecule
 
 
@@ -43,10 +44,10 @@ def main():
     mols = []
     for each_file in input_files:
         mol = Molecule.from_xyz(each_file)
-        mol.energy = clustering.read_energy_from_xyz_file(each_file)
+        mol.energy = selection_reports.read_energy_from_xyz_file(each_file)
         mols.append(mol)
 
-    clustering.print_energy_table(
+    selection_reports.print_energy_table(
         mols,
         stream=sys.stdout,
         title="Input pool energies:",
@@ -60,7 +61,7 @@ def main():
         )
     if args.mode == 'filter':
         selected = clustering.remove_similar(mols)
-    clustering.print_energy_table(
+    selection_reports.print_energy_table(
         selected,
         stream=sys.stdout,
         title="Selected pool energies:",

@@ -52,10 +52,15 @@ class EnergyGradientProviderTests(unittest.TestCase):
             "orca",
             {"charge": 0, "multiplicity": 1, "method": "B97-D", "basis": "def2-SVP", "nprocs": 1},
         )
+        orca_alias_provider = get_energy_gradient_provider(
+            "orca16",
+            {"charge": 0, "multiplicity": 1, "method": "B97-D", "basis": "def2-SVP", "nprocs": 1},
+        )
         self.assertTrue(hasattr(xtb_provider, "evaluate"))
         self.assertTrue(hasattr(aimnet_provider, "evaluate"))
         self.assertTrue(hasattr(gaussian_provider, "evaluate"))
         self.assertTrue(hasattr(orca_provider, "evaluate"))
+        self.assertTrue(hasattr(orca_alias_provider, "evaluate"))
 
         with self.assertRaisesRegex(ValueError, "not 'psi4'"):
             get_energy_gradient_provider("psi4")

@@ -2,8 +2,9 @@ PyAR 2.0 API Migration
 ======================
 
 PyAR 2.0 narrows the supported Python API to documented package entrypoints.
-Legacy compatibility modules from the 1.x transition are removed. Command-line
-workflows continue to use ``pyar-cli``.
+Legacy compatibility modules from the 1.x transition remain as thin shims
+while the migration is completed. Command-line workflows continue to use
+``pyar-cli``.
 
 Supported Public Imports
 ------------------------
@@ -48,10 +49,10 @@ Import Path Changes
      - Use ``from pyar.workflows import aggregate`` for application code.
    * - ``pyar.interface``
      - ``pyar.backends``
-     - Backend adapters are no longer re-exported through ``interface``.
+     - Backend adapters live under ``backends``; legacy aliases may remain for compatibility.
    * - ``pyar.afir.restraints``
      - ``pyar.biases.afir``
-     - AFIR bias functions are exposed only from ``biases``.
+     - AFIR bias functions are implemented under ``biases``.
    * - ``pyar.afir.utils``
      - ``pyar.biases.afir``
      - ``resolve_gamma`` moved with AFIR bias helpers.

@@ -1,9 +1,36 @@
-Trial Direction Sampling
-========================
+Sampling
+========
 
-Trial geometry generation begins by choosing directions on the unit sphere.
-This spatial sampling problem is independent of the element types and should
-be assessed separately from molecular rotation and local optimization.
+PyAR trial geometry generation first samples directions on the unit sphere
+and, when the monomer has more than one atom, samples monomer orientations
+with quaternion-based rotations. This spatial sampling layer is separate from
+backend optimization and is intentionally not a proposal-memory or adaptive
+sampling system.
+
+Direction Methods
+-----------------
+
+The supported direction methods are:
+
+* ``fibonacci``: deterministic equal-area spherical Fibonacci sampling.
+* ``lhs``: Latin-hypercube sampling on the sphere, seeded when requested.
+* ``random``: random unit vectors on the sphere, seeded when requested.
+* ``lhs_maximin``: oversampled Latin-hypercube candidates filtered by greedy
+  maximin selection.
+* ``fibonacci_maximin``: oversampled Fibonacci candidates filtered by greedy
+  maximin selection.
+
+The default direction method is ``fibonacci``.
+
+Rotation Methods
+----------------
+
+The supported rotation/orientation methods are:
+
+* ``halton``: deterministic low-discrepancy unit quaternions.
+* ``random``: random unit quaternions, seeded when requested.
+
+The default rotation method is ``halton``.
 
 Benchmarking
 ------------
@@ -25,24 +52,28 @@ The table reports:
   direction. Lower values are better.
 * ``centroid_norm``: directional imbalance. Values near zero are preferred.
 
-Methods
--------
+Determinism and Sequence Offsets
+---------------------------------
 
-``fibonacci`` is deterministic equal-area spherical Fibonacci sampling.
-``lhs`` and ``random`` are randomized baselines. ``lhs_maximin`` and
-``fibonacci_maximin`` select a farthest-point subset from an oversized
-candidate pool.
+The sampling layer is reproducible for fixed inputs:
 
-The aggregate workflow default uses spherical Fibonacci placement directions.
-For multi-atom monomers it pairs those directions with deterministic
-low-discrepancy quaternion rotations, converted to the existing Euler-angle
-rotation API.
+* repeated calls to deterministic methods return identical results;
+* seeded random methods return identical results for the same seed;
+* ``sequence_offset`` advances the deterministic sampling sequence so
+  restartable multi-population runs can generate distinct but reproducible
+  point sets.
 
-Standalone commands that request multiple generated populations use a
-deterministic ``sequence_offset`` for each population. This retains
-reproducibility while avoiding repeated copies of the same point design.
+Trial-vector generation uses Fibonacci directions by default and Halton
+quaternion rotations by default. The generated trial-vector array contains
+three unit direction components followed by three Z-X-Z Euler angles in
+radians. When the monomer is monatomic, the angle columns are zeroed because
+the legacy geometry-merging path does not need rotational degrees of freedom.
 
-The implementation is exposed by ``pyar.sampling.trial_generator`` and the
+``trial_vectors.dat`` is written as a stable whitespace-separated table with
+one trial vector per row and six columns. The file is overwritten on each
+write so repeated calls with the same input produce identical output.
+
+The implementation is exposed by ``pyar.sampling`` together with the
 ``pyar-trial-generation`` command.
 
 Literature Basis

@@ -38,8 +38,9 @@ Run a small solvation-style growth job with xTB:
 
    pyar-cli solvate water.xyz water.xyz --software xtb -ss 1 -N 4 -c 0 0 -m 1 1
 
-If xTB is not installed, PyAR should report that the executable is missing. See
-:doc:`installation` and :doc:`xtb` for backend setup.
+If xTB is not installed, PyAR should report that the executable is missing.
+See :doc:`installation`, :doc:`external_programs`, and :doc:`xtb` for backend
+setup.
 
 4. Inspect the output
 ---------------------
@@ -109,7 +110,7 @@ Next steps
 
 After this first run, try the task pages:
 
-* :doc:`aggregation` for clusters and noncovalent complexes
-* :doc:`solvation` for adding molecules or ligands around a core
-* :doc:`reaction` for AFIR-style reaction searches
+* :doc:`aggregate` for clusters and noncovalent complexes
+* :doc:`solvate` for adding molecules or ligands around a core
+* :doc:`react` for AFIR-style reaction searches
 * :doc:`bond_scan` for a simple distance-coordinate probe

@@ -1,4 +1,4 @@
-"""Rotation sampling helpers for trial placement."""
+"""Rotation and orientation sampling helpers for trial placement."""
 
 from __future__ import annotations
 
@@ -40,7 +40,11 @@ def random_quaternions(number_of_points: int, seed: int | None = None) -> np.nda
 
 
 def halton_quaternions(number_of_points: int, seed: int | None = None) -> np.ndarray:
-    """Generate deterministic low-discrepancy unit quaternions."""
+    """Generate deterministic low-discrepancy unit quaternions.
+
+    ``seed`` advances the Halton sequence deterministically so repeated
+    calls with the same offset return the same rotation set.
+    """
     count = _require_count(number_of_points)
     offset = 0 if seed is None else int(seed)
     cube = _halton_sequence(count, bases=(2, 3, 5), offset=offset)

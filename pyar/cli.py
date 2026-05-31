@@ -16,6 +16,8 @@ from pyar.backend_capabilities import (
     backend_family,
     backend_supports_geometry_optimization,
     backend_supports_staged_optimization,
+    get_backend_capabilities,
+    normalize_backend_name,
     unsupported_qc_options,
     supported_geometry_backends,
 )
@@ -213,6 +215,12 @@ def _dispatch_trace_subcommand(argv):
     reaction_trace_main(argv)
 
 
+def _log_workflow_result(result):
+    """Log a structured workflow result when a workflow returns one."""
+    if hasattr(result, "to_dict"):
+        logger.info("Workflow result: %s", result.to_dict())
+
+
 def argument_parse(argv=None):
     if argv is None:
         argv = sys.argv[1:]
@@ -405,37 +413,68 @@ def _validate_cli_request_shape(run_parameters, number_of_input_files):
 
 def _missing_module_message(module_name, install_hint):
     """Return a short install hint for a missing Python module."""
+    if install_hint.startswith("http"):
+        install_text = f"See {install_hint} for installation details."
+    else:
+        install_text = f"Install it with {install_hint}."
     return (
         f"Missing Python package '{module_name}'. "
-        f"Install it with {install_hint}."
+        f"{install_text}"
     )
 
 
 def _missing_executable_message(program, friendly_name, install_hint):
     """Return a short install hint for a missing executable."""
+    if install_hint.startswith("http"):
+        install_text = f"See {install_hint} for installation details."
+    else:
+        install_text = f"Install it with {install_hint}."
     return (
         f"Missing executable '{program}' for {friendly_name}. "
-        f"Install it with {install_hint} and make sure '{program}' is on PATH."
+        f"{install_text} Make sure '{program}' is on PATH."
     )
+
+
+_BACKEND_EXECUTABLE_REQUIREMENT_HINTS = {
+    "g16": ("Gaussian", "https://www.gaussian.com/g16/g16src_install.pdf"),
+    "orca": ("ORCA", "https://orca-manual.mpi-muelheim.mpg.de/contents/quickstartguide/installation.html"),
+    "psi4": ("Psi4", "https://psicode.org/psi4manual/master/index.html"),
+    "define": ("Turbomole", "https://www.turbomole.org/turbomole/turbomole-documentation/"),
+    "xtb": ("xTB", "https://xtb-docs.readthedocs.io/en/latest/setup.html"),
+    "mopac": ("MOPAC", "https://openmopac.net/download/installer/"),
+    "obabel": ("OpenBabel", "https://openbabel.org/docs/Installation/install.html"),
+    "obminimize": ("OpenBabel", "https://openbabel.org/docs/Installation/install.html"),
+    "obenergy": ("OpenBabel", "https://openbabel.org/docs/Installation/install.html"),
+}
+
+
+_BACKEND_MODULE_REQUIREMENT_HINTS = {
+    "mlatom": "https://mlatom.com/docs/installation.html",
+    "torch": "https://pytorch.org/get-started/locally/",
+    "torchani": "https://github.com/aiqm/torchani",
+    "ase": "https://wiki.fysik.dtu.dk/ase/install.html",
+    "geometric": "https://geometric.readthedocs.io/en/1.1/install.html",
+}
 
 
 def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
     """Return user-facing messages for missing requirements on the active path."""
     missing = []
+    capabilities = get_backend_capabilities(software)
 
     if geometry_optimizer == "geometric" and software is not None:
         if importlib.util.find_spec("ase") is None:
             missing.append(
                 _missing_module_message(
                     "ase",
-                    'python -m pip install "pyar-chem[xtb]"',
+                    _BACKEND_MODULE_REQUIREMENT_HINTS["ase"],
                 )
             )
         if importlib.util.find_spec("geometric") is None:
             missing.append(
                 _missing_module_message(
                     "geometric",
-                    'python -m pip install "pyar-chem[xtb]"',
+                    _BACKEND_MODULE_REQUIREMENT_HINTS["geometric"],
                 )
             )
         if shutil.which("geometric-optimize") is None:
@@ -443,114 +482,31 @@ def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
                 _missing_executable_message(
                     "geometric-optimize",
                     "geomeTRIC",
-                    'python -m pip install "pyar-chem[xtb]"',
+                    "https://geometric.readthedocs.io/en/1.1/install.html",
                 )
             )
 
-    if software == "obabel":
-        for executable in ("obabel", "obminimize", "obenergy"):
-            if shutil.which(executable) is None:
-                missing.append(
-                    _missing_executable_message(
-                        executable,
-                        "OpenBabel",
-                        'conda install -c conda-forge openbabel',
-                    )
-                )
-    elif software == "mopac":
-        if shutil.which("mopac") is None:
+    canonical_software = normalize_backend_name(software)
+    for executable in capabilities.required_executables:
+        if shutil.which(executable) is None:
+            friendly_name, install_hint = _BACKEND_EXECUTABLE_REQUIREMENT_HINTS.get(
+                executable,
+                (canonical_software, 'python -m pip install "pyar-chem[all]"'),
+            )
             missing.append(
                 _missing_executable_message(
-                    "mopac",
-                    "MOPAC",
-                    'conda install -c conda-forge mopac',
+                    executable,
+                    friendly_name,
+                    install_hint,
                 )
             )
-        if shutil.which("obabel") is None:
-            missing.append(
-                _missing_executable_message(
-                    "obabel",
-                    "OpenBabel",
-                    'conda install -c conda-forge openbabel',
-                )
-            )
-    elif software in {"xtb", "xtb-aimnet2", "xtb-aiqm1"}:
-        if shutil.which("xtb") is None:
-            missing.append(
-                _missing_executable_message(
-                    "xtb",
-                    "xTB",
-                    'conda install -c conda-forge xtb',
-                )
-            )
-    elif software == "xtb_turbo":
-        if shutil.which("define") is None:
-            missing.append(
-                _missing_executable_message(
-                    "define",
-                    "Turbomole",
-                    'conda install -c conda-forge turbomole',
-                )
-            )
-        if shutil.which("xtb") is None:
-            missing.append(
-                _missing_executable_message(
-                    "xtb",
-                    "xTB",
-                    'conda install -c conda-forge xtb',
-                )
-            )
-    elif software == "orca":
-        if shutil.which("orca") is None:
-            missing.append(
-                _missing_executable_message(
-                    "orca",
-                    "ORCA",
-                    'install ORCA and add it to PATH',
-                )
-            )
-    elif software == "gaussian":
-        if shutil.which("g16") is None:
-            missing.append(
-                _missing_executable_message(
-                    "g16",
-                    "Gaussian",
-                    'install Gaussian and add g16 to PATH',
-                )
-            )
-    elif software == "psi4":
-        if shutil.which("psi4") is None:
-            missing.append(
-                _missing_executable_message(
-                    "psi4",
-                    "Psi4",
-                    'python -m pip install psi4',
-                )
-            )
-    elif software == "turbomole":
-        if shutil.which("define") is None:
-            missing.append(
-                _missing_executable_message(
-                    "define",
-                    "Turbomole",
-                    'install Turbomole and add define to PATH',
-                )
-            )
-    elif software in {"mlatom_aiqm1", "aiqm1_mlatom"}:
-        if importlib.util.find_spec("mlatom") is None:
-            missing.append(
-                _missing_module_message(
-                    "mlatom",
-                    'python -m pip install "pyar-chem[ml]"',
-                )
-            )
-    elif software == "aimnet_2":
-        for module_name in ("ase", "torch"):
-            if importlib.util.find_spec(module_name) is None:
+
+    for module_name in capabilities.required_python_modules:
+        if importlib.util.find_spec(module_name) is None:
                 missing.append(
                     _missing_module_message(
                         module_name,
-                        'python -m pip install "pyar-chem[aimnet2]"',
+                        _BACKEND_MODULE_REQUIREMENT_HINTS.get(module_name, "https://pypi.org/"),
                     )
                 )
 
@@ -822,7 +778,7 @@ def main():
                 "Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
                 selected_stoichiometry,
             )
-            aggregate(
+            result = aggregate(
                 input_molecules,
                 size_of_aggregate,
                 number_of_orientations,
@@ -832,6 +788,7 @@ def main():
                 run_parameters['number_of_pathways'],
                 site,
             )
+            _log_workflow_result(result)
             logger.info('Total Time: {}'.format(time.time() - t1_0))
             logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
@@ -845,7 +802,7 @@ def main():
             seeds = input_molecules[:-1]
             t1_0 = time.time()
             time_started = datetime.datetime.now()
-            solvate(
+            result = solvate(
                 seeds,
                 monomer,
                 number_of_solvent_molecules,
@@ -854,6 +811,7 @@ def main():
                 maximum_number_of_seeds,
                 site,
             )
+            _log_workflow_result(result)
             logger.info('Total Time: {}'.format(time.time() - t1_0))
             logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
@@ -870,7 +828,7 @@ def main():
             proximity_factor = 2.3
             zero_time = time.time()
             time_started = datetime.datetime.now()
-            reaction_workflow.react(
+            result = reaction_workflow.react(
                 input_molecules[0],
                 input_molecules[1],
                 minimum_gamma,
@@ -880,6 +838,7 @@ def main():
                 site,
                 proximity_factor,
             )
+            _log_workflow_result(result)
             logger.info('Total run time: {}'.format(time.time() - zero_time))
             logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
             return

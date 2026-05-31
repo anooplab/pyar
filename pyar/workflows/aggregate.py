@@ -5,8 +5,12 @@ This module owns the aggregation and cluster-generation workflow used by
 responsible for:
 
 * validating the aggregate request and restart state
+* creating or resuming the ``aggregates/`` run directory
 * selecting pathways and orientation sets
-* creating the working directory tree under ``aggregates/``
+* generating trial candidates and running backend optimization
+* selecting survivors from pathway-level and final clustering stages
+* persisting ``aggregates/state.json`` plus selected-geometry snapshots
+* returning a structured :class:`~pyar.workflow_results.AggregateResult`
 * running the backend optimization steps for each pathway
 * collecting the selected geometries and workflow result metadata
 
@@ -39,7 +43,11 @@ from pyar.workflows._growth import (
     update_id,
     _finalize_selected_geometries,
     _format_path,
+    sampling_configuration,
     _resolve_orientation_count,
+    workflow_run_directory,
+    workflow_state_path,
+    stopped_workflow_result,
     _working_directory,
 )
 
@@ -134,15 +142,13 @@ def aggregate(
     """
     if check_stop_signal():
         aggregator_logger.info("Function: aggregate")
-        run_directory = str(Path.cwd().resolve() / "aggregates")
-        return AggregateResult(
-            workflow="aggregate",
-            status="stopped",
-            run_directory=run_directory,
-            state_path=str(Path(run_directory) / "state.json"),
-        )
+        return stopped_workflow_result("aggregate", os.getcwd())
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
+    sampling = sampling_configuration(
+        number_of_orientations=number_of_orientations,
+        use_angles=None,
+    )
 
     root_directory = os.getcwd()
     parent_folder = "aggregates"
@@ -219,6 +225,7 @@ def aggregate(
                 request,
                 [_format_path(path) for path in pathways_to_calculate],
                 legacy_import="pyar.log",
+                sampling=sampling,
             )
             aggregator_logger.warning(
                 "Imported legacy pyar.log pathway markers into aggregates/state.json."
@@ -238,6 +245,7 @@ def aggregate(
                 root_directory,
                 request,
                 [_format_path(path) for path in pathways_to_calculate],
+                sampling=sampling,
             )
 
         pathways_to_calculate = [
@@ -301,8 +309,8 @@ def aggregate(
         result = AggregateResult(
             workflow="aggregate",
             status=run_state.data["status"],
-            run_directory=str(Path(root_directory).resolve() / "aggregates"),
-            state_path=str(Path(root_directory).resolve() / "aggregates" / "state.json"),
+            run_directory=workflow_run_directory(root_directory, "aggregates"),
+            state_path=workflow_state_path(workflow_run_directory(root_directory, "aggregates")),
             selected_paths=tuple(run_state.data.get("final_selected_results", [])),
             metadata={
                 "pathways": tuple(run_state.data.get("pathways", [])),
@@ -310,6 +318,7 @@ def aggregate(
                     record["label"] for record in run_state.data.get("completed_pathways", [])
                 ),
                 "legacy_import": run_state.data.get("legacy_import"),
+                "sampling": run_state.data.get("sampling", sampling),
             },
         )
 

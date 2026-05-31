@@ -14,11 +14,13 @@ from pyar.core.molecule import Molecule
 from pyar.sampling.rotation import (
     canonicalize_quaternion,
     halton_quaternions,
+    random_quaternions,
     quaternions_to_euler_zxz,
 )
-from pyar.sampling.sphere import generate_directions
+from pyar.sampling.sphere import _require_count, generate_directions
 
 trial_generation_logger = logging.getLogger('pyar.sampling.trial_generator')
+_VALID_ROTATION_METHODS = ("halton", "random")
 
 
 def polar_to_cartesian(r, theta, phi):
@@ -178,10 +180,14 @@ def generate_trial_vectors(
     oversample_factor: int = 8,
     use_angles: bool = True,
 ) -> np.ndarray:
-    """Return direction and orientation vectors for trial geometries."""
-    count = int(number_of_points)
-    if count < 1:
-        raise ValueError("number_of_points must be positive")
+    """Return direction and orientation vectors for trial geometries.
+
+    The first three columns are unit direction vectors. The final three
+    columns are Z-X-Z Euler angles in radians for the monomer orientation.
+    ``sequence_offset`` advances both the direction sequence and, when
+    orientations are used, the rotation sequence.
+    """
+    count = _require_count(number_of_points)
     directions = generate_directions(
         direction_method,
         count,
@@ -198,10 +204,13 @@ def generate_trial_vectors(
         if rotation_method == "halton":
             quaternions = halton_quaternions(count, seed=rotation_offset)
         elif rotation_method == "random":
-            from pyar.sampling.rotation import random_quaternions
             quaternions = random_quaternions(count, seed=rotation_offset)
         else:
-            raise ValueError(f"Unknown rotation method: {rotation_method}")
+            valid_methods = ", ".join(_VALID_ROTATION_METHODS)
+            raise ValueError(
+                f"Unknown rotation method: {rotation_method!r}. "
+                f"Valid methods are: {valid_methods}."
+            )
     else:
         quaternions = None
     if use_angles:
@@ -213,7 +222,13 @@ def generate_trial_vectors(
 
 
 def generate_points(number_of_orientations, sequence_offset=0):
-    """Generate default trial direction and monomer-orientation vectors."""
+    """Generate default trial direction and monomer-orientation vectors.
+
+    The default direction method is spherical Fibonacci sampling and the
+    default rotation method is Halton quaternion sampling.
+    ``number_of_orientations`` is the trial count passed through to the
+    underlying direction sampler.
+    """
     return generate_trial_vectors(
         number_of_orientations,
         direction_method="fibonacci",
@@ -274,11 +289,16 @@ def plot_points(points, location):
 
 
 def write_trial_vectors(vectors, output_file):
-    """Append generated direction and rotation vectors to an output file."""
-    with open(output_file, 'a') as tf:
-        for line in vectors:
-            tf.write(f'{str(line)} ')
-        tf.write('\n')
+    """Write generated direction and rotation vectors to a stable text file.
+
+    The file contains six whitespace-separated columns per row and is
+    overwritten on each call so repeated writes from the same input are
+    byte-for-byte reproducible.
+    """
+    values = np.asarray(vectors, dtype=float)
+    if values.ndim != 2 or values.shape[1] != 6:
+        raise ValueError("trial vectors must have shape (N, 6)")
+    np.savetxt(output_file, values, fmt="%.16e")
 
 
 def main():

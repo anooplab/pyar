@@ -84,6 +84,12 @@ Sampling API
    :members:
    :undoc-members:
 
+Selection API
+-------------
+
+Selection services are documented in :doc:`generated_api` to avoid duplicating
+the same object references in multiple API pages.
+
 Scripts package
 ---------------
 

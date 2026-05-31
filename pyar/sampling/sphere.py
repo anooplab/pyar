@@ -1,4 +1,4 @@
-"""Sphere sampling helpers for trial placement."""
+"""Sphere direction sampling helpers for trial placement."""
 
 from __future__ import annotations
 
@@ -9,6 +9,13 @@ from scipy.stats import qmc
 
 
 _GOLDEN_ANGLE = math.pi * (3.0 - math.sqrt(5.0))
+_VALID_DIRECTION_METHODS = (
+    "fibonacci",
+    "lhs",
+    "random",
+    "lhs_maximin",
+    "fibonacci_maximin",
+)
 
 
 def _require_count(number_of_points: int) -> int:
@@ -88,7 +95,12 @@ def generate_directions(
     sequence_offset: int = 0,
     oversample_factor: int = 8,
 ) -> np.ndarray:
-    """Generate trial-placement directions using a named sampling method."""
+    """Generate trial-placement directions using a named direction method.
+
+    ``sequence_offset`` advances deterministic methods such as
+    ``fibonacci`` so repeated populations can remain reproducible without
+    reusing the same direction set.
+    """
     count = _require_count(number_of_points)
     if method == "fibonacci":
         if sequence_offset:
@@ -109,4 +121,7 @@ def generate_directions(
     if method == "fibonacci_maximin":
         candidates = fibonacci_sphere(count * oversample_factor)
         return maximin_select(candidates, count)
-    raise ValueError(f"Unknown sphere sampling method: {method}")
+    valid_methods = ", ".join(_VALID_DIRECTION_METHODS)
+    raise ValueError(
+        f"Unknown direction method: {method!r}. Valid methods are: {valid_methods}."
+    )

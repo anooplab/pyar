@@ -70,7 +70,7 @@ def main():
         nargs="+",
         type=int,
         default=[8, 12, 20, 28],
-        help="Numbers of placement directions to benchmark.",
+        help="Numbers of direction samples to benchmark.",
     )
     parser.add_argument(
         "-m",

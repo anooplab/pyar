@@ -18,15 +18,28 @@ class AggregateRunStateTests(unittest.TestCase):
             "site": None,
             "fragments": [{"atoms": ["C"], "coordinates": [[0.0, 0.0, 0.0]]}],
         }
+        self.sampling = {
+            "direction_method": "fibonacci",
+            "rotation_method": "halton",
+            "number_of_orientations": 8,
+            "sequence_offset": 0,
+            "oversample_factor": 8,
+        }
 
     def test_create_and_load_roundtrips_remaining_pathways(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            state = AggregateRunState.create(tmpdir, self.request, ["abb", "bab"])
+            state = AggregateRunState.create(
+                tmpdir,
+                self.request,
+                ["abb", "bab"],
+                sampling=self.sampling,
+            )
             state.complete_pathway("abb", ["ag_a_001_b_001_000/selected/result_one.xyz"])
             loaded = AggregateRunState.load(tmpdir, self.request)
 
         self.assertEqual(loaded.completed_pathway_count(), 1)
         self.assertEqual(loaded.remaining_pathway_labels(), ["bab"])
+        self.assertEqual(loaded.data["sampling"], self.sampling)
 
     def test_load_rejects_changed_request(self):
         with tempfile.TemporaryDirectory() as tmpdir:

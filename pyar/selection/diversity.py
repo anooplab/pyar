@@ -4,6 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 
+__all__ = [
+    "_finalize_selection",
+    "_limit_seed_count",
+    "_log_seed_shortfall",
+    "_max_min_diversity_select",
+]
+
 
 def _log_seed_shortfall(requested, available, context):
     """Log that fewer unique geometries exist than the requested seed count."""
@@ -104,6 +111,6 @@ def _max_min_diversity_select(features, molecules, maximum_number_of_seeds, init
 
 def print_energy_table(molecules, stream=None, title=None):
     """Report energies with relative values against the global minimum."""
-    from pyar.selection import clustering
+    from pyar.selection import reports
 
-    return clustering.print_energy_table(molecules, stream=stream, title=title)
+    return reports.print_energy_table(molecules, stream=stream, title=title)

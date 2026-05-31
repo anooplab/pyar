@@ -11,6 +11,11 @@ from scipy.optimize import linear_sum_assignment
 
 import pyar.representations
 
+__all__ = [
+    "calc_fingerprint_distance",
+    "remove_similar",
+]
+
 
 def calc_fingerprint_distance(a, b):
     """Calculate the distance between two fingerprints."""
@@ -216,7 +221,7 @@ def remove_similar(list_of_molecules):
         if not duplicate:
             final_list.append(candidate)
     clustering.cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
-    from pyar.selection.clustering import print_energy_table
+    from pyar.selection.reports import print_energy_table
 
     print_energy_table(final_list)
     return final_list

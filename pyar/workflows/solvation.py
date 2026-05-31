@@ -1,9 +1,11 @@
 """Solvation workflow orchestration for PyAR.
 
 This module owns the growth workflow behind ``pyar-cli --solvate``. It
-persists a restartable solvation state, generates trial orientations for each
-cycle, and returns a structured result that describes the final selected
-seed geometries.
+validates the request, creates or resumes the ``solvation/`` run directory,
+generates trial orientations for each cycle, evaluates candidates through the
+selected backend, selects the surviving seed geometries, persists
+``solvation/state.json`` plus cycle snapshots, and returns a structured
+:class:`~pyar.workflow_results.SolvationResult`.
 """
 
 from __future__ import annotations
@@ -18,8 +20,12 @@ from pyar.workflows._growth import (
     add_one,
     aggregator_logger,
     check_stop_signal,
+    sampling_configuration,
+    stopped_workflow_result,
     _resolve_orientation_count,
     _working_directory,
+    workflow_run_directory,
+    workflow_state_path,
 )
 
 __all__ = ["solvate"]
@@ -67,13 +73,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
     """
     if check_stop_signal():
         aggregator_logger.info("Function: solvate")
-        run_directory = str(Path.cwd().resolve() / "solvation")
-        return SolvationResult(
-            workflow="solvation",
-            status="stopped",
-            run_directory=run_directory,
-            state_path=str(Path(run_directory) / "state.json"),
-        )
+        return stopped_workflow_result("solvation", os.getcwd())
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
 
@@ -87,6 +87,10 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
         maximum_number_of_seeds,
         site,
     )
+    sampling = sampling_configuration(
+        number_of_orientations=number_of_orientations,
+        use_angles=monomer.number_of_atoms > 1,
+    )
     run_state = SolvationRunState.load(root_directory, request)
     if run_state is None:
         if os.path.isdir("solvation") and any(os.scandir("solvation")):
@@ -95,7 +99,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
                 "preserve it and start in a new directory, or remove it explicitly."
             )
         file_manager.make_directories("solvation")
-        run_state = SolvationRunState.create(root_directory, request, seeds)
+        run_state = SolvationRunState.create(root_directory, request, seeds, sampling=sampling)
     else:
         seeds = run_state.current_seed_molecules()
 
@@ -122,14 +126,15 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
             return SolvationResult(
                 workflow="solvation",
                 status=run_state.data["status"],
-                run_directory=str(Path(root_directory).resolve() / "solvation"),
-                state_path=str(Path(root_directory).resolve() / "solvation" / "state.json"),
+                run_directory=workflow_run_directory(root_directory, "solvation"),
+                state_path=workflow_state_path(workflow_run_directory(root_directory, "solvation")),
                 selected_paths=tuple(run_state.data.get("final_seeds", [])),
                 metadata={
                     "completed_cycles": tuple(
                         record["cycle"] for record in run_state.data.get("completed_cycles", [])
                     ),
                     "next_cycle": run_state.data.get("next_cycle"),
+                    "sampling": run_state.data.get("sampling", sampling),
                 },
             )
         aggregate_id = "{:03d}".format(aggregation_counter)
@@ -155,13 +160,14 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
     return SolvationResult(
         workflow="solvation",
         status=run_state.data["status"],
-        run_directory=str(Path(root_directory).resolve() / "solvation"),
-        state_path=str(Path(root_directory).resolve() / "solvation" / "state.json"),
+        run_directory=workflow_run_directory(root_directory, "solvation"),
+        state_path=workflow_state_path(workflow_run_directory(root_directory, "solvation")),
         selected_paths=tuple(run_state.data.get("final_seeds", [])),
         metadata={
             "completed_cycles": tuple(
                 record["cycle"] for record in run_state.data.get("completed_cycles", [])
             ),
             "next_cycle": run_state.data.get("next_cycle"),
+            "sampling": run_state.data.get("sampling", sampling),
         },
     )

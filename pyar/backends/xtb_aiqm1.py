@@ -13,7 +13,7 @@ from pyar.backends.xtb_utils import build_xtb_command
 
 xtb_aiqm1_logger = logging.getLogger('pyar.xtb_aiqm1')
 
-aiqm1_opt = str(resources.files('pyar').joinpath('interface/mlopt.py'))
+aiqm1_opt = str(resources.files('pyar').joinpath('backends/mlopt.py'))
 
 class XtbAIQM1(SF):
     """Run xTB, then refine the xTB minimum with AIQM1."""

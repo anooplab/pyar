@@ -16,10 +16,10 @@ PyAR is most useful when you want to:
 
 For most chemistry users, start with the task that matches your problem:
 
-* :doc:`first_run` for a complete first calculation
-* :doc:`aggregation` for clusters, aggregates, and noncovalent complexes
-* :doc:`reaction` for AFIR-style product and close-contact searches
-* :doc:`solvation` for microsolvation, ligand addition, and growth around a core
+* :doc:`quickstart` for a short first pass
+* :doc:`aggregate` for clusters, aggregates, and noncovalent complexes
+* :doc:`react` for AFIR-style product and close-contact searches
+* :doc:`solvate` for microsolvation, ligand addition, and growth around a core
 * :doc:`bond_scan` for a simple distance-coordinate probe
 
 .. rubric:: Cite this work
@@ -76,15 +76,16 @@ Which paper matches my problem?
 Start here
 ----------
 
-* :doc:`first_run`
 * :doc:`quickstart`
-* :doc:`aggregation`
-* :doc:`reaction`
-* :doc:`solvation`
+* :doc:`first_run`
+* :doc:`aggregate`
+* :doc:`react`
+* :doc:`solvate`
 * :doc:`bond_scan`
 * :doc:`usage`
 * :doc:`publications`
 * :doc:`installation`
+* :doc:`external_programs`
 
 Tools and references
 --------------------
@@ -118,6 +119,7 @@ internal design:
 * :doc:`reference`
 * :doc:`generated_api`
 * :doc:`architecture`
+* :doc:`migration`
 
 How to cite PyAR
 ----------------
@@ -147,10 +149,10 @@ The fastest way to verify a local install is:
    :maxdepth: 2
    :caption: Getting started
 
-   first_run
    quickstart
+   first_run
    installation
-   migration_2_0
+   migration
    usage
    publications
 
@@ -158,9 +160,9 @@ The fastest way to verify a local install is:
    :maxdepth: 2
    :caption: Chemistry tasks
 
-   aggregation
-   reaction
-   solvation
+   aggregate
+   react
+   solvate
    bond_scan
 
 .. toctree::
@@ -176,6 +178,7 @@ The fastest way to verify a local install is:
    :caption: Backend guides
 
    backends
+   external_programs
    xtb
    aimnet2_backend
    orca_backend
@@ -194,3 +197,11 @@ The fastest way to verify a local install is:
    reference
    generated_api
    architecture
+
+.. toctree::
+   :hidden:
+
+   aggregation
+   reaction
+   solvation
+   migration_2_0

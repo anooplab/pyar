@@ -50,6 +50,7 @@ services, workflows, persistence, backend adapters, and user interfaces:
        clustering.py
        diversity.py
        basin_memory.py
+       reports.py
      backends/
        base.py
        registry.py

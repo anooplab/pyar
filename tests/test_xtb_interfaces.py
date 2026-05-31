@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 import tempfile
 import unittest
@@ -7,6 +8,17 @@ from unittest import mock
 import numpy as np
 
 from pyar.backends.xtb_utils import build_xtb_command, xtb_parallel_args
+
+
+@contextmanager
+def temporary_cwd():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cwd = os.getcwd()
+        os.chdir(tmpdir)
+        try:
+            yield tmpdir
+        finally:
+            os.chdir(cwd)
 
 
 class XtbInterfaceTests(unittest.TestCase):
@@ -50,7 +62,7 @@ class XtbInterfaceTests(unittest.TestCase):
     def test_xtb_wrapper_uses_parallel_threads(self):
         from pyar.backends import xtb
 
-        with tempfile.TemporaryDirectory():
+        with temporary_cwd():
             with mock.patch.object(xtb, "require_executable", return_value="xtb"):
                 runner = xtb.Xtb(self.molecule, {"opt_threshold": "normal", "nprocs": 16})
 
@@ -61,7 +73,7 @@ class XtbInterfaceTests(unittest.TestCase):
     def test_xtb_turbo_wrapper_uses_parallel_threads(self):
         from pyar.backends import xtb_turbo
 
-        with tempfile.TemporaryDirectory():
+        with temporary_cwd():
             with mock.patch.object(xtb_turbo, "require_executable", side_effect=["define", "xtb"]):
                 runner = xtb_turbo.XtbTurbo(self.molecule, {"nprocs": 12})
 
@@ -75,23 +87,18 @@ class XtbInterfaceTests(unittest.TestCase):
         molecule = SimpleNamespace(**self.molecule.__dict__)
         molecule.coordinates = np.asarray(self.molecule.coordinates, dtype=float)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                with mock.patch.object(xtb_turbo, "require_executable", side_effect=["define", "xtb"]):
-                    runner = xtb_turbo.XtbTurbo(molecule, {"nprocs": 12, "gamma": "37.5"})
+        with temporary_cwd():
+            with mock.patch.object(xtb_turbo, "require_executable", side_effect=["define", "xtb"]):
+                runner = xtb_turbo.XtbTurbo(molecule, {"nprocs": 12, "gamma": "37.5"})
 
-                with mock.patch.object(xtb_turbo.turbomole, "make_coord"), \
-                    mock.patch.object(xtb_turbo.turbomole, "prepare_control"), \
-                    mock.patch.object(xtb_turbo.turbomole, "get_coords", return_value=np.zeros((5, 3))), \
-                    mock.patch.object(xtb_turbo.turbomole, "rewrite_turbomole_energy_and_gradient_files"), \
-                    mock.patch.object(xtb_turbo.turbomole, "update_coord", return_value=False), \
-                    mock.patch.object(runner, "calculate_energy_gradient", return_value=(True, [], 1.0, np.zeros((5, 3)))), \
-                    mock.patch.object(xtb_turbo.restraints, "isotropic", return_value=(0.0, np.zeros((5, 3)))) as isotropic:
-                    status = runner.optimize()
-            finally:
-                os.chdir(cwd)
+            with mock.patch.object(xtb_turbo.turbomole, "make_coord"), \
+                mock.patch.object(xtb_turbo.turbomole, "prepare_control"), \
+                mock.patch.object(xtb_turbo.turbomole, "get_coords", return_value=np.zeros((5, 3))), \
+                mock.patch.object(xtb_turbo.turbomole, "rewrite_turbomole_energy_and_gradient_files"), \
+                mock.patch.object(xtb_turbo.turbomole, "update_coord", return_value=False), \
+                mock.patch.object(runner, "calculate_energy_gradient", return_value=(True, [], 1.0, np.zeros((5, 3)))), \
+                mock.patch.object(xtb_turbo.restraints, "isotropic", return_value=(0.0, np.zeros((5, 3)))) as isotropic:
+                status = runner.optimize()
 
         self.assertEqual(status, "UpdateFailed")
         self.assertEqual(runner.gamma, 37.5)
@@ -101,7 +108,7 @@ class XtbInterfaceTests(unittest.TestCase):
     def test_xtb_aiqm1_wrapper_uses_parallel_threads(self):
         from pyar.backends import xtb_aiqm1
 
-        with tempfile.TemporaryDirectory():
+        with temporary_cwd():
             with mock.patch.object(xtb_aiqm1, "require_executable", return_value="xtb"):
                 runner = xtb_aiqm1.XtbAIQM1(self.molecule, {"opt_threshold": "normal", "nprocs": 4})
 
@@ -112,7 +119,7 @@ class XtbInterfaceTests(unittest.TestCase):
     def test_xtb_aimnet2_wrapper_uses_parallel_threads(self):
         from pyar.backends import xtb_aimnet2
 
-        with tempfile.TemporaryDirectory():
+        with temporary_cwd():
             with mock.patch.object(xtb_aimnet2, "require_executable", return_value="xtb"):
                 runner = xtb_aimnet2.XtbAimnet2(self.molecule, {"opt_threshold": "normal", "nprocs": 6})
 
@@ -126,11 +133,12 @@ class XtbInterfaceTests(unittest.TestCase):
         molecule = SimpleNamespace(**self.molecule.__dict__)
         molecule.coordinates = np.asarray(self.molecule.coordinates, dtype=float)
 
-        with mock.patch.object(turbomole, "require_executable", return_value="define"):
-            runner = turbomole.Turbomole(
-                molecule,
-                {"basis": "def2-SVP", "method": "bp86", "gamma": "22.0"},
-            )
+        with temporary_cwd():
+            with mock.patch.object(turbomole, "require_executable", return_value="define"):
+                runner = turbomole.Turbomole(
+                    molecule,
+                    {"basis": "def2-SVP", "method": "bp86", "gamma": "22.0"},
+                )
 
         self.assertEqual(runner.gamma, 22.0)
 

@@ -562,9 +562,9 @@ class CliSmokeTests(unittest.TestCase):
 
         message = str(ctx.exception)
         self.assertIn("Missing requirements for the selected workflow:", message)
-        self.assertIn("OpenBabel", message)
-        self.assertIn("geomeTRIC", message)
-        self.assertIn('python -m pip install "pyar-chem[xtb]"', message)
+        self.assertIn("https://openbabel.org/docs/Installation/install.html", message)
+        self.assertIn("https://geometric.readthedocs.io/en/1.1/install.html", message)
+        self.assertIn("https://wiki.fysik.dtu.dk/ase/install.html", message)
 
     def test_aimnet2_warns_for_unsupported_qc_flags(self):
         captured = {}

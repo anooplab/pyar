@@ -15,7 +15,7 @@ import os
 
 from pyar import file_manager
 from pyar.core.molecule import Molecule
-from pyar.backend_capabilities import backend_supports_geometry_optimization
+from pyar.backend_capabilities import normalize_backend_name, validate_backend_capability
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
@@ -55,16 +55,16 @@ def apply_geometry_result(molecule, geometry):
 
 def build_geometry(molecule, qc_params):
     """Create the interface wrapper for a configured software backend."""
-    software = qc_params['software']
+    software = normalize_backend_name(qc_params['software'])
     geometry_optimizer = qc_params.get('geometry_optimizer', 'native')
     gamma = qc_params.get('gamma', None)
 
     if geometry_optimizer == 'geometric':
-        if not backend_supports_geometry_optimization(software):
-            raise ValueError(
-                f"Backend {software!r} cannot be used with geomeTRIC AFIR optimisation "
-                "because it does not expose Cartesian energy and gradients."
-            )
+        validate_backend_capability(
+            software,
+            ("energy_gradient",),
+            context="geomeTRIC AFIR optimisation",
+        )
         from pyar.backends import geometric
         return geometric.Geometric(molecule, qc_params)
 

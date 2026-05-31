@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from pyar.core.molecule import Molecule
-from pyar.selection import clustering
+from pyar.selection import reports as selection_reports
 
 
 def main():
@@ -31,11 +31,11 @@ def main():
     molecules = []
     for xyz_file in args.input_files:
         molecule = Molecule.from_xyz(xyz_file)
-        molecule.energy = clustering.read_energy_from_xyz_file(xyz_file)
+        molecule.energy = selection_reports.read_energy_from_xyz_file(xyz_file)
         molecule.name = Path(xyz_file).stem
         molecules.append(molecule)
 
-    clustering.print_energy_table(
+    selection_reports.print_energy_table(
         molecules,
         stream=sys.stdout,
         title="Relative energy table:",

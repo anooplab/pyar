@@ -20,10 +20,11 @@ import pyar.sampling.trial_generator as generation
 def main():
     """Generate trial placements or composite configurations."""
     parser = argparse.ArgumentParser(
-        description="Generate approach directions and trial molecular orientations."
+        description="Generate trial directions and trial molecular orientations."
     )
     parser.add_argument('-N', dest='number_of_trial_orientations', type=int,
-                        required=True, metavar='n')
+                        required=True, metavar='n',
+                        help='Number of trial directions/orientations to generate.')
     parser.add_argument('-i', type=str, nargs=2, dest='file')
     parser.add_argument('--charge', type=int, default=0)
     parser.add_argument('--distance-scaling', metavar='x.x', default=1.5, type=float)

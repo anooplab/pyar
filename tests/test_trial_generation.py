@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+from pathlib import Path
 
 import numpy as np
 
@@ -39,6 +41,31 @@ class TrialGenerationTests(unittest.TestCase):
         self.assertEqual(merged.number_of_atoms, 3)
         self.assertGreaterEqual(minimum_distance, threshold)
         self.assertLess(minimum_distance, threshold + 0.06)
+
+    def test_write_trial_vectors_overwrites_with_stable_format(self):
+        vectors = np.array(
+            [
+                [0.0, 0.0, 1.0, 0.25, 0.5, 0.75],
+                [1.0, 0.0, 0.0, -1.25, 2.5, -3.75],
+            ],
+            dtype=float,
+        )
+        expected = (
+            "0.0000000000000000e+00 0.0000000000000000e+00 1.0000000000000000e+00 "
+            "2.5000000000000000e-01 5.0000000000000000e-01 7.5000000000000000e-01\n"
+            "1.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 "
+            "-1.2500000000000000e+00 2.5000000000000000e+00 -3.7500000000000000e+00\n"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = Path(tmpdir) / "trial_vectors.dat"
+            trial_generation.write_trial_vectors(vectors, output)
+            first = output.read_text()
+            trial_generation.write_trial_vectors(vectors, output)
+            second = output.read_text()
+
+        self.assertEqual(first, expected)
+        self.assertEqual(second, expected)
 
 
 if __name__ == "__main__":

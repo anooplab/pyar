@@ -2,13 +2,16 @@
 
 This module owns the AFIR reaction-search pipeline:
 
+* validate the reaction request and any restart state
+* create or resume the ``reaction/`` run directory
 * build the numeric gamma schedule
-* prepare and persist restartable reaction state
 * generate trial orientations for each gamma cycle
 * optimize each orientation with the selected backend
 * perform unbiased relaxation when a bonded candidate is found
 * deduplicate and persist unique products
+* persist ``reaction/state.json`` plus product and trace artifacts
 * emit trace-analysis summaries for successful paths
+* return a structured :class:`~pyar.workflow_results.ReactionResult`
 
 The module is the canonical implementation behind the ``pyar-react``
 command-line entry point.
@@ -33,13 +36,26 @@ from pyar.reaction_identity import (
     write_disconnected_reference,
 )
 from pyar.state.reaction import ReactionRunState, ReactionStateError, read_legacy_checkpoint
+from pyar.workflows._growth import (
+    sampling_configuration,
+    workflow_run_directory,
+    workflow_state_path,
+)
 
 reactor_logger = logging.getLogger('pyar.workflows.reaction')
 
 saved_product_identities = {}
 
 
-def _build_reaction_result(workdir, status, product_dir, run_state, gamma_list, orientations):
+def _build_reaction_result(
+    workdir,
+    status,
+    product_dir,
+    run_state,
+    gamma_list,
+    orientations,
+    sampling,
+):
     """Package the current reaction outcome as a structured result.
 
     The returned :class:`~pyar.workflow_results.ReactionResult` captures the
@@ -50,14 +66,15 @@ def _build_reaction_result(workdir, status, product_dir, run_state, gamma_list, 
     return ReactionResult(
         workflow="reaction",
         status=status,
-        run_directory=str(os.path.join(workdir, "reaction")),
-        state_path=str(os.path.join(workdir, "reaction", "state.json")),
+        run_directory=workflow_run_directory(workdir, "reaction"),
+        state_path=workflow_state_path(workflow_run_directory(workdir, "reaction")),
         selected_paths=tuple(product["path"] for product in run_state.data.get("products", [])),
         metadata={
             "gamma_schedule": tuple(float(value) for value in gamma_list),
             "products": tuple(run_state.data.get("products", [])),
             "product_directory": product_dir,
             "remaining_orientations": len(orientations),
+            "sampling": run_state.data.get("sampling", sampling),
         },
     )
 
@@ -241,12 +258,16 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
         site,
         proximity_factor,
     )
+    sampling = sampling_configuration(
+        number_of_orientations=int(hm_orientations),
+        use_angles=(site is None and getattr(reactant_b, "number_of_atoms", 0) > 1),
+    )
     run_state = ReactionRunState.load(current_workdir, request)
     if run_state is None:
         legacy_checkpoint = read_legacy_checkpoint(current_workdir)
         if legacy_checkpoint is not None:
             run_state = ReactionRunState.migrate_legacy(
-                current_workdir, legacy_checkpoint, request
+                current_workdir, legacy_checkpoint, request, sampling=sampling
             )
             reactor_logger.warning(
                 "Imported legacy jobs.pkl into reaction/state.json; "
@@ -315,6 +336,7 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
         request,
         orientations_to_optimize,
         (reactant_a, reactant_b),
+        sampling=sampling,
     )
     _restore_product_registry(run_state)
     return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
@@ -328,6 +350,10 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     records products and trace summaries, and returns a structured result that
     summarizes the final reaction state.
     """
+    sampling = sampling_configuration(
+        number_of_orientations=int(hm_orientations),
+        use_angles=(site is None and getattr(reactant_b, "number_of_atoms", 0) > 1),
+    )
     workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir = initialize_reaction_run(
         reactant_a,
         reactant_b,
@@ -380,6 +406,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
                 run_state,
                 gamma_list,
                 orientations_to_optimize,
+                sampling,
             )
         if len(optimized_molecules) == 1:
             orientations_to_optimize = optimized_molecules[:]
@@ -405,6 +432,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         run_state,
         gamma_list,
         orientations_to_optimize,
+        sampling,
     )
 
 

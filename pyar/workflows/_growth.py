@@ -17,10 +17,18 @@ from pyar import file_manager
 from pyar.core.molecule import Molecule, atomic_data
 from pyar.io import xyz as molecule_io
 from pyar.selection import clustering
+from pyar.selection import reports as selection_reports
 from pyar.sampling import trial_generator as trial_generation
 from pyar.optimiser import is_cycle_exceeded, is_success, optimise
+from pyar.workflow_results import AggregateResult, ReactionResult, SolvationResult
 
 aggregator_logger = logging.getLogger("pyar.workflows.aggregate")
+
+_WORKFLOW_RESULTS = {
+    "aggregate": AggregateResult,
+    "reaction": ReactionResult,
+    "solvation": SolvationResult,
+}
 
 
 @contextmanager
@@ -32,6 +40,54 @@ def _working_directory(path):
         yield
     finally:
         os.chdir(previous_cwd)
+
+
+def workflow_run_directory(root_directory, workflow_name):
+    """Return the absolute workflow run directory for the current invocation."""
+    return str(Path(root_directory).resolve() / workflow_name)
+
+
+def workflow_state_path(run_directory):
+    """Return the canonical JSON state file path for a workflow run."""
+    return str(Path(run_directory) / "state.json")
+
+
+def sampling_configuration(
+    *,
+    direction_method="fibonacci",
+    rotation_method="halton",
+    number_of_orientations=None,
+    sequence_offset=0,
+    oversample_factor=8,
+    seed=None,
+    use_angles=None,
+):
+    """Return the sampling metadata recorded in workflow state and results."""
+    configuration = {
+        "direction_method": direction_method,
+        "rotation_method": rotation_method,
+        "sequence_offset": int(sequence_offset),
+        "oversample_factor": int(oversample_factor),
+    }
+    if number_of_orientations is not None:
+        configuration["number_of_orientations"] = int(number_of_orientations)
+    if seed is not None:
+        configuration["seed"] = int(seed)
+    if use_angles is not None:
+        configuration["use_angles"] = bool(use_angles)
+    return configuration
+
+
+def stopped_workflow_result(workflow_name, root_directory):
+    """Return the standard structured result for a workflow stop request."""
+    result_cls = _WORKFLOW_RESULTS[workflow_name]
+    run_directory = workflow_run_directory(root_directory, workflow_name)
+    return result_cls(
+        workflow=workflow_name,
+        status="stopped",
+        run_directory=run_directory,
+        state_path=workflow_state_path(run_directory),
+    )
 
 
 def _format_path(path):
@@ -142,7 +198,7 @@ def _finalize_selected_geometries(aggregate_root=".", maximum_number_of_seeds=12
     grouped = defaultdict(list)
     for each_file in result_files:
         molecule = Molecule.from_xyz(str(each_file))
-        molecule.energy = clustering.read_energy_from_xyz_file(str(each_file))
+        molecule.energy = selection_reports.read_energy_from_xyz_file(str(each_file))
         molecule.name = _selection_name_from_path(each_file, aggregate_root)
         grouped[_stoichiometry_label(molecule)].append(molecule)
 

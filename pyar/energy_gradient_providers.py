@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess as subp
 import tempfile
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -16,6 +16,7 @@ from ase.units import Bohr, Hartree
 from pyar import backends
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
+    normalize_backend_name,
     get_backend_capabilities,
     register_backend_capabilities,
     supported_geometry_backends,
@@ -406,13 +407,14 @@ ENERGY_GRADIENT_PROVIDERS = {
 
 def get_energy_gradient_provider(software, qc_params=None):
     """Return the registered energy/gradient provider for a backend."""
-    provider_factory = ENERGY_GRADIENT_PROVIDERS.get(software)
-    if provider_factory is not None and backend_supports_geometry_optimization(software):
+    canonical_software = normalize_backend_name(software)
+    provider_factory = ENERGY_GRADIENT_PROVIDERS.get(canonical_software)
+    if provider_factory is not None and backend_supports_geometry_optimization(canonical_software):
         if hasattr(provider_factory, "evaluate") and not isinstance(provider_factory, type):
             return provider_factory
         return provider_factory(qc_params)
 
-    if get_backend_capabilities(software).energy_gradient:
+    if get_backend_capabilities(canonical_software).energy_gradient:
         raise ValueError(
             f"Backend {software!r} is marked as energy-gradient capable but has no registered provider"
         )
@@ -428,17 +430,10 @@ def register_energy_gradient_provider(software, provider, capabilities=None):
     """Register or replace an energy/gradient provider for a backend."""
     if not callable(provider) and not hasattr(provider, "evaluate"):
         raise TypeError("provider must be callable or expose an evaluate() method")
-    ENERGY_GRADIENT_PROVIDERS[software] = provider
+    canonical_software = normalize_backend_name(software)
+    ENERGY_GRADIENT_PROVIDERS[canonical_software] = provider
     if capabilities is None:
-        capabilities = get_backend_capabilities(software)
+        capabilities = get_backend_capabilities(canonical_software)
         if not capabilities.energy_gradient:
-            capabilities = type(capabilities)(
-                family=capabilities.family,
-                energy_gradient=True,
-                native_optimization=capabilities.native_optimization,
-                supports_charge=capabilities.supports_charge,
-                supports_multiplicity=capabilities.supports_multiplicity,
-                staged_optimization=capabilities.staged_optimization,
-                supported_options=capabilities.supported_options,
-            )
-    register_backend_capabilities(software, capabilities)
+            capabilities = replace(capabilities, energy_gradient=True)
+    register_backend_capabilities(canonical_software, capabilities)

@@ -72,7 +72,7 @@ class SolvationRunState:
         self.data = data
 
     @classmethod
-    def create(cls, root_directory, request, current_seeds):
+    def create(cls, root_directory, request, current_seeds, sampling=None):
         """Create and persist state for a new solvation run.
 
         The initial state stores the request payload, snapshots of the input
@@ -90,6 +90,8 @@ class SolvationRunState:
             "final_seeds": [],
             "next_snapshot": 0,
         }
+        if sampling is not None:
+            data["sampling"] = _json_value(sampling)
         state = cls(root_directory, data)
         state.geometry_directory.mkdir(parents=True, exist_ok=True)
         state._replace_current_seeds(current_seeds)
