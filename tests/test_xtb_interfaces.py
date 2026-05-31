@@ -120,7 +120,8 @@ class XtbInterfaceTests(unittest.TestCase):
         from pyar.backends import xtb_aimnet2
 
         with temporary_cwd():
-            with mock.patch.object(xtb_aimnet2, "require_executable", return_value="xtb"):
+            with mock.patch.object(xtb_aimnet2, "require_executable", return_value="xtb"), \
+                mock.patch.object(xtb_aimnet2.XtbAimnet2, "_validate_runtime_files"):
                 runner = xtb_aimnet2.XtbAimnet2(self.molecule, {"opt_threshold": "normal", "nprocs": 6})
 
         self.assertIn("--parallel", runner.xtb_cmd)

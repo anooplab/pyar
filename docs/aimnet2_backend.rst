@@ -34,7 +34,9 @@ Reaction search:
 Practical notes
 ---------------
 
-* PyAR bundles AIMNet2 model assets for its AIMNet2 interfaces.
+* PyAR keeps AIMNet2 model assets in the source tree, but they are not bundled
+  into the installed wheel. If you rely on them outside a checkout, provide the
+  model files separately.
 * AIMNet2 is a third-party project from the Isayev Lab and is MIT licensed
   upstream. See ``THIRD_PARTY_LICENSES/AIMNet2-LICENSE`` and
   ``THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md``.

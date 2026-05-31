@@ -127,10 +127,14 @@ include = ["pyar*"]
 
 [tool.setuptools.package-data]
 pyar = [
+  "mlatom/LICENSE",
+]
+
+[tool.setuptools.exclude-package-data]
+pyar = [
   "AIMNet2/models/*.jpt",
   "mlatom/MLatomF",
   "mlatom/cs.so",
   "mlatom/ref.json",
   "mlatom/aiqm1_model/*.pt",
-  "mlatom/LICENSE",
 ]

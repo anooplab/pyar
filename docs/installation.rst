@@ -24,7 +24,8 @@ Optional Python extras
 
 * ``selection`` for clustering and selection helpers
 * ``ml`` for MLatom, TorchANI, and related ML interfaces
-* ``aimnet2`` for AIMNet2 runtime support
+* ``aimnet2`` for AIMNet2 runtime support; AIMNet2 model assets are not
+  bundled into the installed wheel
 * ``openbabel`` for the Open Babel Python binding
 * ``test`` for the test and build toolchain
 * ``docs`` for Sphinx documentation builds
