@@ -194,27 +194,69 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual([m.name for m in result], ["a", "b"])
 
-    def test_choose_geometries_discards_disconnected_candidates_when_connected_options_exist(self):
+    def test_choose_geometries_keeps_mixed_connected_and_disconnected_candidates_when_policy_is_off(self):
         molecules = [
-            SimpleNamespace(
-                name="connected",
-                atoms_list=["H", "H"],
-                coordinates=[[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]],
-                energy=0.0,
-            ),
-            SimpleNamespace(
-                name="broken",
-                atoms_list=["H", "H"],
-                coordinates=[[0.0, 0.0, 0.0], [5.0, 0.0, 0.0]],
-                energy=0.1,
-            ),
+            SimpleNamespace(name="connected", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=1.0),
+            SimpleNamespace(name="broken", atoms_list=["H"], coordinates=[[5.0, 0.0, 0.0]], energy=0.0),
+            SimpleNamespace(name="extra", atoms_list=["H"], coordinates=[[10.0, 0.0, 0.0]], energy=2.0),
         ]
 
         with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
             with mock.patch("pyar.sampling.trial_generator.broken", side_effect=lambda mol: mol.name == "broken"):
-                result = clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
+                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
+                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
+                        with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
+                            result = clustering.choose_geometries(
+                                molecules,
+                                maximum_number_of_seeds=2,
+                                connectivity_policy="off",
+                            )
 
-        self.assertEqual([m.name for m in result], ["connected"])
+        self.assertEqual([m.name for m in result], ["connected", "broken"])
+
+    def test_choose_geometries_discards_disconnected_candidates_when_policy_is_prefer(self):
+        molecules = [
+            SimpleNamespace(name="connected", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=1.0),
+            SimpleNamespace(name="broken", atoms_list=["H"], coordinates=[[5.0, 0.0, 0.0]], energy=0.0),
+            SimpleNamespace(name="extra", atoms_list=["H"], coordinates=[[10.0, 0.0, 0.0]], energy=2.0),
+        ]
+
+        with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.sampling.trial_generator.broken", side_effect=lambda mol: mol.name == "broken"):
+                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
+                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
+                        with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
+                            result = clustering.choose_geometries(
+                                molecules,
+                                maximum_number_of_seeds=2,
+                                connectivity_policy="prefer",
+                            )
+
+        self.assertEqual([m.name for m in result], ["connected", "extra"])
+
+    def test_choose_geometries_keeps_all_disconnected_candidates_when_policy_is_prefer(self):
+        molecules = [
+            SimpleNamespace(name="broken_a", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
+            SimpleNamespace(name="broken_b", atoms_list=["H"], coordinates=[[5.0, 0.0, 0.0]], energy=1.0),
+            SimpleNamespace(name="broken_c", atoms_list=["H"], coordinates=[[10.0, 0.0, 0.0]], energy=2.0),
+        ]
+
+        with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
+            with mock.patch("pyar.sampling.trial_generator.broken", return_value=True):
+                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
+                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
+                        with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
+                            result = clustering.choose_geometries(
+                                molecules,
+                                maximum_number_of_seeds=2,
+                                connectivity_policy="prefer",
+                            )
+
+        self.assertEqual([m.name for m in result], ["broken_a", "broken_b"])
+
+    def test_choose_geometries_rejects_unknown_connectivity_policy(self):
+        with self.assertRaisesRegex(ValueError, "Unknown connectivity policy"):
+            clustering.choose_geometries([], connectivity_policy="sometimes")
 
     def test_rmsd_duplicate_test_detects_same_geometry_under_translation(self):
         a = SimpleNamespace(

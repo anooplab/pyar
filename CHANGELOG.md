@@ -24,6 +24,7 @@ This release focuses on cleanup, documentation, and workflow stabilization.
 - Version metadata is now consistent across packaging and runtime checks.
 - CI now exercises the package across multiple Python versions and validates docs and source distributions.
 - Test isolation issues that could create stray files in the repository root were removed.
+- Connectivity filtering is now policy-controlled. It is enabled for atomic and formula cluster growth and disabled by default for noncovalent aggregate and solvation workflows.
 
 ## 1.1.0 - 2026-05-30
 
@@ -35,4 +36,3 @@ The 1.1.0 release concentrated on packaging modernization and dependency cleanup
 - Optional dependency groups were split out for test, docs, selection, ML, xTB, AIMNet2, and OpenBabel-related features.
 - Heavy backend dependencies were externalized where possible.
 - The package kept the `pyar` import namespace while distributing as `pyar-chem`.
-

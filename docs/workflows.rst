@@ -15,6 +15,10 @@ Aggregation searches for low-energy packings of one or more fragments. This is
 the internal route behind molecular clusters, noncovalent complexes, and small
 aggregate models.
 
+Connectivity filtering is policy-controlled here: it is useful for atomic or
+formula-driven growth, but noncovalent aggregate and solvation workflows keep
+disconnected covalent graphs by default.
+
 Examples:
 
 .. code-block:: bash
@@ -69,6 +73,8 @@ corresponding executable and should be validated on the target installation.
 Ordinary aggregation and standalone optimization continue to use each
 backend's native optimizer. A bonded reaction candidate is relaxed again with
 ``gamma=0.0`` before product identity is assessed.
+Reaction product validity is determined by molecular identity and bond-change
+logic, not by single-component covalent connectivity.
 
 For a chemist, the reaction workflow is useful when you want to:
 

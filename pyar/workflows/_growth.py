@@ -30,6 +30,8 @@ _WORKFLOW_RESULTS = {
     "solvation": SolvationResult,
 }
 
+_CONNECTIVITY_POLICIES = {"off", "prefer", "strict"}
+
 
 @contextmanager
 def _working_directory(path):
@@ -113,6 +115,116 @@ def _stoichiometry_label(molecule):
     return "".join(parts) if parts else "unknown"
 
 
+def _atom_count(molecule):
+    """Return the atom count for a molecule-like object."""
+    number_of_atoms = getattr(molecule, "number_of_atoms", None)
+    if number_of_atoms is not None:
+        return int(number_of_atoms)
+    return len(getattr(molecule, "atoms_list", ()))
+
+
+def _connectivity_hint(molecule):
+    """Return any explicit connectivity preference recorded on a molecule."""
+    for attribute in (
+        "connectivity_policy_hint",
+        "connectivity_policy",
+        "growth_mode",
+        "workflow_kind",
+        "origin",
+        "source_kind",
+    ):
+        value = getattr(molecule, attribute, None)
+        if value in _CONNECTIVITY_POLICIES:
+            return value
+    return None
+
+
+def _is_formula_generated(molecule):
+    return getattr(molecule, "connectivity_policy_hint", None) == "prefer" or getattr(molecule, "source_kind", None) == "formula"
+
+
+def _is_radical_like(molecule):
+    """Return True for simple radical-like metadata cues."""
+    multiplicity = getattr(molecule, "multiplicity", None)
+    if multiplicity is not None:
+        try:
+            if int(multiplicity) % 2 == 0:
+                return True
+        except (TypeError, ValueError):
+            pass
+
+    atomic_numbers = getattr(molecule, "atomic_number", None)
+    if atomic_numbers and len(atomic_numbers) == 1:
+        try:
+            charge = int(getattr(molecule, "charge", 0) or 0)
+            electron_count = sum(int(number) for number in atomic_numbers) - charge
+        except (TypeError, ValueError):
+            return False
+        return electron_count % 2 == 1
+
+    return False
+
+
+def resolve_connectivity_policy_for_growth(seed, monomer, qc_params=None):
+    """Resolve how growth workflows should treat covalent connectivity."""
+    qc_params = qc_params or {}
+    requested_policy = qc_params.get("connectivity_policy")
+    if requested_policy is not None:
+        requested_policy = str(requested_policy).lower()
+        if requested_policy == "auto":
+            requested_policy = None
+        else:
+            if requested_policy not in _CONNECTIVITY_POLICIES:
+                raise ValueError(
+                    f"Unknown connectivity policy: {requested_policy!r}. "
+                    "Expected one of 'off', 'prefer', 'strict', or 'auto'."
+                )
+            return requested_policy
+
+    for molecule in (seed, monomer):
+        hint = _connectivity_hint(molecule)
+        if hint is not None:
+            return hint
+
+    seed_atoms = _atom_count(seed)
+    monomer_atoms = _atom_count(monomer)
+
+    if _is_formula_generated(seed) or _is_formula_generated(monomer):
+        return "prefer"
+
+    if _is_radical_like(seed) or _is_radical_like(monomer):
+        return "prefer"
+
+    if seed_atoms == 1 and monomer_atoms == 1:
+        return "prefer"
+
+    if monomer_atoms == 1 and (
+        getattr(seed, "growth_kind", None) == "atomic_cluster"
+        or getattr(seed, "aggregate_kind", None) == "atomic_cluster"
+        or getattr(seed, "workflow_kind", None) == "atomic_cluster"
+    ):
+        return "prefer"
+
+    if seed_atoms == 1 and monomer_atoms > 1:
+        return "off"
+
+    if seed_atoms > 1 or monomer_atoms > 1:
+        return "off"
+
+    return "off"
+
+
+def resolve_connectivity_policy_for_aggregate(molecules):
+    """Resolve the aggregate-level connectivity policy for final clustering."""
+    if any(_is_formula_generated(molecule) for molecule in molecules):
+        return "prefer"
+    if any(_is_radical_like(molecule) for molecule in molecules):
+        return "prefer"
+    if molecules and all(_atom_count(molecule) == 1 for molecule in molecules):
+        return "prefer"
+    return "off"
+
+
 def _snapshot_selected_geometries(
     selected_seeds,
     output_root="selected",
@@ -188,7 +300,12 @@ def _selection_name_from_path(result_file, aggregate_root):
     return str(relative_path.with_suffix("")).replace(os.sep, "_")
 
 
-def _finalize_selected_geometries(aggregate_root=".", maximum_number_of_seeds=12, algorithm="hybrid"):
+def _finalize_selected_geometries(
+    aggregate_root=".",
+    maximum_number_of_seeds=12,
+    algorithm="hybrid",
+    connectivity_policy="off",
+):
     """Cluster pathway-level selected results into the final stoichiometry groups."""
     result_files = _discover_selected_result_files(aggregate_root)
     if not result_files:
@@ -217,6 +334,7 @@ def _finalize_selected_geometries(aggregate_root=".", maximum_number_of_seeds=12
             maximum_number_of_seeds=maximum_number_of_seeds,
             apply_basin_memory=False,
             algorithm=algorithm,
+            connectivity_policy=connectivity_policy,
         )
         final_selected.extend(selected)
         _snapshot_selected_geometries(
@@ -300,13 +418,35 @@ def read_orientations(molecule_id, noo):
     return orientations
 
 
-def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_number_of_seeds, site):
+def add_one(
+    aggregate_id,
+    seeds,
+    monomer,
+    hm_orientations,
+    qc_params,
+    maximum_number_of_seeds,
+    site,
+    connectivity_policy=None,
+):
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
         return StopIteration
     aggregator_logger.info(f"  Seed pool for {aggregate_id}: {len(seeds)} molecules")
 
     cwd = os.getcwd()
+    connectivity_policy = (
+        resolve_connectivity_policy_for_growth(seeds[0], monomer, qc_params)
+        if connectivity_policy is None and seeds
+        else (connectivity_policy or "off")
+    )
+    connectivity_policy = connectivity_policy.lower()
+    if connectivity_policy == "auto":
+        connectivity_policy = resolve_connectivity_policy_for_growth(seeds[0], monomer, qc_params) if seeds else "off"
+    if connectivity_policy not in _CONNECTIVITY_POLICIES:
+        raise ValueError(
+            f"Unknown connectivity policy: {connectivity_policy!r}. "
+            "Expected one of 'off', 'prefer', 'strict', or 'auto'."
+        )
 
     if qc_params.get("software"):
         list_of_optimized_molecules = []
@@ -361,7 +501,11 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                         not_converged = [
                             n
                             for n, s in zip(not_converged, status_list)
-                            if is_cycle_exceeded(s) and not trial_generation.broken(n)
+                            if is_cycle_exceeded(s)
+                            and (
+                                connectivity_policy == "off"
+                                or not trial_generation.broken(n)
+                            )
                         ]
                         not_converged = clustering.remove_similar(not_converged)
                     else:
@@ -370,7 +514,10 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
                 else:
                     aggregator_logger.info("    Molecules still unconverged after 10 rounds:")
                     for n, s in zip(not_converged, status_list):
-                        if is_cycle_exceeded(s) and not trial_generation.broken(n):
+                        if is_cycle_exceeded(s) and (
+                            connectivity_policy == "off"
+                            or not trial_generation.broken(n)
+                        ):
                             aggregator_logger.info("      %s", n.name)
 
         selected_from_restart = []
@@ -392,7 +539,10 @@ def add_one(aggregate_id, seeds, monomer, hm_orientations, qc_params, maximum_nu
             maximum_number_of_seeds=maximum_number_of_seeds,
             persist_basin_memory=not staged_optimization,
             group_basin_by_stoichiometry=False,
+            connectivity_policy=connectivity_policy,
         )
+        for molecule in selected_seeds:
+            molecule.connectivity_policy_hint = connectivity_policy
         selected_seeds = selected_from_restart + selected_seeds
         if len(selected_seeds) > maximum_number_of_seeds:
             aggregator_logger.warning(
@@ -702,4 +852,7 @@ def generate_molecule_from_formula(formula, box_size=None, rng=None):
     atoms_list = _parse_formula(formula)
     box_size = _estimate_formula_box_size(atoms_list, box_size=box_size)
     coordinates = _pack_formula_coordinates(atoms_list, box_size, rng=rng)
-    return Molecule(atoms_list, coordinates, name=formula, title=formula)
+    molecule = Molecule(atoms_list, coordinates, name=formula, title=formula)
+    molecule.connectivity_policy_hint = "prefer"
+    molecule.source_kind = "formula"
+    return molecule

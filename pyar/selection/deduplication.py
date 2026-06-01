@@ -227,7 +227,7 @@ def remove_similar(list_of_molecules):
     return final_list
 
 
-def _prefer_connected_structures(molecules):
+def _prefer_connected_structures(molecules, policy="prefer"):
     """Prefer geometries that remain connected under a covalent-radius graph."""
     if len(molecules) < 2:
         return molecules
@@ -264,8 +264,14 @@ def _prefer_connected_structures(molecules):
     if not connected:
         from pyar.selection import clustering
 
-        clustering.cluster_logger.warning(
-            "All candidate geometries are disconnected; continuing with the original pool."
+        if policy == "strict":
+            clustering.cluster_logger.warning(
+                "Connectivity policy is strict, but all candidates are disconnected under the covalent graph; returning an empty pool."
+            )
+            return []
+
+        clustering.cluster_logger.info(
+            "Connectivity preference requested, but all candidates are disconnected under the covalent graph; retaining the original pool."
         )
         return molecules
 
@@ -273,7 +279,8 @@ def _prefer_connected_structures(molecules):
         from pyar.selection import clustering
 
         clustering.cluster_logger.info(
-            "Discarded %d disconnected candidate geometries before clustering.",
+            "Connectivity preference retained %d connected candidates and discarded %d disconnected candidates.",
+            len(connected),
             len(disconnected),
         )
 

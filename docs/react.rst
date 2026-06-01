@@ -16,6 +16,9 @@ Basic commands
 The reaction workflow uses AFIR-style biased optimisation and then checks
 whether the relaxed structure is a new product.
 
+Product validity is determined by molecular identity and bond-change logic,
+not by a simple connected-versus-disconnected connectivity test.
+
 Supported AFIR energy-gradient providers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

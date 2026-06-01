@@ -6,6 +6,10 @@ a central structure. Microsolvation is the classic use case, but the same idea
 also applies to ligand addition, coordination growth, and building local
 cluster environments around a molecular or metal-containing core.
 
+Disconnected covalent graphs are expected in these noncovalent growth
+problems, so the workflow does not drop candidates just because they are not
+single covalent components.
+
 Typical chemistry questions
 ---------------------------
 

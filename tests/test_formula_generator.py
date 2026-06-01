@@ -32,6 +32,8 @@ class FormulaGeneratorTests(unittest.TestCase):
             for j in range(i + 1, molecule.number_of_atoms)
         )
         self.assertGreater(min_distance, 0.5)
+        self.assertEqual(molecule.connectivity_policy_hint, "prefer")
+        self.assertEqual(molecule.source_kind, "formula")
 
     def test_generate_molecule_from_formula_accepts_lowercase_input(self):
         molecule = self.aggregator.generate_molecule_from_formula("h4")

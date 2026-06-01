@@ -159,10 +159,9 @@ def optimise(molecule, qc_params):
         if is_usable(optimize_status):
             apply_geometry_result(molecule, geometry)
             optimiser_logger.info(
-                "Optimization completed: name=%s status=%s energy=%15.6f",
+                "Optimization completed: name=%s status=%s",
                 molecule.name,
                 normalized_status,
-                float(molecule.energy),
             )
             optimiser_logger.info(f'     {molecule.name:35s}: {float(molecule.energy):15.6f}')
         else:

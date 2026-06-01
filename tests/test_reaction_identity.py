@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ import numpy as np
 
 from pyar.core.molecule import Molecule
 from pyar import reaction_identity
+from pyar.workflows import reaction
 
 
 class ReactionIdentityTests(unittest.TestCase):
@@ -50,6 +52,57 @@ class ReactionIdentityTests(unittest.TestCase):
 
         self.assertTrue(reaction_identity.same_molecular_identity(first, same_product))
         self.assertFalse(reaction_identity.same_molecular_identity(first, different_product))
+
+    def test_reaction_optimize_all_does_not_use_connectivity_filter(self):
+        class DummyReactionMolecule:
+            def __init__(self):
+                self.name = "orientation"
+                self.energy = 0.0
+                self.fragments = [[0]]
+
+            def mol_to_xyz(self, filename):
+                Path(filename).write_text("1\norientation\nH 0 0 0\n")
+
+            def copy(self):
+                return DummyReactionMolecule()
+
+            def is_bonded(self):
+                return True
+
+        class DummyRunState:
+            def current_survivor_molecules(self):
+                return []
+
+            def record_job(self, *args, **kwargs):
+                return None
+
+            def record_product(self, *args, **kwargs):
+                return None
+
+        molecule = DummyReactionMolecule()
+        identity = {"inchi": "same-inchi", "smiles": "same-smiles"}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                with mock.patch.object(reaction, "optimise", return_value=True):
+                    with mock.patch.object(reaction, "relax_without_afir_bias", return_value=True):
+                        with mock.patch.object(reaction, "molecule_identity_from_xyz", return_value=identity):
+                            with mock.patch.object(reaction, "same_molecular_identity", return_value=True) as same_identity:
+                                with mock.patch("pyar.selection.deduplication._prefer_connected_structures") as prefer_connected:
+                                    os.chdir(tmpdir)
+                                    reaction.optimize_all(
+                                        gamma_id="0001",
+                                        orientations=[molecule],
+                                        run_state=DummyRunState(),
+                                        product_dir=str(Path(tmpdir) / "products"),
+                                        qc_param={"gamma": 1.0},
+                                    )
+            finally:
+                os.chdir(cwd)
+
+        prefer_connected.assert_not_called()
+        same_identity.assert_called_once()
 
 
 if __name__ == "__main__":

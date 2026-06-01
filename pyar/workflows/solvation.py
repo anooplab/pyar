@@ -150,6 +150,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
                 qc_params,
                 maximum_number_of_seeds,
                 site,
+                connectivity_policy="off",
             )
             aggregator_logger.info(f"Solvation cycle completed: {aggregation_counter}")
         run_state.complete_cycle(aggregation_counter, seeds)

@@ -38,6 +38,101 @@ class DummyMolecule:
 
 
 class AggregatorTests(unittest.TestCase):
+    def test_resolve_connectivity_policy_for_growth_prefers_atomic_growth(self):
+        seed = DummyMolecule("seed", n_atoms=1)
+        monomer = DummyMolecule("monomer", n_atoms=1)
+
+        policy = growth.resolve_connectivity_policy_for_growth(seed, monomer)
+
+        self.assertEqual(policy, "prefer")
+
+    def test_resolve_connectivity_policy_for_growth_prefers_atomic_cluster_plus_atom(self):
+        seed = DummyMolecule("seed", n_atoms=3)
+        seed.growth_kind = "atomic_cluster"
+        monomer = DummyMolecule("monomer", n_atoms=1)
+
+        policy = growth.resolve_connectivity_policy_for_growth(seed, monomer)
+
+        self.assertEqual(policy, "prefer")
+
+    def test_resolve_connectivity_policy_for_growth_disables_for_molecular_aggregates(self):
+        seed = DummyMolecule("seed", n_atoms=3)
+        monomer = DummyMolecule("monomer", n_atoms=2)
+
+        policy = growth.resolve_connectivity_policy_for_growth(seed, monomer)
+
+        self.assertEqual(policy, "off")
+
+    def test_resolve_connectivity_policy_for_growth_disables_for_molecule_seed_plus_fragment(self):
+        seed = DummyMolecule("seed", n_atoms=4)
+        monomer = DummyMolecule("monomer", n_atoms=2)
+
+        policy = growth.resolve_connectivity_policy_for_growth(seed, monomer)
+
+        self.assertEqual(policy, "off")
+
+    def test_resolve_connectivity_policy_for_growth_prefers_formula_generated_inputs(self):
+        seed = DummyMolecule("seed", n_atoms=4)
+        seed.source_kind = "formula"
+        monomer = DummyMolecule("monomer", n_atoms=2)
+
+        policy = growth.resolve_connectivity_policy_for_growth(seed, monomer)
+
+        self.assertEqual(policy, "prefer")
+
+    def test_resolve_connectivity_policy_for_growth_prefers_radical_like_inputs(self):
+        seed = DummyMolecule("radical", n_atoms=3)
+        seed.multiplicity = 2
+        monomer = DummyMolecule("monomer", n_atoms=2)
+
+        policy = growth.resolve_connectivity_policy_for_growth(seed, monomer)
+
+        self.assertEqual(policy, "prefer")
+
+    def test_resolve_connectivity_policy_for_aggregate_prefers_atomic_or_formula_inputs(self):
+        atomic_inputs = [DummyMolecule("a", n_atoms=1), DummyMolecule("b", n_atoms=1)]
+        formula_inputs = [DummyMolecule("formula", n_atoms=4)]
+        formula_inputs[0].source_kind = "formula"
+
+        self.assertEqual(growth.resolve_connectivity_policy_for_aggregate(atomic_inputs), "prefer")
+        self.assertEqual(growth.resolve_connectivity_policy_for_aggregate(formula_inputs), "prefer")
+        radical_inputs = [DummyMolecule("radical", n_atoms=3)]
+        radical_inputs[0].multiplicity = 2
+        self.assertEqual(growth.resolve_connectivity_policy_for_aggregate(radical_inputs), "prefer")
+        self.assertEqual(
+            growth.resolve_connectivity_policy_for_aggregate([DummyMolecule("seed", n_atoms=3)]),
+            "off",
+        )
+
+    def test_add_one_passes_prefer_policy_for_atomic_cluster_growth(self):
+        seed = DummyMolecule("seed", n_atoms=3)
+        seed.growth_kind = "atomic_cluster"
+        monomer = DummyMolecule("monomer", n_atoms=1)
+        trial = DummyMolecule("trial", n_atoms=1)
+        trial.energy = 0.0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                qc_params = {"software": "xtb", "_two_layer_optimization": False}
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
+                    with mock.patch.object(growth, "optimise", return_value=True):
+                        with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial]) as chooser:
+                            aggregator.add_one(
+                                aggregate_id="ag_test",
+                                seeds=[seed],
+                                monomer=monomer,
+                                hm_orientations=1,
+                                qc_params=qc_params,
+                                maximum_number_of_seeds=1,
+                                site=None,
+                            )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(chooser.call_args.kwargs["connectivity_policy"], "prefer")
+
     def test_single_stage_backend_skips_refinement(self):
         seed = DummyMolecule("seed", n_atoms=2)
         monomer = DummyMolecule("monomer", n_atoms=1)
@@ -80,6 +175,7 @@ class AggregatorTests(unittest.TestCase):
         chooser.assert_called_once()
         self.assertTrue(chooser.call_args.kwargs["persist_basin_memory"])
         self.assertFalse(chooser.call_args.kwargs["group_basin_by_stoichiometry"])
+        self.assertEqual(chooser.call_args.kwargs["connectivity_policy"], "prefer")
         self.assertEqual([m.name for m in result], ["trial_a", "trial_b"])
         self.assertTrue(snapshot_exists)
         self.assertTrue(second_snapshot_exists)
@@ -129,6 +225,7 @@ class AggregatorTests(unittest.TestCase):
         chooser.assert_called_once()
         self.assertFalse(chooser.call_args.kwargs["persist_basin_memory"])
         self.assertFalse(chooser.call_args.kwargs["group_basin_by_stoichiometry"])
+        self.assertEqual(chooser.call_args.kwargs["connectivity_policy"], "prefer")
         self.assertEqual([m.name for m in result], ["trial_a"])
         self.assertTrue(snapshot_exists)
         self.assertFalse(registry_exists)
@@ -174,6 +271,78 @@ class AggregatorTests(unittest.TestCase):
 
         self.assertEqual(refined_names, ["trial_a", "trial_b"])
         self.assertEqual([m.name for m in result], ["trial_b"])
+
+    def test_add_one_retains_cycle_exceeded_broken_candidates_when_policy_is_off(self):
+        seed = DummyMolecule("seed", n_atoms=3)
+        monomer = DummyMolecule("monomer", n_atoms=2)
+        trial = DummyMolecule("trial", n_atoms=2)
+        trial.energy = 0.0
+        optimise_calls = []
+
+        def fake_optimize(molecule, qc_params):
+            optimise_calls.append(molecule.name)
+            return "CycleExceeded"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                qc_params = {"software": "xtb", "_two_layer_optimization": False}
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
+                    with mock.patch.object(growth.trial_generation, "broken", return_value=True):
+                        with mock.patch.object(growth.clustering, "remove_similar", side_effect=lambda molecules: molecules):
+                            with mock.patch.object(growth.clustering, "choose_geometries", return_value=[]):
+                                with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
+                                    aggregator.add_one(
+                                        aggregate_id="ag_test",
+                                        seeds=[seed],
+                                        monomer=monomer,
+                                        hm_orientations=1,
+                                        qc_params=qc_params,
+                                        maximum_number_of_seeds=1,
+                                        site=None,
+                                        connectivity_policy="off",
+                                    )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(len(optimise_calls), 10)
+
+    def test_add_one_drops_cycle_exceeded_broken_candidates_when_policy_is_prefer(self):
+        seed = DummyMolecule("seed", n_atoms=1)
+        monomer = DummyMolecule("monomer", n_atoms=1)
+        trial = DummyMolecule("trial", n_atoms=2)
+        trial.energy = 0.0
+        optimise_calls = []
+
+        def fake_optimize(molecule, qc_params):
+            optimise_calls.append(molecule.name)
+            return "CycleExceeded"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                qc_params = {"software": "xtb", "_two_layer_optimization": False}
+                with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
+                    with mock.patch.object(growth.trial_generation, "broken", return_value=True):
+                        with mock.patch.object(growth.clustering, "remove_similar", side_effect=lambda molecules: molecules):
+                            with mock.patch.object(growth.clustering, "choose_geometries", return_value=[]):
+                                with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
+                                    aggregator.add_one(
+                                        aggregate_id="ag_test",
+                                        seeds=[seed],
+                                        monomer=monomer,
+                                        hm_orientations=1,
+                                        qc_params=qc_params,
+                                        maximum_number_of_seeds=1,
+                                        site=None,
+                                        connectivity_policy="prefer",
+                                    )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(len(optimise_calls), 1)
 
     def test_add_one_restores_cwd_when_seed_optimization_raises(self):
         seed = DummyMolecule("seed", n_atoms=2)

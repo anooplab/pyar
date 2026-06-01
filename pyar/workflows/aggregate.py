@@ -40,6 +40,7 @@ from pyar.workflows._growth import (
     old_path_to_new_path,
     read_old_path,
     select_pathways,
+    resolve_connectivity_policy_for_aggregate,
     update_id,
     _finalize_selected_geometries,
     _format_path,
@@ -123,6 +124,11 @@ def _selected_result_paths(pattern):
     return sorted(str(path) for path in Path(".").glob(pattern))
 
 
+def _aggregate_connectivity_policy(molecules):
+    """Return the final-selection connectivity policy for an aggregate run."""
+    return resolve_connectivity_policy_for_aggregate(molecules)
+
+
 def aggregate(
     molecules,
     aggregate_sizes,
@@ -201,6 +207,7 @@ def aggregate(
 
         seed_names = string.ascii_lowercase
         ag_id = "ag"
+        final_connectivity_policy = _aggregate_connectivity_policy(molecules)
 
         monomers_to_be_added = []
         for seed_molecule, seed_name, size_of_this_seed in zip(
@@ -279,6 +286,7 @@ def aggregate(
                         qc_params,
                         maximum_number_of_seeds,
                         site,
+                        connectivity_policy=final_connectivity_policy,
                     )
                 if len(seed_storage[ag_id]) == 0:
                     aggregator_logger.info(
@@ -299,6 +307,7 @@ def aggregate(
             aggregate_root=".",
             maximum_number_of_seeds=maximum_number_of_seeds,
             algorithm="hybrid",
+            connectivity_policy=final_connectivity_policy,
         )
         if final_selected:
             aggregator_logger.info(

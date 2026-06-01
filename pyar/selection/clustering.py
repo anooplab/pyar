@@ -93,8 +93,16 @@ def choose_geometries(
     apply_basin_memory=True,
     algorithm=None,
     group_basin_by_stoichiometry=True,
+    connectivity_policy="off",
 ):
     global _MBTR_RUNTIME_DISABLED, _MBTR_DISABLE_REASON
+    normalized_connectivity_policy = connectivity_policy.lower()
+    if normalized_connectivity_policy not in {"off", "prefer", "strict"}:
+        raise ValueError(
+            f"Unknown connectivity policy: {connectivity_policy!r}. "
+            "Expected one of 'off', 'prefer', or 'strict'."
+        )
+
     if len(list_of_molecules) < 2:
         _log_seed_shortfall(maximum_number_of_seeds, len(list_of_molecules), "selection")
         basin_registry_path = _basin_registry_path(
@@ -134,7 +142,11 @@ def choose_geometries(
     basin_entries = _load_basin_registry(basin_registry_path) if apply_basin_memory else []
     if basin_entries:
         pruned_molecules = _apply_basin_memory(pruned_molecules, maximum_number_of_seeds, basin_entries)
-    pruned_molecules = _prefer_connected_structures(pruned_molecules)
+    if normalized_connectivity_policy in {"prefer", "strict"}:
+        pruned_molecules = _prefer_connected_structures(
+            pruned_molecules,
+            policy=normalized_connectivity_policy,
+        )
 
     if len(pruned_molecules) <= maximum_number_of_seeds:
         cluster_logger.info(

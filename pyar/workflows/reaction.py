@@ -500,6 +500,9 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                     reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
                     reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
 
+                    # Reaction product validity is determined by molecular
+                    # identity and bond-change logic, not by single-component
+                    # covalent connectivity.
                     if same_molecular_identity(start_identity, current_identity):
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')

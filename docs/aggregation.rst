@@ -48,6 +48,13 @@ For most chemistry users, the important outputs are the selected structures
 and their energies. PyAR removes near-duplicates and keeps a smaller set of
 candidate geometries for inspection or higher-level refinement.
 
+Disconnected covalent graphs are expected for noncovalent aggregates and
+solvation-like assemblies, so they are not treated as invalid here. A
+connectivity preference is mainly useful for atomic or formula-driven growth
+where the goal is to keep a single-component cluster together.
+Open-shell or radical inputs also tend to keep that preference on, because a
+simple disconnectedness test is not enough to describe their chemistry.
+
 A typical aggregation run creates a directory structure like:
 
 .. code-block:: text
