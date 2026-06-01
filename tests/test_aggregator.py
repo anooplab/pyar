@@ -1,3 +1,4 @@
+import logging
 import json
 import os
 import importlib
@@ -19,6 +20,7 @@ class DummyMolecule:
         self.name = name
         self.atoms_list = atoms_list if atoms_list is not None else ["H"] * n_atoms
         self.coordinates = [[0.0, 0.0, 0.0] for _ in range(n_atoms)]
+        self.energy = 0.0
         self.number_of_atoms = n_atoms
         self.charge = 0
         self.multiplicity = 1
@@ -481,6 +483,42 @@ class AggregatorTests(unittest.TestCase):
                 self.assertTrue(Path(tmpdir, "selected", "stoichiometry_CH4", "result_sel_2.xyz").is_file())
             finally:
                 os.chdir(cwd)
+
+    def test_selected_snapshot_logs_energy_table_and_global_minimum(self):
+        selected = [
+            DummyMolecule("sel_low", n_atoms=1),
+            DummyMolecule("sel_high", n_atoms=1),
+        ]
+        selected[0].energy = 0.0
+        selected[1].energy = 1.0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                log_path = Path(tmpdir) / "pyar.log"
+                handler = logging.FileHandler(log_path, mode="w")
+                previous_level = growth.clustering.cluster_logger.level
+                growth.clustering.cluster_logger.setLevel(logging.INFO)
+                growth.clustering.cluster_logger.addHandler(handler)
+                try:
+                    aggregator._snapshot_selected_geometries(
+                        selected,
+                        output_root="selected",
+                        group_by_stoichiometry=False,
+                    )
+                finally:
+                    growth.clustering.cluster_logger.removeHandler(handler)
+                    growth.clustering.cluster_logger.setLevel(previous_level)
+                    handler.close()
+
+                log_text = log_path.read_text()
+            finally:
+                os.chdir(cwd)
+
+        self.assertIn("Selected energy table:", log_text)
+        self.assertIn("R. E. (kcal/mol)", log_text)
+        self.assertIn("Global minimum: sel_low", log_text)
 
     def test_pathway_snapshot_replaces_obsolete_flat_results(self):
         previous = DummyMolecule("previous", n_atoms=2)

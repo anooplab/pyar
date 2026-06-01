@@ -5,6 +5,28 @@ PyAR uses backend adapters to evaluate energies, gradients, and in some cases
 native optimisations. The canonical backend modules live under
 ``pyar.backends``.
 
+Installable pieces
+------------------
+
+Some backend dependencies are Python packages that can be installed directly
+with ``pip`` or through PyAR's optional extras:
+
+* ``python -m pip install "pyar-chem[selection]"`` for ``ase``, ``dscribe``,
+  ``hdbscan``, ``pandas``, ``scikit-learn``, and ``MDAnalysis``
+* ``python -m pip install "pyar-chem[ml]"`` for ``torchani``, ``mlatom``,
+  ``pyh5md``, and ``h5py``
+* ``python -m pip install "pyar-chem[aimnet2]"`` for the AIMNet2 runtime
+* ``python -m pip install "pyar-chem[xtb]"`` for ``geometric``
+* ``python -m pip install "pyar-chem[openbabel]"`` for the Open Babel Python
+  bindings
+
+If you only want one package, install it directly. For example:
+
+* ``python -m pip install ase``
+* ``python -m pip install geometric``
+* ``python -m pip install dscribe``
+* ``python -m pip install mlatom``
+
 Current backend families
 ------------------------
 

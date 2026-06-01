@@ -251,6 +251,11 @@ def _snapshot_selected_geometries(
         target_file = os.path.join(snapshot_dir, f"result_{molecule.name}.xyz")
         molecule_io.write_xyz(molecule, target_file)
 
+    selection_reports.print_energy_table(
+        selected_seeds,
+        title="Selected energy table:",
+    )
+
     if summary_lines:
         summary_path = os.path.join(snapshot_dir, "README.txt")
         with open(summary_path, "w") as fp:

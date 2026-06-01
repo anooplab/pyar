@@ -4,6 +4,33 @@ External Program Requirements
 PyAR can be installed with Python, but many chemistry backends are separate
 programs or libraries that must be installed independently.
 
+The fastest path is usually:
+
+* ``python -m pip install "pyar-chem[selection]"`` for clustering and
+  descriptor helpers such as ``ase``, ``dscribe``, ``hdbscan``, ``pandas``,
+  ``scikit-learn``, and ``MDAnalysis``
+* ``python -m pip install "pyar-chem[ml]"`` for ML helpers such as
+  ``torchani``, ``mlatom``, ``pyh5md``, and ``h5py``
+* ``python -m pip install "pyar-chem[aimnet2]"`` when you need the AIMNet2
+  runtime stack
+* ``python -m pip install "pyar-chem[xtb]"`` for the geomeTRIC channel used by
+  xTB-backed AFIR work
+* ``python -m pip install "pyar-chem[openbabel]"`` for the Open Babel Python
+  bindings
+
+If you only want a single Python package, install it directly with
+``python -m pip install <package-name>``. For example:
+
+* ``python -m pip install ase``
+* ``python -m pip install geometric``
+* ``python -m pip install dscribe``
+* ``python -m pip install hdbscan``
+* ``python -m pip install pandas``
+* ``python -m pip install scikit-learn``
+
+Use the upstream site or vendor installer for tools that are not distributed
+that way, especially executables.
+
 Official project sites
 ----------------------
 
@@ -14,6 +41,12 @@ Official project sites
    * - Program
      - Official site
      - Notes
+   * - ASE
+     - https://wiki.fysik.dtu.dk/ase/install.html
+     - Install with ``python -m pip install ase``.
+   * - geomeTRIC
+     - https://github.com/leeping/geomeTRIC
+     - Install with ``python -m pip install geometric``.
    * - xTB
      - https://xtb-docs.readthedocs.io/en/latest/setup.html
      - Use the upstream setup guide for binaries, environment variables, and
@@ -27,16 +60,22 @@ Official project sites
    * - Psi4
      - https://psicode.org/psi4manual/master/index.html
      - Open-source quantum chemistry package with official installation docs.
+   * - DScribe
+     - https://singroup.github.io/dscribe/latest/
+     - Install with ``python -m pip install dscribe`` or
+       ``python -m pip install "pyar-chem[selection]"``.
    * - MOPAC
      - https://openmopac.net/download/installer/
      - Use the official installer or the upstream installation manual.
    * - MLatom
      - https://mlatom.com/docs/installation.html
-     - Python package and workflow ecosystem with upstream install guidance.
+     - Install with ``python -m pip install mlatom`` or
+       ``python -m pip install "pyar-chem[ml]"``.
    * - Open Babel
      - https://openbabel.org/docs/Installation/install.html
-     - Command-line tools and optional Python bindings are installed
-       separately from PyAR.
+     - Install the Python bindings with ``python -m pip install openbabel`` or
+       ``python -m pip install "pyar-chem[openbabel]"``; the command-line
+       tools still come from the upstream installer.
    * - TURBOMOLE
      - https://www.turbomole.org/
      - Commercial software; use the official documentation and installer.
