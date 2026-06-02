@@ -562,6 +562,23 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             reactor.saved_product_identities.clear()
             reactor.saved_product_identities.update(original_registry)
 
+    def test_reactor_continues_gamma_schedule_when_products_exist_and_cycle_is_empty(self):
+        reactor = importlib.import_module("pyar.workflows.reaction")
+
+        original_registry = dict(reactor.saved_product_identities)
+        try:
+            reactor.saved_product_identities.clear()
+            self.assertFalse(reactor._should_continue_after_product([]))
+            reactor.saved_product_identities["product"] = {
+                "inchi": "product-inchi",
+                "smiles": "product-smiles",
+            }
+            self.assertTrue(reactor._should_continue_after_product([]))
+            self.assertFalse(reactor._should_continue_after_product([object()]))
+        finally:
+            reactor.saved_product_identities.clear()
+            reactor.saved_product_identities.update(original_registry)
+
     def test_trial_generation_make_composite_uses_population_offsets(self):
         script = self._import_in_tempdir("pyar.scripts.trial_generation")
         result = SimpleNamespace(title=None, mol_to_xyz=lambda _path: None)

@@ -220,6 +220,11 @@ def _is_known_product(identity):
     )
 
 
+def _should_continue_after_product(optimized_molecules):
+    """Return whether the reaction loop should keep advancing gamma values."""
+    return len(optimized_molecules) == 0 and bool(saved_product_identities)
+
+
 def relax_without_afir_bias(molecule, qc_params):
     """Relax a bonded AFIR candidate on the unbiased physical objective.
 
@@ -387,14 +392,14 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
             f"Gamma cycle optimized geometries: {len(optimized_molecules)}")
         if len(optimized_molecules) == 0:
             run_state.complete_cycle(gamma, [])
-            if saved_product_identities:
+            if _should_continue_after_product(optimized_molecules):
                 reactor_logger.info(
-                    "Reaction search completed with %d unique product(s); "
-                    "no candidates require higher-gamma optimization.",
+                    "Reaction search found %d unique product(s); continuing "
+                    "through the remaining gamma schedule.",
                     len(saved_product_identities),
                 )
-                run_state.finish("completed_products_found")
-                result_status = "completed_products_found"
+                orientations_to_optimize = []
+                continue
             else:
                 reactor_logger.info("No orientations left for next gamma cycle.")
                 run_state.finish("completed_no_candidates")
