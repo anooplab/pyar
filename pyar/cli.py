@@ -56,7 +56,6 @@ _SUBCOMMAND_ALIASES = {
     "aggregate": "--aggregate",
     "react": "--react",
     "solvate": "--solvate",
-    "scan-bond": "--scan-bond",
 }
 
 
@@ -76,8 +75,6 @@ def _active_run_mode(run_parameters):
         return 'solvate'
     if run_parameters['react']:
         return 'react'
-    if run_parameters['scan_bond']:
-        return 'scan-bond'
     return 'unknown'
 
 
@@ -236,11 +233,9 @@ molecular complexes or atomic clusters.
   pyar-cli aggregate C H -as 1 4 -N 8
   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
   pyar-cli solvate solute.xyz solvent.xyz -ss 10 -N 16
-  pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8
   pyar-cli -a C H -as 1 4 -N 8
   pyar-cli --aggregate --formula C5H4 -N 8
   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
-  pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
   pyar-cli trace .
   pyar-cli trace . --plot
   pyar-cli trace . --plot-only
@@ -296,9 +291,6 @@ chemical formula.
                                 help="Add one solvent molecules to given solute molecules")
     run_type_group.add_argument("-a", "--aggregate", action='store_true',
                                 help="Run a aggregator calculation")
-    run_type_group.add_argument("--scan-bond", nargs=2, type=int,
-                                metavar=('a', 'b'),
-                                help="scan a bond between the given atoms of two fragments")
 
     parser.add_argument('-ss', '--solvation-size', type=int, metavar='n',
                         help='number of solvent molecules to be added')
@@ -309,6 +301,17 @@ chemical formula.
                                  'ani', 'lmbtr', 'acsf', 'sinematrix', 'vallornav'],
                         default='fingerprint',
                         help="Choose the features to be used for clustering")
+    parser.add_argument(
+        "--connectivity-policy",
+        choices=["auto", "off", "prefer", "strict"],
+        default=defualt_parameters.values["connectivity_policy"],
+        help=(
+            "Connectivity handling for covalent-graph selection: "
+            "auto lets the workflow decide, off never filters by connectivity, "
+            "prefer keeps connected candidates when available, and strict "
+            "discards disconnected candidates."
+        ),
+    )
     parser.add_argument('-as', '--aggregate-size', type=int, nargs='*',
                         metavar=('l', 'm',),
                         help='number of monomers in aggregate; defaults to '
@@ -405,8 +408,6 @@ def _validate_cli_request_shape(run_parameters, number_of_input_files):
 
     if run_parameters['react'] and number_of_input_files != 2:
         sys.exit('Reactor requires exactly two XYZ input files')
-    if run_parameters['scan_bond'] and number_of_input_files != 2:
-        sys.exit('Bond scanning requires exactly two XYZ input files')
     if run_parameters['solvate'] and number_of_input_files < 2:
         sys.exit('Solvation requires at least two XYZ input files')
 
@@ -545,7 +546,6 @@ def main():
         run_parameters["geometry_optimizer"],
     )
 
-    from pyar import scan
     from pyar.state.aggregate import AggregateStateError
     from pyar.state.solvation import SolvationStateError
     from pyar.workflows.aggregate import aggregate
@@ -751,12 +751,6 @@ def main():
             f'Plan: react gamma_range=({run_parameters["gmin"]}, {run_parameters["gmax"]}) '
             f'orientations={number_of_orientations}'
         )
-    elif run_mode == 'scan-bond':
-        logger.info(
-            f'Plan: scan-bond pair={run_parameters["scan_bond"]} '
-            f'orientations={number_of_orientations}'
-        )
-
     try:
         if run_parameters['aggregate']:
             size_of_aggregate = run_parameters['aggregate_size']
@@ -787,6 +781,7 @@ def main():
                 run_parameters['first_pathway'],
                 run_parameters['number_of_pathways'],
                 site,
+                connectivity_policy=run_parameters["connectivity_policy"],
             )
             _log_workflow_result(result)
             logger.info('Total Time: {}'.format(time.time() - t1_0))
@@ -810,6 +805,7 @@ def main():
                 quantum_chemistry_parameters,
                 maximum_number_of_seeds,
                 site,
+                connectivity_policy=run_parameters["connectivity_policy"],
             )
             _log_workflow_result(result)
             logger.info('Total Time: {}'.format(time.time() - t1_0))
@@ -843,12 +839,6 @@ def main():
             logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
             return
 
-        if run_parameters['scan_bond']:
-            if number_of_orientations is None:
-                sys.exit('Missing arguments: -N #')
-            scan.scan_distance(input_molecules, run_parameters['scan_bond'],
-                               int(number_of_orientations),
-                               quantum_chemistry_parameters)
     except (FileNotFoundError, AggregateStateError, ReactionStateError, SolvationStateError, ValueError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))

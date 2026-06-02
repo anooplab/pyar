@@ -195,10 +195,12 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site,
+                              connectivity_policy=None):
             captured["names"] = [mol.name for mol in input_molecules]
             captured["sizes"] = aggregate_sizes
             captured["software"] = qc_params["software"]
+            captured["connectivity_policy"] = connectivity_policy
 
         sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
         sys.argv = [
@@ -217,6 +219,79 @@ class CliSmokeTests(unittest.TestCase):
         self.assertEqual(captured["names"], ["C", "H"])
         self.assertEqual(captured["sizes"], [1, 4])
         self.assertEqual(captured["software"], "aimnet_2")
+        self.assertEqual(captured["connectivity_policy"], "auto")
+
+    def test_aggregate_passes_explicit_connectivity_policy(self):
+        captured = {}
+
+        def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site,
+                              connectivity_policy=None):
+            captured["connectivity_policy"] = connectivity_policy
+
+        sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
+        sys.argv = [
+            "pyar-cli",
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "1",
+            "--connectivity-policy",
+            "off",
+        ]
+
+        self.cli.main()
+
+        self.assertEqual(captured["connectivity_policy"], "off")
+
+    def test_scan_bond_subcommand_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            self.cli.argument_parse([
+                "scan-bond",
+                "1",
+                "2",
+                "A.xyz",
+                "B.xyz",
+                "-N",
+                "8",
+            ])
+
+    def test_connectivity_policy_defaults_to_auto(self):
+        args = self.cli.argument_parse([
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "1",
+        ])
+
+        self.assertEqual(args.connectivity_policy, "auto")
+
+    def test_connectivity_policy_accepts_explicit_values(self):
+        args = self.cli.argument_parse([
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "1",
+            "--connectivity-policy",
+            "prefer",
+        ])
+
+        self.assertEqual(args.connectivity_policy, "prefer")
+
+    def test_connectivity_policy_rejects_unknown_value(self):
+        with self.assertRaises(SystemExit):
+            self.cli.argument_parse([
+                "-a",
+                "--formula",
+                "C",
+                "-N",
+                "1",
+                "--connectivity-policy",
+                "sometimes",
+            ])
 
     def test_trace_subcommand_dispatches_to_reaction_trace_cli(self):
         sys.argv = [
@@ -410,7 +485,8 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site,
+                              connectivity_policy=None):
             captured["multiplicities"] = [mol.multiplicity for mol in input_molecules]
             captured["charges"] = [mol.charge for mol in input_molecules]
 
@@ -509,7 +585,8 @@ class CliSmokeTests(unittest.TestCase):
         }
 
         def aggregate_backend_contract(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                                       maximum_number_of_seeds, first_pathway, number_of_pathways, site):
+                                       maximum_number_of_seeds, first_pathway, number_of_pathways, site,
+                                       connectivity_policy=None):
             software = qc_params["software"]
             if software in python_only_backends:
                 return None
@@ -570,7 +647,8 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site,
+                              connectivity_policy=None):
             captured["qc_params"] = qc_params
 
         sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate
@@ -657,7 +735,8 @@ class CliSmokeTests(unittest.TestCase):
         captured = {}
 
         def capture_aggregate(input_molecules, aggregate_sizes, hm_orientations, qc_params,
-                              maximum_number_of_seeds, first_pathway, number_of_pathways, site):
+                              maximum_number_of_seeds, first_pathway, number_of_pathways, site,
+                              connectivity_policy=None):
             captured["qc_params"] = qc_params
 
         sys.modules["pyar.workflows.aggregate"].aggregate = capture_aggregate

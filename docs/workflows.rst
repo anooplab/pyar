@@ -3,7 +3,7 @@ Workflow Internals
 
 This page is a technical map of the main PyAR workflow implementations. If you
 are using PyAR for chemistry, start with the task pages instead:
-:doc:`aggregate`, :doc:`react`, :doc:`solvate`, and :doc:`bond_scan`.
+:doc:`aggregate`, :doc:`react`, and :doc:`solvate`.
 
 The word "workflow" is used here in the developer sense: a coordinated set of
 sampling, optimisation, selection, restart, and reporting steps.
@@ -19,6 +19,10 @@ Connectivity filtering is policy-controlled here: it is useful for atomic or
 formula-driven growth, but noncovalent aggregate and solvation workflows keep
 disconnected covalent graphs by default.
 
+The CLI exposes this choice as ``--connectivity-policy {auto,off,prefer,strict}``.
+Use ``auto`` for the workflow default, ``off`` for noncovalent complexes and
+solvation, and ``prefer`` or ``strict`` for atomic/formula growth.
+
 Examples:
 
 .. code-block:: bash
@@ -26,7 +30,6 @@ Examples:
    pyar-cli aggregate C H -as 1 4 -N 8
    pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
    pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
-   pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8
    pyar-cli -a C H -as 1 4 -N 8
    pyar-cli --aggregate --formula C5H4 -N 8
 
@@ -180,6 +183,3 @@ way to probe whether a bond-forming or bond-breaking coordinate behaves as
 expected before committing to a more expensive reaction search.
 
 .. code-block:: bash
-
-   pyar-cli --scan-bond 1 2 A.xyz B.xyz -N 8
-   pyar-cli scan-bond 1 2 A.xyz B.xyz -N 8

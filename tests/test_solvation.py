@@ -1,5 +1,6 @@
 """Tests for the solvation workflow."""
 
+import json
 import os
 import tempfile
 import unittest
@@ -65,6 +66,34 @@ class SolvationWorkflowTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertTrue(result.state_path.endswith("solvation/state.json"))
         self.assertTrue(state_exists)
+
+    def test_solvation_uses_off_connectivity_policy(self):
+        seed = DummyMolecule("seed", n_atoms=1)
+        solvent = DummyMolecule("solvent", n_atoms=1)
+        step = DummyMolecule("step", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(solvation, "add_one", return_value=[step]) as add_one:
+                    result = solvation.solvate(
+                        seeds=[seed],
+                        monomer=solvent,
+                        aggregate_size=1,
+                        hm_orientations=1,
+                        qc_params={"software": None},
+                        maximum_number_of_seeds=1,
+                        site=None,
+                    )
+                with Path("solvation", "state.json").open() as fp:
+                    state = json.load(fp)
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(add_one.call_args.kwargs["connectivity_policy"], "off")
+        self.assertEqual(result.metadata["connectivity_policy"], "off")
+        self.assertEqual(state["request"]["connectivity_policy"], "off")
 
     def test_solvation_resumes_from_saved_state(self):
         seed = DummyMolecule("seed", n_atoms=1)

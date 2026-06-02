@@ -57,12 +57,22 @@ def _build_solvation_request(seeds, monomer, aggregate_size, hm_orientations, qc
         "backend_parameters": dict(qc_params),
         "maximum_number_of_seeds": int(maximum_number_of_seeds),
         "site": None if site is None else list(site),
+        "connectivity_policy": "off",
         "seeds": [_molecule_signature(seed) for seed in seeds],
         "monomer": _molecule_signature(monomer),
     }
 
 
-def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_number_of_seeds, site=None):
+def solvate(
+    seeds,
+    monomer,
+    aggregate_size,
+    hm_orientations,
+    qc_params,
+    maximum_number_of_seeds,
+    site=None,
+    connectivity_policy="off",
+):
     """Run the solvation workflow for the provided seeds and solvent.
 
     The workflow either resumes an existing ``solvation/`` state tree or
@@ -74,6 +84,13 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
     if check_stop_signal():
         aggregator_logger.info("Function: solvate")
         return stopped_workflow_result("solvation", os.getcwd())
+
+    requested_connectivity_policy = "off" if connectivity_policy is None else str(connectivity_policy).lower()
+    if requested_connectivity_policy not in {"auto", "off", "prefer", "strict"}:
+        raise ValueError(
+            f"Unknown connectivity policy: {connectivity_policy!r}. "
+            "Expected one of 'auto', 'off', 'prefer', or 'strict'."
+        )
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
 
@@ -105,6 +122,7 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
 
     starting_directory = os.getcwd()
     aggregator_logger.info(f"Starting solvation in {starting_directory}")
+    aggregator_logger.info("Connectivity policy: off (solvation workflow)")
     aggregator_logger.info(
         "Solvation state detected: %s; next cycle=%d",
         "resuming" if run_state.data.get("completed_cycles") else "starting fresh",
@@ -130,13 +148,14 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
                 state_path=workflow_state_path(workflow_run_directory(root_directory, "solvation")),
                 selected_paths=tuple(run_state.data.get("final_seeds", [])),
                 metadata={
-                    "completed_cycles": tuple(
-                        record["cycle"] for record in run_state.data.get("completed_cycles", [])
-                    ),
-                    "next_cycle": run_state.data.get("next_cycle"),
-                    "sampling": run_state.data.get("sampling", sampling),
-                },
-            )
+                "completed_cycles": tuple(
+                    record["cycle"] for record in run_state.data.get("completed_cycles", [])
+                ),
+                "next_cycle": run_state.data.get("next_cycle"),
+                "sampling": run_state.data.get("sampling", sampling),
+                "connectivity_policy": "off",
+            },
+        )
         aggregate_id = "{:03d}".format(aggregation_counter)
         aggregate_home = f"aggregate_{aggregate_id}"
         file_manager.make_directories(aggregate_home)
@@ -170,5 +189,6 @@ def solvate(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_
             ),
             "next_cycle": run_state.data.get("next_cycle"),
             "sampling": run_state.data.get("sampling", sampling),
+            "connectivity_policy": "off",
         },
     )

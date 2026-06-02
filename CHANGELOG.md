@@ -24,7 +24,7 @@ This release focuses on cleanup, documentation, and workflow stabilization.
 - Version metadata is now consistent across packaging and runtime checks.
 - CI now exercises the package across multiple Python versions and validates docs and source distributions.
 - Test isolation issues that could create stray files in the repository root were removed.
-- Connectivity filtering is now policy-controlled. It is enabled for atomic and formula cluster growth and disabled by default for noncovalent aggregate and solvation workflows.
+- Connectivity filtering is now policy-controlled. It is off by default for molecular aggregates and solvation, preferred for atomic/formula growth, and user-overridable through `--connectivity-policy`.
 
 ## 1.1.0 - 2026-05-30
 

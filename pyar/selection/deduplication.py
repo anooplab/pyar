@@ -203,6 +203,7 @@ def remove_similar(list_of_molecules):
 
     ordered_molecules = sorted(list_of_molecules, key=lambda molecule: (float(molecule.energy), molecule.name))
     final_list = []
+    removed_duplicates = []
     rmsd_threshold = _adaptive_duplicate_rmsd_threshold(ordered_molecules)
     clustering.cluster_logger.debug('Number of molecules before similarity elimination,  {}'.format(len(ordered_molecules)))
     for candidate in ordered_molecules:
@@ -212,8 +213,10 @@ def remove_similar(list_of_molecules):
                 continue
             if not _structure_is_similar(candidate, kept):
                 continue
-            if _rmsd_after_alignment(candidate, kept) < rmsd_threshold:
+            aligned_rmsd = _rmsd_after_alignment(candidate, kept)
+            if aligned_rmsd < rmsd_threshold:
                 duplicate = True
+                removed_duplicates.append((candidate.name, kept.name, aligned_rmsd))
                 clustering.cluster_logger.debug(
                     'Removing {} as a near-duplicate of {}'.format(candidate.name, kept.name)
                 )
@@ -221,6 +224,27 @@ def remove_similar(list_of_molecules):
         if not duplicate:
             final_list.append(candidate)
     clustering.cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
+    if removed_duplicates:
+        clustering.cluster_logger.info(
+            "Similarity pruning retained %d geometries and removed %d near-duplicates (RMSD threshold %.4f Ang).",
+            len(final_list),
+            len(removed_duplicates),
+            rmsd_threshold,
+        )
+        detail_limit = 20
+        for candidate_name, kept_name, aligned_rmsd in removed_duplicates[:detail_limit]:
+            clustering.cluster_logger.info(
+                "Similarity pruning removed %s as a near-duplicate of %s (RMSD %.6f < %.6f).",
+                candidate_name,
+                kept_name,
+                aligned_rmsd,
+                rmsd_threshold,
+            )
+        if len(removed_duplicates) > detail_limit:
+            clustering.cluster_logger.info(
+                "Similarity pruning omitted %d additional near-duplicate details.",
+                len(removed_duplicates) - detail_limit,
+            )
     from pyar.selection.reports import print_energy_table
 
     print_energy_table(final_list)

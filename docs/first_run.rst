@@ -113,4 +113,3 @@ After this first run, try the task pages:
 * :doc:`aggregate` for clusters and noncovalent complexes
 * :doc:`solvate` for adding molecules or ligands around a core
 * :doc:`react` for AFIR-style reaction searches
-* :doc:`bond_scan` for a simple distance-coordinate probe

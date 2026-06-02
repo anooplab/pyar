@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
+
 from pyar.backends import babel
 
 
@@ -22,6 +25,22 @@ def molecule_identity_from_xyz(xyzfile):
     if not identity["inchi"] or not identity["smiles"]:
         raise ValueError(f"Could not determine complete product identity from {xyzfile}")
     return identity
+
+
+def separated_reactant_identity(reactant_a, reactant_b):
+    """Return the identity of the original reactants as separated fragments."""
+    reference = reactant_a + reactant_b
+    handle = tempfile.NamedTemporaryFile(suffix=".xyz", delete=False)
+    reference_path = handle.name
+    handle.close()
+    try:
+        write_disconnected_reference(reference, reference_path)
+        return molecule_identity_from_xyz(reference_path)
+    finally:
+        try:
+            os.unlink(reference_path)
+        except OSError:
+            pass
 
 
 def same_molecular_identity(first, second):

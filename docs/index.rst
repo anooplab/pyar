@@ -20,7 +20,6 @@ For most chemistry users, start with the task that matches your problem:
 * :doc:`aggregate` for clusters, aggregates, and noncovalent complexes
 * :doc:`react` for AFIR-style product and close-contact searches
 * :doc:`solvate` for microsolvation, ligand addition, and growth around a core
-* :doc:`bond_scan` for a simple distance-coordinate probe
 
 .. rubric:: Cite this work
 
@@ -81,7 +80,6 @@ Start here
 * :doc:`aggregate`
 * :doc:`react`
 * :doc:`solvate`
-* :doc:`bond_scan`
 * :doc:`usage`
 * :doc:`publications`
 * :doc:`installation`
@@ -163,7 +161,6 @@ The fastest way to verify a local install is:
    aggregate
    react
    solvate
-   bond_scan
 
 .. toctree::
    :maxdepth: 2

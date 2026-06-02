@@ -700,8 +700,51 @@ class AggregatorTests(unittest.TestCase):
         self.assertTrue(result.state_path.endswith("aggregates/state.json"))
         self.assertEqual(state["workflow"], "aggregate")
         self.assertEqual(state["status"], "completed")
+        self.assertEqual(state["request"]["connectivity_policy"], "auto")
         self.assertEqual(state["request"]["fragments"][0]["scftype"], "rhf")
         self.assertEqual(state["request"]["fragments"][0]["fragment_definition"], [0])
+
+    def test_aggregate_uses_resolved_connectivity_policy_for_selection_and_final_clustering(self):
+        molecule_a = DummyMolecule("input_a", n_atoms=1)
+        molecule_b = DummyMolecule("input_b", n_atoms=1)
+        trial = DummyMolecule("trial", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(
+                    aggregate_workflow,
+                    "select_pathways",
+                    return_value=[(molecule_a, molecule_b)],
+                ):
+                    with mock.patch.object(aggregate_workflow, "add_one", return_value=[trial]) as add_one:
+                        with mock.patch.object(
+                            aggregate_workflow,
+                            "_finalize_selected_geometries",
+                            return_value=[trial],
+                        ) as finalize:
+                            with mock.patch.object(
+                                aggregate_workflow,
+                                "resolve_connectivity_policy_for_aggregate",
+                                return_value="prefer",
+                            ) as resolver:
+                                aggregate_workflow.aggregate(
+                                    molecules=[molecule_a, molecule_b],
+                                    aggregate_sizes=[1, 1],
+                                    hm_orientations=1,
+                                    qc_params={"software": None},
+                                    maximum_number_of_seeds=1,
+                                    first_pathway=0,
+                                    number_of_pathways=1,
+                                    site=None,
+                                )
+            finally:
+                os.chdir(cwd)
+
+        resolver.assert_called_once()
+        self.assertEqual(add_one.call_args.kwargs["connectivity_policy"], "prefer")
+        self.assertEqual(finalize.call_args.kwargs["connectivity_policy"], "prefer")
 
     def test_aggregate_refuses_existing_output_without_resumable_state(self):
         molecule = DummyMolecule("seed", n_atoms=1)

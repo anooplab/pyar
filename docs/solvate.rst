@@ -5,6 +5,11 @@ Use solvation when you want PyAR to add one or more copies of a fragment
 around a central structure. Microsolvation is the classic use case, but the
 same workflow also applies to ligand addition and local growth around a core.
 
+Solvation keeps the covalent-graph connectivity filter off by default because
+disconnected complexes are expected. You can still pass
+``--connectivity-policy`` on the CLI, but the workflow treats solvation as a
+noncovalent growth problem and does not prefer connected graphs.
+
 Basic commands
 --------------
 

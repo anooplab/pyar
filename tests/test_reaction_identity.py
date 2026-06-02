@@ -63,6 +63,24 @@ class ReactionIdentityTests(unittest.TestCase):
         self.assertTrue(reaction_identity.reaction_product_changed(start, changed_inchi))
         self.assertFalse(reaction_identity.reaction_product_changed(start, unchanged))
 
+    def test_separated_reactant_identity_uses_disconnected_reference(self):
+        reactant_a = Molecule(["H"], np.array([[0.0, 0.0, 0.0]]), name="a")
+        reactant_b = Molecule(["H"], np.array([[0.0, 0.0, 1.0]]), name="b")
+        expected = {"inchi": "reactants-inchi", "smiles": "reactants-smiles"}
+
+        with mock.patch.object(
+            reaction_identity,
+            "molecule_identity_from_xyz",
+            return_value=expected,
+        ) as identity_from_xyz:
+            identity = reaction_identity.separated_reactant_identity(
+                reactant_a,
+                reactant_b,
+            )
+
+        self.assertEqual(identity, expected)
+        identity_from_xyz.assert_called_once()
+
     def test_reaction_optimize_all_does_not_use_connectivity_filter(self):
         class DummyReactionMolecule:
             def __init__(self):
@@ -174,6 +192,76 @@ class ReactionIdentityTests(unittest.TestCase):
                                         copy_product.assert_called_once()
             finally:
                 os.chdir(cwd)
+
+    def test_reaction_optimize_all_compares_against_original_reactants(self):
+        class DummyReactionMolecule:
+            def __init__(self):
+                self.name = "orientation"
+                self.energy = 0.0
+                self.fragments = [[0]]
+
+            def mol_to_xyz(self, filename):
+                Path(filename).write_text("1\norientation\nH 0 0 0\n")
+
+            def copy(self):
+                return DummyReactionMolecule()
+
+            def is_bonded(self):
+                return True
+
+        class DummyRunState:
+            def __init__(self):
+                self.data = {
+                    "reactant_identity": {
+                        "inchi": "reactants-inchi",
+                        "smiles": "reactants-smiles",
+                    }
+                }
+                self.recorded_jobs = []
+
+            def current_survivor_molecules(self):
+                return []
+
+            def record_job(self, *args, **kwargs):
+                self.recorded_jobs.append(args)
+
+            def record_product(self, *args, **kwargs):
+                raise AssertionError("false product should not be recorded")
+
+        molecule = DummyReactionMolecule()
+        start_identity = {"inchi": "survivor-inchi", "smiles": "survivor-smiles"}
+        current_identity = {
+            "inchi": "reactants-inchi",
+            "smiles": "reactants-smiles",
+        }
+        run_state = DummyRunState()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                with mock.patch.object(reaction, "optimise", return_value=True):
+                    with mock.patch.object(reaction, "relax_without_afir_bias", return_value=True):
+                        with mock.patch.object(
+                            reaction,
+                            "molecule_identity_from_xyz",
+                            side_effect=[start_identity, current_identity],
+                        ):
+                            os.chdir(tmpdir)
+                            product_dir = Path(tmpdir) / "products"
+                            product_dir.mkdir()
+                            survivors = reaction.optimize_all(
+                                gamma_id="0001",
+                                orientations=[molecule],
+                                run_state=run_state,
+                                product_dir=str(product_dir),
+                                qc_param={"gamma": 1.0},
+                            )
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(len(survivors), 1)
+        self.assertEqual(run_state.recorded_jobs[0][1], 1.0)
+        self.assertEqual(run_state.recorded_jobs[0][2], True)
 
 
 if __name__ == "__main__":

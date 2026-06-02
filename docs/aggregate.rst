@@ -5,6 +5,11 @@ Use aggregation when you want PyAR to build and screen low-energy structures
 from fragments or a formula. This is the main workflow for clusters,
 noncovalent complexes, and other build-up problems.
 
+Disconnected covalent graphs are expected for molecular aggregates and other
+noncovalent complexes. Use ``--connectivity-policy auto`` for the default
+chemistry-aware choice, or override with ``off``, ``prefer``, or ``strict``
+when you need a different selection rule.
+
 Basic commands
 --------------
 

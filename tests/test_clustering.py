@@ -183,6 +183,32 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual([m.name for m in result], ["low"])
 
+    def test_remove_similar_logs_near_duplicate_representative(self):
+        molecules = [
+            SimpleNamespace(
+                name="high",
+                atoms_list=["H", "H"],
+                coordinates=[[1.0, 0.0, 0.0], [1.5, 0.0, 0.0]],
+                energy=1e-6,
+            ),
+            SimpleNamespace(
+                name="low",
+                atoms_list=["H", "H"],
+                coordinates=[[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+                energy=0.0,
+            ),
+        ]
+
+        with mock.patch("pyar.selection.clustering.calc_fingerprint_distance", return_value=0.5):
+            with mock.patch.object(clustering.cluster_logger, "info") as logger_info:
+                result = clustering.remove_similar(molecules)
+
+        self.assertEqual([m.name for m in result], ["low"])
+        self.assertIn(
+            "Similarity pruning removed high as a near-duplicate of low",
+            "\n".join(str(call.args[0]) % call.args[1:] for call in logger_info.call_args_list),
+        )
+
     def test_remove_similar_keeps_same_energy_distinct_structures(self):
         molecules = [
             SimpleNamespace(name="a", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
@@ -206,12 +232,14 @@ class ClusteringTests(unittest.TestCase):
                 with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
                     with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
                         with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
-                            result = clustering.choose_geometries(
-                                molecules,
-                                maximum_number_of_seeds=2,
-                                connectivity_policy="off",
-                            )
+                            with mock.patch.object(clustering, "_prefer_connected_structures") as prefer_connected:
+                                result = clustering.choose_geometries(
+                                    molecules,
+                                    maximum_number_of_seeds=2,
+                                    connectivity_policy="off",
+                                )
 
+        prefer_connected.assert_not_called()
         self.assertEqual([m.name for m in result], ["connected", "broken"])
 
     def test_choose_geometries_discards_disconnected_candidates_when_policy_is_prefer(self):
@@ -226,12 +254,17 @@ class ClusteringTests(unittest.TestCase):
                 with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
                     with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
                         with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
-                            result = clustering.choose_geometries(
-                                molecules,
-                                maximum_number_of_seeds=2,
-                                connectivity_policy="prefer",
-                            )
+                            with mock.patch.object(clustering, "_prefer_connected_structures") as prefer_connected:
+                                prefer_connected.side_effect = lambda pool, policy="prefer": [
+                                    molecule for molecule in pool if molecule.name != "broken"
+                                ]
+                                result = clustering.choose_geometries(
+                                    molecules,
+                                    maximum_number_of_seeds=2,
+                                    connectivity_policy="prefer",
+                                )
 
+        prefer_connected.assert_called_once()
         self.assertEqual([m.name for m in result], ["connected", "extra"])
 
     def test_choose_geometries_keeps_all_disconnected_candidates_when_policy_is_prefer(self):

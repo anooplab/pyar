@@ -351,6 +351,7 @@ def _finalize_selected_geometries(
                 f"Source geometries: {len(molecules)}",
                 f"Selected geometries: {len(selected)}",
                 f"Algorithm: {algorithm}",
+                f"Connectivity policy: {connectivity_policy}",
             ],
             group_by_stoichiometry=True,
         )
@@ -570,6 +571,7 @@ def add_one(
                     "Selection mode: single-stage",
                     f"Backend: {qc_params.get('software')}",
                     f"Selected geometries: {len(selected_seeds)}",
+                    f"Connectivity policy: {connectivity_policy}",
                 ],
                 group_by_stoichiometry=False,
             )
@@ -603,6 +605,7 @@ def add_one(
                         "Stage 2: normal-threshold refinement",
                         f"Backend: {qc_params.get('software')}",
                         f"Selected geometries: {len(selected_seeds)}",
+                        f"Connectivity policy: {connectivity_policy}",
                     ],
                     group_by_stoichiometry=False,
                 )
@@ -620,6 +623,7 @@ def add_one(
                     "Stage 2: normal-threshold refinement failed for all selected seeds",
                     f"Backend: {qc_params.get('software')}",
                     f"Selected geometries: {len(less_than_ideal)}",
+                    f"Connectivity policy: {connectivity_policy}",
                 ],
                 group_by_stoichiometry=False,
             )

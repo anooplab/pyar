@@ -81,6 +81,7 @@ def _build_aggregate_request(
     first_pathway,
     number_of_pathways,
     site,
+    connectivity_policy,
 ):
     """Build the scientific request persisted with aggregation state.
 
@@ -97,6 +98,7 @@ def _build_aggregate_request(
         "first_pathway": int(first_pathway),
         "number_of_pathways": int(number_of_pathways),
         "site": None if site is None else list(site),
+        "connectivity_policy": "auto" if connectivity_policy is None else str(connectivity_policy).lower(),
         "fragments": [_molecule_signature(molecule) for molecule in molecules],
     }
 
@@ -124,11 +126,6 @@ def _selected_result_paths(pattern):
     return sorted(str(path) for path in Path(".").glob(pattern))
 
 
-def _aggregate_connectivity_policy(molecules):
-    """Return the final-selection connectivity policy for an aggregate run."""
-    return resolve_connectivity_policy_for_aggregate(molecules)
-
-
 def aggregate(
     molecules,
     aggregate_sizes,
@@ -138,6 +135,7 @@ def aggregate(
     first_pathway,
     number_of_pathways,
     site,
+    connectivity_policy="auto",
 ):
     """Run an aggregate or cluster-generation workflow.
 
@@ -167,6 +165,7 @@ def aggregate(
         first_pathway,
         number_of_pathways,
         site,
+        connectivity_policy,
     )
     run_state = AggregateRunState.load(root_directory, request)
     old_path = read_old_path()
@@ -207,7 +206,29 @@ def aggregate(
 
         seed_names = string.ascii_lowercase
         ag_id = "ag"
-        final_connectivity_policy = _aggregate_connectivity_policy(molecules)
+        requested_connectivity_policy = "auto" if connectivity_policy is None else str(connectivity_policy).lower()
+        if requested_connectivity_policy not in {"auto", "off", "prefer", "strict"}:
+            raise ValueError(
+                f"Unknown connectivity policy: {connectivity_policy!r}. "
+                "Expected one of 'auto', 'off', 'prefer', or 'strict'."
+            )
+        if requested_connectivity_policy == "auto":
+            final_connectivity_policy = resolve_connectivity_policy_for_aggregate(molecules)
+        else:
+            final_connectivity_policy = requested_connectivity_policy
+        if final_connectivity_policy == "prefer":
+            connectivity_reason = "atomic/formula growth"
+        elif final_connectivity_policy == "strict":
+            connectivity_reason = "explicit CLI override"
+        elif requested_connectivity_policy == "auto":
+            connectivity_reason = "molecular aggregate / noncovalent complex"
+        else:
+            connectivity_reason = "explicit CLI override"
+        aggregator_logger.info(
+            "Connectivity policy: %s (%s)",
+            final_connectivity_policy,
+            connectivity_reason,
+        )
 
         monomers_to_be_added = []
         for seed_molecule, seed_name, size_of_this_seed in zip(
@@ -328,6 +349,7 @@ def aggregate(
                 ),
                 "legacy_import": run_state.data.get("legacy_import"),
                 "sampling": run_state.data.get("sampling", sampling),
+                "connectivity_policy": final_connectivity_policy,
             },
         )
 
@@ -346,6 +368,7 @@ def aggregate_from_formulas(
     first_pathway,
     number_of_pathways,
     site,
+    connectivity_policy="auto",
 ):
     """Generate initial molecules from formulas and run the aggregate workflow.
 
@@ -363,4 +386,5 @@ def aggregate_from_formulas(
         first_pathway,
         number_of_pathways,
         site,
+        connectivity_policy=connectivity_policy,
     )

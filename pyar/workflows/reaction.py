@@ -33,6 +33,7 @@ from pyar import reaction_analysis
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
     reaction_product_changed,
+    separated_reactant_identity,
     same_molecular_identity,
     write_disconnected_reference,
 )
@@ -207,6 +208,17 @@ def _restore_product_registry(run_state):
         saved_product_identities[job_name] = {"inchi": inchi, "smiles": smiles}
 
 
+def _ensure_reactant_identity(run_state, reactant_a, reactant_b):
+    """Persist the original separated-reactant identity used for product gating."""
+    if "reactant_identity" not in run_state.data:
+        run_state.data["reactant_identity"] = separated_reactant_identity(
+            reactant_a,
+            reactant_b,
+        )
+        run_state.save()
+    return run_state.data["reactant_identity"]
+
+
 def _is_known_product(identity):
     """Return whether the product's canonical molecular identity is known.
 
@@ -282,6 +294,7 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
 
     if run_state is not None:
         reactor_logger.info('Reaction state detected: resuming reaction workflow')
+        _ensure_reactant_identity(run_state, reactant_a, reactant_b)
         gamma_list = run_state.remaining_gamma_schedule()
         orientations_to_optimize = run_state.pending_molecules()
         os.chdir('reaction')
@@ -344,6 +357,7 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
         (reactant_a, reactant_b),
         sampling=sampling,
     )
+    _ensure_reactant_identity(run_state, reactant_a, reactant_b)
     _restore_product_registry(run_state)
     return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
 
@@ -456,6 +470,11 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         if run_state is not None
         else []
     )
+    reactant_identity = (
+        getattr(run_state, "data", {}).get("reactant_identity")
+        if run_state is not None
+        else None
+    )
     pending_orientations = list(orientations)
 
     def record_orientation_completion(job_name, status):
@@ -506,11 +525,19 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                     reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
                     reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
 
-                    # Reaction product validity is determined by the relaxed
-                    # molecular identities. If either canonical identifier
-                    # changes, the candidate is treated as a product and then
-                    # deduplicated by InChI.
-                    if not reaction_product_changed(start_identity, current_identity):
+                    reference_identity = reactant_identity or start_identity
+                    if reactant_identity is not None:
+                        reactor_logger.info(
+                            f"Reactant SMILE: {reactant_identity['smiles']} Current SMILE: {current_smile}"
+                        )
+                        reactor_logger.info(
+                            f"Reactant InChi: {reactant_identity['inchi']} Current InChi: {current_inchi}"
+                        )
+
+                    # Product validity is determined against the original
+                    # separated reactants, not a distorted higher-gamma
+                    # survivor that may serialize differently.
+                    if not reaction_product_changed(reference_identity, current_identity):
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
                     else:
