@@ -53,6 +53,16 @@ class ReactionIdentityTests(unittest.TestCase):
         self.assertTrue(reaction_identity.same_molecular_identity(first, same_product))
         self.assertFalse(reaction_identity.same_molecular_identity(first, different_product))
 
+    def test_reaction_product_changed_uses_either_canonical_identifier(self):
+        start = {"inchi": "same-inchi", "smiles": "same-smiles"}
+        changed_smiles = {"inchi": "same-inchi", "smiles": "changed-smiles"}
+        changed_inchi = {"inchi": "changed-inchi", "smiles": "same-smiles"}
+        unchanged = {"inchi": "same-inchi", "smiles": "same-smiles"}
+
+        self.assertTrue(reaction_identity.reaction_product_changed(start, changed_smiles))
+        self.assertTrue(reaction_identity.reaction_product_changed(start, changed_inchi))
+        self.assertFalse(reaction_identity.reaction_product_changed(start, unchanged))
+
     def test_reaction_optimize_all_does_not_use_connectivity_filter(self):
         class DummyReactionMolecule:
             def __init__(self):
@@ -88,7 +98,7 @@ class ReactionIdentityTests(unittest.TestCase):
                 with mock.patch.object(reaction, "optimise", return_value=True):
                     with mock.patch.object(reaction, "relax_without_afir_bias", return_value=True):
                         with mock.patch.object(reaction, "molecule_identity_from_xyz", return_value=identity):
-                            with mock.patch.object(reaction, "same_molecular_identity", return_value=True) as same_identity:
+                            with mock.patch.object(reaction, "reaction_product_changed", return_value=False) as product_changed:
                                 with mock.patch("pyar.selection.deduplication._prefer_connected_structures") as prefer_connected:
                                     os.chdir(tmpdir)
                                     reaction.optimize_all(
@@ -102,7 +112,68 @@ class ReactionIdentityTests(unittest.TestCase):
                 os.chdir(cwd)
 
         prefer_connected.assert_not_called()
-        same_identity.assert_called_once()
+        product_changed.assert_called_once()
+
+    def test_reaction_optimize_all_promotes_smiles_only_identity_changes(self):
+        class DummyReactionMolecule:
+            def __init__(self):
+                self.name = "orientation"
+                self.energy = 0.0
+                self.fragments = [[0]]
+
+            def mol_to_xyz(self, filename):
+                Path(filename).write_text("1\norientation\nH 0 0 0\n")
+
+            def copy(self):
+                return DummyReactionMolecule()
+
+            def is_bonded(self):
+                return True
+
+        class DummyRunState:
+            def current_survivor_molecules(self):
+                return []
+
+            def record_job(self, *args, **kwargs):
+                return None
+
+            def record_product(self, *args, **kwargs):
+                self.recorded_product = args
+
+        molecule = DummyReactionMolecule()
+        start_identity = {"inchi": "same-inchi", "smiles": "start-smiles"}
+        current_identity = {"inchi": "same-inchi", "smiles": "current-smiles"}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                with mock.patch.object(reaction, "optimise", return_value=True):
+                    with mock.patch.object(reaction, "relax_without_afir_bias", return_value=True):
+                        with mock.patch.object(
+                            reaction,
+                            "molecule_identity_from_xyz",
+                            side_effect=[start_identity, current_identity],
+                        ):
+                            with mock.patch.object(reaction, "reaction_product_changed", return_value=True):
+                                with mock.patch.object(reaction.shutil, "copy", return_value=None) as copy_product:
+                                    with mock.patch.object(
+                                        reaction.reaction_analysis,
+                                        "analyse_reaction_trace",
+                                        return_value={"candidate_ts_directory": "candidate_ts"},
+                                    ):
+                                        os.chdir(tmpdir)
+                                        product_dir = Path(tmpdir) / "products"
+                                        product_dir.mkdir()
+                                        reaction.optimize_all(
+                                            gamma_id="0001",
+                                            orientations=[molecule],
+                                            run_state=DummyRunState(),
+                                            product_dir=str(product_dir),
+                                            qc_param={"gamma": 1.0},
+                                        )
+                                        copy_product.assert_called_once()
+            finally:
+                os.chdir(cwd)
 
 
 if __name__ == "__main__":

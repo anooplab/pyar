@@ -32,6 +32,7 @@ from pyar.workflow_results import ReactionResult
 from pyar import reaction_analysis
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
+    reaction_product_changed,
     same_molecular_identity,
     write_disconnected_reference,
 )
@@ -500,14 +501,17 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                     reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
                     reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
 
-                    # Reaction product validity is determined by molecular
-                    # identity and bond-change logic, not by single-component
-                    # covalent connectivity.
-                    if same_molecular_identity(start_identity, current_identity):
+                    # Reaction product validity is determined by the relaxed
+                    # molecular identities. If either canonical identifier
+                    # changes, the candidate is treated as a product and then
+                    # deduplicated by InChI.
+                    if not reaction_product_changed(start_identity, current_identity):
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
                     else:
-                        reactor_logger.info("Geometry differs from starting structure.")
+                        reactor_logger.info(
+                            "Relaxed identity changed from the starting structure."
+                        )
 
                         reactor_logger.info("Checking whether product is new")
                         if _is_known_product(current_identity):
