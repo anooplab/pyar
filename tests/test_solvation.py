@@ -37,6 +37,16 @@ class DummyMolecule:
 
 
 class SolvationWorkflowTests(unittest.TestCase):
+    def test_resolve_solvation_connectivity_policy_accepts_auto_and_off(self):
+        self.assertEqual(solvation._resolve_solvation_connectivity_policy("auto"), "off")
+        self.assertEqual(solvation._resolve_solvation_connectivity_policy("off"), "off")
+
+    def test_resolve_solvation_connectivity_policy_rejects_prefer_and_strict(self):
+        with self.assertRaisesRegex(ValueError, "require connectivity policy 'off'"):
+            solvation._resolve_solvation_connectivity_policy("prefer")
+        with self.assertRaisesRegex(ValueError, "require connectivity policy 'off'"):
+            solvation._resolve_solvation_connectivity_policy("strict")
+
     def test_solvation_writes_state_and_completes(self):
         seed = DummyMolecule("seed", n_atoms=1)
         solvent = DummyMolecule("solvent", n_atoms=1)
@@ -94,6 +104,39 @@ class SolvationWorkflowTests(unittest.TestCase):
         self.assertEqual(add_one.call_args.kwargs["connectivity_policy"], "off")
         self.assertEqual(result.metadata["connectivity_policy"], "off")
         self.assertEqual(state["request"]["connectivity_policy"], "off")
+
+    def test_solvation_rejects_explicit_prefer_and_strict_connectivity_policy(self):
+        seed = DummyMolecule("seed", n_atoms=1)
+        solvent = DummyMolecule("solvent", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with self.assertRaisesRegex(ValueError, "require connectivity policy 'off'"):
+                    solvation.solvate(
+                        seeds=[seed],
+                        monomer=solvent,
+                        aggregate_size=1,
+                        hm_orientations=1,
+                        qc_params={"software": None},
+                        maximum_number_of_seeds=1,
+                        site=None,
+                        connectivity_policy="prefer",
+                    )
+                with self.assertRaisesRegex(ValueError, "require connectivity policy 'off'"):
+                    solvation.solvate(
+                        seeds=[seed],
+                        monomer=solvent,
+                        aggregate_size=1,
+                        hm_orientations=1,
+                        qc_params={"software": None},
+                        maximum_number_of_seeds=1,
+                        site=None,
+                        connectivity_policy="strict",
+                    )
+            finally:
+                os.chdir(cwd)
 
     def test_solvation_resumes_from_saved_state(self):
         seed = DummyMolecule("seed", n_atoms=1)

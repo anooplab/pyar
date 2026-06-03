@@ -63,6 +63,41 @@ def _build_solvation_request(seeds, monomer, aggregate_size, hm_orientations, qc
     }
 
 
+def _resolve_solvation_connectivity_policy(connectivity_policy):
+    """Return the enforced connectivity policy for solvation workflows."""
+    normalized_policy = "auto" if connectivity_policy is None else str(connectivity_policy).lower()
+    if normalized_policy in {"auto", "off"}:
+        return "off"
+    if normalized_policy in {"prefer", "strict"}:
+        raise ValueError(
+            "Solvation workflows require connectivity policy 'off'; "
+            f"received {connectivity_policy!r}."
+        )
+    raise ValueError(
+        f"Unknown connectivity policy: {connectivity_policy!r}. "
+        "Expected one of 'auto', 'off', 'prefer', or 'strict'."
+    )
+
+
+def _build_solvation_result(run_state, root_directory, sampling):
+    """Return the final structured result for a solvation run."""
+    return SolvationResult(
+        workflow="solvation",
+        status=run_state.data["status"],
+        run_directory=workflow_run_directory(root_directory, "solvation"),
+        state_path=workflow_state_path(workflow_run_directory(root_directory, "solvation")),
+        selected_paths=tuple(run_state.data.get("final_seeds", [])),
+        metadata={
+            "completed_cycles": tuple(
+                record["cycle"] for record in run_state.data.get("completed_cycles", [])
+            ),
+            "next_cycle": run_state.data.get("next_cycle"),
+            "sampling": run_state.data.get("sampling", sampling),
+            "connectivity_policy": "off",
+        },
+    )
+
+
 def solvate(
     seeds,
     monomer,
@@ -85,12 +120,7 @@ def solvate(
         aggregator_logger.info("Function: solvate")
         return stopped_workflow_result("solvation", os.getcwd())
 
-    requested_connectivity_policy = "off" if connectivity_policy is None else str(connectivity_policy).lower()
-    if requested_connectivity_policy not in {"auto", "off", "prefer", "strict"}:
-        raise ValueError(
-            f"Unknown connectivity policy: {connectivity_policy!r}. "
-            "Expected one of 'auto', 'off', 'prefer', or 'strict'."
-        )
+    resolved_connectivity_policy = _resolve_solvation_connectivity_policy(connectivity_policy)
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
 
@@ -141,21 +171,7 @@ def solvate(
         if len(seeds) == 0:
             aggregator_logger.info("No seeds to process")
             run_state.finish("completed_no_seeds")
-            return SolvationResult(
-                workflow="solvation",
-                status=run_state.data["status"],
-                run_directory=workflow_run_directory(root_directory, "solvation"),
-                state_path=workflow_state_path(workflow_run_directory(root_directory, "solvation")),
-                selected_paths=tuple(run_state.data.get("final_seeds", [])),
-                metadata={
-                "completed_cycles": tuple(
-                    record["cycle"] for record in run_state.data.get("completed_cycles", [])
-                ),
-                "next_cycle": run_state.data.get("next_cycle"),
-                "sampling": run_state.data.get("sampling", sampling),
-                "connectivity_policy": "off",
-            },
-        )
+            return _build_solvation_result(run_state, root_directory, sampling)
         aggregate_id = "{:03d}".format(aggregation_counter)
         aggregate_home = f"aggregate_{aggregate_id}"
         file_manager.make_directories(aggregate_home)
@@ -169,7 +185,7 @@ def solvate(
                 qc_params,
                 maximum_number_of_seeds,
                 site,
-                connectivity_policy="off",
+                connectivity_policy=resolved_connectivity_policy,
             )
             aggregator_logger.info(f"Solvation cycle completed: {aggregation_counter}")
         run_state.complete_cycle(aggregation_counter, seeds)
@@ -177,18 +193,4 @@ def solvate(
         if hm_orientations == "auto" and number_of_orientations <= 256:
             number_of_orientations *= 2
     run_state.finish()
-    return SolvationResult(
-        workflow="solvation",
-        status=run_state.data["status"],
-        run_directory=workflow_run_directory(root_directory, "solvation"),
-        state_path=workflow_state_path(workflow_run_directory(root_directory, "solvation")),
-        selected_paths=tuple(run_state.data.get("final_seeds", [])),
-        metadata={
-            "completed_cycles": tuple(
-                record["cycle"] for record in run_state.data.get("completed_cycles", [])
-            ),
-            "next_cycle": run_state.data.get("next_cycle"),
-            "sampling": run_state.data.get("sampling", sampling),
-            "connectivity_policy": "off",
-        },
-    )
+    return _build_solvation_result(run_state, root_directory, sampling)
