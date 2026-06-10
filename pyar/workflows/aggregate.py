@@ -299,6 +299,7 @@ def aggregate(
                 if not os.path.exists(ag_home):
                     file_manager.make_directories(ag_home)
                 with _working_directory(ag_home):
+                    aggregator_logger.info("Aggregate cycle path: %s", ag_home)
                     seed_storage[ag_id] = add_one(
                         ag_id,
                         this_seed,

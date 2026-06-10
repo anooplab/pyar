@@ -176,6 +176,7 @@ def solvate(
         aggregate_home = f"aggregate_{aggregate_id}"
         file_manager.make_directories(aggregate_home)
         with _working_directory(aggregate_home):
+            aggregator_logger.info("Solvation cycle path: %s", aggregate_home)
             aggregator_logger.info(f"Solvation cycle start: {aggregation_counter}")
             seeds = add_one(
                 aggregate_id,

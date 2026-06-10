@@ -26,7 +26,7 @@ class EnergyTableScriptTests(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertIn("Relative energy table:", output)
-        self.assertIn("Global minimum: a", output)
+        self.assertIn("Global minimum: a (", output)
         self.assertIn("b", output)
         self.assertIn("313.75", output)
 

@@ -105,6 +105,30 @@ class SolvationWorkflowTests(unittest.TestCase):
         self.assertEqual(result.metadata["connectivity_policy"], "off")
         self.assertEqual(state["request"]["connectivity_policy"], "off")
 
+    def test_solvation_logs_relative_cycle_path(self):
+        seed = DummyMolecule("seed", n_atoms=1)
+        solvent = DummyMolecule("solvent", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(solvation, "add_one", return_value=[]):
+                    with self.assertLogs("pyar.workflows.aggregate", level="INFO") as captured:
+                        solvation.solvate(
+                            seeds=[seed],
+                            monomer=solvent,
+                            aggregate_size=1,
+                            hm_orientations=1,
+                            qc_params={"software": None},
+                            maximum_number_of_seeds=1,
+                            site=None,
+                        )
+            finally:
+                os.chdir(cwd)
+
+        self.assertTrue(any("Solvation cycle path:" in message for message in captured.output))
+
     def test_solvation_rejects_explicit_prefer_and_strict_connectivity_policy(self):
         seed = DummyMolecule("seed", n_atoms=1)
         solvent = DummyMolecule("solvent", n_atoms=1)

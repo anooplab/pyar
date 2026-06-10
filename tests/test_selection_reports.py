@@ -12,8 +12,8 @@ from pyar.selection import reports
 class SelectionReportsTests(unittest.TestCase):
     def test_energy_table_output_is_stable(self):
         molecules = [
-            SimpleNamespace(name="low", energy=0.0),
-            SimpleNamespace(name="high", energy=1.0),
+            SimpleNamespace(name="low", energy=0.0, relative_path="selected/result_low.xyz"),
+            SimpleNamespace(name="high", energy=1.0, relative_path="selected/result_high.xyz"),
         ]
 
         stream = io.StringIO()
@@ -22,7 +22,8 @@ class SelectionReportsTests(unittest.TestCase):
         output = stream.getvalue()
         self.assertIn("Selection energies:", output)
         self.assertIn("R. E. (kcal/mol)", output)
-        self.assertIn("Global minimum: low", output)
+        self.assertIn("Relative path", output)
+        self.assertIn("Global minimum: low (selected/result_low.xyz)", output)
 
     def test_read_energy_from_xyz_file_uses_trailing_value(self):
         with tempfile.TemporaryDirectory() as tmpdir:

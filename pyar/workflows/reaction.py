@@ -387,6 +387,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
 
     for gamma in gamma_list:
         gamma_id = format_gamma_id(gamma)
+        reactor_logger.info(f"Gamma cycle path: reaction/gamma_{gamma_id}")
         reactor_logger.info(f'Gamma cycle start: {gamma_id}')
         gamma_home = f'{cwd}/gamma_{gamma_id}'
         if not os.path.exists(gamma_home):
@@ -488,6 +489,11 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                 pending_orientations,
                 table_of_optimized_molecules,
             )
+        reactor_logger.info(
+            "Orientation completed! status=%s final_coordinate=%s",
+            status,
+            f"orientation{o_key}/result_relax.xyz",
+        )
 
     for this_molecule in orientations:
         job_key = this_molecule.name

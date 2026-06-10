@@ -39,7 +39,7 @@ class ClusteringScriptTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("Input pool energies:", output)
         self.assertIn("Selected pool energies:", output)
-        self.assertIn("Global minimum: a", output)
+        self.assertIn("Global minimum: a (", output)
         self.assertTrue(output.strip().endswith("a.xyz"))
         self.assertEqual(chooser.call_args.kwargs["algorithm"], "maxmin")
         self.assertEqual(chooser.call_args.kwargs["maximum_number_of_seeds"], 1)

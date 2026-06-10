@@ -33,6 +33,7 @@ def main():
         molecule = Molecule.from_xyz(xyz_file)
         molecule.energy = selection_reports.read_energy_from_xyz_file(xyz_file)
         molecule.name = Path(xyz_file).stem
+        molecule.relative_path = str(Path(xyz_file))
         molecules.append(molecule)
 
     selection_reports.print_energy_table(

@@ -128,6 +128,10 @@ def optimise(molecule, qc_params):
     job_dir = f'job_{molecule.name}'
     if not os.path.exists(job_dir):
         file_manager.make_directories(job_dir)
+    final_coordinate_path = os.path.relpath(
+        os.path.join(job_dir, f"result_{molecule.name}.xyz"),
+        cwd,
+    )
     os.chdir(job_dir)
     try:
         software = qc_params.get('software', 'unknown')
@@ -159,9 +163,9 @@ def optimise(molecule, qc_params):
         if is_usable(optimize_status):
             apply_geometry_result(molecule, geometry)
             optimiser_logger.info(
-                "Optimization completed: name=%s status=%s",
-                molecule.name,
+                "Optimization completed! status=%s final_coordinate=%s",
                 normalized_status,
+                final_coordinate_path,
             )
             optimiser_logger.info(f'     {molecule.name:35s}: {float(molecule.energy):15.6f}')
         else:

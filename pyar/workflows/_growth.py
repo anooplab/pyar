@@ -250,6 +250,7 @@ def _snapshot_selected_geometries(
     for molecule in selected_seeds:
         target_file = os.path.join(snapshot_dir, f"result_{molecule.name}.xyz")
         molecule_io.write_xyz(molecule, target_file)
+        molecule.relative_path = os.path.relpath(target_file, output_root)
 
     selection_reports.print_energy_table(
         selected_seeds,

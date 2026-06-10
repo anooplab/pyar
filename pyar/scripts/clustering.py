@@ -45,6 +45,7 @@ def main():
     for each_file in input_files:
         mol = Molecule.from_xyz(each_file)
         mol.energy = selection_reports.read_energy_from_xyz_file(each_file)
+        mol.relative_path = each_file
         mols.append(mol)
 
     selection_reports.print_energy_table(

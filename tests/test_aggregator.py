@@ -518,7 +518,7 @@ class AggregatorTests(unittest.TestCase):
 
         self.assertIn("Selected energy table:", log_text)
         self.assertIn("R. E. (kcal/mol)", log_text)
-        self.assertIn("Global minimum: sel_low", log_text)
+        self.assertIn("Global minimum: sel_low (result_sel_low.xyz)", log_text)
 
     def test_pathway_snapshot_replaces_obsolete_flat_results(self):
         previous = DummyMolecule("previous", n_atoms=2)
@@ -637,6 +637,31 @@ class AggregatorTests(unittest.TestCase):
                 )
             finally:
                 os.chdir(cwd)
+
+    def test_aggregate_logs_relative_path_for_each_cycle(self):
+        molecules = [DummyMolecule("a", n_atoms=1), DummyMolecule("b", n_atoms=1)]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(aggregate_workflow, "select_pathways", return_value=[[molecules[0], molecules[1]]]):
+                    with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
+                        with self.assertLogs("pyar.workflows.aggregate", level="INFO") as captured:
+                            aggregate_workflow.aggregate(
+                                molecules=molecules,
+                                aggregate_sizes=[1, 1],
+                                hm_orientations=2,
+                                qc_params={"software": None},
+                                maximum_number_of_seeds=2,
+                                first_pathway=0,
+                                number_of_pathways=1,
+                                site=None,
+                            )
+            finally:
+                os.chdir(cwd)
+
+        self.assertTrue(any("Aggregate cycle path:" in message for message in captured.output))
 
     def test_aggregate_imports_legacy_path_markers_into_state(self):
         molecules = [DummyMolecule("input_a", n_atoms=1), DummyMolecule("input_b", n_atoms=1)]

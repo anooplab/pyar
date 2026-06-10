@@ -6,6 +6,7 @@ import datetime
 import importlib.util
 import logging
 import os
+import shlex
 import shutil
 import sys
 import time
@@ -577,20 +578,21 @@ def main():
 
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
     logger.info(
-        r"""
+r"""
 +-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|  _ \ _   _   / \  |  _ \
-| |_) | | | | / _ \ | |_) |
-|  __/| |_| |/ ___ \|  _ <
-|_|    \__, /_/   \_\_| \_\
-       |___/
-                 Aggregation and Reaction
+                           |  _ \ _   _   / \  |  _ \
+                           | |_) | | | | / _ \ | |_) |
+                           |  __/| |_| |/ ___ \|  _ <
+                           |_|    \__, /_/   \_\_| \_\
+                                  |___/
+                         Aggregation and Reaction
 +-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 """
     )
     logger.info(
         f'==============================Starting at {time_now}==============================')
     logger.info(f'Job directory: {os.getcwd()}')
+    logger.info("Command line: %s", " ".join(shlex.quote(arg) for arg in sys.argv))
     logger.debug(f'Logging level is {{{logger.level}}}')
 
     logger.debug(f"{number_of_input_files} input files")
