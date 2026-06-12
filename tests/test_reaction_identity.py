@@ -81,6 +81,109 @@ class ReactionIdentityTests(unittest.TestCase):
         self.assertEqual(identity, expected)
         identity_from_xyz.assert_called_once()
 
+    def test_orientation_final_coordinate_path_prefers_relaxed_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            gamma_directory = Path(tmpdir)
+            orientation_directory = gamma_directory / "orientation_abcdefgh"
+            optimized_directory = orientation_directory / "job_0001_abcdefgh"
+            optimized_directory.mkdir(parents=True)
+            (orientation_directory / "result_relax.xyz").write_text("1\nrelaxed\nH 0 0 0\n")
+            (optimized_directory / "result_0001_abcdefgh.xyz").write_text(
+                "1\noptimized\nH 0 0 0\n"
+            )
+
+            final_coordinate = reaction._orientation_final_coordinate_path(
+                str(gamma_directory),
+                "orientation_abcdefgh",
+                "0001_abcdefgh",
+            )
+
+        self.assertEqual(final_coordinate, "orientation_abcdefgh/result_relax.xyz")
+
+    def test_orientation_final_coordinate_path_uses_relax_job_when_snapshot_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            gamma_directory = Path(tmpdir)
+            orientation_directory = gamma_directory / "orientation_abcdefgh"
+            relax_directory = orientation_directory / "job_relax"
+            biased_directory = orientation_directory / "job_0001_abcdefgh"
+            relax_directory.mkdir(parents=True)
+            biased_directory.mkdir()
+            (relax_directory / "result_relax.xyz").write_text("1\nrelax job\nH 0 0 0\n")
+            (biased_directory / "result_0001_abcdefgh.xyz").write_text(
+                "1\nbiased job\nH 0 0 0\n"
+            )
+
+            final_coordinate = reaction._orientation_final_coordinate_path(
+                str(gamma_directory),
+                "orientation_abcdefgh",
+                "0001_abcdefgh",
+            )
+
+        self.assertEqual(final_coordinate, "orientation_abcdefgh/job_relax/result_relax.xyz")
+
+    def test_reaction_optimize_all_logs_existing_biased_result_for_survivor(self):
+        class DummyReactionMolecule:
+            def __init__(self):
+                self.name = "trial_abcdefgh"
+                self.energy = 0.0
+                self.fragments = [[0], [1]]
+                self.coordinates = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+
+            def mol_to_xyz(self, filename):
+                Path(filename).write_text("1\norientation\nH 0 0 0\n")
+
+            def copy(self):
+                copied = DummyReactionMolecule()
+                copied.name = self.name
+                copied.energy = self.energy
+                copied.coordinates = self.coordinates.copy()
+                return copied
+
+            def is_bonded(self):
+                return False
+
+        class DummyRunState:
+            def current_survivor_molecules(self):
+                return []
+
+            def record_job(self, *args, **kwargs):
+                return None
+
+        def fake_optimise(molecule, qc_params):
+            result_directory = Path(f"job_{molecule.name}")
+            result_directory.mkdir()
+            (result_directory / f"result_{molecule.name}.xyz").write_text(
+                "1\noptimized\nH 0 0 0\n"
+            )
+            molecule.energy = -1.0
+            return True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = Path.cwd()
+            try:
+                os.chdir(tmpdir)
+                product_dir = Path(tmpdir) / "products"
+                product_dir.mkdir()
+                with mock.patch.object(reaction, "optimise", side_effect=fake_optimise):
+                    with self.assertLogs("pyar.workflows.reaction", level="INFO") as logs:
+                        reaction.optimize_all(
+                            gamma_id="0001",
+                            orientations=[DummyReactionMolecule()],
+                            run_state=DummyRunState(),
+                            product_dir=str(product_dir),
+                            qc_param={"gamma": 1.0},
+                        )
+            finally:
+                os.chdir(cwd)
+
+        logged_messages = "\n".join(logs.output)
+        self.assertIn(
+            "final_coordinate=orientation_abcdefgh/job_0001_abcdefgh/"
+            "result_0001_abcdefgh.xyz",
+            logged_messages,
+        )
+        self.assertNotIn("final_coordinate=orientation_abcdefgh/result_relax.xyz", logged_messages)
+
     def test_reaction_optimize_all_does_not_use_connectivity_filter(self):
         class DummyReactionMolecule:
             def __init__(self):

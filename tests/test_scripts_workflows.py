@@ -126,6 +126,66 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(react.call_args.args[5]["scf_cycles"], 1000)
         self.assertEqual(react.call_args.args[5]["nprocs"], 8)
 
+    def test_conformer_script_calls_workflow(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.conformer")
+                result = SimpleNamespace(
+                    status="completed",
+                    run_directory=str(Path(tmpdir) / "conformers"),
+                    selected_paths=("conformers/selected/conf_0000.xyz",),
+                )
+                with mock.patch.object(script, "conformer_search", return_value=result) as search:
+                    script.main(["CCO", "--num-conformers", "5", "--top-n", "2"])
+            finally:
+                os.chdir(cwd)
+
+        search.assert_called_once()
+        self.assertEqual(search.call_args.args[0], "CCO")
+        self.assertEqual(search.call_args.kwargs["num_conformers"], 5)
+        self.assertEqual(search.call_args.kwargs["top_n"], 2)
+        self.assertIsNone(search.call_args.kwargs["qc_params"])
+
+    def test_conformer_script_preflights_backend_refinement(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.conformer")
+                result = SimpleNamespace(
+                    status="completed",
+                    run_directory=str(Path(tmpdir) / "conformers"),
+                    selected_paths=(),
+                )
+                with mock.patch("pyar.cli._preflight_cli_requirements") as preflight:
+                    with mock.patch.object(script, "conformer_search", return_value=result) as search:
+                        script.main(["CCO", "--software", "xtb"])
+            finally:
+                os.chdir(cwd)
+
+        preflight.assert_called_once_with("conformer", "xtb", "native")
+        self.assertEqual(search.call_args.kwargs["qc_params"]["software"], "xtb")
+
+    def test_conformer_script_reports_workflow_error_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.conformer")
+                with mock.patch.object(
+                    script,
+                    "conformer_search",
+                    side_effect=script.ConformerWorkflowError("RDKit did not generate any conformers"),
+                ):
+                    with self.assertRaises(SystemExit) as context:
+                        script.main(["CCO"])
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(str(context.exception), "RDKit did not generate any conformers")
+
     def test_reaction_trace_script_analyzes_and_plots(self):
         import json
 

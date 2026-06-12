@@ -306,6 +306,20 @@ class CliSmokeTests(unittest.TestCase):
 
         dispatch.assert_called_once_with(["/tmp/reaction-job", "--plot-only"])
 
+    def test_conformer_subcommand_dispatches_to_conformer_cli(self):
+        sys.argv = [
+            "pyar-cli",
+            "conformer",
+            "CCO",
+            "--num-conformers",
+            "5",
+        ]
+
+        with mock.patch.object(self.cli, "_dispatch_conformer_subcommand") as dispatch:
+            self.cli.main()
+
+        dispatch.assert_called_once_with(["CCO", "--num-conformers", "5"])
+
     def test_react_requires_exactly_two_xyz_inputs(self):
         sys.argv = [
             "pyar-cli",

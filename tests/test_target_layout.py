@@ -11,19 +11,20 @@ class TargetLayoutImportTests(unittest.TestCase):
         from pyar import backends, sampling
         from pyar.backends import get_backend_capabilities
         from pyar.biases import afir
-        from pyar.io import AggregateResult, ReactionResult, SolvationResult, WorkflowResult
+        from pyar.io import AggregateResult, ConformerResult, ReactionResult, SolvationResult, WorkflowResult
         from pyar.io import results
         from pyar.selection import choose_geometries, print_energy_table, read_energy_from_xyz_file, reports
         from pyar.state import AggregateRunState, ReactionRunState, SolvationRunState
         from pyar.state.aggregate import AggregateRunState as AggregateRunStateImpl
         from pyar.state.reaction import ReactionRunState as ReactionRunStateImpl
         from pyar.state.solvation import SolvationRunState as SolvationRunStateImpl
-        from pyar.workflows import aggregate, react, solvate
+        from pyar.workflows import aggregate, conformer_search, react, solvate
 
         self.assertEqual(pyar.__all__, ["Molecule", "__version__"])
         self.assertTrue(hasattr(Molecule, "from_xyz"))
         self.assertTrue(hasattr(results, "WorkflowResult"))
         self.assertTrue(issubclass(AggregateResult, WorkflowResult))
+        self.assertTrue(issubclass(ConformerResult, WorkflowResult))
         self.assertTrue(issubclass(SolvationResult, WorkflowResult))
         self.assertTrue(issubclass(ReactionResult, WorkflowResult))
         self.assertTrue(hasattr(backends, "SF"))
@@ -43,6 +44,7 @@ class TargetLayoutImportTests(unittest.TestCase):
         self.assertTrue(callable(read_energy_from_xyz_file))
         self.assertTrue(callable(reports.print_energy_table))
         self.assertTrue(callable(aggregate))
+        self.assertTrue(callable(conformer_search))
         self.assertTrue(callable(react))
         self.assertTrue(callable(solvate))
         self.assertTrue(callable(afir.isotropic))

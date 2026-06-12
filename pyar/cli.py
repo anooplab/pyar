@@ -213,6 +213,13 @@ def _dispatch_trace_subcommand(argv):
     reaction_trace_main(argv)
 
 
+def _dispatch_conformer_subcommand(argv):
+    """Run the conformer-search CLI from pyar-cli."""
+    from pyar.scripts.conformer import main as conformer_main
+
+    conformer_main(argv)
+
+
 def _log_workflow_result(result):
     """Log a structured workflow result when a workflow returns one."""
     if hasattr(result, "to_dict"):
@@ -237,6 +244,7 @@ molecular complexes or atomic clusters.
   pyar-cli -a C H -as 1 4 -N 8
   pyar-cli --aggregate --formula C5H4 -N 8
   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
+  pyar-cli conformer "CCO" --num-conformers 50 --top-n 5
   pyar-cli trace .
   pyar-cli trace . --plot
   pyar-cli trace . --plot-only
@@ -527,6 +535,9 @@ def _preflight_cli_requirements(run_mode, software, geometry_optimizer):
 def main():
     if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
         _dispatch_trace_subcommand(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] in {"conformer", "conformers"}:
+        _dispatch_conformer_subcommand(sys.argv[2:])
         return
     args = vars(argument_parse())
 

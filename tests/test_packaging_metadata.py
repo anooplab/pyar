@@ -2,6 +2,7 @@ import builtins
 import importlib
 import subprocess
 import sys
+import tomllib
 import unittest
 import zipfile
 from importlib.metadata import version
@@ -26,6 +27,16 @@ class PackagingMetadataTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("usage", result.stdout.lower())
+
+    def test_conformer_entrypoint_and_extra_are_declared(self):
+        metadata = tomllib.loads(Path("pyproject.toml").read_text())
+
+        self.assertEqual(
+            metadata["project"]["scripts"]["pyar-conformer"],
+            "pyar.scripts.conformer:main",
+        )
+        self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["conformer"])
+        self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["all"])
 
     def test_built_wheel_excludes_large_model_assets(self):
         wheels = sorted(Path("dist").glob("pyar_chem-*.whl"))

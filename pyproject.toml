@@ -52,6 +52,7 @@ pyar-trial-generation = "pyar.scripts.trial_generation:main"
 pyar-clustering = "pyar.scripts.clustering:main"
 pyar-energy-table = "pyar.scripts.energy_table:main"
 pyar-reaction-trace = "pyar.scripts.reaction_trace:main"
+pyar-conformer = "pyar.scripts.conformer:main"
 pyar-benchmark-clustering = "pyar.scripts.benchmark_clustering:main"
 pyar-benchmark-orientations = "pyar.scripts.benchmark_orientations:main"
 pyar-similarity = "pyar.scripts.similarity:main"
@@ -97,6 +98,9 @@ xtb = [
 openbabel = [
   "openbabel>=3.2.0",
 ]
+conformer = [
+  "rdkit",
+]
 all = [
   "ase",
   "build",
@@ -110,6 +114,7 @@ all = [
   "openbabel>=3.2.0",
   "pandas>=1.0.5",
   "pyh5md",
+  "rdkit",
   "pytest",
   "scikit-learn>=0.23.2",
   "sphinx",

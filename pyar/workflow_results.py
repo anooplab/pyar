@@ -42,3 +42,8 @@ class SolvationResult(WorkflowResult):
 @dataclass(frozen=True)
 class ReactionResult(WorkflowResult):
     """Structured result for reaction runs."""
+
+
+@dataclass(frozen=True)
+class ConformerResult(WorkflowResult):
+    """Structured result for conformational-search runs."""

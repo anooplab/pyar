@@ -256,6 +256,23 @@ def relax_without_afir_bias(molecule, qc_params):
     return status
 
 
+def _orientation_final_coordinate_path(gamma_directory, orientation_directory, job_name):
+    """Return the existing coordinate artifact that represents this orientation."""
+    candidate_paths = (
+        os.path.join(orientation_directory, "result_relax.xyz"),
+        os.path.join(orientation_directory, "job_relax", "result_relax.xyz"),
+        os.path.join(
+            orientation_directory,
+            f"job_{job_name}",
+            f"result_{job_name}.xyz",
+        ),
+    )
+    for candidate_path in candidate_paths:
+        if os.path.exists(os.path.join(gamma_directory, candidate_path)):
+            return candidate_path
+    return "unavailable"
+
+
 def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations,
                             qc_params, site, proximity_factor):
     """Prepare a reaction run and return the mutable workflow state.
@@ -492,7 +509,11 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         reactor_logger.info(
             "Orientation completed! status=%s final_coordinate=%s",
             status,
-            f"orientation{o_key}/result_relax.xyz",
+            _orientation_final_coordinate_path(
+                cwd,
+                orientations_home,
+                job_name,
+            ),
         )
 
     for this_molecule in orientations:

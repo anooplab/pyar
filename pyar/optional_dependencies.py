@@ -17,6 +17,7 @@ OPTIONAL_EXTRA_HINTS = {
     "h5py": ("ml", "pyar-chem[ml]"),
     "geometric": ("xtb", "pyar-chem[xtb]"),
     "openbabel": ("openbabel", "pyar-chem[openbabel]"),
+    "rdkit": ("conformer", "pyar-chem[conformer]"),
 }
 
 
