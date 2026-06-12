@@ -2,12 +2,16 @@ import builtins
 import importlib
 import subprocess
 import sys
-import tomllib
 import unittest
 import zipfile
 from importlib.metadata import version
 from pathlib import Path
 from unittest import mock
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
 
 
 class PackagingMetadataTests(unittest.TestCase):
@@ -37,6 +41,18 @@ class PackagingMetadataTests(unittest.TestCase):
         )
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["conformer"])
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["all"])
+
+    def test_python310_declares_tomli_runtime_fallback(self):
+        metadata = tomllib.loads(Path("pyproject.toml").read_text())
+
+        self.assertTrue(
+            any(
+                dependency.startswith("tomli")
+                and "python_version" in dependency
+                and "3.11" in dependency
+                for dependency in metadata["project"]["dependencies"]
+            )
+        )
 
     def test_built_wheel_excludes_large_model_assets(self):
         wheels = sorted(Path("dist").glob("pyar_chem-*.whl"))

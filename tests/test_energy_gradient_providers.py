@@ -1,4 +1,6 @@
 import unittest
+import sys
+from types import ModuleType
 from types import SimpleNamespace
 from pathlib import Path
 from unittest import mock
@@ -81,20 +83,23 @@ class EnergyGradientProviderTests(unittest.TestCase):
         provider = get_energy_gradient_provider("aimnet_2", {"charge": 1})
         molecule = Atoms(symbols=["H", "H"], positions=np.zeros((2, 3)))
         coordinates_bohr = np.zeros((2, 3), dtype=float)
+        aimnet_backend = ModuleType("pyar.backends.aimnet_2")
+        aimnet_backend.load_default_aimnet2_model = mock.Mock(return_value=object())
+        aimnet_calculator = ModuleType("pyar.AIMNet2.calculators.aimnet2ase")
+        aimnet_calculator.AIMNet2Calculator = FakeCalculator
 
         with (
-            mock.patch(
-                "pyar.backends.aimnet_2.load_default_aimnet2_model",
-                return_value=object(),
-            ) as load_model,
-            mock.patch(
-                "pyar.AIMNet2.calculators.aimnet2ase.AIMNet2Calculator",
-                FakeCalculator,
-            ),
+            mock.patch.dict(
+                sys.modules,
+                {
+                    "pyar.backends.aimnet_2": aimnet_backend,
+                    "pyar.AIMNet2.calculators.aimnet2ase": aimnet_calculator,
+                },
+            )
         ):
             result = provider.evaluate(molecule, coordinates_bohr)
 
-        load_model.assert_called_once_with()
+        aimnet_backend.load_default_aimnet2_model.assert_called_once_with()
         self.assertAlmostEqual(result.energy_hartree, 1.0 / Hartree)
         np.testing.assert_allclose(result.gradient_hartree_per_bohr, np.zeros((2, 3)))
 

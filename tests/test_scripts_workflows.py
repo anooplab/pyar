@@ -498,7 +498,12 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 with mock.patch.object(reactor.file_manager, "make_directories", side_effect=lambda path: os.makedirs(path, exist_ok=True)), \
-                    mock.patch.object(reactor.trial_generation, "create_trial_geometries", return_value=[orientation]):
+                    mock.patch.object(reactor.trial_generation, "create_trial_geometries", return_value=[orientation]), \
+                    mock.patch.object(
+                        reactor,
+                        "separated_reactant_identity",
+                        return_value={"inchi": "reactants-inchi", "smiles": "reactants-smiles"},
+                    ):
                     workdir, cwd_after, run_state, gamma_list, orientations, product_dir = reactor.initialize_reaction_run(
                         reactant_a,
                         reactant_b,
@@ -553,12 +558,14 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
     def test_reactor_uses_numeric_gamma_schedule(self):
         from pyar.workflows import reaction as reactor
 
+        original_registry = dict(reactor.saved_product_identities)
         with tempfile.TemporaryDirectory() as tmpdir:
             reaction_dir = os.path.join(tmpdir, "reaction")
             os.makedirs(reaction_dir)
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
+                reactor.saved_product_identities.clear()
                 run_state = mock.Mock()
                 run_state.data = {"products": []}
                 with mock.patch.object(
@@ -580,6 +587,8 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     )
             finally:
                 os.chdir(cwd)
+                reactor.saved_product_identities.clear()
+                reactor.saved_product_identities.update(original_registry)
 
         self.assertGreaterEqual(optimize_all.call_count, 1)
         first_qc_params = optimize_all.call_args_list[0].args[-1]

@@ -164,7 +164,12 @@ class ReactionIdentityTests(unittest.TestCase):
                 os.chdir(tmpdir)
                 product_dir = Path(tmpdir) / "products"
                 product_dir.mkdir()
-                with mock.patch.object(reaction, "optimise", side_effect=fake_optimise):
+                with mock.patch.object(
+                    reaction,
+                    "molecule_identity_from_xyz",
+                    return_value={"inchi": "reactants-inchi", "smiles": "reactants-smiles"},
+                ), \
+                    mock.patch.object(reaction, "optimise", side_effect=fake_optimise):
                     with self.assertLogs("pyar.workflows.reaction", level="INFO") as logs:
                         reaction.optimize_all(
                             gamma_id="0001",

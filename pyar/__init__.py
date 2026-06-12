@@ -24,7 +24,11 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 import sys
 from types import ModuleType
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
 
 from pyar.core.molecule import Molecule
 
