@@ -161,6 +161,60 @@ class ConformerWorkflowTests(unittest.TestCase):
         self.assertEqual(records[2].refinement_reason, "compact")
         self.assertIsNone(records[2].refinement_diversity)
 
+    def test_deduplicate_records_keeps_low_energy_unique_conformers(self):
+        def make_record(name, source_conf_id, energy, coordinates):
+            record = conformer.ConformerRecord(1, source_conf_id, energy, "converged", "mmff")
+            record.name = name
+            record.molecule = Molecule(["C", "C"], coordinates, name=name, energy=energy)
+            return record
+
+        records = [
+            make_record("low", 0, 0.0, [[0, 0, 0], [1, 0, 0]]),
+            make_record("duplicate", 1, 1.0, [[0, 0, 0], [1.05, 0, 0]]),
+            make_record("unique", 2, 2.0, [[0, 0, 0], [3, 0, 0]]),
+        ]
+
+        selected = conformer._deduplicate_records(records, 0.5)
+
+        self.assertEqual([record.name for record in selected], ["low", "unique"])
+
+    def test_torsion_kicks_generate_minimized_rdkit_records(self):
+        try:
+            from rdkit import Chem
+            from rdkit.Chem import AllChem
+        except ImportError:
+            self.skipTest("RDKit is not available")
+
+        molecule = Chem.AddHs(Chem.MolFromSmiles("CCCC"))
+        embedded = conformer._embed_and_rank_conformers(
+            molecule,
+            AllChem,
+            num_conformers=1,
+            prune_rms_threshold=0.5,
+            force_field="mmff",
+            seed=1,
+            num_threads=0,
+            use_random_coords=True,
+            max_iterations=200,
+        )
+
+        kicked = conformer._generate_torsion_kick_records(
+            embedded,
+            Chem,
+            AllChem,
+            enabled=True,
+            kicks_per_conformer=2,
+            max_bonds=1,
+            seed=1,
+            max_iterations=200,
+        )
+
+        self.assertGreaterEqual(len(kicked), 1)
+        self.assertEqual(kicked[0].generation_stage, "torsion_kick")
+        self.assertEqual(kicked[0].parent_name, "seed_000001_conf_0000")
+        self.assertTrue(kicked[0].torsion_moves)
+        self.assertTrue(kicked[0].rdkit_status in {"converged", "not_converged"})
+
     def test_conformer_search_spreads_across_multiple_seeds(self):
         records = {
             10: [conformer.ConformerRecord(10, 0, 1.0, "converged", "mmff")],
@@ -204,6 +258,49 @@ class ConformerWorkflowTests(unittest.TestCase):
                 )
 
         self.assertEqual(calls, [10, 11])
+        self.assertEqual(len(result.selected_paths), 2)
+
+    def test_backend_selection_uses_larger_default_refinement_pool(self):
+        records = [
+            conformer.ConformerRecord(1, 0, 0.1, "converged", "mmff"),
+            conformer.ConformerRecord(1, 1, 0.2, "converged", "mmff"),
+            conformer.ConformerRecord(1, 2, 0.3, "converged", "mmff"),
+            conformer.ConformerRecord(1, 3, 0.4, "converged", "mmff"),
+            conformer.ConformerRecord(1, 4, 0.5, "converged", "mmff"),
+            conformer.ConformerRecord(1, 5, 0.6, "converged", "mmff"),
+        ]
+        selected_names = []
+
+        def fake_optimise(molecule, qc_params):
+            selected_names.append(molecule.name)
+            job_dir = Path(f"job_{molecule.name}")
+            job_dir.mkdir()
+            (job_dir / f"result_{molecule.name}.xyz").write_text(
+                "2\noptimized\nC 0 0 0\nH 1 0 0\n"
+            )
+            molecule.energy = 0.1
+            return True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch.object(conformer, "_rdkit_modules", return_value=(object(), object())), \
+                mock.patch.object(conformer, "_load_rdkit_molecule", return_value=(object(), "smiles")), \
+                mock.patch.object(conformer, "_embed_and_rank_conformers", return_value=records), \
+                mock.patch.object(
+                    conformer,
+                    "_molecule_from_rdkit_conformer",
+                    side_effect=self._molecule_factory(),
+                ), \
+                mock.patch.object(conformer, "optimise", side_effect=fake_optimise):
+                result = conformer.conformer_search(
+                    "CCO",
+                    num_conformers=6,
+                    top_n=2,
+                    num_seeds=1,
+                    qc_params={"software": "xtb"},
+                    root_directory=tmpdir,
+                )
+
+        self.assertGreater(len(selected_names), 2)
         self.assertEqual(len(result.selected_paths), 2)
 
     def test_missing_rdkit_uses_conformer_extra_hint(self):

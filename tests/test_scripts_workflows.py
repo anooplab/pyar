@@ -148,6 +148,9 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                         "--compactness-fraction", "0.25",
                         "--prune-rms-threshold", "0.25",
                         "--use-random-coords",
+                        "--torsion-kicks-per-conformer", "6",
+                        "--torsion-max-bonds", "2",
+                        "--torsion-dedup-rms", "0.4",
                     ])
             finally:
                 os.chdir(cwd)
@@ -162,7 +165,55 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.25)
         self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
         self.assertTrue(search.call_args.kwargs["use_random_coords"])
+        self.assertTrue(search.call_args.kwargs["torsion_kicks"])
+        self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 6)
+        self.assertEqual(search.call_args.kwargs["torsion_max_bonds"], 2)
+        self.assertEqual(search.call_args.kwargs["torsion_dedup_rms"], 0.4)
         self.assertIsNone(search.call_args.kwargs["qc_params"])
+
+    def test_conformer_script_uses_compact_defaults(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.conformer")
+                result = SimpleNamespace(
+                    status="completed",
+                    run_directory=str(Path(tmpdir) / "conformers"),
+                    selected_paths=("conformers/selected/conf_0000.xyz",),
+                )
+                with mock.patch.object(script, "conformer_search", return_value=result) as search:
+                    script.main(["CCO"])
+            finally:
+                os.chdir(cwd)
+
+        self.assertEqual(search.call_args.kwargs["num_seeds"], 3)
+        self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.2)
+        self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.8)
+        self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
+        self.assertTrue(search.call_args.kwargs["use_random_coords"])
+        self.assertTrue(search.call_args.kwargs["torsion_kicks"])
+        self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 4)
+        self.assertEqual(search.call_args.kwargs["torsion_max_bonds"], 3)
+        self.assertEqual(search.call_args.kwargs["torsion_dedup_rms"], 0.5)
+
+    def test_conformer_script_can_disable_torsion_kicks(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.conformer")
+                result = SimpleNamespace(
+                    status="completed",
+                    run_directory=str(Path(tmpdir) / "conformers"),
+                    selected_paths=("conformers/selected/conf_0000.xyz",),
+                )
+                with mock.patch.object(script, "conformer_search", return_value=result) as search:
+                    script.main(["CCO", "--no-torsion-kicks"])
+            finally:
+                os.chdir(cwd)
+
+        self.assertFalse(search.call_args.kwargs["torsion_kicks"])
 
     def test_conformer_script_preflights_backend_refinement(self):
         with tempfile.TemporaryDirectory() as tmpdir:

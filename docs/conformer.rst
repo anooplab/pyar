@@ -6,6 +6,11 @@ starting geometries for a single molecule before optional backend refinement.
 The workflow is RDKit-based and is aimed at flexible molecules where a single
 local minimum is not enough to describe the search space.
 
+The default settings are tuned for folded, compact conformers: multiple RDKit
+seeds, random-coordinate embedding, local torsion kicks, tighter pruning, a
+compactness-biased backend pool, and a larger backend-refinement window than
+the final output set.
+
 Basic commands
 --------------
 
@@ -19,6 +24,7 @@ What it does
 ------------
 
 * embeds multiple RDKit conformers with ETKDGv3
+* perturbs rotatable-bond torsions around embedded conformers
 * optionally starts from multiple seeds for broader coverage
 * can keep a larger backend-refinement pool than the final output set
 * can use random coordinates or a tighter prune threshold for more breadth
@@ -36,6 +42,12 @@ Useful options
   contact-rich conformers before the diversity fill
 * ``--use-random-coords`` starts RDKit from random coordinates instead of the
   default distance-geometry eigenvector start
+* ``--torsion-kicks`` or ``--no-torsion-kicks`` controls the local
+  torsion-perturbation stage
+* ``--torsion-kicks-per-conformer`` controls how many torsion trials are made
+  around each embedded conformer
+* ``--torsion-dedup-rms`` removes near-duplicate trial conformers before
+  backend selection
 * ``--rms-threshold`` or ``--prune-rms-threshold`` sets RDKit's greedy
   pruning threshold during embedding
 

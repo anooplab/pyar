@@ -41,10 +41,14 @@ class ConformerRecord:
     rdkit_status: str
     force_field: str
     rdkit_molecule: object | None = None
+    rdkit_conf_id: int | None = None
     rank: int | None = None
     name: str | None = None
     molecule: Molecule | None = None
     rdkit_path: str | None = None
+    generation_stage: str = "etkdg"
+    parent_name: str | None = None
+    torsion_moves: str | None = None
     refinement_reason: str | None = None
     refinement_diversity: float | None = None
     backend_status: str | None = None
@@ -268,9 +272,171 @@ def _embed_and_rank_conformers(
                 rdkit_status="not_converged" if int(not_converged) else "converged",
                 force_field=selected_force_field,
                 rdkit_molecule=rdkit_molecule,
+                rdkit_conf_id=int(conformer_id),
+                generation_stage="etkdg",
             )
         )
     return sorted(records, key=lambda record: (record.rdkit_energy, record.source_conf_id))
+
+
+def _parent_record_name(record):
+    """Return the stable name assigned to an embedded RDKit conformer."""
+    if record.name:
+        return record.name
+    return f"seed_{record.seed:06d}_conf_{record.source_conf_id:04d}"
+
+
+def _rotatable_torsions(rdkit_molecule, Chem):
+    """Return rotatable-bond torsion quartets for torsion-kick sampling."""
+    pattern = Chem.MolFromSmarts("[!$(*#*)&!D1]-!@[!$(*#*)&!D1]")
+    if pattern is None:
+        return []
+    torsions = []
+    seen_bonds = set()
+    for begin_index, end_index in rdkit_molecule.GetSubstructMatches(pattern):
+        bond = rdkit_molecule.GetBondBetweenAtoms(int(begin_index), int(end_index))
+        if bond is None:
+            continue
+        bond_key = tuple(sorted((int(begin_index), int(end_index))))
+        if bond_key in seen_bonds:
+            continue
+        seen_bonds.add(bond_key)
+        begin_atom = rdkit_molecule.GetAtomWithIdx(int(begin_index))
+        end_atom = rdkit_molecule.GetAtomWithIdx(int(end_index))
+        begin_neighbors = [
+            atom.GetIdx()
+            for atom in begin_atom.GetNeighbors()
+            if atom.GetIdx() != int(end_index) and atom.GetAtomicNum() > 1
+        ]
+        end_neighbors = [
+            atom.GetIdx()
+            for atom in end_atom.GetNeighbors()
+            if atom.GetIdx() != int(begin_index) and atom.GetAtomicNum() > 1
+        ]
+        if not begin_neighbors or not end_neighbors:
+            continue
+        torsions.append((int(begin_neighbors[0]), int(begin_index), int(end_index), int(end_neighbors[0])))
+    return torsions
+
+
+def _rdkit_minimize_conformer(rdkit_molecule, AllChem, force_field, conf_id, max_iterations):
+    """Minimize one RDKit conformer and return status plus energy."""
+    if force_field == "mmff":
+        properties = AllChem.MMFFGetMoleculeProperties(rdkit_molecule)
+        if properties is None:
+            return None, None
+        status = AllChem.MMFFOptimizeMolecule(
+            rdkit_molecule,
+            mmffVariant="MMFF94",
+            confId=int(conf_id),
+            maxIters=int(max_iterations),
+        )
+        field = AllChem.MMFFGetMoleculeForceField(
+            rdkit_molecule,
+            properties,
+            confId=int(conf_id),
+        )
+    else:
+        status = AllChem.UFFOptimizeMolecule(
+            rdkit_molecule,
+            confId=int(conf_id),
+            maxIters=int(max_iterations),
+        )
+        field = AllChem.UFFGetMoleculeForceField(rdkit_molecule, confId=int(conf_id))
+    if field is None:
+        return None, None
+    energy = float(field.CalcEnergy())
+    if not math.isfinite(energy):
+        return None, None
+    return int(status), energy
+
+
+def _generate_torsion_kick_records(
+    records,
+    Chem,
+    AllChem,
+    *,
+    enabled,
+    kicks_per_conformer,
+    max_bonds,
+    seed,
+    max_iterations,
+):
+    """Generate locally minimized torsion-kicked conformers from RDKit records."""
+    if not enabled or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
+        return []
+    angle_choices = np.asarray([60.0, 120.0, 180.0, 240.0, 300.0], dtype=float)
+    kicked_records = []
+    next_ids_by_seed = {}
+    for parent_index, parent in enumerate(sorted(records, key=_record_sort_key)):
+        rdkit_molecule = parent.rdkit_molecule
+        if rdkit_molecule is None:
+            continue
+        torsions = _rotatable_torsions(rdkit_molecule, Chem)
+        if not torsions:
+            continue
+        next_ids_by_seed.setdefault(parent.seed, max(record.source_conf_id for record in records if record.seed == parent.seed) + 1)
+        for kick_index in range(int(kicks_per_conformer)):
+            try:
+                work_molecule = Chem.Mol(rdkit_molecule)
+                parent_conformer = rdkit_molecule.GetConformer(int(parent.source_conf_id))
+                kicked_conformer = Chem.Conformer(parent_conformer)
+                if hasattr(work_molecule, "RemoveAllConformers"):
+                    work_molecule.RemoveAllConformers()
+                conf_id = int(work_molecule.AddConformer(kicked_conformer, assignId=True))
+            except (AttributeError, RuntimeError, ValueError):
+                continue
+
+            rng_seed = (
+                int(seed) * 1_000_003
+                + int(parent.seed) * 10_007
+                + int(parent.source_conf_id) * 101
+                + int(kick_index)
+                + int(parent_index)
+            )
+            rng = np.random.default_rng(rng_seed)
+            move_count = min(int(max_bonds), len(torsions))
+            torsion_indices = rng.choice(len(torsions), size=move_count, replace=False)
+            moves = []
+            conformer = work_molecule.GetConformer(conf_id)
+            try:
+                from rdkit.Chem import rdMolTransforms
+
+                for torsion_index in np.atleast_1d(torsion_indices):
+                    atom_i, atom_j, atom_k, atom_l = torsions[int(torsion_index)]
+                    delta = float(rng.choice(angle_choices))
+                    current = float(rdMolTransforms.GetDihedralDeg(conformer, atom_i, atom_j, atom_k, atom_l))
+                    rdMolTransforms.SetDihedralDeg(conformer, atom_i, atom_j, atom_k, atom_l, current + delta)
+                    moves.append(f"{atom_i}-{atom_j}-{atom_k}-{atom_l}:{delta:.1f}")
+            except Exception:
+                continue
+
+            status, energy = _rdkit_minimize_conformer(
+                work_molecule,
+                AllChem,
+                parent.force_field,
+                conf_id,
+                max_iterations,
+            )
+            if status is None or energy is None:
+                continue
+            source_conf_id = next_ids_by_seed[parent.seed]
+            next_ids_by_seed[parent.seed] += 1
+            kicked_records.append(
+                ConformerRecord(
+                    seed=parent.seed,
+                    source_conf_id=int(source_conf_id),
+                    rdkit_energy=float(energy),
+                    rdkit_status="not_converged" if status else "converged",
+                    force_field=parent.force_field,
+                    rdkit_molecule=work_molecule,
+                    rdkit_conf_id=int(conf_id),
+                    generation_stage="torsion_kick",
+                    parent_name=_parent_record_name(parent),
+                    torsion_moves=";".join(moves),
+                )
+            )
+    return sorted(kicked_records, key=_record_sort_key)
 
 
 def _formal_charge(rdkit_molecule):
@@ -342,11 +508,15 @@ def _write_rdkit_conformers(
 ):
     """Write ranked RDKit conformers and attach PyAR molecules to records."""
     for rank, record in enumerate(records):
-        name = f"seed_{record.seed:06d}_conf_{record.source_conf_id:04d}"
+        if record.generation_stage == "torsion_kick":
+            name = f"seed_{record.seed:06d}_kick_{record.source_conf_id:04d}"
+        else:
+            name = _parent_record_name(record)
         source_molecule = record.rdkit_molecule if record.rdkit_molecule is not None else rdkit_molecule
+        conformer_id = record.source_conf_id if record.rdkit_conf_id is None else record.rdkit_conf_id
         molecule = _molecule_from_rdkit_conformer(
             source_molecule,
-            record.source_conf_id,
+            conformer_id,
             name=name,
             seed=record.seed,
             charge=charge,
@@ -369,19 +539,67 @@ def _record_sort_key(record):
 def _diversity_coordinates(record):
     """Return heavy-atom coordinates for conformer diversity scoring."""
     molecule = record.molecule
-    if molecule is None or molecule.coordinates is None:
+    if molecule is not None and molecule.coordinates is not None:
+        coordinates = np.asarray(molecule.coordinates, dtype=float)
+        if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+            return None
+        heavy_indices = [
+            index
+            for index, atom in enumerate(molecule.atoms_list)
+            if str(atom).upper() != "H"
+        ]
+        if not heavy_indices:
+            heavy_indices = list(range(len(molecule.atoms_list)))
+        return coordinates[np.asarray(heavy_indices, dtype=int)]
+
+    rdkit_molecule = record.rdkit_molecule
+    if rdkit_molecule is None:
         return None
-    coordinates = np.asarray(molecule.coordinates, dtype=float)
-    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
-        return None
-    heavy_indices = [
-        index
-        for index, atom in enumerate(molecule.atoms_list)
-        if str(atom).upper() != "H"
-    ]
+    try:
+        conformer_id = record.source_conf_id if record.rdkit_conf_id is None else record.rdkit_conf_id
+        conformer = rdkit_molecule.GetConformer(int(conformer_id))
+    except (RuntimeError, ValueError):
+        try:
+            conformer = rdkit_molecule.GetConformer()
+        except (RuntimeError, ValueError):
+            return None
+    coordinates = []
+    heavy_indices = []
+    for atom in rdkit_molecule.GetAtoms():
+        atom_index = atom.GetIdx()
+        position = conformer.GetAtomPosition(atom_index)
+        coordinates.append([float(position.x), float(position.y), float(position.z)])
+        if atom.GetAtomicNum() > 1:
+            heavy_indices.append(atom_index)
     if not heavy_indices:
-        heavy_indices = list(range(len(molecule.atoms_list)))
-    return coordinates[np.asarray(heavy_indices, dtype=int)]
+        heavy_indices = list(range(len(coordinates)))
+    if not coordinates:
+        return None
+    return np.asarray(coordinates, dtype=float)[np.asarray(heavy_indices, dtype=int)]
+
+
+def _deduplicate_records(records, rms_threshold):
+    """Return low-energy conformers after heavy-atom RMSD deduplication."""
+    threshold = float(rms_threshold)
+    if threshold <= 0.0:
+        return sorted(records, key=_record_sort_key)
+    selected = []
+    for record in sorted(records, key=_record_sort_key):
+        record_coordinates = _diversity_coordinates(record)
+        if record_coordinates is None:
+            selected.append(record)
+            continue
+        is_duplicate = False
+        for accepted in selected:
+            accepted_coordinates = _diversity_coordinates(accepted)
+            if accepted_coordinates is None:
+                continue
+            if _kabsch_rmsd(record_coordinates, accepted_coordinates) < threshold:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            selected.append(record)
+    return selected
 
 
 def _compactness_metrics(record):
@@ -569,6 +787,9 @@ def _write_summary(records, summary_path):
         "rdkit_status",
         "rdkit_energy",
         "rdkit_path",
+        "generation_stage",
+        "parent_name",
+        "torsion_moves",
         "refinement_reason",
         "refinement_diversity",
         "backend_status",
@@ -590,6 +811,9 @@ def _write_summary(records, summary_path):
                     "rdkit_status": record.rdkit_status,
                     "rdkit_energy": record.rdkit_energy,
                     "rdkit_path": record.rdkit_path,
+                    "generation_stage": record.generation_stage,
+                    "parent_name": record.parent_name,
+                    "torsion_moves": record.torsion_moves,
                     "refinement_reason": record.refinement_reason,
                     "refinement_diversity": record.refinement_diversity,
                     "backend_status": record.backend_status,
@@ -630,6 +854,9 @@ def _build_state(
                 "rdkit_status": record.rdkit_status,
                 "rdkit_energy": record.rdkit_energy,
                 "rdkit_path": record.rdkit_path,
+                "generation_stage": record.generation_stage,
+                "parent_name": record.parent_name,
+                "torsion_moves": record.torsion_moves,
                 "refinement_reason": record.refinement_reason,
                 "refinement_diversity": record.refinement_diversity,
                 "backend_status": record.backend_status,
@@ -649,11 +876,15 @@ def conformer_search(
     num_conformers=100,
     top_n=10,
     backend_top_n=None,
-    num_seeds=1,
-    diversity_fraction=0.5,
-    compactness_fraction=0.5,
-    rms_threshold=0.5,
-    use_random_coords=False,
+    num_seeds=3,
+    diversity_fraction=0.2,
+    compactness_fraction=0.8,
+    rms_threshold=0.25,
+    use_random_coords=True,
+    torsion_kicks=True,
+    torsion_kicks_per_conformer=4,
+    torsion_max_bonds=3,
+    torsion_dedup_rms=0.5,
     force_field="auto",
     seed=1,
     num_threads=0,
@@ -675,6 +906,14 @@ def conformer_search(
         raise ConformerWorkflowError("--rms-threshold must be non-negative")
     if not isinstance(use_random_coords, bool):
         use_random_coords = bool(use_random_coords)
+    if not isinstance(torsion_kicks, bool):
+        torsion_kicks = bool(torsion_kicks)
+    if int(torsion_kicks_per_conformer) < 0:
+        raise ConformerWorkflowError("--torsion-kicks-per-conformer must be non-negative")
+    if int(torsion_max_bonds) < 1:
+        raise ConformerWorkflowError("--torsion-max-bonds must be at least 1")
+    if float(torsion_dedup_rms) < 0.0:
+        raise ConformerWorkflowError("--torsion-dedup-rms must be non-negative")
     if backend_top_n is not None and int(backend_top_n) < 1:
         raise ConformerWorkflowError("--backend-top-n must be at least 1")
     if not 0.0 <= float(diversity_fraction) <= 1.0:
@@ -698,6 +937,10 @@ def conformer_search(
         "compactness_fraction": float(compactness_fraction),
         "rms_threshold": float(rms_threshold),
         "use_random_coords": bool(use_random_coords),
+        "torsion_kicks": bool(torsion_kicks),
+        "torsion_kicks_per_conformer": int(torsion_kicks_per_conformer),
+        "torsion_max_bonds": int(torsion_max_bonds),
+        "torsion_dedup_rms": float(torsion_dedup_rms),
         "force_field": force_field,
         "seed": int(seed),
         "seed_values": seed_values,
@@ -734,6 +977,21 @@ def conformer_search(
         )
         records.extend(seed_records)
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
+    if records and torsion_kicks:
+        records.extend(
+            _generate_torsion_kick_records(
+                records,
+                Chem,
+                AllChem,
+                enabled=torsion_kicks,
+                kicks_per_conformer=torsion_kicks_per_conformer,
+                max_bonds=torsion_max_bonds,
+                seed=seed,
+                max_iterations=max_iterations,
+            )
+        )
+        records = _deduplicate_records(records, torsion_dedup_rms)
+    records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
     if not records:
         state = _build_state(
             status="failed_no_conformers",
@@ -755,7 +1013,11 @@ def conformer_search(
         scftype=scftype,
     )
 
-    refinement_limit = int(top_n) if backend_top_n is None else max(int(top_n), int(backend_top_n))
+    if backend_top_n is None:
+        refinement_limit = max(int(top_n) * 5, int(top_n) + 20)
+    else:
+        refinement_limit = int(backend_top_n)
+    refinement_limit = min(refinement_limit, len(records))
     backend_requested = bool(qc_params and qc_params.get("software"))
     if backend_requested:
         retained_records = _select_refinement_records(
@@ -808,5 +1070,9 @@ def conformer_search(
             "diversity_fraction": float(diversity_fraction),
             "compactness_fraction": float(compactness_fraction),
             "use_random_coords": bool(use_random_coords),
+            "torsion_kicks": bool(torsion_kicks),
+            "torsion_kicks_per_conformer": int(torsion_kicks_per_conformer),
+            "torsion_max_bonds": int(torsion_max_bonds),
+            "torsion_dedup_rms": float(torsion_dedup_rms),
         },
     )

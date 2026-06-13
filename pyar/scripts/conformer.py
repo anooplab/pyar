@@ -29,22 +29,34 @@ def argument_parse(argv=None):
     parser.add_argument("--num-conformers", type=int, default=100)
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--backend-top-n", type=int)
-    parser.add_argument("--num-seeds", type=int, default=1)
-    parser.add_argument("--diversity-fraction", type=float, default=0.5)
-    parser.add_argument("--compactness-fraction", type=float, default=0.5)
+    parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--diversity-fraction", type=float, default=0.2)
+    parser.add_argument("--compactness-fraction", type=float, default=0.8)
     parser.add_argument(
         "--rms-threshold",
         "--prune-rms-threshold",
         dest="rms_threshold",
         type=float,
-        default=0.5,
+        default=0.25,
         help="RDKit greedy prune RMS threshold; lower values keep more embedded conformers.",
     )
     parser.add_argument(
         "--use-random-coords",
-        action="store_true",
+        dest="use_random_coords",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Start RDKit embedding from random coordinates instead of distance geometry eigenvectors.",
     )
+    parser.add_argument(
+        "--torsion-kicks",
+        dest="torsion_kicks",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Generate local torsion-perturbed conformers before backend refinement.",
+    )
+    parser.add_argument("--torsion-kicks-per-conformer", type=int, default=4)
+    parser.add_argument("--torsion-max-bonds", type=int, default=3)
+    parser.add_argument("--torsion-dedup-rms", type=float, default=0.5)
     parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--num-threads", type=int, default=0)
@@ -146,6 +158,10 @@ def main(argv=None):
             compactness_fraction=args.compactness_fraction,
             rms_threshold=args.rms_threshold,
             use_random_coords=args.use_random_coords,
+            torsion_kicks=args.torsion_kicks,
+            torsion_kicks_per_conformer=args.torsion_kicks_per_conformer,
+            torsion_max_bonds=args.torsion_max_bonds,
+            torsion_dedup_rms=args.torsion_dedup_rms,
             force_field=args.force_field,
             seed=args.seed,
             num_threads=args.num_threads,
