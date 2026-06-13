@@ -198,7 +198,7 @@ Implementation notes:
 * ``pyar.workflows.conformer._embed_parameters`` controls the RDKit embedding
   knobs
 * ``pyar.workflows.conformer._select_refinement_records`` chooses the backend
-  refinement pool from energy and diversity
+  refinement pool from energy, compactness, and diversity
 * ``pyar.workflows.conformer._write_summary`` and the workflow state record the
   chosen seeds, refinement reason, and diversity score for later inspection
 

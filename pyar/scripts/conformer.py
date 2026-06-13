@@ -31,6 +31,7 @@ def argument_parse(argv=None):
     parser.add_argument("--backend-top-n", type=int)
     parser.add_argument("--num-seeds", type=int, default=1)
     parser.add_argument("--diversity-fraction", type=float, default=0.5)
+    parser.add_argument("--compactness-fraction", type=float, default=0.5)
     parser.add_argument(
         "--rms-threshold",
         "--prune-rms-threshold",
@@ -142,6 +143,7 @@ def main(argv=None):
             backend_top_n=args.backend_top_n,
             num_seeds=args.num_seeds,
             diversity_fraction=args.diversity_fraction,
+            compactness_fraction=args.compactness_fraction,
             rms_threshold=args.rms_threshold,
             use_random_coords=args.use_random_coords,
             force_field=args.force_field,

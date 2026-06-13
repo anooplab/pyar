@@ -384,6 +384,51 @@ def _diversity_coordinates(record):
     return coordinates[np.asarray(heavy_indices, dtype=int)]
 
 
+def _compactness_metrics(record):
+    """Return intramolecular contact and compactness scores for a conformer."""
+    molecule = record.molecule
+    if molecule is None or molecule.coordinates is None:
+        return 0, float("inf")
+
+    coordinates = np.asarray(molecule.coordinates, dtype=float)
+    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+        return 0, float("inf")
+
+    heavy_indices = [
+        index
+        for index, atom in enumerate(molecule.atoms_list)
+        if str(atom).upper() != "H"
+    ]
+    if len(heavy_indices) < 2:
+        heavy_indices = list(range(len(molecule.atoms_list)))
+    if len(heavy_indices) < 2:
+        return 0, float("inf")
+
+    selected = coordinates[np.asarray(heavy_indices, dtype=int)]
+    center = np.mean(selected, axis=0)
+    rgyr = float(np.sqrt(np.mean(np.sum((selected - center) ** 2, axis=1))))
+
+    contact_count = 0
+    rdkit_molecule = record.rdkit_molecule
+    if rdkit_molecule is not None:
+        try:
+            from rdkit import Chem
+
+            topology = np.asarray(Chem.GetDistanceMatrix(rdkit_molecule), dtype=float)
+            for left in range(len(heavy_indices) - 1):
+                left_index = heavy_indices[left]
+                for right in range(left + 1, len(heavy_indices)):
+                    right_index = heavy_indices[right]
+                    if topology[left_index, right_index] <= 2:
+                        continue
+                    if np.linalg.norm(coordinates[left_index] - coordinates[right_index]) <= 3.5:
+                        contact_count += 1
+        except Exception:
+            contact_count = 0
+
+    return contact_count, rgyr
+
+
 def _kabsch_rmsd(reference, mobile):
     """Return RMSD after optimal translation and proper rotation."""
     reference = np.asarray(reference, dtype=float)
@@ -412,12 +457,13 @@ def _conformer_rmsd(left, right):
     return _kabsch_rmsd(left_coordinates, right_coordinates)
 
 
-def _select_refinement_records(records, limit, top_n, diversity_fraction):
+def _select_refinement_records(records, limit, top_n, diversity_fraction, compactness_fraction):
     """Select backend candidates by RDKit energy plus geometric diversity."""
     limit = min(int(limit), len(records))
     if limit <= 0:
         return []
     diversity_fraction = float(diversity_fraction)
+    compactness_fraction = float(compactness_fraction)
     energy_count = math.ceil(limit * (1.0 - diversity_fraction))
     energy_count = max(1, int(top_n), min(limit, energy_count))
     energy_count = min(limit, energy_count)
@@ -428,6 +474,25 @@ def _select_refinement_records(records, limit, top_n, diversity_fraction):
     for record in selected:
         record.refinement_reason = "energy"
         record.refinement_diversity = 0.0
+
+    compact_count = max(0, min(limit - len(selected), math.ceil((limit - len(selected)) * compactness_fraction)))
+    compact_candidates = []
+    if compact_count > 0:
+        compact_candidates = sorted(
+            (candidate for candidate in ordered_records if id(candidate) not in selected_ids),
+            key=lambda record: (
+                -_compactness_metrics(record)[0],
+                _compactness_metrics(record)[1],
+                record.rdkit_energy,
+                record.seed,
+                record.source_conf_id,
+            ),
+        )[:compact_count]
+        for record in compact_candidates:
+            record.refinement_reason = "compact"
+            record.refinement_diversity = None
+            selected.append(record)
+            selected_ids.add(id(record))
 
     while len(selected) < limit:
         best_candidate = None
@@ -586,6 +651,7 @@ def conformer_search(
     backend_top_n=None,
     num_seeds=1,
     diversity_fraction=0.5,
+    compactness_fraction=0.5,
     rms_threshold=0.5,
     use_random_coords=False,
     force_field="auto",
@@ -613,6 +679,8 @@ def conformer_search(
         raise ConformerWorkflowError("--backend-top-n must be at least 1")
     if not 0.0 <= float(diversity_fraction) <= 1.0:
         raise ConformerWorkflowError("--diversity-fraction must be between 0 and 1")
+    if not 0.0 <= float(compactness_fraction) <= 1.0:
+        raise ConformerWorkflowError("--compactness-fraction must be between 0 and 1")
 
     root_directory = os.getcwd() if root_directory is None else root_directory
     Chem, AllChem = _rdkit_modules()
@@ -627,6 +695,7 @@ def conformer_search(
         "backend_top_n": None if backend_top_n is None else int(backend_top_n),
         "num_seeds": int(num_seeds),
         "diversity_fraction": float(diversity_fraction),
+        "compactness_fraction": float(compactness_fraction),
         "rms_threshold": float(rms_threshold),
         "use_random_coords": bool(use_random_coords),
         "force_field": force_field,
@@ -694,6 +763,7 @@ def conformer_search(
             refinement_limit,
             top_n,
             diversity_fraction,
+            compactness_fraction,
         )
         refined_records = _refine_with_backend(retained_records, run_directory, qc_params)
         selected_records = refined_records[: min(int(top_n), len(refined_records))]
@@ -736,6 +806,7 @@ def conformer_search(
             "seed_values": seed_values,
             "backend_top_n": refinement_limit,
             "diversity_fraction": float(diversity_fraction),
+            "compactness_fraction": float(compactness_fraction),
             "use_random_coords": bool(use_random_coords),
         },
     )

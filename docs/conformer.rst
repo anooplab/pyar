@@ -32,6 +32,8 @@ Useful options
 * ``--backend-top-n`` widens the set sent to backend refinement
 * ``--diversity-fraction`` controls how much of that backend pool comes from
   geometric diversity instead of pure RDKit energy ranking
+* ``--compactness-fraction`` reserves part of the backend pool for compact,
+  contact-rich conformers before the diversity fill
 * ``--use-random-coords`` starts RDKit from random coordinates instead of the
   default distance-geometry eigenvector start
 * ``--rms-threshold`` or ``--prune-rms-threshold`` sets RDKit's greedy

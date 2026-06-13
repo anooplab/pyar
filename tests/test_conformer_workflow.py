@@ -151,14 +151,15 @@ class ConformerWorkflowTests(unittest.TestCase):
             limit=3,
             top_n=1,
             diversity_fraction=0.5,
+            compactness_fraction=0.5,
         )
 
         selected_names = {record.name for record in selected}
-        self.assertEqual(selected_names, {"low", "near", "far"})
+        self.assertEqual(selected_names, {"low", "near", "moderate"})
         self.assertEqual(records[0].refinement_reason, "energy")
         self.assertEqual(records[1].refinement_reason, "energy")
-        self.assertEqual(records[3].refinement_reason, "diversity")
-        self.assertGreater(records[3].refinement_diversity, records[2].refinement_diversity or 0.0)
+        self.assertEqual(records[2].refinement_reason, "compact")
+        self.assertIsNone(records[2].refinement_diversity)
 
     def test_conformer_search_spreads_across_multiple_seeds(self):
         records = {
@@ -197,6 +198,7 @@ class ConformerWorkflowTests(unittest.TestCase):
                     top_n=2,
                     num_seeds=2,
                     seed=10,
+                    compactness_fraction=0.75,
                     use_random_coords=False,
                     root_directory=tmpdir,
                 )

@@ -145,6 +145,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                         "--num-seeds", "3",
                         "--backend-top-n", "7",
                         "--diversity-fraction", "0.75",
+                        "--compactness-fraction", "0.25",
                         "--prune-rms-threshold", "0.25",
                         "--use-random-coords",
                     ])
@@ -158,6 +159,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(search.call_args.kwargs["num_seeds"], 3)
         self.assertEqual(search.call_args.kwargs["backend_top_n"], 7)
         self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.75)
+        self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.25)
         self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
         self.assertTrue(search.call_args.kwargs["use_random_coords"])
         self.assertIsNone(search.call_args.kwargs["qc_params"])
