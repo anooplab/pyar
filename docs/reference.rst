@@ -35,6 +35,10 @@ Main workflows
    :members:
    :undoc-members:
 
+.. automodule:: pyar.scripts.conformer
+   :members:
+   :undoc-members:
+
 .. automodule:: pyar.scripts.clustering
    :members:
    :undoc-members:
@@ -120,6 +124,10 @@ Main workflows
    :undoc-members:
 
 .. automodule:: pyar.workflows.aggregate
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.workflows.conformer
    :members:
    :undoc-members:
 

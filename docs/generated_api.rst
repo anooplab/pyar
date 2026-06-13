@@ -575,6 +575,15 @@ pyar.scripts.clustering
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.conformer
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.conformer
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.descriptor
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -816,6 +825,15 @@ pyar.workflows.aggregate
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.workflows.aggregate
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.conformer
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.conformer
    :no-index:
    :members:
    :undoc-members:

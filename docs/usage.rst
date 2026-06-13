@@ -13,6 +13,8 @@ Examples:
 
    pyar-cli --aggregate --formula C5H4 -N 8
 
+   pyar-conformer input.sdf --software xtb --num-seeds 3 --backend-top-n 50
+
 The repository README contains additional examples for clustering,
 aggregation, solvation, and reaction searches.
 
@@ -68,11 +70,13 @@ Several smaller helper commands are available for inspection and benchmarking:
    pyar-clustering *.xyz -a maxmin -n 8
    pyar-similarity -f "*.xyz" -t 0.005
    pyar-descriptor *.xyz
+   pyar-conformer input.sdf --num-conformers 200 --num-seeds 4 --use-random-coords
    pyar-trial-generation -N 8 -i seed.xyz monomer.xyz --plot
    pyar-optimiser structure.xyz -c 0 -m 1 --software xtb
 
 ``pyar-energy-table`` prints relative energies, ``pyar-clustering`` selects a
-diverse subset, ``pyar-similarity`` reports near-duplicate structures,
-``pyar-descriptor`` writes compact cluster descriptors, ``pyar-trial-generation``
-builds candidate orientations, and ``pyar-optimiser`` runs the standalone
-geometry optimizer.
+diverse subset, ``pyar-conformer`` generates and optionally refines RDKit
+conformers, ``pyar-similarity`` reports near-duplicate structures,
+``pyar-descriptor`` writes compact cluster descriptors,
+``pyar-trial-generation`` builds candidate orientations, and
+``pyar-optimiser`` runs the standalone geometry optimizer.

@@ -25,6 +25,7 @@ import numpy as np
 
 from pyar.backends import SF, require_executable
 from pyar.backends.subprocess_utils import run_command, run_output
+from pyar.data.units import kilojoules2atomic_units
 
 babel_logger = logging.getLogger("pyar.babel")
 
@@ -54,7 +55,7 @@ class OBabel(SF):
 
         exit_status = run_command(
             [require_executable("obminimize", "OpenBabel"), "-ff", "uff", '-n', max_cycles, self.start_xyz_file],
-            stdout_path='tmp.xyz',
+            stdout_path='tmp.pdb',
             stderr_path='tmp.log',
         )
         if exit_status != 0:
@@ -63,15 +64,28 @@ class OBabel(SF):
                 self.job_name, self.start_xyz_file, 'tmp.log', os.getcwd(),
             )
             return False
-        with open('tmp.xyz') as xyzfile, open(self.result_xyz_file, 'w') as result_xyz_file:
-            for line in xyzfile:
-                if 'WARNING' not in line:
-                    result_xyz_file.write(line)
+        convert_status = run_command(
+            [_obabel_executable(), "-ipdb", "tmp.pdb", "-oxyz"],
+            stdout_path=self.result_xyz_file,
+            stderr_path='OBabel.log',
+        )
+        if convert_status != 0:
+            babel_logger.error(
+                "obabel XYZ conversion failed job=%s input=%s log=%s cwd=%s",
+                self.job_name, 'tmp.pdb', 'OBabel.log', os.getcwd(),
+            )
+            return False
         babel_logger.info(
-            "obabel optimization completed job=%s input=%s result=%s tmp_xyz=%s",
-            self.job_name, self.start_xyz_file, self.result_xyz_file, 'tmp.xyz',
+            "obabel optimization completed job=%s input=%s result=%s tmp_pdb=%s",
+            self.job_name, self.start_xyz_file, self.result_xyz_file, 'tmp.pdb',
         )
         self.energy = self.get_energy()
+        if self.energy is None:
+            babel_logger.error(
+                "obabel energy was not available job=%s input=%s log=%s cwd=%s",
+                self.job_name, self.result_xyz_file, self.job_name + '.ene', os.getcwd(),
+            )
+            return False
         self.optimized_coordinates = self.get_coords()
         return True
 
@@ -86,12 +100,40 @@ class OBabel(SF):
                                   stdout_path=energy_path, stderr_path=energy_path)
         if exit_status == 0:
             with open(self.job_name + '.ene', 'r') as energy_file:
-                return float(energy_file.readlines()[-1].split()[3])
+                try:
+                    return kilojoules2atomic_units(_read_obenergy_value(energy_file.readlines(), energy_path))
+                except ValueError as exc:
+                    babel_logger.error(
+                        "obabel energy report could not be parsed job=%s input=%s log=%s cwd=%s",
+                        self.job_name, self.result_xyz_file, energy_path, os.getcwd(),
+                    )
+                    babel_logger.debug("OpenBabel energy parse failure: %s", exc)
+                    return None
         babel_logger.error(
             "obabel energy command failed job=%s input=%s log=%s cwd=%s",
             self.job_name, self.result_xyz_file, energy_path, os.getcwd(),
         )
         return None
+
+
+def _read_obenergy_value(lines, energy_path):
+    """Extract the final numeric energy from an OpenBabel energy report."""
+    for line in reversed(lines):
+        tokens = line.split()
+        if not tokens:
+            continue
+        if "ENERGY" in line.upper():
+            for token in reversed(tokens):
+                try:
+                    return float(token)
+                except ValueError:
+                    continue
+        for token in reversed(tokens):
+            try:
+                return float(token)
+            except ValueError:
+                continue
+    raise ValueError(f"Could not parse OpenBabel energy from {energy_path}")
 
 
 def xyz_to_mopac_input(xyzfile, mopac_input_file, keyword=None):

@@ -20,6 +20,7 @@ For most chemistry users, start with the task that matches your problem:
 * :doc:`aggregate` for clusters, aggregates, and noncovalent complexes
 * :doc:`react` for AFIR-style product and close-contact searches
 * :doc:`solvate` for microsolvation, ligand addition, and growth around a core
+* :doc:`conformer` for RDKit-based conformer generation and refinement
 
 .. rubric:: Cite this work
 
@@ -80,6 +81,7 @@ Start here
 * :doc:`aggregate`
 * :doc:`react`
 * :doc:`solvate`
+* :doc:`conformer`
 * :doc:`usage`
 * :doc:`publications`
 * :doc:`installation`
@@ -161,6 +163,7 @@ The fastest way to verify a local install is:
    aggregate
    react
    solvate
+   conformer
 
 .. toctree::
    :maxdepth: 2

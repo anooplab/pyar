@@ -28,7 +28,22 @@ def argument_parse(argv=None):
     )
     parser.add_argument("--num-conformers", type=int, default=100)
     parser.add_argument("--top-n", type=int, default=10)
-    parser.add_argument("--rms-threshold", type=float, default=0.5)
+    parser.add_argument("--backend-top-n", type=int)
+    parser.add_argument("--num-seeds", type=int, default=1)
+    parser.add_argument("--diversity-fraction", type=float, default=0.5)
+    parser.add_argument(
+        "--rms-threshold",
+        "--prune-rms-threshold",
+        dest="rms_threshold",
+        type=float,
+        default=0.5,
+        help="RDKit greedy prune RMS threshold; lower values keep more embedded conformers.",
+    )
+    parser.add_argument(
+        "--use-random-coords",
+        action="store_true",
+        help="Start RDKit embedding from random coordinates instead of distance geometry eigenvectors.",
+    )
     parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--num-threads", type=int, default=0)
@@ -124,7 +139,11 @@ def main(argv=None):
             input_format=args.input_format,
             num_conformers=args.num_conformers,
             top_n=args.top_n,
+            backend_top_n=args.backend_top_n,
+            num_seeds=args.num_seeds,
+            diversity_fraction=args.diversity_fraction,
             rms_threshold=args.rms_threshold,
+            use_random_coords=args.use_random_coords,
             force_field=args.force_field,
             seed=args.seed,
             num_threads=args.num_threads,

@@ -138,7 +138,16 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     selected_paths=("conformers/selected/conf_0000.xyz",),
                 )
                 with mock.patch.object(script, "conformer_search", return_value=result) as search:
-                    script.main(["CCO", "--num-conformers", "5", "--top-n", "2"])
+                    script.main([
+                        "CCO",
+                        "--num-conformers", "5",
+                        "--top-n", "2",
+                        "--num-seeds", "3",
+                        "--backend-top-n", "7",
+                        "--diversity-fraction", "0.75",
+                        "--prune-rms-threshold", "0.25",
+                        "--use-random-coords",
+                    ])
             finally:
                 os.chdir(cwd)
 
@@ -146,6 +155,11 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(search.call_args.args[0], "CCO")
         self.assertEqual(search.call_args.kwargs["num_conformers"], 5)
         self.assertEqual(search.call_args.kwargs["top_n"], 2)
+        self.assertEqual(search.call_args.kwargs["num_seeds"], 3)
+        self.assertEqual(search.call_args.kwargs["backend_top_n"], 7)
+        self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.75)
+        self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
+        self.assertTrue(search.call_args.kwargs["use_random_coords"])
         self.assertIsNone(search.call_args.kwargs["qc_params"])
 
     def test_conformer_script_preflights_backend_refinement(self):

@@ -6,6 +6,7 @@ PyAR helps you search chemically meaningful structures:
 * low-energy aggregates and clusters from fragments or formulas
 * AFIR-style reaction candidates from two reactants
 * microsolvation shells around a solute
+* RDKit conformer ensembles before backend refinement
 
 Install
 -------
@@ -45,6 +46,13 @@ Run a solvation search:
    pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
    pyar-cli -s solute.xyz solvent.xyz --software xtb -ss 10 -N 16
 
+Run a conformer search:
+
+.. code-block:: bash
+
+   pyar-conformer input.sdf --software xtb
+   pyar-cli conformer input.sdf --software xtb
+
 For aggregate and solvation workflows, ``--connectivity-policy`` controls
 whether PyAR prefers covalent connectivity when choosing survivors. Use
 ``auto`` for the default chemistry-aware choice, ``off`` to never filter by
@@ -57,6 +65,7 @@ See also
 * :doc:`aggregate`
 * :doc:`react`
 * :doc:`solvate`
+* :doc:`conformer`
 * :doc:`installation`
 * :doc:`external_programs`
 * :doc:`publications`

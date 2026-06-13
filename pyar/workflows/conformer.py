@@ -24,7 +24,7 @@ from pyar.workflows._growth import _working_directory, workflow_run_directory, w
 
 conformer_logger = logging.getLogger("pyar.workflows.conformer")
 
-STATE_VERSION = 1
+STATE_VERSION = 2
 
 
 class ConformerWorkflowError(RuntimeError):
@@ -35,14 +35,18 @@ class ConformerWorkflowError(RuntimeError):
 class ConformerRecord:
     """One generated conformer and its ranking metadata."""
 
+    seed: int
     source_conf_id: int
     rdkit_energy: float
     rdkit_status: str
     force_field: str
+    rdkit_molecule: object | None = None
     rank: int | None = None
     name: str | None = None
     molecule: Molecule | None = None
     rdkit_path: str | None = None
+    refinement_reason: str | None = None
+    refinement_diversity: float | None = None
     backend_status: str | None = None
     backend_energy: float | None = None
     backend_path: str | None = None
@@ -190,15 +194,16 @@ def _force_field_for_molecule(rdkit_molecule, AllChem, force_field):
     return requested
 
 
-def _embed_parameters(AllChem, seed, rms_threshold, num_threads):
+def _embed_parameters(AllChem, seed, prune_rms_threshold, num_threads, use_random_coords):
     """Build RDKit ETKDG parameters with deterministic defaults."""
     if hasattr(AllChem, "ETKDGv3"):
         parameters = AllChem.ETKDGv3()
     else:
         parameters = AllChem.ETKDG()
     parameters.randomSeed = int(seed)
-    parameters.pruneRmsThresh = float(rms_threshold)
+    parameters.pruneRmsThresh = float(prune_rms_threshold)
     parameters.numThreads = int(num_threads)
+    parameters.useRandomCoords = bool(use_random_coords)
     return parameters
 
 
@@ -206,15 +211,22 @@ def _embed_and_rank_conformers(
     rdkit_molecule,
     AllChem,
     *,
-    num_conformers,
-    rms_threshold,
-    force_field,
     seed,
+    num_conformers,
+    prune_rms_threshold,
+    force_field,
     num_threads,
+    use_random_coords,
     max_iterations,
 ):
     """Generate, minimize, and rank RDKit conformers."""
-    parameters = _embed_parameters(AllChem, seed, rms_threshold, num_threads)
+    parameters = _embed_parameters(
+        AllChem,
+        seed,
+        prune_rms_threshold,
+        num_threads,
+        use_random_coords,
+    )
     conformer_ids = list(
         AllChem.EmbedMultipleConfs(
             rdkit_molecule,
@@ -250,10 +262,12 @@ def _embed_and_rank_conformers(
             continue
         records.append(
             ConformerRecord(
+                seed=int(seed),
                 source_conf_id=int(conformer_id),
                 rdkit_energy=energy,
                 rdkit_status="not_converged" if int(not_converged) else "converged",
                 force_field=selected_force_field,
+                rdkit_molecule=rdkit_molecule,
             )
         )
     return sorted(records, key=lambda record: (record.rdkit_energy, record.source_conf_id))
@@ -272,6 +286,7 @@ def _molecule_from_rdkit_conformer(
     conformer_id,
     *,
     name,
+    seed,
     charge,
     multiplicity,
     scftype,
@@ -288,7 +303,7 @@ def _molecule_from_rdkit_conformer(
         atoms,
         coordinates,
         name=name,
-        title=f"RDKit conformer {conformer_id}",
+        title=f"RDKit seed {seed} conformer {conformer_id}",
         charge=_formal_charge(rdkit_molecule) if charge is None else int(charge),
         multiplicity=int(multiplicity),
         scftype=scftype,
@@ -327,11 +342,13 @@ def _write_rdkit_conformers(
 ):
     """Write ranked RDKit conformers and attach PyAR molecules to records."""
     for rank, record in enumerate(records):
-        name = f"conf_{rank:04d}"
+        name = f"seed_{record.seed:06d}_conf_{record.source_conf_id:04d}"
+        source_molecule = record.rdkit_molecule if record.rdkit_molecule is not None else rdkit_molecule
         molecule = _molecule_from_rdkit_conformer(
-            rdkit_molecule,
+            source_molecule,
             record.source_conf_id,
             name=name,
+            seed=record.seed,
             charge=charge,
             multiplicity=multiplicity,
             scftype=scftype,
@@ -343,6 +360,97 @@ def _write_rdkit_conformers(
         record.name = name
         record.molecule = molecule
         record.rdkit_path = str(path)
+
+
+def _record_sort_key(record):
+    return (record.rdkit_energy, record.seed, record.source_conf_id)
+
+
+def _diversity_coordinates(record):
+    """Return heavy-atom coordinates for conformer diversity scoring."""
+    molecule = record.molecule
+    if molecule is None or molecule.coordinates is None:
+        return None
+    coordinates = np.asarray(molecule.coordinates, dtype=float)
+    if coordinates.ndim != 2 or coordinates.shape[1] != 3:
+        return None
+    heavy_indices = [
+        index
+        for index, atom in enumerate(molecule.atoms_list)
+        if str(atom).upper() != "H"
+    ]
+    if not heavy_indices:
+        heavy_indices = list(range(len(molecule.atoms_list)))
+    return coordinates[np.asarray(heavy_indices, dtype=int)]
+
+
+def _kabsch_rmsd(reference, mobile):
+    """Return RMSD after optimal translation and proper rotation."""
+    reference = np.asarray(reference, dtype=float)
+    mobile = np.asarray(mobile, dtype=float)
+    if reference.shape != mobile.shape:
+        return float("inf")
+    reference_centered = reference - np.mean(reference, axis=0)
+    mobile_centered = mobile - np.mean(mobile, axis=0)
+    covariance = mobile_centered.T @ reference_centered
+    left_vectors, _, right_vectors = np.linalg.svd(covariance)
+    correction = np.eye(3)
+    if np.linalg.det(left_vectors @ right_vectors) < 0:
+        correction[-1, -1] = -1.0
+    rotation = left_vectors @ correction @ right_vectors
+    aligned = mobile_centered @ rotation
+    difference = aligned - reference_centered
+    return float(np.sqrt(np.mean(np.sum(difference * difference, axis=1))))
+
+
+def _conformer_rmsd(left, right):
+    """Return a heavy-atom RMSD between two conformer records."""
+    left_coordinates = _diversity_coordinates(left)
+    right_coordinates = _diversity_coordinates(right)
+    if left_coordinates is None or right_coordinates is None:
+        return 0.0
+    return _kabsch_rmsd(left_coordinates, right_coordinates)
+
+
+def _select_refinement_records(records, limit, top_n, diversity_fraction):
+    """Select backend candidates by RDKit energy plus geometric diversity."""
+    limit = min(int(limit), len(records))
+    if limit <= 0:
+        return []
+    diversity_fraction = float(diversity_fraction)
+    energy_count = math.ceil(limit * (1.0 - diversity_fraction))
+    energy_count = max(1, int(top_n), min(limit, energy_count))
+    energy_count = min(limit, energy_count)
+
+    ordered_records = sorted(records, key=_record_sort_key)
+    selected = list(ordered_records[:energy_count])
+    selected_ids = {id(record) for record in selected}
+    for record in selected:
+        record.refinement_reason = "energy"
+        record.refinement_diversity = 0.0
+
+    while len(selected) < limit:
+        best_candidate = None
+        best_key = None
+        for candidate in ordered_records:
+            if id(candidate) in selected_ids:
+                continue
+            nearest_selected = min(
+                _conformer_rmsd(candidate, chosen)
+                for chosen in selected
+            )
+            key = (nearest_selected, -candidate.rdkit_energy, -candidate.seed, -candidate.source_conf_id)
+            if best_key is None or key > best_key:
+                best_key = key
+                best_candidate = candidate
+        if best_candidate is None:
+            break
+        best_candidate.refinement_reason = "diversity"
+        best_candidate.refinement_diversity = float(best_key[0])
+        selected.append(best_candidate)
+        selected_ids.add(id(best_candidate))
+
+    return sorted(selected, key=_record_sort_key)
 
 
 def _refine_with_backend(records, run_directory, qc_params):
@@ -368,6 +476,7 @@ def _refine_with_backend(records, run_directory, qc_params):
         key=lambda record: (
             float("inf") if record.backend_energy is None else record.backend_energy,
             record.rdkit_energy,
+            record.seed,
             record.source_conf_id,
         ),
     )
@@ -388,12 +497,15 @@ def _write_summary(records, summary_path):
     """Write a CSV summary for all accepted conformers."""
     columns = [
         "rank",
+        "seed",
         "name",
         "source_conf_id",
         "force_field",
         "rdkit_status",
         "rdkit_energy",
         "rdkit_path",
+        "refinement_reason",
+        "refinement_diversity",
         "backend_status",
         "backend_energy",
         "backend_path",
@@ -406,12 +518,15 @@ def _write_summary(records, summary_path):
             writer.writerow(
                 {
                     "rank": record.rank,
+                    "seed": record.seed,
                     "name": record.name,
                     "source_conf_id": record.source_conf_id,
                     "force_field": record.force_field,
                     "rdkit_status": record.rdkit_status,
                     "rdkit_energy": record.rdkit_energy,
                     "rdkit_path": record.rdkit_path,
+                    "refinement_reason": record.refinement_reason,
+                    "refinement_diversity": record.refinement_diversity,
                     "backend_status": record.backend_status,
                     "backend_energy": record.backend_energy,
                     "backend_path": record.backend_path,
@@ -443,12 +558,15 @@ def _build_state(
         "records": [
             {
                 "rank": record.rank,
+                "seed": record.seed,
                 "name": record.name,
                 "source_conf_id": record.source_conf_id,
                 "force_field": record.force_field,
                 "rdkit_status": record.rdkit_status,
                 "rdkit_energy": record.rdkit_energy,
                 "rdkit_path": record.rdkit_path,
+                "refinement_reason": record.refinement_reason,
+                "refinement_diversity": record.refinement_diversity,
                 "backend_status": record.backend_status,
                 "backend_energy": record.backend_energy,
                 "backend_path": record.backend_path,
@@ -465,7 +583,11 @@ def conformer_search(
     input_format="auto",
     num_conformers=100,
     top_n=10,
+    backend_top_n=None,
+    num_seeds=1,
+    diversity_fraction=0.5,
     rms_threshold=0.5,
+    use_random_coords=False,
     force_field="auto",
     seed=1,
     num_threads=0,
@@ -481,21 +603,35 @@ def conformer_search(
         raise ConformerWorkflowError("--num-conformers must be at least 1")
     if int(top_n) < 1:
         raise ConformerWorkflowError("--top-n must be at least 1")
+    if int(num_seeds) < 1:
+        raise ConformerWorkflowError("--num-seeds must be at least 1")
     if float(rms_threshold) < 0.0:
         raise ConformerWorkflowError("--rms-threshold must be non-negative")
+    if not isinstance(use_random_coords, bool):
+        use_random_coords = bool(use_random_coords)
+    if backend_top_n is not None and int(backend_top_n) < 1:
+        raise ConformerWorkflowError("--backend-top-n must be at least 1")
+    if not 0.0 <= float(diversity_fraction) <= 1.0:
+        raise ConformerWorkflowError("--diversity-fraction must be between 0 and 1")
 
     root_directory = os.getcwd() if root_directory is None else root_directory
     Chem, AllChem = _rdkit_modules()
     run_directory = _prepare_run_directory(root_directory)
     state_path = Path(workflow_state_path(str(run_directory)))
+    seed_values = [int(seed) + index for index in range(int(num_seeds))]
     request = {
         "input": str(input_spec),
         "input_format": input_format,
         "num_conformers": int(num_conformers),
         "top_n": int(top_n),
+        "backend_top_n": None if backend_top_n is None else int(backend_top_n),
+        "num_seeds": int(num_seeds),
+        "diversity_fraction": float(diversity_fraction),
         "rms_threshold": float(rms_threshold),
+        "use_random_coords": bool(use_random_coords),
         "force_field": force_field,
         "seed": int(seed),
+        "seed_values": seed_values,
         "num_threads": int(num_threads),
         "max_iterations": int(max_iterations),
         "charge": charge,
@@ -510,16 +646,25 @@ def conformer_search(
         Chem,
         run_directory,
     )
-    records = _embed_and_rank_conformers(
-        rdkit_molecule,
-        AllChem,
-        num_conformers=num_conformers,
-        rms_threshold=rms_threshold,
-        force_field=force_field,
-        seed=seed,
-        num_threads=num_threads,
-        max_iterations=max_iterations,
-    )
+    records = []
+    for seed_value in seed_values:
+        try:
+            seed_molecule = Chem.Mol(rdkit_molecule)
+        except (AttributeError, TypeError):
+            seed_molecule = rdkit_molecule
+        seed_records = _embed_and_rank_conformers(
+            seed_molecule,
+            AllChem,
+            seed=seed_value,
+            num_conformers=num_conformers,
+            prune_rms_threshold=rms_threshold,
+            force_field=force_field,
+            num_threads=num_threads,
+            use_random_coords=use_random_coords,
+            max_iterations=max_iterations,
+        )
+        records.extend(seed_records)
+    records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
     if not records:
         state = _build_state(
             status="failed_no_conformers",
@@ -541,13 +686,21 @@ def conformer_search(
         scftype=scftype,
     )
 
-    retained_records = records[: min(int(top_n), len(records))]
+    refinement_limit = int(top_n) if backend_top_n is None else max(int(top_n), int(backend_top_n))
     backend_requested = bool(qc_params and qc_params.get("software"))
     if backend_requested:
-        selected_records = _refine_with_backend(retained_records, run_directory, qc_params)
+        retained_records = _select_refinement_records(
+            records,
+            refinement_limit,
+            top_n,
+            diversity_fraction,
+        )
+        refined_records = _refine_with_backend(retained_records, run_directory, qc_params)
+        selected_records = refined_records[: min(int(top_n), len(refined_records))]
         status = "completed" if selected_records else "completed_no_backend_success"
     else:
-        selected_records = retained_records
+        retained_records = records[: min(refinement_limit, len(records))]
+        selected_records = retained_records[: min(int(top_n), len(retained_records))]
         status = "completed"
 
     selected_paths = _write_selected_conformers(selected_records, run_directory / "selected")
@@ -580,5 +733,9 @@ def conformer_search(
             "selected_conformers": len(selected_records),
             "summary_path": str(run_directory / "summary.csv"),
             "backend_requested": backend_requested,
+            "seed_values": seed_values,
+            "backend_top_n": refinement_limit,
+            "diversity_fraction": float(diversity_fraction),
+            "use_random_coords": bool(use_random_coords),
         },
     )

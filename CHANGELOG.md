@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0 - 2026-06-12
+
+This release adds a new RDKit-based conformer workflow and tightens release compatibility across supported Python versions.
+
+### Added
+
+- A new conformer workflow that builds, ranks, and optionally refines conformers from SMILES, SDF, or MOL input.
+- A dedicated `pyar-conformer` console script for the new workflow.
+- A `conformer` optional dependency group for RDKit-based conformer generation.
+
+### Changed
+
+- The package version was bumped to `1.2.0`.
+- Release publishing now follows the tagged `v1.2.0` workflow path.
+
+### Fixed
+
+- Python 3.10 now has a TOML fallback for runtime version detection.
+- Reaction workflow summaries now prefer coordinate paths that actually exist.
+- CI test isolation was improved so OpenBabel and AIMNet2-dependent tests do not rely on local machine state.
+
 ## 1.1.1 - 2026-05-31
 
 This release focuses on cleanup, documentation, and workflow stabilization.

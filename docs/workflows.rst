@@ -175,6 +175,40 @@ For a chemistry researcher, the main outputs to inspect are:
 * ``solvation/state/geometries/`` for saved seed structures
 * the selected seed geometries from the final cycle
 
+Conformer internals
+-------------------
+
+Conformer search uses RDKit for the initial geometry ensemble and then, when
+requested, passes a selected subset through a regular PyAR backend. It is the
+workflow behind ``pyar-conformer`` and the ``pyar-cli conformer`` subcommand.
+
+.. code-block:: bash
+
+   pyar-conformer input.sdf --software xtb --num-seeds 3 --backend-top-n 50
+
+The workflow is designed for flexible single-molecule systems where one local
+minimum is not enough. It combines ETKDGv3 embedding, optional random-coordinate
+embedding, greedy pruning, and a max-min-like selection stage before backend
+refinement.
+
+Implementation notes:
+
+* ``pyar.workflows.conformer.conformer_search`` owns the public workflow entry
+  point
+* ``pyar.workflows.conformer._embed_parameters`` controls the RDKit embedding
+  knobs
+* ``pyar.workflows.conformer._select_refinement_records`` chooses the backend
+  refinement pool from energy and diversity
+* ``pyar.workflows.conformer._write_summary`` and the workflow state record the
+  chosen seeds, refinement reason, and diversity score for later inspection
+
+For collaborator-facing debugging, inspect:
+
+* ``conformers/state.json`` for the recorded request and selected pool
+* ``conformers/summary.csv`` for the ranked conformer table
+* ``conformers/rdkit/`` for the embedded conformers before refinement
+* ``conformers/backend/`` for backend-specific job outputs
+
 Bond-scan internals
 -------------------
 
