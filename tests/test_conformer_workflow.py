@@ -64,7 +64,11 @@ class ConformerWorkflowTests(unittest.TestCase):
         self.assertTrue(selected_file_exists)
         self.assertEqual(state["generated_conformers"], 3)
         self.assertEqual(state["source_format"], "smiles")
+        self.assertEqual(state["request"]["torsion_rounds"], 2)
+        self.assertEqual(state["request"]["torsion_mode"], "evolve")
+        self.assertEqual(state["request"]["torsion_kicks_per_conformer"], 8)
         self.assertEqual(summary_rows[0]["source_conf_id"], "2")
+        self.assertEqual(summary_rows[0]["generation_stage"], "etkdg")
         self.assertEqual(summary_rows[0]["selected_path"], result.selected_paths[0])
 
     def test_conformer_search_refines_only_top_ranked_records_with_backend(self):
@@ -165,27 +169,45 @@ class ConformerWorkflowTests(unittest.TestCase):
         def make_record(name, source_conf_id, energy, coordinates):
             record = conformer.ConformerRecord(1, source_conf_id, energy, "converged", "mmff")
             record.name = name
-            record.molecule = Molecule(["C", "C"], coordinates, name=name, energy=energy)
+            record.molecule = Molecule(["C", "C", "C"], coordinates, name=name, energy=energy)
             return record
 
         records = [
-            make_record("low", 0, 0.0, [[0, 0, 0], [1, 0, 0]]),
-            make_record("duplicate", 1, 1.0, [[0, 0, 0], [1.05, 0, 0]]),
-            make_record("unique", 2, 2.0, [[0, 0, 0], [3, 0, 0]]),
+            make_record("low", 0, 0.0, [[0, 0, 0], [1, 0, 0], [0, 1, 0]]),
+            make_record("duplicate", 1, 1.0, [[0, 0, 0], [1.05, 0, 0], [0, 1.05, 0]]),
+            make_record("unique", 2, 2.0, [[0, 0, 0], [3, 0, 0], [0, 3, 0]]),
         ]
 
         selected = conformer._deduplicate_records(records, 0.5)
 
         self.assertEqual([record.name for record in selected], ["low", "unique"])
 
-    def test_torsion_kicks_generate_minimized_rdkit_records(self):
+    def test_select_unique_records_removes_backend_collapsed_duplicates(self):
+        def make_record(name, source_conf_id, energy, coordinates):
+            record = conformer.ConformerRecord(1, source_conf_id, energy, "converged", "mmff")
+            record.name = name
+            record.backend_energy = energy
+            record.molecule = Molecule(["C", "C", "C"], coordinates, name=name, energy=energy)
+            return record
+
+        records = [
+            make_record("best", 0, -3.0, [[0, 0, 0], [1, 0, 0], [0, 1, 0]]),
+            make_record("collapsed", 1, -2.9, [[0, 0, 0], [1.03, 0, 0], [0, 1.03, 0]]),
+            make_record("distinct", 2, -2.0, [[0, 0, 0], [3, 0, 0], [0, 1, 0]]),
+        ]
+
+        selected = conformer._select_unique_records(records, 2, 0.75)
+
+        self.assertEqual([record.name for record in selected], ["best", "distinct"])
+
+    def test_torsion_evolve_generates_minimized_rdkit_records(self):
         try:
             from rdkit import Chem
             from rdkit.Chem import AllChem
         except ImportError:
             self.skipTest("RDKit is not available")
 
-        molecule = Chem.AddHs(Chem.MolFromSmiles("CCCC"))
+        molecule = Chem.AddHs(Chem.MolFromSmiles("CCCCCC"))
         embedded = conformer._embed_and_rank_conformers(
             molecule,
             AllChem,
@@ -198,22 +220,100 @@ class ConformerWorkflowTests(unittest.TestCase):
             max_iterations=200,
         )
 
-        kicked = conformer._generate_torsion_kick_records(
+        kicked = conformer._generate_torsion_evolution_records(
+            embedded,
+            Chem,
+            AllChem,
+            enabled=True,
+            generations=2,
+            kicks_per_conformer=2,
+            max_bonds=1,
+            max_iterations=200,
+            diversity_fraction=0.2,
+            compactness_fraction=0.8,
+            parent_limit=4,
+            tabu_rms=0.1,
+        )
+
+        self.assertGreaterEqual(len(kicked), 1)
+        self.assertEqual(kicked[0].generation_stage, "torsion_evolve")
+        self.assertEqual(kicked[0].generation_round, 1)
+        self.assertEqual(kicked[0].parent_name, "seed_000001_conf_0000")
+        self.assertTrue(kicked[0].torsion_moves)
+        self.assertTrue(kicked[0].rdkit_status in {"converged", "not_converged"})
+
+    def test_torsion_grid_is_deterministic_for_same_inputs(self):
+        try:
+            from rdkit import Chem
+            from rdkit.Chem import AllChem
+        except ImportError:
+            self.skipTest("RDKit is not available")
+
+        molecule = Chem.AddHs(Chem.MolFromSmiles("CCCCCC"))
+        embedded = conformer._embed_and_rank_conformers(
+            molecule,
+            AllChem,
+            num_conformers=1,
+            prune_rms_threshold=0.5,
+            force_field="mmff",
+            seed=1,
+            num_threads=0,
+            use_random_coords=True,
+            max_iterations=200,
+        )
+        first = conformer._generate_torsion_grid_records(
             embedded,
             Chem,
             AllChem,
             enabled=True,
             kicks_per_conformer=2,
             max_bonds=1,
-            seed=1,
+            round_index=1,
+            max_iterations=200,
+        )
+        second = conformer._generate_torsion_grid_records(
+            embedded,
+            Chem,
+            AllChem,
+            enabled=True,
+            kicks_per_conformer=2,
+            max_bonds=1,
+            round_index=1,
             max_iterations=200,
         )
 
-        self.assertGreaterEqual(len(kicked), 1)
-        self.assertEqual(kicked[0].generation_stage, "torsion_kick")
-        self.assertEqual(kicked[0].parent_name, "seed_000001_conf_0000")
-        self.assertTrue(kicked[0].torsion_moves)
-        self.assertTrue(kicked[0].rdkit_status in {"converged", "not_converged"})
+        self.assertEqual([record.torsion_moves for record in first], [record.torsion_moves for record in second])
+
+    def test_conformer_search_runs_multiple_torsion_rounds(self):
+        try:
+            from rdkit import Chem
+            from rdkit.Chem import AllChem
+        except ImportError:
+            self.skipTest("RDKit is not available")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = conformer.conformer_search(
+                "CCCCCC",
+                num_conformers=2,
+                top_n=2,
+                backend_top_n=4,
+                num_seeds=1,
+                torsion_rounds=2,
+                torsion_kicks_per_conformer=2,
+                torsion_max_bonds=1,
+                torsion_dedup_rms=0.1,
+                force_field="mmff",
+                root_directory=tmpdir,
+            )
+
+            state = json.loads((Path(result.run_directory) / "state.json").read_text())
+
+        rounds = {
+            record["generation_round"]
+            for record in state["records"]
+            if record["generation_stage"] == "torsion_evolve"
+        }
+        self.assertTrue({1, 2}.issubset(rounds))
 
     def test_conformer_search_spreads_across_multiple_seeds(self):
         records = {

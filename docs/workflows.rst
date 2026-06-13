@@ -183,8 +183,9 @@ requested, passes a selected subset through a regular PyAR backend. It is the
 workflow behind ``pyar-conformer`` and the ``pyar-cli conformer`` subcommand.
 
 The default tuning is intentionally compactness-biased, starts RDKit from
-random coordinates, and applies local torsion kicks so the backend sees folded
-basins rather than only the widest RDKit-separated starts.
+random coordinates, and applies a chemistry-guided evolutionary torsion search
+with elite selection so the backend sees folded basins rather than only the
+widest RDKit-separated starts.
 
 .. code-block:: bash
 
@@ -192,7 +193,7 @@ basins rather than only the widest RDKit-separated starts.
 
 The workflow is designed for flexible single-molecule systems where one local
 minimum is not enough. It combines ETKDGv3 embedding, random-coordinate
-embedding, local torsion perturbations, greedy pruning, and a max-min-like
+embedding, contact-guided torsion mutation, greedy pruning, and a max-min-like
 selection stage before backend refinement.
 
 Implementation notes:
@@ -201,8 +202,8 @@ Implementation notes:
   point
 * ``pyar.workflows.conformer._embed_parameters`` controls the RDKit embedding
   knobs
-* torsion-kick sampling perturbs rotatable bonds and locally minimizes the
-  resulting RDKit conformers before backend selection
+* torsion sampling mutates rotatable bonds, locally minimizes the resulting
+  RDKit conformers, and keeps an evolving population before backend selection
 * ``pyar.workflows.conformer._select_refinement_records`` chooses the backend
   refinement pool from energy, compactness, and diversity
 * ``pyar.workflows.conformer._write_summary`` and the workflow state record the

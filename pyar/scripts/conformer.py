@@ -54,7 +54,9 @@ def argument_parse(argv=None):
         default=True,
         help="Generate local torsion-perturbed conformers before backend refinement.",
     )
-    parser.add_argument("--torsion-kicks-per-conformer", type=int, default=4)
+    parser.add_argument("--torsion-mode", choices=["evolve", "mc", "grid", "random"], default="evolve")
+    parser.add_argument("--torsion-rounds", type=int, default=2)
+    parser.add_argument("--torsion-kicks-per-conformer", type=int, default=8)
     parser.add_argument("--torsion-max-bonds", type=int, default=3)
     parser.add_argument("--torsion-dedup-rms", type=float, default=0.5)
     parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")
@@ -159,6 +161,8 @@ def main(argv=None):
             rms_threshold=args.rms_threshold,
             use_random_coords=args.use_random_coords,
             torsion_kicks=args.torsion_kicks,
+            torsion_mode=args.torsion_mode,
+            torsion_rounds=args.torsion_rounds,
             torsion_kicks_per_conformer=args.torsion_kicks_per_conformer,
             torsion_max_bonds=args.torsion_max_bonds,
             torsion_dedup_rms=args.torsion_dedup_rms,
@@ -177,7 +181,7 @@ def main(argv=None):
     print(f"Conformer workflow: {result.status}")
     print(f"Run directory: {result.run_directory}")
     print(f"Selected conformers: {len(result.selected_paths)}")
-    return result
+    return None
 
 
 if __name__ == "__main__":

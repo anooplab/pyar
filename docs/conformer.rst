@@ -7,9 +7,9 @@ The workflow is RDKit-based and is aimed at flexible molecules where a single
 local minimum is not enough to describe the search space.
 
 The default settings are tuned for folded, compact conformers: multiple RDKit
-seeds, random-coordinate embedding, local torsion kicks, tighter pruning, a
-compactness-biased backend pool, and a larger backend-refinement window than
-the final output set.
+seeds, random-coordinate embedding, chemistry-guided evolutionary torsion
+search, tighter pruning, a compactness-biased backend pool, and a larger
+backend-refinement window than the final output set.
 
 Basic commands
 --------------
@@ -44,6 +44,10 @@ Useful options
   default distance-geometry eigenvector start
 * ``--torsion-kicks`` or ``--no-torsion-kicks`` controls the local
   torsion-perturbation stage
+* ``--torsion-mode`` chooses the torsion sampler; ``evolve`` is the default,
+  ``mc`` keeps the tabu-style walk behavior, ``grid`` keeps the deterministic
+  scan behavior, and ``random`` keeps the stochastic kick behavior
+* ``--torsion-rounds`` controls how many successive torsion-kick rounds are run
 * ``--torsion-kicks-per-conformer`` controls how many torsion trials are made
   around each embedded conformer
 * ``--torsion-dedup-rms`` removes near-duplicate trial conformers before
