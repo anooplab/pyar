@@ -9,6 +9,7 @@ This release adds a new RDKit-based conformer workflow and tightens release comp
 - A new conformer workflow that builds, ranks, and optionally refines conformers from SMILES, SDF, or MOL input.
 - A dedicated `pyar-conformer` console script for the new workflow.
 - A `conformer` optional dependency group for RDKit-based conformer generation.
+- A conformer benchmark and failure-diagnosis framework to classify whether missed minima are due to generation, selection, backend refinement, ranking, or input chemistry.
 
 ### Changed
 

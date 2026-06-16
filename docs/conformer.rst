@@ -63,6 +63,37 @@ Useful outputs
 * ``conformers/rdkit/`` for the embedded conformers before backend refinement
 * ``conformers/selected/`` for the final selected conformers
 
+Benchmarking conformer search
+-----------------------------
+
+PyAR ships a JSON benchmark runner for diagnosing why a known or reference
+low-energy conformer was missed. The benchmark is intentionally diagnostic:
+it does not add new search algorithms. It runs the existing conformer workflow,
+compares the reference geometry against generated and selected conformers, and
+classifies the result so the next algorithmic change can be chosen from data.
+
+.. code-block:: bash
+
+   pyar-conformer-benchmark benchmarks/conformer/small.json
+   pyar-conformer-benchmark benchmark.json --num-conformers 200 --num-seeds 5 --top-n 20
+
+The diagnosis classes are:
+
+* ``found``: the reference geometry is present in the final selected set
+* ``generated_lost_selection``: the reference was generated but not selected
+* ``generated_lost_backend_or_dedup``: the reference was generated but lost
+  after backend refinement or deduplication
+* ``never_generated``: no generated conformer is reference-like
+* ``wrong_ranking``: a reference-like conformer was generated but ranked
+  outside the chosen energy window
+* ``input_chemistry_issue``: the input or reference geometry prevents a
+  meaningful comparison
+* ``uncertain``: the available evidence is insufficient for a conservative
+  diagnosis
+
+The command writes ``benchmark_summary.csv``, ``benchmark_summary.json``, and
+per-case ``diagnosis.json`` files under the requested output directory.
+
 See also
 --------
 

@@ -1,0 +1,26 @@
+{
+  "name": "small-conformer-benchmark",
+  "method": "reference",
+  "cases": [
+    {
+      "id": "butane",
+      "input": "CCCC",
+      "input_format": "smiles",
+      "charge": 0,
+      "multiplicity": 1,
+      "reference_xyz": "reference/butane_global.xyz",
+      "reference_energy": null,
+      "notes": "Illustrative RDKit/MMFF reference; replace with curated quantum or CREST reference for production benchmarking."
+    },
+    {
+      "id": "ethanol",
+      "input": "CCO",
+      "input_format": "smiles",
+      "charge": 0,
+      "multiplicity": 1,
+      "reference_xyz": "reference/ethanol_global.xyz",
+      "reference_energy": null,
+      "notes": "Illustrative RDKit/MMFF reference; replace with curated quantum or CREST reference for production benchmarking."
+    }
+  ]
+}

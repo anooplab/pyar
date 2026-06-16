@@ -71,6 +71,7 @@ Several smaller helper commands are available for inspection and benchmarking:
    pyar-similarity -f "*.xyz" -t 0.005
    pyar-descriptor *.xyz
    pyar-conformer input.sdf --num-conformers 200 --num-seeds 4 --use-random-coords
+   pyar-conformer-benchmark benchmarks/conformer/small.json
    pyar-trial-generation -N 8 -i seed.xyz monomer.xyz --plot
    pyar-optimiser structure.xyz -c 0 -m 1 --software xtb
 
@@ -78,5 +79,6 @@ Several smaller helper commands are available for inspection and benchmarking:
 diverse subset, ``pyar-conformer`` generates and optionally refines RDKit
 conformers, ``pyar-similarity`` reports near-duplicate structures,
 ``pyar-descriptor`` writes compact cluster descriptors,
+``pyar-conformer-benchmark`` diagnoses why reference conformers are missed,
 ``pyar-trial-generation`` builds candidate orientations, and
 ``pyar-optimiser`` runs the standalone geometry optimizer.

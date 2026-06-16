@@ -10,6 +10,7 @@ Command line arguments in pyar
 * pyar-trial-generation: generate trial geometries and orientation samples.
 * pyar-optimiser: optimize molecules with a generic backend setting.
 * pyar-conformer: generate and optionally refine RDKit conformers.
+* pyar-conformer-benchmark: diagnose conformer-search benchmark failures.
 * pyar-benchmark-clustering: benchmark cluster-selection algorithms.
 * pyar-benchmark-orientations: benchmark trial-direction samplers.
 * pyar-reaction-trace: analyze a reaction trace and generate plots.

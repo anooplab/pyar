@@ -55,6 +55,14 @@ Main workflows
    :members:
    :undoc-members:
 
+.. automodule:: pyar.scripts.conformer_benchmark
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.benchmarks.conformer
+   :members:
+   :undoc-members:
+
 .. automodule:: pyar.scripts.benchmark_orientations
    :members:
    :undoc-members:

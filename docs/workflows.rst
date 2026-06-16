@@ -196,6 +196,10 @@ minimum is not enough. It combines ETKDGv3 embedding, random-coordinate
 embedding, contact-guided torsion mutation, greedy pruning, and a max-min-like
 selection stage before backend refinement.
 
+The companion ``pyar-conformer-benchmark`` command diagnoses whether missed
+reference conformers were generated, lost during selection, lost after backend
+refinement or deduplication, misranked, or affected by input chemistry.
+
 Implementation notes:
 
 * ``pyar.workflows.conformer.conformer_search`` owns the public workflow entry

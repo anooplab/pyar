@@ -101,6 +101,27 @@ pyar.backends
    :undoc-members:
    :show-inheritance:
 
+Benchmarks
+----------
+
+pyar.benchmarks
+~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.benchmarks
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.benchmarks.conformer
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.benchmarks.conformer
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Biases
 ------
 
@@ -579,6 +600,15 @@ pyar.scripts.conformer
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.conformer
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.conformer_benchmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.conformer_benchmark
    :no-index:
    :members:
    :undoc-members:
