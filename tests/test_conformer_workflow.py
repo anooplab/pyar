@@ -161,9 +161,37 @@ class ConformerWorkflowTests(unittest.TestCase):
         selected_names = {record.name for record in selected}
         self.assertEqual(selected_names, {"low", "near", "moderate"})
         self.assertEqual(records[0].refinement_reason, "energy")
-        self.assertEqual(records[1].refinement_reason, "energy")
-        self.assertEqual(records[2].refinement_reason, "compact")
-        self.assertIsNone(records[2].refinement_diversity)
+        self.assertEqual(records[1].refinement_reason, "contact_compact")
+        self.assertEqual(records[2].refinement_reason, "contact_compact")
+        self.assertIsNotNone(records[1].radius_gyration)
+
+    def test_refinement_selection_protects_compact_and_open_basins(self):
+        def make_record(name, source_conf_id, energy, coordinates):
+            record = conformer.ConformerRecord(1, source_conf_id, energy, "converged", "mmff")
+            record.name = name
+            record.molecule = Molecule(["C", "C", "C"], coordinates, name=name, energy=energy)
+            return record
+
+        records = [
+            make_record("energy", 0, 0.0, [[0, 0, 0], [1, 0, 0], [0, 1, 0]]),
+            make_record("near_energy", 1, 0.1, [[0, 0, 0], [1.05, 0, 0], [0, 1.05, 0]]),
+            make_record("compact", 2, 5.0, [[0, 0, 0], [0.4, 0, 0], [0, 0.4, 0]]),
+            make_record("open", 3, 6.0, [[0, 0, 0], [4, 0, 0], [0, 4, 0]]),
+            make_record("diverse", 4, 7.0, [[0, 0, 0], [2, 0, 0], [0, 5, 0]]),
+        ]
+
+        selected = conformer._select_refinement_records(
+            records,
+            limit=5,
+            top_n=1,
+            diversity_fraction=0.2,
+            compactness_fraction=0.2,
+        )
+
+        reasons = {record.name: record.refinement_reason for record in selected}
+        self.assertEqual(reasons["compact"], "contact_compact")
+        self.assertEqual(reasons["open"], "open")
+        self.assertIn("diversity", reasons.values())
 
     def test_deduplicate_records_keeps_low_energy_unique_conformers(self):
         def make_record(name, source_conf_id, energy, coordinates):

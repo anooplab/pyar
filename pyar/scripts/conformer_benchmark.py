@@ -44,12 +44,24 @@ def argument_parse(argv=None):
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--backend-top-n", type=int)
     parser.add_argument("--rms-hit-threshold", type=float, default=0.50)
-    parser.add_argument("--energy-window", type=float)
+    parser.add_argument(
+        "--energy-window",
+        type=float,
+        help=(
+            "Classify reference-like generated conformers outside this RDKit "
+            "native force-field energy window as wrong_ranking."
+        ),
+    )
     parser.add_argument("--output", default="conformer_benchmark_results")
 
     conformer_group = parser.add_argument_group("conformer search")
     conformer_group.add_argument("--diversity-fraction", type=float, default=0.2)
-    conformer_group.add_argument("--compactness-fraction", type=float, default=0.8)
+    conformer_group.add_argument(
+        "--compactness-fraction",
+        type=float,
+        default=0.2,
+        help="Protected contact-rich folded-basin quota; matched by an open-basin quota for diversity.",
+    )
     conformer_group.add_argument("--rms-threshold", type=float, default=0.25)
     conformer_group.add_argument(
         "--use-random-coords",

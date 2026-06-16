@@ -52,6 +52,8 @@ class ConformerRecord:
     torsion_moves: str | None = None
     refinement_reason: str | None = None
     refinement_diversity: float | None = None
+    contact_count: int | None = None
+    radius_gyration: float | None = None
     backend_status: str | None = None
     backend_energy: float | None = None
     backend_path: str | None = None
@@ -850,7 +852,7 @@ def _generate_torsion_evolution_records(
     max_bonds,
     max_iterations,
     diversity_fraction=0.2,
-    compactness_fraction=0.8,
+    compactness_fraction=0.2,
     parent_limit=None,
     tabu_rms=0.5,
 ):
@@ -1147,6 +1149,8 @@ def _compactness_metrics(record):
         except Exception:
             contact_count = 0
 
+    record.contact_count = int(contact_count)
+    record.radius_gyration = float(rgyr)
     return contact_count, rgyr
 
 
@@ -1154,6 +1158,12 @@ def _fold_score(record):
     """Return a tuple that prefers contact-rich, compact conformers."""
     contact_count, rgyr = _compactness_metrics(record)
     return contact_count, -rgyr
+
+
+def _open_score(record):
+    """Return a tuple that prefers extended conformers for basin coverage."""
+    contact_count, rgyr = _compactness_metrics(record)
+    return rgyr, -contact_count
 
 
 def _kabsch_rmsd(reference, mobile):
@@ -1184,63 +1194,120 @@ def _conformer_rmsd(left, right):
     return _kabsch_rmsd(left_coordinates, right_coordinates)
 
 
+def _append_selected_record(selected, selected_ids, record, reason, diversity=None):
+    """Append record if not selected and annotate why it was retained."""
+    if record is None or id(record) in selected_ids:
+        return False
+    record.refinement_reason = reason
+    record.refinement_diversity = diversity
+    _compactness_metrics(record)
+    selected.append(record)
+    selected_ids.add(id(record))
+    return True
+
+
+def _select_diverse_record(candidates, selected):
+    """Return the candidate farthest from the current selected set."""
+    best_candidate = None
+    best_key = None
+    for candidate in candidates:
+        if not selected:
+            nearest_selected = 0.0
+        else:
+            nearest_selected = min(
+                _conformer_rmsd(candidate, chosen)
+                for chosen in selected
+            )
+        key = (nearest_selected, -candidate.rdkit_energy, -candidate.seed, -candidate.source_conf_id)
+        if best_key is None or key > best_key:
+            best_key = key
+            best_candidate = candidate
+    return best_candidate, None if best_key is None else float(best_key[0])
+
+
+def _selection_quota(limit, fraction):
+    """Return a small protected quota for a selection fraction."""
+    if limit <= 0 or float(fraction) <= 0.0:
+        return 0
+    return max(1, int(math.ceil(limit * float(fraction))))
+
+
 def _select_refinement_records(records, limit, top_n, diversity_fraction, compactness_fraction):
-    """Select backend candidates by RDKit energy plus geometric diversity."""
+    """Select backend candidates from energy, diversity, compact, and open basins."""
     limit = min(int(limit), len(records))
     if limit <= 0:
         return []
     diversity_fraction = float(diversity_fraction)
     compactness_fraction = float(compactness_fraction)
-    energy_count = math.ceil(limit * (1.0 - diversity_fraction))
-    energy_count = max(1, int(top_n), min(limit, energy_count))
+
+    # compactness_fraction is a protected folded/contact-rich quota, not a
+    # global preference. Mirror it with an open-structure quota so compact
+    # structures cannot crowd out extended conformer families.
+    compact_count = min(limit, _selection_quota(limit, compactness_fraction))
+    open_count = min(limit, _selection_quota(limit, compactness_fraction))
+    diversity_count = min(limit, _selection_quota(limit, diversity_fraction))
+    outlier_count = 1 if limit >= 10 else 0
+    protected_count = compact_count + open_count + diversity_count + outlier_count
+    energy_count = max(1, min(int(top_n), max(1, limit - protected_count)))
     energy_count = min(limit, energy_count)
 
     ordered_records = sorted(records, key=_record_sort_key)
-    selected = list(ordered_records[:energy_count])
-    selected_ids = {id(record) for record in selected}
-    for record in selected:
-        record.refinement_reason = "energy"
-        record.refinement_diversity = 0.0
+    selected = []
+    selected_ids = set()
+    for record in ordered_records[:energy_count]:
+        _append_selected_record(selected, selected_ids, record, "energy", 0.0)
 
-    compact_count = max(0, min(limit - len(selected), math.ceil((limit - len(selected)) * compactness_fraction)))
-    compact_candidates = []
-    if compact_count > 0:
-        compact_candidates = sorted(
-            (candidate for candidate in ordered_records if id(candidate) not in selected_ids),
-            key=lambda record: (
-                -_fold_score(record)[0],
-                -_fold_score(record)[1],
-                record.rdkit_energy,
-                record.seed,
-                record.source_conf_id,
-            ),
-        )[:compact_count]
-        for record in compact_candidates:
-            record.refinement_reason = "compact"
-            record.refinement_diversity = None
-            selected.append(record)
-            selected_ids.add(id(record))
+    compact_candidates = sorted(
+        (candidate for candidate in ordered_records if id(candidate) not in selected_ids),
+        key=lambda record: (
+            -_fold_score(record)[0],
+            -_fold_score(record)[1],
+            record.rdkit_energy,
+            record.seed,
+            record.source_conf_id,
+        ),
+    )
+    for record in compact_candidates[: max(0, min(compact_count, limit - len(selected)))]:
+        _append_selected_record(selected, selected_ids, record, "contact_compact", None)
+
+    open_candidates = sorted(
+        (candidate for candidate in ordered_records if id(candidate) not in selected_ids),
+        key=lambda record: (
+            -_open_score(record)[0],
+            -_open_score(record)[1],
+            record.rdkit_energy,
+            record.seed,
+            record.source_conf_id,
+        ),
+    )
+    for record in open_candidates[: max(0, min(open_count, limit - len(selected)))]:
+        _append_selected_record(selected, selected_ids, record, "open", None)
+
+    for _ in range(max(0, min(diversity_count, limit - len(selected)))):
+        candidates = [candidate for candidate in ordered_records if id(candidate) not in selected_ids]
+        candidate, diversity = _select_diverse_record(candidates, selected)
+        if candidate is None:
+            break
+        _append_selected_record(selected, selected_ids, candidate, "diversity", diversity)
+
+    outlier_candidates = sorted(
+        (candidate for candidate in ordered_records if id(candidate) not in selected_ids),
+        key=lambda record: (
+            -record.rdkit_energy,
+            -_open_score(record)[0],
+            -record.seed,
+            -record.source_conf_id,
+        ),
+    )
+    for record in outlier_candidates[: max(0, min(outlier_count, limit - len(selected)))]:
+        _append_selected_record(selected, selected_ids, record, "outlier", None)
 
     while len(selected) < limit:
-        best_candidate = None
-        best_key = None
-        for candidate in ordered_records:
-            if id(candidate) in selected_ids:
-                continue
-            nearest_selected = min(
-                _conformer_rmsd(candidate, chosen)
-                for chosen in selected
-            )
-            key = (nearest_selected, -candidate.rdkit_energy, -candidate.seed, -candidate.source_conf_id)
-            if best_key is None or key > best_key:
-                best_key = key
-                best_candidate = candidate
-        if best_candidate is None:
+        candidates = [candidate for candidate in ordered_records if id(candidate) not in selected_ids]
+        candidate, diversity = _select_diverse_record(candidates, selected)
+        if candidate is None:
             break
-        best_candidate.refinement_reason = "diversity"
-        best_candidate.refinement_diversity = float(best_key[0])
-        selected.append(best_candidate)
-        selected_ids.add(id(best_candidate))
+        _append_selected_record(selected, selected_ids, candidate, "diversity", diversity)
 
     return sorted(selected, key=_record_sort_key)
 
@@ -1302,6 +1369,8 @@ def _write_summary(records, summary_path):
         "torsion_moves",
         "refinement_reason",
         "refinement_diversity",
+        "contact_count",
+        "radius_gyration",
         "backend_status",
         "backend_energy",
         "backend_path",
@@ -1327,6 +1396,8 @@ def _write_summary(records, summary_path):
                     "torsion_moves": record.torsion_moves,
                     "refinement_reason": record.refinement_reason,
                     "refinement_diversity": record.refinement_diversity,
+                    "contact_count": record.contact_count,
+                    "radius_gyration": record.radius_gyration,
                     "backend_status": record.backend_status,
                     "backend_energy": record.backend_energy,
                     "backend_path": record.backend_path,
@@ -1371,6 +1442,8 @@ def _build_state(
                 "torsion_moves": record.torsion_moves,
                 "refinement_reason": record.refinement_reason,
                 "refinement_diversity": record.refinement_diversity,
+                "contact_count": record.contact_count,
+                "radius_gyration": record.radius_gyration,
                 "backend_status": record.backend_status,
                 "backend_energy": record.backend_energy,
                 "backend_path": record.backend_path,
@@ -1390,7 +1463,7 @@ def conformer_search(
     backend_top_n=None,
     num_seeds=3,
     diversity_fraction=0.2,
-    compactness_fraction=0.8,
+    compactness_fraction=0.2,
     rms_threshold=0.25,
     use_random_coords=True,
     torsion_kicks=True,
@@ -1609,7 +1682,13 @@ def conformer_search(
         )
         status = "completed" if selected_records else "completed_no_backend_success"
     else:
-        retained_records = records[: min(refinement_limit, len(records))]
+        retained_records = _select_refinement_records(
+            records,
+            min(int(top_n), len(records)),
+            top_n,
+            diversity_fraction,
+            compactness_fraction,
+        )
         selected_records = _select_unique_records(
             retained_records,
             min(int(top_n), len(retained_records)),

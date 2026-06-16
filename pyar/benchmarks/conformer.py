@@ -39,8 +39,15 @@ SUMMARY_COLUMNS = [
     "best_selected_rmsd",
     "best_generated_rank",
     "best_selected_rank",
-    "lowest_rdkit_energy",
-    "lowest_backend_energy",
+    "reference_rdkit_rank",
+    "reference_backend_rank",
+    "lowest_rdkit_energy_native",
+    "reference_rdkit_energy_native",
+    "lowest_backend_energy_hartree",
+    "reference_backend_energy_hartree",
+    "reference_selection_reason",
+    "reference_refinement_reason",
+    "reference_lost_after_dedup",
     "selected_count",
     "generated_count",
     "backend_requested",
@@ -263,6 +270,12 @@ def _candidate_entries(summary_rows, run_directory, field):
                 "rank": rank,
                 "rdkit_energy": _float_or_none(row.get("rdkit_energy")),
                 "backend_energy": _float_or_none(row.get("backend_energy")),
+                "name": row.get("name"),
+                "generation_stage": row.get("generation_stage"),
+                "refinement_reason": row.get("refinement_reason"),
+                "refinement_diversity": _float_or_none(row.get("refinement_diversity")),
+                "backend_status": row.get("backend_status"),
+                "selected_path": row.get("selected_path") or None,
                 "summary_row": row,
             }
         )
@@ -285,6 +298,12 @@ def _selected_entries(summary_rows, selected_directory):
                 "rank": rank,
                 "rdkit_energy": _float_or_none(row.get("rdkit_energy")),
                 "backend_energy": _float_or_none(row.get("backend_energy")),
+                "name": row.get("name"),
+                "generation_stage": row.get("generation_stage"),
+                "refinement_reason": row.get("refinement_reason"),
+                "refinement_diversity": _float_or_none(row.get("refinement_diversity")),
+                "backend_status": row.get("backend_status"),
+                "selected_path": row.get("selected_path") or None,
                 "summary_row": row,
             }
         )
@@ -310,6 +329,12 @@ def _nearest(reference, entries):
                 "rmsd": rmsd,
                 "rdkit_energy": entry.get("rdkit_energy"),
                 "backend_energy": entry.get("backend_energy"),
+                "name": entry.get("name"),
+                "generation_stage": entry.get("generation_stage"),
+                "refinement_reason": entry.get("refinement_reason"),
+                "refinement_diversity": entry.get("refinement_diversity"),
+                "backend_status": entry.get("backend_status"),
+                "selected_path": entry.get("selected_path"),
             }
     if best is None:
         return {
@@ -344,6 +369,33 @@ def _lowest(values):
     return min(numeric_values) if numeric_values else None
 
 
+def _energy_rank(entries, target_path, key):
+    """Return zero-based energy rank for target_path among entries with key."""
+    if not target_path:
+        return None
+    ordered = [
+        entry
+        for entry in entries
+        if entry.get(key) is not None and entry.get("path") is not None
+    ]
+    ordered.sort(key=lambda entry: (entry[key], int(entry.get("rank") or 0)))
+    target = str(target_path)
+    for rank, entry in enumerate(ordered):
+        if str(entry["path"]) == target:
+            return rank
+    return None
+
+
+def _reference_selection_reason(generated_hit, selected_hit, nearest_generated):
+    if selected_hit:
+        return "selected"
+    if not generated_hit:
+        return "not_generated"
+    if nearest_generated.get("selected_path"):
+        return "selected_path_recorded_but_not_reference_like_after_final_selection"
+    return "not_in_selected_outputs"
+
+
 def _classify(
     *,
     reference_path,
@@ -365,8 +417,11 @@ def _classify(
     if generated_hit:
         if energy_window is not None and nearest_generated.get("rdkit_energy") is not None:
             lowest = _lowest(entry.get("rdkit_energy") for entry in generated_entries)
-            if lowest is not None and (nearest_generated["rdkit_energy"] - lowest) * 627.509474 > float(energy_window):
-                return "wrong_ranking", "reference-like conformer is outside the RDKit energy window"
+            if lowest is not None and nearest_generated["rdkit_energy"] - lowest > float(energy_window):
+                return (
+                    "wrong_ranking",
+                    "reference-like conformer is outside the RDKit native energy window",
+                )
         if backend_requested:
             return (
                 "generated_lost_backend_or_dedup",
@@ -431,6 +486,18 @@ def diagnose_conformer_case(
 
     lowest_backend = _lowest(_float_or_none(row.get("backend_energy")) for row in summary_rows)
     lowest_rdkit = _lowest(_float_or_none(row.get("rdkit_energy")) for row in summary_rows)
+    reference_rdkit_rank = _energy_rank(generated_entries, nearest_generated.get("path"), "rdkit_energy")
+    reference_backend_rank = _energy_rank(generated_entries, nearest_generated.get("path"), "backend_energy")
+    reference_selection_reason = _reference_selection_reason(
+        generated_hit, selected_hit, nearest_generated
+    )
+    reference_lost_after_dedup = bool(
+        generated_hit
+        and not selected_hit
+        and backend_requested
+        and nearest_generated.get("backend_energy") is not None
+        and not nearest_generated.get("selected_path")
+    )
     return {
         "case_id": case.id,
         "input": case.input,
@@ -445,6 +512,15 @@ def diagnose_conformer_case(
         "best_selected_rmsd": nearest_selected["rmsd"],
         "best_generated_rank": nearest_generated["rank"],
         "best_selected_rank": nearest_selected["rank"],
+        "reference_rdkit_rank": reference_rdkit_rank,
+        "reference_backend_rank": reference_backend_rank,
+        "lowest_rdkit_energy_native": lowest_rdkit,
+        "reference_rdkit_energy_native": nearest_generated["rdkit_energy"],
+        "lowest_backend_energy_hartree": lowest_backend,
+        "reference_backend_energy_hartree": nearest_generated["backend_energy"],
+        "reference_selection_reason": reference_selection_reason,
+        "reference_refinement_reason": nearest_generated.get("refinement_reason"),
+        "reference_lost_after_dedup": reference_lost_after_dedup,
         "lowest_rdkit_energy": lowest_rdkit,
         "lowest_backend_energy": lowest_backend,
         "selected_count": len(selected_entries),
@@ -464,6 +540,12 @@ def _nearest_empty():
         "rmsd": float("inf"),
         "rdkit_energy": None,
         "backend_energy": None,
+        "name": None,
+        "generation_stage": None,
+        "refinement_reason": None,
+        "refinement_diversity": None,
+        "backend_status": None,
+        "selected_path": None,
     }
 
 

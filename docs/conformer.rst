@@ -6,10 +6,11 @@ starting geometries for a single molecule before optional backend refinement.
 The workflow is RDKit-based and is aimed at flexible molecules where a single
 local minimum is not enough to describe the search space.
 
-The default settings are tuned for folded, compact conformers: multiple RDKit
-seeds, random-coordinate embedding, chemistry-guided evolutionary torsion
-search, tighter pruning, a compactness-biased backend pool, and a larger
-backend-refinement window than the final output set.
+The default settings are tuned for basin coverage: multiple RDKit seeds,
+random-coordinate embedding, chemistry-guided evolutionary torsion search,
+tighter pruning, a larger backend-refinement window than the final output set,
+and a balanced pool that protects low-energy, geometrically diverse,
+contact-rich folded, open, and outlier conformer families.
 
 Basic commands
 --------------
@@ -36,10 +37,11 @@ Useful options
 * ``--num-conformers`` controls how many conformers are embedded per seed
 * ``--num-seeds`` repeats embedding with deterministic seed offsets
 * ``--backend-top-n`` widens the set sent to backend refinement
-* ``--diversity-fraction`` controls how much of that backend pool comes from
-  geometric diversity instead of pure RDKit energy ranking
-* ``--compactness-fraction`` reserves part of the backend pool for compact,
-  contact-rich conformers before the diversity fill
+* ``--diversity-fraction`` protects part of that backend pool for heavy-atom
+  RMSD diversity instead of pure RDKit energy ranking
+* ``--compactness-fraction`` protects a contact-rich folded quota and a matching
+  open-conformer quota, so folded structures are sampled without crowding out
+  extended conformer families
 * ``--use-random-coords`` starts RDKit from random coordinates instead of the
   default distance-geometry eigenvector start
 * ``--torsion-kicks`` or ``--no-torsion-kicks`` controls the local
@@ -59,7 +61,9 @@ Useful outputs
 --------------
 
 * ``conformers/state.json`` for restart/provenance-style metadata
-* ``conformers/summary.csv`` for the ranked conformer table
+* ``conformers/summary.csv`` for the ranked conformer table, including the
+  basin-retention reason, nonbonded contact count, and heavy-atom radius of
+  gyration when available
 * ``conformers/rdkit/`` for the embedded conformers before backend refinement
 * ``conformers/selected/`` for the final selected conformers
 
@@ -90,6 +94,14 @@ The diagnosis classes are:
   meaningful comparison
 * ``uncertain``: the available evidence is insufficient for a conservative
   diagnosis
+
+For RDKit-only runs, ``--energy-window`` is interpreted in the native RDKit
+force-field energy units used for ranking generated conformers. When backend
+refinement is requested, backend energies are reported separately in Hartree
+fields so RDKit ranking and backend ranking are not mixed. The per-case
+``diagnosis.json`` also records the reference-like conformer's RDKit rank,
+backend rank when available, refinement reason, and whether it appears to have
+been removed before the final selected outputs.
 
 The command writes ``benchmark_summary.csv``, ``benchmark_summary.json``, and
 per-case ``diagnosis.json`` files under the requested output directory.

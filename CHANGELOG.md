@@ -15,11 +15,17 @@ This release adds a new RDKit-based conformer workflow and tightens release comp
 
 - The package version was bumped to `1.2.0`.
 - Release publishing now follows the tagged `v1.2.0` workflow path.
+- Conformer backend-pool selection now protects low-energy, RMSD-diverse,
+  contact-rich folded, open, and outlier basins instead of applying a global
+  compactness bias.
 
 ### Fixed
 
 - Python 3.10 now has a TOML fallback for runtime version detection.
 - Reaction workflow summaries now prefer coordinate paths that actually exist.
+- Conformer benchmark diagnosis now reports RDKit and backend energy fields with
+  explicit units and keeps RDKit energy-window classification in native
+  force-field units.
 - CI test isolation was improved so OpenBabel and AIMNet2-dependent tests do not rely on local machine state.
 
 ## 1.1.1 - 2026-05-31

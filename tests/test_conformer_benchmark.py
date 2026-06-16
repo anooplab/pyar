@@ -67,30 +67,48 @@ class ConformerBenchmarkTests(unittest.TestCase):
         rows = []
         generated = generated or []
         selected = selected or []
+        selected_by_name = {}
+        selected_paths = []
+        for item in selected:
+            selected_name, selected_atoms, selected_coordinates, selected_energy = item
+            selected_file = run_directory / "selected" / f"{selected_name}.xyz"
+            write_xyz(selected_file, selected_atoms, selected_coordinates, energy=selected_energy)
+            selected_by_name[selected_name] = str(selected_file)
+            selected_paths.append(str(selected_file))
         for index, item in enumerate(generated):
-            name, atoms, coordinates, energy = item
+            name, atoms, coordinates, energy = item[:4]
+            backend_energy = item[4] if len(item) > 4 else ""
+            refinement_reason = item[5] if len(item) > 5 else ""
             path = run_directory / "rdkit" / f"{name}.xyz"
             write_xyz(path, atoms, coordinates, energy=energy)
-            selected_path = ""
-            if index < len(selected):
-                selected_name, selected_atoms, selected_coordinates, selected_energy = selected[index]
-                selected_file = run_directory / "selected" / f"{selected_name}.xyz"
-                write_xyz(selected_file, selected_atoms, selected_coordinates, energy=selected_energy)
-                selected_path = str(selected_file)
+            selected_path = selected_by_name.get(name, "")
             rows.append(
                 {
                     "rank": index,
                     "name": name,
                     "rdkit_energy": energy,
                     "rdkit_path": str(path),
-                    "backend_energy": "",
+                    "backend_energy": backend_energy,
                     "selected_path": selected_path,
+                    "refinement_reason": refinement_reason,
+                    "generation_stage": "test",
+                    "backend_status": "completed" if backend_energy != "" else "",
                 }
             )
         with (run_directory / "summary.csv").open("w", newline="", encoding="utf-8") as fp:
             writer = csv.DictWriter(
                 fp,
-                fieldnames=["rank", "name", "rdkit_energy", "rdkit_path", "backend_energy", "selected_path"],
+                fieldnames=[
+                    "rank",
+                    "name",
+                    "rdkit_energy",
+                    "rdkit_path",
+                    "backend_energy",
+                    "selected_path",
+                    "refinement_reason",
+                    "generation_stage",
+                    "backend_status",
+                ],
             )
             writer.writeheader()
             writer.writerows(rows)
@@ -99,7 +117,7 @@ class ConformerBenchmarkTests(unittest.TestCase):
             status="completed",
             run_directory=str(run_directory),
             state_path=str(run_directory / "state.json"),
-            selected_paths=tuple(str(Path(row["selected_path"])) for row in rows if row["selected_path"]),
+            selected_paths=tuple(selected_paths),
         )
 
     def test_load_json_benchmark(self):
@@ -134,7 +152,7 @@ class ConformerBenchmarkTests(unittest.TestCase):
             write_xyz(reference, atoms, reference_coordinates)
             result = self.make_result(
                 Path(tmpdir) / "conformers",
-                generated=[("gen0", atoms, reference_coordinates, 0.0)],
+                generated=[("conf_0000", atoms, reference_coordinates, 0.0)],
                 selected=[("conf_0000", atoms, reference_coordinates, 0.0)],
             )
 
@@ -143,6 +161,9 @@ class ConformerBenchmarkTests(unittest.TestCase):
         self.assertEqual(diagnosis["failure_class"], "found")
         self.assertTrue(diagnosis["reference_found_generated"])
         self.assertTrue(diagnosis["reference_found_selected"])
+        self.assertEqual(diagnosis["reference_selection_reason"], "selected")
+        self.assertEqual(diagnosis["reference_rdkit_rank"], 0)
+        self.assertEqual(diagnosis["lowest_rdkit_energy_native"], 0.0)
 
     def test_diagnosis_generated_lost_selection(self):
         atoms = ["C", "C", "O"]
@@ -160,6 +181,81 @@ class ConformerBenchmarkTests(unittest.TestCase):
             diagnosis = benchmark.diagnose_conformer_case(self.make_case(reference), result)
 
         self.assertEqual(diagnosis["failure_class"], "generated_lost_selection")
+        self.assertEqual(diagnosis["reference_selection_reason"], "not_in_selected_outputs")
+
+    def test_diagnosis_keeps_rdkit_energy_window_in_native_units(self):
+        atoms = ["C", "C", "O"]
+        reference_coordinates = [[0, 0, 0], [1, 0, 0], [0, 1, 0]]
+        far_coordinates = [[0, 0, 0], [3, 0, 0], [0, 3, 0]]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reference = Path(tmpdir) / "ref.xyz"
+            write_xyz(reference, atoms, reference_coordinates)
+            result = self.make_result(
+                Path(tmpdir) / "conformers",
+                generated=[
+                    ("low_energy_far", atoms, far_coordinates, 0.0),
+                    ("reference_like", atoms, reference_coordinates, 0.01),
+                ],
+                selected=[("conf_0000", atoms, far_coordinates, 0.0)],
+            )
+
+            diagnosis = benchmark.diagnose_conformer_case(
+                self.make_case(reference),
+                result,
+                energy_window=5.0,
+            )
+
+        self.assertEqual(diagnosis["failure_class"], "generated_lost_selection")
+        self.assertEqual(diagnosis["reference_rdkit_energy_native"], 0.01)
+        self.assertEqual(diagnosis["reference_rdkit_rank"], 1)
+
+    def test_diagnosis_wrong_ranking_uses_rdkit_native_energy_window(self):
+        atoms = ["C", "C", "O"]
+        reference_coordinates = [[0, 0, 0], [1, 0, 0], [0, 1, 0]]
+        far_coordinates = [[0, 0, 0], [3, 0, 0], [0, 3, 0]]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reference = Path(tmpdir) / "ref.xyz"
+            write_xyz(reference, atoms, reference_coordinates)
+            result = self.make_result(
+                Path(tmpdir) / "conformers",
+                generated=[
+                    ("low_energy_far", atoms, far_coordinates, 0.0),
+                    ("reference_like", atoms, reference_coordinates, 10.0),
+                ],
+                selected=[("conf_0000", atoms, far_coordinates, 0.0)],
+            )
+
+            diagnosis = benchmark.diagnose_conformer_case(
+                self.make_case(reference),
+                result,
+                energy_window=5.0,
+            )
+
+        self.assertEqual(diagnosis["failure_class"], "wrong_ranking")
+
+    def test_diagnosis_backend_loss_records_reference_metadata(self):
+        atoms = ["C", "C", "O"]
+        reference_coordinates = [[0, 0, 0], [1, 0, 0], [0, 1, 0]]
+        far_coordinates = [[0, 0, 0], [3, 0, 0], [0, 3, 0]]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reference = Path(tmpdir) / "ref.xyz"
+            write_xyz(reference, atoms, reference_coordinates)
+            result = self.make_result(
+                Path(tmpdir) / "conformers",
+                backend_requested=True,
+                generated=[
+                    ("reference_like", atoms, reference_coordinates, 0.0, -1.0, "energy"),
+                    ("low_backend_far", atoms, far_coordinates, 1.0, -1.1, "diversity"),
+                ],
+                selected=[("conf_0000", atoms, far_coordinates, 1.0)],
+            )
+
+            diagnosis = benchmark.diagnose_conformer_case(self.make_case(reference), result)
+
+        self.assertEqual(diagnosis["failure_class"], "generated_lost_backend_or_dedup")
+        self.assertTrue(diagnosis["reference_lost_after_dedup"])
+        self.assertEqual(diagnosis["reference_refinement_reason"], "energy")
+        self.assertEqual(diagnosis["reference_backend_rank"], 1)
 
     def test_diagnosis_never_generated(self):
         atoms = ["C", "C", "O"]
@@ -221,6 +317,10 @@ class ConformerBenchmarkTests(unittest.TestCase):
             self.assertTrue(summary_csv.is_file())
             self.assertTrue(summary_json.is_file())
             self.assertTrue(diagnosis_json.is_file())
+            with summary_csv.open(encoding="utf-8", newline="") as fp:
+                row = next(csv.DictReader(fp))
+            self.assertIn("lowest_rdkit_energy_native", row)
+            self.assertIn("reference_selection_reason", row)
 
     def test_cli_help_smoke(self):
         from pyar.scripts import conformer_benchmark

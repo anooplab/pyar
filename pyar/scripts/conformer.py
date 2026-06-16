@@ -31,7 +31,12 @@ def argument_parse(argv=None):
     parser.add_argument("--backend-top-n", type=int)
     parser.add_argument("--num-seeds", type=int, default=3)
     parser.add_argument("--diversity-fraction", type=float, default=0.2)
-    parser.add_argument("--compactness-fraction", type=float, default=0.8)
+    parser.add_argument(
+        "--compactness-fraction",
+        type=float,
+        default=0.2,
+        help="Protected contact-rich folded-basin quota; matched by an open-basin quota for diversity.",
+    )
     parser.add_argument(
         "--rms-threshold",
         "--prune-rms-threshold",

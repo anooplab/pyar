@@ -194,7 +194,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertIsNone(exit_code)
         self.assertEqual(search.call_args.kwargs["num_seeds"], 3)
         self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.2)
-        self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.8)
+        self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.2)
         self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
         self.assertTrue(search.call_args.kwargs["use_random_coords"])
         self.assertTrue(search.call_args.kwargs["torsion_kicks"])
