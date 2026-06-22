@@ -7,7 +7,8 @@ The workflow is RDKit-based and is aimed at flexible molecules where a single
 local minimum is not enough to describe the search space.
 
 The default settings are tuned for basin coverage: multiple RDKit seeds,
-random-coordinate embedding, chemistry-guided evolutionary torsion search,
+larger RDKit conformer pools, random-coordinate embedding, stratified random
+torsion kicks,
 tighter pruning, a larger backend-refinement window than the final output set,
 and a balanced pool that protects low-energy, geometrically diverse,
 contact-rich folded, open, and outlier conformer families.
@@ -46,9 +47,10 @@ Useful options
   default distance-geometry eigenvector start
 * ``--torsion-kicks`` or ``--no-torsion-kicks`` controls the local
   torsion-perturbation stage
-* ``--torsion-mode`` chooses the torsion sampler; ``evolve`` is the default,
-  ``mc`` keeps the tabu-style walk behavior, ``grid`` keeps the deterministic
-  scan behavior, and ``random`` keeps the stochastic kick behavior
+* ``--torsion-mode`` is ``random``. The sampler cycles through rotatable bonds
+  and coarse angle bins while mixing one-bond, two/three-bond, and broader
+  torsion kicks, then locally minimizes each trial with the selected RDKit
+  force field.
 * ``--torsion-rounds`` controls how many successive torsion-kick rounds are run
 * ``--torsion-kicks-per-conformer`` controls how many torsion trials are made
   around each embedded conformer
@@ -64,6 +66,8 @@ Useful outputs
 * ``conformers/summary.csv`` for the ranked conformer table, including the
   basin-retention reason, nonbonded contact count, and heavy-atom radius of
   gyration when available
+* ``conformers/state.json`` also records the stronger generation-collapse
+  threshold used before backend refinement as ``generation_dedup_rms``
 * ``conformers/rdkit/`` for the embedded conformers before backend refinement
 * ``conformers/selected/`` for the final selected conformers
 

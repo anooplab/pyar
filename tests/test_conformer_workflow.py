@@ -65,11 +65,46 @@ class ConformerWorkflowTests(unittest.TestCase):
         self.assertEqual(state["generated_conformers"], 3)
         self.assertEqual(state["source_format"], "smiles")
         self.assertEqual(state["request"]["torsion_rounds"], 2)
-        self.assertEqual(state["request"]["torsion_mode"], "evolve")
-        self.assertEqual(state["request"]["torsion_kicks_per_conformer"], 8)
+        self.assertEqual(state["request"]["torsion_mode"], "random")
+        self.assertEqual(state["request"]["torsion_kicks_per_conformer"], 6)
+        self.assertEqual(state["request"]["generation_dedup_rms"], 0.5)
+        self.assertEqual(state["request"]["torsion_dedup_rms"], 0.5)
         self.assertEqual(summary_rows[0]["source_conf_id"], "2")
         self.assertEqual(summary_rows[0]["generation_stage"], "etkdg")
         self.assertEqual(summary_rows[0]["selected_path"], result.selected_paths[0])
+
+    def test_conformer_search_dispatches_stratified_random_torsion_kicks(self):
+        records = [conformer.ConformerRecord(1, 0, 0.5, "converged", "mmff")]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch.object(conformer, "_rdkit_modules", return_value=(object(), object())), \
+                mock.patch.object(conformer, "_load_rdkit_molecule", return_value=(object(), "smiles")), \
+                mock.patch.object(conformer, "_embed_and_rank_conformers", return_value=records), \
+                mock.patch.object(conformer, "_generate_torsion_random_records", return_value=[]) as random_kicks, \
+                mock.patch.object(
+                    conformer,
+                    "_molecule_from_rdkit_conformer",
+                    side_effect=self._molecule_factory(),
+                ):
+                conformer.conformer_search(
+                    "CCO",
+                    num_conformers=1,
+                    top_n=1,
+                    num_seeds=1,
+                    torsion_mode="torsion-kick",
+                    torsion_rounds=1,
+                    root_directory=tmpdir,
+                )
+
+        random_kicks.assert_called_once()
+        self.assertEqual(random_kicks.call_args.kwargs["kicks_per_conformer"], 6)
+        self.assertEqual(random_kicks.call_args.kwargs["max_bonds"], 3)
+        self.assertNotIn("p_xgm_initial", random_kicks.call_args.kwargs)
+
+    def test_conformer_search_rejects_removed_torsion_modes(self):
+        for mode in ("adaptive", "basinhop", "bonobo", "evolve", "mc", "grid"):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(conformer.ConformerWorkflowError, "--torsion-mode must be 'random'"):
+                    conformer.conformer_search("CCO", torsion_mode=mode)
 
     def test_conformer_search_refines_only_top_ranked_records_with_backend(self):
         records = [
@@ -210,6 +245,55 @@ class ConformerWorkflowTests(unittest.TestCase):
 
         self.assertEqual([record.name for record in selected], ["low", "unique"])
 
+    def test_generation_pool_collapses_without_torsion_kicks(self):
+        records = [
+            conformer.ConformerRecord(1, 0, 0.0, "converged", "mmff"),
+            conformer.ConformerRecord(1, 1, 1.0, "converged", "mmff"),
+            conformer.ConformerRecord(1, 2, 2.0, "converged", "mmff"),
+        ]
+        coordinates = {
+            0: [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+            1: [[0, 0, 0], [1.03, 0, 0], [0, 1.03, 0]],
+            2: [[0, 0, 0], [3, 0, 0], [0, 3, 0]],
+        }
+        for record in records:
+            record.molecule = Molecule(
+                ["C", "C", "C"],
+                coordinates[record.source_conf_id],
+                name=f"record_{record.source_conf_id}",
+                energy=record.rdkit_energy,
+            )
+
+        def molecule_factory(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):
+            return Molecule(
+                ["C", "C", "C"],
+                coordinates[int(conformer_id)],
+                name=name,
+                energy=energy,
+            )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch.object(conformer, "_rdkit_modules", return_value=(object(), object())), \
+                mock.patch.object(conformer, "_load_rdkit_molecule", return_value=(object(), "smiles")), \
+                mock.patch.object(conformer, "_embed_and_rank_conformers", return_value=records), \
+                mock.patch.object(
+                    conformer,
+                    "_molecule_from_rdkit_conformer",
+                    side_effect=molecule_factory,
+                ):
+                result = conformer.conformer_search(
+                    "CCO",
+                    num_conformers=3,
+                    top_n=3,
+                    num_seeds=1,
+                    torsion_kicks=False,
+                    root_directory=tmpdir,
+                )
+
+            summary_rows = list(csv.DictReader((Path(result.run_directory) / "summary.csv").open()))
+
+        self.assertEqual([row["source_conf_id"] for row in summary_rows], ["0", "2"])
+
     def test_select_unique_records_removes_backend_collapsed_duplicates(self):
         def make_record(name, source_conf_id, energy, coordinates):
             record = conformer.ConformerRecord(1, source_conf_id, energy, "converged", "mmff")
@@ -228,7 +312,34 @@ class ConformerWorkflowTests(unittest.TestCase):
 
         self.assertEqual([record.name for record in selected], ["best", "distinct"])
 
-    def test_torsion_evolve_generates_minimized_rdkit_records(self):
+    def test_torsion_kick_move_count_mixes_local_and_broad_moves(self):
+        counts = [
+            conformer._torsion_kick_move_count(num_torsions=5, max_bonds=4, kick_index=index)
+            for index in range(8)
+        ]
+
+        self.assertEqual(counts, [1, 1, 2, 2, 4, 1, 1, 3])
+
+    def test_stratified_torsion_kick_plan_cycles_bonds_and_angle_bins(self):
+        rng = conformer.np.random.default_rng(7)
+
+        torsion_indices, angle_indices = conformer._stratified_torsion_kick_plan(
+            4,
+            5,
+            parent_index=1,
+            round_index=1,
+            kick_index=2,
+            kicks_per_conformer=4,
+            max_bonds=3,
+            rng=rng,
+        )
+
+        self.assertEqual(torsion_indices[0], 2)
+        self.assertEqual(len(torsion_indices), 2)
+        self.assertEqual(angle_indices[0], 1)
+        self.assertEqual(len(angle_indices), len(torsion_indices))
+
+    def test_torsion_random_generates_minimized_rdkit_records(self):
         try:
             from rdkit import Chem
             from rdkit.Chem import AllChem
@@ -248,29 +359,26 @@ class ConformerWorkflowTests(unittest.TestCase):
             max_iterations=200,
         )
 
-        kicked = conformer._generate_torsion_evolution_records(
+        kicked = conformer._generate_torsion_random_records(
             embedded,
             Chem,
             AllChem,
             enabled=True,
-            generations=2,
-            kicks_per_conformer=2,
-            max_bonds=1,
+            kicks_per_conformer=4,
+            max_bonds=3,
+            seed=1,
+            round_index=1,
             max_iterations=200,
-            diversity_fraction=0.2,
-            compactness_fraction=0.8,
-            parent_limit=4,
-            tabu_rms=0.1,
         )
 
         self.assertGreaterEqual(len(kicked), 1)
-        self.assertEqual(kicked[0].generation_stage, "torsion_evolve")
+        self.assertEqual(kicked[0].generation_stage, "torsion_kick")
         self.assertEqual(kicked[0].generation_round, 1)
         self.assertEqual(kicked[0].parent_name, "seed_000001_conf_0000")
         self.assertTrue(kicked[0].torsion_moves)
         self.assertTrue(kicked[0].rdkit_status in {"converged", "not_converged"})
 
-    def test_torsion_grid_is_deterministic_for_same_inputs(self):
+    def test_torsion_random_uses_unique_ids_with_many_kicks(self):
         try:
             from rdkit import Chem
             from rdkit.Chem import AllChem
@@ -287,30 +395,24 @@ class ConformerWorkflowTests(unittest.TestCase):
             seed=1,
             num_threads=0,
             use_random_coords=True,
-            max_iterations=200,
-        )
-        first = conformer._generate_torsion_grid_records(
-            embedded,
-            Chem,
-            AllChem,
-            enabled=True,
-            kicks_per_conformer=2,
-            max_bonds=1,
-            round_index=1,
-            max_iterations=200,
-        )
-        second = conformer._generate_torsion_grid_records(
-            embedded,
-            Chem,
-            AllChem,
-            enabled=True,
-            kicks_per_conformer=2,
-            max_bonds=1,
-            round_index=1,
-            max_iterations=200,
+            max_iterations=100,
         )
 
-        self.assertEqual([record.torsion_moves for record in first], [record.torsion_moves for record in second])
+        kicked = conformer._generate_torsion_random_records(
+            embedded,
+            Chem,
+            AllChem,
+            enabled=True,
+            kicks_per_conformer=12,
+            max_bonds=3,
+            seed=1,
+            round_index=1,
+            max_iterations=100,
+        )
+
+        source_ids = [record.source_conf_id for record in kicked]
+        self.assertGreater(len(source_ids), 1)
+        self.assertEqual(len(source_ids), len(set(source_ids)))
 
     def test_conformer_search_runs_multiple_torsion_rounds(self):
         try:
@@ -339,7 +441,7 @@ class ConformerWorkflowTests(unittest.TestCase):
         rounds = {
             record["generation_round"]
             for record in state["records"]
-            if record["generation_stage"] == "torsion_evolve"
+            if record["generation_stage"] == "torsion_kick"
         }
         self.assertTrue({1, 2}.issubset(rounds))
 

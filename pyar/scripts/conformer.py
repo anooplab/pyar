@@ -26,10 +26,10 @@ def argument_parse(argv=None):
         default="auto",
         help="Input format; auto treats existing .xyz/.sdf/.mol paths as files and other input as SMILES.",
     )
-    parser.add_argument("--num-conformers", type=int, default=100)
+    parser.add_argument("--num-conformers", type=int, default=150)
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--backend-top-n", type=int)
-    parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--diversity-fraction", type=float, default=0.2)
     parser.add_argument(
         "--compactness-fraction",
@@ -59,9 +59,14 @@ def argument_parse(argv=None):
         default=True,
         help="Generate local torsion-perturbed conformers before backend refinement.",
     )
-    parser.add_argument("--torsion-mode", choices=["evolve", "mc", "grid", "random"], default="evolve")
+    parser.add_argument(
+        "--torsion-mode",
+        choices=["random"],
+        default="random",
+        help="Use the stratified random torsion-kick sampler.",
+    )
     parser.add_argument("--torsion-rounds", type=int, default=2)
-    parser.add_argument("--torsion-kicks-per-conformer", type=int, default=8)
+    parser.add_argument("--torsion-kicks-per-conformer", type=int, default=6)
     parser.add_argument("--torsion-max-bonds", type=int, default=3)
     parser.add_argument("--torsion-dedup-rms", type=float, default=0.5)
     parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")

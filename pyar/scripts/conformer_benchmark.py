@@ -39,8 +39,8 @@ def argument_parse(argv=None):
         description="Benchmark pyar-conformer and classify missed-reference causes.",
     )
     parser.add_argument("benchmark", help="JSON conformer benchmark specification")
-    parser.add_argument("--num-conformers", type=int, default=100)
-    parser.add_argument("--num-seeds", type=int, default=3)
+    parser.add_argument("--num-conformers", type=int, default=150)
+    parser.add_argument("--num-seeds", type=int, default=5)
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--backend-top-n", type=int)
     parser.add_argument("--rms-hit-threshold", type=float, default=0.50)
@@ -74,8 +74,13 @@ def argument_parse(argv=None):
         default=True,
     )
     conformer_group.add_argument("--torsion-rounds", type=int, default=2)
-    conformer_group.add_argument("--torsion-mode", choices=["evolve", "mc", "grid", "random"], default="evolve")
-    conformer_group.add_argument("--torsion-kicks-per-conformer", type=int, default=8)
+    conformer_group.add_argument(
+        "--torsion-mode",
+        choices=["random"],
+        default="random",
+        help="Use the stratified random torsion-kick sampler.",
+    )
+    conformer_group.add_argument("--torsion-kicks-per-conformer", type=int, default=6)
     conformer_group.add_argument("--torsion-max-bonds", type=int, default=3)
     conformer_group.add_argument("--torsion-dedup-rms", type=float, default=0.5)
     conformer_group.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")

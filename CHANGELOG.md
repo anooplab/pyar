@@ -18,6 +18,12 @@ This release adds a new RDKit-based conformer workflow and tightens release comp
 - Conformer backend-pool selection now protects low-energy, RMSD-diverse,
   contact-rich folded, open, and outlier basins instead of applying a global
   compactness bias.
+- Conformer torsion search now uses a single stratified random torsion-kick
+  implementation by default; experimental Bonobo, adaptive, basin-hopping,
+  grid, Monte Carlo, and evolution probes were removed from the public workflow.
+- Conformer generation defaults were widened to use more RDKit conformers and
+  seeds, and the post-generation pool is now collapsed more aggressively before
+  backend refinement so similarity duplicates do not crowd out distinct basins.
 
 ### Fixed
 

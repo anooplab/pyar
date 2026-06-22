@@ -330,78 +330,6 @@ def _rotatable_torsions(rdkit_molecule, Chem):
     return torsions
 
 
-def _torsion_importance_scores(record, Chem):
-    """Return torsion scores biased toward contacts that can be folded shut."""
-    rdkit_molecule = record.rdkit_molecule
-    if rdkit_molecule is None:
-        return [], []
-    torsions = _rotatable_torsions(rdkit_molecule, Chem)
-    if not torsions:
-        return [], []
-    try:
-        conformer = rdkit_molecule.GetConformer(_record_conformer_id(record))
-    except (AttributeError, RuntimeError, ValueError):
-        try:
-            conformer = rdkit_molecule.GetConformer()
-        except (AttributeError, RuntimeError, ValueError):
-            return torsions, [0.0 for _ in torsions]
-
-    try:
-        topology = np.asarray(Chem.GetDistanceMatrix(rdkit_molecule), dtype=float)
-    except Exception:
-        topology = None
-
-    coordinates = []
-    heavy_indices = []
-    for atom in rdkit_molecule.GetAtoms():
-        atom_index = atom.GetIdx()
-        position = conformer.GetAtomPosition(atom_index)
-        coordinates.append([float(position.x), float(position.y), float(position.z)])
-        if atom.GetAtomicNum() > 1:
-            heavy_indices.append(atom_index)
-    if not coordinates:
-        return torsions, [0.0 for _ in torsions]
-
-    coordinates = np.asarray(coordinates, dtype=float)
-    heavy_indices = heavy_indices or list(range(len(coordinates)))
-    scores = [0.0 for _ in torsions]
-    torsion_bonds = [tuple(sorted((torsion[1], torsion[2]))) for torsion in torsions]
-
-    for left_pos, left_index in enumerate(heavy_indices[:-1]):
-        for right_index in heavy_indices[left_pos + 1 :]:
-            if topology is not None and topology[left_index, right_index] <= 3:
-                continue
-            distance = float(np.linalg.norm(coordinates[left_index] - coordinates[right_index]))
-            if distance > 3.5:
-                continue
-            if distance <= 0.0:
-                continue
-            try:
-                path = Chem.GetShortestPath(rdkit_molecule, int(left_index), int(right_index))
-            except Exception:
-                path = ()
-            if len(path) < 2:
-                continue
-            pair_weight = (3.5 - distance) + 0.1 * max(0.0, float(len(path)) - 2.0)
-            path_bonds = {tuple(sorted((int(path[i]), int(path[i + 1])))) for i in range(len(path) - 1)}
-            for torsion_index, bond in enumerate(torsion_bonds):
-                if bond in path_bonds:
-                    scores[torsion_index] += pair_weight
-
-    return torsions, scores
-
-
-def _rank_torsions_by_fold(record, Chem):
-    """Return torsions ordered from most fold-relevant to least relevant."""
-    torsions, scores = _torsion_importance_scores(record, Chem)
-    if not torsions:
-        return [], []
-    if not any(score > 0.0 for score in scores):
-        return torsions, list(range(len(torsions)))
-    order = sorted(range(len(torsions)), key=lambda index: (-scores[index], index))
-    return torsions, order
-
-
 def _rdkit_minimize_conformer(rdkit_molecule, AllChem, force_field, conf_id, max_iterations):
     """Minimize one RDKit conformer and return status plus energy."""
     if force_field == "mmff":
@@ -449,13 +377,48 @@ def _apply_torsion_moves(work_molecule, conf_id, torsions, angle_choices, move_i
     return moves
 
 
-def _torsion_move_indices(num_torsions, *, parent_index, round_index, kick_index, max_bonds):
-    """Return a deterministic torsion subset for grid-style exploration."""
-    move_count = min(int(max_bonds), int(num_torsions))
+def _torsion_kick_move_count(num_torsions, max_bonds, kick_index):
+    """Return a mixed torsion-kick size for broad but cheap exploration."""
+    max_move_count = min(int(max_bonds), int(num_torsions))
+    if max_move_count <= 1:
+        return max_move_count
+    cycle_position = int(kick_index) % 5
+    if cycle_position < 2:
+        return 1
+    if cycle_position < 4:
+        return min(max_move_count, 2 + ((int(kick_index) // 5) % 2))
+    return max_move_count
+
+
+def _stratified_torsion_kick_plan(
+    num_torsions,
+    num_angles,
+    *,
+    parent_index,
+    round_index,
+    kick_index,
+    kicks_per_conformer,
+    max_bonds,
+    rng,
+):
+    """Return torsion and angle indices with explicit bond/bin coverage."""
+    move_count = _torsion_kick_move_count(num_torsions, max_bonds, kick_index)
     if move_count < 1:
-        return []
-    start = (int(parent_index) + int(round_index) + int(kick_index)) % int(num_torsions)
-    return [int((start + 2 * offset) % int(num_torsions)) for offset in range(move_count)]
+        return [], []
+
+    primary = (
+        int(parent_index) * int(kicks_per_conformer)
+        + int(kick_index)
+        + int(round_index)
+        - 1
+    ) % int(num_torsions)
+    remaining = [index for index in rng.permutation(int(num_torsions)).tolist() if int(index) != primary]
+    torsion_indices = [int(primary)] + [int(index) for index in remaining[: max(0, move_count - 1)]]
+    angle_indices = [
+        int((int(kick_index) + int(round_index) + int(parent_index) + torsion_index + local_index) % int(num_angles))
+        for local_index, torsion_index in enumerate(torsion_indices)
+    ]
+    return torsion_indices, angle_indices
 
 
 def _generate_torsion_random_records(
@@ -470,7 +433,7 @@ def _generate_torsion_random_records(
     round_index,
     max_iterations,
 ):
-    """Generate locally minimized torsion-kicked conformers from RDKit records."""
+    """Generate locally minimized stratified random torsion-kicked conformers."""
     if not enabled or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
         return []
     angle_choices = np.asarray([60.0, 120.0, 180.0, 240.0, 300.0], dtype=float)
@@ -504,9 +467,18 @@ def _generate_torsion_random_records(
                 + int(parent_index)
             )
             rng = np.random.default_rng(rng_seed)
-            move_count = min(int(max_bonds), len(torsions))
-            torsion_indices = rng.choice(len(torsions), size=move_count, replace=False)
-            angle_indices = rng.choice(len(angle_choices), size=move_count, replace=True)
+            torsion_indices, angle_indices = _stratified_torsion_kick_plan(
+                len(torsions),
+                len(angle_choices),
+                parent_index=parent_index,
+                round_index=round_index,
+                kick_index=kick_index,
+                kicks_per_conformer=kicks_per_conformer,
+                max_bonds=max_bonds,
+                rng=rng,
+            )
+            if not torsion_indices:
+                continue
             try:
                 moves = _apply_torsion_moves(
                     work_molecule,
@@ -551,360 +523,6 @@ def _generate_torsion_random_records(
 def _generate_torsion_kick_records(*args, **kwargs):
     """Backward-compatible alias for the stochastic torsion generator."""
     return _generate_torsion_random_records(*args, **kwargs)
-
-
-def _generate_torsion_guided_records(
-    records,
-    Chem,
-    AllChem,
-    *,
-    enabled,
-    kicks_per_conformer,
-    max_bonds,
-    round_index,
-    max_iterations,
-):
-    """Generate deterministic torsion trials guided by fold-contact scores."""
-    if not enabled or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
-        return []
-    angle_choices = np.asarray([-180.0, -120.0, -60.0, 60.0, 120.0, 180.0], dtype=float)
-    kicked_records = []
-    next_ids_by_seed = {}
-    for parent_index, parent in enumerate(sorted(records, key=_record_sort_key)):
-        rdkit_molecule = parent.rdkit_molecule
-        if rdkit_molecule is None:
-            continue
-        torsions, torsion_order = _rank_torsions_by_fold(parent, Chem)
-        if not torsions:
-            continue
-        if not torsion_order:
-            torsion_order = list(range(len(torsions)))
-        next_ids_by_seed.setdefault(parent.seed, max(record.source_conf_id for record in records if record.seed == parent.seed) + 1)
-        move_count = min(int(max_bonds), len(torsion_order))
-        if move_count < 1:
-            continue
-        for kick_index in range(int(kicks_per_conformer)):
-            try:
-                work_molecule = Chem.Mol(rdkit_molecule)
-                parent_conformer = rdkit_molecule.GetConformer(_record_conformer_id(parent))
-                kicked_conformer = Chem.Conformer(parent_conformer)
-                if hasattr(work_molecule, "RemoveAllConformers"):
-                    work_molecule.RemoveAllConformers()
-                conf_id = int(work_molecule.AddConformer(kicked_conformer, assignId=True))
-            except (AttributeError, RuntimeError, ValueError):
-                continue
-
-            start = (int(parent_index) + int(round_index) + int(kick_index)) % len(torsion_order)
-            move_indices = [int(torsion_order[(start + offset) % len(torsion_order)]) for offset in range(move_count)]
-            angle_indices = [
-                (int(parent_index) + int(round_index) + int(kick_index) + offset) % len(angle_choices)
-                for offset in range(move_count)
-            ]
-            try:
-                moves = _apply_torsion_moves(
-                    work_molecule,
-                    conf_id,
-                    torsions,
-                    angle_choices,
-                    move_indices,
-                    angle_indices,
-                )
-            except Exception:
-                continue
-
-            status, energy = _rdkit_minimize_conformer(
-                work_molecule,
-                AllChem,
-                parent.force_field,
-                conf_id,
-                max_iterations,
-            )
-            if status is None or energy is None:
-                continue
-            source_conf_id = next_ids_by_seed[parent.seed]
-            next_ids_by_seed[parent.seed] += 1
-            kicked_records.append(
-                ConformerRecord(
-                    seed=parent.seed,
-                    source_conf_id=int(source_conf_id),
-                    rdkit_energy=float(energy),
-                    rdkit_status="not_converged" if status else "converged",
-                    force_field=parent.force_field,
-                    rdkit_molecule=work_molecule,
-                    rdkit_conf_id=int(conf_id),
-                    generation_stage="torsion_evolve",
-                    generation_round=int(round_index),
-                    parent_name=_parent_record_name(parent),
-                    torsion_moves=";".join(moves),
-                )
-            )
-    return sorted(kicked_records, key=_record_sort_key)
-
-
-def _generate_torsion_grid_records(
-    records,
-    Chem,
-    AllChem,
-    *,
-    enabled,
-    kicks_per_conformer,
-    max_bonds,
-    round_index,
-    max_iterations,
-):
-    """Generate deterministic torsion-grid conformers from RDKit records."""
-    if not enabled or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
-        return []
-    angle_choices = np.asarray([60.0, 120.0, 180.0, 240.0, 300.0], dtype=float)
-    kicked_records = []
-    next_ids_by_seed = {}
-    for parent_index, parent in enumerate(sorted(records, key=_record_sort_key)):
-        rdkit_molecule = parent.rdkit_molecule
-        if rdkit_molecule is None:
-            continue
-        torsions = _rotatable_torsions(rdkit_molecule, Chem)
-        if not torsions:
-            continue
-        next_ids_by_seed.setdefault(parent.seed, max(record.source_conf_id for record in records if record.seed == parent.seed) + 1)
-        for kick_index in range(int(kicks_per_conformer)):
-            try:
-                work_molecule = Chem.Mol(rdkit_molecule)
-                parent_conformer = rdkit_molecule.GetConformer(_record_conformer_id(parent))
-                kicked_conformer = Chem.Conformer(parent_conformer)
-                if hasattr(work_molecule, "RemoveAllConformers"):
-                    work_molecule.RemoveAllConformers()
-                conf_id = int(work_molecule.AddConformer(kicked_conformer, assignId=True))
-            except (AttributeError, RuntimeError, ValueError):
-                continue
-
-            move_indices = _torsion_move_indices(
-                len(torsions),
-                parent_index=parent_index,
-                round_index=round_index,
-                kick_index=kick_index,
-                max_bonds=max_bonds,
-            )
-            if not move_indices:
-                continue
-            angle_indices = [
-                (parent_index + round_index + kick_index + offset) % len(angle_choices)
-                for offset in range(len(move_indices))
-            ]
-            try:
-                moves = _apply_torsion_moves(
-                    work_molecule,
-                    conf_id,
-                    torsions,
-                    angle_choices,
-                    move_indices,
-                    angle_indices,
-                )
-            except Exception:
-                continue
-
-            status, energy = _rdkit_minimize_conformer(
-                work_molecule,
-                AllChem,
-                parent.force_field,
-                conf_id,
-                max_iterations,
-            )
-            if status is None or energy is None:
-                continue
-            source_conf_id = next_ids_by_seed[parent.seed]
-            next_ids_by_seed[parent.seed] += 1
-            kicked_records.append(
-                ConformerRecord(
-                    seed=parent.seed,
-                    source_conf_id=int(source_conf_id),
-                    rdkit_energy=float(energy),
-                    rdkit_status="not_converged" if status else "converged",
-                    force_field=parent.force_field,
-                    rdkit_molecule=work_molecule,
-                    rdkit_conf_id=int(conf_id),
-                    generation_stage="torsion_kick",
-                    generation_round=int(round_index),
-                    parent_name=_parent_record_name(parent),
-                    torsion_moves=";".join(moves),
-                )
-            )
-    return sorted(kicked_records, key=_record_sort_key)
-
-
-def _generate_torsion_mc_records(
-    records,
-    Chem,
-    AllChem,
-    *,
-    enabled,
-    kicks_per_conformer,
-    max_bonds,
-    seed,
-    round_index,
-    max_iterations,
-    temperature=2.0,
-    tabu_rms=0.5,
-):
-    """Generate Monte Carlo torsion-walk conformers with tabu-style rejection."""
-    if not enabled or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
-        return []
-    angle_choices = np.asarray([60.0, 120.0, 180.0, 240.0, 300.0], dtype=float)
-    kicked_records = []
-    tabu_records = list(records)
-    next_ids_by_seed = {}
-    for parent_index, parent in enumerate(sorted(records, key=_record_sort_key)):
-        rdkit_molecule = parent.rdkit_molecule
-        if rdkit_molecule is None:
-            continue
-        torsions = _rotatable_torsions(rdkit_molecule, Chem)
-        if not torsions:
-            continue
-        next_ids_by_seed.setdefault(parent.seed, max(record.source_conf_id for record in records if record.seed == parent.seed) + 1)
-        current_record = parent
-        current_energy = float(parent.rdkit_energy)
-        for step_index in range(int(kicks_per_conformer)):
-            try:
-                work_molecule = Chem.Mol(current_record.rdkit_molecule)
-                parent_conformer = current_record.rdkit_molecule.GetConformer(_record_conformer_id(current_record))
-                kicked_conformer = Chem.Conformer(parent_conformer)
-                if hasattr(work_molecule, "RemoveAllConformers"):
-                    work_molecule.RemoveAllConformers()
-                conf_id = int(work_molecule.AddConformer(kicked_conformer, assignId=True))
-            except (AttributeError, RuntimeError, ValueError):
-                continue
-
-            rng_seed = (
-                int(seed) * 1_000_003
-                + int(round_index) * 100_003
-                + int(parent.seed) * 10_007
-                + int(current_record.source_conf_id) * 101
-                + int(step_index)
-                + int(parent_index)
-            )
-            rng = np.random.default_rng(rng_seed)
-            move_count = min(int(max_bonds), len(torsions))
-            torsion_indices = rng.choice(len(torsions), size=move_count, replace=False)
-            angle_indices = rng.choice(len(angle_choices), size=move_count, replace=True)
-            try:
-                moves = _apply_torsion_moves(
-                    work_molecule,
-                    conf_id,
-                    torsions,
-                    angle_choices,
-                    np.atleast_1d(torsion_indices),
-                    np.atleast_1d(angle_indices),
-                )
-            except Exception:
-                continue
-
-            status, energy = _rdkit_minimize_conformer(
-                work_molecule,
-                AllChem,
-                parent.force_field,
-                conf_id,
-                max_iterations,
-            )
-            if status is None or energy is None:
-                continue
-
-            candidate = ConformerRecord(
-                seed=parent.seed,
-                source_conf_id=int(next_ids_by_seed[parent.seed]),
-                rdkit_energy=float(energy),
-                rdkit_status="not_converged" if status else "converged",
-                force_field=parent.force_field,
-                rdkit_molecule=work_molecule,
-                rdkit_conf_id=int(conf_id),
-                generation_stage="torsion_mc",
-                generation_round=int(round_index),
-                parent_name=_parent_record_name(parent),
-                torsion_moves=";".join(moves),
-            )
-
-            if _is_duplicate_record(candidate, tabu_records, tabu_rms):
-                continue
-            next_ids_by_seed[parent.seed] += 1
-            tabu_records.append(candidate)
-
-            delta = float(energy - current_energy)
-            accept = delta <= 0.0
-            if not accept:
-                try:
-                    accept = float(rng.random()) < math.exp(-delta / float(temperature))
-                except OverflowError:
-                    accept = False
-            if accept:
-                candidate.generation_stage = "torsion_mc"
-                kicked_records.append(candidate)
-                current_record = candidate
-                current_energy = float(energy)
-    return sorted(kicked_records, key=_record_sort_key)
-
-
-def _generate_torsion_evolution_records(
-    records,
-    Chem,
-    AllChem,
-    *,
-    enabled,
-    generations,
-    kicks_per_conformer,
-    max_bonds,
-    max_iterations,
-    diversity_fraction=0.2,
-    compactness_fraction=0.2,
-    parent_limit=None,
-    tabu_rms=0.5,
-):
-    """Generate population-based torsion mutants with elitist selection."""
-    if not enabled or int(generations) < 1 or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
-        return []
-    population = sorted(records, key=_record_sort_key)
-    if not population:
-        return []
-    limit = len(population) if parent_limit is None else int(parent_limit)
-    limit = max(1, min(limit, len(population)))
-    offspring_records = []
-    tabu_records = list(population)
-    for generation_index in range(1, int(generations) + 1):
-        parents = _select_torsion_parent_records(
-            population,
-            limit,
-            diversity_fraction,
-            compactness_fraction,
-        )
-        if not parents:
-            break
-        generation_records = _generate_torsion_guided_records(
-            parents,
-            Chem,
-            AllChem,
-            enabled=True,
-            kicks_per_conformer=kicks_per_conformer,
-            max_bonds=max_bonds,
-            round_index=generation_index,
-            max_iterations=max_iterations,
-        )
-        if not generation_records:
-            break
-        novel_records = []
-        for candidate in generation_records:
-            if _is_duplicate_record(candidate, tabu_records, tabu_rms):
-                continue
-            candidate.generation_round = int(generation_index)
-            novel_records.append(candidate)
-            tabu_records.append(candidate)
-        if not novel_records:
-            break
-        offspring_records.extend(novel_records)
-        population = _deduplicate_records(population + novel_records, tabu_rms)
-        population = _select_torsion_parent_records(
-            population,
-            limit,
-            diversity_fraction,
-            compactness_fraction,
-        )
-    return sorted(offspring_records, key=_record_sort_key)
 
 
 def _formal_charge(rdkit_molecule):
@@ -1069,6 +687,11 @@ def _deduplicate_records(records, rms_threshold, *, sort_key=_record_sort_key):
         if not is_duplicate:
             selected.append(record)
     return selected
+
+
+def _collapse_generation_records(records, rms_threshold):
+    """Collapse generated conformers into a similarity-pruned pool."""
+    return _deduplicate_records(records, rms_threshold)
 
 
 def _select_unique_records(records, limit, rms_threshold):
@@ -1458,18 +1081,18 @@ def conformer_search(
     input_spec,
     *,
     input_format="auto",
-    num_conformers=100,
+    num_conformers=150,
     top_n=10,
     backend_top_n=None,
-    num_seeds=3,
+    num_seeds=5,
     diversity_fraction=0.2,
     compactness_fraction=0.2,
     rms_threshold=0.25,
     use_random_coords=True,
     torsion_kicks=True,
     torsion_rounds=2,
-    torsion_mode="evolve",
-    torsion_kicks_per_conformer=8,
+    torsion_mode="random",
+    torsion_kicks_per_conformer=6,
     torsion_max_bonds=3,
     torsion_dedup_rms=0.5,
     force_field="auto",
@@ -1495,9 +1118,11 @@ def conformer_search(
         use_random_coords = bool(use_random_coords)
     if not isinstance(torsion_kicks, bool):
         torsion_kicks = bool(torsion_kicks)
-    torsion_mode = str(torsion_mode).lower()
-    if torsion_mode not in {"evolve", "mc", "grid", "random"}:
-        raise ConformerWorkflowError("--torsion-mode must be 'evolve', 'mc', 'grid', or 'random'")
+    torsion_mode = str(torsion_mode).lower().replace("-", "_")
+    if torsion_mode == "torsion_kick":
+        torsion_mode = "random"
+    if torsion_mode != "random":
+        raise ConformerWorkflowError("--torsion-mode must be 'random'")
     if int(torsion_rounds) < 0:
         raise ConformerWorkflowError("--torsion-rounds must be non-negative")
     if int(torsion_kicks_per_conformer) < 0:
@@ -1518,6 +1143,7 @@ def conformer_search(
     run_directory = _prepare_run_directory(root_directory)
     state_path = Path(workflow_state_path(str(run_directory)))
     seed_values = [int(seed) + index for index in range(int(num_seeds))]
+    generation_dedup_rms = max(float(torsion_dedup_rms), float(rms_threshold), 0.5)
     request = {
         "input": str(input_spec),
         "input_format": input_format,
@@ -1528,6 +1154,7 @@ def conformer_search(
         "diversity_fraction": float(diversity_fraction),
         "compactness_fraction": float(compactness_fraction),
         "rms_threshold": float(rms_threshold),
+        "generation_dedup_rms": float(generation_dedup_rms),
         "use_random_coords": bool(use_random_coords),
         "torsion_kicks": bool(torsion_kicks),
         "torsion_rounds": int(torsion_rounds),
@@ -1572,72 +1199,29 @@ def conformer_search(
         records.extend(seed_records)
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
     if records and torsion_kicks and int(torsion_rounds) > 0:
-        torsion_parent_limit = max(int(top_n) * 10, 50)
-        if torsion_mode == "evolve":
-            kicked_records = _generate_torsion_evolution_records(
+        torsion_parent_limit = max(int(top_n) * 15, 100)
+        for round_index in range(1, int(torsion_rounds) + 1):
+            parent_records = _select_torsion_parent_records(
                 records,
+                torsion_parent_limit,
+                diversity_fraction,
+                compactness_fraction,
+            )
+            kicked_records = _generate_torsion_random_records(
+                parent_records,
                 Chem,
                 AllChem,
                 enabled=torsion_kicks,
-                generations=torsion_rounds,
                 kicks_per_conformer=torsion_kicks_per_conformer,
                 max_bonds=torsion_max_bonds,
+                seed=seed,
+                round_index=round_index,
                 max_iterations=max_iterations,
-                diversity_fraction=diversity_fraction,
-                compactness_fraction=compactness_fraction,
-                parent_limit=torsion_parent_limit,
-                tabu_rms=torsion_dedup_rms,
             )
-            if kicked_records:
-                records = _deduplicate_records(records + kicked_records, torsion_dedup_rms)
-        else:
-            for round_index in range(1, int(torsion_rounds) + 1):
-                parent_records = _select_torsion_parent_records(
-                    records,
-                    torsion_parent_limit,
-                    diversity_fraction,
-                    compactness_fraction,
-                )
-                kicked_records = (
-                    _generate_torsion_mc_records(
-                        parent_records,
-                        Chem,
-                        AllChem,
-                        enabled=torsion_kicks,
-                        kicks_per_conformer=torsion_kicks_per_conformer,
-                        max_bonds=torsion_max_bonds,
-                        seed=seed,
-                        round_index=round_index,
-                        max_iterations=max_iterations,
-                        tabu_rms=torsion_dedup_rms,
-                    )
-                    if torsion_mode == "mc"
-                    else _generate_torsion_grid_records(
-                        parent_records,
-                        Chem,
-                        AllChem,
-                        enabled=torsion_kicks,
-                        kicks_per_conformer=torsion_kicks_per_conformer,
-                        max_bonds=torsion_max_bonds,
-                        round_index=round_index,
-                        max_iterations=max_iterations,
-                    )
-                    if torsion_mode == "grid"
-                    else _generate_torsion_random_records(
-                        parent_records,
-                        Chem,
-                        AllChem,
-                        enabled=torsion_kicks,
-                        kicks_per_conformer=torsion_kicks_per_conformer,
-                        max_bonds=torsion_max_bonds,
-                        seed=seed,
-                        round_index=round_index,
-                        max_iterations=max_iterations,
-                    )
-                )
-                if not kicked_records:
-                    break
-                records = _deduplicate_records(records + kicked_records, torsion_dedup_rms)
+            if not kicked_records:
+                break
+            records = _collapse_generation_records(records + kicked_records, generation_dedup_rms)
+    records = _collapse_generation_records(records, generation_dedup_rms)
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
     if not records:
         state = _build_state(

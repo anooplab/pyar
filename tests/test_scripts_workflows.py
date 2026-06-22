@@ -149,7 +149,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                         "--prune-rms-threshold", "0.25",
                         "--use-random-coords",
                         "--torsion-rounds", "3",
-                        "--torsion-mode", "grid",
+                        "--torsion-mode", "random",
                         "--torsion-kicks-per-conformer", "6",
                         "--torsion-max-bonds", "2",
                         "--torsion-dedup-rms", "0.4",
@@ -168,7 +168,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
         self.assertTrue(search.call_args.kwargs["use_random_coords"])
         self.assertTrue(search.call_args.kwargs["torsion_kicks"])
-        self.assertEqual(search.call_args.kwargs["torsion_mode"], "grid")
+        self.assertEqual(search.call_args.kwargs["torsion_mode"], "random")
         self.assertEqual(search.call_args.kwargs["torsion_rounds"], 3)
         self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 6)
         self.assertEqual(search.call_args.kwargs["torsion_max_bonds"], 2)
@@ -192,15 +192,15 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 os.chdir(cwd)
 
         self.assertIsNone(exit_code)
-        self.assertEqual(search.call_args.kwargs["num_seeds"], 3)
+        self.assertEqual(search.call_args.kwargs["num_seeds"], 5)
         self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.2)
         self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.2)
         self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
         self.assertTrue(search.call_args.kwargs["use_random_coords"])
         self.assertTrue(search.call_args.kwargs["torsion_kicks"])
-        self.assertEqual(search.call_args.kwargs["torsion_mode"], "evolve")
+        self.assertEqual(search.call_args.kwargs["torsion_mode"], "random")
         self.assertEqual(search.call_args.kwargs["torsion_rounds"], 2)
-        self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 8)
+        self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 6)
         self.assertEqual(search.call_args.kwargs["torsion_max_bonds"], 3)
         self.assertEqual(search.call_args.kwargs["torsion_dedup_rms"], 0.5)
 

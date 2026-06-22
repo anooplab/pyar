@@ -344,7 +344,7 @@ class ConformerBenchmarkTests(unittest.TestCase):
                 result = conformer_benchmark.main([str(spec_path), "--output", str(Path(tmpdir) / "out")])
 
         self.assertIsNone(result)
-        self.assertEqual(runner.call_args.kwargs["num_conformers"], 100)
+        self.assertEqual(runner.call_args.kwargs["num_conformers"], 150)
         self.assertIsNone(runner.call_args.kwargs["qc_params"])
 
     def test_rdkit_smoke_when_available(self):
