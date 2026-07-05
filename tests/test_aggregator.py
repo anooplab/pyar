@@ -729,6 +729,33 @@ class AggregatorTests(unittest.TestCase):
         self.assertEqual(state["request"]["fragments"][0]["scftype"], "rhf")
         self.assertEqual(state["request"]["fragments"][0]["fragment_definition"], [0])
 
+    def test_aggregate_builds_request_through_aggregation_package(self):
+        molecule = DummyMolecule("seed", n_atoms=1)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(
+                    aggregate_workflow.AggregateRequest,
+                    "from_options",
+                    wraps=aggregate_workflow.AggregateRequest.from_options,
+                ) as build_request:
+                    aggregate_workflow.aggregate(
+                        molecules=[molecule],
+                        aggregate_sizes=[1],
+                        hm_orientations=2,
+                        qc_params={"software": None},
+                        maximum_number_of_seeds=2,
+                        first_pathway=0,
+                        number_of_pathways=1,
+                        site=None,
+                    )
+            finally:
+                os.chdir(cwd)
+
+        build_request.assert_called_once()
+
     def test_aggregate_uses_resolved_connectivity_policy_for_selection_and_final_clustering(self):
         molecule_a = DummyMolecule("input_a", n_atoms=1)
         molecule_b = DummyMolecule("input_b", n_atoms=1)

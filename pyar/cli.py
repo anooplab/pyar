@@ -532,50 +532,28 @@ def _preflight_cli_requirements(run_mode, software, geometry_optimizer):
         )
 
 
-def main():
-    if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
-        _dispatch_trace_subcommand(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] in {"conformer", "conformers"}:
-        _dispatch_conformer_subcommand(sys.argv[2:])
-        return
-    args = vars(argument_parse())
-
+def _merge_run_parameters(args):
+    """Overlay parsed CLI arguments onto default run parameters."""
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
-
     for key, value in args.items():
         if value is not None and run_parameters[key] != value:
             run_parameters[key] = value
+    return run_parameters
 
-    run_mode = _active_run_mode(run_parameters)
-    input_files = run_parameters['input_files'] or []
-    number_of_input_files = len(input_files)
-    _validate_cli_request_shape(run_parameters, number_of_input_files)
-    _configure_reaction_optimizer(run_parameters, run_mode)
-    _preflight_cli_requirements(
-        run_mode,
-        run_parameters["software"],
-        run_parameters["geometry_optimizer"],
-    )
 
-    from pyar.state.aggregate import AggregateStateError
-    from pyar.state.solvation import SolvationStateError
-    from pyar.workflows.aggregate import aggregate
-    from pyar.workflows import reaction as reaction_workflow
-    from pyar.workflows.solvation import solvate
-    from pyar.state.reaction import ReactionStateError
-
-    if run_parameters['verbosity'] == 0:
+def _configure_cli_logging(verbosity):
+    """Configure the CLI logger and file handler for this invocation."""
+    if verbosity == 0:
         logger.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
                                       '%(lineno)d %(levelname)-8s: %(message)s')
-    elif run_parameters['verbosity'] == 1:
+    elif verbosity == 1:
         formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.INFO)
-    elif run_parameters['verbosity'] == 2:
+    elif verbosity == 2:
         formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.WARNING)
-    elif run_parameters['verbosity'] == 3:
+    elif verbosity == 3:
         formatter = logging.Formatter('%(message)s')
         logger.setLevel(logging.ERROR)
     else:
@@ -587,6 +565,9 @@ def main():
     if file_handler not in logger.handlers:
         logger.addHandler(file_handler)
 
+
+def _log_startup_context(run_parameters, run_mode, input_files, number_of_input_files):
+    """Write startup metadata that is independent of workflow dispatch."""
     time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
     logger.info(
 r"""
@@ -619,13 +600,28 @@ r"""
     )
     logger.debug(f'Parsed CLI options: {dict(run_parameters)}')
 
-    if run_parameters['formula']:
-        input_specs, formula_aggregate_sizes = _expand_formula_inputs(run_parameters['formula'])
-    else:
-        input_specs = input_files
-        formula_aggregate_sizes = None
-    number_of_inputs = len(input_specs)
 
+def _resolve_cli_input_specs(run_parameters, input_files):
+    """Return molecule input specs and formula-derived aggregate sizes."""
+    if run_parameters['formula']:
+        return _expand_formula_inputs(run_parameters['formula'])
+    return input_files, None
+
+
+def _infer_default_multiplicities(input_molecules, charges):
+    """Infer spin multiplicity from electron parity when the CLI omits it."""
+    multiplicities = []
+    for mol, charge in zip(input_molecules, charges):
+        n_electrons = sum(mol.atomic_number) - charge
+        multiplicity = 1 if n_electrons % 2 == 0 else 2
+        multiplicities.append(multiplicity)
+        mol.multiplicity = multiplicity
+    return multiplicities
+
+
+def _load_input_molecules(run_parameters, input_specs):
+    """Resolve input specs into molecules with validated charge/multiplicity lists."""
+    number_of_inputs = len(input_specs)
     charges = _normalize_parameter_list(run_parameters['charge'], 0, number_of_inputs, 'Charges')
     multiplicities = _normalize_parameter_list(run_parameters['multiplicity'], 1, number_of_inputs, 'Multiplicities')
     scftypes = _normalize_parameter_list(run_parameters['scftype'], 'rhf', number_of_inputs, 'SCF Types')
@@ -643,33 +639,35 @@ r"""
             raise
 
     if run_parameters['multiplicity'] is None:
-        multiplicities = []
-        for mol, charge in zip(input_molecules, charges):
-            n_electrons = sum(mol.atomic_number) - charge
-            multiplicity = 1 if n_electrons % 2 == 0 else 2
-            multiplicities.append(multiplicity)
-            mol.multiplicity = multiplicity
+        multiplicities = _infer_default_multiplicities(input_molecules, charges)
         logger.info('Multiplicity not provided: inferred defaults from electron parity.')
 
-    if run_parameters['software'] is not None:
-        for mol in input_molecules:
-            n_electrons = sum(mol.atomic_number) - mol.charge
-            if n_electrons % 2 == 0:
-                if mol.multiplicity % 2 != 1:
-                    sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
-            else:
-                if mol.multiplicity % 2 == 1:
-                    sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
+    return input_molecules, charges, multiplicities, scftypes
 
+
+def _validate_backend_spin_inputs(input_molecules):
+    """Reject charge/multiplicity combinations with impossible electron parity."""
+    for mol in input_molecules:
+        n_electrons = sum(mol.atomic_number) - mol.charge
+        if n_electrons % 2 == 0:
+            if mol.multiplicity % 2 != 1:
+                sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
+        else:
+            if mol.multiplicity % 2 == 1:
+                sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
+
+
+def _build_qc_parameters(run_parameters, args, run_mode):
+    """Build backend-aware QC parameters and return reporting metadata."""
     custom_keywords = run_parameters['custom_keywords']
     provided_qc_options = _provided_qc_options(args)
     if run_mode == "react" and run_parameters["geometry_optimizer"] == "geometric":
         provided_qc_options.discard("gamma")
-    backend_family = "none"
+    backend_family_name = "none"
     staged_optimization = False
     ignored_qc_options = []
     if run_parameters["software"] is not None:
-        backend_family, ignored_qc_options = _validate_backend_qc_options(
+        backend_family_name, ignored_qc_options = _validate_backend_qc_options(
             run_parameters["software"], provided_qc_options
         )
         staged_optimization = backend_supports_staged_optimization(run_parameters["software"])
@@ -708,11 +706,28 @@ r"""
         quantum_chemistry_parameters,
         run_parameters["software"],
     )
+    return (
+        quantum_chemistry_parameters,
+        backend_family_name,
+        ignored_qc_options,
+        effective_qc_options,
+        staged_optimization,
+    )
 
+
+def _log_qc_context(
+    run_parameters,
+    quantum_chemistry_parameters,
+    backend_family_name,
+    ignored_qc_options,
+    effective_qc_options,
+    staged_optimization,
+):
+    """Log backend and QC settings after unsupported options are masked."""
     logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
     logger.info(f'Geometry optimizer: {quantum_chemistry_parameters["geometry_optimizer"]}')
     logger.info(f'Optimization target: {quantum_chemistry_parameters["opt_target"]}')
-    logger.info(f'Backend family: {backend_family}')
+    logger.info(f'Backend family: {backend_family_name}')
     logger.info(
         "Optimization layers: %s",
         "two-stage" if staged_optimization else "single-stage",
@@ -736,17 +751,17 @@ r"""
         else:
             logger.info("xTB parallel threads: not requested; xTB will run serially")
 
-    number_of_orientations = run_parameters['how_many_orientations']
-    logger.info(f'Number of orientations: {number_of_orientations}')
-    maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
-    logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
 
+def _resolve_site_constraint(run_parameters, input_molecules):
+    """Return the absolute site constraint used by workflow functions."""
     if run_parameters['site'] is None:
-        site = None
-    else:
-        site = run_parameters['site']
-        site = [site[0], input_molecules[0].number_of_atoms + site[1]]
-    logger.info(f'Site constraint: {site}')
+        return None
+    site = run_parameters['site']
+    return [site[0], input_molecules[0].number_of_atoms + site[1]]
+
+
+def _log_workflow_plan(run_mode, run_parameters, input_molecules, formula_aggregate_sizes, number_of_orientations):
+    """Log the user-facing workflow plan."""
     if run_mode == 'aggregate':
         planned_aggregate_sizes = formula_aggregate_sizes if run_parameters['formula'] else run_parameters['aggregate_size']
         logger.info(
@@ -764,92 +779,222 @@ r"""
             f'Plan: react gamma_range=({run_parameters["gmin"]}, {run_parameters["gmax"]}) '
             f'orientations={number_of_orientations}'
         )
+
+
+def _run_aggregate_workflow(
+    aggregate,
+    run_parameters,
+    input_molecules,
+    formula_aggregate_sizes,
+    number_of_orientations,
+    maximum_number_of_seeds,
+    quantum_chemistry_parameters,
+    site,
+):
+    """Validate and dispatch aggregate workflow execution."""
+    size_of_aggregate = run_parameters['aggregate_size']
+    if run_parameters['formula']:
+        size_of_aggregate = formula_aggregate_sizes
+    if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
+        message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
+        logger.critical(message)
+        sys.exit(message)
+    if quantum_chemistry_parameters["software"] is None:
+        logger.info(
+            "No --software specified: aggregate mode will generate trial "
+            "geometries only; no quantum-chemistry optimization will be run."
+        )
+    t1_0 = time.time()
+    time_started = datetime.datetime.now()
+    selected_stoichiometry = _aggregate_stoichiometry_label(input_molecules, size_of_aggregate)
+    logger.info(
+        "Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
+        selected_stoichiometry,
+    )
+    result = aggregate(
+        input_molecules,
+        size_of_aggregate,
+        number_of_orientations,
+        quantum_chemistry_parameters,
+        maximum_number_of_seeds,
+        run_parameters['first_pathway'],
+        run_parameters['number_of_pathways'],
+        site,
+        connectivity_policy=run_parameters["connectivity_policy"],
+    )
+    _log_workflow_result(result)
+    logger.info('Total Time: {}'.format(time.time() - t1_0))
+    logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+
+
+def _run_solvation_workflow(
+    solvate,
+    run_parameters,
+    input_molecules,
+    number_of_orientations,
+    maximum_number_of_seeds,
+    quantum_chemistry_parameters,
+    site,
+):
+    """Validate and dispatch solvation workflow execution."""
+    number_of_solvent_molecules = run_parameters['solvation_size']
+    if number_of_solvent_molecules is None:
+        sys.exit('For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>')
+    if len(input_molecules) == 1:
+        sys.exit('Please provide more than two molecules.\nThe last input file will be considered as solvent\nand the other molecules as solutes to which solvent\nmolecules will be added.')
+    monomer = input_molecules[-1]
+    seeds = input_molecules[:-1]
+    t1_0 = time.time()
+    time_started = datetime.datetime.now()
+    result = solvate(
+        seeds,
+        monomer,
+        number_of_solvent_molecules,
+        number_of_orientations,
+        quantum_chemistry_parameters,
+        maximum_number_of_seeds,
+        site,
+        connectivity_policy=run_parameters["connectivity_policy"],
+    )
+    _log_workflow_result(result)
+    logger.info('Total Time: {}'.format(time.time() - t1_0))
+    logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+
+
+def _run_reaction_workflow(
+    reaction_workflow,
+    run_parameters,
+    input_molecules,
+    number_of_orientations,
+    quantum_chemistry_parameters,
+    site,
+):
+    """Validate and dispatch reaction workflow execution."""
+    minimum_gamma = run_parameters['gmin']
+    maximum_gamma = run_parameters['gmax']
+    if len(input_molecules) < 2:
+        sys.exit('Missing arguments: provide at least two molecules')
+    if minimum_gamma is None or maximum_gamma is None:
+        sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
+    if number_of_orientations is None:
+        sys.exit('Missing arguments: -N #')
+
+    proximity_factor = 2.3
+    zero_time = time.time()
+    time_started = datetime.datetime.now()
+    result = reaction_workflow.react(
+        input_molecules[0],
+        input_molecules[1],
+        minimum_gamma,
+        maximum_gamma,
+        int(number_of_orientations),
+        quantum_chemistry_parameters,
+        site,
+        proximity_factor,
+    )
+    _log_workflow_result(result)
+    logger.info('Total run time: {}'.format(time.time() - zero_time))
+    logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
+        _dispatch_trace_subcommand(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] in {"conformer", "conformers"}:
+        _dispatch_conformer_subcommand(sys.argv[2:])
+        return
+    args = vars(argument_parse())
+
+    run_parameters = _merge_run_parameters(args)
+    run_mode = _active_run_mode(run_parameters)
+    input_files = run_parameters['input_files'] or []
+    number_of_input_files = len(input_files)
+    _validate_cli_request_shape(run_parameters, number_of_input_files)
+    _configure_reaction_optimizer(run_parameters, run_mode)
+    _preflight_cli_requirements(
+        run_mode,
+        run_parameters["software"],
+        run_parameters["geometry_optimizer"],
+    )
+
+    from pyar.state.aggregate import AggregateStateError
+    from pyar.state.solvation import SolvationStateError
+    from pyar.workflows.aggregate import aggregate
+    from pyar.workflows import reaction as reaction_workflow
+    from pyar.workflows.solvation import solvate
+    from pyar.state.reaction import ReactionStateError
+
+    _configure_cli_logging(run_parameters['verbosity'])
+    _log_startup_context(run_parameters, run_mode, input_files, number_of_input_files)
+    input_specs, formula_aggregate_sizes = _resolve_cli_input_specs(run_parameters, input_files)
+    input_molecules, _, _, _ = _load_input_molecules(run_parameters, input_specs)
+    if run_parameters['software'] is not None:
+        _validate_backend_spin_inputs(input_molecules)
+
+    (
+        quantum_chemistry_parameters,
+        backend_family_name,
+        ignored_qc_options,
+        effective_qc_options,
+        staged_optimization,
+    ) = _build_qc_parameters(run_parameters, args, run_mode)
+    _log_qc_context(
+        run_parameters,
+        quantum_chemistry_parameters,
+        backend_family_name,
+        ignored_qc_options,
+        effective_qc_options,
+        staged_optimization,
+    )
+
+    number_of_orientations = run_parameters['how_many_orientations']
+    logger.info(f'Number of orientations: {number_of_orientations}')
+    maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
+    logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
+
+    site = _resolve_site_constraint(run_parameters, input_molecules)
+    logger.info(f'Site constraint: {site}')
+    _log_workflow_plan(
+        run_mode,
+        run_parameters,
+        input_molecules,
+        formula_aggregate_sizes,
+        number_of_orientations,
+    )
     try:
         if run_parameters['aggregate']:
-            size_of_aggregate = run_parameters['aggregate_size']
-            if run_parameters['formula']:
-                size_of_aggregate = formula_aggregate_sizes
-            if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
-                message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
-                logger.critical(message)
-                sys.exit(message)
-            if quantum_chemistry_parameters["software"] is None:
-                logger.info(
-                    "No --software specified: aggregate mode will generate trial "
-                    "geometries only; no quantum-chemistry optimization will be run."
-                )
-            t1_0 = time.time()
-            time_started = datetime.datetime.now()
-            selected_stoichiometry = _aggregate_stoichiometry_label(input_molecules, size_of_aggregate)
-            logger.info(
-                "Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
-                selected_stoichiometry,
-            )
-            result = aggregate(
+            _run_aggregate_workflow(
+                aggregate,
+                run_parameters,
                 input_molecules,
-                size_of_aggregate,
+                formula_aggregate_sizes,
                 number_of_orientations,
-                quantum_chemistry_parameters,
                 maximum_number_of_seeds,
-                run_parameters['first_pathway'],
-                run_parameters['number_of_pathways'],
+                quantum_chemistry_parameters,
                 site,
-                connectivity_policy=run_parameters["connectivity_policy"],
             )
-            _log_workflow_result(result)
-            logger.info('Total Time: {}'.format(time.time() - t1_0))
-            logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
         if run_parameters['solvate']:
-            number_of_solvent_molecules = run_parameters['solvation_size']
-            if number_of_solvent_molecules is None:
-                sys.exit('For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>')
-            if len(input_molecules) == 1:
-                sys.exit('Please provide more than two molecules.\nThe last input file will be considered as solvent\nand the other molecules as solutes to which solvent\nmolecules will be added.')
-            monomer = input_molecules[-1]
-            seeds = input_molecules[:-1]
-            t1_0 = time.time()
-            time_started = datetime.datetime.now()
-            result = solvate(
-                seeds,
-                monomer,
-                number_of_solvent_molecules,
+            _run_solvation_workflow(
+                solvate,
+                run_parameters,
+                input_molecules,
                 number_of_orientations,
-                quantum_chemistry_parameters,
                 maximum_number_of_seeds,
+                quantum_chemistry_parameters,
                 site,
-                connectivity_policy=run_parameters["connectivity_policy"],
             )
-            _log_workflow_result(result)
-            logger.info('Total Time: {}'.format(time.time() - t1_0))
-            logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
 
         if run_parameters['react']:
-            minimum_gamma = run_parameters['gmin']
-            maximum_gamma = run_parameters['gmax']
-            if len(input_molecules) < 2:
-                sys.exit('Missing arguments: provide at least two molecules')
-            if minimum_gamma is None or maximum_gamma is None:
-                sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
-            if number_of_orientations is None:
-                sys.exit('Missing arguments: -N #')
-
-            proximity_factor = 2.3
-            zero_time = time.time()
-            time_started = datetime.datetime.now()
-            result = reaction_workflow.react(
-                input_molecules[0],
-                input_molecules[1],
-                minimum_gamma,
-                maximum_gamma,
-                int(number_of_orientations),
+            _run_reaction_workflow(
+                reaction_workflow,
+                run_parameters,
+                input_molecules,
+                number_of_orientations,
                 quantum_chemistry_parameters,
                 site,
-                proximity_factor,
             )
-            _log_workflow_result(result)
-            logger.info('Total run time: {}'.format(time.time() - zero_time))
-            logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
             return
 
     except (FileNotFoundError, AggregateStateError, ReactionStateError, SolvationStateError, ValueError) as exc:

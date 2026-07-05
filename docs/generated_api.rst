@@ -65,6 +65,27 @@ pyar.aggregate_state
    :undoc-members:
    :show-inheritance:
 
+Aggregation
+-----------
+
+pyar.aggregation
+~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.aggregation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.aggregation.request
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.aggregation.request
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Aggregator
 ----------
 
@@ -150,6 +171,27 @@ pyar.cli
 ~~~~~~~~
 
 .. automodule:: pyar.cli
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Conformer
+---------
+
+pyar.conformer
+~~~~~~~~~~~~~~
+
+.. automodule:: pyar.conformer
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.conformer.request
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.conformer.request
    :no-index:
    :members:
    :undoc-members:
@@ -750,6 +792,27 @@ pyar.similarity
 ~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.similarity
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Solvation
+---------
+
+pyar.solvation
+~~~~~~~~~~~~~~
+
+.. automodule:: pyar.solvation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.solvation.request
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.solvation.request
    :no-index:
    :members:
    :undoc-members:

@@ -39,7 +39,7 @@ jobs:
         run: python -m pip check
 
       - name: Run test suite
-        run: python -m pytest
+        run: python -m pytest --cov=pyar --cov-report=term-missing
 
       - name: Smoke-test CLI entry points
         run: |

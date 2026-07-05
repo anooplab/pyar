@@ -74,6 +74,15 @@ Useful files to inspect:
 * ``solvation/state/geometries/`` for saved seed structures
 * selected structures from the final cycle
 
+Developer API note
+------------------
+
+``pyar.solvation.SolvationRequest`` owns validation, the enforced ``off``
+connectivity policy, and the persisted ``solvation/state.json`` request
+payload. ``pyar.workflows.solvation`` remains the orchestration layer for
+cycle execution, restart handling, calls to the shared growth service, and
+``SolvationResult`` creation.
+
 Common follow-up steps
 ----------------------
 

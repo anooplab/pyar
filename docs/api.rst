@@ -27,6 +27,24 @@ Command-line entry point
    :members: argument_parse, main
    :undoc-members:
 
+Feature request APIs
+--------------------
+
+These modules validate workflow inputs and define the persisted request payloads
+used for restart compatibility. The workflow modules still run calculations.
+
+.. automodule:: pyar.aggregation.request
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.solvation.request
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.conformer.request
+   :members:
+   :undoc-members:
+
 xTB backends
 -------------
 

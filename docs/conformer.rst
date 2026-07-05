@@ -71,6 +71,15 @@ Useful outputs
 * ``conformers/rdkit/`` for the embedded conformers before backend refinement
 * ``conformers/selected/`` for the final selected conformers
 
+Developer API note
+------------------
+
+``pyar.conformer.ConformerRequest`` owns validation and the persisted
+``conformers/state.json`` request payload. ``pyar.workflows.conformer`` remains
+the orchestration layer for RDKit loading, conformer generation, torsion-kick
+sampling, selection, optional backend refinement, and ``ConformerResult``
+creation.
+
 Benchmarking conformer search
 -----------------------------
 

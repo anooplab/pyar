@@ -157,6 +157,12 @@ class CliSmokeTests(unittest.TestCase):
             pyar_pkg.workflows = workflows_mod
             pyar_pkg.scan = scan_mod
 
+    def _parse_run_parameters(self, argv):
+        sys.argv = ["pyar-cli", *argv]
+        args = vars(self.cli.argument_parse(argv))
+        run_parameters = self.cli._merge_run_parameters(args)
+        return args, run_parameters, self.cli._active_run_mode(run_parameters)
+
     def test_formula_rejects_xyz_inputs(self):
         sys.argv = [
             "pyar-cli",
@@ -280,6 +286,75 @@ class CliSmokeTests(unittest.TestCase):
         ])
 
         self.assertEqual(args.connectivity_policy, "prefer")
+
+    def test_input_loader_infers_multiplicity_without_dispatching_workflow(self):
+        _, run_parameters, _ = self._parse_run_parameters([
+            "-a",
+            "C",
+            "H",
+            "-as",
+            "1",
+            "4",
+            "-N",
+            "1",
+        ])
+        input_specs, formula_sizes = self.cli._resolve_cli_input_specs(
+            run_parameters,
+            run_parameters["input_files"],
+        )
+
+        molecules, charges, multiplicities, scftypes = self.cli._load_input_molecules(
+            run_parameters,
+            input_specs,
+        )
+
+        self.assertIsNone(formula_sizes)
+        self.assertEqual([mol.name for mol in molecules], ["C", "H"])
+        self.assertEqual(charges, [0, 0])
+        self.assertEqual(multiplicities, [1, 2])
+        self.assertEqual(scftypes, ["rhf", "rhf"])
+
+    def test_qc_parameter_builder_masks_unsupported_options_without_workflow_dispatch(self):
+        args, run_parameters, run_mode = self._parse_run_parameters([
+            "-a",
+            "--formula",
+            "C",
+            "-N",
+            "8",
+            "-m",
+            "1",
+            "--software",
+            "aimnet_2",
+            "--basis",
+            "def2-SVP",
+            "--method",
+            "B3LYP",
+            "--scf-threshold",
+            "tight",
+            "--opt-cycles",
+            "50",
+            "--model",
+            "requested-model",
+            "--nprocs",
+            "2",
+        ])
+
+        qc_params, backend_family, ignored_options, effective_options, staged = (
+            self.cli._build_qc_parameters(run_parameters, args, run_mode)
+        )
+
+        self.assertEqual(backend_family, "mlip")
+        self.assertFalse(staged)
+        self.assertEqual(effective_options, [])
+        self.assertIn("basis", ignored_options)
+        self.assertIn("method", ignored_options)
+        self.assertIn("nprocs", ignored_options)
+        self.assertIsNone(qc_params["basis"])
+        self.assertIsNone(qc_params["method"])
+        self.assertIsNone(qc_params["scf_threshold"])
+        self.assertIsNone(qc_params["opt_cycles"])
+        self.assertIsNone(qc_params["model"])
+        self.assertIsNone(qc_params["nprocs"])
 
     def test_connectivity_policy_rejects_unknown_value(self):
         with self.assertRaises(SystemExit):

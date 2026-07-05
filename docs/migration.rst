@@ -15,6 +15,16 @@ Canonical imports
 * ``from pyar.backends import ...`` for backend adapters and capability helpers
 * ``from pyar.biases.afir import isotropic``
 
+Request-model packages
+----------------------
+
+Workflow functions remain the supported entry points for running calculations.
+Feature packages own typed request models and restart-contract payloads:
+
+* ``pyar.aggregation.AggregateRequest``
+* ``pyar.solvation.SolvationRequest``
+* ``pyar.conformer.ConformerRequest``
+
 Common path changes
 -------------------
 

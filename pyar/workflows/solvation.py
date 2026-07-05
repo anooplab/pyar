@@ -11,8 +11,9 @@ selected backend, selects the surviving seed geometries, persists
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
+from pyar.solvation import SolvationRequest
+from pyar.solvation.request import normalize_connectivity_policy
 from pyar.state.solvation import SolvationRunState, SolvationStateError
 from pyar import file_manager
 from pyar.workflow_results import SolvationResult
@@ -31,52 +32,9 @@ from pyar.workflows._growth import (
 __all__ = ["solvate"]
 
 
-def _molecule_signature(molecule):
-    """Return stable molecule metadata used to validate solvation restarts."""
-    return {
-        "name": molecule.name,
-        "atoms": list(molecule.atoms_list),
-        "coordinates": [[float(coord) for coord in row] for row in molecule.coordinates],
-        "charge": molecule.charge,
-        "multiplicity": molecule.multiplicity,
-        "scftype": molecule.scftype,
-        "fragment_definition": getattr(molecule, "fragments", []),
-    }
-
-
-def _build_solvation_request(seeds, monomer, aggregate_size, hm_orientations, qc_params, maximum_number_of_seeds, site):
-    """Build the persisted request used to validate solvation restarts.
-
-    The request captures the seed geometries, solvent monomer, cycle size,
-    orientation count, backend configuration, and site constraint so a future
-    invocation can only resume if the scientific inputs are unchanged.
-    """
-    return {
-        "aggregate_size": int(aggregate_size),
-        "orientations": hm_orientations,
-        "backend_parameters": dict(qc_params),
-        "maximum_number_of_seeds": int(maximum_number_of_seeds),
-        "site": None if site is None else list(site),
-        "connectivity_policy": "off",
-        "seeds": [_molecule_signature(seed) for seed in seeds],
-        "monomer": _molecule_signature(monomer),
-    }
-
-
 def _resolve_solvation_connectivity_policy(connectivity_policy):
     """Return the enforced connectivity policy for solvation workflows."""
-    normalized_policy = "auto" if connectivity_policy is None else str(connectivity_policy).lower()
-    if normalized_policy in {"auto", "off"}:
-        return "off"
-    if normalized_policy in {"prefer", "strict"}:
-        raise ValueError(
-            "Solvation workflows require connectivity policy 'off'; "
-            f"received {connectivity_policy!r}."
-        )
-    raise ValueError(
-        f"Unknown connectivity policy: {connectivity_policy!r}. "
-        "Expected one of 'auto', 'off', 'prefer', or 'strict'."
-    )
+    return normalize_connectivity_policy(connectivity_policy)
 
 
 def _build_solvation_result(run_state, root_directory, sampling):
@@ -120,12 +78,7 @@ def solvate(
         aggregator_logger.info("Function: solvate")
         return stopped_workflow_result("solvation", os.getcwd())
 
-    resolved_connectivity_policy = _resolve_solvation_connectivity_policy(connectivity_policy)
-
-    number_of_orientations = _resolve_orientation_count(hm_orientations)
-
-    root_directory = os.getcwd()
-    request = _build_solvation_request(
+    solvation_request = SolvationRequest.from_options(
         seeds,
         monomer,
         aggregate_size,
@@ -133,7 +86,20 @@ def solvate(
         qc_params,
         maximum_number_of_seeds,
         site,
+        connectivity_policy,
     )
+    seeds = list(solvation_request.seeds)
+    monomer = solvation_request.monomer
+    aggregate_size = solvation_request.aggregate_size
+    qc_params = dict(solvation_request.backend_parameters)
+    maximum_number_of_seeds = solvation_request.maximum_number_of_seeds
+    site = None if solvation_request.site is None else list(solvation_request.site)
+    resolved_connectivity_policy = solvation_request.connectivity_policy
+
+    number_of_orientations = _resolve_orientation_count(hm_orientations)
+
+    root_directory = os.getcwd()
+    request = solvation_request.to_state_dict()
     sampling = sampling_configuration(
         number_of_orientations=number_of_orientations,
         use_angles=monomer.number_of_atoms > 1,

@@ -26,8 +26,7 @@ import string
 from collections import OrderedDict
 from pathlib import Path
 
-import numpy as np
-
+from pyar.aggregation import AggregateRequest
 from pyar.state.aggregate import AggregateRunState, AggregateStateError
 from pyar import file_manager
 from pyar.workflow_results import AggregateResult
@@ -58,49 +57,6 @@ __all__ = [
     "expand_formula_to_aggregate_inputs",
     "generate_molecule_from_formula",
 ]
-
-
-def _molecule_signature(molecule):
-    """Return stable input geometry metadata used to validate restarts."""
-    return {
-        "atoms": list(molecule.atoms_list),
-        "coordinates": np.asarray(molecule.coordinates, dtype=float).tolist(),
-        "charge": molecule.charge,
-        "multiplicity": molecule.multiplicity,
-        "scftype": molecule.scftype,
-        "fragment_definition": getattr(molecule, "fragments", []),
-    }
-
-
-def _build_aggregate_request(
-    molecules,
-    aggregate_sizes,
-    hm_orientations,
-    qc_params,
-    maximum_number_of_seeds,
-    first_pathway,
-    number_of_pathways,
-    site,
-    connectivity_policy,
-):
-    """Build the scientific request persisted with aggregation state.
-
-    The persisted request is the restart contract for aggregation. It captures
-    the fragment composition, orientation count, backend configuration, and
-    pathway-selection controls so a resumed run can reject incompatible input
-    changes.
-    """
-    return {
-        "aggregate_sizes": [int(size) for size in aggregate_sizes],
-        "orientations": hm_orientations,
-        "backend_parameters": dict(qc_params),
-        "maximum_number_of_seeds": int(maximum_number_of_seeds),
-        "first_pathway": int(first_pathway),
-        "number_of_pathways": int(number_of_pathways),
-        "site": None if site is None else list(site),
-        "connectivity_policy": "auto" if connectivity_policy is None else str(connectivity_policy).lower(),
-        "fragments": [_molecule_signature(molecule) for molecule in molecules],
-    }
 
 
 def _pathway_from_label(monomers_to_be_added, label):
@@ -148,15 +104,7 @@ def aggregate(
         aggregator_logger.info("Function: aggregate")
         return stopped_workflow_result("aggregate", os.getcwd())
 
-    number_of_orientations = _resolve_orientation_count(hm_orientations)
-    sampling = sampling_configuration(
-        number_of_orientations=number_of_orientations,
-        use_angles=None,
-    )
-
-    root_directory = os.getcwd()
-    parent_folder = "aggregates"
-    request = _build_aggregate_request(
+    aggregate_request = AggregateRequest.from_options(
         molecules,
         aggregate_sizes,
         hm_orientations,
@@ -167,6 +115,24 @@ def aggregate(
         site,
         connectivity_policy,
     )
+    molecules = list(aggregate_request.molecules)
+    aggregate_sizes = list(aggregate_request.aggregate_sizes)
+    qc_params = dict(aggregate_request.backend_parameters)
+    maximum_number_of_seeds = aggregate_request.maximum_number_of_seeds
+    first_pathway = aggregate_request.first_pathway
+    number_of_pathways = aggregate_request.number_of_pathways
+    site = None if aggregate_request.site is None else list(aggregate_request.site)
+    connectivity_policy = aggregate_request.connectivity_policy
+
+    number_of_orientations = _resolve_orientation_count(hm_orientations)
+    sampling = sampling_configuration(
+        number_of_orientations=number_of_orientations,
+        use_angles=None,
+    )
+
+    root_directory = os.getcwd()
+    parent_folder = "aggregates"
+    request = aggregate_request.to_state_dict()
     run_state = AggregateRunState.load(root_directory, request)
     old_path = read_old_path()
     parent_folder_exists = os.path.isdir(parent_folder)
@@ -206,12 +172,7 @@ def aggregate(
 
         seed_names = string.ascii_lowercase
         ag_id = "ag"
-        requested_connectivity_policy = "auto" if connectivity_policy is None else str(connectivity_policy).lower()
-        if requested_connectivity_policy not in {"auto", "off", "prefer", "strict"}:
-            raise ValueError(
-                f"Unknown connectivity policy: {connectivity_policy!r}. "
-                "Expected one of 'auto', 'off', 'prefer', or 'strict'."
-            )
+        requested_connectivity_policy = connectivity_policy
         if requested_connectivity_policy == "auto":
             final_connectivity_policy = resolve_connectivity_policy_for_aggregate(molecules)
         else:

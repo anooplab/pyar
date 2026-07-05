@@ -65,6 +65,7 @@ pyar-aimnet2-ase-opt = "pyar.AIMNet2.calculators.aimnet2_ase_opt:main"
 [project.optional-dependencies]
 test = [
   "pytest",
+  "pytest-cov",
   "build",
   "twine",
 ]
@@ -118,6 +119,7 @@ all = [
   "pyh5md",
   "rdkit",
   "pytest",
+  "pytest-cov",
   "scikit-learn>=0.23.2",
   "sphinx",
   "sphinx-rtd-theme",
@@ -145,3 +147,16 @@ pyar = [
   "mlatom/ref.json",
   "mlatom/aiqm1_model/*.pt",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["pyar"]
+omit = [
+  "pyar/AIMNet2/*",
+  "pyar/mlatom/*",
+]
+
+[tool.coverage.report]
+fail_under = 50
+show_missing = true
+skip_covered = true

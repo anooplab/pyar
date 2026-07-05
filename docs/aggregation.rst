@@ -39,7 +39,7 @@ Run a fragment-cluster search with a backend optimizer:
 
 .. code-block:: bash
 
-   pyar-cli -s water.xyz water.xyz --software xtb -ss 10 -N 16 -c 0 0 -m 1 1
+   pyar-cli -a water.xyz water.xyz -as 1 1 --software xtb -N 16 -c 0 0 -m 1 1
 
 How to think about the output
 -----------------------------
@@ -79,6 +79,14 @@ Aggregation restart state is stored as readable JSON. Re-running an
 interrupted aggregation with the same request resumes unfinished pathways while
 reusing existing step outputs. Older ``pyar.log`` pathway markers are imported
 once into JSON state when a legacy ``aggregates/`` calculation is resumed.
+
+Developer API note
+------------------
+
+``pyar.aggregation.AggregateRequest`` owns validation and the persisted
+``aggregates/state.json`` request payload. ``pyar.workflows.aggregate`` remains
+the orchestration layer for pathway selection, growth cycles, final selection,
+restart handling, and ``AggregateResult`` creation.
 
 Next steps
 ----------

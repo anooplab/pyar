@@ -51,6 +51,13 @@ resumes only unfinished pathways while reusing their existing step outputs.
 Legacy ``pyar.log`` pathway markers are imported once into JSON state when an
 older ``aggregates/`` calculation is resumed.
 
+Implementation boundary:
+
+* ``pyar.aggregation.AggregateRequest`` owns validation and the persisted
+  request payload used for restart compatibility.
+* ``pyar.workflows.aggregate`` owns run-directory handling, pathway selection,
+  shared growth-service calls, final cross-path selection, and result assembly.
+
 For a chemistry researcher, the main outputs to inspect are:
 
 * ``aggregates/state.json`` for restart and provenance
@@ -169,6 +176,14 @@ next cycle, completed cycles, and the current seeds to continue from.
 Re-running an interrupted solvation with the same request resumes from the
 last completed cycle and reuses the stored seed geometries.
 
+Implementation boundary:
+
+* ``pyar.solvation.SolvationRequest`` owns validation, enforced ``off``
+  connectivity, and the persisted request payload used for restart
+  compatibility.
+* ``pyar.workflows.solvation`` owns cycle execution, restart handling,
+  shared growth-service calls, and result assembly.
+
 For a chemistry researcher, the main outputs to inspect are:
 
 * ``solvation/state.json`` for restart and cycle progress
@@ -182,9 +197,9 @@ Conformer search uses RDKit for the initial geometry ensemble and then, when
 requested, passes a selected subset through a regular PyAR backend. It is the
 workflow behind ``pyar-conformer`` and the ``pyar-cli conformer`` subcommand.
 
-The default tuning is intentionally compactness-biased, starts RDKit from
-random coordinates, and applies a chemistry-guided evolutionary torsion search
-with elite selection so the backend sees folded basins rather than only the
+The default tuning is basin-balanced, starts RDKit from random coordinates,
+and applies stratified random torsion kicks so the backend sees low-energy,
+diverse, folded, open, and outlier conformer families rather than only the
 widest RDKit-separated starts.
 
 .. code-block:: bash
@@ -193,8 +208,9 @@ widest RDKit-separated starts.
 
 The workflow is designed for flexible single-molecule systems where one local
 minimum is not enough. It combines ETKDGv3 embedding, random-coordinate
-embedding, contact-guided torsion mutation, greedy pruning, and a max-min-like
-selection stage before backend refinement.
+embedding, stratified torsion-kick sampling, greedy pruning, and selection
+that protects energy, diversity, compact, open, and outlier basins before
+backend refinement.
 
 The companion ``pyar-conformer-benchmark`` command diagnoses whether missed
 reference conformers were generated, lost during selection, lost after backend
@@ -202,12 +218,15 @@ refinement or deduplication, misranked, or affected by input chemistry.
 
 Implementation notes:
 
+* ``pyar.conformer.ConformerRequest`` owns validation and the persisted request
+  payload used for restart/provenance metadata
 * ``pyar.workflows.conformer.conformer_search`` owns the public workflow entry
   point
 * ``pyar.workflows.conformer._embed_parameters`` controls the RDKit embedding
   knobs
-* torsion sampling mutates rotatable bonds, locally minimizes the resulting
-  RDKit conformers, and keeps an evolving population before backend selection
+* torsion sampling mutates rotatable bonds in stratified random moves, locally
+  minimizes the resulting RDKit conformers, and deduplicates them before
+  backend selection
 * ``pyar.workflows.conformer._select_refinement_records`` chooses the backend
   refinement pool from energy, compactness, and diversity
 * ``pyar.workflows.conformer._write_summary`` and the workflow state record the

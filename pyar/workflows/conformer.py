@@ -16,6 +16,7 @@ import numpy as np
 from pyar import __version__
 from pyar.backends import require_executable
 from pyar.backends.subprocess_utils import run_command
+from pyar.conformer.request import ConformerRequest, ConformerRequestError
 from pyar.core.molecule import Molecule
 from pyar.optional_dependencies import optional_dependency_error
 from pyar.optimiser import _status_label, is_usable, optimise
@@ -1077,6 +1078,66 @@ def _build_state(
     }
 
 
+def _build_conformer_request(
+    input_spec,
+    *,
+    input_format,
+    num_conformers,
+    top_n,
+    backend_top_n,
+    num_seeds,
+    diversity_fraction,
+    compactness_fraction,
+    rms_threshold,
+    use_random_coords,
+    torsion_kicks,
+    torsion_rounds,
+    torsion_mode,
+    torsion_kicks_per_conformer,
+    torsion_max_bonds,
+    torsion_dedup_rms,
+    force_field,
+    seed,
+    num_threads,
+    max_iterations,
+    charge,
+    multiplicity,
+    scftype,
+    qc_params,
+):
+    """Validate and normalize the persisted conformer workflow request."""
+    try:
+        request = ConformerRequest.from_options(
+            input_spec,
+            input_format=input_format,
+            num_conformers=num_conformers,
+            top_n=top_n,
+            backend_top_n=backend_top_n,
+            num_seeds=num_seeds,
+            diversity_fraction=diversity_fraction,
+            compactness_fraction=compactness_fraction,
+            rms_threshold=rms_threshold,
+            use_random_coords=use_random_coords,
+            torsion_kicks=torsion_kicks,
+            torsion_rounds=torsion_rounds,
+            torsion_mode=torsion_mode,
+            torsion_kicks_per_conformer=torsion_kicks_per_conformer,
+            torsion_max_bonds=torsion_max_bonds,
+            torsion_dedup_rms=torsion_dedup_rms,
+            force_field=force_field,
+            seed=seed,
+            num_threads=num_threads,
+            max_iterations=max_iterations,
+            charge=charge,
+            multiplicity=multiplicity,
+            scftype=scftype,
+            qc_params=qc_params,
+        )
+    except ConformerRequestError as exc:
+        raise ConformerWorkflowError(str(exc)) from exc
+    return request.to_state_dict()
+
+
 def conformer_search(
     input_spec,
     *,
@@ -1106,76 +1167,64 @@ def conformer_search(
     root_directory=None,
 ):
     """Generate and optionally refine conformers for one molecule."""
-    if int(num_conformers) < 1:
-        raise ConformerWorkflowError("--num-conformers must be at least 1")
-    if int(top_n) < 1:
-        raise ConformerWorkflowError("--top-n must be at least 1")
-    if int(num_seeds) < 1:
-        raise ConformerWorkflowError("--num-seeds must be at least 1")
-    if float(rms_threshold) < 0.0:
-        raise ConformerWorkflowError("--rms-threshold must be non-negative")
-    if not isinstance(use_random_coords, bool):
-        use_random_coords = bool(use_random_coords)
-    if not isinstance(torsion_kicks, bool):
-        torsion_kicks = bool(torsion_kicks)
-    torsion_mode = str(torsion_mode).lower().replace("-", "_")
-    if torsion_mode == "torsion_kick":
-        torsion_mode = "random"
-    if torsion_mode != "random":
-        raise ConformerWorkflowError("--torsion-mode must be 'random'")
-    if int(torsion_rounds) < 0:
-        raise ConformerWorkflowError("--torsion-rounds must be non-negative")
-    if int(torsion_kicks_per_conformer) < 0:
-        raise ConformerWorkflowError("--torsion-kicks-per-conformer must be non-negative")
-    if int(torsion_max_bonds) < 1:
-        raise ConformerWorkflowError("--torsion-max-bonds must be at least 1")
-    if float(torsion_dedup_rms) < 0.0:
-        raise ConformerWorkflowError("--torsion-dedup-rms must be non-negative")
-    if backend_top_n is not None and int(backend_top_n) < 1:
-        raise ConformerWorkflowError("--backend-top-n must be at least 1")
-    if not 0.0 <= float(diversity_fraction) <= 1.0:
-        raise ConformerWorkflowError("--diversity-fraction must be between 0 and 1")
-    if not 0.0 <= float(compactness_fraction) <= 1.0:
-        raise ConformerWorkflowError("--compactness-fraction must be between 0 and 1")
+    request = _build_conformer_request(
+        input_spec,
+        input_format=input_format,
+        num_conformers=num_conformers,
+        top_n=top_n,
+        backend_top_n=backend_top_n,
+        num_seeds=num_seeds,
+        diversity_fraction=diversity_fraction,
+        compactness_fraction=compactness_fraction,
+        rms_threshold=rms_threshold,
+        use_random_coords=use_random_coords,
+        torsion_kicks=torsion_kicks,
+        torsion_rounds=torsion_rounds,
+        torsion_mode=torsion_mode,
+        torsion_kicks_per_conformer=torsion_kicks_per_conformer,
+        torsion_max_bonds=torsion_max_bonds,
+        torsion_dedup_rms=torsion_dedup_rms,
+        force_field=force_field,
+        seed=seed,
+        num_threads=num_threads,
+        max_iterations=max_iterations,
+        charge=charge,
+        multiplicity=multiplicity,
+        scftype=scftype,
+        qc_params=qc_params,
+    )
+    num_conformers = request["num_conformers"]
+    top_n = request["top_n"]
+    backend_top_n = request["backend_top_n"]
+    diversity_fraction = request["diversity_fraction"]
+    compactness_fraction = request["compactness_fraction"]
+    rms_threshold = request["rms_threshold"]
+    use_random_coords = request["use_random_coords"]
+    torsion_kicks = request["torsion_kicks"]
+    torsion_rounds = request["torsion_rounds"]
+    torsion_mode = request["torsion_mode"]
+    torsion_kicks_per_conformer = request["torsion_kicks_per_conformer"]
+    torsion_max_bonds = request["torsion_max_bonds"]
+    torsion_dedup_rms = request["torsion_dedup_rms"]
+    force_field = request["force_field"]
+    seed = request["seed"]
+    seed_values = request["seed_values"]
+    num_threads = request["num_threads"]
+    max_iterations = request["max_iterations"]
+    charge = request["charge"]
+    multiplicity = request["multiplicity"]
+    scftype = request["scftype"]
+    qc_params = request["backend_parameters"]
+    generation_dedup_rms = request["generation_dedup_rms"]
 
     root_directory = os.getcwd() if root_directory is None else root_directory
     Chem, AllChem = _rdkit_modules()
     run_directory = _prepare_run_directory(root_directory)
     state_path = Path(workflow_state_path(str(run_directory)))
-    seed_values = [int(seed) + index for index in range(int(num_seeds))]
-    generation_dedup_rms = max(float(torsion_dedup_rms), float(rms_threshold), 0.5)
-    request = {
-        "input": str(input_spec),
-        "input_format": input_format,
-        "num_conformers": int(num_conformers),
-        "top_n": int(top_n),
-        "backend_top_n": None if backend_top_n is None else int(backend_top_n),
-        "num_seeds": int(num_seeds),
-        "diversity_fraction": float(diversity_fraction),
-        "compactness_fraction": float(compactness_fraction),
-        "rms_threshold": float(rms_threshold),
-        "generation_dedup_rms": float(generation_dedup_rms),
-        "use_random_coords": bool(use_random_coords),
-        "torsion_kicks": bool(torsion_kicks),
-        "torsion_rounds": int(torsion_rounds),
-        "torsion_mode": torsion_mode,
-        "torsion_kicks_per_conformer": int(torsion_kicks_per_conformer),
-        "torsion_max_bonds": int(torsion_max_bonds),
-        "torsion_dedup_rms": float(torsion_dedup_rms),
-        "force_field": force_field,
-        "seed": int(seed),
-        "seed_values": seed_values,
-        "num_threads": int(num_threads),
-        "max_iterations": int(max_iterations),
-        "charge": charge,
-        "multiplicity": int(multiplicity),
-        "scftype": scftype,
-        "backend_parameters": dict(qc_params or {}),
-    }
 
     rdkit_molecule, source_format = _load_rdkit_molecule(
         input_spec,
-        input_format,
+        request["input_format"],
         Chem,
         run_directory,
     )

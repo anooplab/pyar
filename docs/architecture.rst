@@ -65,6 +65,20 @@ services, workflows, persistence, backend adapters, and user interfaces:
      biases/
        base.py
        afir.py
+     aggregation/
+       request.py
+       growth.py
+       pathways.py
+       reporting.py
+     solvation/
+       request.py
+       growth.py
+       reporting.py
+     conformer/
+       request.py
+       generation.py
+       selection.py
+       reporting.py
      optimizers/
        base.py
        objective.py
@@ -91,10 +105,28 @@ services, workflows, persistence, backend adapters, and user interfaces:
      benchmark_sampling.py
      benchmark_selection.py
 
-``pyar.core``, ``pyar.io``, ``pyar.sampling``, ``pyar.state``, and
-``pyar.backends`` now contain moved implementations for this layout. Legacy
+``pyar.core``, ``pyar.io``, ``pyar.sampling``, ``pyar.state``,
+``pyar.backends``, ``pyar.aggregation``, ``pyar.solvation``, and
+``pyar.conformer`` now contain moved implementations for this layout. Legacy
 import paths remain as compatibility aliases while remaining physical moves
 are completed.
+
+Feature Package Boundaries
+--------------------------
+
+Feature-specific code should live in feature packages rather than becoming the
+shape of the whole project. ``pyar.conformer`` is a conformer-search package,
+``pyar.aggregation`` is an aggregation package, and ``pyar.solvation`` is a
+solvation and ligand-growth package; none should become the main architecture
+for every workflow. Reaction exploration and mechanism-finding, clustering,
+similarity, bonding analysis, and backend interfaces should each keep their own
+request models, services, and tests where they have domain-specific behaviour.
+
+Workflow modules such as ``pyar.workflows.conformer`` should remain thin public
+orchestration layers. They may translate CLI/API arguments into typed feature
+requests, call feature services, persist workflow state, and return public
+result objects, but feature-specific validation and policy should be owned by
+the relevant feature package.
 
 Public API
 ----------

@@ -131,6 +131,46 @@ Main workflows
    :members:
    :undoc-members:
 
+Feature request packages
+------------------------
+
+These packages own validated request models and the persisted restart-contract
+payloads for their workflows. The workflow modules below remain the public
+orchestration entry points.
+
+.. automodule:: pyar.aggregation
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.aggregation.request
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.solvation
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.solvation.request
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.conformer
+   :no-index:
+   :members:
+   :undoc-members:
+
+.. automodule:: pyar.conformer.request
+   :no-index:
+   :members:
+   :undoc-members:
+
+Workflow orchestration
+----------------------
+
 .. automodule:: pyar.workflows.aggregate
    :members:
    :undoc-members:

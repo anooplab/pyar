@@ -16,6 +16,14 @@ Supported Public Imports
 * ``from pyar.backends import get_backend_capabilities``
 * ``from pyar.biases import afir`` or ``from pyar.biases.afir import isotropic``
 
+Feature packages own request models and restart-contract payloads for their
+domains. Use workflow functions to run calculations; use request models when
+validating or inspecting workflow configuration:
+
+* ``pyar.aggregation.AggregateRequest``
+* ``pyar.solvation.SolvationRequest``
+* ``pyar.conformer.ConformerRequest``
+
 Import Path Changes
 -------------------
 
