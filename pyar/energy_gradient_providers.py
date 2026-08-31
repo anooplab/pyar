@@ -146,7 +146,7 @@ class XtbEnergyGradientProvider:
                 str(xyz_path),
                 job_name="pyar_geometric_xtb",
             )
-            command = [xtb_executable, str(xyz_path)]
+            command = [xtb_executable, str(xyz_path), "--gxtb"]
             command.extend(xtb_parallel_args(self.qc_params))
             if self.qc_params.get("charge", 0) != 0:
                 command.extend(["-chrg", str(self.qc_params["charge"])])
