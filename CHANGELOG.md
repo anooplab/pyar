@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Structured request models for aggregation, conformer search, and solvation.
+- gXTB energy-and-gradient provider support.
+- A conformer benchmark and failure-diagnosis workflow that separates
+  generation, selection, backend-refinement, ranking, and input-chemistry
+  failures.
+- A soft-minimum interfragment reaction bias, selectable through
+  `--bias-potential softmin`.
+
+### Changed
+
+- Conformer generation now uses a broader candidate pool and removes duplicate
+  structures more aggressively before backend refinement. Basin selection
+  preserves low-energy, geometrically diverse folded, open, and outlier
+  candidates.
+- Aggregation, conformer, and solvation workflows now use dedicated request
+  models to validate and preserve workflow inputs.
+- Reaction searches now use the generic `--bias-min` and `--bias-max` strength
+  options. The historical `-gmin`/`--gmin` and `-gmax`/`--gmax` options remain
+  accepted as compatibility aliases.
+- geomeTRIC reaction optimization now selects either the AFIR or soft-min bias
+  through `--bias-potential`; AFIR remains the default.
+
 ## 1.2.0 - 2026-06-12
 
 This release adds a new RDKit-based conformer workflow and tightens release compatibility across supported Python versions.
@@ -70,3 +96,79 @@ The 1.1.0 release concentrated on packaging modernization and dependency cleanup
 - Optional dependency groups were split out for test, docs, selection, ML, xTB, AIMNet2, and OpenBabel-related features.
 - Heavy backend dependencies were externalized where possible.
 - The package kept the `pyar` import namespace while distributing as `pyar-chem`.
+
+## Historical development - 2017-12-01 to 2024-10-06
+
+The repository predates its consistently versioned releases. The summaries
+below group the major, dated changes from the Git history without assigning
+retrospective version numbers.
+
+### 2024 - 2024-06-11 to 2024-10-06
+
+#### Added
+
+- AIMNet2, AIQM1, xTB-AIMNet2, and xTB-AIQM1 integration and associated model
+  packaging support.
+- New clustering descriptors and an AFIR test path.
+- NetworkX-based tabu functionality and a wall-potential update.
+
+#### Changed
+
+- Updated command-line scripts, clustering, exploration, reaction, and
+  optimization workflows.
+- Reworked OpenBabel and MOPAC integration, runtime requirements, and model
+  executable paths.
+
+### 2022-2023 - 2022-02-28 to 2023-11-10
+
+#### Changed
+
+- Corrected scan and tabu atom-index handling, distance scaling, and xTB
+  optimization controls.
+- Replaced the slow `mendeleev` dependency with local atomic data and updated
+  molecular representations.
+
+#### Fixed
+
+- Resolved aggregation traversal and representation-import errors, and restored
+  compatibility with Python versions later than 3.10.
+
+### 2020-2021 - 2020-04-02 to 2021-09-24
+
+#### Added
+
+- The `pyar-cli`, `pyar-tabu`, `pyar-optimiser`, and `pyar-clustering` command
+  entry points.
+- Generalized aggregation for arbitrary numbers and types of components,
+  together with per-molecule charge, multiplicity, and SCF-type settings.
+- Bond-scan support, molecular representations, XYZ crawling, clustering
+  descriptors, and reaction restart/checkpoint support.
+
+#### Changed
+
+- Consolidated binary and ternary aggregation into a common aggregation
+  workflow and moved the package into the `pyar/` source directory.
+- Reworked AFIR restraint gradients with Autograd and improved tabu placement,
+  random-pathway selection, and aggregation permutation performance.
+
+#### Fixed
+
+- Improved handling of failed tight optimizations, SCF-convergence retries,
+  single-geometry clustering, and user-name lookup on shared systems.
+
+### 2017-2019 - 2017-12-01 to 2019-10-03
+
+#### Added
+
+- The initial PyAR aggregation and reaction codebase, XYZ I/O, molecule model,
+  and package installation support.
+- Interfaces for ORCA, Turbomole, xTB, Psi4, and Gaussian.
+- AFIR restraints with covalent-radius data, site-specific orientation support,
+  bond restraints, and optimization convergence controls.
+- K-means/MeanShift clustering, binary and ternary aggregation, configurable
+  maximum seed counts, and hydrogen-bond analysis.
+
+#### Changed
+
+- Improved proximity checking, Turbomole and xTB optimization behavior,
+  reaction/aggregation command-line handling, and backend restart controls.

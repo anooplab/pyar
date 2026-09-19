@@ -10,7 +10,7 @@ class TargetLayoutImportTests(unittest.TestCase):
         from pyar import Molecule
         from pyar import backends, sampling
         from pyar.backends import get_backend_capabilities
-        from pyar.biases import afir
+        from pyar.biases import afir, softmin
         from pyar.io import AggregateResult, ConformerResult, ReactionResult, SolvationResult, WorkflowResult
         from pyar.io import results
         from pyar.selection import choose_geometries, print_energy_table, read_energy_from_xyz_file, reports
@@ -48,6 +48,7 @@ class TargetLayoutImportTests(unittest.TestCase):
         self.assertTrue(callable(react))
         self.assertTrue(callable(solvate))
         self.assertTrue(callable(afir.isotropic))
+        self.assertTrue(callable(softmin.softmin))
         self.assertIs(AggregateRunState, AggregateRunStateImpl)
         self.assertIs(ReactionRunState, ReactionRunStateImpl)
         self.assertIs(SolvationRunState, SolvationRunStateImpl)

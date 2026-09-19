@@ -35,7 +35,7 @@ QC_OPTION_ALIASES = {
     "scf_cycles": "--scf-cycles",
     "nprocs": "--nprocs",
     "custom_keywords": "--custom-keywords",
-    "gamma": "--gmin/--gmax",
+    "gamma": "--bias-min/--bias-max",
     "model": "--model",
 }
 
@@ -111,7 +111,7 @@ def _provided_qc_options(args):
         provided.add("scf_threshold")
     if "--scf-cycles" in sys.argv:
         provided.add("scf_cycles")
-    if args.get("gmin") is not None or args.get("gmax") is not None:
+    if args.get("bias_min") is not None or args.get("bias_max") is not None:
         provided.add("gamma")
     return provided
 
@@ -122,7 +122,7 @@ def _validate_backend_qc_options(software, provided_options):
 
 
 def _configure_reaction_optimizer(run_parameters, run_mode):
-    """Select the external optimizer for supported AFIR reaction backends."""
+    """Select the external optimizer for supported reaction-bias backends."""
     if run_mode != "react" or not backend_supports_geometry_optimization(run_parameters["software"]):
         return
     if run_parameters["opt_target"] == "ts":
@@ -134,12 +134,12 @@ def _configure_reaction_optimizer(run_parameters, run_mode):
     if not explicitly_selected:
         run_parameters["geometry_optimizer"] = "geometric"
         logger.info(
-            "Reaction optimizer: selected geomeTRIC for backend energy/forces plus AFIR bias."
+            "Reaction optimizer: selected geomeTRIC for backend energy/forces plus reaction bias."
         )
         return
     if run_parameters["geometry_optimizer"] != "geometric":
         sys.exit(
-            "AFIR reaction runs with "
+            "Reaction-bias runs with "
             f"{', '.join(supported_geometry_backends())} require "
             "--geometry-optimizer geometric"
         )
@@ -239,11 +239,11 @@ molecular complexes or atomic clusters.
 """
     pyar_epilog = """Examples:
   pyar-cli aggregate C H -as 1 4 -N 8
-  pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
+  pyar-cli react A.xyz B.xyz -N 8 --bias-min 100 --bias-max 1000
   pyar-cli solvate solute.xyz solvent.xyz -ss 10 -N 16
   pyar-cli -a C H -as 1 4 -N 8
   pyar-cli --aggregate --formula C5H4 -N 8
-  pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000
+  pyar-cli -r A.xyz B.xyz -N 8 --bias-min 100 --bias-max 1000
   pyar-cli conformer "CCO" --num-conformers 50 --top-n 5
   pyar-cli trace .
   pyar-cli trace . --plot
@@ -327,8 +327,18 @@ chemical formula.
                              '[1] for single-formula aggregate runs')
     parser.add_argument('--number-of-pathways', type=int, metavar='n',
                         help='How many pathways to be used in binary/ternary aggregation.')
-    parser.add_argument('-gmin', type=float, help='minimum value of gamma')
-    parser.add_argument('-gmax', type=float, help='maximum value of gamma')
+    parser.add_argument(
+        '-gmin', '--gmin', '--bias-min', dest='bias_min', type=float,
+        help='minimum reaction-bias strength (legacy aliases: -gmin, --gmin)',
+    )
+    parser.add_argument(
+        '-gmax', '--gmax', '--bias-max', dest='bias_max', type=float,
+        help='maximum reaction-bias strength (legacy aliases: -gmax, --gmax)',
+    )
+    parser.add_argument(
+        '--bias-potential', choices=['afir', 'softmin'], default='afir',
+        help='reaction bias potential (default: afir)',
+    )
     parser.add_argument('--site', type=int, nargs=2,
                         help='atom for site specific reaction')
     parser.add_argument("-c", "--charge", type=int, nargs='+', metavar='c',
@@ -697,6 +707,7 @@ def _build_qc_parameters(run_parameters, args, run_mode):
         'scf_threshold': run_parameters['scf_threshold'],
         'nprocs': run_parameters['nprocs'],
         'gamma': run_parameters['gamma'],
+        'bias_potential': run_parameters['bias_potential'],
         'custom_keywords': custom_keywords,
         'custom_keyword': custom_keywords,
         'model': run_parameters['model']
@@ -776,7 +787,8 @@ def _log_workflow_plan(run_mode, run_parameters, input_molecules, formula_aggreg
         )
     elif run_mode == 'react':
         logger.info(
-            f'Plan: react gamma_range=({run_parameters["gmin"]}, {run_parameters["gmax"]}) '
+            f'Plan: react bias={run_parameters["bias_potential"]} '
+            f'range=({run_parameters["bias_min"]}, {run_parameters["bias_max"]}) '
             f'orientations={number_of_orientations}'
         )
 
@@ -870,12 +882,12 @@ def _run_reaction_workflow(
     site,
 ):
     """Validate and dispatch reaction workflow execution."""
-    minimum_gamma = run_parameters['gmin']
-    maximum_gamma = run_parameters['gmax']
+    minimum_gamma = run_parameters['bias_min']
+    maximum_gamma = run_parameters['bias_max']
     if len(input_molecules) < 2:
         sys.exit('Missing arguments: provide at least two molecules')
     if minimum_gamma is None or maximum_gamma is None:
-        sys.exit('missing arguments: -gmin <integer> -gmax <integer>')
+        sys.exit('missing arguments: --bias-min <number> --bias-max <number>')
     if number_of_orientations is None:
         sys.exit('Missing arguments: -N #')
 

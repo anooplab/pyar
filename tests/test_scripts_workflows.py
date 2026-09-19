@@ -51,8 +51,9 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 arguments = SimpleNamespace(
                     input_files=["a.xyz", "b.xyz"],
                     how_many_orientations="4",
-                    gmin=0.1,
-                    gmax=0.5,
+                    bias_min=0.1,
+                    bias_max=0.5,
+                    bias_potential="softmin",
                     software="xtb",
                     index=0,
                 )
@@ -76,8 +77,9 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 arguments = SimpleNamespace(
                     input_files=["a.xyz", "b.xyz"],
                     how_many_orientations="4",
-                    gmin=0.1,
-                    gmax=0.5,
+                    bias_min=0.1,
+                    bias_max=0.5,
+                    bias_potential="afir",
                     software="xtb",
                     index=0,
                 )
@@ -104,8 +106,9 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 arguments = SimpleNamespace(
                     input_files=["a.xyz", "b.xyz"],
                     how_many_orientations="4",
-                    gmin=0.1,
-                    gmax=0.5,
+                    bias_min=0.1,
+                    bias_max=0.5,
+                    bias_potential="afir",
                     software="future_provider",
                     geometry_optimizer=None,
                     opt_target="minimum",
@@ -358,8 +361,9 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 arguments = SimpleNamespace(
                     input_files=["a.xyz", "b.xyz"],
                     how_many_orientations="4",
-                    gmin=0.1,
-                    gmax=0.5,
+                    bias_min=0.1,
+                    bias_max=0.5,
+                    bias_potential="afir",
                     software="mopac",
                     geometry_optimizer="geometric",
                     opt_target="minimum",

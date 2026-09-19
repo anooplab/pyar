@@ -37,8 +37,15 @@ def argument_parse():
         required=True,
         help='Number of trial orientations to generate.',
     )
-    parser.add_argument('--gmin', type=float, required=True, help='minimum value of gamma')
-    parser.add_argument('--gmax', type=float, required=True, help='maximum value of gamma')
+    parser.add_argument(
+        '--gmin', '--bias-min', dest='bias_min', type=float, required=True,
+        help='minimum reaction-bias strength (legacy alias: --gmin)',
+    )
+    parser.add_argument(
+        '--gmax', '--bias-max', dest='bias_max', type=float, required=True,
+        help='maximum reaction-bias strength (legacy alias: --gmax)',
+    )
+    parser.add_argument('--bias-potential', choices=['afir', 'softmin'], default='afir')
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
     parser.add_argument('--method', default=defualt_parameters.values['method'], help='Electronic-structure method')
     parser.add_argument('--basis', default=defualt_parameters.values['basis'], help='Basis set')
@@ -47,7 +54,7 @@ def argument_parse():
     parser.add_argument(
         '--geometry-optimizer',
         choices=['native', 'geometric'],
-        help='Optimizer for the AFIR objective; defaults to geometric for backends with an energy-gradient provider',
+        help='Optimizer for the reaction-bias objective; defaults to geometric for backends with an energy-gradient provider',
     )
     parser.add_argument(
         '--opt-target',
@@ -98,14 +105,14 @@ def main():
             geometry_optimizer = 'geometric'
         elif geometry_optimizer != 'geometric':
             sys.exit(
-                "AFIR reaction runs with "
+                "Reaction-bias runs with "
                 f"{', '.join(supported_geometry_backends())} require "
                 "--geometry-optimizer geometric"
             )
     else:
         if geometry_optimizer == 'geometric':
             sys.exit(
-                f"Backend '{run_parameters['software']}' cannot be used with geomeTRIC AFIR "
+                f"Backend '{run_parameters['software']}' cannot be used with geomeTRIC reaction-bias "
                 "optimisation because it does not expose Cartesian energy and gradients."
             )
         geometry_optimizer = geometry_optimizer or 'native'
@@ -114,6 +121,7 @@ def main():
         'index': index,
         'geometry_optimizer': geometry_optimizer,
         'opt_target': run_parameters['opt_target'],
+        'bias_potential': run_parameters['bias_potential'],
         'method': run_parameters['method'] or defualt_parameters.values['method'],
         'basis': run_parameters['basis'] or defualt_parameters.values['basis'],
         'scf_cycles': run_parameters['scf_cycles'] or defualt_parameters.values['scf_cycles'],
@@ -123,8 +131,8 @@ def main():
         reaction_workflow.react(
             input_molecules[0],
             input_molecules[1],
-            run_parameters['gmin'],
-            run_parameters['gmax'],
+            run_parameters['bias_min'],
+            run_parameters['bias_max'],
             int(run_parameters['how_many_orientations']),
             qc_params,
             None,

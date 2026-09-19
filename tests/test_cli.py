@@ -453,21 +453,24 @@ class CliSmokeTests(unittest.TestCase):
             "b.xyz",
             "-N",
             "1",
-            "-gmin",
+            "--bias-min",
             "100",
-            "-gmax",
+            "--bias-max",
             "200",
             "--software",
             "xtb",
+            "--bias-potential",
+            "softmin",
         ]
 
         self.cli.main()
 
         self.assertEqual(captured["qc_params"]["geometry_optimizer"], "geometric")
+        self.assertEqual(captured["qc_params"]["bias_potential"], "softmin")
         self.assertEqual(captured["qc_params"]["opt_target"], "minimum")
         self._preflight_mock.assert_called_once_with("react", "xtb", "geometric")
         current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]
-        self.assertNotIn("ignores unsupported options: --gmin/--gmax", current_log)
+        self.assertNotIn("ignores unsupported options: --bias-min/--bias-max", current_log)
 
     def test_react_xtb_rejects_native_optimizer_that_ignores_afir(self):
         Path("a.xyz").touch()
@@ -494,7 +497,7 @@ class CliSmokeTests(unittest.TestCase):
 
         self.assertEqual(
             str(ctx.exception),
-            "AFIR reaction runs with "
+            "Reaction-bias runs with "
             f"{', '.join(supported_geometry_backends())} require --geometry-optimizer geometric",
         )
 

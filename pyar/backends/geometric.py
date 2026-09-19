@@ -1,9 +1,9 @@
-"""geomeTRIC-backed optimization backend with optional AFIR bias.
+"""geomeTRIC-backed optimization backend with an optional reaction bias.
 
 This module provides a small bridge between PyAR's backend selection and
 geomeTRIC's internal-coordinate optimizer.  The optimizer itself is backend
 agnostic: it asks a selected PyAR backend for energy and gradients, then adds
-the AFIR term when ``gamma`` is non-zero.
+the selected bias term when ``gamma`` is non-zero.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import numpy as np
 from ase.calculators.calculator import Calculator, all_changes
 from ase.units import Bohr, Hartree
 
-from pyar.biases import afir as restraints
+from pyar.biases import afir as restraints, softmin
 from pyar.biases.afir import resolve_gamma
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
@@ -28,6 +28,19 @@ from pyar.reaction_trace import ReactionTraceRecorder
 geometric_logger = logging.getLogger("pyar.geometric")
 
 _GEOMETRIC_STATE_FILE = "pyar_geometric_state.json"
+_BIAS_POTENTIALS = {
+    "afir",
+    "softmin",
+}
+
+
+def _resolve_bias_potential(value):
+    """Return the selected reaction-bias name."""
+    name = "afir" if value is None else str(value).lower()
+    if name not in _BIAS_POTENTIALS:
+        choices = ", ".join(sorted(_BIAS_POTENTIALS))
+        raise ValueError(f"Unsupported bias potential: {value!r}; choose one of {choices}") from None
+    return name
 
 
 def _find_geometric_executable():
@@ -60,7 +73,7 @@ def _resolve_backend_evaluator(software, qc_params):
 
 
 class PyarGeometricCalculator(Calculator):
-    """ASE calculator that combines a PyAR backend with optional AFIR bias."""
+    """ASE calculator that combines a PyAR backend with an optional reaction bias."""
 
     implemented_properties = ["energy", "forces"]
 
@@ -69,6 +82,7 @@ class PyarGeometricCalculator(Calculator):
         self.qc_params = dict(qc_params or {})
         self.software = self.qc_params.get("software")
         self.gamma = resolve_gamma(self.qc_params.get("gamma"), fallback=0.0)
+        self.bias_potential = _resolve_bias_potential(self.qc_params.get("bias_potential"))
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
@@ -99,8 +113,8 @@ class PyarGeometricCalculator(Calculator):
         )
         return backend_energy_ev, backend_forces_ev_per_angstrom
 
-    def _afir_contribution(self):
-        """Return AFIR energy and forces in both atomic and ASE units."""
+    def _bias_contribution(self):
+        """Return selected bias energy and forces in atomic and ASE units."""
         if self.gamma == 0.0:
             natoms = len(self.atoms)
             zero_forces = np.zeros((natoms, 3), dtype=float)
@@ -108,25 +122,25 @@ class PyarGeometricCalculator(Calculator):
 
         if not self.fragment_indices or len(self.fragment_indices) != 2:
             raise ValueError(
-                "AFIR bias requires exactly two fragment index lists in the geometric optimizer"
+                "Reaction bias requires exactly two fragment index lists in the geometric optimizer"
             )
 
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
-        afir_energy_hartree, afir_force_hartree_per_bohr = restraints.isotropic(
+        evaluator = restraints.isotropic if self.bias_potential == "afir" else softmin.softmin
+        bias_energy_hartree, bias_force_hartree_per_bohr = evaluator(
             self.fragment_indices,
             list(self.atoms.get_chemical_symbols()),
             coordinates_bohr,
             self.gamma,
         )
-        afir_forces_hartree_per_bohr = np.asarray(afir_force_hartree_per_bohr, dtype=float)
-        afir_energy_ev = afir_energy_hartree * Hartree
-        # ``restraints.isotropic`` returns -dE/dx, i.e. force, in atomic units.
-        afir_forces_ev_per_angstrom = afir_forces_hartree_per_bohr * Hartree / Bohr
+        bias_forces_hartree_per_bohr = np.asarray(bias_force_hartree_per_bohr, dtype=float)
+        bias_energy_ev = bias_energy_hartree * Hartree
+        bias_forces_ev_per_angstrom = bias_forces_hartree_per_bohr * Hartree / Bohr
         return (
-            float(afir_energy_hartree),
-            afir_forces_hartree_per_bohr,
-            afir_energy_ev,
-            afir_forces_ev_per_angstrom,
+            float(bias_energy_hartree),
+            bias_forces_hartree_per_bohr,
+            bias_energy_ev,
+            bias_forces_ev_per_angstrom,
         )
 
     def _write_state(self, energy, forces):
@@ -134,6 +148,7 @@ class PyarGeometricCalculator(Calculator):
         state = {
             "software": self.software,
             "gamma": self.gamma,
+            "bias_potential": self.bias_potential,
             "opt_target": self.opt_target,
             "energy_ev": float(energy),
             "energy_hartree": float(energy / Hartree),
@@ -144,7 +159,7 @@ class PyarGeometricCalculator(Calculator):
             json.dump(state, fp, indent=2, sort_keys=True)
 
     def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
-        """Compute the backend objective plus the AFIR bias if enabled."""
+        """Compute the backend objective plus the selected bias if enabled."""
         super().calculate(atoms, properties, system_changes)
 
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
@@ -158,7 +173,7 @@ class PyarGeometricCalculator(Calculator):
             afir_forces_hartree_per_bohr,
             afir_energy,
             afir_forces,
-        ) = self._afir_contribution()
+        ) = self._bias_contribution()
         total_energy = backend_energy + afir_energy
         total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(afir_forces, dtype=float)
         total_energy_hartree = backend_energy_hartree + afir_energy_hartree
@@ -192,7 +207,7 @@ class PyarGeometricCalculator(Calculator):
 
 
 class Geometric(SF):
-    """Run geomeTRIC with a PyAR backend calculator and optional AFIR bias."""
+    """Run geomeTRIC with a selected reaction bias."""
 
     def __init__(self, molecule, qc_params):
         super().__init__(molecule)
@@ -204,6 +219,7 @@ class Geometric(SF):
         )
         self.software = self.qc_params.get("software")
         self.gamma = resolve_gamma(self.qc_params.get("gamma"), fallback=0.0)
+        self.bias_potential = _resolve_bias_potential(self.qc_params.get("bias_potential"))
         self.opt_target = self.qc_params.get("opt_target", "minimum")
         self.fragment_indices = molecule.fragments
         self.geometric_executable = _find_geometric_executable()
@@ -218,7 +234,7 @@ class Geometric(SF):
             )
 
         if self.gamma != 0.0 and (not self.fragment_indices or len(self.fragment_indices) != 2):
-            raise ValueError("AFIR geometry optimization requires exactly two fragments")
+            raise ValueError("Reaction-bias geometry optimization requires exactly two fragments")
 
         ase_kwargs = {
             "qc_params": self.qc_params,
@@ -292,9 +308,10 @@ class Geometric(SF):
 
         command = self._build_command()
         geometric_logger.info(
-            "geomeTRIC start: name=%s software=%s gamma=%s target=%s",
+            "geomeTRIC start: name=%s software=%s bias=%s gamma=%s target=%s",
             self.job_name,
             self.software,
+            self.bias_potential,
             self.gamma,
             self.opt_target,
         )

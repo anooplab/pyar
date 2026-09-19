@@ -135,6 +135,42 @@ class GeometricOptimizerTests(unittest.TestCase):
             backend_forces + (afir_forces_hartree_per_bohr * Hartree / Bohr),
         )
 
+    def test_geometric_calculator_selects_softmin_bias(self):
+        from pyar.backends.geometric import PyarGeometricCalculator
+
+        atoms = Atoms(symbols=self.molecule.atoms_list, positions=self.molecule.coordinates)
+        backend_result = EnergyGradientResult(0.0, np.zeros((5, 3)))
+        softmin_forces = np.full((5, 3), 0.1)
+
+        class DummyProvider:
+            def evaluate(self, molecule, coordinates_bohr):
+                return backend_result
+
+        with mock.patch("pyar.backends.geometric._resolve_backend_evaluator", return_value=DummyProvider()), \
+            mock.patch("pyar.backends.geometric.softmin.softmin", return_value=(0.4, softmin_forces)) as selected_bias:
+            calculator = PyarGeometricCalculator(
+                {"software": "xtb", "gamma": 37.5, "bias_potential": "softmin", "charge": 0},
+                fragment_indices=self.molecule.fragments,
+            )
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cwd = os.getcwd()
+                os.chdir(tmpdir)
+                try:
+                    calculator.calculate(atoms=atoms, properties=["energy", "forces"])
+                finally:
+                    os.chdir(cwd)
+
+        selected_bias.assert_called_once()
+        self.assertEqual(calculator.bias_potential, "softmin")
+        self.assertAlmostEqual(calculator.results["energy"], 0.4 * Hartree)
+        np.testing.assert_allclose(calculator.results["forces"], softmin_forces * Hartree / Bohr)
+
+    def test_geometric_calculator_rejects_unknown_bias_potential(self):
+        from pyar.backends.geometric import PyarGeometricCalculator
+
+        with self.assertRaisesRegex(ValueError, "Unsupported bias potential"):
+            PyarGeometricCalculator({"software": "xtb", "bias_potential": "unknown"})
+
     def test_afir_term_points_fragments_toward_each_other(self):
         coordinates_bohr = angstrom2bohr(np.asarray([[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]))
         _, afir_force = restraints.isotropic([[0], [1]], ["C", "H"], coordinates_bohr, 100.0)
