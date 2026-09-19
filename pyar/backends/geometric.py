@@ -20,6 +20,7 @@ from ase.units import Bohr, Hartree
 
 from pyar.biases import afir as restraints, softmin
 from pyar.biases.afir import resolve_gamma
+from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
 from pyar.backends import SF, require_executable, write_xyz
@@ -143,7 +144,20 @@ class PyarGeometricCalculator(Calculator):
             bias_forces_ev_per_angstrom,
         )
 
-    def _write_state(self, energy, forces):
+    def _contact_coordinate_report(self):
+        """Return the current bias coordinate and JSON-ready contact diagnostics."""
+        if not self.fragment_indices or len(self.fragment_indices) != 2:
+            return None, None
+        coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
+        q, _gradient, diagnostics = evaluate_contact_coordinate(
+            self.fragment_indices,
+            list(self.atoms.get_chemical_symbols()),
+            coordinates_bohr,
+            kind=self.bias_potential,
+        )
+        return float(q), diagnostics.as_dict()
+
+    def _write_state(self, energy, forces, collective_coordinate_bohr=None, contact_diagnostics=None):
         """Persist the latest evaluation so the parent process can recover it."""
         state = {
             "software": self.software,
@@ -155,6 +169,10 @@ class PyarGeometricCalculator(Calculator):
             "positions_angstrom": np.asarray(self.atoms.get_positions(), dtype=float).tolist(),
             "forces_ev_per_angstrom": np.asarray(forces, dtype=float).tolist(),
         }
+        if collective_coordinate_bohr is not None:
+            state["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
+        if contact_diagnostics is not None:
+            state["contact_diagnostics"] = contact_diagnostics
         with open(_GEOMETRIC_STATE_FILE, "w") as fp:
             json.dump(state, fp, indent=2, sort_keys=True)
 
@@ -183,10 +201,16 @@ class PyarGeometricCalculator(Calculator):
         afir_force_norm = float(np.linalg.norm(afir_forces_hartree_per_bohr))
         total_force_norm = float(np.linalg.norm(total_forces_hartree_per_bohr))
         max_force = float(np.max(np.linalg.norm(total_forces_hartree_per_bohr, axis=1)))
+        collective_coordinate_bohr, contact_diagnostics = self._contact_coordinate_report()
 
         self.results["energy"] = float(total_energy)
         self.results["forces"] = total_forces
-        self._write_state(total_energy, total_forces)
+        self._write_state(
+            total_energy,
+            total_forces,
+            collective_coordinate_bohr=collective_coordinate_bohr,
+            contact_diagnostics=contact_diagnostics,
+        )
 
         if self._trace_recorder is not None:
             self._trace_recorder.record(
@@ -203,6 +227,8 @@ class PyarGeometricCalculator(Calculator):
                 total_force_norm=total_force_norm,
                 max_force=max_force,
                 fragment_indices=self.fragment_indices,
+                collective_coordinate_bohr=collective_coordinate_bohr,
+                contact_diagnostics=contact_diagnostics,
             )
 
 

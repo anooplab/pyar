@@ -1,13 +1,11 @@
 """Soft-minimum collective-coordinate bias for intermolecular reactions."""
 
-from itertools import product
 import math
 
-import autograd.numpy as np
-from autograd import grad
+import numpy as np
 
 import pyar.data.units
-from pyar.biases.afir import get_covalent_radius
+from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 
 __all__ = ["softmin"]
 
@@ -38,24 +36,7 @@ def softmin(fragment_indices, atoms_list, coordinates, gamma, beta=1.0):
             * r_zero
         )
 
-    fragment_one, fragment_two = [coordinates[indices, :] for indices in fragment_indices]
-    atom_symbols = np.array(atoms_list)
-    symbols_one, symbols_two = [atom_symbols[indices] for indices in fragment_indices]
-    radii_one = [get_covalent_radius(symbol) for symbol in symbols_one]
-    radii_two = [get_covalent_radius(symbol) for symbol in symbols_two]
-
-    def restraint_energy_for_fragments(f_one, f_two):
-        distances = np.array([np.linalg.norm(a - b) for a, b in product(f_one, f_two)])
-        radii = np.array([a + b for a, b in product(radii_one, radii_two)])
-        scaled_gaps = -beta * (distances - radii)
-        max_scaled_gap = np.max(scaled_gaps)
-        soft_minimum = -(
-            max_scaled_gap + np.log(np.mean(np.exp(scaled_gaps - max_scaled_gap)))
-        ) / beta
-        return alpha * soft_minimum
-
-    bias_energy = restraint_energy_for_fragments(fragment_one, fragment_two)
-    gradient_one = grad(restraint_energy_for_fragments, argnum=0)(fragment_one, fragment_two)
-    gradient_two = grad(restraint_energy_for_fragments, argnum=1)(fragment_one, fragment_two)
-    bias_gradient = -np.concatenate((gradient_one, gradient_two))
-    return bias_energy, bias_gradient
+    q, dq_dR, _ = evaluate_contact_coordinate(
+        fragment_indices, atoms_list, coordinates, kind="softmin", beta=beta
+    )
+    return alpha * q, -alpha * np.asarray(dq_dR, dtype=float)

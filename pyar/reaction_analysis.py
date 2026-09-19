@@ -143,6 +143,12 @@ def _xyz_comment(record, label, reference_record=None, energy_key=None):
     ]
     if min_distance is not None:
         parts.append(f"min_interfragment_distance={float(min_distance):.6f} angstrom")
+    coordinate = record.get("collective_coordinate_bohr")
+    if coordinate is not None:
+        parts.append(f"collective_coordinate={float(coordinate):.6f} bohr")
+    diagnostics = record.get("contact_diagnostics") or {}
+    if diagnostics:
+        parts.append(f"contacts={int(diagnostics.get('contact_count', 0))}")
     return " ".join(parts)
 
 
@@ -248,6 +254,10 @@ def analyse_reaction_trace(job_directory):
             "total_force_norm",
             "max_force",
             "min_interfragment_distance_angstrom",
+            "collective_coordinate_bohr",
+            "contact_count",
+            "minimum_contact_gap_bohr",
+            "closest_contact_pair",
             "bond_change_count",
             "formed_bonds",
             "broken_bonds",
@@ -279,6 +289,13 @@ def analyse_reaction_trace(job_directory):
                 "max_force": record.get("max_force"),
                 "min_interfragment_distance_angstrom": record.get(
                     "min_interfragment_distance_angstrom"
+                ),
+                "collective_coordinate_bohr": record.get("collective_coordinate_bohr"),
+                "contact_count": (record.get("contact_diagnostics") or {}).get("contact_count"),
+                "minimum_contact_gap_bohr": (record.get("contact_diagnostics") or {}).get("minimum_gap_bohr"),
+                "closest_contact_pair": json.dumps(
+                    (record.get("contact_diagnostics") or {}).get("closest_pair"),
+                    sort_keys=True,
                 ),
                 "bond_change_count": int(record["bond_change_count"]),
                 "formed_bonds": json.dumps(record.get("formed_bonds", []), sort_keys=True),

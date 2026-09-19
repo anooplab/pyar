@@ -253,6 +253,10 @@ def validate_trace_record(record, record_index):
         _ensure_finite_scalar(record["total_force_norm"], "total_force_norm", record_index)
     if "max_force" in record:
         _ensure_finite_scalar(record["max_force"], "max_force", record_index)
+    if "collective_coordinate_bohr" in record:
+        _ensure_finite_scalar(record["collective_coordinate_bohr"], "collective_coordinate_bohr", record_index)
+    if "contact_diagnostics" in record and not isinstance(record["contact_diagnostics"], dict):
+        raise ValueError(f"Trace record {record_index} field 'contact_diagnostics' must be an object")
 
     if "backend_forces_hartree_per_bohr" in record:
         backend_forces = np.asarray(record["backend_forces_hartree_per_bohr"], dtype=float)
@@ -328,6 +332,10 @@ def validate_trace_record(record, record_index):
         normalized["afir_forces_hartree_per_bohr"] = afir_forces.tolist()
     if "total_forces_hartree_per_bohr" in record:
         normalized["total_forces_hartree_per_bohr"] = total_forces.tolist()
+    if "collective_coordinate_bohr" in record:
+        normalized["collective_coordinate_bohr"] = float(record["collective_coordinate_bohr"])
+    if "contact_diagnostics" in record:
+        normalized["contact_diagnostics"] = record["contact_diagnostics"]
 
     return normalized
 
@@ -404,6 +412,8 @@ class ReactionTraceRecorder:
         total_force_norm,
         max_force,
         fragment_indices=None,
+        collective_coordinate_bohr=None,
+        contact_diagnostics=None,
     ):
         """Write one trace record and its corresponding XYZ snapshot.
 
@@ -440,6 +450,10 @@ class ReactionTraceRecorder:
             "bond_change_count": len(formed_bonds) + len(broken_bonds),
             "min_interfragment_distance_angstrom": min_distance,
         }
+        if collective_coordinate_bohr is not None:
+            record["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
+        if contact_diagnostics is not None:
+            record["contact_diagnostics"] = contact_diagnostics
 
         with self.trace_file.open("a", encoding="utf-8") as fp:
             json.dump(record, fp, sort_keys=True)

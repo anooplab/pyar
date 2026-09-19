@@ -122,6 +122,9 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertAlmostEqual(trace_records[0]["backend_energy_hartree"], 1.2)
             self.assertAlmostEqual(trace_records[0]["total_energy_hartree"], 1.6)
             self.assertIn("current_bonds", trace_records[0])
+            self.assertIn("collective_coordinate_bohr", trace_records[0])
+            self.assertIn("contact_diagnostics", trace_records[0])
+            self.assertEqual(trace_records[0]["contact_diagnostics"]["pair_count"], 1)
             self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
             self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
 
@@ -220,6 +223,8 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertIn("backend_relative_kcalmol", rows[0])
             self.assertIn("afir_relative_kcalmol", rows[0])
             self.assertIn("total_relative_kcalmol", rows[0])
+            self.assertIn("collective_coordinate_bohr", rows[0])
+            self.assertIn("contact_count", rows[0])
             self.assertIn("xyz_file", rows[0])
             self.assertEqual(rows[0]["xyz_file"], "reaction_trace/steps/step_000000.xyz")
             self.assertAlmostEqual(float(rows[0]["backend_relative_kcalmol"]), 0.0, places=10)
