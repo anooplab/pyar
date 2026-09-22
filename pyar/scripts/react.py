@@ -13,6 +13,7 @@ import sys
 from collections import defaultdict
 
 from pyar.core.molecule import Molecule
+from pyar.biases.softmin import resolve_softmin_beta
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
     normalize_backend_name,
@@ -46,7 +47,7 @@ def argument_parse():
         help='maximum reaction-bias strength (legacy alias: --gmax)',
     )
     parser.add_argument('--bias-potential', choices=['afir', 'softmin'], default='afir')
-    parser.add_argument('--softmin-beta', type=float, default=1.0)
+    parser.add_argument('--softmin-beta', type=resolve_softmin_beta, default=1.0)
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
     parser.add_argument('--method', default=defualt_parameters.values['method'], help='Electronic-structure method')
     parser.add_argument('--basis', default=defualt_parameters.values['basis'], help='Basis set')
@@ -78,6 +79,10 @@ def main():
     """Run the reaction-search command-line workflow."""
     args = argument_parse()
     run_parameters = defaultdict(lambda: None, vars(args))
+    try:
+        softmin_beta = resolve_softmin_beta(run_parameters['softmin_beta'])
+    except ValueError as exc:
+        sys.exit(str(exc))
 
     input_molecules = []
     for file in run_parameters['input_files']:
@@ -123,7 +128,7 @@ def main():
         'geometry_optimizer': geometry_optimizer,
         'opt_target': run_parameters['opt_target'],
         'bias_potential': run_parameters['bias_potential'],
-        'softmin_beta': run_parameters['softmin_beta'] or 1.0,
+        'softmin_beta': softmin_beta,
         'method': run_parameters['method'] or defualt_parameters.values['method'],
         'basis': run_parameters['basis'] or defualt_parameters.values['basis'],
         'scf_cycles': run_parameters['scf_cycles'] or defualt_parameters.values['scf_cycles'],

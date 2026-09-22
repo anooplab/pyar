@@ -19,7 +19,8 @@ from ase.calculators.calculator import Calculator, all_changes
 from ase.units import Bohr, Hartree
 
 from pyar.biases import afir as restraints, softmin
-from pyar.biases.afir import resolve_gamma
+from pyar.biases.afir import alpha_from_gamma, resolve_gamma
+from pyar.biases.controller import BiasController
 from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
@@ -29,6 +30,7 @@ from pyar.reaction_trace import ReactionTraceRecorder
 geometric_logger = logging.getLogger("pyar.geometric")
 
 _GEOMETRIC_STATE_FILE = "pyar_geometric_state.json"
+_CONTROLLER_STATE_FILE = "pyar_bias_controller_state.json"
 _BIAS_POTENTIALS = {
     "afir",
     "softmin",
@@ -85,8 +87,24 @@ class PyarGeometricCalculator(Calculator):
         self.gamma = resolve_gamma(self.qc_params.get("gamma"), fallback=0.0)
         self.bias_potential = _resolve_bias_potential(self.qc_params.get("bias_potential"))
         self.softmin_beta = softmin.resolve_softmin_beta(self.qc_params.get("softmin_beta"))
+        self.alpha_max = alpha_from_gamma(self.gamma)
+        self.bias_controller = BiasController(
+            self.qc_params.get("bias_controller", "fixed"),
+            alpha_min=self.qc_params.get("bias_alpha_min", 0.0),
+            safety_margin=self.qc_params.get("bias_alpha_margin", 0.0),
+            smoothing=self.qc_params.get("bias_alpha_smoothing", 1.0),
+            scheduled_alpha=self.qc_params.get("bias_scheduled_alpha"),
+        )
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
+        self._restart_checkpoint = None
+        if self.gamma != 0.0 and self.qc_params.get("bias_controller_restart"):
+            self._restart_checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
+            if self._restart_checkpoint["configuration"] != self._checkpoint_configuration():
+                raise ValueError("Incompatible bias-controller restart configuration")
+            self.bias_controller.load_state_dict(
+                self._restart_checkpoint["controller"], self.alpha_max
+            )
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
         self.trace_enabled = bool(
             self.qc_params.get("trace_enabled") or self.qc_params.get("reaction_trace")
@@ -115,7 +133,7 @@ class PyarGeometricCalculator(Calculator):
         )
         return backend_energy_ev, backend_forces_ev_per_angstrom
 
-    def _bias_contribution(self):
+    def _bias_contribution(self, scale=1.0):
         """Return selected bias energy and forces in atomic and ASE units."""
         if self.gamma == 0.0:
             natoms = len(self.atoms)
@@ -141,7 +159,9 @@ class PyarGeometricCalculator(Calculator):
             )
         else:
             bias_energy_hartree, bias_force_hartree_per_bohr = evaluator(*bias_arguments)
-        bias_forces_hartree_per_bohr = np.asarray(bias_force_hartree_per_bohr, dtype=float)
+        bias_energy_hartree *= scale
+        bias_energy_hartree += self.bias_controller.energy_offset
+        bias_forces_hartree_per_bohr = np.asarray(bias_force_hartree_per_bohr, dtype=float) * scale
         bias_energy_ev = bias_energy_hartree * Hartree
         bias_forces_ev_per_angstrom = bias_forces_hartree_per_bohr * Hartree / Bohr
         return (
@@ -154,18 +174,57 @@ class PyarGeometricCalculator(Calculator):
     def _contact_coordinate_report(self):
         """Return the current bias coordinate and JSON-ready contact diagnostics."""
         if not self.fragment_indices or len(self.fragment_indices) != 2:
-            return None, None
+            return None, None, None
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
         coordinate_kwargs = {"kind": self.bias_potential}
         if self.bias_potential == "softmin":
             coordinate_kwargs["beta"] = self.softmin_beta
-        q, _gradient, diagnostics = evaluate_contact_coordinate(
+        q, gradient, diagnostics = evaluate_contact_coordinate(
             self.fragment_indices,
             list(self.atoms.get_chemical_symbols()),
             coordinates_bohr,
             **coordinate_kwargs,
         )
-        return float(q), diagnostics.as_dict()
+        return float(q), gradient, diagnostics.as_dict()
+
+    def _checkpoint_configuration(self):
+        return {
+            "qc_params": {key: value for key, value in self.qc_params.items()
+                          if key not in {"bias_controller_restart", "trace_mode"}},
+            "fragment_indices": self.fragment_indices,
+            "opt_target": self.opt_target,
+        }
+
+    def _save_controller_checkpoint(self):
+        checkpoint = {
+            "configuration": self._checkpoint_configuration(),
+            "controller": self.bias_controller.state_dict(),
+            "symbols": self.atoms.get_chemical_symbols(),
+            "positions_angstrom": self.atoms.get_positions().tolist(),
+        }
+        path = Path(_CONTROLLER_STATE_FILE)
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(checkpoint, indent=2, sort_keys=True))
+        temporary.replace(path)
+
+    def accept_geometry(self, atoms):
+        """Begin the next constant-alpha segment after optimizer acceptance.
+
+        The driver must invalidate its energy cache and Hessian after a change.
+        ASE's cache is invalidated here. Rejected trials must never call this.
+        """
+        if self.gamma == 0.0:
+            return False
+        if self.atoms is None or self.check_state(atoms):
+            self.calculate(atoms)
+        q, gradient, _ = self._contact_coordinate_report()
+        previous_alpha = self.bias_controller.decision.alpha
+        self.bias_controller.start_segment(
+            self._last_backend_result.gradient_hartree_per_bohr, gradient, q, self.alpha_max
+        )
+        self._save_controller_checkpoint()
+        self.results = {}
+        return self.bias_controller.decision.alpha != previous_alpha
 
     def _write_state(self, energy, forces, collective_coordinate_bohr=None, contact_diagnostics=None):
         """Persist the latest evaluation so the parent process can recover it."""
@@ -179,6 +238,7 @@ class PyarGeometricCalculator(Calculator):
             "energy_hartree": float(energy / Hartree),
             "positions_angstrom": np.asarray(self.atoms.get_positions(), dtype=float).tolist(),
             "forces_ev_per_angstrom": np.asarray(forces, dtype=float).tolist(),
+            "bias_controller": self.bias_controller.state_dict() if self.gamma != 0.0 else None,
         }
         if collective_coordinate_bohr is not None:
             state["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
@@ -191,8 +251,17 @@ class PyarGeometricCalculator(Calculator):
         """Compute the backend objective plus the selected bias if enabled."""
         super().calculate(atoms, properties, system_changes)
 
+        if self._restart_checkpoint is not None:
+            checkpoint = self._restart_checkpoint
+            if (self.atoms.get_chemical_symbols() != checkpoint["symbols"] or
+                    not np.allclose(self.atoms.get_positions(), checkpoint["positions_angstrom"],
+                                    rtol=0.0, atol=1e-10)):
+                raise ValueError("Restart geometry does not match the accepted controller checkpoint")
+            self._restart_checkpoint = None
+
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
         backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
+        self._last_backend_result = backend_result
         backend_energy, backend_forces = self._result_to_ase_units(backend_result)
         backend_energy_hartree = float(backend_result.energy_hartree)
         # Providers return the energy gradient; traces and force diagnostics
@@ -201,22 +270,33 @@ class PyarGeometricCalculator(Calculator):
             backend_result.gradient_hartree_per_bohr, dtype=float
         )
 
+        backend_force_norm = float(np.linalg.norm(backend_forces_hartree_per_bohr))
+        collective_coordinate_bohr, coordinate_gradient, contact_diagnostics = self._contact_coordinate_report()
+        bias_scale = 0.0
+        if self.gamma != 0.0:
+            if coordinate_gradient is None:
+                raise ValueError("Reaction bias requires exactly two fragment index lists")
+            if self.bias_controller.decision is None:
+                self.bias_controller.start_segment(
+                    backend_result.gradient_hartree_per_bohr, coordinate_gradient,
+                    collective_coordinate_bohr, self.alpha_max,
+                )
+                self._save_controller_checkpoint()
+            bias_scale = self.bias_controller.decision.alpha / self.alpha_max
+
         (
             bias_energy_hartree,
             bias_forces_hartree_per_bohr,
             bias_energy,
             bias_forces,
-        ) = self._bias_contribution()
+        ) = self._bias_contribution(scale=bias_scale)
         total_energy = backend_energy + bias_energy
         total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(bias_forces, dtype=float)
         total_energy_hartree = backend_energy_hartree + bias_energy_hartree
         total_forces_hartree_per_bohr = backend_forces_hartree_per_bohr + bias_forces_hartree_per_bohr
-
-        backend_force_norm = float(np.linalg.norm(backend_forces_hartree_per_bohr))
         bias_force_norm = float(np.linalg.norm(bias_forces_hartree_per_bohr))
         total_force_norm = float(np.linalg.norm(total_forces_hartree_per_bohr))
         max_force = float(np.max(np.linalg.norm(total_forces_hartree_per_bohr, axis=1)))
-        collective_coordinate_bohr, contact_diagnostics = self._contact_coordinate_report()
 
         self.results["energy"] = float(total_energy)
         self.results["forces"] = total_forces
@@ -245,6 +325,7 @@ class PyarGeometricCalculator(Calculator):
                 collective_coordinate_bohr=collective_coordinate_bohr,
                 contact_diagnostics=contact_diagnostics,
                 softmin_beta=self.softmin_beta if self.bias_potential == "softmin" else None,
+                bias_controller=self.bias_controller.state_dict() if self.gamma != 0.0 else None,
             )
 
 
@@ -283,6 +364,9 @@ class Geometric(SF):
             "fragment_indices": self.fragment_indices,
             "opt_target": self.opt_target,
         }
+        if self.gamma != 0.0 and self.qc_params.get("bias_controller", "fixed").lower() == "adaptive":
+            return [sys.executable, "-m", "pyar.backends.adaptive_geometric",
+                    self.start_xyz_file, json.dumps(ase_kwargs)]
         command = [
             self.geometric_executable,
             "--engine",

@@ -36,6 +36,7 @@ __all__ = [
     "get_covalent_radius",
     "get_data_structure",
     "isotropic",
+    "alpha_from_gamma",
     "resolve_gamma",
 ]
 
@@ -81,16 +82,19 @@ def resolve_gamma(value, fallback=100.0):
     return gamma
 
 
-def isotropic(fragment_indices, atoms_list, coordinates, force):
-    parameter = 6.0  # inverse distance weighting parameter
+def alpha_from_gamma(gamma_kjmol):
+    """Map the AFIR collision parameter in kJ mol-1 to alpha in Ha Bohr-1."""
+    gamma = pyar.data.units.kilojoules2atomic_units(gamma_kjmol)
+    if gamma == 0.0:
+        return 0.0
     epsilon = pyar.data.units.kilojoules2atomic_units(1.0061)
     r_zero = pyar.data.units.angstrom2bohr(3.8164)
-    gamma = pyar.data.units.kilojoules2atomic_units(force)
-    #    eqn. 3 JCTC 2011,7,2335
-    if gamma == 0.0:
-        alpha = 0.0
-    else:
-        alpha = gamma / ((2 ** (-1.0 / 6.0) - (1 + np.sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
+    return gamma / ((2 ** (-1.0 / 6.0) - (1 + np.sqrt(1 + gamma / epsilon)) ** (-1.0 / 6.0)) * r_zero)
+
+
+def isotropic(fragment_indices, atoms_list, coordinates, force):
+    parameter = 6.0  # inverse distance weighting parameter
+    alpha = alpha_from_gamma(force)
 
     from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 

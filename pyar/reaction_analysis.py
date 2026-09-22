@@ -258,6 +258,12 @@ def analyse_reaction_trace(job_directory):
             "max_force",
             "min_interfragment_distance_angstrom",
             "collective_coordinate_bohr",
+            "bias_controller_policy",
+            "bias_alpha",
+            "bias_alpha_critical",
+            "bias_alpha_target",
+            "bias_energy_offset_hartree",
+            "bias_segment_index",
             "contact_count",
             "minimum_contact_gap_bohr",
             "closest_contact_pair",
@@ -269,6 +275,8 @@ def analyse_reaction_trace(job_directory):
         writer = csv.DictWriter(fp, fieldnames=fieldnames)
         writer.writeheader()
         for record in trace_records:
+            controller = record.get("bias_controller") or {}
+            decision = controller.get("decision") or {}
             row = {
                 "step_index": int(record["step_index"]),
                 "backend_energy_hartree": float(record["backend_energy_hartree"]),
@@ -300,6 +308,12 @@ def analyse_reaction_trace(job_directory):
                     "min_interfragment_distance_angstrom"
                 ),
                 "collective_coordinate_bohr": record.get("collective_coordinate_bohr"),
+                "bias_controller_policy": decision.get("policy"),
+                "bias_alpha": decision.get("alpha"),
+                "bias_alpha_critical": decision.get("alpha_critical"),
+                "bias_alpha_target": decision.get("alpha_target"),
+                "bias_energy_offset_hartree": controller.get("energy_offset_hartree"),
+                "bias_segment_index": controller.get("segment_index"),
                 "contact_count": (record.get("contact_diagnostics") or {}).get("contact_count"),
                 "minimum_contact_gap_bohr": (record.get("contact_diagnostics") or {}).get("minimum_gap_bohr"),
                 "closest_contact_pair": json.dumps(

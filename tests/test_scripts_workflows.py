@@ -15,6 +15,26 @@ from pyar.workflow_results import ReactionResult
 
 
 class StandaloneWorkflowScriptTests(unittest.TestCase):
+    def test_react_rejects_zero_beta_before_starting_workflow(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.react")
+                arguments = SimpleNamespace(softmin_beta=0., input_files=["a.xyz", "b.xyz"])
+                with mock.patch.object(script, "argument_parse", return_value=arguments), \
+                        mock.patch.object(script.reaction_workflow, "react") as react:
+                    with self.assertRaisesRegex(SystemExit, "finite positive"):
+                        script.main()
+                react.assert_not_called()
+                with mock.patch.object(sys, "argv", ["pyar-react", "a.xyz", "b.xyz", "-N", "1",
+                                                     "--software", "xtb", "--softmin-beta", "0"]):
+                    with self.assertRaises(SystemExit) as error:
+                        script.argument_parse()
+                    self.assertEqual(error.exception.code, 2)
+            finally:
+                os.chdir(cwd)
+
     def _import_in_tempdir(self, module_name):
         sys.modules.pop(module_name, None)
         return importlib.import_module(module_name)

@@ -354,6 +354,10 @@ def validate_trace_record(record, record_index):
         normalized["softmin_beta"] = float(record["softmin_beta"])
     if "contact_diagnostics" in record:
         normalized["contact_diagnostics"] = record["contact_diagnostics"]
+    if "bias_controller" in record:
+        if not isinstance(record["bias_controller"], dict):
+            raise ValueError(f"Trace record {record_index} field 'bias_controller' must be an object")
+        normalized["bias_controller"] = record["bias_controller"]
 
     return normalized
 
@@ -433,6 +437,7 @@ class ReactionTraceRecorder:
         collective_coordinate_bohr=None,
         contact_diagnostics=None,
         softmin_beta=None,
+        bias_controller=None,
         afir_energy_hartree=None,
         afir_forces_hartree_per_bohr=None,
         afir_force_norm=None,
@@ -489,6 +494,8 @@ class ReactionTraceRecorder:
             record["contact_diagnostics"] = contact_diagnostics
         if softmin_beta is not None:
             record["softmin_beta"] = float(softmin_beta)
+        if bias_controller is not None:
+            record["bias_controller"] = bias_controller
 
         with self.trace_file.open("a", encoding="utf-8") as fp:
             json.dump(record, fp, sort_keys=True)
