@@ -2,8 +2,11 @@
 
 import unittest
 
+from autograd import grad
+import autograd.numpy as anp
 import numpy as np
 
+from pyar.biases.afir import get_covalent_radius
 from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.data.units import angstrom2bohr
 
@@ -16,6 +19,42 @@ class CollectiveCoordinateTests(unittest.TestCase):
             [3.0, 0.0, 0.0],
             [3.0, 1.0, 0.0],
         ]))
+
+    def _autograd_gradient(self, fragments, symbols, coordinates, kind, *, beta=1.0, distance_power=6.0):
+        """Independent derivative reference retained outside the production path."""
+        left, right = (tuple(fragment) for fragment in fragments)
+        radii = anp.asarray([get_covalent_radius(symbol) for symbol in symbols])
+
+        def coordinate(all_coordinates):
+            differences = all_coordinates[list(left), None, :] - all_coordinates[None, list(right), :]
+            distances = anp.sqrt(anp.sum(differences ** 2, axis=2)).reshape(-1)
+            radii_sums = (radii[list(left), None] + radii[None, list(right)]).reshape(-1)
+            if kind == "softmin":
+                scaled = -beta * (distances - radii_sums)
+                maximum = anp.max(scaled)
+                return -(maximum + anp.log(anp.mean(anp.exp(scaled - maximum)))) / beta
+            weights = (radii_sums / distances) ** distance_power
+            return anp.sum(weights * distances) / anp.sum(weights)
+
+        return np.asarray(grad(coordinate)(coordinates), dtype=float)
+
+    def _finite_difference_gradient(self, fragments, symbols, coordinates, kind, *, beta=1.0, distance_power=6.0):
+        displacement = 1.0e-5
+        reference = np.zeros_like(coordinates)
+        for atom_index in range(len(coordinates)):
+            for component in range(3):
+                forward = coordinates.copy()
+                backward = coordinates.copy()
+                forward[atom_index, component] += displacement
+                backward[atom_index, component] -= displacement
+                forward_q, _, _ = evaluate_contact_coordinate(
+                    fragments, symbols, forward, kind=kind, beta=beta, distance_power=distance_power
+                )
+                backward_q, _, _ = evaluate_contact_coordinate(
+                    fragments, symbols, backward, kind=kind, beta=beta, distance_power=distance_power
+                )
+                reference[atom_index, component] = (forward_q - backward_q) / (2.0 * displacement)
+        return reference
 
     def test_softmin_gradient_matches_finite_difference_and_preserves_order(self):
         # Deliberately non-contiguous fragments exercise global gradient placement.
@@ -50,6 +89,42 @@ class CollectiveCoordinateTests(unittest.TestCase):
         np.testing.assert_allclose(gradient.sum(axis=0), np.zeros(3), atol=1.0e-12)
         self.assertEqual(diagnostics.contact_count, sum(pair.is_contact for pair in diagnostics.contacts))
         self.assertIn("contacts", diagnostics.as_dict())
+
+    def test_analytical_gradients_match_autograd_and_finite_differences(self):
+        symmetric_symbols = ["C", "H", "H", "C"]
+        symmetric_coordinates = angstrom2bohr(np.asarray([
+            [-1.5, 0.0, 0.0],
+            [-1.5, 1.0, 0.0],
+            [1.5, 1.0, 0.0],
+            [1.5, 0.0, 0.0],
+        ]))
+        cases = (
+            (self.symbols, self.coordinates, [[2], [0, 1]]),
+            (symmetric_symbols, symmetric_coordinates, [[3, 1], [0, 2]]),
+        )
+        parameters_by_kind = {
+            "softmin": ({"beta": 0.4}, {"beta": 1.7}, {"beta": 8.0}),
+            "afir": ({"distance_power": 2.0}, {"distance_power": 6.0}, {"distance_power": 10.0}),
+        }
+        for symbols, coordinates, fragments in cases:
+            for kind, parameters_list in parameters_by_kind.items():
+                for parameters in parameters_list:
+                    with self.subTest(kind=kind, parameters=parameters, fragments=fragments):
+                        _, analytical, _ = evaluate_contact_coordinate(
+                            fragments, symbols, coordinates, kind=kind, **parameters
+                        )
+                        autograd_reference = self._autograd_gradient(
+                            fragments, symbols, coordinates, kind, **parameters
+                        )
+                        finite_difference_reference = self._finite_difference_gradient(
+                            fragments, symbols, coordinates, kind, **parameters
+                        )
+                        np.testing.assert_allclose(
+                            analytical, autograd_reference, rtol=1.0e-10, atol=1.0e-11
+                        )
+                        np.testing.assert_allclose(
+                            analytical, finite_difference_reference, rtol=1.0e-6, atol=1.0e-7
+                        )
 
     def test_rejects_overlapping_fragments(self):
         with self.assertRaisesRegex(ValueError, "must not overlap"):

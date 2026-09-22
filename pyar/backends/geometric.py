@@ -184,7 +184,11 @@ class PyarGeometricCalculator(Calculator):
         backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
         backend_energy, backend_forces = self._result_to_ase_units(backend_result)
         backend_energy_hartree = float(backend_result.energy_hartree)
-        backend_forces_hartree_per_bohr = np.asarray(backend_result.gradient_hartree_per_bohr, dtype=float)
+        # Providers return the energy gradient; traces and force diagnostics
+        # must use the physical force on the same sign convention as ASE.
+        backend_forces_hartree_per_bohr = -np.asarray(
+            backend_result.gradient_hartree_per_bohr, dtype=float
+        )
 
         (
             afir_energy_hartree,

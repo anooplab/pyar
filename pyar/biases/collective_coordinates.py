@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from itertools import product
 import math
 
-from autograd import grad
-import autograd.numpy as anp
 import numpy as np
 
 from pyar.biases.afir import get_covalent_radius
@@ -110,35 +108,34 @@ def evaluate_contact_coordinate(
     left, right = fragments
     radii = np.asarray([get_covalent_radius(symbol) for symbol in symbols], dtype=float)
     pairs = [(i, j) for i, j in product(left, right)]
-    distances = np.asarray([np.linalg.norm(coordinates[i] - coordinates[j]) for i, j in pairs])
+    pair_vectors = np.asarray([coordinates[i] - coordinates[j] for i, j in pairs])
+    distances = np.linalg.norm(pair_vectors, axis=1)
     if np.any(distances <= 0.0):
         raise ValueError("collective coordinate is undefined for coincident interfragment atoms")
     radii_sums = np.asarray([radii[i] + radii[j] for i, j in pairs])
 
-    left_coordinates = anp.asarray(coordinates[list(left)])
-    right_coordinates = anp.asarray(coordinates[list(right)])
-    left_radii = anp.asarray(radii[list(left)])
-    right_radii = anp.asarray(radii[list(right)])
-
-    def coordinate(left_fragment, right_fragment):
-        differences = left_fragment[:, None, :] - right_fragment[None, :, :]
-        pair_distances = anp.sqrt(anp.sum(differences ** 2, axis=2)).reshape(-1)
-        pair_radii = (left_radii[:, None] + right_radii[None, :]).reshape(-1)
-        if kind == "softmin":
-            scaled_gaps = -float(beta) * (pair_distances - pair_radii)
-            maximum = anp.max(scaled_gaps)
-            return -(maximum + anp.log(anp.mean(anp.exp(scaled_gaps - maximum)))) / float(beta)
-        weights = (pair_radii / pair_distances) ** float(distance_power)
-        return anp.sum(weights * pair_distances) / anp.sum(weights)
-
-    q = float(coordinate(left_coordinates, right_coordinates))
-    gradient_left = np.asarray(grad(coordinate, 0)(left_coordinates, right_coordinates), dtype=float)
-    gradient_right = np.asarray(grad(coordinate, 1)(left_coordinates, right_coordinates), dtype=float)
-    dq_dR = np.zeros_like(coordinates)
-    dq_dR[list(left)] = gradient_left
-    dq_dR[list(right)] = gradient_right
-
     gaps = distances - radii_sums
+    if kind == "softmin":
+        scaled = -float(beta) * gaps
+        maximum = np.max(scaled)
+        weights = np.exp(scaled - maximum)
+        weights /= np.sum(weights)
+        q = float(-(maximum + np.log(np.mean(np.exp(scaled - maximum)))) / float(beta))
+        pair_derivatives = weights
+    else:
+        power = float(distance_power)
+        weights = (radii_sums / distances) ** power
+        normalized_weights = weights / np.sum(weights)
+        q = float(np.sum(normalized_weights * distances))
+        pair_derivatives = normalized_weights * (1.0 - power + power * q / distances)
+
+    unit_vectors = pair_vectors / distances[:, None]
+    pair_gradients = pair_derivatives[:, None] * unit_vectors
+    dq_dR = np.zeros_like(coordinates)
+    for (atom_i, atom_j), pair_gradient in zip(pairs, pair_gradients):
+        dq_dR[atom_i] += pair_gradient
+        dq_dR[atom_j] -= pair_gradient
+
     scaled_gaps = distances - float(contact_factor) * radii_sums
     pair_records = tuple(
         ContactPair(i, j, symbols[i], symbols[j], float(distance), float(radius_sum), float(gap), float(scaled_gap), bool(scaled_gap <= 0.0))
@@ -147,9 +144,6 @@ def evaluate_contact_coordinate(
     closest = int(np.argmin(distances))
     effective_pair_count = None
     if kind == "softmin":
-        scaled = -float(beta) * gaps
-        weights = np.exp(scaled - np.max(scaled))
-        weights /= np.sum(weights)
         effective_pair_count = float(1.0 / np.sum(weights ** 2))
     diagnostics = ContactDiagnostics(
         pair_count=len(pair_records), contacts=pair_records,

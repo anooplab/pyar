@@ -121,6 +121,20 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertEqual(len(trace_records), 2)
             self.assertAlmostEqual(trace_records[0]["backend_energy_hartree"], 1.2)
             self.assertAlmostEqual(trace_records[0]["total_energy_hartree"], 1.6)
+            backend_forces_hartree_per_bohr = backend_forces * Bohr / Hartree
+            afir_forces_hartree_per_bohr = afir_forces * Bohr / Hartree
+            np.testing.assert_allclose(
+                trace_records[0]["backend_forces_hartree_per_bohr"],
+                backend_forces_hartree_per_bohr,
+            )
+            np.testing.assert_allclose(
+                trace_records[0]["afir_forces_hartree_per_bohr"],
+                afir_forces_hartree_per_bohr,
+            )
+            np.testing.assert_allclose(
+                trace_records[0]["total_forces_hartree_per_bohr"],
+                backend_forces_hartree_per_bohr + afir_forces_hartree_per_bohr,
+            )
             self.assertIn("current_bonds", trace_records[0])
             self.assertIn("collective_coordinate_bohr", trace_records[0])
             self.assertIn("contact_diagnostics", trace_records[0])
