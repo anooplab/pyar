@@ -7,7 +7,20 @@ import numpy as np
 import pyar.data.units
 from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 
-__all__ = ["softmin"]
+__all__ = ["resolve_softmin_beta", "softmin"]
+
+
+def resolve_softmin_beta(value, fallback=1.0):
+    """Return a finite, positive soft-min localization parameter in Bohr⁻¹."""
+    if value is None:
+        return float(fallback)
+    try:
+        beta = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid soft-min beta: {value!r}") from None
+    if not math.isfinite(beta) or beta <= 0.0:
+        raise ValueError("Soft-min beta must be a finite positive number")
+    return beta
 
 
 def softmin(fragment_indices, atoms_list, coordinates, gamma, beta=1.0):
@@ -18,12 +31,7 @@ def softmin(fragment_indices, atoms_list, coordinates, gamma, beta=1.0):
     the bias over more interfragment contacts; higher values increasingly focus
     it on the shortest surface gap.
     """
-    try:
-        beta = float(beta)
-    except (TypeError, ValueError):
-        raise ValueError(f"Invalid soft-min beta: {beta!r}") from None
-    if not math.isfinite(beta) or beta <= 0.0:
-        raise ValueError("Soft-min beta must be a finite positive number")
+    beta = resolve_softmin_beta(beta)
 
     epsilon = pyar.data.units.kilojoules2atomic_units(1.0061)
     r_zero = pyar.data.units.angstrom2bohr(3.8164)

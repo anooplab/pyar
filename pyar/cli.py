@@ -339,6 +339,10 @@ chemical formula.
         '--bias-potential', choices=['afir', 'softmin'], default='afir',
         help='reaction bias potential (default: afir)',
     )
+    parser.add_argument(
+        '--softmin-beta', type=float, default=1.0,
+        help='soft-min contact-localization parameter in Bohr^-1 (default: 1.0)',
+    )
     parser.add_argument('--site', type=int, nargs=2,
                         help='atom for site specific reaction')
     parser.add_argument("-c", "--charge", type=int, nargs='+', metavar='c',
@@ -708,6 +712,7 @@ def _build_qc_parameters(run_parameters, args, run_mode):
         'nprocs': run_parameters['nprocs'],
         'gamma': run_parameters['gamma'],
         'bias_potential': run_parameters['bias_potential'],
+        'softmin_beta': run_parameters['softmin_beta'],
         'custom_keywords': custom_keywords,
         'custom_keyword': custom_keywords,
         'model': run_parameters['model']
@@ -788,6 +793,7 @@ def _log_workflow_plan(run_mode, run_parameters, input_molecules, formula_aggreg
     elif run_mode == 'react':
         logger.info(
             f'Plan: react bias={run_parameters["bias_potential"]} '
+            f'softmin_beta={run_parameters["softmin_beta"]} '
             f'range=({run_parameters["bias_min"]}, {run_parameters["bias_max"]}) '
             f'orientations={number_of_orientations}'
         )

@@ -116,9 +116,9 @@ def _xyz_comment(record, label, reference_record=None, energy_key=None):
         record["backend_energy_hartree"],
         reference_record["backend_energy_hartree"],
     )
-    afir_rel = _relative_kcalmol(
-        record["afir_energy_hartree"],
-        reference_record["afir_energy_hartree"],
+    bias_rel = _relative_kcalmol(
+        record["bias_energy_hartree"],
+        reference_record["bias_energy_hartree"],
     )
     total_rel = _relative_kcalmol(
         record["total_energy_hartree"],
@@ -133,10 +133,10 @@ def _xyz_comment(record, label, reference_record=None, energy_key=None):
         f"step_index={step_index}",
         f"source_energy_key={energy_key or 'total_energy_hartree'}",
         f"backend={float(record['backend_energy_hartree']):.12f} Ha",
-        f"afir={float(record['afir_energy_hartree']):.12f} Ha",
+        f"bias={float(record['bias_energy_hartree']):.12f} Ha",
         f"total={float(record['total_energy_hartree']):.12f} Ha",
         f"backend_rel={backend_rel:.6f} kcal/mol",
-        f"afir_rel={afir_rel:.6f} kcal/mol",
+        f"bias_rel={bias_rel:.6f} kcal/mol",
         f"total_rel={total_rel:.6f} kcal/mol",
         f"bond_changes={bond_changes}",
         f"bonds={current_bonds}",
@@ -245,11 +245,14 @@ def analyse_reaction_trace(job_directory):
             "step_index",
             "backend_energy_hartree",
             "backend_relative_kcalmol",
+            "bias_energy_hartree",
+            "bias_relative_kcalmol",
             "afir_energy_hartree",
             "afir_relative_kcalmol",
             "total_energy_hartree",
             "total_relative_kcalmol",
             "backend_force_norm",
+            "bias_force_norm",
             "afir_force_norm",
             "total_force_norm",
             "max_force",
@@ -273,6 +276,11 @@ def analyse_reaction_trace(job_directory):
                     record["backend_energy_hartree"],
                     baseline_record["backend_energy_hartree"],
                 ),
+                "bias_energy_hartree": float(record["bias_energy_hartree"]),
+                "bias_relative_kcalmol": _relative_kcalmol(
+                    record["bias_energy_hartree"],
+                    baseline_record["bias_energy_hartree"],
+                ),
                 "afir_energy_hartree": float(record["afir_energy_hartree"]),
                 "afir_relative_kcalmol": _relative_kcalmol(
                     record["afir_energy_hartree"],
@@ -284,6 +292,7 @@ def analyse_reaction_trace(job_directory):
                     baseline_record["total_energy_hartree"],
                 ),
                 "backend_force_norm": record.get("backend_force_norm"),
+                "bias_force_norm": record.get("bias_force_norm"),
                 "afir_force_norm": record.get("afir_force_norm"),
                 "total_force_norm": record.get("total_force_norm"),
                 "max_force": record.get("max_force"),
@@ -373,9 +382,9 @@ def _reaction_trace_plot_data(trace_records):
         ],
         dtype=float,
     )
-    afir_relative = np.asarray(
+    bias_relative = np.asarray(
         [
-            _relative_kcalmol(record["afir_energy_hartree"], baseline_record["afir_energy_hartree"])
+            _relative_kcalmol(record["bias_energy_hartree"], baseline_record["bias_energy_hartree"])
             for record in trace_records
         ],
         dtype=float,
@@ -405,9 +414,9 @@ def _reaction_trace_plot_data(trace_records):
         ],
         dtype=float,
     )
-    afir_force_norm = np.asarray(
+    bias_force_norm = np.asarray(
         [
-            np.nan if record.get("afir_force_norm") is None else float(record["afir_force_norm"])
+            np.nan if record.get("bias_force_norm") is None else float(record["bias_force_norm"])
             for record in trace_records
         ],
         dtype=float,
@@ -422,12 +431,12 @@ def _reaction_trace_plot_data(trace_records):
     return {
         "step_indices": step_indices,
         "backend_relative": backend_relative,
-        "afir_relative": afir_relative,
+        "bias_relative": bias_relative,
         "total_relative": total_relative,
         "bond_change_count": bond_change_count,
         "min_interfragment_distance": min_interfragment_distance,
         "backend_force_norm": backend_force_norm,
-        "afir_force_norm": afir_force_norm,
+        "bias_force_norm": bias_force_norm,
         "total_force_norm": total_force_norm,
     }
 
@@ -461,7 +470,7 @@ def plot_reaction_trace(job_directory, output_directory=None):
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(data["step_indices"], data["backend_relative"], marker="o", label="backend")
-    ax.plot(data["step_indices"], data["afir_relative"], marker="o", label="AFIR")
+    ax.plot(data["step_indices"], data["bias_relative"], marker="o", label="bias")
     ax.plot(data["step_indices"], data["total_relative"], marker="o", label="total")
     ax.set_xlabel("Step index")
     ax.set_ylabel("Relative energy (kcal/mol)")
@@ -490,7 +499,7 @@ def plot_reaction_trace(job_directory, output_directory=None):
     axes[1].grid(True, alpha=0.25)
 
     axes[2].plot(data["step_indices"], data["backend_force_norm"], marker="o", label="backend")
-    axes[2].plot(data["step_indices"], data["afir_force_norm"], marker="o", label="AFIR")
+    axes[2].plot(data["step_indices"], data["bias_force_norm"], marker="o", label="bias")
     axes[2].plot(data["step_indices"], data["total_force_norm"], marker="o", label="total")
     axes[2].set_xlabel("Step index")
     axes[2].set_ylabel("Force norm")

@@ -54,6 +54,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     bias_min=0.1,
                     bias_max=0.5,
                     bias_potential="softmin",
+                    softmin_beta=2.5,
                     software="xtb",
                     index=0,
                 )
@@ -67,6 +68,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         react.assert_called_once()
         self.assertEqual(len(react.call_args.args), 8)
         self.assertEqual(react.call_args.args[-2:], (None, 2.3))
+        self.assertEqual(react.call_args.args[5]["softmin_beta"], 2.5)
 
     def test_react_reports_restart_state_error_cleanly(self):
         with tempfile.TemporaryDirectory() as tmpdir:

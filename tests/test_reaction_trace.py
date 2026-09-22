@@ -10,6 +10,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Hartree
 
+from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult
 from pyar.reaction_analysis import analyse_reaction_trace
 from pyar.reaction_analysis import plot_reaction_trace
@@ -101,11 +102,17 @@ class ReactionTraceTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 with mock.patch("pyar.backends.geometric._resolve_backend_evaluator", return_value=DummyProvider()), \
-                    mock.patch("pyar.backends.geometric.restraints.isotropic", return_value=(0.4, afir_forces * Bohr / Hartree)):
+                    mock.patch("pyar.backends.geometric.softmin.softmin", return_value=(0.4, afir_forces * Bohr / Hartree)) as softmin_bias, \
+                    mock.patch(
+                        "pyar.backends.geometric.evaluate_contact_coordinate",
+                        wraps=evaluate_contact_coordinate,
+                    ) as reported_coordinate:
                     calculator = PyarGeometricCalculator(
                         {
                             "software": "xtb",
                             "gamma": 50.0,
+                            "bias_potential": "softmin",
+                            "softmin_beta": 2.5,
                             "trace_enabled": True,
                             "charge": 0,
                         },
@@ -121,6 +128,9 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertEqual(len(trace_records), 2)
             self.assertAlmostEqual(trace_records[0]["backend_energy_hartree"], 1.2)
             self.assertAlmostEqual(trace_records[0]["total_energy_hartree"], 1.6)
+            self.assertEqual(trace_records[0]["bias_energy_hartree"], 0.4)
+            self.assertEqual(trace_records[0]["bias_energy_hartree"], trace_records[0]["afir_energy_hartree"])
+            self.assertEqual(trace_records[0]["softmin_beta"], 2.5)
             backend_forces_hartree_per_bohr = backend_forces * Bohr / Hartree
             afir_forces_hartree_per_bohr = afir_forces * Bohr / Hartree
             np.testing.assert_allclose(
@@ -129,6 +139,10 @@ class ReactionTraceTests(unittest.TestCase):
             )
             np.testing.assert_allclose(
                 trace_records[0]["afir_forces_hartree_per_bohr"],
+                afir_forces_hartree_per_bohr,
+            )
+            np.testing.assert_allclose(
+                trace_records[0]["bias_forces_hartree_per_bohr"],
                 afir_forces_hartree_per_bohr,
             )
             np.testing.assert_allclose(
@@ -141,6 +155,8 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertEqual(trace_records[0]["contact_diagnostics"]["pair_count"], 1)
             self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
             self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
+            self.assertEqual(softmin_bias.call_args.kwargs["beta"], 2.5)
+            self.assertEqual(reported_coordinate.call_args.kwargs["beta"], 2.5)
 
     def test_load_trace_records_rejects_malformed_record(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -235,6 +251,7 @@ class ReactionTraceTests(unittest.TestCase):
             with Path(tmpdir, "path_summary.csv").open(newline="", encoding="utf-8") as fp:
                 rows = list(csv.DictReader(fp))
             self.assertIn("backend_relative_kcalmol", rows[0])
+            self.assertIn("bias_relative_kcalmol", rows[0])
             self.assertIn("afir_relative_kcalmol", rows[0])
             self.assertIn("total_relative_kcalmol", rows[0])
             self.assertIn("collective_coordinate_bohr", rows[0])

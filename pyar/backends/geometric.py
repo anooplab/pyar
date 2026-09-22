@@ -84,6 +84,7 @@ class PyarGeometricCalculator(Calculator):
         self.software = self.qc_params.get("software")
         self.gamma = resolve_gamma(self.qc_params.get("gamma"), fallback=0.0)
         self.bias_potential = _resolve_bias_potential(self.qc_params.get("bias_potential"))
+        self.softmin_beta = softmin.resolve_softmin_beta(self.qc_params.get("softmin_beta"))
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
@@ -128,12 +129,18 @@ class PyarGeometricCalculator(Calculator):
 
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
         evaluator = restraints.isotropic if self.bias_potential == "afir" else softmin.softmin
-        bias_energy_hartree, bias_force_hartree_per_bohr = evaluator(
+        bias_arguments = (
             self.fragment_indices,
             list(self.atoms.get_chemical_symbols()),
             coordinates_bohr,
             self.gamma,
         )
+        if self.bias_potential == "softmin":
+            bias_energy_hartree, bias_force_hartree_per_bohr = evaluator(
+                *bias_arguments, beta=self.softmin_beta
+            )
+        else:
+            bias_energy_hartree, bias_force_hartree_per_bohr = evaluator(*bias_arguments)
         bias_forces_hartree_per_bohr = np.asarray(bias_force_hartree_per_bohr, dtype=float)
         bias_energy_ev = bias_energy_hartree * Hartree
         bias_forces_ev_per_angstrom = bias_forces_hartree_per_bohr * Hartree / Bohr
@@ -149,11 +156,14 @@ class PyarGeometricCalculator(Calculator):
         if not self.fragment_indices or len(self.fragment_indices) != 2:
             return None, None
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
+        coordinate_kwargs = {"kind": self.bias_potential}
+        if self.bias_potential == "softmin":
+            coordinate_kwargs["beta"] = self.softmin_beta
         q, _gradient, diagnostics = evaluate_contact_coordinate(
             self.fragment_indices,
             list(self.atoms.get_chemical_symbols()),
             coordinates_bohr,
-            kind=self.bias_potential,
+            **coordinate_kwargs,
         )
         return float(q), diagnostics.as_dict()
 
@@ -163,6 +173,7 @@ class PyarGeometricCalculator(Calculator):
             "software": self.software,
             "gamma": self.gamma,
             "bias_potential": self.bias_potential,
+            "softmin_beta": self.softmin_beta,
             "opt_target": self.opt_target,
             "energy_ev": float(energy),
             "energy_hartree": float(energy / Hartree),
@@ -191,18 +202,18 @@ class PyarGeometricCalculator(Calculator):
         )
 
         (
-            afir_energy_hartree,
-            afir_forces_hartree_per_bohr,
-            afir_energy,
-            afir_forces,
+            bias_energy_hartree,
+            bias_forces_hartree_per_bohr,
+            bias_energy,
+            bias_forces,
         ) = self._bias_contribution()
-        total_energy = backend_energy + afir_energy
-        total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(afir_forces, dtype=float)
-        total_energy_hartree = backend_energy_hartree + afir_energy_hartree
-        total_forces_hartree_per_bohr = backend_forces_hartree_per_bohr + afir_forces_hartree_per_bohr
+        total_energy = backend_energy + bias_energy
+        total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(bias_forces, dtype=float)
+        total_energy_hartree = backend_energy_hartree + bias_energy_hartree
+        total_forces_hartree_per_bohr = backend_forces_hartree_per_bohr + bias_forces_hartree_per_bohr
 
         backend_force_norm = float(np.linalg.norm(backend_forces_hartree_per_bohr))
-        afir_force_norm = float(np.linalg.norm(afir_forces_hartree_per_bohr))
+        bias_force_norm = float(np.linalg.norm(bias_forces_hartree_per_bohr))
         total_force_norm = float(np.linalg.norm(total_forces_hartree_per_bohr))
         max_force = float(np.max(np.linalg.norm(total_forces_hartree_per_bohr, axis=1)))
         collective_coordinate_bohr, contact_diagnostics = self._contact_coordinate_report()
@@ -221,18 +232,19 @@ class PyarGeometricCalculator(Calculator):
                 symbols=self.atoms.get_chemical_symbols(),
                 coordinates_angstrom=np.asarray(self.atoms.get_positions(), dtype=float),
                 backend_energy_hartree=backend_energy_hartree,
-                afir_energy_hartree=afir_energy_hartree,
+                bias_energy_hartree=bias_energy_hartree,
                 total_energy_hartree=total_energy_hartree,
                 backend_forces_hartree_per_bohr=backend_forces_hartree_per_bohr,
-                afir_forces_hartree_per_bohr=afir_forces_hartree_per_bohr,
+                bias_forces_hartree_per_bohr=bias_forces_hartree_per_bohr,
                 total_forces_hartree_per_bohr=total_forces_hartree_per_bohr,
                 backend_force_norm=backend_force_norm,
-                afir_force_norm=afir_force_norm,
+                bias_force_norm=bias_force_norm,
                 total_force_norm=total_force_norm,
                 max_force=max_force,
                 fragment_indices=self.fragment_indices,
                 collective_coordinate_bohr=collective_coordinate_bohr,
                 contact_diagnostics=contact_diagnostics,
+                softmin_beta=self.softmin_beta if self.bias_potential == "softmin" else None,
             )
 
 

@@ -24,7 +24,7 @@ _REQUIRED_TRACE_KEYS = {
     "symbols",
     "coordinates_angstrom",
     "backend_energy_hartree",
-    "afir_energy_hartree",
+    "bias_energy_hartree",
     "total_energy_hartree",
     "current_bonds",
     "formed_bonds",
@@ -203,6 +203,13 @@ def validate_trace_record(record, record_index):
         raise ValueError(
             f"Trace record {record_index} must be a JSON object; got {type(record).__name__}"
         )
+    record = dict(record)
+    if "bias_energy_hartree" not in record and "afir_energy_hartree" in record:
+        record["bias_energy_hartree"] = record["afir_energy_hartree"]
+    if "bias_force_norm" not in record and "afir_force_norm" in record:
+        record["bias_force_norm"] = record["afir_force_norm"]
+    if "bias_forces_hartree_per_bohr" not in record and "afir_forces_hartree_per_bohr" in record:
+        record["bias_forces_hartree_per_bohr"] = record["afir_forces_hartree_per_bohr"]
 
     missing = sorted(_REQUIRED_TRACE_KEYS - record.keys())
     if missing:
@@ -233,7 +240,9 @@ def validate_trace_record(record, record_index):
         )
 
     _ensure_finite_scalar(record["backend_energy_hartree"], "backend_energy_hartree", record_index)
-    _ensure_finite_scalar(record["afir_energy_hartree"], "afir_energy_hartree", record_index)
+    if "bias_energy_hartree" not in record:
+        raise ValueError(f"Trace record {record_index} is missing required key 'bias_energy_hartree'")
+    _ensure_finite_scalar(record["bias_energy_hartree"], "bias_energy_hartree", record_index)
     _ensure_finite_scalar(record["total_energy_hartree"], "total_energy_hartree", record_index)
     _ensure_finite_scalar(record["bond_change_count"], "bond_change_count", record_index)
 
@@ -247,14 +256,18 @@ def validate_trace_record(record, record_index):
 
     if "backend_force_norm" in record:
         _ensure_finite_scalar(record["backend_force_norm"], "backend_force_norm", record_index)
-    if "afir_force_norm" in record:
-        _ensure_finite_scalar(record["afir_force_norm"], "afir_force_norm", record_index)
+    if "bias_force_norm" in record:
+        _ensure_finite_scalar(record["bias_force_norm"], "bias_force_norm", record_index)
     if "total_force_norm" in record:
         _ensure_finite_scalar(record["total_force_norm"], "total_force_norm", record_index)
     if "max_force" in record:
         _ensure_finite_scalar(record["max_force"], "max_force", record_index)
     if "collective_coordinate_bohr" in record:
         _ensure_finite_scalar(record["collective_coordinate_bohr"], "collective_coordinate_bohr", record_index)
+    if "softmin_beta" in record:
+        beta = _ensure_finite_scalar(record["softmin_beta"], "softmin_beta", record_index)
+        if beta <= 0.0:
+            raise ValueError(f"Trace record {record_index} field 'softmin_beta' must be positive")
     if "contact_diagnostics" in record and not isinstance(record["contact_diagnostics"], dict):
         raise ValueError(f"Trace record {record_index} field 'contact_diagnostics' must be an object")
 
@@ -270,16 +283,16 @@ def validate_trace_record(record, record_index):
                 f"Trace record {record_index} field 'backend_forces_hartree_per_bohr' must "
                 "contain finite values"
             )
-    if "afir_forces_hartree_per_bohr" in record:
-        afir_forces = np.asarray(record["afir_forces_hartree_per_bohr"], dtype=float)
-        if afir_forces.shape != (len(normalized_symbols), 3):
+    if "bias_forces_hartree_per_bohr" in record:
+        bias_forces = np.asarray(record["bias_forces_hartree_per_bohr"], dtype=float)
+        if bias_forces.shape != (len(normalized_symbols), 3):
             raise ValueError(
-                f"Trace record {record_index} field 'afir_forces_hartree_per_bohr' must have "
-                f"shape ({len(normalized_symbols)}, 3); got {afir_forces.shape!r}"
+                f"Trace record {record_index} field 'bias_forces_hartree_per_bohr' must have "
+                f"shape ({len(normalized_symbols)}, 3); got {bias_forces.shape!r}"
             )
-        if not np.all(np.isfinite(afir_forces)):
+        if not np.all(np.isfinite(bias_forces)):
             raise ValueError(
-                f"Trace record {record_index} field 'afir_forces_hartree_per_bohr' must contain "
+                f"Trace record {record_index} field 'bias_forces_hartree_per_bohr' must contain "
                 "finite values"
             )
     if "total_forces_hartree_per_bohr" in record:
@@ -311,10 +324,12 @@ def validate_trace_record(record, record_index):
         "symbols": normalized_symbols,
         "coordinates_angstrom": coordinates.tolist(),
         "backend_energy_hartree": float(record["backend_energy_hartree"]),
-        "afir_energy_hartree": float(record["afir_energy_hartree"]),
+        "bias_energy_hartree": float(record["bias_energy_hartree"]),
+        "afir_energy_hartree": float(record["bias_energy_hartree"]),
         "total_energy_hartree": float(record["total_energy_hartree"]),
         "backend_force_norm": float(record["backend_force_norm"]) if "backend_force_norm" in record else None,
-        "afir_force_norm": float(record["afir_force_norm"]) if "afir_force_norm" in record else None,
+        "bias_force_norm": float(record["bias_force_norm"]) if "bias_force_norm" in record else None,
+        "afir_force_norm": float(record["bias_force_norm"]) if "bias_force_norm" in record else None,
         "total_force_norm": float(record["total_force_norm"]) if "total_force_norm" in record else None,
         "max_force": float(record["max_force"]) if "max_force" in record else None,
         "current_bonds": [list(pair) for pair in current_bonds],
@@ -328,12 +343,15 @@ def validate_trace_record(record, record_index):
 
     if "backend_forces_hartree_per_bohr" in record:
         normalized["backend_forces_hartree_per_bohr"] = backend_forces.tolist()
-    if "afir_forces_hartree_per_bohr" in record:
-        normalized["afir_forces_hartree_per_bohr"] = afir_forces.tolist()
+    if "bias_forces_hartree_per_bohr" in record:
+        normalized["bias_forces_hartree_per_bohr"] = bias_forces.tolist()
+        normalized["afir_forces_hartree_per_bohr"] = bias_forces.tolist()
     if "total_forces_hartree_per_bohr" in record:
         normalized["total_forces_hartree_per_bohr"] = total_forces.tolist()
     if "collective_coordinate_bohr" in record:
         normalized["collective_coordinate_bohr"] = float(record["collective_coordinate_bohr"])
+    if "softmin_beta" in record:
+        normalized["softmin_beta"] = float(record["softmin_beta"])
     if "contact_diagnostics" in record:
         normalized["contact_diagnostics"] = record["contact_diagnostics"]
 
@@ -402,18 +420,22 @@ class ReactionTraceRecorder:
         symbols,
         coordinates_angstrom,
         backend_energy_hartree,
-        afir_energy_hartree,
+        bias_energy_hartree=None,
         total_energy_hartree,
         backend_forces_hartree_per_bohr,
-        afir_forces_hartree_per_bohr,
+        bias_forces_hartree_per_bohr=None,
         total_forces_hartree_per_bohr,
         backend_force_norm,
-        afir_force_norm,
+        bias_force_norm=None,
         total_force_norm,
         max_force,
         fragment_indices=None,
         collective_coordinate_bohr=None,
         contact_diagnostics=None,
+        softmin_beta=None,
+        afir_energy_hartree=None,
+        afir_forces_hartree_per_bohr=None,
+        afir_force_norm=None,
     ):
         """Write one trace record and its corresponding XYZ snapshot.
 
@@ -424,7 +446,15 @@ class ReactionTraceRecorder:
         """
         coordinates = np.asarray(coordinates_angstrom, dtype=float)
         backend_forces = np.asarray(backend_forces_hartree_per_bohr, dtype=float)
-        afir_forces = np.asarray(afir_forces_hartree_per_bohr, dtype=float)
+        if bias_energy_hartree is None:
+            bias_energy_hartree = afir_energy_hartree
+        if bias_forces_hartree_per_bohr is None:
+            bias_forces_hartree_per_bohr = afir_forces_hartree_per_bohr
+        if bias_force_norm is None:
+            bias_force_norm = afir_force_norm
+        if bias_energy_hartree is None or bias_forces_hartree_per_bohr is None or bias_force_norm is None:
+            raise ValueError("reaction trace requires bias energy, forces, and force norm")
+        bias_forces = np.asarray(bias_forces_hartree_per_bohr, dtype=float)
         total_forces = np.asarray(total_forces_hartree_per_bohr, dtype=float)
         current_bonds = infer_bonds(symbols, coordinates, self.previous_bonds)
         formed_bonds, broken_bonds = bond_changes(self.previous_bonds, current_bonds)
@@ -435,14 +465,17 @@ class ReactionTraceRecorder:
             "symbols": list(symbols),
             "coordinates_angstrom": coordinates.tolist(),
             "backend_energy_hartree": float(backend_energy_hartree),
-            "afir_energy_hartree": float(afir_energy_hartree),
+            "bias_energy_hartree": float(bias_energy_hartree),
+            "afir_energy_hartree": float(bias_energy_hartree),
             "total_energy_hartree": float(total_energy_hartree),
             "backend_force_norm": float(backend_force_norm),
-            "afir_force_norm": float(afir_force_norm),
+            "bias_force_norm": float(bias_force_norm),
+            "afir_force_norm": float(bias_force_norm),
             "total_force_norm": float(total_force_norm),
             "max_force": float(max_force),
             "backend_forces_hartree_per_bohr": backend_forces.tolist(),
-            "afir_forces_hartree_per_bohr": afir_forces.tolist(),
+            "bias_forces_hartree_per_bohr": bias_forces.tolist(),
+            "afir_forces_hartree_per_bohr": bias_forces.tolist(),
             "total_forces_hartree_per_bohr": total_forces.tolist(),
             "current_bonds": [list(pair) for pair in sorted(current_bonds)],
             "formed_bonds": [list(pair) for pair in formed_bonds],
@@ -454,6 +487,8 @@ class ReactionTraceRecorder:
             record["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
         if contact_diagnostics is not None:
             record["contact_diagnostics"] = contact_diagnostics
+        if softmin_beta is not None:
+            record["softmin_beta"] = float(softmin_beta)
 
         with self.trace_file.open("a", encoding="utf-8") as fp:
             json.dump(record, fp, sort_keys=True)

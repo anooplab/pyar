@@ -149,7 +149,13 @@ class GeometricOptimizerTests(unittest.TestCase):
         with mock.patch("pyar.backends.geometric._resolve_backend_evaluator", return_value=DummyProvider()), \
             mock.patch("pyar.backends.geometric.softmin.softmin", return_value=(0.4, softmin_forces)) as selected_bias:
             calculator = PyarGeometricCalculator(
-                {"software": "xtb", "gamma": 37.5, "bias_potential": "softmin", "charge": 0},
+                {
+                    "software": "xtb",
+                    "gamma": 37.5,
+                    "bias_potential": "softmin",
+                    "softmin_beta": 2.5,
+                    "charge": 0,
+                },
                 fragment_indices=self.molecule.fragments,
             )
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -161,7 +167,9 @@ class GeometricOptimizerTests(unittest.TestCase):
                     os.chdir(cwd)
 
         selected_bias.assert_called_once()
+        self.assertEqual(selected_bias.call_args.kwargs["beta"], 2.5)
         self.assertEqual(calculator.bias_potential, "softmin")
+        self.assertEqual(calculator.softmin_beta, 2.5)
         self.assertAlmostEqual(calculator.results["energy"], 0.4 * Hartree)
         np.testing.assert_allclose(calculator.results["forces"], softmin_forces * Hartree / Bohr)
 
