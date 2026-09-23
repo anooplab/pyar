@@ -8,6 +8,47 @@ import math
 import numpy as np
 
 
+def resolve_controller_policy(
+    policy=None,
+    *,
+    alpha_min=None,
+    safety_margin=None,
+    smoothing=None,
+    epsilon=None,
+    scheduled_alpha=None,
+):
+    """Resolve CLI controller selection and reject options for another policy."""
+    adaptive_options = (alpha_min, safety_margin, smoothing, epsilon)
+    has_adaptive_options = any(value is not None for value in adaptive_options)
+    has_scheduled_option = scheduled_alpha is not None
+    if has_adaptive_options and has_scheduled_option:
+        raise ValueError("Adaptive controller settings and scheduled alpha cannot be combined")
+
+    requested = None if policy is None else str(policy).lower()
+    inferred = "adaptive" if has_adaptive_options else (
+        "scheduled" if has_scheduled_option else "fixed"
+    )
+    resolved = requested or inferred
+    if resolved not in BiasController._POLICIES:
+        choices = ", ".join(sorted(BiasController._POLICIES))
+        raise ValueError(f"Unsupported bias-controller policy: {resolved!r}; choose one of {choices}")
+    if has_adaptive_options and resolved != "adaptive":
+        raise ValueError("--bias-alpha-* settings require --bias-controller adaptive")
+    if has_scheduled_option and resolved != "scheduled":
+        raise ValueError("--bias-scheduled-alpha requires --bias-controller scheduled")
+    if resolved == "adaptive":
+        BiasController(
+            "adaptive",
+            alpha_min=0.0 if alpha_min is None else alpha_min,
+            safety_margin=0.0 if safety_margin is None else safety_margin,
+            smoothing=1.0 if smoothing is None else smoothing,
+            epsilon=1.0e-12 if epsilon is None else epsilon,
+        )
+    elif resolved == "scheduled":
+        BiasController("scheduled", scheduled_alpha=scheduled_alpha)
+    return resolved
+
+
 @dataclass(frozen=True)
 class BiasControllerDecision:
     """The bounded force scale and diagnostics chosen for one evaluation."""
@@ -43,8 +84,8 @@ class BiasController:
         self.alpha_min = self._finite_nonnegative(alpha_min, "alpha_min")
         self.safety_margin = self._finite_nonnegative(safety_margin, "safety_margin")
         self.smoothing = self._finite_nonnegative(smoothing, "smoothing")
-        if self.smoothing > 1.0:
-            raise ValueError("smoothing must be between 0 and 1")
+        if not 0.0 < self.smoothing <= 1.0:
+            raise ValueError("smoothing must be greater than 0 and at most 1")
         self.epsilon = self._finite_positive(epsilon, "epsilon")
         self.scheduled_alpha = None if scheduled_alpha is None else self._finite_nonnegative(
             scheduled_alpha, "scheduled_alpha"

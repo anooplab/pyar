@@ -75,6 +75,12 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     bias_max=0.5,
                     bias_potential="softmin",
                     softmin_beta=2.5,
+                    bias_controller="adaptive",
+                    bias_alpha_min=0.001,
+                    bias_alpha_margin=0.002,
+                    bias_alpha_smoothing=0.5,
+                    bias_alpha_epsilon=1.0e-10,
+                    bias_scheduled_alpha=None,
                     software="xtb",
                     index=0,
                 )
@@ -89,6 +95,11 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(len(react.call_args.args), 8)
         self.assertEqual(react.call_args.args[-2:], (None, 2.3))
         self.assertEqual(react.call_args.args[5]["softmin_beta"], 2.5)
+        self.assertEqual(react.call_args.args[5]["bias_controller"], "adaptive")
+        self.assertEqual(react.call_args.args[5]["bias_alpha_min"], 0.001)
+        self.assertEqual(react.call_args.args[5]["bias_alpha_margin"], 0.002)
+        self.assertEqual(react.call_args.args[5]["bias_alpha_smoothing"], 0.5)
+        self.assertEqual(react.call_args.args[5]["bias_alpha_epsilon"], 1.0e-10)
 
     def test_react_reports_restart_state_error_cleanly(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -150,6 +161,30 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(react.call_args.args[5]["basis"], "def2-SVP")
         self.assertEqual(react.call_args.args[5]["scf_cycles"], 1000)
         self.assertEqual(react.call_args.args[5]["nprocs"], 8)
+
+    def test_adaptive_reaction_rejects_backend_without_geometric_gradients(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                script = self._import_in_tempdir("pyar.scripts.react")
+                arguments = SimpleNamespace(
+                    input_files=["a.xyz", "b.xyz"], how_many_orientations="1",
+                    bias_min=100.0, bias_max=100.0, bias_potential="afir",
+                    softmin_beta=1.0, bias_controller="adaptive", bias_alpha_min=None,
+                    bias_alpha_margin=None, bias_alpha_smoothing=None,
+                    bias_alpha_epsilon=None, bias_scheduled_alpha=None,
+                    software="mopac", geometry_optimizer=None, opt_target="minimum",
+                    method="PM7", basis="", scf_cycles=1000, nprocs=1, index=0,
+                )
+                with mock.patch.object(script, "argument_parse", return_value=arguments), \
+                        mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
+                        mock.patch.object(script.reaction_workflow, "react") as react:
+                    with self.assertRaisesRegex(SystemExit, "requires a registered Cartesian"):
+                        script.main()
+                react.assert_not_called()
+            finally:
+                os.chdir(cwd)
 
     def test_conformer_script_calls_workflow(self):
         with tempfile.TemporaryDirectory() as tmpdir:

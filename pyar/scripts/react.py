@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from pyar.core.molecule import Molecule
 from pyar.biases.softmin import resolve_softmin_beta
+from pyar.biases.controller import resolve_controller_policy
 from pyar.backend_capabilities import (
     backend_supports_geometry_optimization,
     normalize_backend_name,
@@ -51,6 +52,20 @@ def argument_parse():
         '--softmin-beta', type=resolve_softmin_beta, default=1.0,
         help='soft-min localization parameter in Bohr^-1 (default: 1.0)',
     )
+    parser.add_argument(
+        '--bias-controller', choices=['fixed', 'scheduled', 'adaptive'], default=None,
+        help='bias force-scale controller (default: fixed)',
+    )
+    parser.add_argument('--bias-alpha-min', type=float, default=None,
+                        help='lower bound for the applied bias scale (Ha/Bohr)')
+    parser.add_argument('--bias-alpha-margin', type=float, default=None,
+                        help='adaptive safety margin added to alpha_critical (Ha/Bohr)')
+    parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
+                        help='adaptive low-pass fraction, from 0 to 1 (default: 1)')
+    parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
+                        help='positive regularizer in the alpha_critical denominator')
+    parser.add_argument('--bias-scheduled-alpha', type=float, default=None,
+                        help='constant scale used by the scheduled controller (Ha/Bohr)')
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
     parser.add_argument('--method', default=defualt_parameters.values['method'], help='Electronic-structure method')
     parser.add_argument('--basis', default=defualt_parameters.values['basis'], help='Basis set')
@@ -82,6 +97,19 @@ def main():
     """Run the reaction-search command-line workflow."""
     args = argument_parse()
     run_parameters = defaultdict(lambda: None, vars(args))
+    try:
+        controller_policy = resolve_controller_policy(
+            run_parameters['bias_controller'],
+            alpha_min=run_parameters['bias_alpha_min'],
+            safety_margin=run_parameters['bias_alpha_margin'],
+            smoothing=run_parameters['bias_alpha_smoothing'],
+            epsilon=run_parameters['bias_alpha_epsilon'],
+            scheduled_alpha=run_parameters['bias_scheduled_alpha'],
+        )
+    except ValueError as exc:
+        sys.exit(str(exc))
+    if run_parameters['bias_controller'] is not None or controller_policy != 'fixed':
+        run_parameters['bias_controller'] = controller_policy
     try:
         softmin_beta = resolve_softmin_beta(run_parameters['softmin_beta'])
     except ValueError as exc:
@@ -125,6 +153,11 @@ def main():
                 "optimisation because it does not expose Cartesian energy and gradients."
             )
         geometry_optimizer = geometry_optimizer or 'native'
+    if controller_policy != 'fixed' and geometry_optimizer != 'geometric':
+        sys.exit(
+            "Non-fixed bias control requires a registered Cartesian energy-gradient backend "
+            "and --geometry-optimizer geometric."
+        )
     qc_params = {
         'software': run_parameters['software'],
         'index': index,
@@ -137,6 +170,12 @@ def main():
         'scf_cycles': run_parameters['scf_cycles'] or defualt_parameters.values['scf_cycles'],
         'nprocs': run_parameters['nprocs'] or defualt_parameters.values['nprocs'],
     }
+    for option in (
+        'bias_controller', 'bias_alpha_min', 'bias_alpha_margin',
+        'bias_alpha_smoothing', 'bias_alpha_epsilon', 'bias_scheduled_alpha',
+    ):
+        if run_parameters.get(option) is not None:
+            qc_params[option] = run_parameters[option]
     try:
         reaction_workflow.react(
             input_molecules[0],

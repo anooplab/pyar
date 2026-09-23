@@ -13,6 +13,7 @@ import time
 from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
+from pyar.biases.controller import resolve_controller_policy
 from pyar.backend_capabilities import (
     backend_family,
     backend_supports_geometry_optimization,
@@ -123,7 +124,33 @@ def _validate_backend_qc_options(software, provided_options):
 
 def _configure_reaction_optimizer(run_parameters, run_mode):
     """Select the external optimizer for supported reaction-bias backends."""
-    if run_mode != "react" or not backend_supports_geometry_optimization(run_parameters["software"]):
+    if run_mode != "react":
+        if any(run_parameters.get(key) is not None for key in (
+            "bias_controller", "bias_alpha_min", "bias_alpha_margin",
+            "bias_alpha_smoothing", "bias_alpha_epsilon", "bias_scheduled_alpha",
+        )):
+            sys.exit("Bias controller options are available only for reaction runs.")
+        return
+    try:
+        controller_policy = resolve_controller_policy(
+            run_parameters.get("bias_controller"),
+            alpha_min=run_parameters.get("bias_alpha_min"),
+            safety_margin=run_parameters.get("bias_alpha_margin"),
+            smoothing=run_parameters.get("bias_alpha_smoothing"),
+            epsilon=run_parameters.get("bias_alpha_epsilon"),
+            scheduled_alpha=run_parameters.get("bias_scheduled_alpha"),
+        )
+    except ValueError as exc:
+        sys.exit(str(exc))
+    if run_parameters.get("bias_controller") is not None or controller_policy != "fixed":
+        run_parameters["bias_controller"] = controller_policy
+    supports_geometry = backend_supports_geometry_optimization(run_parameters["software"])
+    if controller_policy != "fixed" and not supports_geometry:
+        sys.exit(
+            "Non-fixed bias control requires a registered Cartesian energy-gradient backend "
+            "and --geometry-optimizer geometric."
+        )
+    if not supports_geometry:
         return
     if run_parameters["opt_target"] == "ts":
         sys.exit(
@@ -343,6 +370,20 @@ chemical formula.
         '--softmin-beta', type=float, default=1.0,
         help='soft-min contact-localization parameter in Bohr^-1 (default: 1.0)',
     )
+    parser.add_argument(
+        '--bias-controller', choices=['fixed', 'scheduled', 'adaptive'], default=None,
+        help='bias force-scale controller for reaction runs (default: fixed)',
+    )
+    parser.add_argument('--bias-alpha-min', type=float, default=None,
+                        help='lower bound for the applied bias scale (Ha/Bohr)')
+    parser.add_argument('--bias-alpha-margin', type=float, default=None,
+                        help='adaptive safety margin added to alpha_critical (Ha/Bohr)')
+    parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
+                        help='adaptive low-pass fraction, from 0 to 1 (default: 1)')
+    parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
+                        help='positive regularizer in the alpha_critical denominator')
+    parser.add_argument('--bias-scheduled-alpha', type=float, default=None,
+                        help='constant bias scale used by the scheduled controller (Ha/Bohr)')
     parser.add_argument('--site', type=int, nargs=2,
                         help='atom for site specific reaction')
     parser.add_argument("-c", "--charge", type=int, nargs='+', metavar='c',
@@ -717,6 +758,12 @@ def _build_qc_parameters(run_parameters, args, run_mode):
         'custom_keyword': custom_keywords,
         'model': run_parameters['model']
     }
+    for option in (
+        'bias_controller', 'bias_alpha_min', 'bias_alpha_margin',
+        'bias_alpha_smoothing', 'bias_alpha_epsilon', 'bias_scheduled_alpha',
+    ):
+        if run_mode == 'react' and run_parameters.get(option) is not None:
+            quantum_chemistry_parameters[option] = run_parameters[option]
     quantum_chemistry_parameters['_two_layer_optimization'] = staged_optimization
     quantum_chemistry_parameters = _mask_unsupported_qc_parameters(
         quantum_chemistry_parameters,
@@ -794,6 +841,7 @@ def _log_workflow_plan(run_mode, run_parameters, input_molecules, formula_aggreg
         logger.info(
             f'Plan: react bias={run_parameters["bias_potential"]} '
             f'softmin_beta={run_parameters["softmin_beta"]} '
+            f'controller={run_parameters.get("bias_controller") or "fixed"} '
             f'range=({run_parameters["bias_min"]}, {run_parameters["bias_max"]}) '
             f'orientations={number_of_orientations}'
         )

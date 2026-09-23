@@ -463,6 +463,16 @@ class CliSmokeTests(unittest.TestCase):
             "softmin",
             "--softmin-beta",
             "2.5",
+            "--bias-controller",
+            "adaptive",
+            "--bias-alpha-min",
+            "0.001",
+            "--bias-alpha-margin",
+            "0.002",
+            "--bias-alpha-smoothing",
+            "0.5",
+            "--bias-alpha-epsilon",
+            "1e-10",
         ]
 
         self.cli.main()
@@ -470,6 +480,11 @@ class CliSmokeTests(unittest.TestCase):
         self.assertEqual(captured["qc_params"]["geometry_optimizer"], "geometric")
         self.assertEqual(captured["qc_params"]["bias_potential"], "softmin")
         self.assertEqual(captured["qc_params"]["softmin_beta"], 2.5)
+        self.assertEqual(captured["qc_params"]["bias_controller"], "adaptive")
+        self.assertEqual(captured["qc_params"]["bias_alpha_min"], 0.001)
+        self.assertEqual(captured["qc_params"]["bias_alpha_margin"], 0.002)
+        self.assertEqual(captured["qc_params"]["bias_alpha_smoothing"], 0.5)
+        self.assertEqual(captured["qc_params"]["bias_alpha_epsilon"], 1.0e-10)
         self.assertEqual(captured["qc_params"]["opt_target"], "minimum")
         self._preflight_mock.assert_called_once_with("react", "xtb", "geometric")
         current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]

@@ -115,6 +115,21 @@ def test_restart_rejects_mismatched_geometry_and_configuration(calculation):
         PyarGeometricCalculator(dict(calculation, gamma=10., bias_controller_restart=True), [[0], [1]])
 
 
+def test_cli_controller_parameters_reach_bias_controller(calculation):
+    calculator = PyarGeometricCalculator(
+        dict(calculation, bias_alpha_min=0.02, bias_alpha_margin=0.03,
+             bias_alpha_smoothing=0.4, bias_alpha_epsilon=1e-9), [[0], [1]]
+    )
+    assert calculator.bias_controller.configuration() == {
+        "policy": "adaptive",
+        "alpha_min": 0.02,
+        "safety_margin": 0.03,
+        "smoothing": 0.4,
+        "epsilon": 1e-9,
+        "scheduled_alpha": None,
+    }
+
+
 @pytest.mark.parametrize("policy", ["fixed", "scheduled", "adaptive"])
 def test_unbiased_relaxation_bypasses_positive_controller_minimum(calculation, policy):
     params = without_afir_bias(dict(calculation, bias_controller=policy, bias_alpha_min=0.01))

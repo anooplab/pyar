@@ -88,7 +88,7 @@ class PyarGeometricCalculator(Calculator):
         self.bias_potential = _resolve_bias_potential(self.qc_params.get("bias_potential"))
         self.softmin_beta = softmin.resolve_softmin_beta(self.qc_params.get("softmin_beta"))
         self.alpha_max = alpha_from_gamma(self.gamma)
-        controller_policy = str(self.qc_params.get("bias_controller", "fixed")).lower()
+        controller_policy = str(self.qc_params.get("bias_controller") or "fixed").lower()
         self.bias_controller = (
             FixedBiasController()
             if controller_policy == "fixed"
@@ -97,6 +97,7 @@ class PyarGeometricCalculator(Calculator):
                 alpha_min=self.qc_params.get("bias_alpha_min", 0.0),
                 safety_margin=self.qc_params.get("bias_alpha_margin", 0.0),
                 smoothing=self.qc_params.get("bias_alpha_smoothing", 1.0),
+                epsilon=self.qc_params.get("bias_alpha_epsilon", 1.0e-12),
                 scheduled_alpha=self.qc_params.get("bias_scheduled_alpha"),
             )
         )
@@ -387,7 +388,7 @@ class Geometric(SF):
             "fragment_indices": self.fragment_indices,
             "opt_target": self.opt_target,
         }
-        if self.gamma != 0.0 and self.qc_params.get("bias_controller", "fixed").lower() == "adaptive":
+        if self.gamma != 0.0 and str(self.qc_params.get("bias_controller") or "fixed").lower() == "adaptive":
             return [sys.executable, "-m", "pyar.backends.adaptive_geometric",
                     self.start_xyz_file, json.dumps(ase_kwargs)]
         command = [

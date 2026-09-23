@@ -4,10 +4,23 @@ import unittest
 
 import numpy as np
 
-from pyar.biases.controller import BiasController, FixedBiasController
+from pyar.biases.controller import (
+    BiasController,
+    FixedBiasController,
+    resolve_controller_policy,
+)
 
 
 class BiasControllerTests(unittest.TestCase):
+    def test_cli_controller_policy_is_inferred_or_validated_from_tuning_options(self):
+        self.assertEqual(resolve_controller_policy(), "fixed")
+        self.assertEqual(resolve_controller_policy(alpha_min=0.1), "adaptive")
+        self.assertEqual(resolve_controller_policy(scheduled_alpha=0.5), "scheduled")
+        with self.assertRaisesRegex(ValueError, "require --bias-controller adaptive"):
+            resolve_controller_policy("fixed", smoothing=0.5)
+        with self.assertRaisesRegex(ValueError, "cannot be combined"):
+            resolve_controller_policy(smoothing=0.5, scheduled_alpha=0.5)
+
     def test_explicit_fixed_controller_matches_legacy_fixed_policy(self):
         gradient = np.asarray([[0.2, -0.1, 0.4]])
         coordinate = np.asarray([[0.0, 1.0, 0.0]])
@@ -100,13 +113,12 @@ class BiasControllerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identical shapes"):
             controller.select(np.ones((1, 3)), np.ones((2, 3)), 1.0)
 
-    def test_zero_smoothing_holds_the_previous_accepted_alpha(self):
-        controller = BiasController("adaptive", smoothing=0.0)
-        coordinate = np.asarray([[1.0, 0.0, 0.0]])
-        first = controller.start_segment(np.asarray([[-0.4, 0.0, 0.0]]), coordinate, 1.0, 2.0)
-        second = controller.start_segment(np.asarray([[-1.2, 0.0, 0.0]]), coordinate, 1.0, 2.0)
-        self.assertAlmostEqual(second.alpha_target, 1.2)
-        self.assertEqual(second.alpha, first.alpha)
+    def test_smoothing_must_be_positive_and_at_most_one(self):
+        for smoothing in (0.0, 1.01):
+            with self.subTest(smoothing=smoothing), self.assertRaisesRegex(
+                ValueError, "smoothing must be greater than 0"
+            ):
+                BiasController("adaptive", smoothing=smoothing)
 
     def test_checkpoint_rejects_changed_alpha_ceiling(self):
         controller = BiasController("adaptive")
