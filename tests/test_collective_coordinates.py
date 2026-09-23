@@ -126,6 +126,58 @@ class CollectiveCoordinateTests(unittest.TestCase):
                             analytical, finite_difference_reference, rtol=1.0e-6, atol=1.0e-7
                         )
 
+    def test_seeded_random_geometries_match_independent_gradients(self):
+        rng = np.random.default_rng(20260923)
+        symbols = ["C", "H", "N", "O", "C", "H"]
+        fragments = [[0, 2, 4], [1, 3, 5]]
+        for case_index in range(5):
+            coordinates = rng.normal(size=(len(symbols), 3)) * 1.8
+            # Keep fragments separated while retaining varied, non-planar geometries.
+            coordinates[[1, 3, 5], 0] += 3.5
+            for kind, parameters in (
+                ("afir", {"distance_power": (2.0, 6.0, 10.0)[case_index % 3]}),
+                ("softmin", {"beta": (0.4, 1.7, 8.0)[case_index % 3]}),
+            ):
+                with self.subTest(case=case_index, kind=kind):
+                    _, analytical, _ = evaluate_contact_coordinate(
+                        fragments, symbols, coordinates, kind=kind, **parameters
+                    )
+                    autograd_reference = self._autograd_gradient(
+                        fragments, symbols, coordinates, kind, **parameters
+                    )
+                    finite_difference_reference = self._finite_difference_gradient(
+                        fragments, symbols, coordinates, kind, **parameters
+                    )
+                    np.testing.assert_allclose(analytical, autograd_reference, rtol=1e-9, atol=1e-10)
+                    np.testing.assert_allclose(analytical, finite_difference_reference, rtol=2e-6, atol=2e-7)
+
+    def test_coordinates_and_gradients_are_rigid_motion_covariant(self):
+        angle = 0.73
+        rotation = np.asarray([
+            [np.cos(angle), -np.sin(angle), 0.0],
+            [np.sin(angle), np.cos(angle), 0.0],
+            [0.0, 0.0, 1.0],
+        ])
+        translation = np.asarray([1.2, -0.7, 2.3])
+        for kind, parameters in (("afir", {"distance_power": 4.0}),
+                                 ("softmin", {"beta": 2.1})):
+            with self.subTest(kind=kind):
+                q, gradient, _ = evaluate_contact_coordinate(
+                    [[2], [0, 1]], self.symbols, self.coordinates, kind=kind, **parameters
+                )
+                translated_q, translated_gradient, _ = evaluate_contact_coordinate(
+                    [[2], [0, 1]], self.symbols, self.coordinates + translation,
+                    kind=kind, **parameters
+                )
+                rotated_coordinates = self.coordinates @ rotation.T
+                rotated_q, rotated_gradient, _ = evaluate_contact_coordinate(
+                    [[2], [0, 1]], self.symbols, rotated_coordinates, kind=kind, **parameters
+                )
+                self.assertAlmostEqual(q, translated_q, places=12)
+                self.assertAlmostEqual(q, rotated_q, places=12)
+                np.testing.assert_allclose(gradient, translated_gradient, atol=1e-12)
+                np.testing.assert_allclose(rotated_gradient, gradient @ rotation.T, atol=1e-11)
+
     def test_rejects_overlapping_fragments(self):
         with self.assertRaisesRegex(ValueError, "must not overlap"):
             evaluate_contact_coordinate([[0, 1], [1, 2]], self.symbols, self.coordinates)

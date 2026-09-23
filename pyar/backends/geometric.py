@@ -20,7 +20,7 @@ from ase.units import Bohr, Hartree
 
 from pyar.biases import afir as restraints, softmin
 from pyar.biases.afir import alpha_from_gamma, resolve_gamma
-from pyar.biases.controller import BiasController
+from pyar.biases.controller import BiasController, FixedBiasController
 from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
@@ -88,15 +88,21 @@ class PyarGeometricCalculator(Calculator):
         self.bias_potential = _resolve_bias_potential(self.qc_params.get("bias_potential"))
         self.softmin_beta = softmin.resolve_softmin_beta(self.qc_params.get("softmin_beta"))
         self.alpha_max = alpha_from_gamma(self.gamma)
-        self.bias_controller = BiasController(
-            self.qc_params.get("bias_controller", "fixed"),
-            alpha_min=self.qc_params.get("bias_alpha_min", 0.0),
-            safety_margin=self.qc_params.get("bias_alpha_margin", 0.0),
-            smoothing=self.qc_params.get("bias_alpha_smoothing", 1.0),
-            scheduled_alpha=self.qc_params.get("bias_scheduled_alpha"),
+        controller_policy = str(self.qc_params.get("bias_controller", "fixed")).lower()
+        self.bias_controller = (
+            FixedBiasController()
+            if controller_policy == "fixed"
+            else BiasController(
+                controller_policy,
+                alpha_min=self.qc_params.get("bias_alpha_min", 0.0),
+                safety_margin=self.qc_params.get("bias_alpha_margin", 0.0),
+                smoothing=self.qc_params.get("bias_alpha_smoothing", 1.0),
+                scheduled_alpha=self.qc_params.get("bias_scheduled_alpha"),
+            )
         )
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
+        self.bias_distance_power = 6.0
         self._restart_checkpoint = None
         if self.gamma != 0.0 and self.qc_params.get("bias_controller_restart"):
             self._restart_checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
@@ -179,6 +185,8 @@ class PyarGeometricCalculator(Calculator):
         coordinate_kwargs = {"kind": self.bias_potential}
         if self.bias_potential == "softmin":
             coordinate_kwargs["beta"] = self.softmin_beta
+        else:
+            coordinate_kwargs["distance_power"] = self.bias_distance_power
         q, gradient, diagnostics = evaluate_contact_coordinate(
             self.fragment_indices,
             list(self.atoms.get_chemical_symbols()),
@@ -193,6 +201,19 @@ class PyarGeometricCalculator(Calculator):
                           if key not in {"bias_controller_restart", "trace_mode"}},
             "fragment_indices": self.fragment_indices,
             "opt_target": self.opt_target,
+        }
+
+    def _bias_metadata(self):
+        """Describe the force-generating bias parameters and unit conventions."""
+        return {
+            "potential": self.bias_potential,
+            "gamma_kj_mol": self.gamma,
+            "alpha_max_hartree_per_bohr": self.alpha_max,
+            "coordinate_unit": "bohr",
+            "force_unit": "hartree/bohr",
+            "strength_unit": "hartree/bohr",
+            "distance_power": self.bias_distance_power if self.bias_potential == "afir" else None,
+            "beta_per_bohr": self.softmin_beta if self.bias_potential == "softmin" else None,
         }
 
     def _save_controller_checkpoint(self):
@@ -232,6 +253,7 @@ class PyarGeometricCalculator(Calculator):
             "software": self.software,
             "gamma": self.gamma,
             "bias_potential": self.bias_potential,
+            "bias_parameters": self._bias_metadata(),
             "softmin_beta": self.softmin_beta,
             "opt_target": self.opt_target,
             "energy_ev": float(energy),
@@ -326,6 +348,7 @@ class PyarGeometricCalculator(Calculator):
                 contact_diagnostics=contact_diagnostics,
                 softmin_beta=self.softmin_beta if self.bias_potential == "softmin" else None,
                 bias_controller=self.bias_controller.state_dict() if self.gamma != 0.0 else None,
+                bias_parameters=self._bias_metadata(),
             )
 
 

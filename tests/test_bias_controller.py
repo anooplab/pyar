@@ -4,10 +4,23 @@ import unittest
 
 import numpy as np
 
-from pyar.biases.controller import BiasController
+from pyar.biases.controller import BiasController, FixedBiasController
 
 
 class BiasControllerTests(unittest.TestCase):
+    def test_explicit_fixed_controller_matches_legacy_fixed_policy(self):
+        gradient = np.asarray([[0.2, -0.1, 0.4]])
+        coordinate = np.asarray([[0.0, 1.0, 0.0]])
+        explicit = FixedBiasController()
+        compatible = BiasController("fixed")
+        for controller in (explicit, compatible):
+            decision = controller.start_segment(gradient, coordinate, 0.75, 1.25)
+            self.assertEqual(decision.alpha, 1.25)
+            self.assertEqual(decision.alpha_target, 1.25)
+            self.assertIsNone(decision.alpha_critical)
+            self.assertEqual(controller.state_dict()["alpha_max"], 1.25)
+        self.assertEqual(explicit.state_dict(), compatible.state_dict())
+
     def test_fixed_and_scheduled_policies_respect_bounds(self):
         gradient = np.zeros((2, 3))
         coordinate = np.ones((2, 3))
@@ -50,6 +63,58 @@ class BiasControllerTests(unittest.TestCase):
         self.assertEqual(controller.state_dict(), restored.state_dict())
         with self.assertRaisesRegex(ValueError, "configuration"):
             BiasController("adaptive").load_state_dict(controller.state_dict(), 1.)
+
+    def test_adaptive_synthetic_sign_zero_gradient_and_bound_cases(self):
+        coordinate = np.asarray([[1.0, 0.0, 0.0]])
+        cases = (
+            (np.asarray([[-3.0, 0.0, 0.0]]), 3.0),  # PES opposes progress
+            (np.asarray([[3.0, 0.0, 0.0]]), 0.0),   # PES supports progress
+            (np.asarray([[0.0, 2.0, 0.0]]), 0.0),   # orthogonal
+            (np.zeros((1, 3)), 0.0),
+        )
+        for physical_gradient, expected in cases:
+            decision = BiasController("adaptive").select(physical_gradient, coordinate, 2.0)
+            self.assertAlmostEqual(decision.alpha_critical, expected)
+        zero_coordinate = np.zeros((1, 3))
+        decision = BiasController("adaptive", epsilon=1e-8).select(
+            np.ones((1, 3)), zero_coordinate, 2.0
+        )
+        self.assertEqual(decision.alpha_critical, 0.0)
+        self.assertTrue(np.isfinite(decision.alpha))
+        clipped = BiasController("adaptive").select(
+            np.asarray([[-100.0, 0.0, 0.0]]), coordinate, 0.25
+        )
+        self.assertEqual(clipped.alpha, 0.25)
+        lower_clipped = BiasController("adaptive", alpha_min=0.2).select(
+            np.asarray([[100.0, 0.0, 0.0]]), coordinate, 1.0
+        )
+        self.assertEqual(lower_clipped.alpha, 0.2)
+        self.assertEqual(BiasController("adaptive").select(
+            np.asarray([[-100.0, 0.0, 0.0]]), coordinate, 0.0
+        ).alpha, 0.0)
+
+    def test_adaptive_rejects_nonfinite_and_mismatched_gradients(self):
+        controller = BiasController("adaptive")
+        with self.assertRaisesRegex(ValueError, "finite arrays"):
+            controller.select(np.asarray([[np.nan, 0., 0.]]), np.ones((1, 3)), 1.0)
+        with self.assertRaisesRegex(ValueError, "identical shapes"):
+            controller.select(np.ones((1, 3)), np.ones((2, 3)), 1.0)
+
+    def test_zero_smoothing_holds_the_previous_accepted_alpha(self):
+        controller = BiasController("adaptive", smoothing=0.0)
+        coordinate = np.asarray([[1.0, 0.0, 0.0]])
+        first = controller.start_segment(np.asarray([[-0.4, 0.0, 0.0]]), coordinate, 1.0, 2.0)
+        second = controller.start_segment(np.asarray([[-1.2, 0.0, 0.0]]), coordinate, 1.0, 2.0)
+        self.assertAlmostEqual(second.alpha_target, 1.2)
+        self.assertEqual(second.alpha, first.alpha)
+
+    def test_checkpoint_rejects_changed_alpha_ceiling(self):
+        controller = BiasController("adaptive")
+        coordinate = np.asarray([[1.0, 0.0, 0.0]])
+        controller.start_segment(np.zeros((1, 3)), coordinate, 1.0, 1.0)
+        restored = BiasController("adaptive")
+        with self.assertRaisesRegex(ValueError, "alpha_max"):
+            restored.load_state_dict(controller.state_dict(), 0.5)
 
 
 if __name__ == "__main__":

@@ -270,6 +270,8 @@ def validate_trace_record(record, record_index):
             raise ValueError(f"Trace record {record_index} field 'softmin_beta' must be positive")
     if "contact_diagnostics" in record and not isinstance(record["contact_diagnostics"], dict):
         raise ValueError(f"Trace record {record_index} field 'contact_diagnostics' must be an object")
+    if "bias_parameters" in record and not isinstance(record["bias_parameters"], dict):
+        raise ValueError(f"Trace record {record_index} field 'bias_parameters' must be an object")
 
     if "backend_forces_hartree_per_bohr" in record:
         backend_forces = np.asarray(record["backend_forces_hartree_per_bohr"], dtype=float)
@@ -358,6 +360,8 @@ def validate_trace_record(record, record_index):
         if not isinstance(record["bias_controller"], dict):
             raise ValueError(f"Trace record {record_index} field 'bias_controller' must be an object")
         normalized["bias_controller"] = record["bias_controller"]
+    if "bias_parameters" in record:
+        normalized["bias_parameters"] = record["bias_parameters"]
 
     return normalized
 
@@ -438,6 +442,7 @@ class ReactionTraceRecorder:
         contact_diagnostics=None,
         softmin_beta=None,
         bias_controller=None,
+        bias_parameters=None,
         afir_energy_hartree=None,
         afir_forces_hartree_per_bohr=None,
         afir_force_norm=None,
@@ -496,6 +501,8 @@ class ReactionTraceRecorder:
             record["softmin_beta"] = float(softmin_beta)
         if bias_controller is not None:
             record["bias_controller"] = bias_controller
+        if bias_parameters is not None:
+            record["bias_parameters"] = bias_parameters
 
         with self.trace_file.open("a", encoding="utf-8") as fp:
             json.dump(record, fp, sort_keys=True)

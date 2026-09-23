@@ -47,7 +47,10 @@ def argument_parse():
         help='maximum reaction-bias strength (legacy alias: --gmax)',
     )
     parser.add_argument('--bias-potential', choices=['afir', 'softmin'], default='afir')
-    parser.add_argument('--softmin-beta', type=resolve_softmin_beta, default=1.0)
+    parser.add_argument(
+        '--softmin-beta', type=resolve_softmin_beta, default=1.0,
+        help='soft-min localization parameter in Bohr^-1 (default: 1.0)',
+    )
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
     parser.add_argument('--method', default=defualt_parameters.values['method'], help='Electronic-structure method')
     parser.add_argument('--basis', default=defualt_parameters.values['basis'], help='Basis set')

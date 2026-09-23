@@ -173,6 +173,51 @@ class GeometricOptimizerTests(unittest.TestCase):
         self.assertAlmostEqual(calculator.results["energy"], 0.4 * Hartree)
         np.testing.assert_allclose(calculator.results["forces"], softmin_forces * Hartree / Bohr)
 
+    def test_fixed_controller_preserves_direct_afir_and_softmin_objective(self):
+        from pyar.backends.geometric import PyarGeometricCalculator
+        from pyar.biases.softmin import softmin
+
+        atoms = Atoms(symbols=self.molecule.atoms_list, positions=self.molecule.coordinates)
+        backend_gradient = np.arange(15, dtype=float).reshape(5, 3) / 1000.0
+        backend_energy_hartree = -0.25
+        backend_result = EnergyGradientResult(backend_energy_hartree, backend_gradient)
+
+        class DummyProvider:
+            def evaluate(self, molecule, coordinates_bohr):
+                return backend_result
+
+        coordinates_bohr = angstrom2bohr(self.molecule.coordinates)
+        gamma = 37.5
+        for potential in ("afir", "softmin"):
+            with self.subTest(potential=potential), tempfile.TemporaryDirectory() as tmpdir:
+                cwd = os.getcwd()
+                os.chdir(tmpdir)
+                try:
+                    with mock.patch("pyar.backends.geometric._resolve_backend_evaluator",
+                                    return_value=DummyProvider()):
+                        calculator = PyarGeometricCalculator(
+                            {"software": "xtb", "gamma": gamma, "bias_potential": potential,
+                             "softmin_beta": 1.7}, self.molecule.fragments
+                        )
+                        calculator.calculate(atoms=atoms, properties=["energy", "forces"])
+                finally:
+                    os.chdir(cwd)
+
+            if potential == "afir":
+                bias_energy_hartree, bias_forces = restraints.isotropic(
+                    self.molecule.fragments, self.molecule.atoms_list, coordinates_bohr, gamma
+                )
+            else:
+                bias_energy_hartree, bias_forces = softmin(
+                    self.molecule.fragments, self.molecule.atoms_list, coordinates_bohr,
+                    gamma, beta=1.7
+                )
+            expected_energy = (backend_energy_hartree + bias_energy_hartree) * Hartree
+            expected_forces = (-backend_gradient + bias_forces) * Hartree / Bohr
+            self.assertAlmostEqual(calculator.results["energy"], expected_energy, places=12)
+            np.testing.assert_allclose(calculator.results["forces"], expected_forces, rtol=1e-13, atol=1e-13)
+            self.assertEqual(calculator.bias_controller.decision.policy, "fixed")
+
     def test_geometric_calculator_rejects_unknown_bias_potential(self):
         from pyar.backends.geometric import PyarGeometricCalculator
 

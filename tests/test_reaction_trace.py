@@ -131,6 +131,10 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertEqual(trace_records[0]["bias_energy_hartree"], 0.4)
             self.assertEqual(trace_records[0]["bias_energy_hartree"], trace_records[0]["afir_energy_hartree"])
             self.assertEqual(trace_records[0]["softmin_beta"], 2.5)
+            self.assertEqual(trace_records[0]["bias_parameters"]["potential"], "softmin")
+            self.assertEqual(trace_records[0]["bias_parameters"]["gamma_kj_mol"], 50.0)
+            self.assertEqual(trace_records[0]["bias_parameters"]["beta_per_bohr"], 2.5)
+            self.assertEqual(trace_records[0]["bias_parameters"]["coordinate_unit"], "bohr")
             backend_forces_hartree_per_bohr = backend_forces * Bohr / Hartree
             afir_forces_hartree_per_bohr = afir_forces * Bohr / Hartree
             np.testing.assert_allclose(

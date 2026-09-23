@@ -259,6 +259,11 @@ def analyse_reaction_trace(job_directory):
             "min_interfragment_distance_angstrom",
             "collective_coordinate_bohr",
             "bias_controller_policy",
+            "bias_potential",
+            "bias_gamma_kj_mol",
+            "bias_alpha_max_hartree_per_bohr",
+            "bias_distance_power",
+            "softmin_beta_per_bohr",
             "bias_alpha",
             "bias_alpha_critical",
             "bias_alpha_target",
@@ -277,6 +282,7 @@ def analyse_reaction_trace(job_directory):
         for record in trace_records:
             controller = record.get("bias_controller") or {}
             decision = controller.get("decision") or {}
+            bias_parameters = record.get("bias_parameters") or {}
             row = {
                 "step_index": int(record["step_index"]),
                 "backend_energy_hartree": float(record["backend_energy_hartree"]),
@@ -309,6 +315,11 @@ def analyse_reaction_trace(job_directory):
                 ),
                 "collective_coordinate_bohr": record.get("collective_coordinate_bohr"),
                 "bias_controller_policy": decision.get("policy"),
+                "bias_potential": bias_parameters.get("potential"),
+                "bias_gamma_kj_mol": bias_parameters.get("gamma_kj_mol"),
+                "bias_alpha_max_hartree_per_bohr": bias_parameters.get("alpha_max_hartree_per_bohr"),
+                "bias_distance_power": bias_parameters.get("distance_power"),
+                "softmin_beta_per_bohr": bias_parameters.get("beta_per_bohr"),
                 "bias_alpha": decision.get("alpha"),
                 "bias_alpha_critical": decision.get("alpha_critical"),
                 "bias_alpha_target": decision.get("alpha_target"),

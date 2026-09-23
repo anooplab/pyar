@@ -42,7 +42,7 @@ class BiasController:
             raise ValueError(f"Unsupported bias-controller policy: {policy!r}")
         self.alpha_min = self._finite_nonnegative(alpha_min, "alpha_min")
         self.safety_margin = self._finite_nonnegative(safety_margin, "safety_margin")
-        self.smoothing = self._finite_positive(smoothing, "smoothing")
+        self.smoothing = self._finite_nonnegative(smoothing, "smoothing")
         if self.smoothing > 1.0:
             raise ValueError("smoothing must be between 0 and 1")
         self.epsilon = self._finite_positive(epsilon, "epsilon")
@@ -53,6 +53,7 @@ class BiasController:
         self.decision = None
         self.energy_offset = 0.0
         self.segment_index = -1
+        self.alpha_max = None
 
     def configuration(self):
         """JSON-safe parameters required to reproduce controller decisions."""
@@ -63,17 +64,24 @@ class BiasController:
     def state_dict(self):
         """Serialize the active, accepted segment (never a trial proposal)."""
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "configuration": self.configuration(),
             "decision": None if self.decision is None else asdict(self.decision),
             "energy_offset_hartree": self.energy_offset,
             "segment_index": self.segment_index,
+            "alpha_max": self.alpha_max,
         }
 
     def load_state_dict(self, state, alpha_max):
         """Restore history only when the checkpoint matches this configuration."""
-        if state.get("schema_version") != 1 or state.get("configuration") != self.configuration():
+        if state.get("schema_version") not in {1, 2} or state.get("configuration") != self.configuration():
             raise ValueError("Incompatible bias-controller checkpoint configuration")
+        restored_alpha_max = self._finite_nonnegative(
+            state.get("alpha_max", alpha_max), "alpha_max"
+        )
+        configured_alpha_max = self._finite_nonnegative(alpha_max, "alpha_max")
+        if not math.isclose(restored_alpha_max, configured_alpha_max, rel_tol=0.0, abs_tol=1.0e-14):
+            raise ValueError("Checkpoint alpha_max does not match configured bias strength")
         decision = BiasControllerDecision(**state["decision"])
         for name in ("alpha", "alpha_target"):
             value = self._finite_nonnegative(getattr(decision, name), name)
@@ -91,6 +99,7 @@ class BiasController:
         self._previous_alpha = decision.alpha
         self.energy_offset = offset
         self.segment_index = index
+        self.alpha_max = restored_alpha_max
 
     def start_segment(self, physical_gradient, coordinate_gradient, q, alpha_max):
         """Commit an update at an accepted geometry, preserving its energy.
@@ -107,6 +116,7 @@ class BiasController:
         self.decision = decision
         self._previous_alpha = decision.alpha
         self.segment_index += 1
+        self.alpha_max = self._finite_nonnegative(alpha_max, "alpha_max")
         return decision
 
     @staticmethod
@@ -147,3 +157,10 @@ class BiasController:
         )
         alpha = float(np.clip(alpha, self.alpha_min, alpha_max))
         return BiasControllerDecision("adaptive", alpha, alpha_critical, target)
+
+
+class FixedBiasController(BiasController):
+    """Explicit fixed-force controller; retained ``BiasController`` API is compatible."""
+
+    def __init__(self):
+        super().__init__("fixed")

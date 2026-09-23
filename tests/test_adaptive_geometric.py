@@ -87,11 +87,21 @@ def test_acceptance_preserves_energy_and_restores_history(calculation, kind):
     np.testing.assert_allclose(calculator.results["forces"], restored.results["forces"])
     records = load_trace_records("reaction_trace")
     assert records[-1]["bias_controller"] == restored.bias_controller.state_dict()
+    assert records[-1]["bias_controller"]["alpha_max"] == restored.alpha_max
+    assert records[-1]["bias_controller"]["decision"]["alpha_critical"] is not None
+    assert records[-1]["bias_controller"]["decision"]["alpha_target"] is not None
+    assert records[-1]["bias_parameters"]["potential"] == kind
+    assert records[-1]["bias_parameters"]["gamma_kj_mol"] == 100.0
+    if kind == "softmin":
+        assert records[-1]["bias_parameters"]["beta_per_bohr"] == 1.0
     assert json.loads(Path("pyar_geometric_state.json").read_text())["bias_controller"] == records[-1]["bias_controller"]
     analyse_reaction_trace(Path.cwd())
     with open("path_summary.csv") as handle:
         rows = list(csv.DictReader(handle))
     assert float(rows[-1]["bias_alpha"]) == restored.bias_controller.decision.alpha
+    assert float(rows[-1]["bias_alpha_max_hartree_per_bohr"]) == restored.alpha_max
+    assert rows[-1]["bias_potential"] == kind
+    assert float(rows[-1]["bias_gamma_kj_mol"]) == 100.0
     assert float(rows[-1]["bias_energy_offset_hartree"]) == restored.bias_controller.energy_offset
 
 

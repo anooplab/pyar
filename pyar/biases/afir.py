@@ -1,7 +1,7 @@
 import logging
 import math
 
-import autograd.numpy as np
+import numpy as np
 
 import pyar.data.units
 from pyar.core.molecule import Molecule
