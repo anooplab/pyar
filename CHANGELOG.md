@@ -11,6 +11,10 @@
   failures.
 - A soft-minimum interfragment reaction bias, selectable through
   `--bias-potential softmin`.
+- Fixed, scheduled, and adaptive reaction-bias controllers in `pyar-cli react`
+  and `pyar-react`. Adaptive runs use the accepted-step geomeTRIC driver and
+  expose alpha bounds, safety margin, and smoothing; fixed bias remains the
+  default.
 
 ### Changed
 
