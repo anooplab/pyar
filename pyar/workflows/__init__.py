@@ -4,6 +4,7 @@ from .aggregate import aggregate
 from .conformer import conformer_search
 from .reaction import react
 from .solvation import solvate
+from .scan_bond import run_scan_bond
 from pyar.workflow_results import (
     AggregateResult,
     ConformerResult,
@@ -17,6 +18,7 @@ __all__ = [
     "conformer_search",
     "react",
     "solvate",
+    "run_scan_bond",
     "WorkflowResult",
     "AggregateResult",
     "ConformerResult",

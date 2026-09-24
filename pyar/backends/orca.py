@@ -50,11 +50,15 @@ class Orca(SF):
         keyword += ' RI def2/J D3BJ KDIIS'
         if self.scftype == 'uks':
             keyword += ' UKS'
+        keyword += {
+            'loose': ' LooseOpt',
+            'tight': ' TightOpt',
+        }.get(qc_params.get('opt_threshold'), ' Opt')
         nprocs = qc_params['nprocs']
-        # if custom_keyword is not None:
-        #     keyword += custom_keyword
         keyword += f"\n%pal nprocs {nprocs} end\n"
         keyword += f"%scf maxiter {qc_params['scf_cycles']} end\n"
+        if qc_params.get('opt_cycles') is not None:
+            keyword += f"%geom MaxIter {int(qc_params['opt_cycles'])} end\n"
         self.keyword = keyword
 
     def prepare_input(self):
@@ -77,14 +81,13 @@ class Orca(SF):
             bool: ``True`` when ORCA finishes normally, otherwise ``False``.
         """
 
-        self.keyword = self.keyword + '!Opt'
         self.prepare_input()
 
         exit_status = run_command([self.orca_executable, self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
             with open(self.out_file, "r") as f:
                 line = f.readlines()
-            if "****ORCA TERMINATED NORMALLY****" in line[-2]:
+            if any("****ORCA TERMINATED NORMALLY****" in item for item in line):
                 self.energy = self.get_energy()
                 self.optimized_coordinates = np.loadtxt(self.inp_file[:-4] + ".xyz", dtype=float, skiprows=2,
                                                         usecols=(1, 2, 3))

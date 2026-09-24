@@ -251,17 +251,11 @@ class CliSmokeTests(unittest.TestCase):
 
         self.assertEqual(captured["connectivity_policy"], "off")
 
-    def test_scan_bond_subcommand_is_rejected(self):
-        with self.assertRaises(SystemExit):
-            self.cli.argument_parse([
-                "scan-bond",
-                "1",
-                "2",
-                "A.xyz",
-                "B.xyz",
-                "-N",
-                "8",
-            ])
+    def test_scan_bond_subcommand_dispatches_to_dedicated_parser(self):
+        with mock.patch("pyar.scripts.scan_bond.main") as scan_main:
+            sys.argv = ["pyar-cli", "scan-bond", "A.xyz", "B.xyz", "--atoms", "0", "1", "-N", "1"]
+            self.cli.main()
+        scan_main.assert_called_once_with(["A.xyz", "B.xyz", "--atoms", "0", "1", "-N", "1"])
 
     def test_connectivity_policy_defaults_to_auto(self):
         args = self.cli.argument_parse([

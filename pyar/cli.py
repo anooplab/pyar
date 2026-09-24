@@ -972,6 +972,10 @@ def _run_reaction_workflow(
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in {"scan-bond", "scan_bond"}:
+        from pyar.scripts.scan_bond import main as scan_bond_main
+        scan_bond_main(sys.argv[2:])
+        return
     if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
         _dispatch_trace_subcommand(sys.argv[2:])
         return

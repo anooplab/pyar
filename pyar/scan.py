@@ -1,10 +1,8 @@
-import os
 import time
 
 import numpy as np
 
 import pyar.sampling.trial_generator as trial_generation
-from pyar import optimiser
 from pyar.selection import clustering
 
 
@@ -84,39 +82,3 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, num
     trial_generation.trial_generation_logger.debug(f'Wrote files in {t2 - t1} seconds')
     trial_generation.write_trial_vectors(saved_pts, 'trial_vectors.dat')
     return orientations
-
-
-def scan_distance(input_molecules, site_atoms, number_of_orientations,
-                  quantum_chemistry_parameters):
-    a_molecule = input_molecules[0]
-    b_molecule = input_molecules[1]
-    a_atom = site_atoms[0]
-    b_atom = a_molecule.number_of_atoms + a_atom -  1
-    proximity_factor = 1.5  #
-    input_molecules = generate_guess_for_bonding('abc',
-                                                 a_molecule, b_molecule,
-                                                 a_atom, b_atom,
-                                                 int(number_of_orientations),
-                                                 d_scale=proximity_factor)
-
-    for each_molecule in input_molecules:
-        coordinates = each_molecule.coordinates
-        start_dist = np.linalg.norm(coordinates[a_atom] - coordinates[b_atom])
-        final_distance = each_molecule.covalent_radius[a_atom] + \
-                         each_molecule.covalent_radius[b_atom]
-        if quantum_chemistry_parameters['software'] == 'orca':
-            step = int(abs(final_distance - start_dist) * 10)
-            c_k = f'\n% geom\n    scan B {a_atom} {b_atom} = {start_dist}, ' \
-                  f'{final_distance}, {step}\n        end\nend\n'
-            quantum_chemistry_parameters['gamma'] = 0.0
-            cwd = os.getcwd()
-            job_dir = 'scans'
-            from pyar import file_manager
-            file_manager.make_directories(job_dir)
-            os.chdir(job_dir)
-            quantum_chemistry_parameters['custom_keyword'] = c_k
-            optimiser.optimise(each_molecule, quantum_chemistry_parameters)
-            os.chdir(cwd)
-        else:
-            print('Optimization with %s is not implemented '
-                  'yet' % quantum_chemistry_parameters['software'])

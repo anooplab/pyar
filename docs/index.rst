@@ -19,6 +19,7 @@ For most chemistry users, start with the task that matches your problem:
 * :doc:`quickstart` for a short first pass
 * :doc:`aggregate` for clusters, aggregates, and noncovalent complexes
 * :doc:`react` for AFIR-style product and close-contact searches
+* :doc:`bond_scan` for an ORCA relaxed bond-distance scan
 * :doc:`solvate` for microsolvation, ligand addition, and growth around a core
 * :doc:`conformer` for RDKit-based conformer generation and refinement
 
@@ -80,6 +81,7 @@ Start here
 * :doc:`first_run`
 * :doc:`aggregate`
 * :doc:`react`
+* :doc:`bond_scan`
 * :doc:`solvate`
 * :doc:`conformer`
 * :doc:`usage`
@@ -162,6 +164,7 @@ The fastest way to verify a local install is:
 
    aggregate
    react
+   bond_scan
    solvate
    conformer
 
