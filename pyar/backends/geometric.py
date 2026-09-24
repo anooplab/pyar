@@ -95,7 +95,7 @@ class PyarGeometricCalculator(Calculator):
             else BiasController(
                 controller_policy,
                 alpha_min=self.qc_params.get("bias_alpha_min", 0.0),
-                safety_margin=self.qc_params.get("bias_alpha_margin", 0.0),
+                safety_margin=self.qc_params.get("bias_alpha_margin"),
                 smoothing=self.qc_params.get("bias_alpha_smoothing", 1.0),
                 epsilon=self.qc_params.get("bias_alpha_epsilon", 1.0e-12),
                 scheduled_alpha=self.qc_params.get("bias_scheduled_alpha"),
@@ -259,6 +259,9 @@ class PyarGeometricCalculator(Calculator):
             "opt_target": self.opt_target,
             "energy_ev": float(energy),
             "energy_hartree": float(energy / Hartree),
+            "backend_energy_hartree": float(self._last_backend_result.energy_hartree),
+            "total_energy_hartree": float(energy / Hartree),
+            "bias_energy_hartree": float(energy / Hartree - self._last_backend_result.energy_hartree),
             "positions_angstrom": np.asarray(self.atoms.get_positions(), dtype=float).tolist(),
             "forces_ev_per_angstrom": np.asarray(forces, dtype=float).tolist(),
             "bias_controller": self.bias_controller.state_dict() if self.gamma != 0.0 else None,
@@ -415,13 +418,17 @@ class Geometric(SF):
         return command
 
     def _read_final_energy(self):
-        """Recover the latest energy from the calculator state file."""
+        """Return physical energy for ranking across biased trajectories.
+
+        The total objective, including its segment offset, remains in the
+        calculator state and trace but is not a comparable molecular energy.
+        """
         state_path = Path(_GEOMETRIC_STATE_FILE)
         if not state_path.exists():
             return None
         with state_path.open() as fp:
             state = json.load(fp)
-        return state.get("energy_hartree")
+        return state.get("backend_energy_hartree")
 
     def _read_final_xyz(self):
         """Find the final geometry written by geomeTRIC."""
@@ -475,7 +482,12 @@ class Geometric(SF):
                 check=False,
             )
 
-        if proc.returncode != 0:
+        output_text = Path("geometric.out").read_text()
+        iteration_limit = (
+            proc.returncode != 0
+            and "Maximum iterations reached" in output_text
+        )
+        if proc.returncode != 0 and not iteration_limit:
             geometric_logger.error(
                 "geomeTRIC failed: name=%s software=%s returncode=%s",
                 self.job_name,
@@ -487,7 +499,10 @@ class Geometric(SF):
         try:
             self.optimized_coordinates = self._read_final_xyz()
             self.coordinates = self.optimized_coordinates
-            self.energy = self._read_final_energy()
+            state_path = Path(_GEOMETRIC_STATE_FILE)
+            with state_path.open() as fp:
+                state = json.load(fp)
+            self.energy = state.get("backend_energy_hartree")
             if self.energy is None:
                 raise FileNotFoundError(_GEOMETRIC_STATE_FILE)
         except Exception as exc:
@@ -506,6 +521,13 @@ class Geometric(SF):
             self.job_name,
             float(self.energy),
         )
+        if iteration_limit or state.get("optimization_status") == "cycle_exceeded":
+            geometric_logger.warning(
+                "geomeTRIC reached its iteration limit; retaining the last "
+                "accepted geometry for unbiased relaxation: name=%s",
+                self.job_name,
+            )
+            return "CycleExceeded"
         return True
 
 

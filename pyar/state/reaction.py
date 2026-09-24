@@ -109,6 +109,11 @@ class ReactionRunState:
     @classmethod
     def migrate_legacy(cls, root_directory, checkpoint, request, sampling=None):
         """Convert an unambiguous legacy ``jobs.pkl`` checkpoint to JSON state."""
+        if request.get("backend_parameters", {}).get("reaction_energy_convention"):
+            raise ReactionStateError(
+                "Legacy reaction checkpoints do not identify physical energies; "
+                "start a new calculation in a new directory."
+            )
         requested_schedule = [float(value) for value in request["gamma_schedule"]]
         legacy_label_map = {}
         for gamma in requested_schedule:

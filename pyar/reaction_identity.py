@@ -53,14 +53,5 @@ def same_molecular_identity(first, second):
 
 
 def reaction_product_changed(start_identity, current_identity):
-    """Return whether relaxation changed the product identity.
-
-    Reaction promotion uses a looser rule than deduplication: if either the
-    canonical InChI or the canonical SMILES changes after relaxation, the
-    candidate is treated as a distinct product and can then be deduplicated by
-    InChI against previously saved products.
-    """
-    return (
-        start_identity["inchi"] != current_identity["inchi"]
-        or start_identity["smiles"] != current_identity["smiles"]
-    )
+    """Use the same canonical identity for product acceptance and deduplication."""
+    return not same_molecular_identity(start_identity, current_identity)

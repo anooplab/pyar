@@ -59,9 +59,9 @@ def argument_parse():
     parser.add_argument('--bias-alpha-min', type=float, default=None,
                         help='lower bound for the applied bias scale (Ha/Bohr)')
     parser.add_argument('--bias-alpha-margin', type=float, default=None,
-                        help='adaptive safety margin added to alpha_critical (Ha/Bohr)')
+                        help='positive adaptive driving margin (Ha/Bohr; default: 0.001)')
     parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
-                        help='adaptive low-pass fraction, from 0 to 1 (default: 1)')
+                        help='smoothing fraction for alpha decreases, 0 < value <= 1 (default: 1)')
     parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
                         help='positive regularizer in the alpha_critical denominator')
     parser.add_argument('--bias-scheduled-alpha', type=float, default=None,

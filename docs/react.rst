@@ -34,14 +34,27 @@ chooses a scale up to this ceiling after accepted optimizer steps. Optional
 ``--bias-alpha-min``, ``--bias-alpha-margin``, ``--bias-alpha-smoothing``, and
 ``--bias-alpha-epsilon`` flags control its lower bound, safety margin, temporal
 filtering, and denominator regularization. Alpha values and the safety margin
-are in Hartree/Bohr; the smoothing fraction must be between zero and one.
+are in Hartree/Bohr. The margin defaults to 0.001 and must be positive: a zero
+margin merely cancels physical resistance and can stall before contact.
+Increases in alpha take effect immediately to maintain the driving margin;
+decreases are smoothed with a fraction greater than zero and at most one.
+The gamma schedule sets each cycle's ceiling, not a minimum applied force.
+If the optimizer converges below that ceiling, the driver reports a stall;
+increase the margin or tighten the optimization threshold before retrying.
 For a constant scheduled scale, use ``--bias-controller scheduled
 --bias-scheduled-alpha VALUE``.
 Controller settings and per-step decisions are written to the reaction trace
 and ``path_summary.csv``. ``pyar-react`` accepts the same flags.
+For ``pyar-cli`` geomeTRIC runs, ``--opt-cycles`` and ``--opt-threshold``
+control the external optimizer even if the energy-gradient backend does not
+support these options for its native optimizer.
 
-Product validity is determined by molecular identity and bond-change logic,
-not by a simple connected-versus-disconnected connectivity test.
+Products are accepted only when their InChI differs from the separated
+reactants after unbiased relaxation. SMILES are canonicalized for reporting.
+Candidate selection and result XYZ energy labels use physical backend
+energies. Biased energies and continuity offsets remain in calculator state
+and traces. Older reaction states using biased energies cannot be resumed;
+start a fresh calculation in a separate directory.
 
 Supported AFIR energy-gradient providers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

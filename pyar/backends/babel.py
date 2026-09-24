@@ -170,7 +170,7 @@ def make_smile_string_from_xyz(xyzfile):
     if os.path.isfile(xyzfile):
         with open('OBabel.log', 'w') as ferr:
             try:
-                pre_smile = run_output([_obabel_executable(), "-ixyz", str(xyzfile), "-osmi", "-xn"], stderr_path='OBabel.log')
+                pre_smile = run_output([_obabel_executable(), "-ixyz", str(xyzfile), "-ocan", "-xn"], stderr_path='OBabel.log')
                 smile = pre_smile.decode("utf-8").strip()
             except Exception as e:
                 ferr.write(str(e))

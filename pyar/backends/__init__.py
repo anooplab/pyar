@@ -70,13 +70,14 @@ class SF(object):
                       job_name=self.job_name)
 
 
-def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0):
+def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0, *, precision=5):
     """Write a simple XYZ file with an optional energy label."""
     with open(filename, 'w') as fp:
         fp.write("%3d\n" % len(coordinates))
         fp.write(job_name + ':' + str(energy) + '\n')
+        width = max(12, precision + 7)
         for a, c in zip(atoms_list, coordinates):
-            fp.write("{:<2}{:12.5f}{:12.5f}{:12.5f}\n".format(a, c[0], c[1], c[2]))
+            fp.write(f"{a:<2}" + "".join(f"{value:{width}.{precision}f}" for value in c) + "\n")
 
 
 __all__ = [

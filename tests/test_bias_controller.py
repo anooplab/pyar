@@ -51,7 +51,32 @@ class BiasControllerTests(unittest.TestCase):
         self.assertAlmostEqual(first.alpha_critical, 0.5)
         self.assertAlmostEqual(first.alpha, 0.6)
         self.assertAlmostEqual(second.alpha_target, 1.0)
-        self.assertAlmostEqual(second.alpha, 0.8)
+        self.assertAlmostEqual(second.alpha, 1.0)
+        third = controller.start_segment(np.asarray([[-0.5, 0.0, 0.0]]), coordinate, 1.4, 1.0)
+        self.assertAlmostEqual(third.alpha, 0.8)
+
+    def test_default_adaptive_policy_drives_beyond_force_cancellation(self):
+        coordinate = np.array([[1., 0., 0.], [-1., 0., 0.]])
+        controller = BiasController("adaptive", smoothing=0.1)
+        for resistance in (0.004, 0.024, 0.2):
+            physical_gradient = -resistance * coordinate
+            decision = controller.start_segment(physical_gradient, coordinate, 3., 1.)
+            total_force = -physical_gradient - decision.alpha * coordinate
+            self.assertLess(float(np.sum(total_force * coordinate)), -0.0019)
+            self.assertGreater(decision.alpha, decision.alpha_critical)
+
+    def test_adaptive_zero_margin_is_rejected_before_running(self):
+        with self.assertRaisesRegex(ValueError, "must be positive"):
+            resolve_controller_policy("adaptive", safety_margin=0.)
+
+    def test_restart_rejects_legacy_symmetric_smoothing(self):
+        controller = BiasController("adaptive")
+        qgrad = np.array([[1., 0., 0.]])
+        controller.start_segment(-0.5*qgrad, qgrad, 2., 1.)
+        state = controller.state_dict()
+        del state['configuration']['smoothing_mode']
+        with self.assertRaisesRegex(ValueError, 'configuration'):
+            controller.load_state_dict(state, 1.)
 
     def test_proposals_do_not_advance_history(self):
         controller = BiasController("adaptive", smoothing=0.5)

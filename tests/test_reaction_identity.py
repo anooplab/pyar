@@ -53,15 +53,21 @@ class ReactionIdentityTests(unittest.TestCase):
         self.assertTrue(reaction_identity.same_molecular_identity(first, same_product))
         self.assertFalse(reaction_identity.same_molecular_identity(first, different_product))
 
-    def test_reaction_product_changed_uses_either_canonical_identifier(self):
+    def test_reaction_product_changed_uses_canonical_inchi(self):
         start = {"inchi": "same-inchi", "smiles": "same-smiles"}
         changed_smiles = {"inchi": "same-inchi", "smiles": "changed-smiles"}
         changed_inchi = {"inchi": "changed-inchi", "smiles": "same-smiles"}
         unchanged = {"inchi": "same-inchi", "smiles": "same-smiles"}
 
-        self.assertTrue(reaction_identity.reaction_product_changed(start, changed_smiles))
+        self.assertFalse(reaction_identity.reaction_product_changed(start, changed_smiles))
         self.assertTrue(reaction_identity.reaction_product_changed(start, changed_inchi))
         self.assertFalse(reaction_identity.reaction_product_changed(start, unchanged))
+
+    def test_hcn_fragment_smiles_order_is_not_a_new_product(self):
+        start = {"inchi": "InChI=1S/2CHN/c2*1-2/h2*1H", "smiles": "C#N.C#N"}
+        relaxed = dict(start, smiles="C#N.N#C")
+        self.assertTrue(reaction_identity.same_molecular_identity(start, relaxed))
+        self.assertFalse(reaction_identity.reaction_product_changed(start, relaxed))
 
     def test_separated_reactant_identity_uses_disconnected_reference(self):
         reactant_a = Molecule(["H"], np.array([[0.0, 0.0, 0.0]]), name="a")

@@ -117,9 +117,13 @@ def _provided_qc_options(args):
     return provided
 
 
-def _validate_backend_qc_options(software, provided_options):
-    """Return backend family and unsupported provided options for a backend."""
-    return backend_family(software), unsupported_qc_options(software, provided_options)
+def _validate_backend_qc_options(software, provided_options, geometry_optimizer="native"):
+    """Validate options against the selected backend and optimizer."""
+    backend_options = set(provided_options)
+    if geometry_optimizer == "geometric":
+        # These control the external optimizer, not the energy/gradient backend.
+        backend_options.difference_update({"opt_cycles", "opt_threshold"})
+    return backend_family(software), unsupported_qc_options(software, backend_options)
 
 
 def _configure_reaction_optimizer(run_parameters, run_mode):
@@ -175,7 +179,10 @@ def _configure_reaction_optimizer(run_parameters, run_mode):
 def _mask_unsupported_qc_parameters(qc_params, software):
     """Return QC params with backend-unsupported options set to None."""
     masked = dict(qc_params)
-    for option in unsupported_qc_options(software, QC_PARAMETER_KEYS):
+    _, unsupported = _validate_backend_qc_options(
+        software, QC_PARAMETER_KEYS, qc_params.get("geometry_optimizer", "native")
+    )
+    for option in unsupported:
         if option in masked:
             masked[option] = None
         if option == "custom_keywords":
@@ -377,9 +384,9 @@ chemical formula.
     parser.add_argument('--bias-alpha-min', type=float, default=None,
                         help='lower bound for the applied bias scale (Ha/Bohr)')
     parser.add_argument('--bias-alpha-margin', type=float, default=None,
-                        help='adaptive safety margin added to alpha_critical (Ha/Bohr)')
+                        help='positive adaptive driving margin (Ha/Bohr; default: 0.001)')
     parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
-                        help='adaptive low-pass fraction, from 0 to 1 (default: 1)')
+                        help='smoothing fraction for alpha decreases, 0 < value <= 1 (default: 1)')
     parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
                         help='positive regularizer in the alpha_critical denominator')
     parser.add_argument('--bias-scheduled-alpha', type=float, default=None,
@@ -723,7 +730,8 @@ def _build_qc_parameters(run_parameters, args, run_mode):
     ignored_qc_options = []
     if run_parameters["software"] is not None:
         backend_family_name, ignored_qc_options = _validate_backend_qc_options(
-            run_parameters["software"], provided_qc_options
+            run_parameters["software"], provided_qc_options,
+            run_parameters["geometry_optimizer"],
         )
         staged_optimization = backend_supports_staged_optimization(run_parameters["software"])
         if run_parameters["geometry_optimizer"] == "geometric" and not backend_supports_geometry_optimization(run_parameters["software"]):

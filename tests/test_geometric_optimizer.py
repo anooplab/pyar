@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -270,6 +271,39 @@ class GeometricOptimizerTests(unittest.TestCase):
         convergence_index = command.index("--converge")
         self.assertEqual(command[convergence_index:convergence_index + 3], ["--converge", "set", "GAU_TIGHT"])
         self.assertLess(command.index(geometry.start_xyz_file), convergence_index)
+
+    def test_geometric_returns_cycle_exceeded_when_endpoint_is_preserved(self):
+        from pyar.backends import write_xyz
+        from pyar.backends.geometric import Geometric
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch("pyar.backends.geometric._find_geometric_executable",
+                                return_value="geometric-optimize"):
+                    geometry = Geometric(
+                        self.molecule,
+                        {"software": "xtb", "gamma": 0.0,
+                         "geometry_optimizer": "geometric"},
+                    )
+
+                def fake_run(command, **kwargs):
+                    kwargs["stdout"].write("Maximum iterations reached (1000); increase --maxiter for more\n")
+                    write_xyz(self.molecule.atoms_list, self.molecule.coordinates,
+                              "trial_geom_optim.xyz")
+                    Path("pyar_geometric_state.json").write_text(json.dumps({
+                        "backend_energy_hartree": -1.25,
+                        "optimization_status": "cycle_exceeded",
+                        "positions_angstrom": self.molecule.coordinates.tolist(),
+                    }))
+                    return mock.Mock(returncode=1)
+
+                with mock.patch("pyar.backends.geometric.subp.run", side_effect=fake_run):
+                    self.assertEqual(geometry.optimize(), "CycleExceeded")
+                self.assertEqual(geometry.energy, -1.25)
+            finally:
+                os.chdir(cwd)
 
     def test_geometric_executable_lookup_keeps_virtual_environment_path(self):
         from pyar.backends.geometric import _find_geometric_executable

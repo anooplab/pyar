@@ -145,6 +145,7 @@ class XtbEnergyGradientProvider:
                 coordinates_angstrom,
                 str(xyz_path),
                 job_name="pyar_geometric_xtb",
+                precision=15,
             )
             command = [xtb_executable, str(xyz_path), "--gxtb"]
             command.extend(xtb_parallel_args(self.qc_params))

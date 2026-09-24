@@ -30,6 +30,23 @@
 - geomeTRIC reaction optimization now selects either the AFIR or soft-min bias
   through `--bias-potential`; AFIR remains the default.
 
+### Fixed
+
+- CLI geomeTRIC runs preserve `--opt-cycles` and `--opt-threshold` even when
+  the energy-gradient backend does not support those native optimizer options.
+- Adaptive geomeTRIC retains iteration-limit endpoints for unbiased reaction
+  relaxation instead of discarding potentially bonded candidates.
+- Adaptive bias now defaults to a positive driving margin, applies resistance
+  increases immediately, and reports convergence below the force ceiling as
+  a stall rather than a successful biased optimization.
+- Reaction product detection uses consistent InChI identity, preventing SMILES
+  serialization changes from being counted as new products.
+- xTB energy-gradient inputs preserve coordinate precision for small optimizer
+  steps and consistent numerical derivatives.
+- geomeTRIC candidate ranking uses physical energies rather than biased
+  objectives with trajectory-dependent offsets. Incompatible older reaction
+  states are rejected on restart.
+
 ## 1.2.0 - 2026-06-12
 
 This release adds a new RDKit-based conformer workflow and tightens release compatibility across supported Python versions.

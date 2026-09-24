@@ -473,6 +473,10 @@ class CliSmokeTests(unittest.TestCase):
             "0.5",
             "--bias-alpha-epsilon",
             "1e-10",
+            "--opt-cycles",
+            "1000",
+            "--opt-threshold",
+            "tight",
         ]
 
         self.cli.main()
@@ -486,9 +490,26 @@ class CliSmokeTests(unittest.TestCase):
         self.assertEqual(captured["qc_params"]["bias_alpha_smoothing"], 0.5)
         self.assertEqual(captured["qc_params"]["bias_alpha_epsilon"], 1.0e-10)
         self.assertEqual(captured["qc_params"]["opt_target"], "minimum")
+        self.assertEqual(captured["qc_params"]["opt_cycles"], 1000)
+        self.assertEqual(captured["qc_params"]["opt_threshold"], "tight")
         self._preflight_mock.assert_called_once_with("react", "xtb", "geometric")
         current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]
         self.assertNotIn("ignores unsupported options: --bias-min/--bias-max", current_log)
+        self.assertIn("Ignored QC options: none", current_log)
+
+    def test_geometric_preserves_optimizer_options_for_all_gradient_backends(self):
+        for software in supported_geometry_backends():
+            with self.subTest(software=software):
+                _, ignored = self.cli._validate_backend_qc_options(
+                    software, {"opt_cycles", "opt_threshold"}, "geometric"
+                )
+                self.assertEqual(ignored, [])
+                masked = self.cli._mask_unsupported_qc_parameters(
+                    {"geometry_optimizer": "geometric", "opt_cycles": 1000,
+                     "opt_threshold": "tight"}, software
+                )
+                self.assertEqual(masked["opt_cycles"], 1000)
+                self.assertEqual(masked["opt_threshold"], "tight")
 
     def test_react_xtb_rejects_native_optimizer_that_ignores_afir(self):
         Path("a.xyz").touch()

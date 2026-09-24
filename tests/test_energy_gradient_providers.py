@@ -24,6 +24,31 @@ from pyar.energy_gradient_providers import (
 
 
 class EnergyGradientProviderTests(unittest.TestCase):
+    def test_xtb_roundtrip_preserves_small_displacement_energy_derivatives(self):
+        from pyar.data.units import angstrom2bohr
+
+        def fake_run(command, cwd=None, **kwargs):
+            positions = angstrom2bohr(np.loadtxt(command[1], skiprows=2, usecols=(1, 2, 3)))
+            # A harmonic backend sees exactly the coordinates written to disk.
+            energy = 0.5 * np.sum(positions ** 2)
+            np.savetxt(Path(cwd) / 'gradient', positions, fmt='%.16e')
+            return SimpleNamespace(returncode=0, stdout=f'| TOTAL ENERGY {energy:.16f} Eh', stderr='')
+
+        coordinates = np.array([[0.123456789, 1.234567891, -0.876543219],
+                                [2.314159265, -0.271828182, 0.141421356]])
+        direction = np.array([[1., -2., 3.], [-3., 2., -1.]])
+        direction /= np.linalg.norm(direction)
+        provider = get_energy_gradient_provider('xtb', {'nprocs': 1})
+        atoms = Atoms('CN', positions=coordinates)
+        with mock.patch('pyar.energy_gradient_providers.require_executable', return_value='xtb'), \
+                mock.patch('pyar.energy_gradient_providers.subp.run', side_effect=fake_run):
+            result = provider.evaluate(atoms, coordinates)
+            h = 1e-6
+            e_plus = provider.evaluate(atoms, coordinates+h*direction).energy_hartree
+            e_minus = provider.evaluate(atoms, coordinates-h*direction).energy_hartree
+        self.assertAlmostEqual((e_plus-e_minus)/(2*h),
+                               float(np.sum(result.gradient_hartree_per_bohr*direction)), places=8)
+
     def test_energy_gradient_result_rejects_nonfinite_energy(self):
         with self.assertRaisesRegex(ValueError, "finite scalar"):
             EnergyGradientResult(np.nan, np.zeros((1, 3)))

@@ -17,6 +17,7 @@ from ase.units import Bohr
 from geometric.ase_engine import EngineASE
 from geometric.internal import DelocalizedInternalCoordinates
 from geometric.molecule import Molecule
+from geometric.errors import GeomOptNotConvergedError
 from geometric.optimize import OPT_STATE, Optimizer
 from geometric.params import OptParams
 
@@ -60,6 +61,22 @@ class AdaptiveOptimizer(Optimizer):
         self.progress.qm_energies[-1] = self.E
         self.progress.qm_grads[-1] = self.gradx.copy()
 
+    def optimizeGeometry(self):
+        progress = super().optimizeGeometry()
+        controller = self.engine.calculator.bias_controller
+        decision = controller.decision
+        if (decision is not None and controller.policy == "adaptive"
+                and decision.alpha < controller.alpha_max
+                and not np.isclose(decision.alpha, controller.alpha_max,
+                                   rtol=1e-10, atol=1e-14)):
+            raise RuntimeError(
+                "Adaptive bias stalled below its force ceiling: the driving "
+                "force is too small for the optimizer convergence tolerances. "
+                "Increase --bias-alpha-margin or tighten --opt-threshold. "
+                "Increasing --bias-max alone does not increase the applied force."
+            )
+        return progress
+
 
 def run_adaptive_optimization(input_xyz, calculator_arguments):
     """Run minimum optimization with accepted-step updates and fresh Hessians.
@@ -94,7 +111,20 @@ def run_adaptive_optimization(input_xyz, calculator_arguments):
     directory = f"{Path(input_xyz).stem}.tmp"
     Path(directory).mkdir(exist_ok=True)
     optimizer = AdaptiveOptimizer(coordinates, molecule, internal, engine, directory, params)
-    progress = optimizer.optimizeGeometry()
+    try:
+        progress = optimizer.optimizeGeometry()
+    except GeomOptNotConvergedError:
+        # geomeTRIC has already evaluated and persisted the last accepted
+        # geometry. Preserve that endpoint so the reaction workflow can run
+        # its unbiased relaxation instead of discarding a useful candidate.
+        progress = optimizer.progress
+        progress.write(output_xyz)
+        state_path = Path("pyar_geometric_state.json")
+        if state_path.exists():
+            state = json.loads(state_path.read_text())
+            state["optimization_status"] = "cycle_exceeded"
+            state_path.write_text(json.dumps(state, indent=2, sort_keys=True))
+        return optimizer
     progress.write(output_xyz)
     return optimizer
 

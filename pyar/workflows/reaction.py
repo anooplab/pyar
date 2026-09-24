@@ -188,6 +188,9 @@ def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
     """
     backend_parameters = dict(qc_params)
     backend_parameters.pop("gamma", None)
+    if backend_parameters.get("geometry_optimizer") == "geometric":
+        # Prevent resuming survivors ranked with the legacy biased objective.
+        backend_parameters["reaction_energy_convention"] = "physical-v1"
     return {
         "gamma_schedule": [float(value) for value in gamma_list],
         "orientations": int(hm_orientations),

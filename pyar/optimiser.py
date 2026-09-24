@@ -10,8 +10,13 @@ write_csv(csv_file, energy_dit)
 bulk_optimize(input_files, qc_params)
 """
 
+import json
 import logging
+import math
 import os
+from pathlib import Path
+
+import numpy as np
 
 from pyar import file_manager
 from pyar.core.molecule import Molecule
@@ -144,9 +149,32 @@ def optimise(molecule, qc_params):
             gamma,
             os.path.abspath(job_dir),
         )
-        if os.path.exists(f'result_{molecule.name}.xyz'):
+        reuse_result = os.path.exists(f'result_{molecule.name}.xyz')
+        cached_physical_energy = None
+        if reuse_result:
             read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
-            molecule.energy = read_molecule.energy
+        if reuse_result and qc_params.get('geometry_optimizer') == 'geometric':
+            try:
+                state = json.loads(Path('pyar_geometric_state.json').read_text())
+                cached_physical_energy = float(state['backend_energy_hartree'])
+                energy_coordinates = np.asarray(state['positions_angstrom'], dtype=float)
+                reuse_result = (
+                    math.isfinite(cached_physical_energy)
+                    and energy_coordinates.shape == read_molecule.coordinates.shape
+                    and np.allclose(energy_coordinates, read_molecule.coordinates,
+                                    rtol=0., atol=5.1e-6)
+                )
+            except (OSError, ValueError, TypeError, KeyError):
+                reuse_result = False
+            if not reuse_result:
+                optimiser_logger.info(
+                    "Cached geomeTRIC result has no matching physical energy; recomputing %s",
+                    molecule.name,
+                )
+        if reuse_result:
+            molecule.energy = (
+                read_molecule.energy if cached_physical_energy is None else cached_physical_energy
+            )
             molecule.optimized_coordinates = read_molecule.coordinates
             molecule.coordinates = read_molecule.coordinates
             optimiser_logger.info(

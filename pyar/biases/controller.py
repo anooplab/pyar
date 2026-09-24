@@ -7,6 +7,8 @@ import math
 
 import numpy as np
 
+DEFAULT_ADAPTIVE_MARGIN = 0.001  # Hartree/Bohr
+
 
 def resolve_controller_policy(
     policy=None,
@@ -40,7 +42,7 @@ def resolve_controller_policy(
         BiasController(
             "adaptive",
             alpha_min=0.0 if alpha_min is None else alpha_min,
-            safety_margin=0.0 if safety_margin is None else safety_margin,
+            safety_margin=safety_margin,
             smoothing=1.0 if smoothing is None else smoothing,
             epsilon=1.0e-12 if epsilon is None else epsilon,
         )
@@ -63,7 +65,8 @@ class BiasController:
     """Choose fixed, scheduled, or resistance-based bias strengths.
 
     The adaptive policy uses ``max(0, -(grad_E . grad_q)/(||grad_q||^2 +
-    epsilon))`` and applies an optional safety margin and temporal smoothing.
+    epsilon))`` plus a positive driving margin. Smoothing damps decreases;
+    increases are applied immediately so filtering cannot cancel the drive.
     """
 
     _POLICIES = {"fixed", "scheduled", "adaptive"}
@@ -73,7 +76,7 @@ class BiasController:
         policy="fixed",
         *,
         alpha_min=0.0,
-        safety_margin=0.0,
+        safety_margin=None,
         smoothing=1.0,
         epsilon=1.0e-12,
         scheduled_alpha=None,
@@ -81,8 +84,12 @@ class BiasController:
         self.policy = str(policy).lower()
         if self.policy not in self._POLICIES:
             raise ValueError(f"Unsupported bias-controller policy: {policy!r}")
+        if safety_margin is None:
+            safety_margin = DEFAULT_ADAPTIVE_MARGIN if self.policy == "adaptive" else 0.0
         self.alpha_min = self._finite_nonnegative(alpha_min, "alpha_min")
         self.safety_margin = self._finite_nonnegative(safety_margin, "safety_margin")
+        if self.policy == "adaptive" and self.safety_margin == 0.0:
+            raise ValueError("adaptive safety_margin (--bias-alpha-margin) must be positive")
         self.smoothing = self._finite_nonnegative(smoothing, "smoothing")
         if not 0.0 < self.smoothing <= 1.0:
             raise ValueError("smoothing must be greater than 0 and at most 1")
@@ -98,9 +105,12 @@ class BiasController:
 
     def configuration(self):
         """JSON-safe parameters required to reproduce controller decisions."""
-        return {name: getattr(self, name) for name in (
+        parameters = {name: getattr(self, name) for name in (
             "policy", "alpha_min", "safety_margin", "smoothing", "epsilon", "scheduled_alpha"
         )}
+        if self.policy == "adaptive":
+            parameters["smoothing_mode"] = "decrease_only"
+        return parameters
 
     def state_dict(self):
         """Serialize the active, accepted segment (never a trial proposal)."""
@@ -196,6 +206,9 @@ class BiasController:
         alpha = target if self._previous_alpha is None else (
             self.smoothing * target + (1.0 - self.smoothing) * self._previous_alpha
         )
+        # A lagging increase can leave alpha below the physical resistance.
+        # Preserve at least the current driving target, subject to the ceiling.
+        alpha = max(alpha, target)
         alpha = float(np.clip(alpha, self.alpha_min, alpha_max))
         return BiasControllerDecision("adaptive", alpha, alpha_critical, target)
 
