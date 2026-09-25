@@ -18,6 +18,8 @@
 
 ### Changed
 
+- The default `scan-bond` endpoint is now 0.8 times the selected atoms'
+  covalent-radius sum.
 - Conformer generation now uses a broader candidate pool and removes duplicate
   structures more aggressively before backend refinement. Basin selection
   preserves low-energy, geometrically diverse folded, open, and outlier
@@ -32,6 +34,8 @@
 
 ### Fixed
 
+- ORCA bond scans now parse `scan.allxyz` frame separators, reject incomplete
+  trajectories, and retain unrestricted DFT settings after fragment merging.
 - CLI geomeTRIC runs preserve `--opt-cycles` and `--opt-threshold` even when
   the energy-gradient backend does not support those native optimizer options.
 - Adaptive geomeTRIC retains iteration-limit endpoints for unbiased reaction

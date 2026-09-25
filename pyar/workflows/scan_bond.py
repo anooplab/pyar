@@ -17,6 +17,8 @@ from pyar.core.molecule import Molecule
 from pyar.optimiser import optimise, is_success
 from pyar.sampling.trial_generator import generate_trial_vectors, merge_two_molecules
 
+DEFAULT_SCAN_END_FACTOR = 0.8
+
 
 def scan_point_count(start, end, step=None, points=None):
     if not all(math.isfinite(float(value)) for value in (start, end)) or start <= 0 or end <= 0:
@@ -112,6 +114,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         raise ValueError(f"Atom index {local_j} is out of range for fragment B containing {fragment_b.number_of_atoms} atoms (valid 0..{fragment_b.number_of_atoms - 1}).")
     merged = fragment_a.merged_with(fragment_b)
     target_radii = merged.covalent_radius[absolute_i] + merged.covalent_radius[absolute_j]
+    default_scan_end = DEFAULT_SCAN_END_FACTOR * target_radii
     root = Path(output_dir)
     if root.exists():
         raise FileExistsError(f"scan-bond output directory already exists: {root}")
@@ -123,7 +126,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         "target_symbols": [merged.atoms_list[absolute_i], merged.atoms_list[absolute_j]],
         "qc_params": dict(qc_params), "orientations": orientations,
         "scan_end": scan_end, "scan_step": scan_step, "scan_points": scan_points,
-        "default_scan_end_angstrom": target_radii,
+        "default_scan_end_factor": DEFAULT_SCAN_END_FACTOR,
+        "default_scan_end_angstrom": default_scan_end,
     }
     (root / "request.json").write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
     results = []
@@ -145,7 +149,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             continue
         write_xyz(orientation.atoms_list, orientation.coordinates, directory / "start.xyz", job_name=orientation.name, precision=12)
         start_distance = _distance(orientation.coordinates, absolute_i, absolute_j)
-        end_distance = float(scan_end if scan_end is not None else target_radii)
+        end_distance = float(scan_end if scan_end is not None else default_scan_end)
         try:
             n_points = scan_point_count(start_distance, end_distance, scan_step, scan_points)
         except ValueError as exc:

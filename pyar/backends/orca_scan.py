@@ -38,7 +38,8 @@ def parse_xyz_trajectory(path, expected_atoms, expected_symbols=None):
     frames = []
     cursor = 0
     while cursor < len(lines):
-        while cursor < len(lines) and not lines[cursor].strip():
+        # ORCA's ``scan.allxyz`` separates frames with a standalone ``>``.
+        while cursor < len(lines) and lines[cursor].strip() in {"", ">"}:
             cursor += 1
         if cursor >= len(lines):
             break
@@ -75,7 +76,9 @@ def _orca_keyword(qc_params, scftype=None):
         qc_params.get("opt_threshold"), "Opt"
     )
     keyword = f"! {qc_params['method']} {qc_params['basis']} {threshold} RI def2/J D3BJ KDIIS"
-    if str(scftype or qc_params.get("scftype", "rhf")).lower() == "uks":
+    # ``merged_with`` represents unrestricted molecules as ``uhf`` even when
+    # the requested ORCA calculation is DFT, where ORCA's keyword is ``UKS``.
+    if str(scftype or qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}:
         keyword += " UKS"
     return keyword
 
@@ -134,6 +137,9 @@ def run_orca_bond_scan(molecule, request, directory, qc_params):
         frames = parse_xyz_trajectory(trajectory_path, molecule.number_of_atoms, molecule.atoms_list)
     except ValueError:
         return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path, "trajectory_invalid")
+    if len(frames) != request.n_points:
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "trajectory_incomplete")
     final_coordinates = frames[-1][1]
     final_path = directory / "final_scan.xyz"
     write_xyz(molecule.atoms_list, final_coordinates, final_path, job_name="final_scan", precision=12)

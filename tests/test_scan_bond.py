@@ -6,7 +6,13 @@ import numpy as np
 import pytest
 
 from pyar.backends import write_xyz
-from pyar.backends.orca_scan import OrcaBondScanRequest, OrcaBondScanResult, parse_xyz_trajectory, run_orca_bond_scan
+from pyar.backends.orca_scan import (
+    OrcaBondScanRequest,
+    OrcaBondScanResult,
+    _orca_keyword,
+    parse_xyz_trajectory,
+    run_orca_bond_scan,
+)
 from pyar.core.molecule import Molecule
 from pyar.workflows.scan_bond import absolute_target_indices, run_scan_bond, scan_point_count
 
@@ -45,7 +51,7 @@ def test_scan_point_count_validates_exclusive_controls():
 def test_multixyz_parser_returns_final_frame_and_rejects_truncation(tmp_path):
     trajectory = tmp_path / "scan.allxyz"
     trajectory.write_text(
-        "2\nframe 1\nH 0 0 0\nH 1 0 0\n"
+        "2\nframe 1\nH 0 0 0\nH 1 0 0\n>\n"
         "2\nframe 2\nH 0 0 0\nH 1.2 0 0\n"
     )
     frames = parse_xyz_trajectory(trajectory, 2, ["H", "H"])
@@ -59,7 +65,7 @@ def test_multixyz_parser_returns_final_frame_and_rejects_truncation(tmp_path):
 def test_orca_scan_input_and_recovery(tmp_path, monkeypatch):
     molecule = Molecule(["H", "H"], np.asarray([[0., 0., 0.], [2., 0., 0.]]))
     molecule.scftype = "uks"
-    request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 11)
+    request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 2)
     scan_dir = tmp_path / "scan"
 
     def fake_run(command, stdout_path=None, stderr_path=None):
@@ -79,12 +85,35 @@ def test_orca_scan_input_and_recovery(tmp_path, monkeypatch):
          "opt_cycles": 25, "opt_threshold": "tight"},
     )
     assert result.success
-    assert "B 0 1 = 2.0000000000, 1.0000000000, 11" in result.input_path.read_text()
+    assert "B 0 1 = 2.0000000000, 1.0000000000, 2" in result.input_path.read_text()
     assert "UKS" in result.input_path.read_text()
     assert "MaxIter 25" in result.input_path.read_text()
     assert result.final_geometry_path.exists()
     assert result.trajectory_path.exists()
     assert result.final_coordinates[1, 0] == 1.0
+
+
+def test_orca_keyword_maps_merged_uhf_to_unrestricted_dft():
+    assert "UKS" in _orca_keyword({"method": "BP86", "basis": "def2-SVP"}, "uhf")
+
+
+def test_orca_scan_rejects_incomplete_trajectory(tmp_path, monkeypatch):
+    molecule = Molecule(["H", "H"], np.asarray([[0., 0., 0.], [2., 0., 0.]]))
+    request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 3)
+
+    def fake_run(command, stdout_path=None, stderr_path=None):
+        Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
+        Path("scan.allxyz").write_text("2\nframe 1\nH 0 0 0\nH 2 0 0\n")
+        return 0
+
+    monkeypatch.setattr("pyar.backends.orca_scan.require_executable", lambda *args: "orca")
+    monkeypatch.setattr("pyar.backends.orca_scan.run_command", fake_run)
+    result = run_orca_bond_scan(
+        molecule, request, tmp_path / "incomplete",
+        {"method": "BP86", "basis": "def2-SVP", "nprocs": 1, "scf_cycles": 1000},
+    )
+    assert not result.success
+    assert result.status == "trajectory_incomplete"
 
 
 def test_workflow_relaxes_scan_frame_and_writes_summary(tmp_path, monkeypatch):
@@ -128,3 +157,54 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(tmp_path, monkeypatch):
     assert (tmp_path / "scan_bond" / "summary.json").exists()
     assert (tmp_path / "scan_bond" / "orientation_000" / "result_relaxed.xyz").exists()
     assert (tmp_path / "scan_bond" / "orientation_000" / "result.json").exists()
+
+
+def test_workflow_default_scan_end_is_0_8_times_covalent_radii(tmp_path, monkeypatch):
+    a = tmp_path / "a.xyz"
+    b = tmp_path / "b.xyz"
+    write_xyz(["H"], [[0., 0., 0.]], a)
+    write_xyz(["H"], [[1.8, 0., 0.]], b)
+    observed = {}
+
+    def fake_scan(molecule, request, directory, qc_params):
+        observed["end_distance"] = request.end_distance_angstrom
+        observed["n_points"] = request.n_points
+        directory.mkdir(parents=True, exist_ok=True)
+        input_path = directory / "scan.inp"
+        output_path = directory / "scan.out"
+        trajectory = directory / "scan_trajectory.xyz"
+        final_path = directory / "final_scan.xyz"
+        input_path.write_text("scan")
+        output_path.write_text("normal")
+        coordinates = np.asarray([[0., 0., 0.], [request.end_distance_angstrom, 0., 0.]])
+        write_xyz(molecule.atoms_list, coordinates, final_path)
+        trajectory.write_text(
+            "2\nframe 1\nH 0 0 0\nH 1.0 0 0\n"
+            f"2\nframe 2\nH 0 0 0\nH {request.end_distance_angstrom} 0 0\n"
+        )
+        return OrcaBondScanResult(True, trajectory, final_path, coordinates,
+                                  input_path, output_path, "success")
+
+    def fake_optimise(molecule, qc_params):
+        Path("job_relaxed").mkdir()
+        write_xyz(molecule.atoms_list, molecule.coordinates,
+                  Path("job_relaxed") / "result_relaxed.xyz")
+        return True
+
+    scan_workflow = importlib.import_module("pyar.workflows.scan_bond")
+    monkeypatch.setattr(scan_workflow, "run_orca_bond_scan", fake_scan)
+    monkeypatch.setattr(scan_workflow, "optimise", fake_optimise)
+    result = run_scan_bond(
+        a, b, (0, 0), 1,
+        {"software": "orca", "method": "BP86", "basis": "def2-SVP",
+         "nprocs": 1, "scf_cycles": 1000},
+        tmp_path / "scan_bond",
+    )
+    radii_sum = sum(Molecule.from_xyz(path).covalent_radius[0] for path in (a, b))
+    assert observed["end_distance"] == pytest.approx(0.8 * radii_sum)
+    assert result["results"][0]["target_distance_scan_end_angstrom"] == pytest.approx(
+        0.8 * radii_sum
+    )
+    request = json.loads((tmp_path / "scan_bond" / "request.json").read_text())
+    assert request["default_scan_end_factor"] == pytest.approx(0.8)
+    assert request["default_scan_end_angstrom"] == pytest.approx(0.8 * radii_sum)

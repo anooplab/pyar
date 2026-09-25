@@ -11,8 +11,8 @@ zero-based indices. The scan is followed by an unconstrained ORCA relaxation:
 
    pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 --software orca -N 4
 
-The default endpoint is the sum of the selected atoms' PyAR covalent radii and
-the default spacing is 0.10 Angstrom. Use ``--scan-end`` and either
+The default endpoint is 0.8 times the sum of the selected atoms' PyAR covalent
+radii and the default spacing is 0.10 Angstrom. Use ``--scan-end`` and either
 ``--scan-step`` or ``--scan-points`` to override them. Results are written to
 ``scan_bond/`` with raw ORCA files, scan trajectories, relaxed structures, and
 ``request.json``/``summary.json``/``summary.csv`` provenance.

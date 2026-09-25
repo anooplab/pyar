@@ -3,8 +3,8 @@ Bond Scan
 
 ``scan-bond`` is an ORCA-only relaxed surface scan along one distance between
 two molecular fragments. Atom indices are zero-based and local to each input
-fragment. The scan endpoint defaults to the sum of the selected atoms'
-PyAR covalent radii, and the default spacing is 0.10 Angstrom.
+fragment. The scan endpoint defaults to 0.8 times the sum of the selected
+atoms' PyAR covalent radii, and the default spacing is 0.10 Angstrom.
 
 .. code-block:: bash
 
