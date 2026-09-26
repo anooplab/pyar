@@ -78,7 +78,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     bias_controller="adaptive",
                     bias_alpha_min=0.001,
                     bias_alpha_margin=0.002,
-                    bias_alpha_smoothing=0.5,
+                    bias_alpha_smoothing=1.0,
                     bias_alpha_epsilon=1.0e-10,
                     bias_scheduled_alpha=None,
                     software="xtb",
@@ -98,7 +98,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         self.assertEqual(react.call_args.args[5]["bias_controller"], "adaptive")
         self.assertEqual(react.call_args.args[5]["bias_alpha_min"], 0.001)
         self.assertEqual(react.call_args.args[5]["bias_alpha_margin"], 0.002)
-        self.assertEqual(react.call_args.args[5]["bias_alpha_smoothing"], 0.5)
+        self.assertEqual(react.call_args.args[5]["bias_alpha_smoothing"], 1.0)
         self.assertEqual(react.call_args.args[5]["bias_alpha_epsilon"], 1.0e-10)
 
     def test_react_reports_restart_state_error_cleanly(self):

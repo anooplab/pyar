@@ -151,9 +151,14 @@ def optimise(molecule, qc_params):
         )
         reuse_result = os.path.exists(f'result_{molecule.name}.xyz')
         cached_physical_energy = None
+        force_geometric_restart = bool(
+            qc_params.get('bias_controller_restart') or qc_params.get('release_retry_attempt')
+        )
+        if force_geometric_restart and qc_params.get('geometry_optimizer') == 'geometric':
+            reuse_result = False
         if reuse_result:
             read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
-        if reuse_result and qc_params.get('geometry_optimizer') == 'geometric':
+        if reuse_result and qc_params.get('geometry_optimizer') == 'geometric' and not force_geometric_restart:
             try:
                 state = json.loads(Path('pyar_geometric_state.json').read_text())
                 cached_physical_energy = float(state['backend_energy_hartree'])

@@ -9,49 +9,43 @@ IRC, and final endpoint optimization. Adaptive findings below are review finding
 the implementation changes in this review address the reaction-path driver and
 the requested final endpoint verification.
 
-Outstanding adaptive findings
------------------------------
+Adaptive findings addressed
+---------------------------
 
-High priority: cycle-limit recovery is not necessarily the last accepted geometry.
-``pyar/backends/adaptive_geometric.py:130`` writes ``optimizer.progress`` after
-``GeomOptNotConvergedError``. geomeTRIC appends the evaluated trial before its
-acceptance decision, and iteration-limit termination precedes rejection handling.
-The adaptive driver returns immediately on ``FAILED``, without updating its
-accepted checkpoint. A one-cycle harmonic-pair reproduction exported coordinates
-that differed from that checkpoint by 0.002645886 angstrom. Recovery should use
-the accepted checkpoint and reevaluate its physical energy before writing the
-parent-process result. Do not call that trial an accepted geometry.
+High priority, fixed: cycle-limit recovery now restores the accepted controller
+checkpoint, reevaluates that geometry, and replaces the terminal progress frame
+before writing the optimizer result. A rejected final trial is not exported.
 
-High priority: the initial reactant frame is absent from adaptive traces.
-``PyarGeometricCalculator.calculate`` records adaptive frames only when
-``_record_accepted_geometry`` is set after a step. The first evaluation initializes
-the controller but writes no trace frame. ``_persistent_transition_index`` in
-``pyar/reaction_analysis.py`` consequently uses the first accepted step as its
-reference. A topology change on that first step can be missed, and there is no
-pre-change geometry to export. Record an explicit initial reference without
-advancing release persistence; preserve this convention during restart.
+High priority, fixed: the initial adaptive evaluation is recorded as the explicit
+reactant topology baseline, without incrementing release persistence. Restarted
+traces continue from their existing records rather than inserting a second input
+baseline.
 
-Medium priority: optional force filtering uses the biased total force.
-``max_force`` in ``pyar/backends/geometric.py`` is derived from the physical plus
-bias force, and the candidate filter in ``pyar/reaction_analysis.py`` uses that
-field. Force cancellation can therefore let a physically strained geometry pass
-a low-force filter. Preserve the total-force diagnostic but expose a separate
-physical-force criterion for assessing candidate strain. A TS guess itself need
-not be stationary; the distinction belongs in explicit selection criteria.
+Medium priority, fixed: ``max_force`` remains the total-objective diagnostic;
+candidate strain filtering now uses the separately recorded maximum per-atom
+backend force. Existing traces without that field use backend force vectors;
+frames lacking physical force data cannot pass an enabled force filter.
+Outlier rejection uses unbiased ``backend_energy_hartree``;
+zero-MAD traces now classify energies distinct from the median as outliers rather
+than silently disabling the filter. A TS guess itself need not be stationary.
 
-Low priority: adaptive smoothing is currently ineffective.
-``BiasController.select`` makes ``target`` at least ``previous_alpha + margin``
-and takes the maximum of that target and its convex interpolation with the
-previous alpha. For every allowed smoothing value, the maximum is the target.
-Reproductions with smoothing values 0.1, 0.5, and 1.0 give identical sequences.
-The CLI should describe this option as inactive/deprecated for monotonic loading,
-or a scientifically explicit smoothing rule should replace it.
+Medium priority, fixed: the adaptive controller now rejects non-default alpha
+smoothing. The loading rule is the instantaneous force-cancellation estimate
+plus a positive margin, with a monotonic increment floor; smoothing that estimate
+would undermine the stated force-cancellation guarantee. The CLI retains the
+option for compatibility but documents that only ``1`` is supported.
 
-Additional termination detail: after exhausting ``adaptive_max_segments``, the
-driver has already selected the next segment's alpha and written its checkpoint,
-although that segment is never optimized. The controller checkpoint and last
-calculator-state metadata can consequently describe different strengths. Final
-state serialization should correspond to the last actually evaluated segment.
+Additional termination detail, fixed: the driver checks the segment budget before
+advancing the controller, so checkpoint strength always describes a segment that
+was actually evaluated.
+
+Follow-up corrections (2026-09-26): missing early bond-order values no longer
+permanently prevent geometry-based release probes. Endpoint validation explicitly
+requires distinct observed minima, and stage dependencies bind the upstream
+validation summary as well as numerical artifacts. Trace CSVs distinguish current
+resistance estimates from segment-start estimates. Filtered topology events are
+reported unavailable when no eligible event geometry remains. The restart
+regression test now uses genuinely different controller settings.
 
 Scientific interpretation
 -------------------------

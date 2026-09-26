@@ -262,6 +262,8 @@ def validate_trace_record(record, record_index):
         _ensure_finite_scalar(record["total_force_norm"], "total_force_norm", record_index)
     if "max_force" in record:
         _ensure_finite_scalar(record["max_force"], "max_force", record_index)
+    if "backend_max_force" in record:
+        _ensure_finite_scalar(record["backend_max_force"], "backend_max_force", record_index)
     if "collective_coordinate_bohr" in record:
         _ensure_finite_scalar(record["collective_coordinate_bohr"], "collective_coordinate_bohr", record_index)
     if "softmin_beta" in record:
@@ -334,6 +336,9 @@ def validate_trace_record(record, record_index):
         "afir_force_norm": float(record["bias_force_norm"]) if "bias_force_norm" in record else None,
         "total_force_norm": float(record["total_force_norm"]) if "total_force_norm" in record else None,
         "max_force": float(record["max_force"]) if "max_force" in record else None,
+        "backend_max_force": (
+            float(record["backend_max_force"]) if "backend_max_force" in record else None
+        ),
         "current_bonds": [list(pair) for pair in current_bonds],
         "formed_bonds": [list(pair) for pair in formed_bonds],
         "broken_bonds": [list(pair) for pair in broken_bonds],
@@ -362,6 +367,16 @@ def validate_trace_record(record, record_index):
         normalized["bias_controller"] = record["bias_controller"]
     if "bias_parameters" in record:
         normalized["bias_parameters"] = record["bias_parameters"]
+    for key in (
+        "accepted_step", "segment_index", "release_state", "release_reason",
+        "release_evidence", "forming_pairs", "forming_pair_distance",
+        "normalized_distance", "topology_change_state", "persistence_counter",
+        "alpha", "alpha_critical", "alpha_target", "bond_order_available",
+        "bond_order_scheme", "bond_order_delta", "bond_order_stabilized",
+        "comparable_bond_orders",
+    ):
+        if key in record:
+            normalized[key] = record[key]
 
     return normalized
 
@@ -437,6 +452,7 @@ class ReactionTraceRecorder:
         bias_force_norm=None,
         total_force_norm,
         max_force,
+        backend_max_force=None,
         fragment_indices=None,
         collective_coordinate_bohr=None,
         contact_diagnostics=None,
@@ -446,6 +462,24 @@ class ReactionTraceRecorder:
         afir_energy_hartree=None,
         afir_forces_hartree_per_bohr=None,
         afir_force_norm=None,
+        accepted_step=None,
+        segment_index=None,
+        release_state=None,
+        release_reason=None,
+        release_evidence=None,
+        forming_pairs=None,
+        forming_pair_distance=None,
+        normalized_distance=None,
+        topology_change_state=None,
+        persistence_counter=None,
+        alpha=None,
+        alpha_critical=None,
+        alpha_target=None,
+        bond_order_available=None,
+        bond_order_scheme=None,
+        bond_order_delta=None,
+        bond_order_stabilized=None,
+        comparable_bond_orders=None,
     ):
         """Write one trace record and its corresponding XYZ snapshot.
 
@@ -493,6 +527,8 @@ class ReactionTraceRecorder:
             "bond_change_count": len(formed_bonds) + len(broken_bonds),
             "min_interfragment_distance_angstrom": min_distance,
         }
+        if backend_max_force is not None:
+            record["backend_max_force"] = float(backend_max_force)
         if collective_coordinate_bohr is not None:
             record["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
         if contact_diagnostics is not None:
@@ -503,6 +539,28 @@ class ReactionTraceRecorder:
             record["bias_controller"] = bias_controller
         if bias_parameters is not None:
             record["bias_parameters"] = bias_parameters
+        for key, value in (
+            ("accepted_step", accepted_step),
+            ("segment_index", segment_index),
+            ("release_state", release_state),
+            ("release_reason", release_reason),
+            ("release_evidence", release_evidence),
+            ("forming_pairs", forming_pairs),
+            ("forming_pair_distance", forming_pair_distance),
+            ("normalized_distance", normalized_distance),
+            ("topology_change_state", topology_change_state),
+            ("persistence_counter", persistence_counter),
+            ("alpha", alpha),
+            ("alpha_critical", alpha_critical),
+            ("alpha_target", alpha_target),
+            ("bond_order_available", bond_order_available),
+            ("bond_order_scheme", bond_order_scheme),
+            ("bond_order_delta", bond_order_delta),
+            ("bond_order_stabilized", bond_order_stabilized),
+            ("comparable_bond_orders", comparable_bond_orders),
+        ):
+            if value is not None:
+                record[key] = value
 
         with self.trace_file.open("a", encoding="utf-8") as fp:
             json.dump(record, fp, sort_keys=True)

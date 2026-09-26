@@ -207,11 +207,31 @@ completed jobs, products, and invocation settings. Resume is rejected if the
 new invocation changes scientific inputs or backend settings.
 
 GeomeTRIC-backed AFIR runs also write a lightweight path trace under each job
-directory in ``reaction_trace/``. The trace contains a JSONL record for every
-backend evaluation plus matching XYZ snapshots, and successful paths add a
+directory in ``reaction_trace/``. Fixed-bias traces record backend evaluations;
+adaptive traces record the initial reference and accepted geometries, with
+matching XYZ snapshots. Successful paths add a
 ``path_summary.csv`` file together with ``candidate_ts/`` geometries for the
-highest backend energy, highest total energy, pre-product, and largest bond
-change points.
+highest backend energy, highest total energy, pre-product, and first persistent
+topology-change points.
+
+For candidate selection, ``pyar-reaction-trace`` can optionally omit frames
+whose maximum per-atom physical backend force exceeds a caller-selected threshold,
+and/or omit outliers using the unbiased backend electronic energy and a
+median-absolute-deviation robust z-score. For traces with zero median absolute
+deviation, energies distinct from the median are treated as outliers. For
+example, ``pyar-reaction-trace <job-directory> --max-force 0.05
+--exclude-energy-outliers 3.5`` applies both filters (force in Hartree/bohr).
+The full trace and path-summary rows remain available; ``metadata.json`` and
+the CSV identify excluded candidate frames and the filter settings. No filter
+is applied unless requested.
+For older traces, physical maximum force is recovered from backend force vectors.
+If neither vectors nor a physical maximum are available, the force filter excludes
+the frame with reason ``physical_force_unavailable``; it never substitutes total
+force. ``first_topology_change.xyz`` is omitted when no eligible frame remains
+in the first topology event, and metadata marks that candidate unavailable.
+Reanalysis removes a previously exported candidate that is no longer eligible.
+``pre_product_geometry.xyz`` selects the highest electronic energy among eligible
+frames before the event and is unavailable if no such frame exists.
 
 The trace-analysis output has the following structure:
 
@@ -225,7 +245,7 @@ The trace-analysis output has the following structure:
      highest_backend_energy.xyz
      highest_total_energy.xyz
      pre_product_geometry.xyz
-     max_bond_change.xyz
+     first_topology_change.xyz
      metadata.json
    trace_plots/
      reaction_profile.png

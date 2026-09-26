@@ -62,11 +62,12 @@ class BiasControllerDecision:
 
 
 class BiasController:
-    """Choose fixed, scheduled, or resistance-based bias strengths.
+    """Choose fixed, scheduled, or incrementally adaptive bias strengths.
 
-    The adaptive policy uses ``max(0, -(grad_E . grad_q)/(||grad_q||^2 +
-    epsilon))`` plus a positive driving margin. Smoothing damps decreases;
-    increases are applied immediately so filtering cannot cancel the drive.
+    Adaptive updates estimate the force scale that cancels the physical energy
+    slope along the contact coordinate, then add a positive increment. The
+    applied scale is monotonic: each new optimized segment adds at least that
+    increment until the configured ceiling is reached.
     """
 
     _POLICIES = {"fixed", "scheduled", "adaptive"}
@@ -93,6 +94,11 @@ class BiasController:
         self.smoothing = self._finite_nonnegative(smoothing, "smoothing")
         if not 0.0 < self.smoothing <= 1.0:
             raise ValueError("smoothing must be greater than 0 and at most 1")
+        if self.policy == "adaptive" and self.smoothing != 1.0:
+            raise ValueError(
+                "adaptive alpha smoothing is incompatible with monotonic force-cancellation loading; "
+                "omit --bias-alpha-smoothing or set it to 1"
+            )
         self.epsilon = self._finite_positive(epsilon, "epsilon")
         self.scheduled_alpha = None if scheduled_alpha is None else self._finite_nonnegative(
             scheduled_alpha, "scheduled_alpha"
@@ -109,7 +115,7 @@ class BiasController:
             "policy", "alpha_min", "safety_margin", "smoothing", "epsilon", "scheduled_alpha"
         )}
         if self.policy == "adaptive":
-            parameters["smoothing_mode"] = "decrease_only"
+            parameters["smoothing_mode"] = "disabled_monotonic_loading"
         return parameters
 
     def state_dict(self):
@@ -202,15 +208,11 @@ class BiasController:
             raise ValueError("physical and coordinate gradients must be finite arrays with identical shapes")
         denominator = float(np.sum(coordinate * coordinate) + self.epsilon)
         alpha_critical = max(0.0, -float(np.sum(gradient * coordinate)) / denominator)
-        target = float(np.clip(alpha_critical + self.safety_margin, self.alpha_min, alpha_max))
-        alpha = target if self._previous_alpha is None else (
-            self.smoothing * target + (1.0 - self.smoothing) * self._previous_alpha
-        )
-        # A lagging increase can leave alpha below the physical resistance.
-        # Preserve at least the current driving target, subject to the ceiling.
-        alpha = max(alpha, target)
-        alpha = float(np.clip(alpha, self.alpha_min, alpha_max))
-        return BiasControllerDecision("adaptive", alpha, alpha_critical, target)
+        target = alpha_critical + self.safety_margin
+        if self._previous_alpha is not None:
+            target = max(target, self._previous_alpha + self.safety_margin)
+        target = float(np.clip(target, self.alpha_min, alpha_max))
+        return BiasControllerDecision("adaptive", target, alpha_critical, target)
 
 
 class FixedBiasController(BiasController):

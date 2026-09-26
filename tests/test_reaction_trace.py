@@ -12,12 +12,25 @@ from ase.units import Bohr, Hartree
 
 from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult
-from pyar.reaction_analysis import analyse_reaction_trace
+from pyar.reaction_analysis import _candidate_record_indices, analyse_reaction_trace
 from pyar.reaction_analysis import plot_reaction_trace
 from pyar.reaction_trace import bond_changes, infer_bonds, load_trace_records
 
 
 class ReactionTraceTests(unittest.TestCase):
+    def test_candidate_filters_exclude_high_force_and_energy_outlier_frames(self):
+        records = [
+            {"backend_max_force": 0.01, "backend_energy_hartree": -10.0},
+            {"backend_max_force": 0.20, "backend_energy_hartree": -9.99},
+            {"backend_max_force": 0.01, "backend_energy_hartree": -9.98},
+            {"backend_max_force": 0.01, "backend_energy_hartree": -8.0},
+        ]
+
+        self.assertEqual(
+            _candidate_record_indices(records, max_force=0.05, energy_outlier_z=3.5),
+            [0, 2],
+        )
+
     def test_trace_recorder_append_mode_preserves_existing_steps(self):
         from pyar.reaction_trace import ReactionTraceRecorder
 
@@ -247,7 +260,7 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "metadata.json").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_backend_energy.xyz").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "pre_product_geometry.xyz").exists())
-            self.assertTrue((Path(tmpdir) / "candidate_ts" / "max_bond_change.xyz").exists())
+            self.assertTrue((Path(tmpdir) / "candidate_ts" / "first_topology_change.xyz").exists())
             self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_total_energy.xyz").exists())
             self.assertEqual(summary["highest_backend_energy_index"], 1)
             self.assertIn("2", Path(tmpdir, "candidate_ts", "highest_backend_energy.xyz").read_text())
@@ -369,7 +382,10 @@ class ReactionTraceTests(unittest.TestCase):
             summary = analyse_reaction_trace(job_dir)
 
             self.assertEqual(summary["persistent_transition_index"], 3)
+            self.assertEqual(summary["first_topology_change_index"], 3)
             self.assertEqual(summary["pre_product_index"], 2)
+            transition = Path(job_dir / "candidate_ts" / "first_topology_change.xyz").read_text()
+            self.assertIn("1.00000", transition)
             pre_product = Path(job_dir / "candidate_ts" / "pre_product_geometry.xyz").read_text()
             self.assertIn("2.10000", pre_product)
 
@@ -428,7 +444,7 @@ class ReactionTraceTests(unittest.TestCase):
             self.assertTrue((job_dir / "candidate_ts" / "highest_backend_energy.xyz").exists())
             self.assertTrue((job_dir / "candidate_ts" / "highest_total_energy.xyz").exists())
             self.assertTrue((job_dir / "candidate_ts" / "pre_product_geometry.xyz").exists())
-            self.assertTrue((job_dir / "candidate_ts" / "max_bond_change.xyz").exists())
+            self.assertTrue((job_dir / "candidate_ts" / "first_topology_change.xyz").exists())
 
             highest_backend = Path(job_dir / "candidate_ts" / "highest_backend_energy.xyz").read_text()
             highest_total = Path(job_dir / "candidate_ts" / "highest_total_energy.xyz").read_text()

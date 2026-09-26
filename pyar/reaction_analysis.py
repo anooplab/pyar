@@ -61,7 +61,7 @@ def _bond_sets(records):
 
 
 def _persistent_transition_index(records):
-    """Return the first bond-change step that persists beyond one frame."""
+    """Return the first persistent topology change after the reactant frame."""
     if len(records) < 2:
         return 0
 
@@ -82,12 +82,103 @@ def _persistent_transition_index(records):
     return 0
 
 
-def _pre_product_index(records):
-    """Return the geometry immediately preceding the first persistent bond event."""
+def _pre_product_index(records, eligible_indices=None):
+    """Return the highest electronic-energy eligible frame before the event."""
     transition_index = _persistent_transition_index(records)
-    if transition_index <= 0:
-        return _record_index_with_max(records, "backend_energy_hartree")
-    return transition_index - 1
+    eligible = range(len(records)) if eligible_indices is None else eligible_indices
+    return max(
+        (index for index in eligible if index < transition_index),
+        key=lambda index: float(records[index]["backend_energy_hartree"]), default=None,
+    )
+
+
+def _energy_outlier_scores(records):
+    """Robust scores from unbiased backend energies, including zero-MAD data."""
+    energies = np.asarray(
+        [float(record["backend_energy_hartree"]) for record in records], dtype=float
+    )
+    median = float(np.median(energies))
+    deviations = np.abs(energies - median)
+    mad = float(np.median(deviations))
+    if mad > 0.0:
+        return 0.67448975 * deviations / mad
+    # A repeated/quantized majority has MAD=0. Treat values equal within
+    # floating-point noise as inliers and every distinct value as an outlier.
+    tolerance = max(1.0e-12, 8.0 * np.finfo(float).eps * max(1.0, abs(median)))
+    return np.where(deviations <= tolerance, 0.0, np.inf)
+
+
+def _physical_max_force(record):
+    """Recover physical force from legacy vectors; never substitute biased force."""
+    value = record.get("backend_max_force")
+    if value is not None:
+        return float(value)
+    forces = record.get("backend_forces_hartree_per_bohr")
+    if forces is None:
+        return None
+    forces = np.asarray(forces, dtype=float)
+    if forces.ndim != 2 or forces.shape[1] != 3 or not forces.size or not np.all(np.isfinite(forces)):
+        return None
+    return float(np.max(np.linalg.norm(forces, axis=1)))
+
+
+def _candidate_record_indices(records, max_force=None, energy_outlier_z=None):
+    """Return trace-record indices eligible for candidate geometry selection."""
+    eligible = list(range(len(records)))
+    if max_force is not None:
+        max_force = float(max_force)
+        if not np.isfinite(max_force) or max_force <= 0.0:
+            raise ValueError("max_force must be a finite positive value in Hartree/bohr")
+        eligible = [
+            index for index in eligible
+            if _physical_max_force(records[index]) is not None
+            and float(_physical_max_force(records[index])) <= max_force
+        ]
+    if energy_outlier_z is not None:
+        energy_outlier_z = float(energy_outlier_z)
+        if not np.isfinite(energy_outlier_z) or energy_outlier_z <= 0.0:
+            raise ValueError("energy_outlier_z must be a finite positive value")
+        robust_z = _energy_outlier_scores(records)
+        eligible = [index for index in eligible if robust_z[index] <= energy_outlier_z]
+    if not eligible:
+        raise ValueError("Candidate filters excluded every reaction-trace geometry")
+    return eligible
+
+
+def _candidate_exclusion_reasons(records, max_force=None, energy_outlier_z=None):
+    """Describe why optional force/outlier filters reject individual frames."""
+    reasons = {}
+    if max_force is not None:
+        for index, record in enumerate(records):
+            force = _physical_max_force(record)
+            if force is None:
+                reasons.setdefault(index, []).append("physical_force_unavailable")
+            elif float(force) > float(max_force):
+                reasons.setdefault(index, []).append("max_force")
+    if energy_outlier_z is not None:
+        robust_z = _energy_outlier_scores(records)
+        for index, score in enumerate(robust_z):
+            if score > float(energy_outlier_z):
+                reasons.setdefault(index, []).append("backend_energy_outlier")
+    return reasons
+
+
+def _first_persistent_transition_index(records, eligible_indices=None):
+    """Select the first persistent topology event, optionally requiring eligibility."""
+    eligible = None if eligible_indices is None else set(eligible_indices)
+    transition_index = _persistent_transition_index(records)
+    if transition_index == 0:
+        return None
+    if eligible is None or transition_index in eligible:
+        return transition_index
+    bond_sets = _bond_sets(records)
+    transition_bonds = bond_sets[transition_index]
+    for index in range(transition_index + 1, len(records)):
+        if bond_sets[index] != transition_bonds:
+            break
+        if index in eligible:
+            return index
+    return None
 
 
 def _step_xyz_path(record):
@@ -169,35 +260,30 @@ def _candidate_metadata(
     trace_records,
     highest_backend_index,
     pre_product_index,
-    max_bond_change_index,
+    topology_change_index,
     highest_total_index,
     transition_index,
     baseline_record,
 ):
     """Return metadata for the candidate TS geometries."""
     candidate_directory = Path(job_directory) / "candidate_ts"
-    candidate_files = {
-            "highest_backend_energy": {
-                "xyz_file": "highest_backend_energy.xyz",
-                "source_step_index": int(trace_records[highest_backend_index]["step_index"]),
-                "source_trace_xyz": _step_xyz_path(trace_records[highest_backend_index]),
-            },
-            "pre_product_geometry": {
-                "xyz_file": "pre_product_geometry.xyz",
-                "source_step_index": int(trace_records[pre_product_index]["step_index"]),
-                "source_trace_xyz": _step_xyz_path(trace_records[pre_product_index]),
-            },
-            "max_bond_change": {
-                "xyz_file": "max_bond_change.xyz",
-                "source_step_index": int(trace_records[max_bond_change_index]["step_index"]),
-                "source_trace_xyz": _step_xyz_path(trace_records[max_bond_change_index]),
-            },
-            "highest_total_energy": {
-                "xyz_file": "highest_total_energy.xyz",
-                "source_step_index": int(trace_records[highest_total_index]["step_index"]),
-                "source_trace_xyz": _step_xyz_path(trace_records[highest_total_index]),
-            },
+    candidate_files = {}
+    for label, index in (
+        ("highest_backend_energy", highest_backend_index),
+        ("pre_product_geometry", pre_product_index),
+        ("first_topology_change", topology_change_index),
+        ("highest_total_energy", highest_total_index),
+    ):
+        candidate_files[label] = {
+            "available": index is not None,
+            "xyz_file": f"{label}.xyz" if index is not None else None,
+            "source_step_index": int(trace_records[index]["step_index"]) if index is not None else None,
+            "source_trace_xyz": _step_xyz_path(trace_records[index]) if index is not None else None,
         }
+        if index is None:
+            candidate_files[label]["reason"] = (
+                "no_topology_change" if transition_index == 0 else "no_eligible_event_geometry"
+            )
     return {
         "path_summary_csv": str(Path(job_directory) / "path_summary.csv"),
         "trace_file": str(Path(job_directory) / "reaction_trace" / "trace.jsonl"),
@@ -212,14 +298,14 @@ def _candidate_metadata(
         "selected_indices": {
             "highest_backend_energy_index": highest_backend_index,
             "pre_product_index": pre_product_index,
-            "max_bond_change_index": max_bond_change_index,
+            "first_topology_change_index": topology_change_index,
             "highest_total_energy_index": highest_total_index,
             "persistent_transition_index": transition_index,
         },
     }
 
 
-def analyse_reaction_trace(job_directory):
+def analyse_reaction_trace(job_directory, max_force=None, energy_outlier_z=None):
     """Write a compact summary and candidate geometries for one reaction path.
 
     ``job_directory`` may point either to the workflow root or directly to a
@@ -256,6 +342,7 @@ def analyse_reaction_trace(job_directory):
             "afir_force_norm",
             "total_force_norm",
             "max_force",
+            "backend_max_force",
             "min_interfragment_distance_angstrom",
             "collective_coordinate_bohr",
             "bias_controller_policy",
@@ -267,19 +354,26 @@ def analyse_reaction_trace(job_directory):
             "bias_alpha",
             "bias_alpha_critical",
             "bias_alpha_target",
+            "bias_segment_alpha_critical",
+            "bias_segment_alpha_target",
             "bias_energy_offset_hartree",
             "bias_segment_index",
             "contact_count",
             "minimum_contact_gap_bohr",
             "closest_contact_pair",
             "bond_change_count",
+            "candidate_eligible",
+            "candidate_exclusion_reason",
             "formed_bonds",
             "broken_bonds",
             "xyz_file",
         ]
         writer = csv.DictWriter(fp, fieldnames=fieldnames)
         writer.writeheader()
-        for record in trace_records:
+        exclusion_reasons = _candidate_exclusion_reasons(
+            trace_records, max_force=max_force, energy_outlier_z=energy_outlier_z
+        )
+        for record_index, record in enumerate(trace_records):
             controller = record.get("bias_controller") or {}
             decision = controller.get("decision") or {}
             bias_parameters = record.get("bias_parameters") or {}
@@ -310,6 +404,7 @@ def analyse_reaction_trace(job_directory):
                 "afir_force_norm": record.get("afir_force_norm"),
                 "total_force_norm": record.get("total_force_norm"),
                 "max_force": record.get("max_force"),
+                "backend_max_force": _physical_max_force(record),
                 "min_interfragment_distance_angstrom": record.get(
                     "min_interfragment_distance_angstrom"
                 ),
@@ -321,8 +416,10 @@ def analyse_reaction_trace(job_directory):
                 "bias_distance_power": bias_parameters.get("distance_power"),
                 "softmin_beta_per_bohr": bias_parameters.get("beta_per_bohr"),
                 "bias_alpha": decision.get("alpha"),
-                "bias_alpha_critical": decision.get("alpha_critical"),
-                "bias_alpha_target": decision.get("alpha_target"),
+                "bias_alpha_critical": record.get("alpha_critical", decision.get("alpha_critical")),
+                "bias_alpha_target": record.get("alpha_target", decision.get("alpha_target")),
+                "bias_segment_alpha_critical": decision.get("alpha_critical"),
+                "bias_segment_alpha_target": decision.get("alpha_target"),
                 "bias_energy_offset_hartree": controller.get("energy_offset_hartree"),
                 "bias_segment_index": controller.get("segment_index"),
                 "contact_count": (record.get("contact_diagnostics") or {}).get("contact_count"),
@@ -332,17 +429,26 @@ def analyse_reaction_trace(job_directory):
                     sort_keys=True,
                 ),
                 "bond_change_count": int(record["bond_change_count"]),
+                "candidate_eligible": record_index not in exclusion_reasons,
+                "candidate_exclusion_reason": ";".join(exclusion_reasons.get(record_index, [])),
                 "formed_bonds": json.dumps(record.get("formed_bonds", []), sort_keys=True),
                 "broken_bonds": json.dumps(record.get("broken_bonds", []), sort_keys=True),
                 "xyz_file": _step_xyz_path(record),
             }
             writer.writerow(row)
 
-    highest_backend_index = _record_index_with_max(trace_records, "backend_energy_hartree")
-    highest_total_index = _record_index_with_max(trace_records, "total_energy_hartree")
-    max_bond_change_index = _record_index_with_max(trace_records, "bond_change_count")
-    pre_product_index = _pre_product_index(trace_records)
+    eligible_indices = _candidate_record_indices(
+        trace_records, max_force=max_force, energy_outlier_z=energy_outlier_z
+    )
+    highest_backend_index = max(
+        eligible_indices, key=lambda index: float(trace_records[index]["backend_energy_hartree"])
+    )
+    highest_total_index = max(
+        eligible_indices, key=lambda index: float(trace_records[index]["total_energy_hartree"])
+    )
+    topology_change_index = _first_persistent_transition_index(trace_records, eligible_indices)
     transition_index = _persistent_transition_index(trace_records)
+    pre_product_index = _pre_product_index(trace_records, eligible_indices)
 
     _write_xyz_record(
         candidate_directory / "highest_backend_energy.xyz",
@@ -351,18 +457,14 @@ def analyse_reaction_trace(job_directory):
         reference_record=baseline_record,
         energy_key="backend_energy_hartree",
     )
-    _write_xyz_record(
-        candidate_directory / "pre_product_geometry.xyz",
-        trace_records[pre_product_index],
-        "pre_product_geometry",
-        reference_record=baseline_record,
-    )
-    _write_xyz_record(
-        candidate_directory / "max_bond_change.xyz",
-        trace_records[max_bond_change_index],
-        "max_bond_change",
-        reference_record=baseline_record,
-    )
+    for label, index in (("pre_product_geometry", pre_product_index),
+                         ("first_topology_change", topology_change_index)):
+        path = candidate_directory / f"{label}.xyz"
+        if index is None:
+            # Reanalysis with stricter filters must not leave an old candidate.
+            path.unlink(missing_ok=True)
+        else:
+            _write_xyz_record(path, trace_records[index], label, reference_record=baseline_record)
     _write_xyz_record(
         candidate_directory / "highest_total_energy.xyz",
         trace_records[highest_total_index],
@@ -376,11 +478,22 @@ def analyse_reaction_trace(job_directory):
         trace_records,
         highest_backend_index,
         pre_product_index,
-        max_bond_change_index,
+        topology_change_index,
         highest_total_index,
         transition_index,
         baseline_record,
     )
+    metadata["candidate_filters"] = {
+        "max_force_hartree_per_bohr": max_force,
+        "max_force_metric": "backend_max_force or maximum norm of backend force vectors; missing physical force excluded",
+        "backend_energy_outlier_robust_z": energy_outlier_z,
+        "eligible_geometry_count": len(eligible_indices),
+        "excluded_geometry_count": len(trace_records) - len(eligible_indices),
+        "excluded_steps": {
+            str(trace_records[index]["step_index"]): reasons
+            for index, reasons in exclusion_reasons.items()
+        },
+    }
     metadata_path = candidate_directory / "metadata.json"
     metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -390,9 +503,11 @@ def analyse_reaction_trace(job_directory):
         "candidate_metadata_json": str(metadata_path),
         "highest_backend_energy_index": highest_backend_index,
         "pre_product_index": pre_product_index,
-        "max_bond_change_index": max_bond_change_index,
+        "first_topology_change_index": topology_change_index,
         "highest_total_energy_index": highest_total_index,
         "persistent_transition_index": transition_index,
+        "eligible_geometry_count": len(eligible_indices),
+        "excluded_geometry_count": len(trace_records) - len(eligible_indices),
     }
 
 

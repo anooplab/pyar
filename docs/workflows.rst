@@ -129,7 +129,7 @@ Useful files to inspect are:
            highest_backend_energy.xyz
            highest_total_energy.xyz
            pre_product_geometry.xyz
-           max_bond_change.xyz
+           first_topology_change.xyz
            metadata.json
          trace_plots/
            reaction_profile.png
@@ -139,8 +139,13 @@ bias. ``total_energy_hartree`` is the optimization objective, including AFIR,
 that geomeTRIC follows. The candidate file
 ``candidate_ts/highest_backend_energy.xyz`` is usually the first structure to
 inspect for later NEB, string, dimer, or TS attempts. The file
-``candidate_ts/pre_product_geometry.xyz`` is based on the first persistent
-connectivity change and should not be treated as a confirmed transition state.
+``candidate_ts/first_topology_change.xyz`` marks the first persistent
+connectivity change from the reactant-side trace, rather than the largest
+per-frame bond-count change. It should not be treated as a confirmed transition
+state. ``pre_product_geometry.xyz`` is the highest-electronic-energy eligible
+frame preceding that event. If filters exclude every frame of the first event,
+the topology-change candidate is unavailable rather than replaced by another
+topology or by a reactant frame.
 
 Legacy ``jobs.pkl`` reaction checkpoints are imported once when their gamma
 schedule is unambiguous. A legacy checkpoint whose formatted keys have lost

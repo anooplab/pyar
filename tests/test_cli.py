@@ -464,13 +464,15 @@ class CliSmokeTests(unittest.TestCase):
             "--bias-alpha-margin",
             "0.002",
             "--bias-alpha-smoothing",
-            "0.5",
+            "1",
             "--bias-alpha-epsilon",
             "1e-10",
             "--opt-cycles",
             "1000",
             "--opt-threshold",
             "tight",
+            "--release-distance-fraction",
+            "0.93",
         ]
 
         self.cli.main()
@@ -481,11 +483,12 @@ class CliSmokeTests(unittest.TestCase):
         self.assertEqual(captured["qc_params"]["bias_controller"], "adaptive")
         self.assertEqual(captured["qc_params"]["bias_alpha_min"], 0.001)
         self.assertEqual(captured["qc_params"]["bias_alpha_margin"], 0.002)
-        self.assertEqual(captured["qc_params"]["bias_alpha_smoothing"], 0.5)
+        self.assertEqual(captured["qc_params"]["bias_alpha_smoothing"], 1.0)
         self.assertEqual(captured["qc_params"]["bias_alpha_epsilon"], 1.0e-10)
         self.assertEqual(captured["qc_params"]["opt_target"], "minimum")
         self.assertEqual(captured["qc_params"]["opt_cycles"], 1000)
         self.assertEqual(captured["qc_params"]["opt_threshold"], "tight")
+        self.assertEqual(captured["qc_params"]["release_distance_fraction"], 0.93)
         self._preflight_mock.assert_called_once_with("react", "xtb", "geometric")
         current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]
         self.assertNotIn("ignores unsupported options: --bias-min/--bias-max", current_log)

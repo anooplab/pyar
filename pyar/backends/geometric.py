@@ -26,6 +26,7 @@ from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_grad
 from pyar.data.units import angstrom2bohr
 from pyar.backends import SF, require_executable, write_xyz
 from pyar.reaction_trace import ReactionTraceRecorder
+from pyar.release import ReleaseTracker
 
 geometric_logger = logging.getLogger("pyar.geometric")
 
@@ -101,6 +102,15 @@ class PyarGeometricCalculator(Calculator):
                 scheduled_alpha=self.qc_params.get("bias_scheduled_alpha"),
             )
         )
+        self.release_tracker = None
+        if controller_policy == "adaptive":
+            self.release_tracker = ReleaseTracker(
+                persistence_required=self.qc_params.get("release_persistence", 3),
+                stabilization_window=self.qc_params.get("release_stabilization_window", 2),
+                distance_tolerance=self.qc_params.get("release_distance_tolerance", 0.05),
+                alpha_critical_max=self.qc_params.get("release_alpha_critical_max", 0.05),
+                distance_fraction=self.qc_params.get("release_distance_fraction", 0.95),
+            )
         self.fragment_indices = fragment_indices
         self.opt_target = opt_target
         self.bias_distance_power = 6.0
@@ -112,11 +122,14 @@ class PyarGeometricCalculator(Calculator):
             self.bias_controller.load_state_dict(
                 self._restart_checkpoint["controller"], self.alpha_max
             )
+            if self.release_tracker is not None and self._restart_checkpoint.get("release_tracker"):
+                self.release_tracker.load_state_dict(self._restart_checkpoint["release_tracker"])
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
         self.trace_enabled = bool(
             self.qc_params.get("trace_enabled") or self.qc_params.get("reaction_trace")
         )
         self._trace_recorder = None
+        self._record_accepted_geometry = False
         if self.trace_enabled:
             trace_name = self.qc_params.get("trace_name", "reaction_trace")
             trace_root = Path.cwd() / trace_name
@@ -197,9 +210,22 @@ class PyarGeometricCalculator(Calculator):
         return float(q), gradient, diagnostics.as_dict()
 
     def _checkpoint_configuration(self):
+        qc_params = {}
+        for key, value in self.qc_params.items():
+            if key == "bonding_analysis" and hasattr(value, "scheme"):
+                value = {
+                    "scheme": value.scheme,
+                    "available": value.available,
+                    "bond_orders": {
+                        str(pair): float(order)
+                        for pair, order in value.bond_orders.items()
+                    },
+                    "metadata": dict(value.metadata),
+                }
+            qc_params[key] = value
         return {
-            "qc_params": {key: value for key, value in self.qc_params.items()
-                          if key not in {"bias_controller_restart", "trace_mode"}},
+            "qc_params": {key: value for key, value in qc_params.items()
+                          if key not in {"bias_controller_restart", "trace_mode", "release_retry_attempt", "release_job_name", "adaptive_max_segments", "adaptive_suppress_release_candidate"}},
             "fragment_indices": self.fragment_indices,
             "opt_target": self.opt_target,
         }
@@ -224,13 +250,15 @@ class PyarGeometricCalculator(Calculator):
             "symbols": self.atoms.get_chemical_symbols(),
             "positions_angstrom": self.atoms.get_positions().tolist(),
         }
+        if self.release_tracker is not None:
+            checkpoint["release_tracker"] = self.release_tracker.state_dict()
         path = Path(_CONTROLLER_STATE_FILE)
         temporary = path.with_suffix(".json.tmp")
         temporary.write_text(json.dumps(checkpoint, indent=2, sort_keys=True))
         temporary.replace(path)
 
-    def accept_geometry(self, atoms):
-        """Begin the next constant-alpha segment after optimizer acceptance.
+    def accept_geometry(self, atoms, *, advance_bias=True, observe_release=True):
+        """Update adaptive loading at an accepted geometry.
 
         The driver must invalidate its energy cache and Hessian after a change.
         ASE's cache is invalidated here. Rejected trials must never call this.
@@ -241,12 +269,30 @@ class PyarGeometricCalculator(Calculator):
             self.calculate(atoms)
         q, gradient, _ = self._contact_coordinate_report()
         previous_alpha = self.bias_controller.decision.alpha
-        self.bias_controller.start_segment(
-            self._last_backend_result.gradient_hartree_per_bohr, gradient, q, self.alpha_max
-        )
+        if advance_bias:
+            proposal = self.bias_controller.start_segment(
+                self._last_backend_result.gradient_hartree_per_bohr, gradient, q, self.alpha_max
+            )
+        else:
+            proposal = self.bias_controller.select(
+                self._last_backend_result.gradient_hartree_per_bohr, gradient, self.alpha_max
+            )
+        if self.release_tracker is not None and observe_release:
+            decision = self.bias_controller.decision
+            self.release_tracker.observe_accepted(
+                self.atoms.get_chemical_symbols(),
+                self.atoms.get_positions(),
+                self.fragment_indices,
+                alpha=decision.alpha if advance_bias else previous_alpha,
+                alpha_critical=decision.alpha_critical if advance_bias else proposal.alpha_critical,
+                alpha_target=decision.alpha_target if advance_bias else proposal.alpha_target,
+                segment_index=self.bias_controller.segment_index,
+                bonding_analysis=getattr(self._last_backend_result, "bonding_analysis", None),
+            )
+            self._record_accepted_geometry = True
         self._save_controller_checkpoint()
         self.results = {}
-        return self.bias_controller.decision.alpha != previous_alpha
+        return advance_bias and self.bias_controller.decision.alpha != previous_alpha
 
     def _write_state(self, energy, forces, collective_coordinate_bohr=None, contact_diagnostics=None):
         """Persist the latest evaluation so the parent process can recover it."""
@@ -265,6 +311,7 @@ class PyarGeometricCalculator(Calculator):
             "positions_angstrom": np.asarray(self.atoms.get_positions(), dtype=float).tolist(),
             "forces_ev_per_angstrom": np.asarray(forces, dtype=float).tolist(),
             "bias_controller": self.bias_controller.state_dict() if self.gamma != 0.0 else None,
+            "release": None if self.release_tracker is None else self.release_tracker.evidence.as_dict(),
         }
         if collective_coordinate_bohr is not None:
             state["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
@@ -308,6 +355,10 @@ class PyarGeometricCalculator(Calculator):
                     collective_coordinate_bohr, self.alpha_max,
                 )
                 self._save_controller_checkpoint()
+                # Record the input/reactant reference immediately. It is a
+                # topology baseline, not an accepted release observation.
+                if self.bias_controller.policy == "adaptive" and self._trace_recorder is not None:
+                    self._record_accepted_geometry = True
             bias_scale = self.bias_controller.decision.alpha / self.alpha_max
 
         (
@@ -323,6 +374,9 @@ class PyarGeometricCalculator(Calculator):
         bias_force_norm = float(np.linalg.norm(bias_forces_hartree_per_bohr))
         total_force_norm = float(np.linalg.norm(total_forces_hartree_per_bohr))
         max_force = float(np.max(np.linalg.norm(total_forces_hartree_per_bohr, axis=1)))
+        backend_max_force = float(np.max(np.linalg.norm(
+            backend_forces_hartree_per_bohr, axis=1
+        )))
 
         self.results["energy"] = float(total_energy)
         self.results["forces"] = total_forces
@@ -333,7 +387,9 @@ class PyarGeometricCalculator(Calculator):
             contact_diagnostics=contact_diagnostics,
         )
 
-        if self._trace_recorder is not None:
+        if self._trace_recorder is not None and (
+            self.bias_controller.policy != "adaptive" or self._record_accepted_geometry
+        ):
             self._trace_recorder.record(
                 symbols=self.atoms.get_chemical_symbols(),
                 coordinates_angstrom=np.asarray(self.atoms.get_positions(), dtype=float),
@@ -347,13 +403,87 @@ class PyarGeometricCalculator(Calculator):
                 bias_force_norm=bias_force_norm,
                 total_force_norm=total_force_norm,
                 max_force=max_force,
+                backend_max_force=backend_max_force,
                 fragment_indices=self.fragment_indices,
                 collective_coordinate_bohr=collective_coordinate_bohr,
                 contact_diagnostics=contact_diagnostics,
                 softmin_beta=self.softmin_beta if self.bias_potential == "softmin" else None,
                 bias_controller=self.bias_controller.state_dict() if self.gamma != 0.0 else None,
                 bias_parameters=self._bias_metadata(),
+                accepted_step=(
+                    None if self.release_tracker is None or self.release_tracker.evidence.accepted_step == 0
+                    else self.release_tracker.evidence.accepted_step
+                ),
+                segment_index=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.segment_index
+                ),
+                release_state=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.state
+                ),
+                release_reason=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.reason
+                ),
+                release_evidence=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.as_dict()
+                ),
+                forming_pairs=(
+                    None if self.release_tracker is None
+                    else [list(pair) for pair in self.release_tracker.evidence.forming_pairs]
+                ),
+                forming_pair_distance=(
+                    None if self.release_tracker is None
+                    else list(self.release_tracker.evidence.forming_pair_distances)
+                ),
+                normalized_distance=(
+                    None if self.release_tracker is None
+                    else list(self.release_tracker.evidence.normalized_distances)
+                ),
+                topology_change_state=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.state
+                ),
+                persistence_counter=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.persistence_counter
+                ),
+                alpha=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.alpha
+                ),
+                alpha_critical=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.alpha_critical
+                ),
+                alpha_target=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.alpha_target
+                ),
+                bond_order_available=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.bond_order_available
+                ),
+                bond_order_scheme=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.bond_order_scheme
+                ),
+                bond_order_delta=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.bond_order_delta
+                ),
+                bond_order_stabilized=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.bond_order_stabilized
+                ),
+                comparable_bond_orders=(
+                    None if self.release_tracker is None
+                    else self.release_tracker.evidence.comparable_bond_orders
+                ),
             )
+            self._record_accepted_geometry = False
 
 
 class Geometric(SF):

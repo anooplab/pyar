@@ -24,6 +24,7 @@ from pyar.backend_capabilities import (
 from pyar.data.units import bohr2angstrom
 from pyar.backends import require_executable
 from pyar.backends.xtb_utils import xtb_parallel_args
+from pyar.bonding_analysis import parse_bonding_analysis, unavailable_bonding_analysis
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class EnergyGradientResult:
 
     energy_hartree: float
     gradient_hartree_per_bohr: np.ndarray
+    bonding_analysis: object = None
 
     def __post_init__(self):
         """Validate and normalize the returned energy/gradient pair."""
@@ -158,6 +160,8 @@ class XtbEnergyGradientProvider:
             if multiplicity == 1 and scftype != "rhf":
                 command.append(f"-{scftype}")
             command.append("--grad")
+            if self.qc_params.get("bias_controller") == "adaptive":
+                command.append("--wbo")
             proc = subp.run(
                 command,
                 cwd=tmpdir,
@@ -177,7 +181,14 @@ class XtbEnergyGradientProvider:
 
             energy_hartree = _read_xtb_energy(proc.stdout.splitlines())
             gradient_hartree_per_bohr = _read_xtb_gradient(gradient_path)
-            return EnergyGradientResult(energy_hartree, gradient_hartree_per_bohr)
+            try:
+                bonding_analysis = parse_bonding_analysis(
+                    "xtb", "\n".join((proc.stdout or "", proc.stderr or "")),
+                    len(molecule.get_chemical_symbols())
+                )
+            except ValueError:
+                bonding_analysis = unavailable_bonding_analysis("xtb", "bond_order_output_missing")
+            return EnergyGradientResult(energy_hartree, gradient_hartree_per_bohr, bonding_analysis)
 
 
 class Aimnet2EnergyGradientProvider:
@@ -348,6 +359,8 @@ class OrcaEnergyGradientProvider:
             keyword += " UKS"
         keyword += f"\n%pal nprocs {int(self.qc_params.get('nprocs', 1) or 1)} end\n"
         keyword += f"%scf maxiter {int(self.qc_params.get('scf_cycles', 350) or 350)} end\n"
+        if self.qc_params.get("bias_controller") == "adaptive":
+            keyword += "%output\n Print[P_Mayer] 1\nend\n"
         return keyword
 
     def _write_input(self, molecule, coordinates_angstrom, inp_path):
@@ -398,7 +411,14 @@ class OrcaEnergyGradientProvider:
                 engrad_path,
                 len(molecule.get_chemical_symbols()),
             )
-            return EnergyGradientResult(energy_hartree, gradient_hartree_per_bohr)
+            try:
+                bonding_analysis = parse_bonding_analysis(
+                    "orca", "\n".join((proc.stdout or "", proc.stderr or "")),
+                    len(molecule.get_chemical_symbols())
+                )
+            except ValueError:
+                bonding_analysis = unavailable_bonding_analysis("orca", "bond_order_output_missing")
+            return EnergyGradientResult(energy_hartree, gradient_hartree_per_bohr, bonding_analysis)
 
 
 ENERGY_GRADIENT_PROVIDERS = {

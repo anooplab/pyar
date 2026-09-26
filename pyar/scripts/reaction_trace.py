@@ -41,6 +41,19 @@ def _build_parser():
         default=None,
         help="Directory for generated plots; defaults to <job>/trace_plots",
     )
+    parser.add_argument(
+        "--max-force",
+        type=float,
+        default=None,
+        help="Exclude candidates above this physical backend atomic force, or lacking it (Hartree/bohr)",
+    )
+    parser.add_argument(
+        "--exclude-energy-outliers",
+        type=float,
+        default=None,
+        metavar="ROBUST_Z",
+        help="Exclude backend-energy outliers above this robust z-score (e.g. 3.5)",
+    )
     return parser
 
 
@@ -58,7 +71,11 @@ def main(argv=None):
     plot_directory = getattr(args, "plot_directory", None)
     summary = None
     if not plot_only:
-        summary = analyse_reaction_trace(job_path)
+        summary = analyse_reaction_trace(
+            job_path,
+            max_force=getattr(args, "max_force", None),
+            energy_outlier_z=getattr(args, "exclude_energy_outliers", None),
+        )
         if summary is None:
             raise SystemExit(f"No reaction trace records found in {job_path}")
 

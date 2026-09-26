@@ -18,6 +18,8 @@ command-line entry point.
 """
 
 import logging
+import json
+import math
 import os
 import shutil
 import sys
@@ -25,6 +27,8 @@ import sys
 import numpy as np
 import pyar.scan
 from pyar import file_manager
+from pyar.data import defualt_parameters
+from pyar.backend_capabilities import backend_supports_native_optimization
 from pyar.selection import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
 from pyar.sampling import trial_generator as trial_generation
@@ -37,6 +41,8 @@ from pyar.reaction_identity import (
     same_molecular_identity,
     write_disconnected_reference,
 )
+from pyar.reaction_trace import infer_bonds
+from pyar.release import _inside_covalent_radius_sum
 from pyar.state.reaction import ReactionRunState, ReactionStateError, read_legacy_checkpoint
 from pyar.workflows._growth import (
     sampling_configuration,
@@ -118,10 +124,28 @@ def without_afir_bias(qc_params):
 
     This is the relaxation step applied after a bonded AFIR candidate has
     been identified. It preserves the physical backend configuration while
-    forcing ``gamma=0.0`` so the candidate can be re-optimized without the
-    AFIR bias.
+    forcing ``gamma=0.0`` and the backend-native optimizer so the candidate
+    is re-optimized on the unbiased physical objective. Bias-controller and
+    trace settings are deliberately removed rather than merely disabled.
     """
-    return with_gamma(qc_params, 0.0)
+    unbiased = dict(qc_params)
+    unbiased.setdefault("opt_cycles", defualt_parameters.values["opt_cycles"])
+    unbiased.setdefault("opt_threshold", defualt_parameters.values["opt_threshold"])
+    unbiased['gamma'] = 0.0
+    unbiased['geometry_optimizer'] = 'native'
+    unbiased['trace_enabled'] = False
+    unbiased['reaction_trace'] = False
+    for key in (
+        'bias_controller', 'bias_controller_restart', 'bias_alpha_min',
+        'bias_alpha_margin', 'bias_alpha_smoothing', 'bias_alpha_epsilon',
+        'bias_scheduled_alpha', 'bias_potential', 'softmin_beta',
+        'release_job_name', 'release_retry_attempt', 'release_retry_limit',
+        'release_margin_factor', 'release_alpha_critical_max', 'release_persistence',
+        'release_distance_fraction',
+        'release_bond_order_growth',
+    ):
+        unbiased.pop(key, None)
+    return unbiased
 
 
 def build_gamma_schedule(gamma_min, gamma_max, steps=10):
@@ -193,6 +217,7 @@ def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
         backend_parameters["reaction_energy_convention"] = "physical-v1"
     return {
         "gamma_schedule": [float(value) for value in gamma_list],
+        "bias_mode": "adaptive" if qc_params.get("bias_controller") == "adaptive" else "scheduled",
         "orientations": int(hm_orientations),
         "backend_parameters": backend_parameters,
         "site": None if site is None else list(site),
@@ -247,9 +272,19 @@ def relax_without_afir_bias(molecule, qc_params):
     relaxation so callers can inspect the pre- and post-relaxation geometries
     if the optimization succeeds.
     """
+    software = qc_params.get("software")
+    if software is not None and not backend_supports_native_optimization(software):
+        raise ValueError(
+            f"Backend '{software}' does not advertise native optimization; "
+            "unbiased reaction relaxation cannot be performed safely."
+        )
     original_name = molecule.name
+    release_attempt = int(qc_params.get("release_retry_attempt", 0))
     molecule.mol_to_xyz('trial_relax.xyz')
-    molecule.name = 'relax'
+    # Each retry starts from a newly biased geometry. Give it a distinct native
+    # optimization job name so the optimizer cannot return a cached relaxation
+    # from the preceding attempt.
+    molecule.name = 'relax' if release_attempt == 0 else f'relax_attempt_{release_attempt}'
     try:
         status = optimise(molecule, without_afir_bias(qc_params))
     finally:
@@ -257,6 +292,238 @@ def relax_without_afir_bias(molecule, qc_params):
     if is_success(status):
         molecule.mol_to_xyz('result_relax.xyz')
     return status
+
+
+def _release_evidence(qc_params):
+    """Read the latest accepted-step release evidence from the optimizer state."""
+    if qc_params.get("bias_controller") != "adaptive":
+        return None
+    job_name = qc_params.get("release_job_name")
+    state_path = os.path.join(f"job_{job_name}", "pyar_geometric_state.json") if job_name else "pyar_geometric_state.json"
+    if not os.path.isfile(state_path):
+        return None
+    try:
+        with open(state_path) as fp:
+            return json.load(fp).get("release")
+    except (OSError, ValueError):
+        reactor_logger.warning("Could not read adaptive release evidence from %s", state_path)
+        return None
+
+
+def _write_release_probe(pre_release, molecule, qc_params, status, evidence):
+    """Persist the pre-release geometry and native free-relaxation outcome."""
+    attempt = int(qc_params.get("release_retry_attempt", 0))
+    pre_release_path = f"pre_release_attempt_{attempt}.xyz"
+    pre_release.mol_to_xyz(pre_release_path)
+    optimized = is_success(status) and molecule.coordinates is not None
+    coordinates = np.asarray(molecule.coordinates, dtype=float) if optimized else np.empty((0, 3))
+    post_bonds = infer_bonds(molecule.atoms_list, coordinates) if optimized else set()
+    forming_pairs = {
+        tuple(pair) for pair in (evidence or {}).get("forming_pairs", [])
+    }
+    survived = bool(forming_pairs) and forming_pairs.issubset(post_bonds) and all(
+        _inside_covalent_radius_sum(pair, molecule.atoms_list, coordinates)
+        for pair in forming_pairs
+    )
+    post_distances = [
+        float(np.linalg.norm(coordinates[left] - coordinates[right]))
+        for left, right in sorted(forming_pairs)
+    ] if optimized else []
+    probe = {
+        "pre_release_geometry": pre_release_path,
+        "native_optimizer_used": True,
+        "release_attempt": attempt,
+        "bias_alpha_margin": qc_params.get("bias_alpha_margin"),
+        "free_relax_status": bool(is_success(status)),
+        "post_relax_connectivity": [list(pair) for pair in sorted(post_bonds)],
+        "post_relax_distance": post_distances,
+        "release_survived": bool(survived),
+        "release_state": "RELEASE_SURVIVED" if optimized and survived else "RELEASE_FAILED",
+    }
+    with open("release_probe.json", "w") as fp:
+        json.dump(probe, fp, indent=2, sort_keys=True)
+    with open("release_attempts.jsonl", "a") as fp:
+        json.dump(probe, fp, sort_keys=True)
+        fp.write("\n")
+    state_path = os.path.join(f"job_{pre_release.name}", "pyar_geometric_state.json")
+    if os.path.isfile(state_path):
+        try:
+            with open(state_path) as fp:
+                state = json.load(fp)
+            release = dict(state.get("release") or {})
+            release["state"] = probe["release_state"]
+            release["reason"] = (
+                "native_free_relaxation_survived" if optimized and survived
+                else "native_free_relaxation_failed_or_dissociated"
+            )
+            release["release_attempt"] = probe["release_attempt"]
+            release["bias_alpha_margin"] = probe["bias_alpha_margin"]
+            state["release"] = release
+            temporary_path = state_path + ".tmp"
+            with open(temporary_path, "w") as fp:
+                json.dump(state, fp, indent=2, sort_keys=True)
+            os.replace(temporary_path, state_path)
+        except (OSError, ValueError):
+            reactor_logger.warning("Could not update adaptive release state after free relaxation")
+    return survived
+
+
+def _set_release_outcome(job_name, state_name, reason):
+    """Persist the chemical identity decision after a successful free probe."""
+    state_path = os.path.join(f"job_{job_name}", "pyar_geometric_state.json")
+    try:
+        with open(state_path) as fp:
+            state = json.load(fp)
+        release = dict(state.get("release") or {})
+        release.update(state=state_name, reason=reason)
+        state["release"] = release
+        temporary_path = state_path + ".tmp"
+        with open(temporary_path, "w") as fp:
+            json.dump(state, fp, indent=2, sort_keys=True)
+        os.replace(temporary_path, state_path)
+    except (OSError, ValueError):
+        reactor_logger.warning("Could not persist chemical release outcome for %s", job_name)
+
+
+def _write_release_retry_outcome(molecule, attempt, status, evidence, reason):
+    """Add the final biased-retry result to the probe summary, preserving probe history."""
+    geometry_path = f"release_retry_geometry_attempt_{int(attempt)}.xyz"
+    molecule.mol_to_xyz(geometry_path)
+    try:
+        with open("release_probe.json") as fp:
+            summary = json.load(fp)
+    except (OSError, ValueError):
+        summary = {}
+    summary.update(
+        retry_outcome="retry_not_candidate",
+        retry_attempt=int(attempt),
+        retry_optimization_status=str(status),
+        retry_geometry=geometry_path,
+        retry_reason=str(reason),
+        retry_evidence=evidence,
+    )
+    with open("release_probe.json", "w") as fp:
+        json.dump(summary, fp, indent=2, sort_keys=True)
+
+
+def _prepare_release_retry(pre_release, qc_params, margin, attempt):
+    """Restore the accepted checkpoint with a larger adaptive margin."""
+    checkpoint_path = os.path.join(f"job_{pre_release.name}", "pyar_bias_controller_state.json")
+    if not os.path.isfile(checkpoint_path):
+        reactor_logger.warning("Cannot escalate release: controller checkpoint is missing")
+        return None
+    try:
+        with open(checkpoint_path) as fp:
+            checkpoint = json.load(fp)
+    except (OSError, ValueError) as exc:
+        reactor_logger.warning("Cannot escalate release: invalid controller checkpoint: %s", exc)
+        return None
+    configuration = checkpoint.get("configuration", {})
+    checkpoint_qc = dict(configuration.get("qc_params", {}))
+    checkpoint_qc["bias_alpha_margin"] = float(margin)
+    configuration["qc_params"] = checkpoint_qc
+    controller = checkpoint.get("controller", {})
+    controller_configuration = dict(controller.get("configuration", {}))
+    controller_configuration["safety_margin"] = float(margin)
+    controller["configuration"] = controller_configuration
+    checkpoint["configuration"] = configuration
+    checkpoint["controller"] = controller
+    # A failed unbiased probe is evidence that this contact is not yet a
+    # releasable product. Keep the accumulated bias load, but restart contact
+    # persistence at the saved geometry so the retry can continue driving
+    # rather than immediately re-raising the same candidate.
+    checkpoint.pop("release_tracker", None)
+    checkpoint["positions_angstrom"] = np.asarray(pre_release.coordinates, dtype=float).tolist()
+    try:
+        temporary_path = checkpoint_path + ".tmp"
+        with open(temporary_path, "w") as fp:
+            json.dump(checkpoint, fp, indent=2, sort_keys=True)
+        os.replace(temporary_path, checkpoint_path)
+    except OSError as exc:
+        reactor_logger.warning("Cannot write release retry checkpoint: %s", exc)
+        return None
+    retry_params = dict(qc_params)
+    retry_params.update(
+        bias_alpha_margin=float(margin),
+        bias_controller_restart=True,
+        trace_mode="append",
+        release_retry_attempt=int(attempt),
+        adaptive_max_segments=8,
+        adaptive_suppress_release_candidate=True,
+    )
+    return retry_params
+
+
+def _adaptive_release_probe(pre_release, molecule, qc_params, evidence):
+    """Probe release, escalating only when the saved evidence supports retry."""
+    current_pre_release = pre_release
+    current_molecule = molecule
+    current_params = dict(qc_params)
+    current_evidence = evidence
+    attempts = int(current_params.get("release_retry_attempt", 0))
+    initial_attempts = attempts
+    retry_limit = int(current_params.get("release_retry_limit", 2))
+    margin_factor = float(current_params.get("release_margin_factor", 2.0))
+    if retry_limit < 0 or not math.isfinite(margin_factor) or margin_factor <= 1.0:
+        raise ValueError("release retry limit must be non-negative and margin factor must exceed 1")
+
+    while True:
+        _set_release_outcome(
+            current_pre_release.name, "FREE_RELAX_PROBE", "native_free_relaxation_in_progress"
+        )
+        status = relax_without_afir_bias(current_molecule, current_params)
+        survived = _write_release_probe(
+            current_pre_release, current_molecule, current_params, status, current_evidence
+        )
+        if is_success(status) and survived:
+            return status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts
+
+        persistence = int((current_evidence or {}).get("persistence_counter", 0))
+        pair_keys = {
+            str(tuple(sorted(pair))) for pair in (current_evidence or {}).get("forming_pairs", [])
+        }
+        retry_supported = bool(
+            current_evidence
+            and current_evidence.get("state") == "CANDIDATE"
+            and pair_keys
+            and persistence >= int(current_params.get("release_persistence", 3))
+        )
+        if attempts >= retry_limit or not retry_supported:
+            return status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts
+
+        attempts += 1
+        old_margin = float(current_params.get("bias_alpha_margin") or 0.001)
+        new_margin = old_margin * margin_factor
+        retry_params = _prepare_release_retry(
+            current_pre_release, current_params, new_margin, attempts
+        )
+        if retry_params is None:
+            return status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts
+        reactor_logger.info(
+            "Release attempt %d failed; retrying from pre-release geometry with bias-alpha-margin=%s",
+            attempts,
+            new_margin,
+        )
+        retry_molecule = current_pre_release.copy()
+        retry_status = optimise(retry_molecule, retry_params)
+        if not is_usable(retry_status) or not retry_molecule.is_bonded():
+            retry_evidence = _release_evidence(retry_params)
+            _write_release_retry_outcome(
+                retry_molecule, attempts, retry_status, retry_evidence,
+                "retry_optimization_failed_or_geometry_unbonded",
+            )
+            return retry_status, retry_molecule, current_pre_release, retry_evidence, False, attempts - initial_attempts
+        retry_evidence = _release_evidence(retry_params)
+        if not retry_evidence or retry_evidence.get("state") != "CANDIDATE":
+            _write_release_retry_outcome(
+                retry_molecule, attempts, retry_status, retry_evidence,
+                "release_evidence_not_candidate",
+            )
+            return retry_status, retry_molecule, current_pre_release, retry_evidence, False, attempts - initial_attempts
+        current_pre_release = retry_molecule.copy()
+        current_molecule = retry_molecule
+        current_params = retry_params
+        current_evidence = retry_evidence
 
 
 def _orientation_final_coordinate_path(gamma_directory, orientation_directory, job_name):
@@ -286,7 +553,21 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
     the first gamma cycle.
     """
     current_workdir = os.getcwd()
-    requested_gamma_list = build_gamma_schedule(gamma_min, gamma_max)
+    adaptive_mode = qc_params.get("bias_controller") == "adaptive"
+    if gamma_max is None:
+        raise ValueError("Adaptive reaction bias requires a finite --bias-max value")
+    if adaptive_mode:
+        if gamma_min is not None:
+            reactor_logger.warning(
+                "Ignoring --bias-min in adaptive mode; --bias-max is the single bias ceiling."
+            )
+        if not np.isfinite(gamma_max) or gamma_max < 0.0:
+            raise ValueError("AFIR gamma maximum must be a finite non-negative number")
+        requested_gamma_list = np.asarray([float(gamma_max)])
+    else:
+        if gamma_min is None:
+            raise ValueError("Fixed or scheduled reaction bias requires --bias-min")
+        requested_gamma_list = build_gamma_schedule(gamma_min, gamma_max)
     request = build_reaction_request(
         reactant_a,
         reactant_b,
@@ -406,7 +687,8 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
     )
 
     for gamma in gamma_list:
-        gamma_id = format_gamma_id(gamma)
+        adaptive_mode = qc_params.get("bias_controller") == "adaptive"
+        gamma_id = "adaptive" if adaptive_mode else format_gamma_id(gamma)
         reactor_logger.info(f"Gamma cycle path: reaction/gamma_{gamma_id}")
         reactor_logger.info(f'Gamma cycle start: {gamma_id}')
         gamma_home = f'{cwd}/gamma_{gamma_id}'
@@ -534,7 +816,9 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         reference_xyz_file_name = f'reactants_{this_molecule.name}.xyz'
         write_disconnected_reference(this_molecule, reference_xyz_file_name)
         start_identity = molecule_identity_from_xyz(reference_xyz_file_name)
-        status = optimise(this_molecule, qc_param)
+        orientation_qc_param = dict(qc_param)
+        orientation_qc_param["release_job_name"] = job_name
+        status = optimise(this_molecule, orientation_qc_param)
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
         if is_usable(status):
@@ -542,9 +826,42 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
             reactor_logger.info("Energy E({}): {:12.7f}".format(job_name, this_molecule.energy))
 
             if this_molecule.is_bonded():
+                evidence = _release_evidence(orientation_qc_param)
+                release_candidate = (
+                    evidence is not None and evidence.get("state") == "CANDIDATE"
+                )
+                if qc_param.get("bias_controller") == "adaptive" and not release_candidate:
+                    reactor_logger.info(
+                        "%s has contact but no conservative release candidate; retaining accepted geometry",
+                        job_name,
+                    )
+                    table_of_optimized_molecules.append(before_relax)
+                    record_orientation_completion(job_name, "contact_not_release_ready")
+                    os.chdir(cwd)
+                    continue
                 reactor_logger.info("Close contacts detected; running unbiased relaxation (gamma=0.0)")
-                status = relax_without_afir_bias(this_molecule, qc_param)
+                release_survived = True
+                release_attempts = 0
+                if qc_param.get("bias_controller") == "adaptive":
+                    (
+                        status,
+                        this_molecule,
+                        before_relax,
+                        evidence,
+                        release_survived,
+                        release_attempts,
+                    ) = _adaptive_release_probe(
+                        before_relax, this_molecule, orientation_qc_param, evidence
+                    )
+                else:
+                    status = relax_without_afir_bias(this_molecule, qc_param)
                 if is_success(status):
+                    if qc_param.get("bias_controller") == "adaptive" and not release_survived:
+                        reactor_logger.info("Native free relaxation lost the forming connectivity")
+                        table_of_optimized_molecules.append(before_relax)
+                        record_orientation_completion(job_name, "release_failed")
+                        os.chdir(cwd)
+                        continue
                     current_identity = molecule_identity_from_xyz('result_relax.xyz')
                     current_inchi = current_identity["inchi"]
                     current_smile = current_identity["smiles"]
@@ -568,9 +885,17 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                     # separated reactants, not a distorted higher-gamma
                     # survivor that may serialize differently.
                     if not reaction_product_changed(reference_identity, current_identity):
+                        if qc_param.get("bias_controller") == "adaptive":
+                            _set_release_outcome(
+                                job_name, "RELEASE_FAILED", "relaxed_identity_matches_reactants"
+                            )
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
                     else:
+                        if qc_param.get("bias_controller") == "adaptive":
+                            _set_release_outcome(
+                                job_name, "PRODUCT_CONFIRMED", "free_relaxation_and_identity_changed"
+                            )
                         reactor_logger.info(
                             "Relaxed identity changed from the starting structure."
                         )
@@ -594,11 +919,11 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                                 )
                                 if trace_summary is not None:
                                     reactor_logger.info(
-                                        "Trace candidates for %s: highest_backend=%s pre_product=%s max_bond_change=%s highest_total=%s",
+                                        "Trace candidates for %s: highest_backend=%s pre_product=%s first_topology_change=%s highest_total=%s",
                                         job_name,
                                         trace_summary.get("highest_backend_energy_index"),
                                         trace_summary.get("pre_product_index"),
-                                        trace_summary.get("max_bond_change_index"),
+                                        trace_summary.get("first_topology_change_index"),
                                         trace_summary.get("highest_total_energy_index"),
                                     )
                             except Exception:
@@ -621,6 +946,12 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                 elif is_cycle_exceeded(status):
                     table_of_optimized_molecules.append(before_relax)
                     reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
+                elif qc_param.get("bias_controller") == "adaptive":
+                    table_of_optimized_molecules.append(before_relax)
+                    reactor_logger.info(
+                        "%s native free relaxation failed; preserving pre-release geometry",
+                        job_name,
+                    )
 
             else:
                 table_of_optimized_molecules.append(this_molecule)

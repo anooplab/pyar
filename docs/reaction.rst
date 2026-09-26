@@ -101,7 +101,7 @@ Useful files to inspect in a successful orientation job are:
      highest_backend_energy.xyz
      highest_total_energy.xyz
      pre_product_geometry.xyz
-     max_bond_change.xyz
+     first_topology_change.xyz
      metadata.json
    trace_plots/
      reaction_profile.png

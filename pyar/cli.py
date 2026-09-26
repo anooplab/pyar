@@ -384,13 +384,21 @@ chemical formula.
     parser.add_argument('--bias-alpha-min', type=float, default=None,
                         help='lower bound for the applied bias scale (Ha/Bohr)')
     parser.add_argument('--bias-alpha-margin', type=float, default=None,
-                        help='positive adaptive driving margin (Ha/Bohr; default: 0.001)')
+                        help='positive adaptive load increment per optimized segment (Ha/Bohr; default: 0.001)')
     parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
-                        help='smoothing fraction for alpha decreases, 0 < value <= 1 (default: 1)')
+                        help='deprecated for adaptive loading; only 1 is supported')
     parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
                         help='positive regularizer in the alpha_critical denominator')
     parser.add_argument('--bias-scheduled-alpha', type=float, default=None,
                         help='constant bias scale used by the scheduled controller (Ha/Bohr)')
+    parser.add_argument('--release-retry-limit', type=int, default=2,
+                        help='maximum adaptive release retries after failed native relaxation')
+    parser.add_argument('--release-margin-factor', type=float, default=2.0,
+                        help='factor applied to adaptive margin for each release retry')
+    parser.add_argument(
+        '--release-distance-fraction', type=float, default=0.95,
+        help='adaptive release contact threshold as a fraction of covalent-radii sum',
+    )
     parser.add_argument('--site', type=int, nargs=2,
                         help='atom for site specific reaction')
     parser.add_argument("-c", "--charge", type=int, nargs='+', metavar='c',
@@ -766,6 +774,10 @@ def _build_qc_parameters(run_parameters, args, run_mode):
         'custom_keyword': custom_keywords,
         'model': run_parameters['model']
     }
+    if run_mode == 'react':
+        quantum_chemistry_parameters['release_retry_limit'] = run_parameters['release_retry_limit']
+        quantum_chemistry_parameters['release_margin_factor'] = run_parameters['release_margin_factor']
+        quantum_chemistry_parameters['release_distance_fraction'] = run_parameters['release_distance_fraction']
     for option in (
         'bias_controller', 'bias_alpha_min', 'bias_alpha_margin',
         'bias_alpha_smoothing', 'bias_alpha_epsilon', 'bias_scheduled_alpha',
@@ -946,10 +958,18 @@ def _run_reaction_workflow(
     """Validate and dispatch reaction workflow execution."""
     minimum_gamma = run_parameters['bias_min']
     maximum_gamma = run_parameters['bias_max']
+    adaptive_mode = run_parameters.get('bias_controller') == 'adaptive'
     if len(input_molecules) < 2:
         sys.exit('Missing arguments: provide at least two molecules')
-    if minimum_gamma is None or maximum_gamma is None:
-        sys.exit('missing arguments: --bias-min <number> --bias-max <number>')
+    if maximum_gamma is None:
+        sys.exit('missing argument: --bias-max <number>')
+    if not adaptive_mode and minimum_gamma is None:
+        sys.exit('missing argument: --bias-min <number>')
+    if adaptive_mode and minimum_gamma is not None:
+        logger.warning(
+            'Ignoring --bias-min in adaptive mode; --bias-max is the single bias ceiling.'
+        )
+        minimum_gamma = None
     if number_of_orientations is None:
         sys.exit('Missing arguments: -N #')
 

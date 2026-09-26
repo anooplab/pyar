@@ -39,7 +39,7 @@ def calculation(tmp_path, monkeypatch):
     monkeypatch.setattr("pyar.backends.geometric._resolve_backend_evaluator",
                         lambda *args: HarmonicProvider())
     return dict(software="xtb", gamma=100., bias_controller="adaptive",
-                bias_alpha_margin=0.001, bias_alpha_smoothing=0.5, trace_enabled=True)
+                bias_alpha_margin=0.001, trace_enabled=True)
 
 
 @pytest.mark.parametrize("kind", ["afir", "softmin"])
@@ -118,14 +118,14 @@ def test_restart_rejects_mismatched_geometry_and_configuration(calculation):
 def test_cli_controller_parameters_reach_bias_controller(calculation):
     calculator = PyarGeometricCalculator(
         dict(calculation, bias_alpha_min=0.02, bias_alpha_margin=0.03,
-             bias_alpha_smoothing=0.4, bias_alpha_epsilon=1e-9), [[0], [1]]
+             bias_alpha_epsilon=1e-9), [[0], [1]]
     )
     assert calculator.bias_controller.configuration() == {
         "policy": "adaptive",
         "alpha_min": 0.02,
         "safety_margin": 0.03,
-        "smoothing": 0.4,
-        "smoothing_mode": "decrease_only",
+        "smoothing": 1.0,
+        "smoothing_mode": "disabled_monotonic_loading",
         "epsilon": 1e-9,
         "scheduled_alpha": None,
     }
@@ -153,15 +153,19 @@ def test_adaptive_command_uses_accepted_step_driver(calculation):
     assert json.loads(command[-1])["qc_params"]["bias_controller"] == "adaptive"
 
 
-def test_tiny_margin_reports_stall_instead_of_success(calculation):
+def test_optimized_segments_continue_loading_when_bias_margin_is_tiny(calculation):
     from pyar.backends.adaptive_geometric import run_adaptive_optimization
+    from geometric.optimize import OPT_STATE
 
     pair(3.8).write("start.xyz")
     arguments = dict(qc_params=dict(calculation, bias_alpha_margin=1e-7,
                                    opt_cycles=10, opt_threshold="normal"),
                      fragment_indices=[[0], [1]])
-    with pytest.raises(RuntimeError, match="stalled below its force ceiling"):
-        run_adaptive_optimization("start.xyz", arguments)
+    optimizer = run_adaptive_optimization("start.xyz", arguments)
+    state = json.loads(Path("pyar_geometric_state.json").read_text())
+    assert optimizer.state == OPT_STATE.CONVERGED
+    assert state["optimization_status"] == "cycle_exceeded"
+    assert optimizer.engine.calculator.bias_controller.segment_index > 1
 
 
 def test_iteration_limit_preserves_endpoint_for_parent_relaxation(calculation):
@@ -175,6 +179,12 @@ def test_iteration_limit_preserves_endpoint_for_parent_relaxation(calculation):
     state = json.loads(Path("pyar_geometric_state.json").read_text())
     assert state["optimization_status"] == "cycle_exceeded"
     assert Path("start_optim.xyz").exists()
+    checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
+    np.testing.assert_allclose(optimizer.progress.xyzs[-1], checkpoint["positions_angstrom"], atol=1e-12)
+    np.testing.assert_allclose(state["positions_angstrom"], checkpoint["positions_angstrom"], atol=1e-12)
+    baseline = load_trace_records("reaction_trace")[0]
+    np.testing.assert_allclose(baseline["coordinates_angstrom"], pair(3.8).positions, atol=1e-8)
+    assert baseline["persistence_counter"] == 0
     from geometric.optimize import OPT_STATE
     assert optimizer.state == OPT_STATE.FAILED
 
@@ -192,6 +202,24 @@ def test_physical_energy_is_independent_of_bias_continuity_offset(calculation):
     assert state["total_energy_hartree"] > 99.
     assert state["total_energy_hartree"] == pytest.approx(
         state["backend_energy_hartree"] + state["bias_energy_hartree"])
+
+
+def test_csv_reports_current_resistance_separately_from_applied_segment(calculation):
+    calculator = PyarGeometricCalculator(calculation, [[0], [1]])
+    calculator.calculate(pair(3.8))
+    initial_decision = calculator.bias_controller.decision
+    calculator.calculate(pair(3.5))
+    calculator.accept_geometry(pair(3.5), advance_bias=False)
+    calculator.calculate(pair(3.5))
+    record = load_trace_records("reaction_trace")[-1]
+    assert record["alpha_critical"] > initial_decision.alpha_critical
+    analyse_reaction_trace(Path.cwd())
+    with open("path_summary.csv") as stream:
+        row = list(csv.DictReader(stream))[-1]
+    assert float(row["bias_alpha_critical"]) == pytest.approx(record["alpha_critical"])
+    assert float(row["bias_alpha_target"]) == pytest.approx(record["alpha_target"])
+    assert float(row["bias_segment_alpha_critical"]) == pytest.approx(initial_decision.alpha_critical)
+    assert float(row["bias_alpha"]) == pytest.approx(initial_decision.alpha)
 
 
 def test_real_optimizer_updates_only_accepted_steps(calculation, monkeypatch):
@@ -222,10 +250,7 @@ def test_real_optimizer_updates_only_accepted_steps(calculation, monkeypatch):
         after = self.engine.calculator.bias_controller.state_dict()
         accepted = np.array_equal(trial, self.X)
         events.append(accepted)
-        if not accepted:
-            assert after == before
-        elif self.state != OPT_STATE.FAILED:
-            assert after["segment_index"] == before["segment_index"] + 1
+        assert after == before
 
     monkeypatch.setattr(AdaptiveOptimizer, "evaluateStep", observe)
     pair(3.8).write("start.xyz")
@@ -235,7 +260,8 @@ def test_real_optimizer_updates_only_accepted_steps(calculation, monkeypatch):
     assert optimizer.state == OPT_STATE.CONVERGED
     assert False in events
     assert True in events
-    assert optimizer.engine.calculator.bias_controller.segment_index == sum(events)
+    assert optimizer.engine.calculator.bias_controller.segment_index > 1
+    assert optimizer.engine.calculator.bias_controller.segment_index < sum(events)
     saved_index = optimizer.engine.calculator.bias_controller.segment_index
     expected_distance = 4. - optimizer.engine.calculator.alpha_max / 0.1
     assert np.linalg.norm(optimizer.X.reshape(-1, 3)[1] - optimizer.X.reshape(-1, 3)[0]) == pytest.approx(expected_distance, abs=0.003)
@@ -243,4 +269,4 @@ def test_real_optimizer_updates_only_accepted_steps(calculation, monkeypatch):
     arguments["qc_params"]["bias_controller_restart"] = True
     resumed = run_adaptive_optimization("start.xyz", arguments)
     assert resumed.state == OPT_STATE.CONVERGED
-    assert resumed.engine.calculator.bias_controller.segment_index > saved_index
+    assert resumed.engine.calculator.bias_controller.segment_index >= saved_index

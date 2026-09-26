@@ -40,7 +40,7 @@ def argument_parse():
         help='Number of trial orientations to generate.',
     )
     parser.add_argument(
-        '--gmin', '--bias-min', dest='bias_min', type=float, required=True,
+        '--gmin', '--bias-min', dest='bias_min', type=float, required=False,
         help='minimum reaction-bias strength (legacy alias: --gmin)',
     )
     parser.add_argument(
@@ -59,13 +59,19 @@ def argument_parse():
     parser.add_argument('--bias-alpha-min', type=float, default=None,
                         help='lower bound for the applied bias scale (Ha/Bohr)')
     parser.add_argument('--bias-alpha-margin', type=float, default=None,
-                        help='positive adaptive driving margin (Ha/Bohr; default: 0.001)')
+                        help='positive adaptive load increment per optimized segment (Ha/Bohr; default: 0.001)')
     parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
-                        help='smoothing fraction for alpha decreases, 0 < value <= 1 (default: 1)')
+                        help='deprecated for adaptive loading; only 1 is supported')
     parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
                         help='positive regularizer in the alpha_critical denominator')
     parser.add_argument('--bias-scheduled-alpha', type=float, default=None,
                         help='constant scale used by the scheduled controller (Ha/Bohr)')
+    parser.add_argument('--release-retry-limit', type=int, default=2,
+                        help='maximum adaptive release retries after failed native relaxation')
+    parser.add_argument('--release-margin-factor', type=float, default=2.0,
+                        help='factor applied to adaptive margin for each release retry')
+    parser.add_argument('--release-distance-fraction', type=float, default=0.95,
+                        help='require forming contacts below this fraction of the covalent-radii sum')
     parser.add_argument('--software', type=str, required=True, help='Backend used to evaluate energy and forces')
     parser.add_argument('--method', default=defualt_parameters.values['method'], help='Electronic-structure method')
     parser.add_argument('--basis', default=defualt_parameters.values['basis'], help='Basis set')
@@ -114,6 +120,16 @@ def main():
         softmin_beta = resolve_softmin_beta(run_parameters['softmin_beta'])
     except ValueError as exc:
         sys.exit(str(exc))
+
+    if run_parameters['bias_max'] is None:
+        sys.exit('missing argument: --bias-max <number>')
+    if controller_policy != 'adaptive' and run_parameters['bias_min'] is None:
+        sys.exit('missing argument: --bias-min <number>')
+    if controller_policy == 'adaptive' and run_parameters['bias_min'] is not None:
+        logger.warning(
+            'Ignoring --bias-min in adaptive mode; --bias-max is the single bias ceiling.'
+        )
+        run_parameters['bias_min'] = None
 
     input_molecules = []
     for file in run_parameters['input_files']:
@@ -169,6 +185,9 @@ def main():
         'basis': run_parameters['basis'] or defualt_parameters.values['basis'],
         'scf_cycles': run_parameters['scf_cycles'] or defualt_parameters.values['scf_cycles'],
         'nprocs': run_parameters['nprocs'] or defualt_parameters.values['nprocs'],
+        'release_retry_limit': run_parameters['release_retry_limit'],
+        'release_margin_factor': run_parameters['release_margin_factor'],
+        'release_distance_fraction': run_parameters['release_distance_fraction'],
     }
     for option in (
         'bias_controller', 'bias_alpha_min', 'bias_alpha_margin',
