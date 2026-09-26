@@ -34,6 +34,10 @@
 
 ### Fixed
 
+- Legacy NEB stage summaries can be safely reused with explicit opt-in after
+  validating their recorded artifacts, dependencies, backend settings, and
+  scientific gates; migrated records retain an explicit unverified marker for
+  stage parameters that older summaries did not capture.
 - ORCA bond scans now parse `scan.allxyz` frame separators, reject incomplete
   trajectories, and retain unrestricted DFT settings after fragment merging.
 - ORCA scan success now requires a finite, complete energy/geometry profile on

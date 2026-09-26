@@ -25,6 +25,8 @@ The complete sequence is:
 Final endpoint optimization is unconstrained: it may change connectivity. Matching
 uses the resulting minima, covalent-radius graphs, and mapped RMSD after rigid
 alignment. Two branches ending at the same minimum cannot confirm a reaction.
+The two optimized IRC endpoints must themselves differ in connectivity or by
+more than the mapped RMSD tolerance, even when both fit the reference tolerances.
 These checks provide numerical evidence; inspect chemical identities and the
 appropriateness of the chosen electronic-structure method as well.
 
@@ -60,10 +62,22 @@ Artifact checks and convergence
 -------------------------------
 
 Every stage writes ``<stage>_summary.json`` with method settings, convergence
-evidence, input/output hashes, and dependencies. ``workflow_summary.json`` records
+evidence, stage parameters, input/output hashes, and hashes of dependency
+summaries. ``workflow_summary.json`` records
 the full run. Stages reject modified geometries/Hessians, failed prerequisites,
 and mismatched physical settings. After replacing an upstream structure, rerun
-its dependent stages. Old summaries without this metadata must be regenerated.
+its dependent stages. Changing an upstream validation threshold or result also
+invalidates dependent stages, even if the geometry and Hessian are unchanged.
+Dependency acceptance conditions are rechecked on loading. Schema version 1
+summaries can be reused without repeating their calculations by adding
+``--reuse-legacy-summaries`` to each staged command that consumes them. PyAR
+checks their recorded method, input and output hashes, dependency chain, and
+scientific gates, then upgrades the summaries in place. Since version 1 did not
+record stage-specific options, migrated summaries are explicitly marked with
+unverified legacy parameters; new stage summaries record their options. Without
+the flag, PyAR refuses legacy reuse and directs you to rerun that stage. The
+flag is for staged commands that consume prior summaries; ``--stage all`` runs
+the full workflow. Current summaries use version 2.
 Process count may change between stages. Separate stages leave the historical
 ``workflow_summary.json`` unchanged; consult the current stage summary.
 
