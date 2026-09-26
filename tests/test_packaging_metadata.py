@@ -18,8 +18,10 @@ class PackagingMetadataTests(unittest.TestCase):
     def test_distribution_version_and_import_namespace(self):
         import pyar
 
+        project_version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
         self.assertEqual(pyar.__name__, "pyar")
-        self.assertEqual(version("pyar-chem"), "1.2.0")
+        self.assertEqual(version("pyar-chem"), project_version)
+        self.assertEqual(pyar.__version__, project_version)
 
     def test_cli_help_starts(self):
         result = subprocess.run(

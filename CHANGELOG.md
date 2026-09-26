@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.0 - 2026-09-26
+
 ### Added
 
 - Structured request models for aggregation, conformer search, and solvation.
@@ -15,6 +17,14 @@
   and `pyar-react`. Adaptive runs use the accepted-step geomeTRIC driver and
   expose alpha bounds, safety margin, and smoothing; fixed bias remains the
   default.
+- A staged reaction-path workflow with the `pyar-neb` command for endpoint
+  relaxation, NEB, transition-state optimization, frequency analysis, IRC, and
+  endpoint validation.
+- Adaptive reaction-release tracking based on persistent interfragment
+  contacts, optional xTB/ORCA bond-order evidence, native free-relaxation
+  probes, and bounded retries when a forming connection does not survive.
+- Reaction-trace candidate filters for physical force and robust energy
+  outliers, with explicit eligibility and exclusion reasons in path summaries.
 
 ### Changed
 
@@ -31,6 +41,10 @@
   accepted as compatibility aliases.
 - geomeTRIC reaction optimization now selects either the AFIR or soft-min bias
   through `--bias-potential`; AFIR remains the default.
+- Adaptive loading advances the bias after optimized segments and evaluates
+  release candidates only at accepted geometries. The bias ceiling limits the
+  applied load, and adaptive mode uses `--bias-max` without requiring
+  `--bias-min`.
 
 ### Fixed
 
@@ -49,9 +63,8 @@
   the energy-gradient backend does not support those native optimizer options.
 - Adaptive geomeTRIC retains iteration-limit endpoints for unbiased reaction
   relaxation instead of discarding potentially bonded candidates.
-- Adaptive bias now defaults to a positive driving margin, applies resistance
-  increases immediately, and reports convergence below the force ceiling as
-  a stall rather than a successful biased optimization.
+- Adaptive bias defaults to a positive load increment and applies resistance
+  increases at optimized segment boundaries.
 - Reaction product detection uses consistent InChI identity, preventing SMILES
   serialization changes from being counted as new products.
 - xTB energy-gradient inputs preserve coordinate precision for small optimizer
