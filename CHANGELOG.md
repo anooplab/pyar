@@ -36,6 +36,11 @@
 
 - ORCA bond scans now parse `scan.allxyz` frame separators, reject incomplete
   trajectories, and retain unrestricted DFT settings after fragment merging.
+- ORCA scan success now requires a finite, complete energy/geometry profile on
+  the requested distance grid. Completed work is reusable only for an identical
+  request, and scan summaries distinguish canonical product identity from
+  target-contact survival. Actual-energy profiles and explicitly provisional
+  scan-maximum geometries are written for downstream inspection.
 - CLI geomeTRIC runs preserve `--opt-cycles` and `--opt-threshold` even when
   the energy-gradient backend does not support those native optimizer options.
 - Adaptive geomeTRIC retains iteration-limit endpoints for unbiased reaction

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 import os
 from pathlib import Path
 
@@ -30,6 +31,8 @@ class OrcaBondScanResult:
     input_path: Path
     output_path: Path
     status: str
+    frames: list | None = None
+    profile: list | None = None
 
 
 def parse_xyz_trajectory(path, expected_atoms, expected_symbols=None):
@@ -59,9 +62,12 @@ def parse_xyz_trajectory(path, expected_atoms, expected_symbols=None):
                 raise ValueError(f"Malformed XYZ coordinate line in {path}")
             symbols.append(fields[0].capitalize())
             try:
-                coordinates.append([float(value) for value in fields[1:4]])
+                coordinate = [float(value) for value in fields[1:4]]
             except ValueError as exc:
                 raise ValueError(f"Malformed XYZ coordinates in {path}") from exc
+            if not all(math.isfinite(value) for value in coordinate):
+                raise ValueError(f"Non-finite XYZ coordinates in {path}")
+            coordinates.append(coordinate)
         if expected_symbols is not None and symbols != list(expected_symbols):
             raise ValueError("XYZ trajectory atom symbols do not match the scan input")
         frames.append((symbols, np.asarray(coordinates, dtype=float), lines[cursor + 1]))
@@ -69,6 +75,27 @@ def parse_xyz_trajectory(path, expected_atoms, expected_symbols=None):
     if not frames:
         raise ValueError(f"XYZ trajectory contains no frames: {path}")
     return frames
+
+
+def parse_orca_scan_profile(path):
+    """Parse ORCA's two-column relaxed-scan distance/actual-energy table."""
+    profile = []
+    for line_number, line in enumerate(Path(path).read_text().splitlines(), start=1):
+        fields = line.split()
+        if not fields or fields[0].startswith(("#", "!")):
+            continue
+        if len(fields) != 2:
+            raise ValueError(f"Malformed ORCA scan profile row at line {line_number}")
+        try:
+            distance, energy = map(float, fields)
+        except ValueError as exc:
+            raise ValueError(f"Malformed ORCA scan profile row at line {line_number}") from exc
+        if not math.isfinite(distance) or distance <= 0 or not math.isfinite(energy):
+            raise ValueError(f"Non-finite or invalid ORCA scan profile value at line {line_number}")
+        profile.append({"target_distance_angstrom": distance, "energy_hartree": energy})
+    if not profile:
+        raise ValueError(f"ORCA scan profile contains no points: {path}")
+    return profile
 
 
 def _orca_keyword(qc_params, scftype=None):
@@ -106,6 +133,64 @@ def _write_input(path, atoms, coordinates, charge, multiplicity, scftype, qc_par
     Path(path).write_text("\n".join(lines) + "\n")
 
 
+def load_orca_bond_scan_result(molecule, request, directory):
+    """Recover and validate a completed scan from its retained ORCA files."""
+    directory = Path(directory)
+    input_path = directory / "scan.inp"
+    output_path = directory / "scan.out"
+    trajectory_path = directory / "scan.allxyz"
+    if not output_path.exists() or "****ORCA TERMINATED NORMALLY****" not in output_path.read_text():
+        return OrcaBondScanResult(False, None, None, None, input_path, output_path,
+                                  "abnormal_termination")
+    if not trajectory_path.exists():
+        return OrcaBondScanResult(False, None, None, None, input_path, output_path,
+                                  "trajectory_missing")
+    try:
+        frames = parse_xyz_trajectory(trajectory_path, molecule.number_of_atoms, molecule.atoms_list)
+    except ValueError:
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "trajectory_invalid")
+    if len(frames) != request.n_points:
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "trajectory_incomplete")
+    profile_path = directory / "scan.relaxscanact.dat"
+    if not profile_path.exists():
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "scan_profile_missing")
+    try:
+        profile = parse_orca_scan_profile(profile_path)
+    except (OSError, ValueError):
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "scan_profile_invalid")
+    if len(profile) != request.n_points:
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "scan_profile_incomplete")
+    expected_distances = np.linspace(
+        request.start_distance_angstrom,
+        request.end_distance_angstrom,
+        request.n_points,
+    )
+    for expected_distance, point, (_, coordinates, _) in zip(expected_distances, profile, frames):
+        if not math.isclose(
+            point["target_distance_angstrom"], float(expected_distance),
+            rel_tol=0.0, abs_tol=1e-3,
+        ):
+            return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                      "scan_profile_grid_mismatch")
+        distance = float(np.linalg.norm(coordinates[request.atom_i] - coordinates[request.atom_j]))
+        if not math.isclose(distance, point["target_distance_angstrom"], rel_tol=0.0, abs_tol=1e-3):
+            return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                      "scan_profile_geometry_mismatch")
+    final_coordinates = frames[-1][1]
+    final_path = directory / "final_scan.xyz"
+    write_xyz(molecule.atoms_list, final_coordinates, final_path, job_name="final_scan", precision=12)
+    stable_trajectory = directory / "scan_trajectory.xyz"
+    if stable_trajectory != trajectory_path:
+        stable_trajectory.write_text(trajectory_path.read_text())
+    return OrcaBondScanResult(True, stable_trajectory, final_path, final_coordinates,
+                              input_path, output_path, "success", frames, profile)
+
+
 def run_orca_bond_scan(molecule, request, directory, qc_params):
     """Run one ORCA relaxed scan and recover its final trajectory frame."""
     directory = Path(directory)
@@ -126,25 +211,6 @@ def run_orca_bond_scan(molecule, request, directory, qc_params):
         status = run_command([executable, input_path.name], stdout_path=output_path.name, stderr_path=output_path.name)
     finally:
         os.chdir(old_cwd)
-    output = output_path.read_text() if output_path.exists() else ""
     if status != 0:
         return OrcaBondScanResult(False, None, None, None, input_path, output_path, "orca_failed")
-    if "****ORCA TERMINATED NORMALLY****" not in output:
-        return OrcaBondScanResult(False, None, None, None, input_path, output_path, "abnormal_termination")
-    if not trajectory_path.exists():
-        return OrcaBondScanResult(False, None, None, None, input_path, output_path, "trajectory_missing")
-    try:
-        frames = parse_xyz_trajectory(trajectory_path, molecule.number_of_atoms, molecule.atoms_list)
-    except ValueError:
-        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path, "trajectory_invalid")
-    if len(frames) != request.n_points:
-        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
-                                  "trajectory_incomplete")
-    final_coordinates = frames[-1][1]
-    final_path = directory / "final_scan.xyz"
-    write_xyz(molecule.atoms_list, final_coordinates, final_path, job_name="final_scan", precision=12)
-    stable_trajectory = directory / "scan_trajectory.xyz"
-    if stable_trajectory != trajectory_path:
-        stable_trajectory.write_text(trajectory_path.read_text())
-    return OrcaBondScanResult(True, stable_trajectory, final_path, final_coordinates,
-                              input_path, output_path, "success")
+    return load_orca_bond_scan_result(molecule, request, directory)
