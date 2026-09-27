@@ -208,6 +208,71 @@ def test_geodesic_request_without_optional_dependency_is_clear_and_no_fallback(m
         neb._geodesic_api()
 
 
+@pytest.mark.parametrize("stage", ["all", "neb"])
+def test_geodesic_dependency_is_required_for_neb_initialization(tmp_path, monkeypatch, stage):
+    import pyar.neb as neb
+
+    monkeypatch.setitem(sys.modules, "geodesic_interpolate", None)
+    with pytest.raises(RuntimeError, match=r"optional.*geodesic-interpolate.*pyar-chem\[geodesic\]"):
+        run_neb(
+            DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
+            software="xtb", stage=stage, interpolation="geodesic", output=tmp_path,
+        )
+
+
+@pytest.mark.parametrize("stage", ["ts", "frequency"])
+def test_standalone_geometry_stages_do_not_load_geodesic_dependency(
+    tmp_path, fake_path_backend, monkeypatch, stage,
+):
+    import pyar.neb as neb
+
+    def unexpected_geodesic_load():
+        raise AssertionError("standalone stage must not load geodesic-interpolate")
+
+    monkeypatch.setattr(neb, "_geodesic_api", unexpected_geodesic_load)
+    monkeypatch.setattr(neb, "_installed_geodesic_version", lambda: None)
+    result = run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage=stage,
+        interpolation="geodesic", output=tmp_path,
+    )
+    if stage == "ts":
+        assert result["ts_optimization_converged"]
+        assert fake_path_backend[0] == ["ts"]
+    else:
+        assert result["first_order_saddle_confirmed"]
+        assert fake_path_backend[0] == ["frequency_ts"]
+
+
+@pytest.mark.skipif(
+    find_spec("geodesic_interpolate") is None,
+    reason="geodesic-interpolate is an optional dependency",
+)
+def test_completed_geodesic_neb_can_feed_downstream_stages_without_dependency(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    import pyar.neb as neb
+
+    run_neb(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
+        software="xtb", stage="all", images=3, interpolation="geodesic",
+        output=tmp_path,
+    )
+    neb_summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert neb_summary["geodesic_interpolate_version"]
+
+    def unexpected_geodesic_load():
+        raise AssertionError("consuming a completed stage must not load geodesic-interpolate")
+
+    monkeypatch.setattr(neb, "_geodesic_api", unexpected_geodesic_load)
+    monkeypatch.setattr(neb, "_installed_geodesic_version", lambda: None)
+    for stage in ("ts", "frequency", "irc", "endpoints"):
+        result = run_neb(
+            software="xtb", stage=stage, images=3,
+            interpolation="geodesic", output=tmp_path,
+        )
+        assert result
+
+
 def test_neb_import_and_help_do_not_load_optional_geodesic_package():
     code = """import sys
 import pyar.neb

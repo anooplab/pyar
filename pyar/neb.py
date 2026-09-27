@@ -144,6 +144,14 @@ def _idpp_refine_segment(symbols, coordinates, *, label, fmax, steps):
     return refined
 
 
+def _installed_geodesic_version():
+    """Return installed geodesic distribution provenance without importing it."""
+    try:
+        return package_version("geodesic-interpolate")
+    except PackageNotFoundError:
+        return None
+
+
 def _geodesic_api():
     """Load the optional geodesic package and its installed distribution version."""
     try:
@@ -154,13 +162,12 @@ def _geodesic_api():
             "'geodesic-interpolate' dependency. Install PyAR with "
             "`pip install 'pyar-chem[geodesic]'`."
         ) from exc
-    try:
-        installed_version = package_version("geodesic-interpolate")
-    except PackageNotFoundError as exc:
+    installed_version = _installed_geodesic_version()
+    if installed_version is None:
         raise RuntimeError(
             "The geodesic_interpolate module is importable, but its "
             "geodesic-interpolate distribution version is unavailable."
-        ) from exc
+        )
     return Geodesic, installed_version
 
 
@@ -869,8 +876,12 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
         _validate_idpp_options(idpp_fmax, idpp_steps)
     if interpolation == "geodesic":
         _validate_geodesic_options(geodesic_tol, geodesic_max_iter)
-        if stage != "relax":
+        if stage in {"all", "neb"}:
             _, options["geodesic_interpolate_version"] = _geodesic_api()
+        else:
+            # Downstream reuse can compare recorded provenance when available,
+            # without importing or requiring the optional implementation.
+            options["geodesic_interpolate_version"] = _installed_geodesic_version()
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
