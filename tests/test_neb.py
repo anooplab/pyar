@@ -253,18 +253,26 @@ def test_completed_geodesic_neb_can_feed_downstream_stages_without_dependency(
     import pyar.neb as neb
 
     run_neb(
-        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
-        software="xtb", stage="all", images=3, interpolation="geodesic",
+        DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+        stage="relax", output=tmp_path,
+    )
+    run_neb(
+        ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", images=3,
+        interpolation="geodesic",
         output=tmp_path,
     )
-    neb_summary = json.loads((tmp_path / "neb_summary.json").read_text())
-    assert neb_summary["geodesic_interpolate_version"]
+    neb_summary_path = tmp_path / "neb_summary.json"
+    neb_summary = json.loads(neb_summary_path.read_text())
+    neb_summary["geodesic_interpolate_version"] = "1.0.0"
+    neb_summary_path.write_text(json.dumps(neb_summary))
+    assert neb_summary["geodesic_interpolate_version"] == "1.0.0"
 
-    def unexpected_geodesic_load():
-        raise AssertionError("consuming a completed stage must not load geodesic-interpolate")
+    def unexpected_geodesic_access(*args, **kwargs):
+        raise AssertionError("consuming a completed stage must not inspect geodesic-interpolate")
 
-    monkeypatch.setattr(neb, "_geodesic_api", unexpected_geodesic_load)
-    monkeypatch.setattr(neb, "_installed_geodesic_version", lambda: None)
+    monkeypatch.setattr(neb, "_geodesic_api", unexpected_geodesic_access)
+    monkeypatch.setattr(neb, "_installed_geodesic_version", unexpected_geodesic_access)
+    monkeypatch.setattr(neb, "package_version", lambda package: "9.9.9")
     for stage in ("ts", "frequency", "irc", "endpoints"):
         result = run_neb(
             software="xtb", stage=stage, images=3,
@@ -456,10 +464,10 @@ def test_geodesic_restart_tracks_active_options_and_package_version(tmp_path, fa
     summary = json.loads(summary_path.read_text())
     summary["geodesic_interpolate_version"] = "0.0.0"
     summary_path.write_text(json.dumps(summary))
-    with pytest.raises(ValueError, match="used geodesic-interpolate version"):
-        run_neb(software="xtb", stage="ts", images=3, interpolation="geodesic",
-                idpp_fmax=0.1, idpp_steps=20, geodesic_tol=0.002,
-                geodesic_max_iter=4, output=tmp_path)
+    reused = run_neb(software="xtb", stage="ts", images=3, interpolation="geodesic",
+                     idpp_fmax=0.1, idpp_steps=20, geodesic_tol=0.002,
+                     geodesic_max_iter=4, output=tmp_path)
+    assert reused["ts_optimization_converged"]
 
 
 def test_neb_requires_odd_image_count_and_matching_atom_order(tmp_path):

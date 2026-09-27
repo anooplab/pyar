@@ -879,9 +879,9 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
         if stage in {"all", "neb"}:
             _, options["geodesic_interpolate_version"] = _geodesic_api()
         else:
-            # Downstream reuse can compare recorded provenance when available,
-            # without importing or requiring the optional implementation.
-            options["geodesic_interpolate_version"] = _installed_geodesic_version()
+            # Downstream stages consume the validated NEB artifacts and their
+            # recorded provenance; the local package version is irrelevant.
+            options["geodesic_interpolate_version"] = None
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
