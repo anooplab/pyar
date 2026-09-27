@@ -105,11 +105,15 @@ openbabel = [
 conformer = [
   "rdkit",
 ]
+geodesic = [
+  "geodesic-interpolate>=1.0.0",
+]
 all = [
   "ase",
   "build",
   "dscribe",
   "geometric>=1.1",
+  "geodesic-interpolate>=1.0.0",
   "h5py",
   "hdbscan",
   "matplotlib",

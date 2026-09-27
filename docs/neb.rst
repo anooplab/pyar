@@ -15,7 +15,9 @@ The complete sequence is:
    optimize it. The default ``linear`` initialization uses the current
    piecewise Cartesian interpolation. Optional ``idpp`` initialization
    refines each side separately while keeping the supplied TS waypoint fixed.
-   In either case, geomeTRIC optimizes the band; it must converge and its
+   Optional ``geodesic`` initialization applies IDPP first, then smooths each
+   side separately with redundant-internal-coordinate geodesic interpolation.
+   In all cases, geomeTRIC optimizes the band; it must converge and its
    highest-energy image must be an interior image.
 #. ``ts``: optimize that image as a first-order saddle candidate.
 #. ``frequency``: calculate a fresh finite-difference Cartesian Hessian and
@@ -104,6 +106,20 @@ IDPP only prepares the initial images and does not replace geomeTRIC NEB or
 establish a minimum-energy path. ``--idpp-fmax`` and ``--idpp-steps`` control
 ASE's IDPP initialization (defaults 0.1 and 100). These settings are recorded
 in the NEB stage summary and must match when reusing that stage.
+
+``--interpolation geodesic`` additionally smooths the deterministic IDPP seed
+on each side of the supplied waypoint using the optional
+``geodesic-interpolate`` package. Install it with
+``pip install 'pyar-chem[geodesic]'``. ``--geodesic-tol`` and
+``--geodesic-max-iter`` control smoothing (defaults 0.002 and 15). PyAR keeps
+the requested image count and restores each smoothed image to the rigid-body
+frame of its seed; the relaxed endpoints and supplied waypoint remain exact.
+The package's random ``redistribute()`` initializer is not used. Geodesic
+initialization only prepares coordinates: using a supplied TS waypoint does
+not verify it, and smoothing does not establish a minimum-energy path,
+transition state, converged reaction path, or barrier. The installed package
+version is recorded for provenance. See the
+`geodesic-interpolate project <https://github.com/virtualzx-nad/geodesic-interpolate>`_.
 
 Sub-1e-5 angstrom deviations from a best-fit line are removed before frequency
 evaluation, with the correction recorded. Both the gradient and Hessian are
