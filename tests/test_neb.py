@@ -79,6 +79,22 @@ class HarmonicCalculator(Calculator):
         self.results["forces"] = -displacement
 
 
+class AnalyticFirstOrderSaddleCalculator(Calculator):
+    """Two-atom radial potential with a first-order saddle at a target bond length."""
+
+    implemented_properties = ["energy", "forces"]
+
+    def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
+        super().calculate(atoms, properties, system_changes)
+        displacement = atoms.get_positions()[1] - atoms.get_positions()[0]
+        distance = np.linalg.norm(displacement)
+        delta = distance - 2.0
+        derivative = -delta
+        gradient = derivative * displacement / distance
+        self.results["energy"] = -0.5 * delta**2
+        self.results["forces"] = np.array([gradient, -gradient])
+
+
 def test_neb_images_include_ts_guess_as_middle_waypoint():
     symbols, images = build_neb_images(
         DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 5
@@ -500,7 +516,7 @@ def test_sella_adapter_passes_ase_force_threshold_and_step_limit(monkeypatch):
     frames, energies, converged, _ = neb._optimize_sella(
         symbols, coordinates, HarmonicCalculator(coordinates), 23, 0.037,
     )
-    assert calls["constructor"] == {"logfile": None, "order": 1}
+    assert calls["constructor"] == {"logfile": None, "order": 1, "internal": False}
     assert calls["fmax"] == 0.037
     assert calls["steps"] == 23
     assert converged is False
@@ -627,6 +643,23 @@ def test_real_sella_package_runs_with_ase_calculator_and_returns_finite_trajecto
     assert all(np.all(np.isfinite(frame)) for frame in frames)
     assert all(np.isfinite(energy) for energy in energies)
     np.testing.assert_allclose(frames[-1], coordinates, atol=1e-8)
+
+
+@pytest.mark.skipif(find_spec("sella") is None, reason="Sella is an optional dependency")
+def test_real_sella_refines_displaced_geometry_to_analytic_first_order_saddle():
+    import pyar.neb as neb
+
+    initial = np.array([[0.0, 0.0, 0.0], [2.4, 0.0, 0.0]])
+    frames, energies, converged, _ = neb._optimize_sella(
+        ["H", "H"], initial, AnalyticFirstOrderSaddleCalculator(), max_steps=100, fmax=1e-5,
+    )
+
+    assert converged
+    assert len(frames) == len(energies) and len(frames) > 1
+    final_distance = np.linalg.norm(frames[-1][1] - frames[-1][0])
+    assert abs(final_distance - 2.0) < abs(2.4 - 2.0)
+    assert abs(final_distance - 2.0) < 1e-4
+    assert np.isfinite(energies[-1])
 
 
 def test_linear_restart_ignores_inactive_interpolator_controls(tmp_path, fake_path_backend):
