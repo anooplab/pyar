@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 import numpy as np
+from typing import Protocol, runtime_checkable
 
 __all__ = [
+    "DiversitySelector",
     "_finalize_selection",
     "_limit_seed_count",
     "_log_seed_shortfall",
     "_max_min_diversity_select",
 ]
+
+
+@runtime_checkable
+class DiversitySelector(Protocol):
+    """Choose a resource-limited subset from already distinct candidates."""
+
+    def select(self, candidates, count, *, distance=None):
+        """Return selected candidates without defining duplicate identity."""
 
 
 def _log_seed_shortfall(requested, available, context):

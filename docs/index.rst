@@ -211,3 +211,4 @@ The fastest way to verify a local install is:
    reaction
    solvation
    migration_2_0
+   structure_identity_and_selection

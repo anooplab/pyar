@@ -205,16 +205,18 @@ def remove_similar(list_of_molecules):
     final_list = []
     removed_duplicates = []
     rmsd_threshold = _adaptive_duplicate_rmsd_threshold(ordered_molecules)
+    from pyar.structure_comparison import LegacyRMSDComparator
+
+    comparator = LegacyRMSDComparator(threshold=rmsd_threshold)
     clustering.cluster_logger.debug('Number of molecules before similarity elimination,  {}'.format(len(ordered_molecules)))
     for candidate in ordered_molecules:
         duplicate = False
         for kept in final_list:
             if len(candidate.atoms_list) < 2 or len(kept.atoms_list) < 2:
                 continue
-            if not _structure_is_similar(candidate, kept):
-                continue
-            aligned_rmsd = _rmsd_after_alignment(candidate, kept)
-            if aligned_rmsd < rmsd_threshold:
+            comparison = comparator.compare(candidate, kept)
+            if comparison.equivalent:
+                aligned_rmsd = comparison.distance
                 duplicate = True
                 removed_duplicates.append((candidate.name, kept.name, aligned_rmsd))
                 clustering.cluster_logger.debug(

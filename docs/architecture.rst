@@ -51,6 +51,11 @@ services, workflows, persistence, backend adapters, and user interfaces:
        diversity.py
        basin_memory.py
        reports.py
+     structure_comparison/
+       models.py
+       identity.py
+       equivalence.py
+       legacy.py
      backends/
        base.py
        registry.py
@@ -121,6 +126,12 @@ solvation and ligand-growth package; none should become the main architecture
 for every workflow. Reaction exploration and mechanism-finding, clustering,
 similarity, bonding analysis, and backend interfaces should each keep their own
 request models, services, and tests where they have domain-specific behaviour.
+
+Structure comparison separates chemical identity, geometrical equivalence,
+and diversity selection. Identity providers and geometry comparators live in
+``pyar.structure_comparison``; selection continues to own candidate reduction
+and clustering. See :doc:`structure_identity_and_selection` for the
+behavior-preserving contract.
 
 Workflow modules such as ``pyar.workflows.conformer`` should remain thin public
 orchestration layers. They may translate CLI/API arguments into typed feature

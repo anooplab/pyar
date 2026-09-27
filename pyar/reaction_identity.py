@@ -49,7 +49,9 @@ def same_molecular_identity(first, second):
     InChI is used as the stable identity key. SMILES is retained for readable
     reports, but equivalent products need not serialize to the same SMILES.
     """
-    return first["inchi"] == second["inchi"]
+    from pyar.structure_comparison import OpenBabelIdentityProvider
+
+    return OpenBabelIdentityProvider().same_identity(first, second)
 
 
 def reaction_product_changed(start_identity, current_identity):
