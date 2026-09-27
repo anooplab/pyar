@@ -108,6 +108,9 @@ conformer = [
 geodesic = [
   "geodesic-interpolate>=1.0.0",
 ]
+sella = [
+  "sella>=2.6.0",
+]
 all = [
   "ase",
   "build",
@@ -126,6 +129,7 @@ all = [
   "pytest",
   "pytest-cov",
   "scikit-learn>=0.23.2",
+  "sella>=2.6.0",
   "sphinx",
   "sphinx-rtd-theme",
   "torch",

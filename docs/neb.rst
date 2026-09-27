@@ -2,7 +2,8 @@ geomeTRIC reaction-path validation
 ==================================
 
 ``pyar-neb`` runs an unbiased reaction-path workflow using a registered PyAR
-energy/gradient backend. Every geometry optimization uses geomeTRIC. Atom count,
+energy/gradient backend. Endpoint and NEB optimizations use geomeTRIC; the TS
+stage also uses geomeTRIC by default and can optionally use Sella. Atom count,
 element order, and atom mapping must agree between reactant, product, and TS
 waypoint files. Supply one finite XYZ frame per file.
 
@@ -19,7 +20,8 @@ The complete sequence is:
    side separately with redundant-internal-coordinate geodesic interpolation.
    In all cases, geomeTRIC optimizes the band; it must converge and its
    highest-energy image must be an interior image.
-#. ``ts``: optimize that image as a first-order saddle candidate.
+#. ``ts``: optimize that image as a first-order saddle candidate. geomeTRIC is
+   the default optimizer; an optional Sella saddle optimizer can be selected.
 #. ``frequency``: calculate a fresh finite-difference Cartesian Hessian and
    verify stationarity and exactly one significant imaginary frequency.
 #. ``irc``: trace forward and backward directions separately, recording convergence
@@ -120,6 +122,25 @@ not verify it, and smoothing does not establish a minimum-energy path,
 transition state, converged reaction path, or barrier. The installed package
 version is recorded for provenance. See the
 `geodesic-interpolate project <https://github.com/virtualzx-nad/geodesic-interpolate>`_.
+
+TS optimization
+---------------
+
+``--ts-optimizer geometric`` is the default and preserves the existing
+geomeTRIC TS optimization. Optionally, install ``pip install 'pyar-chem[sella]'``
+and select ``--ts-optimizer sella`` to run Sella's first-order saddle optimizer
+with the same unbiased PyAR energy/gradient calculator. ``--sella-fmax`` sets
+Sella's force convergence threshold in eV/angstrom (default 0.05), and
+``--ts-max-cycles`` sets its maximum optimizer steps. These controls are recorded
+only when Sella is selected; changing inactive Sella options does not invalidate
+a geomeTRIC TS stage.
+
+Sella convergence records optimizer convergence only. It does not confirm a
+transition state or replace the independent frequency validation, which remains
+the source of ``first_order_saddle_confirmed``. Completed TS artifacts can be
+used by frequency, IRC, and endpoint stages without Sella installed. The Sella
+method is described by `Hermes et al., J. Chem. Theory Comput. 2022
+<https://doi.org/10.1021/acs.jctc.2c00395>`_.
 
 Sub-1e-5 angstrom deviations from a best-fit line are removed before frequency
 evaluation, with the correction recorded. Both the gradient and Hessian are

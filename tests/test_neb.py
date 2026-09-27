@@ -15,6 +15,7 @@ from pyar.neb import (
     _ase_idpp_api,
     _bond_set,
     canonical_neb_parameters,
+    canonical_ts_parameters,
     _relax_endpoint,
     build_neb_images,
     read_xyz,
@@ -56,6 +57,12 @@ def test_cli_exposes_individual_workflow_stages():
     ]))
     assert (geodesic["interpolation"], geodesic["geodesic_tol"],
             geodesic["geodesic_max_iter"]) == ("geodesic", 0.005, 8)
+    assert defaults["ts_optimizer"] == "geometric"
+    assert defaults["sella_fmax"] == 0.05
+    sella = vars(parser.parse_args([
+        "--software", "xtb", "--ts-optimizer", "sella", "--sella-fmax", "0.03",
+    ]))
+    assert (sella["ts_optimizer"], sella["sella_fmax"]) == ("sella", 0.03)
 
 
 class HarmonicCalculator(Calculator):
@@ -285,12 +292,14 @@ def test_neb_import_and_help_do_not_load_optional_geodesic_package():
     code = """import sys
 import pyar.neb
 assert 'geodesic_interpolate' not in sys.modules
+assert 'sella' not in sys.modules
 from pyar.neb import main
 try:
     main(['--help'])
 except SystemExit as exc:
     assert exc.code == 0
 assert 'geodesic_interpolate' not in sys.modules
+assert 'sella' not in sys.modules
 """
     subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
 
@@ -385,6 +394,239 @@ def test_neb_parameter_canonicalization_is_method_aware():
     ))
     geo_b = dict(geo_a, geodesic_tol=0.003)
     assert geo_a != geo_b
+
+
+def test_ts_parameter_canonicalization_is_optimizer_aware():
+    geometric_a = canonical_ts_parameters({
+        "ts_max_cycles": 200, "ts_optimizer": "geometric", "sella_fmax": -1,
+    })
+    geometric_b = canonical_ts_parameters({
+        "ts_max_cycles": 200, "ts_optimizer": "geometric", "sella_fmax": float("nan"),
+    })
+    assert geometric_a == geometric_b == {
+        "ts_max_cycles": 200, "ts_optimizer": "geometric",
+    }
+    assert canonical_ts_parameters({"ts_max_cycles": 50, "ts_optimizer": "sella"}) == {
+        "ts_max_cycles": 50, "ts_optimizer": "sella", "sella_fmax": 0.05,
+    }
+    with pytest.raises(ValueError, match="ts_optimizer must"):
+        canonical_ts_parameters({"ts_optimizer": "other"})
+
+
+def test_sella_missing_dependency_is_clear(monkeypatch):
+    import pyar.neb as neb
+
+    monkeypatch.setitem(sys.modules, "sella", None)
+    with pytest.raises(RuntimeError, match=r"optional 'sella'.*pyar-chem\[sella\]"):
+        neb._sella_api()
+
+
+def test_sella_request_fails_clearly_when_optional_package_is_missing(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    import pyar.neb as neb
+
+    monkeypatch.setitem(sys.modules, "sella", None)
+    with pytest.raises(RuntimeError, match=r"optional 'sella'.*pyar-chem\[sella\]"):
+        run_neb(
+            ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts",
+            ts_optimizer="sella", output=tmp_path,
+        )
+    assert json.loads((tmp_path / "ts_summary.json").read_text())["status"] == "failed"
+
+
+@pytest.mark.parametrize("failure", ["exception", "empty", "nonfinite_coordinates", "nonfinite_energy"])
+def test_sella_optimizer_failure_paths_are_explicit(tmp_path, monkeypatch, failure):
+    import pyar.neb as neb
+
+    symbols, coordinates, _ = read_xyz(DATA / "guess.xyz")
+
+    class FakeSella:
+        def __init__(self, atoms, **kwargs):
+            self.atoms = atoms
+
+        def attach(self, observer, interval=1):
+            self.observer = observer
+
+        def run(self, **kwargs):
+            if failure == "exception":
+                raise RuntimeError("optimizer fixture failure")
+            if failure == "empty":
+                return False
+            if failure == "nonfinite_coordinates":
+                self.atoms.set_positions(np.full_like(self.atoms.positions, np.nan))
+            self.observer()
+            return False
+
+    monkeypatch.setattr(neb, "_sella_api", lambda: (FakeSella, "fixture-version"))
+    calculator = HarmonicCalculator(coordinates)
+    if failure == "nonfinite_energy":
+        original_calculate = calculator.calculate
+
+        def nonfinite_energy(*args, **kwargs):
+            original_calculate(*args, **kwargs)
+            calculator.results["energy"] = float("nan")
+
+        monkeypatch.setattr(calculator, "calculate", nonfinite_energy)
+    expected = {
+        "exception": (RuntimeError, "Sella TS optimization failed"),
+        "empty": (RuntimeError, "empty TS optimization trajectory"),
+        "nonfinite_coordinates": (ValueError, "non-finite coordinates"),
+        "nonfinite_energy": (ValueError, "non-finite energy"),
+    }[failure]
+    with pytest.raises(expected[0], match=expected[1]):
+        neb._optimize_sella(symbols, coordinates, calculator, 2, 0.05)
+
+
+def test_sella_adapter_passes_ase_force_threshold_and_step_limit(monkeypatch):
+    import pyar.neb as neb
+
+    symbols, coordinates, _ = read_xyz(DATA / "guess.xyz")
+    calls = {}
+
+    class RecordingSella:
+        def __init__(self, atoms, **kwargs):
+            calls["constructor"] = kwargs
+
+        def attach(self, observer, interval=1):
+            self.observer = observer
+
+        def run(self, *, fmax, steps):
+            calls.update(fmax=fmax, steps=steps)
+            self.observer()
+            return False
+
+    monkeypatch.setattr(neb, "_sella_api", lambda: (RecordingSella, "test-version"))
+    frames, energies, converged, _ = neb._optimize_sella(
+        symbols, coordinates, HarmonicCalculator(coordinates), 23, 0.037,
+    )
+    assert calls["constructor"] == {"logfile": None, "order": 1}
+    assert calls["fmax"] == 0.037
+    assert calls["steps"] == 23
+    assert converged is False
+    assert len(frames) == len(energies) == 1
+
+
+def test_sella_ts_stage_records_optimizer_only_and_downstream_reuses_artifacts(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    import pyar.neb as neb
+
+    symbols, coordinates, _ = read_xyz(DATA / "guess.xyz")
+    observed = {}
+
+    def optimize_sella(actual_symbols, actual_coordinates, calculator, steps, fmax):
+        observed.update(steps=steps, fmax=fmax, calculator=calculator)
+        final = np.asarray(actual_coordinates, dtype=float) + 0.01
+        return [np.asarray(actual_coordinates), final], [-1.0, -2.0], False, "2.6.0"
+
+    monkeypatch.setattr(neb, "_optimize_sella", optimize_sella)
+    result = run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
+        ts_optimizer="sella", sella_fmax=0.025, ts_max_cycles=17,
+    )
+    assert result["ts_optimization_converged"] is False
+    assert result["sella_version"] == "2.6.0"
+    assert "first_order_saddle_confirmed" not in result
+    assert observed["steps"] == 17
+    assert observed["fmax"] == 0.025
+    written_symbols, written_coordinates, _ = read_xyz(tmp_path / "ts_optimized.xyz")
+    assert written_symbols == symbols
+    np.testing.assert_allclose(written_coordinates, coordinates + 0.01)
+    path_symbols, path = _read_xyz_trajectory(tmp_path / "ts_path.xyz")
+    assert path_symbols == symbols
+    assert len(path) == 2
+    np.testing.assert_allclose(path[0], coordinates)
+    np.testing.assert_allclose(path[-1], written_coordinates)
+    assert result["ts_energy_hartree"] == -2.0
+
+    def unexpected_sella_access(*args, **kwargs):
+        raise AssertionError("downstream stages must not inspect Sella installation")
+
+    monkeypatch.setattr(neb, "_sella_api", unexpected_sella_access)
+    monkeypatch.setattr(neb, "package_version", unexpected_sella_access)
+    with pytest.raises(ValueError, match="TS optimization did not converge"):
+        run_neb(software="xtb", stage="frequency", output=tmp_path,
+                ts_optimizer="geometric")
+
+
+def test_inactive_sella_controls_do_not_validate_or_affect_geometric_ts(
+    tmp_path, fake_path_backend,
+):
+    result = run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
+        ts_optimizer="geometric", sella_fmax=float("nan"),
+    )
+    assert result["ts_optimization_converged"]
+    assert result["parameters"] == {
+        "ts_max_cycles": 200, "ts_optimizer": "geometric",
+    }
+
+    with pytest.raises(ValueError, match="sella_fmax must be positive and finite"):
+        run_neb(
+            ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
+            ts_optimizer="sella", sella_fmax=float("nan"),
+        )
+
+
+def test_completed_sella_workflow_supports_all_downstream_stages_without_sella(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    import pyar.neb as neb
+
+    def optimize_sella(symbols, coordinates, calculator, max_steps, fmax):
+        coordinates = np.asarray(coordinates, dtype=float).copy()
+        return [coordinates], [-2.0], True, "2.6.0"
+
+    monkeypatch.setattr(neb, "_optimize_sella", optimize_sella)
+    result = run_neb(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", software="xtb",
+        ts_optimizer="sella", output=tmp_path,
+    )
+    assert result["ts"]["sella_version"] == "2.6.0"
+
+    def unexpected_sella_access(*args, **kwargs):
+        raise AssertionError("downstream stages must not inspect Sella installation")
+
+    monkeypatch.setattr(neb, "_sella_api", unexpected_sella_access)
+    monkeypatch.setattr(neb, "package_version", unexpected_sella_access)
+    for stage in ("frequency", "irc", "endpoints"):
+        assert run_neb(software="xtb", stage=stage, output=tmp_path)
+
+
+def _read_xyz_trajectory(path):
+    """Small test reader for the multi-frame XYZ written by the TS stage."""
+    lines = Path(path).read_text().splitlines()
+    frames, symbols = [], None
+    index = 0
+    while index < len(lines):
+        count = int(lines[index])
+        frame_symbols, coordinates = [], []
+        for line in lines[index + 2:index + 2 + count]:
+            fields = line.split()
+            frame_symbols.append(fields[0])
+            coordinates.append([float(value) for value in fields[1:4]])
+        symbols = frame_symbols if symbols is None else symbols
+        frames.append(np.asarray(coordinates))
+        index += count + 2
+    return symbols, frames
+
+
+@pytest.mark.skipif(find_spec("sella") is None, reason="Sella is an optional dependency")
+def test_real_sella_package_runs_with_ase_calculator_and_returns_finite_trajectory(tmp_path):
+    from importlib.metadata import version
+    import pyar.neb as neb
+
+    symbols, coordinates, _ = read_xyz(DATA / "guess.xyz")
+    frames, energies, converged, installed_version = neb._optimize_sella(
+        symbols, coordinates, HarmonicCalculator(coordinates), max_steps=1, fmax=1e6,
+    )
+    assert installed_version == version("sella")
+    assert converged is True
+    assert frames and len(frames) == len(energies)
+    assert all(np.all(np.isfinite(frame)) for frame in frames)
+    assert all(np.isfinite(energy) for energy in energies)
+    np.testing.assert_allclose(frames[-1], coordinates, atol=1e-8)
 
 
 def test_linear_restart_ignores_inactive_interpolator_controls(tmp_path, fake_path_backend):
