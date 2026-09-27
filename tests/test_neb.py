@@ -1,5 +1,8 @@
 from pathlib import Path
+from importlib.util import find_spec
 import json
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -8,7 +11,10 @@ from ase.calculators.calculator import Calculator, all_changes
 
 from pyar.neb import (
     _aligned_rmsd,
+    _align_rigid_frame,
+    _ase_idpp_api,
     _bond_set,
+    canonical_neb_parameters,
     _relax_endpoint,
     build_neb_images,
     read_xyz,
@@ -32,6 +38,8 @@ def test_cli_exposes_individual_workflow_stages():
     assert defaults["interpolation"] == "linear"
     assert defaults["idpp_fmax"] == 0.1
     assert defaults["idpp_steps"] == 100
+    assert defaults["geodesic_tol"] == 0.002
+    assert defaults["geodesic_max_iter"] == 15
     for stage in ("relax", "neb", "ts", "frequency", "irc", "endpoints"):
         args = vars(parser.parse_args(["--stage", stage, "--software", "xtb"]))
         assert args["stage"] == stage
@@ -42,6 +50,12 @@ def test_cli_exposes_individual_workflow_stages():
     assert (idpp["interpolation"], idpp["idpp_fmax"], idpp["idpp_steps"]) == (
         "idpp", 0.02, 25,
     )
+    geodesic = vars(parser.parse_args([
+        "--software", "xtb", "--interpolation", "geodesic",
+        "--geodesic-tol", "0.005", "--geodesic-max-iter", "8",
+    ]))
+    assert (geodesic["interpolation"], geodesic["geodesic_tol"],
+            geodesic["geodesic_max_iter"]) == ("geodesic", 0.005, 8)
 
 
 class HarmonicCalculator(Calculator):
@@ -77,6 +91,8 @@ def test_linear_initialization_is_the_existing_piecewise_cartesian_path():
     explicit_symbols, explicit_images = build_neb_images(
         DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 7,
         interpolation="linear",
+        idpp_fmax=float("nan"), idpp_steps=0,
+        geodesic_tol=float("nan"), geodesic_max_iter=0,
     )
     start = read_xyz(DATA / "hcn.xyz")[1]
     end = read_xyz(DATA / "hnc.xyz")[1]
@@ -113,6 +129,7 @@ def test_idpp_initialization_preserves_waypoints_and_regularizes_fixture(tmp_pat
     _, linear = build_neb_images(*paths, 5)
     returned_symbols, idpp = build_neb_images(
         *paths, 5, interpolation="idpp", idpp_fmax=0.01, idpp_steps=500,
+        geodesic_tol=float("nan"), geodesic_max_iter=0,
     )
 
     assert returned_symbols == symbols
@@ -129,7 +146,7 @@ def test_idpp_initialization_preserves_waypoints_and_regularizes_fixture(tmp_pat
 
 
 def test_invalid_neb_interpolation_is_rejected(tmp_path):
-    with pytest.raises(ValueError, match="expected 'linear' or 'idpp'"):
+    with pytest.raises(ValueError, match="expected 'linear', 'idpp', or 'geodesic'"):
         build_neb_images(
             DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 5,
             interpolation="spline",
@@ -148,6 +165,309 @@ def test_idpp_failure_is_reported_without_linear_fallback(tmp_path, monkeypatch)
             DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 5,
             interpolation="idpp",
         )
+
+
+def test_idpp_api_falls_back_to_legacy_ase_module_path(monkeypatch):
+    import pyar.neb as neb
+
+    interpolate = object()
+    calls = []
+
+    def import_module(name):
+        calls.append(name)
+        if name == "ase.mep.neb":
+            raise ImportError("modern path unavailable")
+        return SimpleNamespace(idpp_interpolate=interpolate)
+
+    monkeypatch.setattr(neb.importlib, "import_module", import_module)
+    atoms, actual_interpolate = _ase_idpp_api()
+
+    from ase import Atoms
+
+    assert atoms is Atoms
+    assert actual_interpolate is interpolate
+    assert calls == ["ase.mep.neb", "ase.neb"]
+
+
+def test_idpp_api_unavailable_raises_clear_error(monkeypatch):
+    import pyar.neb as neb
+
+    def import_module(name):
+        raise ImportError(f"{name} unavailable")
+
+    monkeypatch.setattr(neb.importlib, "import_module", import_module)
+    with pytest.raises(RuntimeError, match="does not provide IDPP interpolation"):
+        _ase_idpp_api()
+
+
+def test_geodesic_request_without_optional_dependency_is_clear_and_no_fallback(monkeypatch):
+    import pyar.neb as neb
+
+    monkeypatch.setitem(sys.modules, "geodesic_interpolate", None)
+    with pytest.raises(RuntimeError, match=r"optional.*geodesic-interpolate.*pyar-chem\[geodesic\]"):
+        neb._geodesic_api()
+
+
+@pytest.mark.parametrize("stage", ["all", "neb"])
+def test_geodesic_dependency_is_required_for_neb_initialization(tmp_path, monkeypatch, stage):
+    import pyar.neb as neb
+
+    monkeypatch.setitem(sys.modules, "geodesic_interpolate", None)
+    with pytest.raises(RuntimeError, match=r"optional.*geodesic-interpolate.*pyar-chem\[geodesic\]"):
+        run_neb(
+            DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
+            software="xtb", stage=stage, interpolation="geodesic", output=tmp_path,
+        )
+
+
+@pytest.mark.parametrize("stage", ["ts", "frequency"])
+def test_standalone_geometry_stages_do_not_load_geodesic_dependency(
+    tmp_path, fake_path_backend, monkeypatch, stage,
+):
+    import pyar.neb as neb
+
+    def unexpected_geodesic_load():
+        raise AssertionError("standalone stage must not load geodesic-interpolate")
+
+    monkeypatch.setattr(neb, "_geodesic_api", unexpected_geodesic_load)
+    monkeypatch.setattr(neb, "_installed_geodesic_version", lambda: None)
+    result = run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage=stage,
+        interpolation="geodesic", output=tmp_path,
+    )
+    if stage == "ts":
+        assert result["ts_optimization_converged"]
+        assert fake_path_backend[0] == ["ts"]
+    else:
+        assert result["first_order_saddle_confirmed"]
+        assert fake_path_backend[0] == ["frequency_ts"]
+
+
+@pytest.mark.skipif(
+    find_spec("geodesic_interpolate") is None,
+    reason="geodesic-interpolate is an optional dependency",
+)
+def test_completed_geodesic_neb_can_feed_downstream_stages_without_dependency(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    import pyar.neb as neb
+
+    run_neb(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+        stage="relax", output=tmp_path,
+    )
+    run_neb(
+        ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", images=3,
+        interpolation="geodesic",
+        output=tmp_path,
+    )
+    neb_summary_path = tmp_path / "neb_summary.json"
+    neb_summary = json.loads(neb_summary_path.read_text())
+    neb_summary["geodesic_interpolate_version"] = "1.0.0"
+    neb_summary_path.write_text(json.dumps(neb_summary))
+    assert neb_summary["geodesic_interpolate_version"] == "1.0.0"
+
+    def unexpected_geodesic_access(*args, **kwargs):
+        raise AssertionError("consuming a completed stage must not inspect geodesic-interpolate")
+
+    monkeypatch.setattr(neb, "_geodesic_api", unexpected_geodesic_access)
+    monkeypatch.setattr(neb, "_installed_geodesic_version", unexpected_geodesic_access)
+    monkeypatch.setattr(neb, "package_version", lambda package: "9.9.9")
+    for stage in ("ts", "frequency", "irc", "endpoints"):
+        result = run_neb(
+            software="xtb", stage=stage, images=3,
+            interpolation="geodesic", output=tmp_path,
+        )
+        assert result
+
+
+def test_neb_import_and_help_do_not_load_optional_geodesic_package():
+    code = """import sys
+import pyar.neb
+assert 'geodesic_interpolate' not in sys.modules
+from pyar.neb import main
+try:
+    main(['--help'])
+except SystemExit as exc:
+    assert exc.code == 0
+assert 'geodesic_interpolate' not in sys.modules
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
+
+
+def test_geodesic_alignment_preserves_internal_geometry_without_reflection():
+    reference = np.asarray([
+        [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
+    ])
+    reflected = reference.copy()
+    reflected[:, 0] *= -1.0
+    restored = _align_rigid_frame(reflected, reference)
+    before = np.linalg.norm(reflected[:, None, :] - reflected[None, :, :], axis=2)
+    after = np.linalg.norm(restored[:, None, :] - restored[None, :, :], axis=2)
+    np.testing.assert_allclose(after, before, atol=1e-12, rtol=0)
+    assert not np.allclose(restored, reference, atol=1e-8, rtol=0)
+
+
+@pytest.mark.skipif(
+    find_spec("geodesic_interpolate") is None,
+    reason="geodesic-interpolate is an optional dependency",
+)
+def test_geodesic_initialization_preserves_fixed_waypoints_frames_and_determinism(tmp_path):
+    symbols, start, _ = read_xyz(DATA / "hcn.xyz")
+    _, end, _ = read_xyz(DATA / "hnc.xyz")
+    _, ts, _ = read_xyz(DATA / "guess.xyz")
+
+    def rotate_translate(coords, angle, shift):
+        rotation = np.asarray([
+            [np.cos(angle), -np.sin(angle), 0.0],
+            [np.sin(angle), np.cos(angle), 0.0],
+            [0.0, 0.0, 1.0],
+        ])
+        return np.asarray(coords) @ rotation + np.asarray(shift)
+
+    start = rotate_translate(start, 0.7, [8.0, -5.0, 3.0])
+    ts = rotate_translate(ts, -1.1, [-4.0, 7.0, 1.5])
+    end = rotate_translate(end, 2.0, [3.0, 6.0, -2.0])
+    paths = [tmp_path / f"geo_{name}.xyz" for name in ("start", "end", "ts")]
+    for path, coordinates in zip(paths, (start, end, ts)):
+        _write_xyz(path, symbols, coordinates)
+    start = read_xyz(paths[0])[1]
+    end = read_xyz(paths[1])[1]
+    ts = read_xyz(paths[2])[1]
+
+    options = dict(
+        interpolation="geodesic", idpp_fmax=0.02, idpp_steps=40,
+        geodesic_tol=0.01, geodesic_max_iter=4,
+    )
+    returned_symbols, first = build_neb_images(*paths, 7, **options)
+    _, second = build_neb_images(*paths, 7, **options)
+
+    assert returned_symbols == symbols
+    assert len(first) == 7
+    np.testing.assert_array_equal(first[0], start)
+    np.testing.assert_array_equal(first[3], ts)
+    np.testing.assert_array_equal(first[-1], end)
+    assert all(np.all(np.isfinite(frame)) for frame in first)
+    for actual, repeated in zip(first, second):
+        np.testing.assert_allclose(actual, repeated, atol=1e-10, rtol=0)
+
+
+def test_neb_parameter_canonicalization_is_method_aware():
+    common = dict(
+        images=11, max_cycles=100, max_gradient=0.05, average_gradient=0.025,
+        spring=1.0, climb=0.5, align=False,
+    )
+    linear_a = canonical_neb_parameters(dict(
+        common, interpolation="linear", idpp_fmax=-1, idpp_steps=0,
+        geodesic_tol=-1, geodesic_max_iter=0,
+    ))
+    linear_b = canonical_neb_parameters(dict(
+        common, interpolation="linear", idpp_fmax=9, idpp_steps=80,
+        geodesic_tol=8, geodesic_max_iter=99,
+    ))
+    assert linear_a == linear_b
+    assert set(linear_a) == {*common, "interpolation"}
+
+    idpp_a = canonical_neb_parameters(dict(
+        common, interpolation="idpp", idpp_fmax=0.1, idpp_steps=100,
+        geodesic_tol=0.002, geodesic_max_iter=15,
+    ))
+    idpp_b = canonical_neb_parameters(dict(
+        common, interpolation="idpp", idpp_fmax=0.1, idpp_steps=100,
+        geodesic_tol=9, geodesic_max_iter=1,
+    ))
+    assert idpp_a == idpp_b
+    assert set(idpp_a) == {*common, "interpolation", "idpp_fmax", "idpp_steps"}
+
+    geo_a = canonical_neb_parameters(dict(
+        common, interpolation="geodesic", idpp_fmax=0.1, idpp_steps=100,
+        geodesic_tol=0.002, geodesic_max_iter=15,
+    ))
+    geo_b = dict(geo_a, geodesic_tol=0.003)
+    assert geo_a != geo_b
+
+
+def test_linear_restart_ignores_inactive_interpolator_controls(tmp_path, fake_path_backend):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, interpolation="linear", output=tmp_path)
+    stored = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert "idpp_fmax" not in stored["parameters"]
+    assert "geodesic_tol" not in stored["parameters"]
+
+    result = run_neb(software="xtb", stage="ts", images=3, interpolation="linear",
+                     idpp_fmax=float("nan"), idpp_steps=0,
+                     geodesic_tol=float("nan"), geodesic_max_iter=0, output=tmp_path)
+    assert result["ts_optimization_converged"]
+
+
+def test_pr21_flat_linear_summary_ignores_its_inactive_idpp_defaults(
+    tmp_path, fake_path_backend,
+):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, output=tmp_path)
+    summary_path = tmp_path / "neb_summary.json"
+    summary = json.loads(summary_path.read_text())
+    summary["parameters"].update(
+        interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
+    )
+    summary_path.write_text(json.dumps(summary))
+
+    result = run_neb(software="xtb", stage="ts", images=3, output=tmp_path)
+    assert result["ts_optimization_converged"]
+
+
+def test_neb_restart_rejects_unrecognized_recorded_parameter(tmp_path, fake_path_backend):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, interpolation="linear", output=tmp_path)
+    summary_path = tmp_path / "neb_summary.json"
+    summary = json.loads(summary_path.read_text())
+    summary["parameters"]["future_initializer_control"] = 0.25
+    summary_path.write_text(json.dumps(summary))
+
+    with pytest.raises(ValueError, match="Unrecognized NEB stage parameter.*future_initializer_control"):
+        run_neb(software="xtb", stage="ts", images=3, interpolation="linear",
+                output=tmp_path)
+
+
+@pytest.mark.skipif(
+    find_spec("geodesic_interpolate") is None,
+    reason="geodesic-interpolate is an optional dependency",
+)
+def test_geodesic_restart_tracks_active_options_and_package_version(tmp_path, fake_path_backend):
+    from importlib.metadata import version
+
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", images=3,
+            interpolation="geodesic", idpp_fmax=0.1, idpp_steps=20,
+            geodesic_tol=0.002, geodesic_max_iter=4, output=tmp_path)
+    summary_path = tmp_path / "neb_summary.json"
+    summary = json.loads(summary_path.read_text())
+    assert summary["parameters"] == canonical_neb_parameters(summary["parameters"])
+    assert summary["geodesic_interpolate_version"] == version("geodesic-interpolate")
+
+    same = run_neb(software="xtb", stage="ts", images=3, interpolation="geodesic",
+                   idpp_fmax=0.1, idpp_steps=20, geodesic_tol=0.002,
+                   geodesic_max_iter=4, output=tmp_path)
+    assert same["ts_optimization_converged"]
+    with pytest.raises(ValueError, match="different stage-specific parameters"):
+        run_neb(software="xtb", stage="ts", images=3, interpolation="geodesic",
+                idpp_fmax=0.1, idpp_steps=20, geodesic_tol=0.003,
+                geodesic_max_iter=4, output=tmp_path)
+
+    summary = json.loads(summary_path.read_text())
+    summary["geodesic_interpolate_version"] = "0.0.0"
+    summary_path.write_text(json.dumps(summary))
+    reused = run_neb(software="xtb", stage="ts", images=3, interpolation="geodesic",
+                     idpp_fmax=0.1, idpp_steps=20, geodesic_tol=0.002,
+                     geodesic_max_iter=4, output=tmp_path)
+    assert reused["ts_optimization_converged"]
 
 
 def test_neb_requires_odd_image_count_and_matching_atom_order(tmp_path):
@@ -349,7 +669,7 @@ def test_pre_interpolation_schema_two_neb_summary_reuses_historical_linear_defau
     summary_path = tmp_path / "neb_summary.json"
     summary = json.loads(summary_path.read_text())
     for key in ("interpolation", "idpp_fmax", "idpp_steps"):
-        summary["parameters"].pop(key)
+        summary["parameters"].pop(key, None)
     summary_path.write_text(json.dumps(summary))
 
     result = run_neb(software="xtb", stage="ts", images=3, output=tmp_path)
@@ -371,6 +691,37 @@ def test_neb_ts_stage_consumes_optimized_highest_energy_image(tmp_path, fake_pat
     run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
             software="xtb", output=tmp_path)
     assert "coordinates" in ts_input
+    np.testing.assert_array_equal(
+        ts_input["coordinates"], read_xyz(tmp_path / "ts_guess.xyz")[1],
+    )
+
+
+@pytest.mark.skipif(
+    find_spec("geodesic_interpolate") is None,
+    reason="geodesic-interpolate is an optional dependency",
+)
+def test_geodesic_workflow_keeps_geometric_neb_and_ts_handoff(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    import pyar.neb as neb
+
+    calls, _ = fake_path_backend
+    original_optimize = neb._optimize_geometry
+    ts_input = {}
+
+    def record_ts_input(symbols, coordinates, calculator, output, label, max_cycles, **kwargs):
+        if label == "ts":
+            ts_input["coordinates"] = np.asarray(coordinates).copy()
+        return original_optimize(symbols, coordinates, calculator, output, label, max_cycles, **kwargs)
+
+    monkeypatch.setattr(neb, "_optimize_geometry", record_ts_input)
+    result = run_neb(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", software="xtb",
+        output=tmp_path, interpolation="geodesic", geodesic_max_iter=3,
+    )
+
+    assert "neb" in calls and "ts" in calls
+    assert result["neb"]["geodesic_interpolate_version"]
     np.testing.assert_array_equal(
         ts_input["coordinates"], read_xyz(tmp_path / "ts_guess.xyz")[1],
     )

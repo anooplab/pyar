@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import os
 from pathlib import Path
 import tempfile
+from importlib.metadata import PackageNotFoundError, version as package_version
 
 import numpy as np
 
@@ -18,7 +20,7 @@ STAGES = ("relax", "neb", "ts", "frequency", "irc", "endpoints")
 _STAGE_OPTIONS = {
     "relax": ("product_relaxation_fmax", "product_relaxation_max_steps"),
     "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
-            "interpolation", "idpp_fmax", "idpp_steps"),
+            "interpolation", "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter"),
     "ts": ("ts_max_cycles",),
     "frequency": ("imaginary_frequency_threshold",),
     "irc": ("irc_max_cycles",),
@@ -29,6 +31,14 @@ _LEGACY_NEB_INITIALIZATION_DEFAULTS = {
     "idpp_fmax": 0.1,
     "idpp_steps": 100,
 }
+_NEB_COMMON_PARAMETERS = (
+    "images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
+)
+_IDPP_PARAMETERS = ("idpp_fmax", "idpp_steps")
+_GEODESIC_PARAMETERS = ("geodesic_tol", "geodesic_max_iter")
+_NEB_PARAMETER_KEYS = frozenset(
+    (*_NEB_COMMON_PARAMETERS, "interpolation", *_IDPP_PARAMETERS, *_GEODESIC_PARAMETERS)
+)
 _STAGE_GATES = {
     "relax": ("reactant_relaxation_converged", "product_relaxation_converged",
               "reactant_connectivity_survived_relaxation", "product_connectivity_survived_relaxation"),
@@ -81,13 +91,40 @@ def _linear_neb_images(start_coordinates, ts_coordinates, end_coordinates, image
     return images
 
 
+def _ase_idpp_api():
+    """Load ASE's IDPP implementation across old and current module paths."""
+    try:
+        from ase import Atoms
+    except ImportError as exc:
+        raise RuntimeError("ASE is required for IDPP initialization") from exc
+
+    try:
+        idpp_module = importlib.import_module("ase.mep.neb")
+    except ImportError:
+        # ASE moved NEB helpers from ase.neb to ase.mep.neb. Keep IDPP usable
+        # with installations that still expose the legacy module path.
+        try:
+            idpp_module = importlib.import_module("ase.neb")
+        except ImportError as exc:
+            raise RuntimeError(
+                "Installed ASE does not provide IDPP interpolation; "
+                "tried ase.mep.neb and ase.neb"
+            ) from exc
+    idpp_interpolate = getattr(idpp_module, "idpp_interpolate", None)
+    if idpp_interpolate is None:
+        raise RuntimeError(
+            "Installed ASE does not provide idpp_interpolate in "
+            "ase.mep.neb or ase.neb"
+        )
+    return Atoms, idpp_interpolate
+
+
 def _idpp_refine_segment(symbols, coordinates, *, label, fmax, steps):
     """Refine one piecewise-linear segment with ASE IDPP, without file output."""
     if len(coordinates) <= 2:
         return [np.asarray(frame, dtype=float).copy() for frame in coordinates]
 
-    from ase import Atoms
-    from ase.mep.neb import idpp_interpolate
+    Atoms, idpp_interpolate = _ase_idpp_api()
 
     images = [Atoms(symbols=symbols, positions=frame) for frame in coordinates]
     fixed_start = images[0].get_positions().copy()
@@ -107,27 +144,140 @@ def _idpp_refine_segment(symbols, coordinates, *, label, fmax, steps):
     return refined
 
 
+def _installed_geodesic_version():
+    """Return installed geodesic distribution provenance without importing it."""
+    try:
+        return package_version("geodesic-interpolate")
+    except PackageNotFoundError:
+        return None
+
+
+def _geodesic_api():
+    """Load the optional geodesic package and its installed distribution version."""
+    try:
+        from geodesic_interpolate import Geodesic
+    except ImportError as exc:
+        raise RuntimeError(
+            "Geodesic NEB initialization requires the optional "
+            "'geodesic-interpolate' dependency. Install PyAR with "
+            "`pip install 'pyar-chem[geodesic]'`."
+        ) from exc
+    installed_version = _installed_geodesic_version()
+    if installed_version is None:
+        raise RuntimeError(
+            "The geodesic_interpolate module is importable, but its "
+            "geodesic-interpolate distribution version is unavailable."
+        )
+    return Geodesic, installed_version
+
+
+def _align_rigid_frame(coordinates, reference):
+    """Rigidly align coordinates to reference using a proper Kabsch rotation."""
+    moving = np.asarray(coordinates, dtype=float)
+    target = np.asarray(reference, dtype=float)
+    moving_center = moving.mean(axis=0)
+    target_center = target.mean(axis=0)
+    moving_centered = moving - moving_center
+    target_centered = target - target_center
+    left, _, right = np.linalg.svd(moving_centered.T @ target_centered)
+    correction = np.eye(3)
+    correction[-1, -1] = 1.0 if np.linalg.det(left @ right) >= 0 else -1.0
+    rotation = left @ correction @ right
+    return moving_centered @ rotation + target_center
+
+
+def _geodesic_refine_segment(
+    symbols,
+    seed_coordinates,
+    *,
+    tol=0.002,
+    max_iter=15,
+    geodesic_class=None,
+):
+    """Smooth one fixed-endpoint path segment and restore its input frames."""
+    seed = np.asarray(seed_coordinates, dtype=float).copy()
+    if seed.ndim != 3 or seed.shape[1:] != (len(symbols), 3):
+        raise ValueError("Geodesic seed coordinates have an unexpected shape")
+    if len(seed) <= 2:
+        return [frame.copy() for frame in seed]
+    if geodesic_class is None:
+        geodesic_class, _ = _geodesic_api()
+
+    try:
+        smoother = geodesic_class(
+            list(symbols), seed.copy(), scaler=1.7, threshold=3.0,
+            min_neighbors=4, friction=0.01,
+        )
+        smoothed = np.asarray(smoother.smooth(tol=tol, max_iter=max_iter), dtype=float)
+    except Exception as exc:
+        raise RuntimeError(f"Geodesic smoothing failed: {exc}") from exc
+    if smoothed.shape != seed.shape:
+        raise RuntimeError(
+            "Geodesic smoothing returned an unexpected path shape "
+            f"{smoothed.shape}; expected {seed.shape}"
+        )
+    if not np.all(np.isfinite(smoothed)):
+        raise ValueError("Geodesic smoothing produced non-finite coordinates")
+
+    restored = [
+        _align_rigid_frame(frame, reference)
+        for frame, reference in zip(smoothed, seed)
+    ]
+    restored[0] = seed[0].copy()
+    restored[-1] = seed[-1].copy()
+    if any(not np.all(np.isfinite(frame)) for frame in restored):
+        raise ValueError("Geodesic frame restoration produced non-finite coordinates")
+    return restored
+
+
+def canonical_neb_parameters(parameters):
+    """Return only NEB settings that affect the selected initializer."""
+    values = dict(parameters)
+    unknown = set(values) - _NEB_PARAMETER_KEYS
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise ValueError(f"Unrecognized NEB stage parameter(s): {names}")
+    interpolation = values.get("interpolation", "linear")
+    canonical = {key: values[key] for key in _NEB_COMMON_PARAMETERS if key in values}
+    canonical["interpolation"] = interpolation
+    if interpolation in {"idpp", "geodesic"}:
+        canonical.update({
+            "idpp_fmax": values.get("idpp_fmax", _LEGACY_NEB_INITIALIZATION_DEFAULTS["idpp_fmax"]),
+            "idpp_steps": values.get("idpp_steps", _LEGACY_NEB_INITIALIZATION_DEFAULTS["idpp_steps"]),
+        })
+    if interpolation == "geodesic":
+        canonical.update({
+            "geodesic_tol": values.get("geodesic_tol", 0.002),
+            "geodesic_max_iter": values.get("geodesic_max_iter", 15),
+        })
+    return canonical
+
+
 def build_neb_images(
     start, end, ts_guess, image_count, *, interpolation="linear",
-    idpp_fmax=0.1, idpp_steps=100,
+    idpp_fmax=0.1, idpp_steps=100, geodesic_tol=0.002, geodesic_max_iter=15,
 ):
     """Build an odd-sized band through the supplied TS waypoint.
 
     ``linear`` retains the historical piecewise Cartesian interpolation.
     ``idpp`` refines the two halves independently while fixing both endpoints
-    and the supplied TS waypoint.
+    and the supplied TS waypoint. ``geodesic`` adds geodesic smoothing to the
+    same deterministic IDPP seed on each side of that waypoint.
     """
     if image_count < 3 or image_count % 2 != 1:
         raise ValueError("image_count must be an odd integer of at least 3")
     interpolation = str(interpolation).lower()
-    if interpolation not in {"linear", "idpp"}:
+    if interpolation not in {"linear", "idpp", "geodesic"}:
         raise ValueError(
-            f"Unknown interpolation {interpolation!r}; expected 'linear' or 'idpp'"
+            f"Unknown interpolation {interpolation!r}; expected 'linear', 'idpp', or 'geodesic'"
         )
-    if not np.isfinite(idpp_fmax) or idpp_fmax <= 0:
-        raise ValueError("idpp_fmax must be positive and finite")
-    if not isinstance(idpp_steps, int) or idpp_steps < 1:
-        raise ValueError("idpp_steps must be a positive integer")
+    if interpolation in {"idpp", "geodesic"}:
+        _validate_idpp_options(idpp_fmax, idpp_steps)
+    if interpolation == "geodesic":
+        _validate_geodesic_options(geodesic_tol, geodesic_max_iter)
+        geodesic_class, _ = _geodesic_api()
+    else:
+        geodesic_class = None
     frames = [read_xyz(path) for path in (start, end, ts_guess)]
     symbols = frames[0][0]
     for path, (other_symbols, _, _) in zip((end, ts_guess), frames[1:]):
@@ -139,7 +289,7 @@ def build_neb_images(
     images = _linear_neb_images(
         start_coordinates, ts_coordinates, end_coordinates, image_count,
     )
-    if interpolation == "idpp":
+    if interpolation in {"idpp", "geodesic"}:
         midpoint = image_count // 2
         first_half = _idpp_refine_segment(
             symbols, images[:midpoint + 1], label="reactant-to-TS segment",
@@ -157,7 +307,39 @@ def build_neb_images(
             raise RuntimeError("IDPP initialization returned an unexpected number of images")
         if any(not np.all(np.isfinite(frame)) for frame in images):
             raise ValueError("IDPP initialization produced non-finite coordinates")
+    if interpolation == "geodesic":
+        midpoint = image_count // 2
+        first_half = _geodesic_refine_segment(
+            symbols, images[:midpoint + 1], tol=geodesic_tol,
+            max_iter=geodesic_max_iter, geodesic_class=geodesic_class,
+        )
+        second_half = _geodesic_refine_segment(
+            symbols, images[midpoint:], tol=geodesic_tol,
+            max_iter=geodesic_max_iter, geodesic_class=geodesic_class,
+        )
+        images = first_half + second_half[1:]
+        images[0] = start_coordinates.copy()
+        images[midpoint] = ts_coordinates.copy()
+        images[-1] = end_coordinates.copy()
+        if len(images) != image_count:
+            raise RuntimeError("Geodesic initialization returned an unexpected number of images")
+        if any(not np.all(np.isfinite(frame)) for frame in images):
+            raise ValueError("Geodesic initialization produced non-finite coordinates")
     return symbols, images
+
+
+def _validate_idpp_options(fmax, steps):
+    if not np.isfinite(fmax) or fmax <= 0:
+        raise ValueError("idpp_fmax must be positive and finite")
+    if not isinstance(steps, int) or steps < 1:
+        raise ValueError("idpp_steps must be a positive integer")
+
+
+def _validate_geodesic_options(tol, max_iter):
+    if not np.isfinite(tol) or tol <= 0:
+        raise ValueError("geodesic_tol must be positive and finite")
+    if not isinstance(max_iter, int) or max_iter < 1:
+        raise ValueError("geodesic_max_iter must be a positive integer")
 
 
 def _bond_set(symbols, coordinates, scale=1.3):
@@ -233,7 +415,7 @@ def _save_stage(output, stage, result, calculator, inputs, artifacts, dependenci
 
 def _load_stage(output, stage, calculator, visited=None, *,
                 expected_parameters=None, expected_by_stage=None,
-                reuse_legacy_summaries=False):
+                reuse_legacy_summaries=False, expected_geodesic_version=None):
     """Validate a stage, optionally migrating verified schema-1 summaries."""
     visited = set() if visited is None else visited
     if stage in visited:
@@ -270,6 +452,7 @@ def _load_stage(output, stage, calculator, visited=None, *,
             expected_parameters=(expected_by_stage or {}).get(dependency),
             expected_by_stage=expected_by_stage,
             reuse_legacy_summaries=(reuse_legacy_summaries or schema_version == 1),
+            expected_geodesic_version=expected_geodesic_version,
         )
         # A schema-1 dependency may have been migrated during recursive
         # loading. Do not accept a schema-2 parent whose recorded dependency
@@ -296,22 +479,19 @@ def _load_stage(output, stage, calculator, visited=None, *,
         _write_json(path, result)
     elif expected_parameters is not None and not result.get("legacy_parameters_unverified"):
         recorded_parameters = result.get("parameters")
+        if stage == "neb" and isinstance(recorded_parameters, dict):
+            recorded_parameters = canonical_neb_parameters(recorded_parameters)
         parameters_match = recorded_parameters == expected_parameters
-        if (
-            not parameters_match
-            and stage == "neb"
-            and isinstance(recorded_parameters, dict)
-            and not any(key in recorded_parameters for key in _LEGACY_NEB_INITIALIZATION_DEFAULTS)
-        ):
-            # Schema-2 NEB stages written before interpolation was configurable
-            # necessarily used the historical linear initializer. Treat missing
-            # fields as defaults for comparison only; do not rewrite the summary
-            # or invalidate hashes that downstream stages already recorded.
-            effective_parameters = dict(recorded_parameters)
-            effective_parameters.update(_LEGACY_NEB_INITIALIZATION_DEFAULTS)
-            parameters_match = effective_parameters == expected_parameters
         if not parameters_match:
             raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
+        if (stage == "neb" and expected_parameters.get("interpolation") == "geodesic"):
+            recorded_version = result.get("geodesic_interpolate_version")
+            if (recorded_version is not None and expected_geodesic_version is not None
+                    and recorded_version != expected_geodesic_version):
+                raise ValueError(
+                    "Stage neb used geodesic-interpolate version "
+                    f"{recorded_version}; installed version is {expected_geodesic_version}; rerun it"
+                )
     return result
 
 
@@ -463,6 +643,7 @@ def _execute_stage(stage, output, calculator, options):
         name: {key: options[key] for key in keys}
         for name, keys in _STAGE_OPTIONS.items()
     }
+    expected_by_stage["neb"] = canonical_neb_parameters(expected_by_stage["neb"])
 
     def load(stage_name):
         return _load_stage(
@@ -470,12 +651,19 @@ def _execute_stage(stage, output, calculator, options):
             expected_parameters=expected_by_stage[stage_name],
             expected_by_stage=expected_by_stage,
             reuse_legacy_summaries=options["reuse_legacy_summaries"],
+            expected_geodesic_version=options.get("geodesic_interpolate_version"),
         )
 
     def save(result, inputs=(), artifacts=(), dependencies=()):
+        if stage == "neb" and options["interpolation"] == "geodesic":
+            result["geodesic_interpolate_version"] = options["geodesic_interpolate_version"]
+        parameters = (
+            canonical_neb_parameters({key: options[key] for key in _STAGE_OPTIONS["neb"]})
+            if stage == "neb"
+            else {key: options[key] for key in _STAGE_OPTIONS[stage]}
+        )
         return _save_stage(output, stage, result, calculator, inputs,
-                           [output / name for name in artifacts], dependencies,
-                           {key: options[key] for key in _STAGE_OPTIONS[stage]})
+                           [output / name for name in artifacts], dependencies, parameters)
 
     start_path, end_path = output / "reactant_relaxed.xyz", output / "product_relaxed.xyz"
     if stage == "relax":
@@ -510,6 +698,8 @@ def _execute_stage(stage, output, calculator, options):
             interpolation=options["interpolation"],
             idpp_fmax=options["idpp_fmax"],
             idpp_steps=options["idpp_steps"],
+            geodesic_tol=options["geodesic_tol"],
+            geodesic_max_iter=options["geodesic_max_iter"],
         )
         molecule = Molecule()
         molecule.elem, molecule.xyzs = symbols, frames
@@ -645,10 +835,12 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                           irc_max_cycles=200, imaginary_frequency_threshold=20.0,
                           irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
                           endpoint_max_cycles=300, reuse_legacy_summaries=False,
-                          interpolation="linear", idpp_fmax=0.1, idpp_steps=100):
+                          interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
+                          geodesic_tol=0.002, geodesic_max_iter=15):
     from pyar.backends.geometric import PyarGeometricCalculator
 
     options = dict(locals())
+    options["geodesic_interpolate_version"] = None
     output = Path(output).resolve()
     if stage not in ("all",) + STAGES:
         raise ValueError(f"Unknown stage: {stage}")
@@ -675,13 +867,21 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     for key in ("max_cycles", "product_relaxation_max_steps", "ts_max_cycles", "irc_max_cycles", "endpoint_max_cycles", "nprocs", "multiplicity"):
         if not isinstance(options[key], int) or options[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
-    for key in ("max_gradient", "average_gradient", "spring", "climb", "product_relaxation_fmax", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance", "idpp_fmax"):
+    for key in ("max_gradient", "average_gradient", "spring", "climb", "product_relaxation_fmax", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"):
         if not np.isfinite(options[key]) or options[key] <= 0:
             raise ValueError(f"{key} must be positive and finite")
-    if not isinstance(options["idpp_steps"], int) or options["idpp_steps"] < 1:
-        raise ValueError("idpp_steps must be a positive integer")
-    if options["interpolation"] not in {"linear", "idpp"}:
-        raise ValueError("interpolation must be either 'linear' or 'idpp'")
+    if options["interpolation"] not in {"linear", "idpp", "geodesic"}:
+        raise ValueError("interpolation must be 'linear', 'idpp', or 'geodesic'")
+    if interpolation in {"idpp", "geodesic"}:
+        _validate_idpp_options(idpp_fmax, idpp_steps)
+    if interpolation == "geodesic":
+        _validate_geodesic_options(geodesic_tol, geodesic_max_iter)
+        if stage in {"all", "neb"}:
+            _, options["geodesic_interpolate_version"] = _geodesic_api()
+        else:
+            # Downstream stages consume the validated NEB artifacts and their
+            # recorded provenance; the local package version is irrelevant.
+            options["geodesic_interpolate_version"] = None
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
@@ -741,13 +941,17 @@ def _build_parser():
     parser.add_argument("--output", default="neb_run")
     parser.add_argument("--images", type=int, default=11)
     parser.add_argument(
-        "--interpolation", choices=("linear", "idpp"), default="linear",
+        "--interpolation", choices=("linear", "idpp", "geodesic"), default="linear",
         help="initial NEB path interpolation (linear is the backward-compatible default)",
     )
     parser.add_argument("--idpp-fmax", type=float, default=0.1,
                         help="ASE IDPP force convergence for idpp initialization")
     parser.add_argument("--idpp-steps", type=int, default=100,
                         help="maximum ASE IDPP optimization steps per path half")
+    parser.add_argument("--geodesic-tol", type=float, default=0.002,
+                        help="geodesic smoothing tolerance for geodesic initialization")
+    parser.add_argument("--geodesic-max-iter", type=int, default=15,
+                        help="maximum geodesic smoothing iterations per path half")
     parser.add_argument("--max-cycles", type=int, default=100)
     parser.add_argument("--method", default=defualt_parameters.values["method"])
     parser.add_argument("--basis", default=defualt_parameters.values["basis"])
