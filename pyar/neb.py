@@ -21,7 +21,7 @@ _STAGE_OPTIONS = {
     "relax": ("product_relaxation_fmax", "product_relaxation_max_steps"),
     "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
             "interpolation", "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter"),
-    "ts": ("ts_max_cycles",),
+    "ts": ("ts_max_cycles", "ts_optimizer", "sella_fmax"),
     "frequency": ("imaginary_frequency_threshold",),
     "irc": ("irc_max_cycles",),
     "endpoints": ("endpoint_max_cycles", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"),
@@ -36,6 +36,8 @@ _NEB_COMMON_PARAMETERS = (
 )
 _IDPP_PARAMETERS = ("idpp_fmax", "idpp_steps")
 _GEODESIC_PARAMETERS = ("geodesic_tol", "geodesic_max_iter")
+_TS_SHARED_PARAMETERS = ("ts_max_cycles",)
+_TS_SELLA_PARAMETERS = ("sella_fmax",)
 _NEB_PARAMETER_KEYS = frozenset(
     (*_NEB_COMMON_PARAMETERS, "interpolation", *_IDPP_PARAMETERS, *_GEODESIC_PARAMETERS)
 )
@@ -250,6 +252,23 @@ def canonical_neb_parameters(parameters):
             "geodesic_tol": values.get("geodesic_tol", 0.002),
             "geodesic_max_iter": values.get("geodesic_max_iter", 15),
         })
+    return canonical
+
+
+def canonical_ts_parameters(parameters):
+    """Return only TS settings active for the selected optimizer."""
+    values = dict(parameters)
+    unknown = set(values) - {*_TS_SHARED_PARAMETERS, "ts_optimizer", *_TS_SELLA_PARAMETERS}
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise ValueError(f"Unrecognized TS stage parameter(s): {names}")
+    optimizer = values.get("ts_optimizer", "geometric")
+    if optimizer not in {"geometric", "sella"}:
+        raise ValueError("ts_optimizer must be 'geometric' or 'sella'")
+    canonical = {key: values[key] for key in _TS_SHARED_PARAMETERS if key in values}
+    canonical["ts_optimizer"] = optimizer
+    if optimizer == "sella":
+        canonical["sella_fmax"] = values.get("sella_fmax", 0.05)
     return canonical
 
 
@@ -481,6 +500,8 @@ def _load_stage(output, stage, calculator, visited=None, *,
         recorded_parameters = result.get("parameters")
         if stage == "neb" and isinstance(recorded_parameters, dict):
             recorded_parameters = canonical_neb_parameters(recorded_parameters)
+        elif stage == "ts" and isinstance(recorded_parameters, dict):
+            recorded_parameters = canonical_ts_parameters(recorded_parameters)
         parameters_match = recorded_parameters == expected_parameters
         if not parameters_match:
             raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
@@ -542,6 +563,63 @@ def _optimize_geometry(symbols, coordinates, calculator, output, label, max_cycl
     energies = [float(energy) for energy in progress.qm_energies]
     _write_xyz_trajectory(output / f"{label}_path.xyz", symbols, frames, energies)
     return frames, energies, optimizer.state == OPT_STATE.CONVERGED
+
+
+def _sella_api():
+    """Load the optional Sella saddle optimizer and return its distribution version."""
+    try:
+        from sella import Sella
+    except ImportError as exc:
+        raise RuntimeError(
+            "Sella TS optimization requires the optional 'sella' dependency. "
+            "Install PyAR with `pip install 'pyar-chem[sella]'`."
+        ) from exc
+    try:
+        installed_version = package_version("sella")
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            "The Sella module is importable, but its installed distribution version is unavailable."
+        ) from exc
+    return Sella, installed_version
+
+
+def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax):
+    """Optimize a TS candidate with Sella using PyAR's unbiased ASE calculator."""
+    from ase import Atoms
+    from ase.units import Hartree
+
+    Sella, sella_version = _sella_api()
+    atoms = Atoms(symbols=list(symbols), positions=np.asarray(coordinates, dtype=float))
+    atoms.calc = calculator
+    frames, energies = [], []
+
+    def record_frame():
+        frames.append(np.asarray(atoms.get_positions(), dtype=float).copy())
+        energies.append(float(atoms.get_potential_energy()) / Hartree)
+
+    try:
+        optimizer = Sella(atoms, logfile=None, order=1)
+        optimizer.attach(record_frame, interval=1)
+        converged = bool(optimizer.run(fmax=fmax, steps=max_steps))
+    except Exception as exc:
+        raise RuntimeError(f"Sella TS optimization failed: {exc}") from exc
+
+    if not frames:
+        raise RuntimeError("Sella returned an empty TS optimization trajectory")
+    try:
+        final_coordinates = np.asarray(atoms.get_positions(), dtype=float).copy()
+        final_energy = float(atoms.get_potential_energy()) / Hartree
+    except Exception as exc:
+        raise RuntimeError(f"Sella final-state evaluation failed: {exc}") from exc
+    if (not np.array_equal(frames[-1], final_coordinates)
+            or energies[-1] != final_energy):
+        frames.append(final_coordinates)
+        energies.append(final_energy)
+    if any(frame.shape != (len(symbols), 3) or not np.all(np.isfinite(frame)) for frame in frames):
+        raise ValueError("Sella TS optimization produced malformed or non-finite coordinates")
+    if any(not np.isfinite(energy) for energy in energies):
+        raise ValueError("Sella TS optimization produced a non-finite energy")
+    return frames, energies, converged, sella_version
 
 
 def _relax_endpoint(symbols, coordinates, calculator, output, label, fmax, max_steps):
@@ -644,6 +722,12 @@ def _execute_stage(stage, output, calculator, options):
         for name, keys in _STAGE_OPTIONS.items()
     }
     expected_by_stage["neb"] = canonical_neb_parameters(expected_by_stage["neb"])
+    expected_by_stage["ts"] = canonical_ts_parameters(expected_by_stage["ts"])
+    # Optimizer choices describe how a TS was produced. Once the TS summary
+    # and its hashes are validated, downstream scientific stages consume the
+    # artifact independently of the optimizer currently selected or installed.
+    if options["stage"] in {"frequency", "irc", "endpoints"}:
+        expected_by_stage["ts"] = None
 
     def load(stage_name):
         return _load_stage(
@@ -660,6 +744,8 @@ def _execute_stage(stage, output, calculator, options):
         parameters = (
             canonical_neb_parameters({key: options[key] for key in _STAGE_OPTIONS["neb"]})
             if stage == "neb"
+            else canonical_ts_parameters({key: options[key] for key in _STAGE_OPTIONS["ts"]})
+            if stage == "ts"
             else {key: options[key] for key in _STAGE_OPTIONS[stage]}
         )
         return _save_stage(output, stage, result, calculator, inputs,
@@ -736,11 +822,20 @@ def _execute_stage(stage, output, calculator, options):
                 raise ValueError("TS optimization requires a converged NEB with an interior maximum")
             guess, dependencies = output / "ts_guess.xyz", ["neb"]
         symbols, geometry, _ = read_xyz(guess)
-        frames, energies, converged = _optimize_geometry(
-            symbols, geometry, calculator, output, "ts", options["ts_max_cycles"], transition=True,
-        )
+        if options["ts_optimizer"] == "sella":
+            frames, energies, converged, sella_version = _optimize_sella(
+                symbols, geometry, calculator, options["ts_max_cycles"], options["sella_fmax"],
+            )
+            _write_xyz_trajectory(output / "ts_path.xyz", symbols, frames, energies)
+        else:
+            frames, energies, converged = _optimize_geometry(
+                symbols, geometry, calculator, output, "ts", options["ts_max_cycles"], transition=True,
+            )
         _write_xyz_trajectory(output / "ts_optimized.xyz", symbols, [frames[-1]], [energies[-1]])
-        return save({"ts_optimization_converged": converged, "ts_energy_hartree": energies[-1]},
+        result = {"ts_optimization_converged": converged, "ts_energy_hartree": energies[-1]}
+        if options["ts_optimizer"] == "sella":
+            result["sella_version"] = sella_version
+        return save(result,
                     [guess], ["ts_optimized.xyz", "ts_path.xyz"], dependencies)
 
     if stage == "frequency":
@@ -836,7 +931,8 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                           irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
                           endpoint_max_cycles=300, reuse_legacy_summaries=False,
                           interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
-                          geodesic_tol=0.002, geodesic_max_iter=15):
+                          geodesic_tol=0.002, geodesic_max_iter=15,
+                          ts_optimizer="geometric", sella_fmax=0.05):
     from pyar.backends.geometric import PyarGeometricCalculator
 
     options = dict(locals())
@@ -882,6 +978,14 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             # Downstream stages consume the validated NEB artifacts and their
             # recorded provenance; the local package version is irrelevant.
             options["geodesic_interpolate_version"] = None
+    if stage in {"all", "ts"}:
+        canonical_ts_parameters({
+            "ts_optimizer": ts_optimizer,
+            "ts_max_cycles": ts_max_cycles,
+            "sella_fmax": sella_fmax,
+        })
+        if ts_optimizer == "sella" and (not np.isfinite(sella_fmax) or sella_fmax <= 0):
+            raise ValueError("sella_fmax must be positive and finite (eV/angstrom)")
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
@@ -966,6 +1070,10 @@ def _build_parser():
     parser.add_argument("--product-relaxation-fmax", type=float, default=0.05)
     parser.add_argument("--product-relaxation-max-steps", type=int, default=200)
     parser.add_argument("--ts-max-cycles", type=int, default=200)
+    parser.add_argument("--ts-optimizer", choices=("geometric", "sella"), default="geometric",
+                        help="TS optimizer (geometric is the default; sella is optional)")
+    parser.add_argument("--sella-fmax", type=float, default=0.05,
+                        help="Sella force convergence in eV/angstrom (used only with --ts-optimizer sella)")
     parser.add_argument("--irc-max-cycles", type=int, default=200)
     parser.add_argument("--endpoint-max-cycles", type=int, default=300)
     parser.add_argument("--imaginary-frequency-threshold", type=float, default=20.0)
