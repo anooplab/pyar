@@ -36,6 +36,9 @@ _NEB_COMMON_PARAMETERS = (
 )
 _IDPP_PARAMETERS = ("idpp_fmax", "idpp_steps")
 _GEODESIC_PARAMETERS = ("geodesic_tol", "geodesic_max_iter")
+_NEB_PARAMETER_KEYS = frozenset(
+    (*_NEB_COMMON_PARAMETERS, "interpolation", *_IDPP_PARAMETERS, *_GEODESIC_PARAMETERS)
+)
 _STAGE_GATES = {
     "relax": ("reactant_relaxation_converged", "product_relaxation_converged",
               "reactant_connectivity_survived_relaxation", "product_connectivity_survived_relaxation"),
@@ -223,6 +226,10 @@ def _geodesic_refine_segment(
 def canonical_neb_parameters(parameters):
     """Return only NEB settings that affect the selected initializer."""
     values = dict(parameters)
+    unknown = set(values) - _NEB_PARAMETER_KEYS
+    if unknown:
+        names = ", ".join(sorted(unknown))
+        raise ValueError(f"Unrecognized NEB stage parameter(s): {names}")
     interpolation = values.get("interpolation", "linear")
     canonical = {key: values[key] for key in _NEB_COMMON_PARAMETERS if key in values}
     canonical["interpolation"] = interpolation
@@ -644,7 +651,8 @@ def _execute_stage(stage, output, calculator, options):
         if stage == "neb" and options["interpolation"] == "geodesic":
             result["geodesic_interpolate_version"] = options["geodesic_interpolate_version"]
         parameters = (
-            canonical_neb_parameters(options) if stage == "neb"
+            canonical_neb_parameters({key: options[key] for key in _STAGE_OPTIONS["neb"]})
+            if stage == "neb"
             else {key: options[key] for key in _STAGE_OPTIONS[stage]}
         )
         return _save_stage(output, stage, result, calculator, inputs,

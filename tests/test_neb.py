@@ -347,6 +347,21 @@ def test_pr21_flat_linear_summary_ignores_its_inactive_idpp_defaults(
     assert result["ts_optimization_converged"]
 
 
+def test_neb_restart_rejects_unrecognized_recorded_parameter(tmp_path, fake_path_backend):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, interpolation="linear", output=tmp_path)
+    summary_path = tmp_path / "neb_summary.json"
+    summary = json.loads(summary_path.read_text())
+    summary["parameters"]["future_initializer_control"] = 0.25
+    summary_path.write_text(json.dumps(summary))
+
+    with pytest.raises(ValueError, match="Unrecognized NEB stage parameter.*future_initializer_control"):
+        run_neb(software="xtb", stage="ts", images=3, interpolation="linear",
+                output=tmp_path)
+
+
 @pytest.mark.skipif(
     find_spec("geodesic_interpolate") is None,
     reason="geodesic-interpolate is an optional dependency",
