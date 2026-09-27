@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from pyar.backends import babel
 from pyar.structure_comparison.models import IdentityResult
 
 
@@ -25,13 +25,16 @@ class OpenBabelIdentityProvider:
     method = "openbabel-inchi"
 
     def identify(self, structure) -> IdentityResult:
-        from pyar.reaction_identity import molecule_identity_from_xyz
-
-        identity = molecule_identity_from_xyz(str(Path(structure)))
+        inchi = babel.make_inchi_string_from_xyz(structure)
+        smiles = babel.make_smile_string_from_xyz(structure)
+        if not inchi or not smiles:
+            raise ValueError(
+                f"Could not determine complete product identity from {structure}"
+            )
         return IdentityResult(
-            canonical_key=identity["inchi"],
-            inchi=identity["inchi"],
-            smiles=identity["smiles"],
+            canonical_key=inchi,
+            inchi=inchi,
+            smiles=smiles,
             method=self.method,
         )
 

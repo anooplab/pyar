@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import tempfile
 
-from pyar.backends import babel
+from pyar.backends import babel  # Compatibility export for existing callers/tests.
+from pyar.structure_comparison import OpenBabelIdentityProvider
 
 
 def write_disconnected_reference(molecule, path, separation=100.0):
@@ -18,13 +19,8 @@ def write_disconnected_reference(molecule, path, separation=100.0):
 
 def molecule_identity_from_xyz(xyzfile):
     """Return the OpenBabel identity for an XYZ file."""
-    identity = {
-        "inchi": babel.make_inchi_string_from_xyz(xyzfile),
-        "smiles": babel.make_smile_string_from_xyz(xyzfile),
-    }
-    if not identity["inchi"] or not identity["smiles"]:
-        raise ValueError(f"Could not determine complete product identity from {xyzfile}")
-    return identity
+    result = OpenBabelIdentityProvider().identify(xyzfile)
+    return {"inchi": result.inchi, "smiles": result.smiles}
 
 
 def separated_reactant_identity(reactant_a, reactant_b):
@@ -49,8 +45,6 @@ def same_molecular_identity(first, second):
     InChI is used as the stable identity key. SMILES is retained for readable
     reports, but equivalent products need not serialize to the same SMILES.
     """
-    from pyar.structure_comparison import OpenBabelIdentityProvider
-
     return OpenBabelIdentityProvider().same_identity(first, second)
 
 
