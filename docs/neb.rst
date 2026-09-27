@@ -11,8 +11,12 @@ The complete sequence is:
 #. ``relax``: independently optimize both input endpoints without reaction bias.
    Both must converge and retain their covalent-radius connectivity. A temporary
    topology change in an adaptive trajectory is insufficient to launch this workflow.
-#. ``neb``: interpolate through the TS waypoint and optimize the band. The band
-   must converge and its highest-energy image must be an interior image.
+#. ``neb``: construct an initial band through the supplied TS waypoint and
+   optimize it. The default ``linear`` initialization uses the current
+   piecewise Cartesian interpolation. Optional ``idpp`` initialization
+   refines each side separately while keeping the supplied TS waypoint fixed.
+   In either case, geomeTRIC optimizes the band; it must converge and its
+   highest-energy image must be an interior image.
 #. ``ts``: optimize that image as a first-order saddle candidate.
 #. ``frequency``: calculate a fresh finite-difference Cartesian Hessian and
    verify stationarity and exactly one significant imaginary frequency.
@@ -87,6 +91,19 @@ respective iteration limits. The default imaginary-frequency threshold is
 20 cm⁻¹; smaller negative frequencies remain in the output but do not count
 toward the Hessian index. Frequency validation also requires maximum and RMS
 atomic gradient norms below 4.5e-4 and 3.0e-4 Hartree/Bohr, respectively.
+
+NEB initialization
+------------------
+
+``--interpolation linear`` is the default for backward compatibility. It
+constructs the same piecewise Cartesian path through the supplied TS waypoint
+as previous PyAR versions. ``--interpolation idpp`` asks ASE's IDPP
+interpolator to refine the reactant-to-waypoint and waypoint-to-product path
+halves independently. The relaxed endpoints and supplied waypoint remain fixed;
+IDPP only prepares the initial images and does not replace geomeTRIC NEB or
+establish a minimum-energy path. ``--idpp-fmax`` and ``--idpp-steps`` control
+ASE's IDPP initialization (defaults 0.1 and 100). These settings are recorded
+in the NEB stage summary and must match when reusing that stage.
 
 Sub-1e-5 angstrom deviations from a best-fit line are removed before frequency
 evaluation, with the correction recorded. Both the gradient and Hessian are

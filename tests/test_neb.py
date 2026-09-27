@@ -29,9 +29,19 @@ def test_cli_exposes_individual_workflow_stages():
     parser = _build_parser()
     defaults = vars(parser.parse_args(["--software", "xtb"]))
     assert defaults["stage"] == "all"
+    assert defaults["interpolation"] == "linear"
+    assert defaults["idpp_fmax"] == 0.1
+    assert defaults["idpp_steps"] == 100
     for stage in ("relax", "neb", "ts", "frequency", "irc", "endpoints"):
         args = vars(parser.parse_args(["--stage", stage, "--software", "xtb"]))
         assert args["stage"] == stage
+    idpp = vars(parser.parse_args([
+        "--software", "xtb", "--interpolation", "idpp",
+        "--idpp-fmax", "0.02", "--idpp-steps", "25",
+    ]))
+    assert (idpp["interpolation"], idpp["idpp_fmax"], idpp["idpp_steps"]) == (
+        "idpp", 0.02, 25,
+    )
 
 
 class HarmonicCalculator(Calculator):
@@ -58,6 +68,86 @@ def test_neb_images_include_ts_guess_as_middle_waypoint():
     np.testing.assert_allclose(images[0], read_xyz(DATA / "hcn.xyz")[1])
     np.testing.assert_allclose(images[2], read_xyz(DATA / "guess.xyz")[1])
     np.testing.assert_allclose(images[-1], read_xyz(DATA / "hnc.xyz")[1])
+
+
+def test_linear_initialization_is_the_existing_piecewise_cartesian_path():
+    symbols, default_images = build_neb_images(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 7,
+    )
+    explicit_symbols, explicit_images = build_neb_images(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 7,
+        interpolation="linear",
+    )
+    start = read_xyz(DATA / "hcn.xyz")[1]
+    end = read_xyz(DATA / "hnc.xyz")[1]
+    ts = read_xyz(DATA / "guess.xyz")[1]
+    expected = [
+        ((1 - i / 3) * start + (i / 3) * ts) if i <= 3
+        else ((1 - (i - 3) / 3) * ts + ((i - 3) / 3) * end)
+        for i in range(7)
+    ]
+    assert symbols == explicit_symbols
+    for actual, explicit, old_path in zip(default_images, explicit_images, expected):
+        np.testing.assert_array_equal(actual, explicit)
+        np.testing.assert_allclose(actual, old_path, rtol=0, atol=0)
+
+
+def _write_xyz(path, symbols, coordinates):
+    path.write_text(
+        f"{len(symbols)}\nfixture\n" + "".join(
+            f"{symbol} {x:.12f} {y:.12f} {z:.12f}\n"
+            for symbol, (x, y, z) in zip(symbols, coordinates)
+        )
+    )
+
+
+def test_idpp_initialization_preserves_waypoints_and_regularizes_fixture(tmp_path):
+    symbols = ["H", "H", "H"]
+    start = np.asarray([[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 2.0, 0.0]])
+    ts = np.asarray([[0.8, 0.0, 0.0], [-0.8, 0.0, 0.0], [0.2, 1.5, 0.5]])
+    end = np.asarray([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.5, 1.0]])
+    paths = [tmp_path / f"{name}.xyz" for name in ("start", "end", "ts")]
+    for path, coordinates in zip(paths, (start, end, ts)):
+        _write_xyz(path, symbols, coordinates)
+
+    _, linear = build_neb_images(*paths, 5)
+    returned_symbols, idpp = build_neb_images(
+        *paths, 5, interpolation="idpp", idpp_fmax=0.01, idpp_steps=500,
+    )
+
+    assert returned_symbols == symbols
+    assert len(idpp) == 5
+    np.testing.assert_array_equal(idpp[0], start)
+    np.testing.assert_array_equal(idpp[2], ts)
+    np.testing.assert_array_equal(idpp[-1], end)
+    assert all(np.all(np.isfinite(frame)) for frame in idpp)
+    # The fixed atom mapping makes the linear midpoint an unphysical 0.2 A H-H contact.
+    linear_contact = np.linalg.norm(linear[1][0] - linear[1][1])
+    assert linear_contact == pytest.approx(0.2)
+    idpp_contact = np.linalg.norm(idpp[1][0] - idpp[1][1])
+    assert idpp_contact > linear_contact
+
+
+def test_invalid_neb_interpolation_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="expected 'linear' or 'idpp'"):
+        build_neb_images(
+            DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 5,
+            interpolation="spline",
+        )
+
+
+def test_idpp_failure_is_reported_without_linear_fallback(tmp_path, monkeypatch):
+    import ase.mep.neb
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("fixture optimizer failure")
+
+    monkeypatch.setattr(ase.mep.neb, "idpp_interpolate", fail)
+    with pytest.raises(RuntimeError, match="ASE IDPP initialization failed.*fixture optimizer failure"):
+        build_neb_images(
+            DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", 5,
+            interpolation="idpp",
+        )
 
 
 def test_neb_requires_odd_image_count_and_matching_atom_order(tmp_path):
@@ -225,6 +315,65 @@ def test_independent_stages_do_not_repeat_previous_calculations(tmp_path, fake_p
     assert calls[-2:] == ["irc_forward", "irc_backward"]
     run_neb(software="xtb", stage="endpoints", output=tmp_path)
     assert len(calls) == 11
+
+
+@pytest.mark.parametrize(
+    ("stored", "requested"),
+    [
+        ({"interpolation": "linear"}, {"interpolation": "idpp"}),
+        ({"interpolation": "idpp", "idpp_fmax": 0.1}, {"interpolation": "idpp", "idpp_fmax": 0.2}),
+        ({"interpolation": "idpp", "idpp_steps": 100}, {"interpolation": "idpp", "idpp_steps": 101}),
+    ],
+)
+def test_neb_initialization_options_are_restart_parameters(tmp_path, fake_path_backend, stored, requested):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    stored_options = {"interpolation": "linear", "idpp_fmax": 0.1, "idpp_steps": 100}
+    stored_options.update(stored)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, output=tmp_path, **stored_options)
+    parameters = json.loads((tmp_path / "neb_summary.json").read_text())["parameters"]
+    assert parameters["interpolation"] == stored_options["interpolation"]
+    requested_options = dict(stored_options, **requested)
+    with pytest.raises(ValueError, match="Stage neb used different stage-specific parameters"):
+        run_neb(software="xtb", stage="ts", output=tmp_path, **requested_options)
+
+
+def test_pre_interpolation_schema_two_neb_summary_reuses_historical_linear_default(
+    tmp_path, fake_path_backend,
+):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, output=tmp_path)
+    summary_path = tmp_path / "neb_summary.json"
+    summary = json.loads(summary_path.read_text())
+    for key in ("interpolation", "idpp_fmax", "idpp_steps"):
+        summary["parameters"].pop(key)
+    summary_path.write_text(json.dumps(summary))
+
+    result = run_neb(software="xtb", stage="ts", images=3, output=tmp_path)
+    assert result["ts_optimization_converged"]
+
+
+def test_neb_ts_stage_consumes_optimized_highest_energy_image(tmp_path, fake_path_backend, monkeypatch):
+    import pyar.neb as neb
+
+    original_optimize = neb._optimize_geometry
+    ts_input = {}
+
+    def record_ts_input(symbols, coordinates, calculator, output, label, max_cycles, **kwargs):
+        if label == "ts":
+            ts_input["coordinates"] = np.asarray(coordinates).copy()
+        return original_optimize(symbols, coordinates, calculator, output, label, max_cycles, **kwargs)
+
+    monkeypatch.setattr(neb, "_optimize_geometry", record_ts_input)
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
+            software="xtb", output=tmp_path)
+    assert "coordinates" in ts_input
+    np.testing.assert_array_equal(
+        ts_input["coordinates"], read_xyz(tmp_path / "ts_guess.xyz")[1],
+    )
 
 
 def test_standalone_ts_requires_no_endpoint_files(tmp_path, fake_path_backend):

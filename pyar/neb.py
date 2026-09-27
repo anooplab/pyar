@@ -17,11 +17,17 @@ from pyar.data import defualt_parameters
 STAGES = ("relax", "neb", "ts", "frequency", "irc", "endpoints")
 _STAGE_OPTIONS = {
     "relax": ("product_relaxation_fmax", "product_relaxation_max_steps"),
-    "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align"),
+    "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
+            "interpolation", "idpp_fmax", "idpp_steps"),
     "ts": ("ts_max_cycles",),
     "frequency": ("imaginary_frequency_threshold",),
     "irc": ("irc_max_cycles",),
     "endpoints": ("endpoint_max_cycles", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"),
+}
+_LEGACY_NEB_INITIALIZATION_DEFAULTS = {
+    "interpolation": "linear",
+    "idpp_fmax": 0.1,
+    "idpp_steps": 100,
 }
 _STAGE_GATES = {
     "relax": ("reactant_relaxation_converged", "product_relaxation_converged",
@@ -61,24 +67,96 @@ def read_xyz(path):
     return symbols, coordinates, lines[1]
 
 
-def build_neb_images(start, end, ts_guess, image_count):
-    """Build an odd-sized band through the supplied TS waypoint."""
+def _linear_neb_images(start_coordinates, ts_coordinates, end_coordinates, image_count):
+    """Build the existing piecewise-linear path through the TS waypoint."""
+    midpoint = image_count // 2
+    images = []
+    for index in range(image_count):
+        if index <= midpoint:
+            fraction, left, right = index / midpoint, start_coordinates, ts_coordinates
+        else:
+            fraction = (index - midpoint) / midpoint
+            left, right = ts_coordinates, end_coordinates
+        images.append((1 - fraction) * left + fraction * right)
+    return images
+
+
+def _idpp_refine_segment(symbols, coordinates, *, label, fmax, steps):
+    """Refine one piecewise-linear segment with ASE IDPP, without file output."""
+    if len(coordinates) <= 2:
+        return [np.asarray(frame, dtype=float).copy() for frame in coordinates]
+
+    from ase import Atoms
+    from ase.mep.neb import idpp_interpolate
+
+    images = [Atoms(symbols=symbols, positions=frame) for frame in coordinates]
+    fixed_start = images[0].get_positions().copy()
+    fixed_end = images[-1].get_positions().copy()
+    try:
+        idpp_interpolate(images, traj=None, log=None, fmax=fmax, steps=steps)
+    except Exception as exc:
+        raise RuntimeError(f"ASE IDPP initialization failed for {label}: {exc}") from exc
+
+    refined = [image.get_positions().copy() for image in images]
+    # ASE NEB holds endpoints fixed; restore their exact input values as an
+    # explicit contract, including across ASE-version implementation details.
+    refined[0] = fixed_start
+    refined[-1] = fixed_end
+    if any(not np.all(np.isfinite(frame)) for frame in refined):
+        raise ValueError(f"ASE IDPP initialization produced non-finite coordinates for {label}")
+    return refined
+
+
+def build_neb_images(
+    start, end, ts_guess, image_count, *, interpolation="linear",
+    idpp_fmax=0.1, idpp_steps=100,
+):
+    """Build an odd-sized band through the supplied TS waypoint.
+
+    ``linear`` retains the historical piecewise Cartesian interpolation.
+    ``idpp`` refines the two halves independently while fixing both endpoints
+    and the supplied TS waypoint.
+    """
     if image_count < 3 or image_count % 2 != 1:
         raise ValueError("image_count must be an odd integer of at least 3")
+    interpolation = str(interpolation).lower()
+    if interpolation not in {"linear", "idpp"}:
+        raise ValueError(
+            f"Unknown interpolation {interpolation!r}; expected 'linear' or 'idpp'"
+        )
+    if not np.isfinite(idpp_fmax) or idpp_fmax <= 0:
+        raise ValueError("idpp_fmax must be positive and finite")
+    if not isinstance(idpp_steps, int) or idpp_steps < 1:
+        raise ValueError("idpp_steps must be a positive integer")
     frames = [read_xyz(path) for path in (start, end, ts_guess)]
     symbols = frames[0][0]
     for path, (other_symbols, _, _) in zip((end, ts_guess), frames[1:]):
         if other_symbols != symbols:
             raise ValueError(f"Atom count and ordered elements in {path} must match {start}")
-    midpoint = image_count // 2
-    images = []
-    for index in range(image_count):
-        if index <= midpoint:
-            fraction, left, right = index / midpoint, frames[0][1], frames[2][1]
-        else:
-            fraction = (index - midpoint) / midpoint
-            left, right = frames[2][1], frames[1][1]
-        images.append((1 - fraction) * left + fraction * right)
+    start_coordinates, end_coordinates, ts_coordinates = (
+        frames[0][1], frames[1][1], frames[2][1]
+    )
+    images = _linear_neb_images(
+        start_coordinates, ts_coordinates, end_coordinates, image_count,
+    )
+    if interpolation == "idpp":
+        midpoint = image_count // 2
+        first_half = _idpp_refine_segment(
+            symbols, images[:midpoint + 1], label="reactant-to-TS segment",
+            fmax=idpp_fmax, steps=idpp_steps,
+        )
+        second_half = _idpp_refine_segment(
+            symbols, images[midpoint:], label="TS-to-product segment",
+            fmax=idpp_fmax, steps=idpp_steps,
+        )
+        images = first_half + second_half[1:]
+        images[0] = start_coordinates.copy()
+        images[midpoint] = ts_coordinates.copy()
+        images[-1] = end_coordinates.copy()
+        if len(images) != image_count:
+            raise RuntimeError("IDPP initialization returned an unexpected number of images")
+        if any(not np.all(np.isfinite(frame)) for frame in images):
+            raise ValueError("IDPP initialization produced non-finite coordinates")
     return symbols, images
 
 
@@ -216,10 +294,24 @@ def _load_stage(output, stage, calculator, visited=None, *,
             },
         )
         _write_json(path, result)
-    elif (expected_parameters is not None
-          and not result.get("legacy_parameters_unverified")
-          and result.get("parameters") != expected_parameters):
-        raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
+    elif expected_parameters is not None and not result.get("legacy_parameters_unverified"):
+        recorded_parameters = result.get("parameters")
+        parameters_match = recorded_parameters == expected_parameters
+        if (
+            not parameters_match
+            and stage == "neb"
+            and isinstance(recorded_parameters, dict)
+            and not any(key in recorded_parameters for key in _LEGACY_NEB_INITIALIZATION_DEFAULTS)
+        ):
+            # Schema-2 NEB stages written before interpolation was configurable
+            # necessarily used the historical linear initializer. Treat missing
+            # fields as defaults for comparison only; do not rewrite the summary
+            # or invalidate hashes that downstream stages already recorded.
+            effective_parameters = dict(recorded_parameters)
+            effective_parameters.update(_LEGACY_NEB_INITIALIZATION_DEFAULTS)
+            parameters_match = effective_parameters == expected_parameters
+        if not parameters_match:
+            raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
     return result
 
 
@@ -413,7 +505,12 @@ def _execute_stage(stage, output, calculator, options):
 
         load("relax")
         guess = options["ts_guess"]
-        symbols, frames = build_neb_images(start_path, end_path, guess, options["images"])
+        symbols, frames = build_neb_images(
+            start_path, end_path, guess, options["images"],
+            interpolation=options["interpolation"],
+            idpp_fmax=options["idpp_fmax"],
+            idpp_steps=options["idpp_steps"],
+        )
         molecule = Molecule()
         molecule.elem, molecule.xyzs = symbols, frames
         engine = EngineASE(molecule, calculator)
@@ -547,7 +644,8 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                           product_relaxation_max_steps=200, ts_max_cycles=200,
                           irc_max_cycles=200, imaginary_frequency_threshold=20.0,
                           irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
-                          endpoint_max_cycles=300, reuse_legacy_summaries=False):
+                          endpoint_max_cycles=300, reuse_legacy_summaries=False,
+                          interpolation="linear", idpp_fmax=0.1, idpp_steps=100):
     from pyar.backends.geometric import PyarGeometricCalculator
 
     options = dict(locals())
@@ -577,9 +675,13 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     for key in ("max_cycles", "product_relaxation_max_steps", "ts_max_cycles", "irc_max_cycles", "endpoint_max_cycles", "nprocs", "multiplicity"):
         if not isinstance(options[key], int) or options[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
-    for key in ("max_gradient", "average_gradient", "spring", "climb", "product_relaxation_fmax", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"):
+    for key in ("max_gradient", "average_gradient", "spring", "climb", "product_relaxation_fmax", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance", "idpp_fmax"):
         if not np.isfinite(options[key]) or options[key] <= 0:
             raise ValueError(f"{key} must be positive and finite")
+    if not isinstance(options["idpp_steps"], int) or options["idpp_steps"] < 1:
+        raise ValueError("idpp_steps must be a positive integer")
+    if options["interpolation"] not in {"linear", "idpp"}:
+        raise ValueError("interpolation must be either 'linear' or 'idpp'")
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
@@ -638,6 +740,14 @@ def _build_parser():
     parser.add_argument("--software", required=True, help="PyAR energy-gradient backend")
     parser.add_argument("--output", default="neb_run")
     parser.add_argument("--images", type=int, default=11)
+    parser.add_argument(
+        "--interpolation", choices=("linear", "idpp"), default="linear",
+        help="initial NEB path interpolation (linear is the backward-compatible default)",
+    )
+    parser.add_argument("--idpp-fmax", type=float, default=0.1,
+                        help="ASE IDPP force convergence for idpp initialization")
+    parser.add_argument("--idpp-steps", type=int, default=100,
+                        help="maximum ASE IDPP optimization steps per path half")
     parser.add_argument("--max-cycles", type=int, default=100)
     parser.add_argument("--method", default=defualt_parameters.values["method"])
     parser.add_argument("--basis", default=defualt_parameters.values["basis"])
