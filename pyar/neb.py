@@ -598,7 +598,7 @@ def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax):
         energies.append(float(atoms.get_potential_energy()) / Hartree)
 
     try:
-        optimizer = Sella(atoms, logfile=None, order=1)
+        optimizer = Sella(atoms, logfile=None, order=1, internal=False)
         optimizer.attach(record_frame, interval=1)
         converged = bool(optimizer.run(fmax=fmax, steps=max_steps))
     except Exception as exc:
