@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from pyar.backends import require_executable, write_xyz
+from pyar.backends.orca_methods import orca_external_method_block, orca_method_keywords
 from pyar.backends.subprocess_utils import run_command
 
 
@@ -102,10 +103,10 @@ def _orca_keyword(qc_params, scftype=None):
     threshold = {"loose": "LooseOpt", "tight": "TightOpt"}.get(
         qc_params.get("opt_threshold"), "Opt"
     )
-    keyword = f"! {qc_params['method']} {qc_params['basis']} {threshold} RI def2/J D3BJ KDIIS"
+    keyword, is_xtb = orca_method_keywords(qc_params, threshold)
     # ``merged_with`` represents unrestricted molecules as ``uhf`` even when
     # the requested ORCA calculation is DFT, where ORCA's keyword is ``UKS``.
-    if str(scftype or qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}:
+    if not is_xtb and str(scftype or qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}:
         keyword += " UKS"
     return keyword
 
@@ -113,7 +114,11 @@ def _orca_keyword(qc_params, scftype=None):
 def _write_input(path, atoms, coordinates, charge, multiplicity, scftype, qc_params, scan=None):
     lines = [_orca_keyword(qc_params, scftype)]
     lines.append(f"%pal nprocs {int(qc_params.get('nprocs') or 1)} end")
-    lines.append(f"%scf maxiter {int(qc_params.get('scf_cycles') or 1000)} end")
+    if not orca_method_keywords(qc_params)[1]:
+        lines.append(f"%scf maxiter {int(qc_params.get('scf_cycles') or 1000)} end")
+    external_method = orca_external_method_block(qc_params)
+    if external_method:
+        lines.append(external_method)
     if qc_params.get("opt_cycles") is not None or scan is not None:
         lines.append("%geom")
         if qc_params.get("opt_cycles") is not None:

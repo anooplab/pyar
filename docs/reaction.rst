@@ -11,6 +11,22 @@ zero-based indices. The scan is followed by an unconstrained ORCA relaxation:
 
    pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 --software orca -N 4
 
+ORCA is the only scan-bond backend at present and is the default. DFT methods
+require an explicit ``--basis``; xTB methods such as ``GFN2-xTB`` do not:
+
+.. code-block:: bash
+
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --method BP86 --basis def2-SVP
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --method GFN2-xTB
+
+For g-xTB through ORCA's external-method interface, provide the installed
+wrapper path:
+
+.. code-block:: bash
+
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --method g-xTB \
+     --gxtb-wrapper /path/to/oet_gxtb
+
 The default endpoint is 0.8 times the sum of the selected atoms' PyAR covalent
 radii and the default spacing is 0.10 Angstrom. Use ``--scan-end`` and either
 ``--scan-step`` or ``--scan-points`` to override them. Results are written to

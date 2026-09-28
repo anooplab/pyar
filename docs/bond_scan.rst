@@ -10,6 +10,34 @@ atoms' PyAR covalent radii, and the default spacing is 0.10 Angstrom.
 
    pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 --software orca -N 4
 
+ORCA is currently the only scan-bond backend and is the default for
+``--software``. Select an ORCA method with ``--method``. DFT methods require
+an explicit basis set, while ORCA's built-in xTB method keywords do not take
+one:
+
+.. code-block:: bash
+
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --method BP86 --basis def2-SVP
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --method GFN2-xTB
+
+ORCA recognizes aliases such as ``XTB2`` for ``GFN2-xTB`` and ``GFN-xTB``
+for GFN1-xTB. PyAR omits DFT-only keywords (basis, RI, D3BJ, and KDIIS) for
+these methods. The same method is used for scan and final relaxation. Other
+scan-bond backends are not available yet.
+
+ORCA's g-xTB support uses its external-method wrapper rather than a built-in
+method keyword. Supply the executable ``oet_gxtb`` wrapper path with
+``--gxtb-wrapper`` (the wrapper and g-xTB parameter files must be installed):
+
+.. code-block:: bash
+
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --method g-xTB \
+     --gxtb-wrapper /path/to/oet_gxtb
+
+The ORCA 6.1 tutorial describes this g-xTB interface as preliminary and
+Linux-only; it uses numerical gradients, so scans can be substantially slower
+than native GFN-xTB methods.
+
 Use ``--scan-end`` to set an explicit endpoint and either ``--scan-step`` or
 ``--scan-points`` to control the scan grid. Each successful scan is followed
 by an unconstrained ORCA optimization from its final constrained geometry.

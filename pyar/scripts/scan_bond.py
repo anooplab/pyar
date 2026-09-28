@@ -1,8 +1,10 @@
 """Command-line interface for the ORCA-only bond scan."""
 
 import argparse
+import os
 from pathlib import Path
 
+from pyar.backends.orca_methods import orca_method
 from pyar.workflows.scan_bond import run_scan_bond
 
 
@@ -12,9 +14,10 @@ def main(argv=None):
     parser.add_argument("--atoms", nargs=2, type=int, required=True, metavar=("I", "J"),
                         help="0-based atom indices local to fragments A and B")
     parser.add_argument("-N", "--number-of-orientations", type=int, required=True, dest="orientations")
-    parser.add_argument("--software", default="orca")
-    parser.add_argument("--method", default="BP86")
-    parser.add_argument("--basis", default="def2-SVP")
+    parser.add_argument("--software", type=str.lower, choices=("orca",), default="orca")
+    parser.add_argument("--method", default="BP86", help="ORCA method (default: BP86)")
+    parser.add_argument("--basis", help="basis set; required for DFT methods, not used by xTB methods")
+    parser.add_argument("--gxtb-wrapper", help="executable ORCA external-method wrapper (oet_gxtb) for --method g-xTB")
     parser.add_argument("--nprocs", type=int, default=1)
     parser.add_argument("--scf-cycles", type=int, default=1000)
     parser.add_argument("--opt-cycles", type=int, default=100)
@@ -32,6 +35,21 @@ def main(argv=None):
         parser.error("orientation count must be at least 1")
     if args.software.lower() != "orca":
         parser.error("scan-bond currently supports only the ORCA backend")
+    _, is_xtb = orca_method(args.method)
+    if is_xtb and args.basis is not None:
+        parser.error("--basis is not applicable to ORCA xTB methods")
+    if not is_xtb and not args.basis:
+        parser.error("--basis is required for ORCA DFT methods")
+    is_gxtb = orca_method(args.method)[0] == "g-xTB"
+    if is_gxtb and not args.gxtb_wrapper:
+        parser.error("--gxtb-wrapper is required for --method g-xTB")
+    if is_gxtb:
+        wrapper_path = Path(args.gxtb_wrapper).expanduser().resolve()
+        if not wrapper_path.is_file() or not os.access(wrapper_path, os.X_OK):
+            parser.error("--gxtb-wrapper must point to an executable wrapper file")
+        args.gxtb_wrapper = str(wrapper_path)
+    if not is_gxtb and args.gxtb_wrapper:
+        parser.error("--gxtb-wrapper is only valid with --method g-xTB")
     if not all(Path(path).is_file() for path in args.inputs):
         parser.error("both input XYZ files must exist")
     def pair_value(values, label, index):
@@ -39,6 +57,7 @@ def main(argv=None):
         if len(values) == 2: return values[index]
         parser.error(f"{label} accepts one value or one value per fragment")
     params = {"software": "orca", "method": args.method, "basis": args.basis,
+              "gxtb_wrapper": args.gxtb_wrapper,
               "nprocs": args.nprocs, "scf_cycles": args.scf_cycles,
               "opt_cycles": args.opt_cycles, "opt_threshold": args.opt_threshold,
               "charge_a": pair_value(args.charge, "charge", 0),

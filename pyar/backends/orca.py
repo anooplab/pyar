@@ -23,6 +23,7 @@ import os
 import numpy as np
 
 from pyar.backends import SF, require_executable, write_xyz
+from pyar.backends.orca_methods import orca_external_method_block, orca_method_keywords
 from pyar.backends.subprocess_utils import run_command
 
 orca_logger = logging.getLogger('pyar.orca')
@@ -42,21 +43,22 @@ class Orca(SF):
         self.out_file = 'trial_' + self.job_name + '.out'
         self.optimized_coordinates = []
         self.energy = 0.0
-        # print(custom_keyword)
-        keyword = f"! {qc_params['method']} {qc_params['basis']}"
-
-        if any(x >= 21 for x in molecule.atomic_number):
-            keyword += ' def2-ECP'
-        keyword += ' RI def2/J D3BJ KDIIS'
-        if self.scftype == 'uks':
-            keyword += ' UKS'
-        keyword += {
+        optimization_keyword = {
             'loose': ' LooseOpt',
             'tight': ' TightOpt',
-        }.get(qc_params.get('opt_threshold'), ' Opt')
+        }.get(qc_params.get('opt_threshold'), ' Opt').strip()
+        keyword, is_xtb = orca_method_keywords(qc_params, optimization_keyword)
+        if not is_xtb and any(x >= 21 for x in molecule.atomic_number):
+            keyword += ' def2-ECP'
+        if not is_xtb and self.scftype in {'uks', 'uhf'}:
+            keyword += ' UKS'
         nprocs = qc_params['nprocs']
         keyword += f"\n%pal nprocs {nprocs} end\n"
-        keyword += f"%scf maxiter {qc_params['scf_cycles']} end\n"
+        if not is_xtb:
+            keyword += f"%scf maxiter {qc_params['scf_cycles']} end\n"
+        external_method = orca_external_method_block(qc_params)
+        if external_method:
+            keyword += external_method + "\n"
         if qc_params.get('opt_cycles') is not None:
             keyword += f"%geom MaxIter {int(qc_params['opt_cycles'])} end\n"
         self.keyword = keyword
