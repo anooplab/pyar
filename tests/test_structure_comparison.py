@@ -6,11 +6,12 @@ from pathlib import Path
 from unittest import mock
 
 import numpy as np
+import pytest
 
 from pyar.structure_comparison import (
     ComparisonResult,
     IdentityResult,
-    LegacyRMSDComparator,
+    CoulombEigenvalueRMSDComparator,
     OpenBabelIdentityProvider,
 )
 
@@ -21,7 +22,7 @@ def _molecule(name, atoms, coordinates):
     )
 
 
-def test_identity_results_use_inchi_as_legacy_canonical_key():
+def test_identity_results_use_inchi_as_canonical_key():
     provider = OpenBabelIdentityProvider()
     first = {"inchi": "species-a", "smiles": "C#N"}
     equivalent = {"inchi": "species-a", "smiles": "N#C"}
@@ -50,18 +51,18 @@ def test_reaction_identity_wrapper_matches_provider_result():
     with mock.patch("pyar.structure_comparison.identity.babel.make_inchi_string_from_xyz", return_value="fixture-inchi"), \
         mock.patch("pyar.structure_comparison.identity.babel.make_smile_string_from_xyz", return_value="fixture-smiles"):
         provider_result = OpenBabelIdentityProvider().identify("fixture.xyz")
-        legacy_result = molecule_identity_from_xyz("fixture.xyz")
+        compatibility_result = molecule_identity_from_xyz("fixture.xyz")
 
-    assert legacy_result == {
+    assert compatibility_result == {
         "inchi": provider_result.inchi,
         "smiles": provider_result.smiles,
     }
 
 
-def test_legacy_comparator_is_translation_and_rotation_invariant():
+def test_coulomb_eigenvalue_rmsd_is_translation_and_rotation_invariant():
     first = _molecule("a", ["C", "H", "H"], [[0, 0, 0], [1, 0, 0], [0, 1, 0]])
     second = _molecule("b", ["C", "H", "H"], [[3, -2, 1], [3, -1, 1], [2, -2, 1]])
-    comparator = LegacyRMSDComparator(threshold=0.01)
+    comparator = CoulombEigenvalueRMSDComparator(threshold=0.01)
     result = comparator.compare(first, second)
     assert result.compatible
     assert result.equivalent
@@ -69,10 +70,10 @@ def test_legacy_comparator_is_translation_and_rotation_invariant():
     assert result.method == comparator.method
 
 
-def test_legacy_comparator_reports_chemically_incompatible_structures():
+def test_coulomb_eigenvalue_rmsd_reports_chemically_incompatible_structures():
     first = _molecule("a", ["C", "H"], [[0, 0, 0], [1, 0, 0]])
     second = _molecule("b", ["C", "O"], [[0, 0, 0], [1, 0, 0]])
-    result = LegacyRMSDComparator(threshold=0.1).compare(first, second)
+    result = CoulombEigenvalueRMSDComparator(threshold=0.1).compare(first, second)
     assert not result.compatible
     assert result.distance is None
     assert result.equivalent is None
@@ -85,7 +86,79 @@ def test_comparison_result_metadata_is_immutable():
     assert result.metadata["mode"] == "legacy"
 
 
-def test_rmsd_primitive_exact_permutation_and_legacy_wrapper_match():
+def test_graph_rmsd_requires_isomorphic_element_labeled_connectivity():
+    from pyar.structure_comparison import GraphRMSDComparator
+
+    path = _molecule("path", ["C"] * 4, [[0, 0, 0], [1.5, 0, 0], [3, 0, 0], [4.5, 0, 0]])
+    star = _molecule("star", ["C"] * 4, [
+        [0, 0, 0], [1.5, 0, 0], [-1.5, 0, 0], [0, 1.5, 0],
+    ])
+    result = GraphRMSDComparator(threshold=0.01).compare(path, star)
+    assert not result.compatible
+    assert result.distance is None
+    assert result.metadata["connectivity_checked"]
+
+
+def test_graph_rmsd_matches_rotated_and_permuted_same_graph():
+    from pyar.structure_comparison import GraphRMSDComparator
+
+    first = _molecule("first", ["C", "C", "O"], [[0, 0, 0], [1.4, 0, 0], [2.8, 0, 0]])
+    # Reverse atom order, rotate, and translate while retaining the same C-C-O chain.
+    second = _molecule("second", ["O", "C", "C"], [[4, 2, 0], [4, 0.6, 0], [4, -0.8, 0]])
+    result = GraphRMSDComparator(threshold=1e-8).compare(first, second)
+    assert result.compatible
+    assert result.equivalent
+    assert result.distance < 1e-12
+
+
+def test_irmsd_comparator_uses_optional_package_without_changing_defaults(monkeypatch):
+    import sys
+    from types import ModuleType
+    from pyar.structure_comparison import CoulombEigenvalueRMSDComparator, IRMSDComparator
+
+    calls = {}
+
+    class FakeMolecule:
+        def __init__(self, symbols, positions):
+            self.symbols = symbols
+            self.positions = positions
+
+    def get_irmsd(first, second, iinversion):
+        calls["symbols"] = (first.symbols, second.symbols)
+        calls["inversion"] = iinversion
+        return 0.02, first, second
+
+    fake = ModuleType("irmsd")
+    fake.Molecule = FakeMolecule
+    fake.get_irmsd_molecule = get_irmsd
+    monkeypatch.setitem(sys.modules, "irmsd", fake)
+    first = _molecule("first", ["C", "H"], [[0, 0, 0], [1, 0, 0]])
+    second = _molecule("second", ["H", "C"], [[1, 0, 0], [0, 0, 0]])
+    result = IRMSDComparator(threshold=0.1, inversion=2).compare(first, second)
+    assert result.equivalent
+    assert result.distance == 0.02
+    assert result.metadata["connectivity_checked"] is False
+    assert calls["inversion"] == 2
+    assert CoulombEigenvalueRMSDComparator().method == "coulomb-eigenvalue-prefilter-permutation-kabsch-rmsd"
+
+
+def test_irmsd_real_backend_handles_rigid_transform_and_atom_permutation():
+    pytest.importorskip("irmsd")
+    from pyar.structure_comparison import IRMSDComparator
+
+    first = _molecule("first", ["C", "H", "H"], [
+        [0, 0, 0], [1, 0, 0], [0, 1, 0],
+    ])
+    second = _molecule("second", ["H", "C", "H"], [
+        [2, -2, 1], [3, -2, 1], [3, -1, 1],
+    ])
+    result = IRMSDComparator(threshold=1e-6, inversion=2).compare(first, second)
+    assert result.compatible
+    assert result.equivalent
+    assert result.distance < 1e-12
+
+
+def test_rmsd_primitive_exact_permutation_and_selection_wrapper_match():
     from pyar.selection import deduplication
     from pyar.structure_comparison.rmsd import rmsd_after_alignment
 
@@ -109,11 +182,11 @@ def test_rmsd_primitive_exercises_hungarian_fallback():
     assert rmsd_after_alignment(permuted, first) < 1e-12
 
 
-def test_legacy_comparator_prefilter_rejection_is_unchanged():
+def test_coulomb_eigenvalue_prefilter_rejects_large_descriptor_distance():
     first = _molecule("a", ["H", "H"], [[0, 0, 0], [1, 0, 0]])
     second = _molecule("b", ["H", "H"], [[0, 0, 0], [1, 0, 0]])
-    comparator = LegacyRMSDComparator(
-        threshold=0.1, fingerprint_distance=lambda _a, _b: 1.0,
+    comparator = CoulombEigenvalueRMSDComparator(
+        threshold=0.1, coulomb_eigenvalue_distance=lambda _a, _b: 1.0,
     )
     result = comparator.compare(first, second)
     assert result.compatible

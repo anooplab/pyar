@@ -105,6 +105,9 @@ openbabel = [
 conformer = [
   "rdkit",
 ]
+structure-comparison = [
+  "irmsd>=0.1.0",
+]
 geodesic = [
   "geodesic-interpolate>=1.0.0",
 ]
@@ -119,6 +122,7 @@ all = [
   "geodesic-interpolate>=1.0.0",
   "h5py",
   "hdbscan",
+  "irmsd>=0.1.0",
   "matplotlib",
   "MDAnalysis",
   "mlatom",

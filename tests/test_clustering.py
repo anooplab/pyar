@@ -183,6 +183,41 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual([m.name for m in result], ["low"])
 
+    def test_remove_similar_requires_matching_inferred_connectivity(self):
+        molecules = [
+            SimpleNamespace(name="bonded", atoms_list=["C", "C"],
+                            coordinates=[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], energy=0.0),
+            SimpleNamespace(name="separated", atoms_list=["C", "C"],
+                            coordinates=[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]], energy=1.0),
+        ]
+
+        with mock.patch("pyar.selection.deduplication._adaptive_duplicate_rmsd_threshold",
+                        return_value=0.75):
+            result = clustering.remove_similar(molecules)
+
+        # Their element order and aligned RMSD are compatible with a geometric
+        # match, but their inferred bond graphs differ, so neither is discarded.
+        self.assertEqual([m.name for m in result], ["bonded", "separated"])
+
+    def test_remove_similar_retains_both_on_incomplete_graph_comparison(self):
+        from pyar.structure_comparison import ComparisonResult
+
+        molecules = [
+            SimpleNamespace(name="a", atoms_list=["H", "H"],
+                            coordinates=[[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]], energy=0.0),
+            SimpleNamespace(name="b", atoms_list=["H", "H"],
+                            coordinates=[[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]], energy=1.0),
+        ]
+        incomplete = ComparisonResult(True, None, None, "graph", 0.1,
+                                      {"comparison_complete": False})
+        with mock.patch("pyar.selection.deduplication._adaptive_duplicate_rmsd_threshold",
+                        return_value=0.1):
+            with mock.patch("pyar.structure_comparison.GraphFirstDeduplicationComparator") as comparator_type:
+                comparator_type.return_value.compare.return_value = incomplete
+                result = clustering.remove_similar(molecules)
+
+        self.assertEqual([m.name for m in result], ["a", "b"])
+
     def test_remove_similar_logs_near_duplicate_representative(self):
         molecules = [
             SimpleNamespace(
@@ -452,7 +487,7 @@ class ClusteringTests(unittest.TestCase):
                 with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 1, 1]):
                     result = clustering.choose_geometries(molecules, maximum_number_of_seeds=3)
 
-        self.assertEqual([m.name for m in result], ["m0", "m2", "m3"])
+        self.assertEqual([m.name for m in result], ["m0", "m2"])
 
     def test_hybrid_trims_cluster_minima_with_maxmin_when_too_many_clusters(self):
         molecules = [
