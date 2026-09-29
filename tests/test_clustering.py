@@ -436,7 +436,7 @@ class ClusteringTests(unittest.TestCase):
         self.assertEqual(descriptor_calls, [0.0, 1.0, 10.0])
         self.assertEqual([m.name for m in result], ["m0", "m2"])
 
-    def test_hybrid_clusters_then_fills_with_maxmin(self):
+    def test_hybrid_keeps_cluster_minima_without_filling_with_maxmin(self):
         molecules = [
             SimpleNamespace(name="m0", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
             SimpleNamespace(name="m1", atoms_list=["H"], coordinates=[[1.0, 0.0, 0.0]], energy=1.0),

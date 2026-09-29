@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+- Hybrid seed selection now keeps only the lowest-energy representative from
+  each cluster when there are fewer cluster minima than the requested limit.
+  Max-min diversity trims the cluster minima only when there are too many; it
+  no longer fills unused seed slots with additional geometries.
+
 ## 1.3.0 - 2026-09-26
 
 ### Added

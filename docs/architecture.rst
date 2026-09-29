@@ -349,9 +349,14 @@ Selection should be expressed as a composable, reportable pipeline:
    filter disconnected candidates
    deduplicate geometry
    extract cluster minima
-   complete or trim by max-min diversity
+   trim excess cluster minima by max-min diversity
    update basin memory
    write report
+
+The cluster minima are the candidate seed set. If clustering produces fewer
+minima than the requested seed limit, selection keeps those minima without
+filling the remaining slots from other geometries. Max-min diversity is used
+only to trim the cluster minima when they exceed the limit.
 
 Each selection report should record the input count, rejected disconnected
 geometries, duplicates removed, clusters found, selected count, relative

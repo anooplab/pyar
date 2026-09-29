@@ -251,38 +251,13 @@ def choose_geometries(
         )
         return _finalize_selection(selected, write_path, existing_entries=basin_entries)
 
-    if len(best_from_each_cluster) == maximum_number_of_seeds:
-        selected = _limit_seed_count(
-            best_from_each_cluster,
-            maximum_number_of_seeds,
-            reason="cluster selection",
-        )
-        return _finalize_selection(selected, write_path, existing_entries=basin_entries)
-
-    selected_ids = {id(m) for m in best_from_each_cluster}
-    if len(selected_ids) == len(pruned_molecules):
-        return _finalize_selection(best_from_each_cluster, write_path, existing_entries=basin_entries)
-
-    cluster_logger.info(
-        "Cluster selection returned %d seeds; filling remaining %d with max-min.",
-        len(best_from_each_cluster),
-        maximum_number_of_seeds - len(best_from_each_cluster),
-    )
-    selected_indices = [
-        index for index, molecule in enumerate(pruned_molecules)
-        if id(molecule) in selected_ids
-    ]
-    filler = _max_min_diversity_select(
-        dt_scaled,
-        pruned_molecules,
-        maximum_number_of_seeds,
-        initial_selected_indices=selected_indices,
-    )
-    combined = best_from_each_cluster + filler
+    # Keep only representatives justified by the clustering result. Max-min
+    # is used above to trim an overfull set of cluster minima; it must not add
+    # geometries from clusters that did not contribute a representative.
     selected = _limit_seed_count(
-        combined,
+        best_from_each_cluster,
         maximum_number_of_seeds,
-        reason="hybrid cluster-fill selection",
+        reason="cluster selection",
     )
     return _finalize_selection(selected, write_path, existing_entries=basin_entries)
 
