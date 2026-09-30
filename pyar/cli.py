@@ -13,6 +13,7 @@ import time
 from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
+from pyar.selection.distances import DISTANCE_METRICS
 from pyar.biases.controller import resolve_controller_policy
 from pyar.backend_capabilities import (
     backend_family,
@@ -339,11 +340,24 @@ chemical formula.
                         help='number of solvent molecules to be added')
     parser.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
                         type=int, help='maximum number of seeds')
-    parser.add_argument('-f', '--features',
-                        choices=['fingerprint', 'scm', 'moi', 'fsmd', 'soap', 'mbtr',
-                                 'ani', 'lmbtr', 'acsf', 'sinematrix', 'vallornav'],
-                        default='fingerprint',
-                        help="Choose the features to be used for clustering")
+    parser.add_argument(
+        '-f', '--features',
+        choices=['mbtr', 'soap', 'distance-histogram'],
+        default=defualt_parameters.values.get('features', 'mbtr'),
+        help="Structural representation for aggregate seed clustering (default: mbtr)",
+    )
+    parser.add_argument(
+        '--selection-algorithm',
+        choices=['hybrid', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
+        default=defualt_parameters.values.get('selection_algorithm', 'hybrid'),
+        help="Cluster-label algorithm or max-min selector used for aggregate seeds",
+    )
+    parser.add_argument(
+        '--selection-distance',
+        choices=DISTANCE_METRICS,
+        default=defualt_parameters.values.get('selection_distance', 'euclidean'),
+        help="Distance metric on standardized selection features (default: euclidean)",
+    )
     parser.add_argument(
         "--connectivity-policy",
         choices=["auto", "off", "prefer", "strict"],
@@ -907,6 +921,9 @@ def _run_aggregate_workflow(
         run_parameters['number_of_pathways'],
         site,
         connectivity_policy=run_parameters["connectivity_policy"],
+        selection_feature=run_parameters["features"],
+        selection_algorithm=run_parameters["selection_algorithm"],
+        selection_distance=run_parameters["selection_distance"],
     )
     _log_workflow_result(result)
     logger.info('Total Time: {}'.format(time.time() - t1_0))

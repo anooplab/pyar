@@ -68,6 +68,10 @@ Several smaller helper commands are available for inspection and benchmarking:
 
    pyar-energy-table *.xyz
    pyar-clustering *.xyz -a maxmin -n 8
+   pyar-clustering *.xyz --feature soap --distance cosine -a agglomerative -n 8
+   pyar-clustering *.xyz --mode labels --feature distance-histogram --distance euclidean --labels-output labels.csv --report-output clustering.json
+   pyar-clustering *.xyz --mode analyze --coordinate-model covalent-radii --bond-scale 1.15 --structure-report structure.json
+   pyar-clustering *.xyz --mode analyze --coordinate-model distance-cutoff --bond-cutoff 3.0
    pyar-similarity -f "*.xyz" -t 0.005
    pyar-descriptor *.xyz
    pyar-conformer input.sdf --num-conformers 200 --num-seeds 4 --use-random-coords
@@ -82,3 +86,75 @@ conformers, ``pyar-similarity`` reports near-duplicate structures,
 ``pyar-conformer-benchmark`` diagnoses why reference conformers are missed,
 ``pyar-trial-generation`` builds candidate orientations, and
 ``pyar-optimiser`` runs the standalone geometry optimizer.
+
+Standalone structure clustering
+-------------------------------
+
+``pyar-clustering`` supports ``mbtr``, ``soap``, and ``distance-histogram``
+features. MBTR includes pair-distance and angular terms and is the default;
+SOAP gives an averaged local-environment representation; the pair-distance
+histogram is a NumPy-only fallback that preserves element-pair distance
+distributions. Every feature is computed with one species vocabulary for the
+whole input pool. Descriptor failures are recorded and trigger the next
+available feature.
+
+Use ``pyar-clustering --mode analyze`` to inspect XYZ-only geometric
+connectivity. The default ``covalent-radii`` model connects atom pairs within
+``--bond-scale`` times the sum of their covalent radii; ``--coordinate-model
+none`` reports atoms without assigning adjacency. For systems such as atomic
+clusters, ``distance-cutoff`` accepts an explicit ``--bond-cutoff`` in
+Angstrom. This operation assigns no bond orders, charges, spins, or chemical
+identity. Its connected components and edge changes are geometric evidence and
+must not be treated as definitive molecular or reaction labels. In aggregate
+workflows, PyAR records input summaries in
+``aggregates/structural_analysis/input.json`` and writes coordinate-only
+input-to-output comparisons before similarity selection.
+
+The cluster-label algorithms are ``hybrid`` (HDBSCAN, then average-linkage
+agglomerative if the dependency is missing or every item is noise), ``hdbscan``,
+``agglomerative``, ``dbscan``, and ``optics``. ``--distance`` selects Euclidean,
+Manhattan, or cosine distance on standardized features (Euclidean is the
+default). DBSCAN estimates epsilon from k-neighbour distances in that metric;
+``--eps`` can override it. ``maxmin`` is a fixed-budget selector, not a
+clustering algorithm.
+If the requested clusterer and average-linkage fallback both fail, PyAR assigns
+each structure its own label and records that last-resort fallback. This keeps
+the input pool available for the existing downstream budget-trimming rule.
+Labels mode writes one row per input structure, including noise label ``-1``.
+JSON reports record the actual feature and algorithm and every fallback.
+
+Feature choice depends on the structures and the question. For conformers of
+one molecule, a topology-aware geometry metric is preferable when distinguishing
+basins; current MBTR/SOAP clustering is a structural approximation. For atomic
+clusters, SOAP is a useful candidate because it compares local environments.
+For molecular aggregates, averaged SOAP and pair distributions can blur
+fragment arrangements, so inspect results and prefer a fragment-aware geometry
+representation when available. For constitutional isomers or different
+molecules with the same formula, first group by chemical identity/connectivity;
+formula equality alone is not a suitable clustering feature. The standalone
+module reports its representation and fallback path so these choices can be
+benchmarked without changing workflow seed policy.
+
+These recommendations follow the descriptor scope: MBTR encodes distributions
+of k-body terms, while SOAP describes local atomic environments. REMatch-SOAP
+was developed to compare whole structures using pairwise environment
+similarities, which is more expressive than the averaged SOAP vector currently
+used here. See `DScribe MBTR documentation
+<https://singroup.github.io/dscribe/latest/tutorials/descriptors/mbtr.html>`_,
+`DScribe SOAP documentation
+<https://singroup.github.io/dscribe/latest/tutorials/descriptors/soap.html>`_,
+and `De et al., Comparing molecules and solids across structural and
+alchemical space <https://doi.org/10.1063/1.4940029>`_. HDBSCAN is useful when
+clusters have different densities and outliers should be explicit; it does
+not choose a scientifically optimal number of seed geometries. See `McInnes,
+Healy, and Astels (2017) <https://doi.org/10.21105/joss.00205>`_.
+
+Examples::
+
+   pyar-clustering pool/*.xyz --mode labels --feature mbtr -a hybrid -n 12 --report-output report.json
+   pyar-clustering pool/*.xyz --mode labels --feature soap -a agglomerative --labels-output labels.csv
+   pyar-cli -a monomer.xyz -as 2 --features soap --selection-algorithm agglomerative --selection-distance cosine
+
+Aggregate workflows accept the same feature, clusterer, and distance settings
+through ``--features``, ``--selection-algorithm``, and ``--selection-distance``.
+The chosen values are stored in aggregation state and must match when resuming.

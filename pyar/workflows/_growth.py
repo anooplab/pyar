@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 from contextlib import contextmanager
+import json
 import logging
 import os
 import random
@@ -20,6 +21,7 @@ from pyar.selection import clustering
 from pyar.selection import reports as selection_reports
 from pyar.sampling import trial_generator as trial_generation
 from pyar.optimiser import is_cycle_exceeded, is_success, optimise
+from pyar.structure_comparison.coordinate_graph import analyze_growth_transition
 from pyar.workflow_results import AggregateResult, ReactionResult, SolvationResult
 
 aggregator_logger = logging.getLogger("pyar.workflows.aggregate")
@@ -42,6 +44,30 @@ def _working_directory(path):
         yield
     finally:
         os.chdir(previous_cwd)
+
+
+def _write_growth_structure_analysis(input_parts, outputs, filename):
+    """Write best-effort coordinate-only input/product diagnostics."""
+    if not outputs:
+        return
+    try:
+        report = {
+            "stage": "pre-similarity-selection",
+            "method": "coordinate-only-adjacency",
+            "structures": [
+                {
+                    "name": str(getattr(output, "name", "<unnamed>")),
+                    **analyze_growth_transition(input_parts, output),
+                }
+                for output in outputs
+            ],
+        }
+        with open(filename, "w", encoding="utf-8") as stream:
+            json.dump(report, stream, indent=2)
+            stream.write("\n")
+    except (KeyError, ValueError, TypeError) as exc:
+        # This diagnostic must never block structure generation or selection.
+        aggregator_logger.warning("Coordinate-only structural analysis skipped: %s", exc)
 
 
 def workflow_run_directory(root_directory, workflow_name):
@@ -311,6 +337,8 @@ def _finalize_selected_geometries(
     maximum_number_of_seeds=12,
     algorithm="hybrid",
     connectivity_policy="off",
+    feature="mbtr",
+    distance_metric="euclidean",
 ):
     """Cluster pathway-level selected results into the final stoichiometry groups."""
     result_files = _discover_selected_result_files(aggregate_root)
@@ -340,6 +368,8 @@ def _finalize_selected_geometries(
             maximum_number_of_seeds=maximum_number_of_seeds,
             apply_basin_memory=False,
             algorithm=algorithm,
+            feature=feature,
+            distance_metric=distance_metric,
             connectivity_policy=connectivity_policy,
         )
         final_selected.extend(selected)
@@ -434,6 +464,9 @@ def add_one(
     maximum_number_of_seeds,
     site,
     connectivity_policy=None,
+    selection_feature="mbtr",
+    selection_algorithm="hybrid",
+    selection_distance="euclidean",
 ):
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
@@ -514,6 +547,11 @@ def add_one(
                                 or not trial_generation.broken(n)
                             )
                         ]
+                        _write_growth_structure_analysis(
+                            [each_seed, monomer],
+                            not_converged,
+                            f"structural_analysis_round_{i + 1:02d}.json",
+                        )
                         not_converged = clustering.remove_similar(not_converged)
                     else:
                         aggregator_logger.info("    All trial molecules processed for this seed")
@@ -541,12 +579,21 @@ def add_one(
         else:
             file_manager.make_directories("selected")
         aggregator_logger.info("  Selecting optimized pool")
+        if seeds:
+            _write_growth_structure_analysis(
+                [seeds[0], monomer],
+                list_of_optimized_molecules,
+                "structural_analysis_preselection.json",
+            )
         selected_seeds = clustering.choose_geometries(
             list_of_optimized_molecules,
             maximum_number_of_seeds=maximum_number_of_seeds,
             persist_basin_memory=not staged_optimization,
             group_basin_by_stoichiometry=False,
             connectivity_policy=connectivity_policy,
+            feature=selection_feature,
+            algorithm=selection_algorithm,
+            distance_metric=selection_distance,
         )
         for molecule in selected_seeds:
             molecule.connectivity_policy_hint = connectivity_policy

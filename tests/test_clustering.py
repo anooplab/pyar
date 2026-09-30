@@ -11,10 +11,6 @@ from pyar.selection import clustering
 
 
 class ClusteringTests(unittest.TestCase):
-    def setUp(self):
-        clustering._MBTR_RUNTIME_DISABLED = False
-        clustering._MBTR_DISABLE_REASON = None
-
     def test_choose_geometries_falls_back_when_mbtr_fails(self):
         molecules = [
             SimpleNamespace(name="a", atoms_list=["C"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
@@ -37,61 +33,57 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual(result, molecules)
 
-    def test_mbtr_is_disabled_after_first_runtime_failure(self):
+    def test_descriptor_failure_tries_soap_then_dependency_free_histogram(self):
         molecules = [
-            SimpleNamespace(name="a", atoms_list=["C"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
-            SimpleNamespace(name="b", atoms_list=["H"], coordinates=[[1.0, 0.0, 0.0]], energy=1.0),
+            SimpleNamespace(name=f"m{i}", atoms_list=["H", "H"], coordinates=[[0.0, 0.0, 0.0], [0.6 + i * 0.3, 0.0, 0.0]], energy=float(i))
+            for i in range(4)
         ]
+        from pyar.selection.features import compute_feature_matrix
 
-        with mock.patch("pyar.representations.mbtr_descriptor", side_effect=TypeError("mbtr boom")) as mbtr_mock:
-            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
-                clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
+        with mock.patch("pyar.representations.mbtr_descriptor", side_effect=TypeError("mbtr boom")):
+            with mock.patch("pyar.representations.soap_structure_descriptor", side_effect=TypeError("soap boom")):
+                result = compute_feature_matrix(molecules, "mbtr")
 
-        self.assertEqual(mbtr_mock.call_count, 1)
-
-        with mock.patch("pyar.representations.mbtr_descriptor") as mbtr_mock:
-            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
-                result = clustering.choose_geometries(molecules, maximum_number_of_seeds=1)
-
-        mbtr_mock.assert_not_called()
-        self.assertEqual(len(result), 1)
+        self.assertEqual(result.name, "distance-histogram")
+        self.assertEqual([failure["feature"] for failure in result.fallbacks], ["mbtr", "soap"])
+        self.assertTrue(np.isfinite(result.values).all())
 
     def test_fallback_enforces_maximum_seed_limit(self):
         molecules = [
-            SimpleNamespace(name=f"m{i}", atoms_list=["H"], coordinates=[[float(i), 0.0, 0.0]], energy=float(i))
+            SimpleNamespace(name=f"m{i}", atoms_list=["H", "H"], coordinates=[[0.0, 0.0, 0.0], [0.6 + i * 0.3, 0.0, 0.0]], energy=float(i))
             for i in range(5)
         ]
 
         with mock.patch("pyar.representations.mbtr_descriptor", side_effect=TypeError("mbtr boom")):
-            with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
-                result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
+            with mock.patch("pyar.representations.soap_structure_descriptor", side_effect=TypeError("soap boom")):
+                with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
+                    result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         self.assertEqual(len(result), 2)
-        self.assertEqual([m.name for m in result], ["m0", "m1"])
+        self.assertEqual(result[0].name, "m0")
 
     def test_algorithm_failure_enforces_maximum_seed_limit(self):
         molecules = [
-            SimpleNamespace(name=f"m{i}", atoms_list=["H"], coordinates=[[float(i), 0.0, 0.0]], energy=float(i))
+            SimpleNamespace(name=f"m{i}", atoms_list=["H", "H"], coordinates=[[0.0, 0.0, 0.0], [0.6 + i * 0.3, 0.0, 0.0]], energy=float(i))
             for i in range(4)
         ]
 
         with self.assertLogs("pyar.cluster", level="WARNING") as captured:
-            with mock.patch("pyar.representations.mbtr_descriptor", return_value=[0.0]):
-                with mock.patch("pyar.selection.clustering.generate_labels", side_effect=RuntimeError("cluster fail")):
-                    result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
+            with mock.patch("pyar.selection.clusterers._run_algorithm", side_effect=[RuntimeError("cluster fail"), np.array([0, 0, 1, 1])]):
+                result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         self.assertEqual(len(result), 2)
-        self.assertEqual([m.name for m in result], ["m0", "m1"])
+        self.assertEqual([m.name for m in result], ["m0", "m2"])
         fallback_messages = [
             message for message in captured.output
-            if "Clustering algorithm hybrid failed" in message
+            if "Clusterer hdbscan failed; using fallback agglomerative" in message
         ]
         self.assertEqual(len(fallback_messages), 1)
         self.assertNotIn("Traceback", fallback_messages[0])
 
     def test_algorithm_failure_persists_basin_registry(self):
         molecules = [
-            SimpleNamespace(name=f"m{i}", atoms_list=["H"], coordinates=[[float(i), 0.0, 0.0]], energy=float(i))
+            SimpleNamespace(name=f"m{i}", atoms_list=["H", "H"], coordinates=[[0.0, 0.0, 0.0], [0.6 + i * 0.3, 0.0, 0.0]], energy=float(i))
             for i in range(4)
         ]
 
@@ -100,11 +92,10 @@ class ClusteringTests(unittest.TestCase):
             os.chdir(tmpdir)
             try:
                 os.mkdir("selected")
-                with mock.patch("pyar.representations.mbtr_descriptor", return_value=[0.0]):
-                    with mock.patch("pyar.selection.clustering.generate_labels", side_effect=RuntimeError("cluster fail")):
-                        clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
+                with mock.patch("pyar.selection.clusterers._run_algorithm", side_effect=[RuntimeError("cluster fail"), np.array([0, 0, 1, 1])]):
+                    clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
-                registry_path = os.path.join("selected", "stoichiometry_H", "basin_registry.json")
+                registry_path = os.path.join("selected", "stoichiometry_H2", "basin_registry.json")
                 self.assertTrue(os.path.exists(registry_path))
             finally:
                 os.chdir(cwd)
@@ -264,8 +255,8 @@ class ClusteringTests(unittest.TestCase):
 
         with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
             with mock.patch("pyar.sampling.trial_generator.broken", side_effect=lambda mol: mol.name == "broken"):
-                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
-                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
+                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_args, **_kwargs: [0.0]):
+                    with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 0, 0])):
                         with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
                             with mock.patch.object(clustering, "_prefer_connected_structures") as prefer_connected:
                                 result = clustering.choose_geometries(
@@ -286,8 +277,8 @@ class ClusteringTests(unittest.TestCase):
 
         with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
             with mock.patch("pyar.sampling.trial_generator.broken", side_effect=lambda mol: mol.name == "broken"):
-                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
-                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
+                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_args, **_kwargs: [0.0]):
+                    with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 0, 0])):
                         with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
                             with mock.patch.object(clustering, "_prefer_connected_structures") as prefer_connected:
                                 prefer_connected.side_effect = lambda pool, policy="prefer": [
@@ -311,8 +302,8 @@ class ClusteringTests(unittest.TestCase):
 
         with mock.patch("pyar.selection.clustering.remove_similar", return_value=molecules):
             with mock.patch("pyar.sampling.trial_generator.broken", return_value=True):
-                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_: [0.0]):
-                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 0]):
+                with mock.patch("pyar.representations.mbtr_descriptor", side_effect=lambda *_args, **_kwargs: [0.0]):
+                    with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 0, 0])):
                         with mock.patch("pyar.selection.clustering.select_best_from_each_cluster", side_effect=lambda _labels, pool: pool[:2]):
                             result = clustering.choose_geometries(
                                 molecules,
@@ -439,7 +430,7 @@ class ClusteringTests(unittest.TestCase):
             SimpleNamespace(name="m2", atoms_list=["H"], coordinates=[[10.0, 0.0, 0.0]], energy=2.0),
         ]
 
-        def descriptor_from_coordinate(_atoms, coordinates):
+        def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             return [coordinates[0][0]]
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "maxmin"}):
@@ -459,7 +450,7 @@ class ClusteringTests(unittest.TestCase):
         pruned = molecules[1:]
         descriptor_calls = []
 
-        def descriptor_from_coordinate(_atoms, coordinates):
+        def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             descriptor_calls.append(coordinates[0][0])
             return [coordinates[0][0]]
 
@@ -479,12 +470,12 @@ class ClusteringTests(unittest.TestCase):
             SimpleNamespace(name="m3", atoms_list=["H"], coordinates=[[20.0, 0.0, 0.0]], energy=3.0),
         ]
 
-        def descriptor_from_coordinate(_atoms, coordinates):
+        def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             return [coordinates[0][0]]
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "hybrid"}):
             with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
-                with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 0, 1, 1]):
+                with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 0, 1, 1])):
                     result = clustering.choose_geometries(molecules, maximum_number_of_seeds=3)
 
         self.assertEqual([m.name for m in result], ["m0", "m2"])
@@ -497,12 +488,12 @@ class ClusteringTests(unittest.TestCase):
             SimpleNamespace(name="m3", atoms_list=["H"], coordinates=[[20.0, 0.0, 0.0]], energy=3.0),
         ]
 
-        def descriptor_from_coordinate(_atoms, coordinates):
+        def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             return [coordinates[0][0]]
 
         with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "hybrid"}):
             with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
-                    with mock.patch("pyar.selection.clustering.generate_labels", return_value=[0, 1, 2, 3]):
+                    with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 1, 2, 3])):
                         result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)
 
         self.assertEqual([m.name for m in result], ["m0", "m3"])
@@ -527,6 +518,18 @@ class ClusteringTests(unittest.TestCase):
         self.assertEqual(len(optics_labels), 4)
         self.assertEqual(len(spectral_labels), 4)
 
+    def test_rbf_grouping_uses_connected_components_not_input_order(self):
+        points = np.array([[0.0], [0.1], [0.2], [4.0]])
+        labels = clustering.rbf_kernel_clustering(points, threshold=0.98)
+        permutation = np.array([3, 2, 0, 1])
+        permuted_labels = clustering.rbf_kernel_clustering(points[permutation], threshold=0.98)
+        groups = [set(np.where(labels == value)[0]) for value in np.unique(labels)]
+        permuted_groups = [
+            {int(permutation[index]) for index in np.where(permuted_labels == value)[0]}
+            for value in np.unique(permuted_labels)
+        ]
+        self.assertEqual({frozenset(group) for group in groups}, {frozenset(group) for group in permuted_groups})
+
     def test_basin_memory_reduces_candidate_pool_before_mbtr(self):
         molecules = [
             SimpleNamespace(name=f"m{i}", atoms_list=["H"], coordinates=[[float(i), 0.0, 0.0]], energy=float(i))
@@ -542,7 +545,7 @@ class ClusteringTests(unittest.TestCase):
             value = coordinates[0][0]
             return [value, 6.0 - value]
 
-        def descriptor_from_coordinate(_atoms, coordinates):
+        def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             descriptor_calls.append(coordinates[0][0])
             return [coordinates[0][0]]
 

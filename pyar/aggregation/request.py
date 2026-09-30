@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 import numpy as np
+from pyar.selection.distances import DISTANCE_METRICS
 
 
 class AggregateRequestError(ValueError):
@@ -35,6 +36,31 @@ def _normalize_connectivity_policy(connectivity_policy):
     return normalized
 
 
+def _normalize_selection_feature(feature):
+    normalized = str(feature or "mbtr").strip().lower().replace("_", "-")
+    if normalized == "histogram":
+        normalized = "distance-histogram"
+    if normalized not in {"mbtr", "soap", "distance-histogram"}:
+        raise AggregateRequestError("Unknown selection feature. Choose mbtr, soap, or distance-histogram.")
+    return normalized
+
+
+def _normalize_selection_algorithm(algorithm):
+    normalized = str(algorithm or "hybrid").strip().lower()
+    if normalized not in {"hybrid", "hdbscan", "agglomerative", "dbscan", "optics", "maxmin", "max-min", "max_min"}:
+        raise AggregateRequestError("Unknown selection algorithm.")
+    return normalized
+
+
+def _normalize_distance_metric(metric):
+    normalized = str(metric or "euclidean").strip().lower()
+    if normalized not in DISTANCE_METRICS:
+        raise AggregateRequestError(
+            f"Unknown selection distance {metric!r}. Choose one of: {', '.join(DISTANCE_METRICS)}"
+        )
+    return normalized
+
+
 @dataclass(frozen=True)
 class AggregateRequest:
     """Validated options for one aggregation workflow run."""
@@ -48,6 +74,9 @@ class AggregateRequest:
     number_of_pathways: int = 1
     site: tuple[Any, ...] | None = None
     connectivity_policy: str = "auto"
+    selection_feature: str = "mbtr"
+    selection_algorithm: str = "hybrid"
+    selection_distance: str = "euclidean"
     fragments: tuple[Mapping[str, Any], ...] = field(default_factory=tuple)
 
     @classmethod
@@ -62,6 +91,9 @@ class AggregateRequest:
         number_of_pathways,
         site,
         connectivity_policy,
+        selection_feature="mbtr",
+        selection_algorithm="hybrid",
+        selection_distance="euclidean",
     ):
         """Build a normalized request from public workflow arguments."""
         molecules = tuple(molecules or ())
@@ -97,6 +129,9 @@ class AggregateRequest:
             number_of_pathways=number_of_pathways,
             site=normalized_site,
             connectivity_policy=_normalize_connectivity_policy(connectivity_policy),
+            selection_feature=_normalize_selection_feature(selection_feature),
+            selection_algorithm=_normalize_selection_algorithm(selection_algorithm),
+            selection_distance=_normalize_distance_metric(selection_distance),
             fragments=tuple(_molecule_signature(molecule) for molecule in molecules),
         )
 
@@ -111,5 +146,8 @@ class AggregateRequest:
             "number_of_pathways": self.number_of_pathways,
             "site": None if self.site is None else list(self.site),
             "connectivity_policy": self.connectivity_policy,
+            "selection_feature": self.selection_feature,
+            "selection_algorithm": self.selection_algorithm,
+            "selection_distance": self.selection_distance,
             "fragments": [dict(fragment) for fragment in self.fragments],
         }

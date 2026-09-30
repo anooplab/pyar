@@ -7,30 +7,18 @@ from collections import Counter
 import networkx as nx
 import numpy as np
 
-from pyar.data import new_atomic_data
 from pyar.structure_comparison.models import ComparisonResult
 from pyar.structure_comparison.rmsd import kabsch_rmsd
+from pyar.structure_comparison.coordinate_graph import infer_coordinate_graph
 
 
 def infer_molecular_graph(molecule, bond_scale=1.15):
-    """Infer an undirected graph using a covalent-radius distance threshold.
+    """Compatibility wrapper for the shared coordinate-only graph inference.
 
     This deliberately exposes the bond scale: XYZ has no bond orders, and
     distance-based connectivity is a model choice. Nodes retain element labels.
     """
-    graph = nx.Graph()
-    symbols = [str(atom).capitalize() for atom in molecule.atoms_list]
-    coordinates = np.asarray(molecule.coordinates, dtype=float)
-    if coordinates.shape != (len(symbols), 3) or not np.all(np.isfinite(coordinates)):
-        raise ValueError("molecule coordinates must be a finite (natoms, 3) array")
-    graph.add_nodes_from((i, {"element": symbol}) for i, symbol in enumerate(symbols))
-    radii = [float(new_atomic_data.covalent_radius[symbol]) for symbol in symbols]
-    for i in range(len(symbols)):
-        for j in range(i + 1, len(symbols)):
-            limit = bond_scale * (radii[i] + radii[j])
-            if np.linalg.norm(coordinates[i] - coordinates[j]) <= limit:
-                graph.add_edge(i, j)
-    return graph
+    return infer_coordinate_graph(molecule, model="covalent-radii", scale=bond_scale)
 
 
 class GraphRMSDComparator:

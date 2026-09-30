@@ -684,6 +684,9 @@ class AggregatorTests(unittest.TestCase):
                                     first_pathway=0,
                                     number_of_pathways=1,
                                     site=None,
+                                    selection_feature="soap",
+                                    selection_algorithm="agglomerative",
+                                    selection_distance="cosine",
                                 )
                 with Path("aggregates", "state.json").open() as fp:
                     state = json.load(fp)
@@ -790,6 +793,9 @@ class AggregatorTests(unittest.TestCase):
                                     first_pathway=0,
                                     number_of_pathways=1,
                                     site=None,
+                                    selection_feature="soap",
+                                    selection_algorithm="agglomerative",
+                                    selection_distance="cosine",
                                 )
             finally:
                 os.chdir(cwd)
@@ -797,6 +803,12 @@ class AggregatorTests(unittest.TestCase):
         resolver.assert_called_once()
         self.assertEqual(add_one.call_args.kwargs["connectivity_policy"], "prefer")
         self.assertEqual(finalize.call_args.kwargs["connectivity_policy"], "prefer")
+        self.assertEqual(add_one.call_args.kwargs["selection_feature"], "soap")
+        self.assertEqual(add_one.call_args.kwargs["selection_algorithm"], "agglomerative")
+        self.assertEqual(add_one.call_args.kwargs["selection_distance"], "cosine")
+        self.assertEqual(finalize.call_args.kwargs["feature"], "soap")
+        self.assertEqual(finalize.call_args.kwargs["algorithm"], "agglomerative")
+        self.assertEqual(finalize.call_args.kwargs["distance_metric"], "cosine")
 
     def test_aggregate_refuses_existing_output_without_resumable_state(self):
         molecule = DummyMolecule("seed", n_atoms=1)

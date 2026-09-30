@@ -1,5 +1,6 @@
 import itertools
 from itertools import product
+import threading
 import warnings
 
 import numpy as np
@@ -16,6 +17,7 @@ ACSF = None
 SineMatrix = None
 ValleOganov = None
 System = None
+_DSCRIBE_SYSTEM_LOCK = threading.RLock()
 
 
 def _require_ase_atoms(feature):
@@ -373,45 +375,86 @@ def valleoganov_descriptor(atoms_list, coordinates):
 
 
 
-def mbtr_descriptor(atoms_list, coordinates):
+def _create_dscribe_descriptor(descriptor, system):
+    """Create a descriptor while isolating a DScribe/ASE conversion workaround.
+
+    DScribe currently converts an already constructed ``System`` through
+    ``System.from_atoms``. Some supported ASE releases pass mutually
+    exclusive momentum arguments through that conversion. Restrict the
+    compatibility override to the descriptor call and serialize it so PyAR
+    workers cannot observe a partially changed class method.
+    """
+    System = _require_dscribe_system("atomistic descriptor")
+    with _DSCRIBE_SYSTEM_LOCK:
+        original_from_atoms = System.from_atoms
+        try:
+            System.from_atoms = staticmethod(lambda atoms: atoms)
+            return descriptor.create(system)
+        finally:
+            System.from_atoms = staticmethod(original_from_atoms)
+
+
+def mbtr_descriptor(atoms_list, coordinates, *, species=None, include_angles=False):
     MBTR = _require_dscribe_descriptor("MBTR", "MBTR descriptor")
     System = _require_dscribe_system("MBTR descriptor")
     # Create a DScribe System directly so MBTR does not inherit ASE calculator
     # state from a converted Atoms object.
     molecule = System(symbols=atoms_list, positions=coordinates)
 
-    # Get unique species from atoms_list
-    unique_species = list(set(atoms_list))
+    # DScribe requires a single species set for every structure in a pool.
+    unique_species = sorted(set(species or atoms_list))
 
-    # Setup MBTR
-    mbtr = MBTR(
+    # The pair-distance block reproduces PyAR's previous MBTR representation.
+    pair_descriptor = MBTR(
         species=unique_species,
         geometry={"function": "inverse_distance"},
         grid={"min": 0, "max": 1, "n": 100, "sigma": 0.1},
         weighting={"function": "exp", "scale": 0.5, "threshold": 1e-3},
         periodic=False,
-        normalization="l2",
-)
+        normalization="none",
+    )
+    pair_values = np.asarray(_create_dscribe_descriptor(pair_descriptor, molecule)).reshape(-1)
+    pair_norm = float(np.linalg.norm(pair_values))
+    if pair_norm > 0.0:
+        pair_values = pair_values / pair_norm
+    blocks = [pair_values]
 
-    # DScribe can emit an ASE deprecation warning in other versions; suppress
-    # only that warning if it appears.
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="Please use atoms\\.calc",
-            category=FutureWarning,
+    if include_angles:
+        angular_descriptor = MBTR(
+            species=unique_species,
+            geometry={"function": "angle"},
+            grid={"min": 0.0, "max": 180.0, "n": 100, "sigma": 2.0},
+            weighting={"function": "exp", "scale": 0.01, "threshold": 1e-3},
+            periodic=False,
+            normalization="none",
         )
-        original_from_atoms = System.from_atoms
-        try:
-            # DScribe 1.x re-wraps the input through System.from_atoms(), which
-            # is incompatible with the ASE version shipped here. Returning the
-            # already-built System avoids the broken positional re-construction.
-            System.from_atoms = staticmethod(lambda atoms: atoms)
-            mbtr_output = mbtr.create(molecule)
-        finally:
-            System.from_atoms = original_from_atoms
+        angular_values = np.asarray(
+            _create_dscribe_descriptor(angular_descriptor, molecule)
+        ).reshape(-1)
+        angular_norm = float(np.linalg.norm(angular_values))
+        if angular_norm > 0.0:
+            angular_values = angular_values / angular_norm
+        blocks.append(angular_values)
 
-    return mbtr_output
+    return np.concatenate(blocks)
+
+
+def soap_structure_descriptor(atoms_list, coordinates, *, species=None):
+    """Return a fixed-size, atom-order invariant SOAP descriptor for a structure."""
+    SOAP = _require_dscribe_descriptor("SOAP", "SOAP selection descriptor")
+    System = _require_dscribe_system("SOAP selection descriptor")
+    molecule = System(symbols=atoms_list, positions=coordinates)
+    unique_species = sorted(set(species or atoms_list))
+    descriptor = SOAP(
+        species=unique_species,
+        periodic=False,
+        r_cut=5.0,
+        n_max=8,
+        l_max=6,
+        average="inner",
+        sparse=False,
+    )
+    return np.asarray(_create_dscribe_descriptor(descriptor, molecule)).reshape(-1)
 
 
 
