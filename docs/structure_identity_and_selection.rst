@@ -34,6 +34,10 @@ orders in an isolated process. It removes the candidate only if both calls
 finish without diagnostics and both distances are below the threshold; it uses
 the larger distance. Graph mismatches, backend warnings, errors, and remaining
 incomplete comparisons retain both candidates. This follows “in doubt, keep.”
+The returned iRMSD atom correspondence must preserve element labels and the
+inferred adjacency, and its distance is checked independently with Kabsch
+alignment. Candidates with different known charges or multiplicities are
+incompatible even when their coordinates coincide.
 
 Optional RMSD strategies
 ------------------------
@@ -49,7 +53,7 @@ using covalent radii and a configurable ``bond_scale`` (default ``1.15``).
 It computes a proper-rotation Kabsch RMSD only when those inferred graphs are
 isomorphic. This prevents an RMSD-only match across different inferred
 connectivities, but inferred bonds remain a geometric heuristic and do not
-encode bond orders. It is the default comparator used by deduplication.
-``IRMSDComparator`` is also used as a gated secondary check by the deduplication
-policy. A graph match is required first, and native output is captured so an
+encode bond orders. It supplies the primary comparison in the default
+deduplication policy. The native iRMSD package is also used as a gated secondary
+check by that policy. A graph match is required first, and native output is captured so an
 internal topology fallback cannot silently authorize deletion.

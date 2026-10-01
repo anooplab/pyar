@@ -2,8 +2,64 @@
 
 ## Unreleased
 
+### Fixed
+
+- Prevented feature standardization from amplifying roundoff in nearly constant
+  large descriptor columns into artificial structural diversity. Explicit
+  molecular-aggregate hints now retain constituent-topology partitions.
+- Enforced connectivity policies and validated seed budgets and clustering
+  options for small candidate pools as well as larger ones.
+- Made cosine distance work with HDBSCAN through a precomputed distance
+  matrix, shared zero-vector handling with DBSCAN/OPTICS, and removed the
+  large atomistic-feature broadcast allocation from pairwise distances.
+- Preserved separate candidates when a descriptor collapses to a constant
+  vector, and retained candidates when structural comparison raises an error.
+- Verified that iRMSD's returned correspondence preserves element labels and
+  coordinate adjacency, and independently checked its RMSD before permitting
+  deduplication. Known charge or multiplicity differences prevent deletion.
+- Made clustering benchmarks report the actual selection run and added JSON
+  selection reports to standalone cluster mode. Automatic system inference now
+  recognizes mixed-metal clusters, separates differing aggregate constituent
+  graphs, and honors the selected analysis graph model.
+- Preserved the positional growth-workflow distance argument and versioned the
+  selection policy in aggregation restart requests. Older unversioned requests
+  require the PyAR version that created them or a fresh calculation directory.
+
 ### Changed
 
+- Added explicit `graph-rmsd`, `fragment-rmsd`, and `soap-rematch` clustering
+  distances to the standalone CLI and aggregation workflow. Structural
+  distances use one complete precomputed matrix for clustering and max-min
+  trimming; whole-pool fallbacks record their units and parameters, and
+  re-estimate DBSCAN epsilon after a scale change. Fragment matching preserves
+  placement and orientation under one global fit; SOAP/REMatch uses bounded
+  log-domain transport on normalized local environments. Added an independently
+  audited 84-geometry, seven-pool validation corpus and distance benchmark
+  runner. Descriptor/algorithm defaults remain unchanged. Selection policy
+  version 2 prevents silent reuse of older scaling/partitioning behavior.
+- Routed conformer generation collapse, diversity scoring, and final
+  deduplication through the shared graph RMSD policy with verified
+  bidirectional iRMSD on incomplete mapping. Added `--dedup-atom-mode heavy|all`
+  to conformer search and its benchmark command, retained full hydrogen
+  connectivity checks in heavy-atom mode, and recorded comparison outcomes
+  and effective thresholds in conformer state schema 3. Uncertain comparisons
+  keep candidates; RDKit embedding pruning remains a generation efficiency
+  setting.
+- Added system-aware automatic feature selection for aggregation and the
+  standalone `pyar-clustering` command. Molecular and isomer pools use MBTR;
+  atomic clusters and molecular aggregates use SOAP, with recorded descriptor
+  fallbacks. XYZ-only classification is cautious and can be overridden with
+  `--selection-system-type` or `pyar-clustering --system-type`.
+- Made `auto` the default cluster-label policy: HDBSCAN is tried first, then
+  average-linkage agglomerative clustering if it is unavailable, fails, or
+  labels every geometry as noise. DBSCAN and OPTICS remain explicit choices.
+  Isomer pools are partitioned by inferred element-labelled topology before
+  clustering. All noise geometries remain eligible candidates.
+- Kept seed selection cluster-first: choose the lowest-energy geometry from
+  each cluster, then use max-min only to trim an overfull set of cluster
+  minima. If there are fewer minima than requested, the workflow returns fewer
+  seeds. The feature recommendations are provisional pending a basin-labelled
+  benchmark across molecular, isomer, aggregate, and atomic-cluster systems.
 - Split structural feature construction from cluster-label assignment and
   seed selection. Aggregate workflows and ``pyar-clustering`` now expose MBTR,
   SOAP, and distance-histogram features, plus Euclidean, Manhattan, and cosine

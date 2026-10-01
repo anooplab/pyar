@@ -6,6 +6,7 @@ import pytest
 
 from pyar.selection.clusterers import (
     _cluster_agglomerative,
+    _run_grouped_algorithm,
     cluster_molecules,
     determine_dbscan_params,
 )
@@ -34,6 +35,18 @@ def test_clusterer_failure_falls_back_with_provenance():
     assert result.algorithm_fallbacks[0]["algorithm"] == "hdbscan"
     assert "missing HDBSCAN" in result.algorithm_fallbacks[0]["reason"]
     assert result.number_of_clusters == 2
+
+
+def test_auto_requests_hdbscan_and_records_the_fallback_chain():
+    with mock.patch(
+        "pyar.selection.clusterers._run_algorithm",
+        side_effect=[RuntimeError("HDBSCAN unavailable"), np.array([0, 0, 1, 1])],
+    ) as run:
+        result = cluster_molecules(_molecules(), feature="distance-histogram")
+    assert result.algorithm_requested == "auto"
+    assert result.algorithm_used == "agglomerative"
+    assert run.call_args_list[0].args[1] == "hdbscan"
+    assert result.algorithm_fallbacks[0]["algorithm"] == "hdbscan"
 
 
 def test_all_noise_result_uses_fallback_clusterer():
@@ -69,3 +82,14 @@ def test_total_clusterer_failure_preserves_each_structure_as_a_cluster():
     assert result.algorithm_used == "singleton-preservation"
     assert result.labels.tolist() == [0, 1, 2, 3]
     assert len(result.algorithm_fallbacks) == 3
+
+
+def test_grouped_clustering_keeps_isomer_topologies_separate():
+    values = np.array([[0.0], [0.1], [0.2], [0.3]])
+    with mock.patch(
+        "pyar.selection.clusterers._run_algorithm",
+        side_effect=[np.array([0, 0]), np.array([0, 0])],
+    ) as run:
+        labels = _run_grouped_algorithm(values, "hdbscan", 4, {}, (0, 0, 1, 1))
+    assert labels.tolist() == [0, 0, 1, 1]
+    assert run.call_count == 2

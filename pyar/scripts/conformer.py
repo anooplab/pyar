@@ -69,6 +69,10 @@ def argument_parse(argv=None):
     parser.add_argument("--torsion-kicks-per-conformer", type=int, default=6)
     parser.add_argument("--torsion-max-bonds", type=int, default=3)
     parser.add_argument("--torsion-dedup-rms", type=float, default=0.5)
+    parser.add_argument(
+        "--dedup-atom-mode", choices=["heavy", "all"], default="heavy",
+        help="Atoms scored by shared graph RMSD; full connectivity is always checked.",
+    )
     parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--num-threads", type=int, default=0)
@@ -176,6 +180,7 @@ def main(argv=None):
             torsion_kicks_per_conformer=args.torsion_kicks_per_conformer,
             torsion_max_bonds=args.torsion_max_bonds,
             torsion_dedup_rms=args.torsion_dedup_rms,
+            dedup_atom_mode=args.dedup_atom_mode,
             force_field=args.force_field,
             seed=args.seed,
             num_threads=args.num_threads,

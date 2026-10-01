@@ -498,7 +498,7 @@ class ClusteringTests(unittest.TestCase):
 
         self.assertEqual([m.name for m in result], ["m0", "m3"])
 
-    def test_noise_points_keep_best_representative(self):
+    def test_noise_points_are_all_preserved_as_candidates(self):
         molecules = [
             SimpleNamespace(name="noise_low", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
             SimpleNamespace(name="cluster", atoms_list=["H"], coordinates=[[1.0, 0.0, 0.0]], energy=1.0),
@@ -507,7 +507,7 @@ class ClusteringTests(unittest.TestCase):
 
         best = clustering.select_best_from_each_cluster([-1, 0, -1], molecules)
 
-        self.assertEqual([m.name for m in best], ["cluster", "noise_low"])
+        self.assertEqual([m.name for m in best], ["cluster", "noise_low", "noise_high"])
 
     def test_generate_labels_supports_optics_and_spectral(self):
         dt = np.array([[0.0], [1.0], [2.0], [10.0]])
@@ -571,7 +571,10 @@ class ClusteringTests(unittest.TestCase):
                 with mock.patch("pyar.selection.clustering._apply_basin_memory") as applier:
                     with mock.patch(
                         "pyar.representations.mbtr_descriptor",
-                        side_effect=lambda _atoms, coordinates: [coordinates[0][0]],
+                        side_effect=lambda _atoms, coordinates, **_kwargs: [coordinates[0][0]],
+                    ), mock.patch(
+                        "pyar.selection.clusterers._run_algorithm",
+                        return_value=np.array([0, 1, 2, 3]),
                     ):
                         result = clustering.choose_geometries(
                             molecules,

@@ -10,8 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from pyar.selection.policy import classify_system_pool, resolve_clustering_policy
 
-FEATURES = ("mbtr", "soap", "distance-histogram")
+FEATURES = ("auto", "mbtr", "soap", "distance-histogram")
 FEATURE_FALLBACKS = {
     "mbtr": ("soap", "distance-histogram"),
     "soap": ("mbtr", "distance-histogram"),
@@ -31,6 +32,10 @@ class FeatureMatrix:
     values: np.ndarray
     species: tuple[str, ...]
     fallbacks: tuple[dict[str, str], ...] = ()
+    system_type: str = "unknown"
+    system_confidence: str = "low"
+    policy_reason: str = ""
+    topology_group_ids: tuple[int, ...] = ()
 
 
 def _species_for_pool(molecules):
@@ -111,7 +116,10 @@ def _compute_feature_matrix(molecules, feature, species):
     return np.vstack(descriptors)
 
 
-def compute_feature_matrix(molecules, feature="mbtr", *, allow_fallbacks=True):
+def compute_feature_matrix(
+    molecules, feature="auto", *, allow_fallbacks=True, system_type="auto",
+    algorithm="auto",
+):
     """Compute one finite descriptor matrix, trying recorded fallbacks on error.
 
     The feature order is deterministic. The distance histogram is always the
@@ -127,10 +135,23 @@ def compute_feature_matrix(molecules, feature="mbtr", *, allow_fallbacks=True):
     if requested not in FEATURES:
         raise ValueError(f"Unknown feature {feature!r}. Choose one of: {', '.join(FEATURES)}")
 
+    classification = classify_system_pool(molecules, system_type)
+    policy = resolve_clustering_policy(
+        classification.system_type, feature=requested, algorithm=algorithm
+    )
+    feature_to_compute = policy["feature"]
+    if requested == "auto":
+        fallbacks = policy["feature_fallbacks"]
+    else:
+        fallbacks = tuple(
+            candidate for candidate in FEATURE_FALLBACKS.get(feature_to_compute, ())
+            if candidate != feature_to_compute
+        )
+
     species = _species_for_pool(molecules)
-    attempts = [requested]
+    attempts = [feature_to_compute]
     if allow_fallbacks:
-        attempts.extend(FEATURE_FALLBACKS[requested])
+        attempts.extend(fallbacks)
     failures = []
     for candidate in attempts:
         try:
@@ -139,7 +160,16 @@ def compute_feature_matrix(molecules, feature="mbtr", *, allow_fallbacks=True):
                 raise ValueError(f"Feature returned invalid matrix shape {matrix.shape}")
             if not np.isfinite(matrix).all():
                 raise ValueError("Feature contains NaN or infinite values")
-            return FeatureMatrix(candidate, matrix, species, tuple(failures))
+            return FeatureMatrix(
+                candidate,
+                matrix,
+                species,
+                tuple(failures),
+                classification.system_type,
+                classification.confidence,
+                policy["reason"],
+                classification.topology_group_ids,
+            )
         except Exception as exc:
             failures.append({"feature": candidate, "reason": f"{type(exc).__name__}: {exc}"})
     raise FeatureComputationError(
@@ -153,13 +183,18 @@ def standardize_features(values):
     values = np.asarray(values, dtype=float)
     if values.ndim != 2 or not np.isfinite(values).all():
         raise ValueError("Feature values must be a finite two-dimensional matrix")
+    if not values.shape[0] or not values.shape[1]:
+        return np.zeros((len(values), 1), dtype=float)
     center = values.mean(axis=0)
     scale = values.std(axis=0)
-    active = scale > 1e-14
+    # Descriptor magnitudes differ widely. Absolute-only thresholds can turn
+    # rigid-transform roundoff in a large, constant column into unit variance.
+    tolerance = np.maximum(1e-14, 1e-10 * np.maximum(1., np.max(np.abs(values), axis=0)))
+    active = scale > tolerance
     if not np.any(active):
-        # A constant descriptor means the structures are indistinguishable in
-        # this representation. Preserve that result and let the clusterer
-        # return a single group; do not invent diversity from energy or order.
+        # This representation cannot distinguish the pool. Preserve the zero
+        # distances; the caller records the collapse and keeps candidates
+        # separately rather than treating it as proof of equivalence.
         return np.zeros((len(values), 1), dtype=float)
     return (values[:, active] - center[active]) / scale[active]
 

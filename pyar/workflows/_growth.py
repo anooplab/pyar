@@ -335,10 +335,11 @@ def _selection_name_from_path(result_file, aggregate_root):
 def _finalize_selected_geometries(
     aggregate_root=".",
     maximum_number_of_seeds=12,
-    algorithm="hybrid",
+    algorithm="auto",
     connectivity_policy="off",
-    feature="mbtr",
+    feature="auto",
     distance_metric="euclidean",
+    system_type="auto",
 ):
     """Cluster pathway-level selected results into the final stoichiometry groups."""
     result_files = _discover_selected_result_files(aggregate_root)
@@ -371,6 +372,7 @@ def _finalize_selected_geometries(
             feature=feature,
             distance_metric=distance_metric,
             connectivity_policy=connectivity_policy,
+            system_type=system_type,
         )
         final_selected.extend(selected)
         _snapshot_selected_geometries(
@@ -464,9 +466,10 @@ def add_one(
     maximum_number_of_seeds,
     site,
     connectivity_policy=None,
-    selection_feature="mbtr",
-    selection_algorithm="hybrid",
+    selection_feature="auto",
+    selection_algorithm="auto",
     selection_distance="euclidean",
+    selection_system_type="auto",
 ):
     if check_stop_signal():
         aggregator_logger.info("Function: add_one")
@@ -594,6 +597,7 @@ def add_one(
             feature=selection_feature,
             algorithm=selection_algorithm,
             distance_metric=selection_distance,
+            system_type=selection_system_type,
         )
         for molecule in selected_seeds:
             molecule.connectivity_policy_hint = connectivity_policy

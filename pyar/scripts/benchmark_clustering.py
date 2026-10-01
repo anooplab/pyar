@@ -18,9 +18,7 @@ from pyar.core.molecule import Molecule
 from pyar import representations
 from pyar.selection import clustering
 from pyar.selection import reports as selection_reports
-from pyar.selection.clusterers import cluster_molecules
 from pyar.selection.features import FEATURES
-from pyar.selection.features import compute_feature_matrix
 from pyar.selection.distances import DISTANCE_METRICS
 
 
@@ -47,6 +45,7 @@ def _load_pool(path: Path):
     for each_file in files:
         mol = Molecule.from_xyz(str(each_file))
         mol.energy = selection_reports.read_energy_from_xyz_file(str(each_file))
+        mol.relative_path = str(each_file)
         molecules.append(mol)
     return molecules
 
@@ -100,6 +99,10 @@ def _tetrahedral_score(molecule):
 
 
 def _benchmark_algorithm(pool, algorithm, max_seeds, feature="mbtr", distance_metric="euclidean"):
+    compositions = {tuple(sorted(Counter(molecule.atoms_list).items())) for molecule in pool}
+    if len(compositions) > 1:
+        raise ValueError("Clustering benchmark coverage requires a single composition; split the pool by formula")
+    cluster_info = {}
     start = time.perf_counter()
     selected = clustering.choose_geometries(
         pool,
@@ -109,26 +112,9 @@ def _benchmark_algorithm(pool, algorithm, max_seeds, feature="mbtr", distance_me
         algorithm=algorithm,
         feature=feature,
         distance_metric=distance_metric,
+        diagnostics=cluster_info,
     )
     runtime = time.perf_counter() - start
-    cluster_info = None
-    if algorithm not in {"maxmin", "max-min", "max_min"}:
-        cluster_info = cluster_molecules(
-            pool,
-            feature=feature,
-            algorithm=algorithm,
-            maximum_number_of_clusters=max_seeds,
-            distance_metric=distance_metric,
-        ).to_dict()
-    else:
-        feature_result = compute_feature_matrix(pool, feature)
-        cluster_info = {
-            "feature_used": feature_result.name,
-            "feature_fallbacks": list(feature_result.fallbacks),
-            "algorithm_used": "maxmin",
-            "algorithm_fallbacks": [],
-        }
-
     best_energy = min(float(molecule.energy) for molecule in selected) if selected else float("inf")
     spread = _pairwise_mean_distance(selected)
     coverage = _coverage_distance(pool, selected)

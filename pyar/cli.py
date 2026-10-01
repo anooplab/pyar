@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
 from pyar.selection.distances import DISTANCE_METRICS
+from pyar.selection.policy import SYSTEM_TYPES
 from pyar.biases.controller import resolve_controller_policy
 from pyar.backend_capabilities import (
     backend_family,
@@ -342,21 +343,27 @@ chemical formula.
                         type=int, help='maximum number of seeds')
     parser.add_argument(
         '-f', '--features',
-        choices=['mbtr', 'soap', 'distance-histogram'],
-        default=defualt_parameters.values.get('features', 'mbtr'),
-        help="Structural representation for aggregate seed clustering (default: mbtr)",
+        choices=['auto', 'mbtr', 'soap', 'distance-histogram'],
+        default=defualt_parameters.values.get('features', 'auto'),
+        help="Structural representation for aggregate seed clustering (default: auto by system type)",
     )
     parser.add_argument(
         '--selection-algorithm',
-        choices=['hybrid', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
-        default=defualt_parameters.values.get('selection_algorithm', 'hybrid'),
-        help="Cluster-label algorithm or max-min selector used for aggregate seeds",
+        choices=['auto', 'hybrid', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
+        default=defualt_parameters.values.get('selection_algorithm', 'auto'),
+        help="Cluster-label algorithm; maxmin uses auto clustering and trims cluster minima",
     )
     parser.add_argument(
         '--selection-distance',
         choices=DISTANCE_METRICS,
         default=defualt_parameters.values.get('selection_distance', 'euclidean'),
-        help="Distance metric on standardized selection features (default: euclidean)",
+        help="Descriptor or structural clustering distance (default: euclidean)",
+    )
+    parser.add_argument(
+        '--selection-system-type',
+        choices=SYSTEM_TYPES,
+        default='auto',
+        help="System class for automatic feature selection; auto uses workflow context and XYZ graph evidence",
     )
     parser.add_argument(
         "--connectivity-policy",
@@ -924,6 +931,7 @@ def _run_aggregate_workflow(
         selection_feature=run_parameters["features"],
         selection_algorithm=run_parameters["selection_algorithm"],
         selection_distance=run_parameters["selection_distance"],
+        selection_system_type=run_parameters["selection_system_type"],
     )
     _log_workflow_result(result)
     logger.info('Total Time: {}'.format(time.time() - t1_0))

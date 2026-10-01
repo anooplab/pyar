@@ -68,6 +68,7 @@ def _max_min_diversity_select(
     maximum_number_of_seeds,
     initial_selected_indices=None,
     distance_metric="euclidean",
+    distance_matrix=None,
 ):
     """Select diverse seeds via greedy max-min (farthest-point) selection.
 
@@ -75,11 +76,12 @@ def _max_min_diversity_select(
     anchors and only the additional selected molecules are returned.
     """
     from pyar.selection import clustering
-    from pyar.selection.distances import pairwise_distances
+    from pyar.selection.distances import pairwise_distances, validate_distance_matrix
 
     if initial_selected_indices is None:
         initial_selected_indices = []
-    distances = pairwise_distances(features, metric=distance_metric)
+    distances = (pairwise_distances(features, metric=distance_metric) if distance_matrix is None
+                 else validate_distance_matrix(distance_matrix, len(molecules)))
 
     if len(molecules) <= maximum_number_of_seeds and not initial_selected_indices:
         return molecules

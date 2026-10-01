@@ -104,4 +104,27 @@ def test_real_irmsd_resolves_graph_mapping_cap_for_au13_duplicate():
     assert result.metadata["comparison_complete"] is False
     assert result.metadata["fallback_method"] == "irmsd"
     assert result.metadata["fallback_status"] == "ok"
-    assert result.distance < 1e-12
+    # The verified coordinate witness retains the XYZ rounding residual;
+    # the native backend alone previously rounded this distance to zero.
+    assert result.distance < 1e-8
+
+
+def test_irmsd_correspondence_must_preserve_the_inferred_graph():
+    import pytest
+    from pyar.structure_comparison.deduplication_policy import _validated_irmsd_distance
+
+    coordinates = np.array([[0, 0, 0], [1.4, 0, 0], [2.8, 0, 0], [4.2, 0, 0]])
+    first = _molecule("a", ["C"] * 4, coordinates)
+    returned_first = SimpleNamespace(symbols=first.atoms_list, positions=coordinates)
+    returned_second = SimpleNamespace(symbols=first.atoms_list, positions=coordinates[[0, 2, 1, 3]])
+    with pytest.raises(ValueError, match="does not preserve coordinate adjacency"):
+        _validated_irmsd_distance(first, first, returned_first, returned_second, .01, 1.15)
+
+
+def test_equal_coordinates_with_different_known_electronic_states_are_kept():
+    first = _molecule("a", ["C", "C"], [[0, 0, 0], [1.4, 0, 0]])
+    second = _molecule("b", first.atoms_list, first.coordinates)
+    first.charge, second.charge = 0, 1
+    result = GraphFirstDeduplicationComparator(threshold=.1).compare(first, second)
+    assert result.compatible is False
+    assert result.equivalent is None

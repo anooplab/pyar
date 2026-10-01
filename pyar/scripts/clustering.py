@@ -14,9 +14,10 @@ import sys
 from pyar.selection import clustering
 from pyar.selection import reports as selection_reports
 from pyar.core.molecule import Molecule
-from pyar.selection.clusterers import CLUSTERING_ALGORITHMS, cluster_molecules
+from pyar.selection.clusterers import CLUSTERING_ALGORITHMS, cluster_molecules, validate_clustering_options
 from pyar.selection.distances import DISTANCE_METRICS
 from pyar.selection.features import FEATURES
+from pyar.selection.policy import SYSTEM_TYPES, classify_system_pool, resolve_clustering_policy
 from pyar.structure_comparison.coordinate_graph import analyze_coordinate_structure
 
 
@@ -30,8 +31,8 @@ def main():
     parser.add_argument(
         '-a', '--algorithm',
         choices=[*CLUSTERING_ALGORITHMS, 'maxmin'],
-        default='hybrid',
-        help="selection algorithm used in cluster mode",
+        default='auto',
+        help="cluster-label algorithm; maxmin uses auto clustering and trims cluster minima",
     )
     parser.add_argument(
         '-n', '--maximum-number-of-seeds',
@@ -39,11 +40,20 @@ def main():
         default=12,
         help="maximum number of geometries to keep",
     )
-    parser.add_argument('--feature', choices=FEATURES, default='mbtr')
+    parser.add_argument('--feature', choices=FEATURES, default='auto')
+    parser.add_argument(
+        '--system-type', choices=SYSTEM_TYPES, default='auto',
+        help='System class used by automatic feature selection; auto infers cautiously from XYZ geometry',
+    )
     parser.add_argument('--distance', choices=DISTANCE_METRICS, default='euclidean')
+    parser.add_argument('--distance-atom-mode', choices=['heavy', 'all'],
+                        help='RMSD atoms: graph RMSD defaults to heavy; fragment RMSD to all')
+    parser.add_argument('--soap-cutoff', type=float, help='Local SOAP cutoff in Angstrom (default: 5)')
+    parser.add_argument('--rematch-alpha', type=float, help='Positive REMatch entropy parameter (default: 1)')
+    parser.add_argument('--maximum-mappings', type=int, help='Bounded RMSD matching budget (default: 10000)')
     parser.add_argument('--min-samples', type=int, default=2)
     parser.add_argument('--min-cluster-size', type=int, default=2)
-    parser.add_argument('--eps', type=float, help='DBSCAN radius in standardized feature-vector units')
+    parser.add_argument('--eps', type=float, help='DBSCAN radius in the units of the distance actually used')
     parser.add_argument('--xi', type=float, default=0.05, help='OPTICS steepness parameter')
     parser.add_argument('--labels-output', help='Write structure labels to this CSV file (labels mode)')
     parser.add_argument('--report-output', help='Write clustering labels and fallback provenance as JSON')
@@ -65,8 +75,10 @@ def main():
     args = parser.parse_args()
     if args.mode == 'labels' and args.algorithm == 'maxmin':
         parser.error('maxmin selects a subset and does not assign cluster labels')
-    if args.report_output and args.mode != 'labels':
-        parser.error('--report-output is available in labels mode')
+    if args.report_output and args.mode not in {'cluster', 'labels'}:
+        parser.error('--report-output is available in cluster and labels modes')
+    if args.labels_output and args.mode != 'labels':
+        parser.error('--labels-output is available in labels mode')
     if args.structure_report and args.mode != 'analyze':
         parser.error('--structure-report is available in analyze mode')
     algorithm_options = {
@@ -75,6 +87,20 @@ def main():
         'eps': args.eps,
         'xi': args.xi,
     }
+    distance_options = {key: value for key, value in {
+        'atom_mode': args.distance_atom_mode, 'soap_cutoff': args.soap_cutoff,
+        'rematch_alpha': args.rematch_alpha, 'max_mappings': args.maximum_mappings,
+    }.items() if value is not None}
+    if args.mode in {'cluster', 'labels'}:
+        try:
+            validate_clustering_options(
+                'auto' if args.algorithm == 'maxmin' else args.algorithm,
+                args.maximum_number_of_seeds, args.distance, algorithm_options,
+            )
+            from pyar.selection.structural_distances import validate_distance_options
+            validate_distance_options(distance_options)
+        except ValueError as exc:
+            parser.error(str(exc))
     input_files = args.input_files
     if (
         args.mode == 'analyze'
@@ -100,9 +126,17 @@ def main():
 
     if args.mode == 'analyze':
         try:
+            classification = classify_system_pool(
+                mols, args.system_type, coordinate_model=args.coordinate_model,
+                bond_scale=args.bond_scale, bond_cutoff=args.bond_cutoff,
+            )
             report = {
                 'method': 'coordinate-only-adjacency',
                 'input_files': input_files,
+                'classification': classification.to_dict(),
+                'resolved_policy': resolve_clustering_policy(
+                    classification.system_type, feature=args.feature, algorithm=args.algorithm
+                ),
                 'structures': [
                     analyze_coordinate_structure(
                         molecule,
@@ -135,6 +169,7 @@ def main():
     )
     selected = []
     cluster_result = None
+    report = {}
     if args.mode == 'cluster':
         selected = clustering.choose_geometries(
             mols,
@@ -143,6 +178,9 @@ def main():
             feature=args.feature,
             distance_metric=args.distance,
             algorithm_options=algorithm_options,
+            system_type=args.system_type,
+            diagnostics=report,
+            distance_options=distance_options,
         )
     if args.mode == 'labels':
         cluster_result = cluster_molecules(
@@ -152,6 +190,8 @@ def main():
             algorithm=args.algorithm,
             maximum_number_of_clusters=args.maximum_number_of_seeds,
             algorithm_options=algorithm_options,
+            system_type=args.system_type,
+            distance_options=distance_options,
         )
         selected = mols
         if args.labels_output:
@@ -162,9 +202,12 @@ def main():
                     writer.writerow([path, molecule.name, molecule.energy, int(label)])
     if args.mode == 'filter':
         selected = clustering.remove_similar(mols)
-    if args.report_output and cluster_result is not None:
+    if cluster_result is not None:
+        report = cluster_result.to_dict()
+    if args.report_output:
+        report['input_files'] = input_files
         with open(args.report_output, 'w', encoding='utf-8') as stream:
-            json.dump(cluster_result.to_dict(), stream, indent=2)
+            json.dump(report, stream, indent=2)
             stream.write('\n')
     selection_reports.print_energy_table(
         selected,

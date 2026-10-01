@@ -7,9 +7,12 @@ modules under :mod:`pyar.selection`.
 
 import logging
 import os
+from numbers import Integral
 import numpy as np
-from pyar.selection.clusterers import cluster_molecules
+from pyar.selection.clusterers import cluster_molecules, validate_clustering_options
 from pyar.selection.features import compute_feature_matrix, standardize_features
+from pyar.selection.policy import resolve_clustering_policy
+from pyar.selection.structural_distances import validate_distance_options
 from pyar.optional_dependencies import optional_dependency_error
 
 cluster_logger = logging.getLogger('pyar.cluster')
@@ -86,10 +89,18 @@ def choose_geometries(
     algorithm=None,
     group_basin_by_stoichiometry=True,
     connectivity_policy="off",
-    feature="mbtr",
+    feature="auto",
     distance_metric="euclidean",
     algorithm_options=None,
+    system_type="auto",
+    diagnostics=None,
+    distance_options=None,
 ):
+    list_of_molecules = list(list_of_molecules)
+    if (isinstance(maximum_number_of_seeds, bool)
+            or not isinstance(maximum_number_of_seeds, Integral)
+            or maximum_number_of_seeds < 1):
+        raise ValueError("maximum_number_of_seeds must be a positive integer")
     normalized_connectivity_policy = connectivity_policy.lower()
     if normalized_connectivity_policy not in {"off", "prefer", "strict"}:
         raise ValueError(
@@ -97,34 +108,28 @@ def choose_geometries(
             "Expected one of 'off', 'prefer', or 'strict'."
         )
 
-    if len(list_of_molecules) < 2:
-        _log_seed_shortfall(maximum_number_of_seeds, len(list_of_molecules), "selection")
-        basin_registry_path = _basin_registry_path(
-            list_of_molecules[0],
-            group_by_stoichiometry=group_basin_by_stoichiometry,
-        ) if list_of_molecules and os.path.isdir('selected') else None
-        write_path = basin_registry_path if persist_basin_memory else None
-        return _finalize_selection(list_of_molecules, write_path)
-
-    if len(list_of_molecules) <= maximum_number_of_seeds:
-        cluster_logger.info('Not enough data for clustering. Removing similar geometries from the list')
-        basin_registry_path = _basin_registry_path(
-            list_of_molecules[0],
-            group_by_stoichiometry=group_basin_by_stoichiometry,
-        ) if os.path.isdir('selected') else None
-        write_path = basin_registry_path if persist_basin_memory else None
-        selected = _limit_seed_count(
-            remove_similar(list_of_molecules),
-            maximum_number_of_seeds,
-            reason="similarity pruning",
-        )
-        return _finalize_selection(selected, write_path)
-
-    # Preserve the existing selector policy while allowing the representation
-    # and clustering algorithm to be selected independently.
+    # ``maxmin`` is a cluster-minima trimming request. Clustering still
+    # defines the eligible candidate set, as required by the seed policy.
     if algorithm is None:
-        algorithm = os.environ.get('PYAR_CLUSTERING_ALGORITHM', 'hybrid')
-    algorithm = algorithm.lower()
+        algorithm = os.environ.get('PYAR_CLUSTERING_ALGORITHM', 'auto')
+    algorithm = algorithm.strip().lower()
+    cluster_algorithm = "auto" if algorithm in {"maxmin", "max-min", "max_min"} else algorithm
+    validate_clustering_options(
+        cluster_algorithm, maximum_number_of_seeds, distance_metric, algorithm_options
+    )
+    resolve_clustering_policy(system_type, feature, cluster_algorithm)
+    validate_distance_options(distance_options)
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics.update({
+            "selection_algorithm_requested": algorithm,
+            "algorithm_used": "not-run", "feature_requested": feature,
+            "feature_used": None, "distance_metric": distance_metric,
+            "feature_fallbacks": [], "algorithm_fallbacks": [],
+            "distance_requested": distance_metric, "distance_used": "not-run",
+            "distance_units": None, "distance_fallbacks": [],
+            "input_count": len(list_of_molecules),
+        })
     cluster_logger.info(f'Seed selection on {len(list_of_molecules)} geometries using {algorithm}')
 
     pruned_molecules = remove_similar(list_of_molecules)
@@ -142,42 +147,52 @@ def choose_geometries(
             policy=normalized_connectivity_policy,
         )
 
+    if diagnostics is not None:
+        diagnostics["candidate_names"] = [molecule.name for molecule in pruned_molecules]
+        diagnostics["candidate_paths"] = [
+            str(getattr(molecule, "relative_path", molecule.name)) for molecule in pruned_molecules
+        ]
+
+    def finish(selected, stage):
+        if diagnostics is not None:
+            diagnostics.update({
+                "selection_stage": stage,
+                "selected_names": [molecule.name for molecule in selected],
+                "selected_count": len(selected),
+            })
+        return _finalize_selection(selected, write_path, existing_entries=basin_entries)
+
     if len(pruned_molecules) <= maximum_number_of_seeds:
         cluster_logger.info(
             "Similarity pruning reduced seed pool to %d; skipping diversity selection.",
             len(pruned_molecules),
         )
-        return _finalize_selection(pruned_molecules, write_path, existing_entries=basin_entries)
-
-    if algorithm in {"maxmin", "max-min", "max_min"}:
-        feature_result = compute_feature_matrix(pruned_molecules, feature)
-        dt_scaled = standardize_features(feature_result.values)
-        _log_feature_result(feature_result)
-        _save_features_if_requested(feature_result.name, dt_scaled)
-        selected = _limit_seed_count(
-            _max_min_diversity_select(
-                dt_scaled,
-                pruned_molecules,
-                maximum_number_of_seeds,
-                distance_metric=distance_metric,
-            ),
-            maximum_number_of_seeds,
-            reason="max-min selection",
-        )
-        return _finalize_selection(selected, write_path, existing_entries=basin_entries)
+        if len(pruned_molecules) < maximum_number_of_seeds:
+            _log_seed_shortfall(maximum_number_of_seeds, len(pruned_molecules), "similarity/connectivity filtering")
+        return finish(pruned_molecules, "within-budget-after-filtering")
 
     clustering_result = cluster_molecules(
         pruned_molecules,
         feature=feature,
-        algorithm=algorithm,
+        algorithm=cluster_algorithm,
         maximum_number_of_clusters=maximum_number_of_seeds,
         distance_metric=distance_metric,
         algorithm_options=algorithm_options,
+        system_type=system_type,
+        distance_options=distance_options,
     )
     _log_clustering_result(clustering_result)
+    for fallback in clustering_result.distance_fallbacks:
+        cluster_logger.warning(
+            "Distance %s failed; using %s (%s).", fallback["distance"],
+            clustering_result.distance_used, fallback["reason"],
+        )
+    if diagnostics is not None:
+        diagnostics.update(clustering_result.to_dict())
     labels = clustering_result.labels
     dt_scaled = standardize_features(clustering_result.feature_values)
-    _save_features_if_requested(clustering_result.feature_used, dt_scaled)
+    if clustering_result.feature_values.shape[1]:
+        _save_features_if_requested(clustering_result.feature_used, dt_scaled)
 
     best_from_each_cluster = select_best_from_each_cluster(labels, pruned_molecules)
 
@@ -199,13 +214,15 @@ def choose_geometries(
             cluster_subset_molecules,
             maximum_number_of_seeds,
             distance_metric=distance_metric,
+            distance_matrix=(None if clustering_result.distance_matrix is None else
+                             clustering_result.distance_matrix[np.ix_(cluster_feature_indices, cluster_feature_indices)]),
         )
         selected = _limit_seed_count(
             trimmed,
             maximum_number_of_seeds,
             reason="cluster minima trimming",
         )
-        return _finalize_selection(selected, write_path, existing_entries=basin_entries)
+        return finish(selected, "cluster-minima-max-min-trimming")
 
     # Keep only representatives justified by the clustering result. Max-min
     # is used above to trim an overfull set of cluster minima; it must not add
@@ -215,12 +232,14 @@ def choose_geometries(
         maximum_number_of_seeds,
         reason="cluster selection",
     )
-    return _finalize_selection(selected, write_path, existing_entries=basin_entries)
+    return finish(selected, "cluster-minima")
 
 
 def _log_feature_result(feature_result):
     cluster_logger.info(
-        "Structural feature: %s (dimensions=%d)",
+        "Structural policy: system=%s confidence=%s; feature=%s (dimensions=%d)",
+        feature_result.system_type,
+        feature_result.system_confidence,
         feature_result.name,
         feature_result.values.shape[1],
     )
@@ -242,7 +261,13 @@ def _save_features_if_requested(feature_name, values):
 
 
 def _log_clustering_result(result):
-    cluster_logger.info("Structural feature: %s", result.feature_used)
+    cluster_logger.info(
+        "Structural policy: system=%s confidence=%s; feature=%s; reason=%s",
+        result.system_type,
+        result.system_confidence,
+        result.feature_used,
+        result.policy_reason,
+    )
     for fallback in result.feature_fallbacks:
         cluster_logger.warning(
             "Feature %s failed; using fallback %s (%s).",
@@ -251,10 +276,12 @@ def _log_clustering_result(result):
             fallback["reason"],
         )
     cluster_logger.info(
-        "Clusterer: requested=%s used=%s distance=%s clusters=%d noise=%d",
+        "Clusterer: requested=%s used=%s distance=%s (requested=%s; units=%s) clusters=%d noise=%d",
         result.algorithm_requested,
         result.algorithm_used,
+        result.distance_used,
         result.distance_metric,
+        result.distance_units,
         result.number_of_clusters,
         result.number_of_noise_points,
     )
@@ -269,7 +296,7 @@ def _log_clustering_result(result):
 def generate_labels(dt, algorithm='hdbscan', maximum_number_of_seeds=8):
     """Compatibility wrapper for clustering precomputed feature vectors."""
     algorithm = str(algorithm).strip().lower()
-    if algorithm in {'hybrid', 'hdbscan'}:
+    if algorithm in {'auto', 'hybrid', 'hdbscan'}:
         return hdbscan_clustering(dt)
     if algorithm in {'maxmin', 'max-min', 'max_min'}:
         raise ValueError("max-min is a selector, not a cluster-label algorithm")
@@ -417,13 +444,11 @@ def select_best_from_each_cluster(labels, list_of_molecules):
                 best_from_each_cluster.append(get_the_best_molecule(molecules_in_this_group))
 
     if noise_molecules:
-        best_noise = get_the_best_molecule(noise_molecules)
         cluster_logger.info(
-            "Including best noise-point representative: %s (energy %.6f)",
-            best_noise.name,
-            float(best_noise.energy),
+            "Keeping all %d noise points as candidates; they may represent rare structures.",
+            len(noise_molecules),
         )
-        best_from_each_cluster.append(best_noise)
+        best_from_each_cluster.extend(noise_molecules)
 
     cluster_logger.info("Lowest energy structures from each cluster:")
     print_energy_table(best_from_each_cluster)

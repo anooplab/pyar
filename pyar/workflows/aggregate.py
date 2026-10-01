@@ -94,9 +94,10 @@ def aggregate(
     number_of_pathways,
     site,
     connectivity_policy="auto",
-    selection_feature="mbtr",
-    selection_algorithm="hybrid",
+    selection_feature="auto",
+    selection_algorithm="auto",
     selection_distance="euclidean",
+    selection_system_type="auto",
 ):
     """Run an aggregate or cluster-generation workflow.
 
@@ -122,6 +123,7 @@ def aggregate(
         selection_feature,
         selection_algorithm,
         selection_distance,
+        selection_system_type,
     )
     molecules = list(aggregate_request.molecules)
     aggregate_sizes = list(aggregate_request.aggregate_sizes)
@@ -134,6 +136,7 @@ def aggregate(
     selection_feature = aggregate_request.selection_feature
     selection_algorithm = aggregate_request.selection_algorithm
     selection_distance = aggregate_request.selection_distance
+    selection_system_type = aggregate_request.selection_system_type
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
     sampling = sampling_configuration(
@@ -317,6 +320,7 @@ def aggregate(
                         selection_feature=selection_feature,
                         selection_algorithm=selection_algorithm,
                         selection_distance=selection_distance,
+                        selection_system_type=selection_system_type,
                     )
                 if len(seed_storage[ag_id]) == 0:
                     aggregator_logger.info(
@@ -340,6 +344,7 @@ def aggregate(
             algorithm=selection_algorithm,
             distance_metric=selection_distance,
             connectivity_policy=final_connectivity_policy,
+            system_type=selection_system_type,
         )
         if final_selected:
             aggregator_logger.info(
@@ -380,9 +385,10 @@ def aggregate_from_formulas(
     number_of_pathways,
     site,
     connectivity_policy="auto",
-    selection_feature="mbtr",
-    selection_algorithm="hybrid",
+    selection_feature="auto",
+    selection_algorithm="auto",
     selection_distance="euclidean",
+    selection_system_type="auto",
 ):
     """Generate initial molecules from formulas and run the aggregate workflow.
 
@@ -404,4 +410,5 @@ def aggregate_from_formulas(
         selection_feature=selection_feature,
         selection_algorithm=selection_algorithm,
         selection_distance=selection_distance,
+        selection_system_type=selection_system_type,
     )

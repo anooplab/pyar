@@ -85,9 +85,9 @@ def _adaptive_duplicate_rmsd_threshold(molecules):
                 break
             if len(left.atoms_list) != len(right.atoms_list):
                 continue
-            if not _structure_is_similar(left, right):
-                continue
             try:
+                if not _structure_is_similar(left, right):
+                    continue
                 sampled_rmsd.append(_rmsd_after_alignment(left, right))
             except Exception:
                 continue
@@ -126,7 +126,14 @@ def remove_similar(list_of_molecules):
         for kept in final_list:
             if len(candidate.atoms_list) < 2 or len(kept.atoms_list) < 2:
                 continue
-            comparison = comparator.compare(candidate, kept)
+            try:
+                comparison = comparator.compare(candidate, kept)
+            except Exception as exc:
+                clustering.cluster_logger.warning(
+                    "Retaining %s and %s: structural comparison failed (%s: %s).",
+                    candidate.name, kept.name, type(exc).__name__, exc,
+                )
+                continue
             if comparison.equivalent is True:
                 aligned_rmsd = comparison.distance
                 duplicate = True
@@ -176,7 +183,7 @@ def remove_similar(list_of_molecules):
 
 def _prefer_connected_structures(molecules, policy="prefer"):
     """Prefer geometries that remain connected under a covalent-radius graph."""
-    if len(molecules) < 2:
+    if not molecules:
         return molecules
 
     try:

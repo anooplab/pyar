@@ -48,6 +48,17 @@ def test_constant_features_do_not_invent_diversity():
     np.testing.assert_array_equal(standardize_features(np.ones((3, 4))), np.zeros((3, 1)))
 
 
+def test_near_constant_large_features_do_not_amplify_roundoff():
+    values = np.full((4, 2), 1e6) + np.array([[0], [1e-8], [-1e-8], [2e-8]])
+    np.testing.assert_array_equal(standardize_features(values), np.zeros((4, 1)))
+
+
+def test_small_resolved_feature_variation_is_still_scaled():
+    result = standardize_features([[1e-6], [2e-6], [3e-6]])
+    assert result.shape == (3, 1)
+    assert result.std() == pytest.approx(1.)
+
+
 def test_unknown_feature_fails_with_supported_names():
     with pytest.raises(ValueError, match="mbtr, soap, distance-histogram"):
         compute_feature_matrix([_molecule("a", [[0, 0, 0], [1, 0, 0]])], "ani")
