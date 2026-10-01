@@ -1,0 +1,58 @@
+{
+  "ensemble": "/home/anoop/repos/pyar/benchmarks/clustering_scientific/data/mpconf196gen/FGG55_crest_conformers.xyz",
+  "ensemble_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
+  "frames": 127,
+  "source_composition": [
+    [
+      "C",
+      13
+    ],
+    [
+      "H",
+      17
+    ],
+    [
+      "N",
+      3
+    ],
+    [
+      "O",
+      4
+    ]
+  ],
+  "source_xyz_comment_energy_minus_gfn2_final_energy": {
+    "interpretation": "comparison only; source comment units/meaning are ambiguous",
+    "mean_absolute_delta_numeric": 6.538040934192108e-08,
+    "maximum_absolute_delta_numeric": 7.551420040385892e-07
+  },
+  "reference_basins": 98,
+  "reference_labels": "benchmarks/clustering_scientific/runs/FGG55/reference_basins.json",
+  "analysis": "results/comparison.json",
+  "xTB": "xtb",
+  "xTB_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+  "pyar_git_revision": "65755e28743b0fa8b34cb07c880b03149253fd47",
+  "pyar_worktree_dirty": true,
+  "args": {
+    "ensemble": "benchmarks/clustering_scientific/data/mpconf196gen/FGG55_crest_conformers.xyz",
+    "output": "benchmarks/clustering_scientific/runs/FGG55",
+    "xtb": "xtb",
+    "limit": null,
+    "basin_threshold": 0.35,
+    "max_seeds": 12,
+    "downstream_perturbation": 0.1,
+    "algorithms": [
+      "hybrid",
+      "agglomerative",
+      "dbscan",
+      "optics",
+      "maxmin"
+    ],
+    "features": [
+      "mbtr",
+      "soap",
+      "distance-histogram"
+    ],
+    "skip_downstream_optimization": false
+  },
+  "report_conditions": 15
+}

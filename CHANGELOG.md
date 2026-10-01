@@ -27,6 +27,18 @@
 
 ### Changed
 
+- Added a reproducible, licensed scientific clustering benchmark pilot using
+  three MPCONF196GEN macrocycle ensembles. It records independent GFN2-xTB
+  basin labels, label-threshold sensitivity, algorithm/feature comparisons,
+  energy-window basin recall, structural coverage, and perturbed downstream
+  optimization outcomes. Scripts, source data, full run artifacts, and the
+  bounded-scope analysis are saved under `benchmarks/clustering_scientific/`.
+- Replaced Coulomb-only basin memory with schema-2 geometry-backed records and
+  versioned element-pair distance descriptors. Basin novelty now uses the
+  active selection feature/distance policy and keeps all candidates if a
+  complete comparison cannot be made. Added an explicit atomic migration
+  command; old fingerprints are retained as opaque legacy descriptors because
+  their historical producer could fall back to a different quantity.
 - Added explicit `graph-rmsd`, `fragment-rmsd`, and `soap-rematch` clustering
   distances to the standalone CLI and aggregation workflow. Structural
   distances use one complete precomputed matrix for clustering and max-min
@@ -36,7 +48,8 @@
   log-domain transport on normalized local environments. Added an independently
   audited 84-geometry, seven-pool validation corpus and distance benchmark
   runner. Descriptor/algorithm defaults remain unchanged. Selection policy
-  version 2 prevents silent reuse of older scaling/partitioning behavior.
+  version 2 covers scaling/partitioning changes; version 3 covers geometry-backed
+  basin memory so in-progress runs cannot silently mix selection behavior.
 - Routed conformer generation collapse, diversity scoring, and final
   deduplication through the shared graph RMSD policy with verified
   bidirectional iRMSD on incomplete mapping. Added `--dedup-atom-mode heavy|all`

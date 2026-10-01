@@ -1,0 +1,58 @@
+{
+  "ensemble": "/home/anoop/repos/pyar/benchmarks/clustering_scientific/data/mpconf196gen/CAMVES_I_crest_conformers.xyz",
+  "ensemble_sha256": "de803ce09b1adc01d8236d5aa029b1c5183c7af1ec9da145796e242a7b739feb",
+  "frames": 10,
+  "source_composition": [
+    [
+      "C",
+      22
+    ],
+    [
+      "H",
+      34
+    ],
+    [
+      "N",
+      6
+    ],
+    [
+      "O",
+      6
+    ]
+  ],
+  "source_xyz_comment_energy_minus_gfn2_final_energy": {
+    "interpretation": "comparison only; source comment units/meaning are ambiguous",
+    "mean_absolute_delta_numeric": 6.885450289928486e-08,
+    "maximum_absolute_delta_numeric": 3.2245800696273363e-07
+  },
+  "reference_basins": 4,
+  "reference_labels": "benchmarks/clustering_scientific/runs/CAMVES_I/reference_basins.json",
+  "analysis": "results/comparison.json",
+  "xTB": "xtb",
+  "xTB_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+  "pyar_git_revision": "65755e28743b0fa8b34cb07c880b03149253fd47",
+  "pyar_worktree_dirty": true,
+  "args": {
+    "ensemble": "benchmarks/clustering_scientific/data/mpconf196gen/CAMVES_I_crest_conformers.xyz",
+    "output": "benchmarks/clustering_scientific/runs/CAMVES_I",
+    "xtb": "xtb",
+    "limit": null,
+    "basin_threshold": 0.35,
+    "max_seeds": 12,
+    "downstream_perturbation": 0.1,
+    "algorithms": [
+      "hybrid",
+      "agglomerative",
+      "dbscan",
+      "optics",
+      "maxmin"
+    ],
+    "features": [
+      "mbtr",
+      "soap",
+      "distance-histogram"
+    ],
+    "skip_downstream_optimization": false
+  },
+  "report_conditions": 15
+}
