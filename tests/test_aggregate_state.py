@@ -56,11 +56,13 @@ class AggregateRunStateTests(unittest.TestCase):
             with self.assertRaisesRegex(AggregateStateError, "unversioned selection policy"):
                 AggregateRunState.load(tmpdir, changed)
 
-    def test_version_one_selection_policy_cannot_resume_under_version_two(self):
+    def test_previous_selection_policy_cannot_resume_under_current_policy(self):
+        from pyar.selection.policy import SELECTION_POLICY_VERSION
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            AggregateRunState.create(tmpdir, {**self.request, "selection_policy_version": 1}, ["abb"])
+            AggregateRunState.create(tmpdir, {**self.request, "selection_policy_version": SELECTION_POLICY_VERSION - 1}, ["abb"])
             with self.assertRaisesRegex(AggregateStateError, "different or unversioned selection policy"):
-                AggregateRunState.load(tmpdir, {**self.request, "selection_policy_version": 2})
+                AggregateRunState.load(tmpdir, {**self.request, "selection_policy_version": SELECTION_POLICY_VERSION})
 
     def test_auto_and_hybrid_are_equivalent_within_the_same_policy_version(self):
         request = {**self.request, "selection_policy_version": 1,

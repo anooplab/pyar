@@ -42,7 +42,7 @@ FEATURE_FALLBACK_POLICY = {
     "unknown": ("soap", "distance-histogram"),
 }
 DEFAULT_CLUSTER_ALGORITHM = "hybrid"
-SELECTION_POLICY_VERSION = 2
+SELECTION_POLICY_VERSION = 3
 
 _METAL_AND_NOBLE_CLUSTER_ELEMENTS = {
     "Li", "Be", "Na", "Mg", "Al", "K", "Ca", "Sc", "Ti", "V", "Cr",

@@ -199,6 +199,38 @@ the structural ``distance_matrix``; ``pyar.selection.compute_distance_matrix``
 provides the matrix directly. Descriptor features are computed only if needed
 for a structural-distance fallback.
 
+Basin memory
+~~~~~~~~~~~~
+
+Selection remembers prior basin representatives in
+``selected/stoichiometry_<formula>/basin_registry.json`` (or the flat
+``selected/basin_registry.json`` used by pathway selection). Schema 2 stores
+the representative XYZ geometry and an explicitly versioned element-pair
+distance histogram. On later runs, memory novelty is recomputed from those
+geometries using the current requested feature and distance policy; old
+descriptor numbers are never compared across descriptor versions. If a full
+comparison matrix cannot be built, basin memory leaves the candidate pool
+unchanged.
+
+Schema-1 registries contain normalized Coulomb-spectrum fingerprints, but the
+historical fingerprint routine could return a radial-coordinate fallback
+instead. Migration therefore preserves each vector as an opaque
+``pyar-fingerprint-v1`` legacy descriptor and does not use it to prune
+candidates. It cannot reconstruct geometry that was not archived. Migrate
+explicitly, first inspecting the dry-run report:
+
+.. code-block:: bash
+
+   pyar-basin-memory --dry-run selected/stoichiometry_C2H6/basin_registry.json
+   pyar-basin-memory selected/stoichiometry_C2H6/basin_registry.json
+
+Migration is atomic and retains legacy vectors. Future-version or malformed
+registries are left untouched; selection disables memory pruning and writing
+for that registry rather than risking data loss.
+Workflow selection writes ``selection_diagnostics.json`` alongside selected
+geometries with the memory schema, archived geometry count, ignored opaque
+legacy count, requested and actual feature/distance backends, and fallbacks.
+
 The constructed validation corpus is in ``benchmarks/clustering_distances``:
 84 geometries, seven packing/torsion-family pools, and 42 independently verified
 rigid-transform/permutation witnesses. Run it with:

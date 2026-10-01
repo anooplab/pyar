@@ -9,6 +9,7 @@ import logging
 import os
 import random
 import shutil
+import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -68,6 +69,31 @@ def _write_growth_structure_analysis(input_parts, outputs, filename):
     except (KeyError, ValueError, TypeError) as exc:
         # This diagnostic must never block structure generation or selection.
         aggregator_logger.warning("Coordinate-only structural analysis skipped: %s", exc)
+
+
+def _write_growth_selection_diagnostics(diagnostics, filename):
+    """Persist selection and basin-memory provenance without gating workflow progress."""
+    if not diagnostics:
+        return
+    target = Path(filename)
+    temporary_path = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent,
+            prefix=f".{target.name}-", suffix=".tmp", delete=False,
+        ) as stream:
+            json.dump(diagnostics, stream, indent=2, sort_keys=True, allow_nan=False)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+            temporary_path = stream.name
+        os.replace(temporary_path, target)
+    except (OSError, TypeError, ValueError) as exc:
+        aggregator_logger.warning("Selection diagnostics could not be written to %s: %s", target, exc)
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
 
 
 def workflow_run_directory(root_directory, workflow_name):
@@ -364,6 +390,7 @@ def _finalize_selected_geometries(
             stoichiometry,
             len(molecules),
         )
+        selection_diagnostics = {}
         selected = clustering.choose_geometries(
             molecules,
             maximum_number_of_seeds=maximum_number_of_seeds,
@@ -373,9 +400,10 @@ def _finalize_selected_geometries(
             distance_metric=distance_metric,
             connectivity_policy=connectivity_policy,
             system_type=system_type,
+            diagnostics=selection_diagnostics,
         )
         final_selected.extend(selected)
-        _snapshot_selected_geometries(
+        snapshot_directory = _snapshot_selected_geometries(
             selected,
             output_root=selected_root,
             summary_lines=[
@@ -388,6 +416,11 @@ def _finalize_selected_geometries(
             ],
             group_by_stoichiometry=True,
         )
+        if snapshot_directory:
+            _write_growth_selection_diagnostics(
+                selection_diagnostics,
+                os.path.join(snapshot_directory, "selection_diagnostics.json"),
+            )
 
     return final_selected
 
@@ -588,6 +621,7 @@ def add_one(
                 list_of_optimized_molecules,
                 "structural_analysis_preselection.json",
             )
+        selection_diagnostics = {}
         selected_seeds = clustering.choose_geometries(
             list_of_optimized_molecules,
             maximum_number_of_seeds=maximum_number_of_seeds,
@@ -598,6 +632,11 @@ def add_one(
             algorithm=selection_algorithm,
             distance_metric=selection_distance,
             system_type=selection_system_type,
+            diagnostics=selection_diagnostics,
+        )
+        _write_growth_selection_diagnostics(
+            selection_diagnostics,
+            os.path.join("selected", "selection_diagnostics.json"),
         )
         for molecule in selected_seeds:
             molecule.connectivity_policy_hint = connectivity_policy

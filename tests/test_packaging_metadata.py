@@ -45,6 +45,10 @@ class PackagingMetadataTests(unittest.TestCase):
             metadata["project"]["scripts"]["pyar-conformer-benchmark"],
             "pyar.scripts.conformer_benchmark:main",
         )
+        self.assertEqual(
+            metadata["project"]["scripts"]["pyar-basin-memory"],
+            "pyar.scripts.basin_memory:main",
+        )
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["conformer"])
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["all"])
 
