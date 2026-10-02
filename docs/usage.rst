@@ -115,10 +115,11 @@ workflows, PyAR records input summaries in
 ``aggregates/structural_analysis/input.json`` and writes coordinate-only
 input-to-output comparisons before similarity selection.
 
-The cluster-label choices are ``auto``, ``hybrid``, ``hdbscan``,
-``agglomerative``, ``dbscan``, and ``optics``. ``auto`` and ``hybrid`` try
-HDBSCAN first, then average-linkage agglomerative if HDBSCAN is unavailable,
-fails, or labels every item as noise. ``--distance`` selects Euclidean,
+The cluster-label choices are ``auto``, ``hdbscan``, ``agglomerative``,
+``dbscan``, and ``optics``. ``auto`` tries HDBSCAN first, then average-linkage
+agglomerative if HDBSCAN is unavailable, fails, or labels every item as noise.
+The old ``hybrid`` spelling remains accepted by the Python API for compatibility,
+but is not a named clustering method. ``--distance`` selects Euclidean,
 Manhattan, or cosine distance on standardized features, or ``graph-rmsd``,
 ``fragment-rmsd``, or ``soap-rematch`` on structures. Euclidean remains the
 default. DBSCAN estimates epsilon from k-neighbour distances in the metric used;
@@ -291,7 +292,7 @@ returns fewer seeds and does not top up from non-minimum members.
 
 Examples::
 
-   pyar-clustering pool/*.xyz --mode labels --feature mbtr -a hybrid -n 12 --report-output report.json
+   pyar-clustering pool/*.xyz --mode labels --feature mbtr -a auto -n 12 --report-output report.json
    pyar-clustering pool/*.xyz --mode labels --feature soap -a agglomerative --labels-output labels.csv
    pyar-clustering pool/*.xyz -n 8 --report-output selection.json
    pyar-cli -a monomer.xyz -as 2 --features soap --selection-algorithm agglomerative --selection-distance cosine

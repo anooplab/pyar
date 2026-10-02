@@ -462,7 +462,7 @@ class ClusteringTests(unittest.TestCase):
         self.assertEqual(descriptor_calls, [0.0, 1.0, 10.0])
         self.assertEqual([m.name for m in result], ["m0", "m2"])
 
-    def test_hybrid_keeps_cluster_minima_without_filling_with_maxmin(self):
+    def test_auto_keeps_cluster_minima_without_filling_with_maxmin(self):
         molecules = [
             SimpleNamespace(name="m0", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
             SimpleNamespace(name="m1", atoms_list=["H"], coordinates=[[1.0, 0.0, 0.0]], energy=1.0),
@@ -473,14 +473,14 @@ class ClusteringTests(unittest.TestCase):
         def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             return [coordinates[0][0]]
 
-        with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "hybrid"}):
+        with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "auto"}):
             with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
                 with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 0, 1, 1])):
                     result = clustering.choose_geometries(molecules, maximum_number_of_seeds=3)
 
         self.assertEqual([m.name for m in result], ["m0", "m2"])
 
-    def test_hybrid_trims_cluster_minima_with_maxmin_when_too_many_clusters(self):
+    def test_auto_trims_cluster_minima_with_maxmin_when_too_many_clusters(self):
         molecules = [
             SimpleNamespace(name="m0", atoms_list=["H"], coordinates=[[0.0, 0.0, 0.0]], energy=0.0),
             SimpleNamespace(name="m1", atoms_list=["H"], coordinates=[[1.0, 0.0, 0.0]], energy=1.0),
@@ -491,7 +491,7 @@ class ClusteringTests(unittest.TestCase):
         def descriptor_from_coordinate(_atoms, coordinates, **_kwargs):
             return [coordinates[0][0]]
 
-        with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "hybrid"}):
+        with mock.patch.dict("os.environ", {"PYAR_CLUSTERING_ALGORITHM": "auto"}):
             with mock.patch("pyar.representations.mbtr_descriptor", side_effect=descriptor_from_coordinate):
                     with mock.patch("pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 1, 2, 3])):
                         result = clustering.choose_geometries(molecules, maximum_number_of_seeds=2)

@@ -41,7 +41,7 @@ FEATURE_FALLBACK_POLICY = {
     "molecular-aggregate": ("mbtr", "distance-histogram"),
     "unknown": ("soap", "distance-histogram"),
 }
-DEFAULT_CLUSTER_ALGORITHM = "hybrid"
+DEFAULT_CLUSTER_ALGORITHM = "auto"
 SELECTION_POLICY_VERSION = 3
 
 _METAL_AND_NOBLE_CLUSTER_ELEMENTS = {
@@ -230,7 +230,7 @@ def resolve_clustering_policy(system_type="unknown", feature="auto", algorithm="
         raise ValueError(f"Unknown clustering algorithm {algorithm!r}")
     if normalized_algorithm == "auto":
         selected_algorithm = DEFAULT_CLUSTER_ALGORITHM
-        algorithm_reason = "HDBSCAN with agglomerative operational fallback for unknown cluster counts"
+        algorithm_reason = "HDBSCAN first, with agglomerative fallback if HDBSCAN is unavailable or unusable"
     else:
         selected_algorithm = normalized_algorithm
         algorithm_reason = "cluster-label algorithm explicitly requested"

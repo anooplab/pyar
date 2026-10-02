@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from pyar.selection.clusterers import (
+    CLUSTERING_ALGORITHMS,
     _cluster_agglomerative,
     _run_grouped_algorithm,
     cluster_molecules,
@@ -30,11 +31,34 @@ def test_agglomerative_returns_requested_number_of_groups_for_tied_distances():
 
 def test_clusterer_failure_falls_back_with_provenance():
     with mock.patch("pyar.selection.clusterers._run_algorithm", side_effect=[RuntimeError("missing HDBSCAN"), np.array([0, 0, 1, 1])]):
-        result = cluster_molecules(_molecules(), feature="distance-histogram", algorithm="hybrid")
+        result = cluster_molecules(_molecules(), feature="distance-histogram", algorithm="auto")
     assert result.algorithm_used == "agglomerative"
     assert result.algorithm_fallbacks[0]["algorithm"] == "hdbscan"
     assert "missing HDBSCAN" in result.algorithm_fallbacks[0]["reason"]
     assert result.number_of_clusters == 2
+
+
+def test_auto_is_public_default_and_hybrid_is_not_advertised():
+    assert CLUSTERING_ALGORITHMS == ("auto", "hdbscan", "agglomerative", "dbscan", "optics")
+    with mock.patch(
+        "pyar.selection.clusterers._run_algorithm",
+        side_effect=[np.array([0, 0, 1, 1])],
+    ) as run:
+        result = cluster_molecules(_molecules(), feature="distance-histogram")
+    assert result.algorithm_requested == "auto"
+    assert result.algorithm_used == "hdbscan"
+    assert run.call_args.args[1] == "hdbscan"
+
+
+def test_hybrid_remains_a_non_advertised_compatibility_alias():
+    with mock.patch(
+        "pyar.selection.clusterers._run_algorithm", return_value=np.array([0, 0, 1, 1])
+    ) as run:
+        result = cluster_molecules(
+            _molecules(), feature="distance-histogram", algorithm="hybrid",
+        )
+    assert result.algorithm_used == "hdbscan"
+    assert run.call_args.args[1] == "hdbscan"
 
 
 def test_auto_requests_hdbscan_and_records_the_fallback_chain():

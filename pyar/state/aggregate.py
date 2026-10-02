@@ -102,26 +102,26 @@ class AggregateRunState:
                     "The current policy changes distance scaling, topology partitioning, and selection."
                 )
         # State files written before structural feature/clusterer options were
-        # exposed used MBTR plus the hybrid policy. Preserve their ability to
+        # exposed used MBTR plus the HDBSCAN-first automatic policy. Preserve their ability to
         # resume with those defaults.
         if isinstance(saved_request, dict) and isinstance(expected_request, dict):
             if "selection_feature" in expected_request or "selection_feature" in saved_request:
                 saved_request.setdefault("selection_feature", "mbtr")
                 expected_request.setdefault("selection_feature", "mbtr")
             if "selection_algorithm" in expected_request or "selection_algorithm" in saved_request:
-                saved_request.setdefault("selection_algorithm", "hybrid")
-                expected_request.setdefault("selection_algorithm", "hybrid")
+                saved_request.setdefault("selection_algorithm", "auto")
+                expected_request.setdefault("selection_algorithm", "auto")
             if "selection_distance" in expected_request or "selection_distance" in saved_request:
                 saved_request.setdefault("selection_distance", "euclidean")
                 expected_request.setdefault("selection_distance", "euclidean")
             if "selection_system_type" in expected_request or "selection_system_type" in saved_request:
                 saved_request.setdefault("selection_system_type", "auto")
                 expected_request.setdefault("selection_system_type", "auto")
-            # ``auto`` currently resolves to the same HDBSCAN-first hybrid
-            # policy. Treat these spellings as equivalent for restart checks.
+            # Old state files and API callers may have used ``hybrid`` for the
+            # HDBSCAN-first automatic policy. Canonicalize that legacy spelling.
             for request in (saved_request, expected_request):
-                if request.get("selection_algorithm") == "auto":
-                    request["selection_algorithm"] = "hybrid"
+                if request.get("selection_algorithm") == "hybrid":
+                    request["selection_algorithm"] = "auto"
         if saved_request != expected_request:
             raise AggregateStateError(
                 "Existing aggregation state does not match this invocation; "

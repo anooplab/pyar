@@ -11,7 +11,8 @@ from pyar.selection.distances import (
 )
 from pyar.selection.structural_distances import compute_distance_matrix, validate_distance_options
 
-CLUSTERING_ALGORITHMS = ("auto", "hybrid", "hdbscan", "agglomerative", "dbscan", "optics")
+# ``hybrid`` remains a hidden compatibility alias for old API/state files.
+CLUSTERING_ALGORITHMS = ("auto", "hdbscan", "agglomerative", "dbscan", "optics")
 _ALGORITHM_ALIASES = {"auto": "hdbscan", "hybrid": "hdbscan", "ward": "agglomerative"}
 
 
@@ -22,7 +23,7 @@ def validate_clustering_options(algorithm, maximum_number_of_clusters, distance_
             or maximum_number_of_clusters < 1):
         raise ValueError("maximum_number_of_clusters must be a positive integer")
     algorithm = str(algorithm).strip().lower()
-    if algorithm not in (*CLUSTERING_ALGORITHMS, "ward"):
+    if algorithm not in (*CLUSTERING_ALGORITHMS, "hybrid", "ward"):
         raise ValueError(f"Unknown clustering algorithm {algorithm!r}")
     metric = str(distance_metric).strip().lower()
     if metric not in DISTANCE_METRICS:
@@ -250,9 +251,9 @@ def cluster_molecules(
 ):
     """Cluster geometries and report every feature or algorithm fallback.
 
-    ``auto`` selects HDBSCAN as the requested method for the backwards-compatible ``hybrid``
-    name. If it is unavailable or returns only noise, average-linkage
-    agglomerative clustering supplies an explicit operational fallback.
+    ``auto`` tries HDBSCAN first. If it is unavailable or returns only noise,
+    average-linkage agglomerative clustering supplies an operational fallback.
+    ``hybrid`` is accepted only as a compatibility alias for older callers.
     """
     from pyar.selection.features import compute_feature_matrix, standardize_features
 

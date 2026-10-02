@@ -349,7 +349,7 @@ chemical formula.
     )
     parser.add_argument(
         '--selection-algorithm',
-        choices=['auto', 'hybrid', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
+        choices=['auto', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
         default=defualt_parameters.values.get('selection_algorithm', 'auto'),
         help="Cluster-label algorithm; maxmin uses auto clustering and trims cluster minima",
     )

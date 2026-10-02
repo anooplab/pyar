@@ -23,7 +23,7 @@ from pyar.selection.distances import DISTANCE_METRICS
 
 
 DEFAULT_ALGORITHMS = [
-    "hybrid",
+    "auto",
     "agglomerative",
     "dbscan",
     "optics",
