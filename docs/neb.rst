@@ -13,14 +13,18 @@ The complete sequence is:
    Both must converge and retain their covalent-radius connectivity. A temporary
    topology change in an adaptive trajectory is insufficient to launch this workflow.
 #. ``neb``: construct an initial band through the supplied TS waypoint and
-   optimize it. The default ``linear`` initialization uses the current
-   piecewise Cartesian interpolation. Optional ``idpp`` initialization
-   refines each side separately while keeping the supplied TS waypoint fixed.
+   optimize it with geomeTRIC. PyAR requests one climbing image. When the
+   final band reports an activated climbing image, PyAR uses that image as the
+   TS optimization starting geometry. If geomeTRIC has no usable climber,
+   PyAR falls back to the highest-energy interior image. The default ``linear``
+   initialization uses the current piecewise Cartesian interpolation.
+   Optional ``idpp`` initialization refines each side separately while keeping
+   the supplied TS waypoint fixed.
    Optional ``geodesic`` initialization applies IDPP first, then smooths each
    side separately with redundant-internal-coordinate geodesic interpolation.
-   In all cases, geomeTRIC optimizes the band; it must converge and its
-   highest-energy image must be an interior image.
-#. ``ts``: optimize that image as a first-order saddle candidate. geomeTRIC is
+   The band must satisfy the existing convergence criteria before TS
+   optimization; a climbing image does not bypass convergence.
+#. ``ts``: optimize the selected NEB image as a TS candidate. geomeTRIC is
    the default optimizer; an optional Sella saddle optimizer can be selected.
 #. ``frequency``: calculate a fresh finite-difference Cartesian Hessian and
    verify stationarity and exactly one significant imaginary frequency.
@@ -36,7 +40,11 @@ alignment. Two branches ending at the same minimum cannot confirm a reaction.
 The two optimized IRC endpoints must themselves differ in connectivity or by
 more than the mapped RMSD tolerance, even when both fit the reference tolerances.
 These checks provide numerical evidence; inspect chemical identities and the
-appropriateness of the chosen electronic-structure method as well.
+appropriateness of the chosen electronic-structure method as well. The supplied
+waypoint is only an initializer. Neither a NEB maximum nor a climbing image
+confirms a transition state. PyAR records the climbing activation state,
+selected source and image index, and requested number of climbing images in
+``neb_summary.json``. Independent frequency and IRC validation remain required.
 
 Complete and separate runs
 --------------------------

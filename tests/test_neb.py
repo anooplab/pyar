@@ -24,6 +24,7 @@ from pyar.neb import (
     _load_stage,
     _match_endpoints,
     _physical_settings,
+    _select_neb_ts_candidate,
     _save_stage,
     _write_xyz_trajectory,
     run_neb,
@@ -1021,6 +1022,303 @@ def test_neb_ts_stage_consumes_optimized_highest_energy_image(tmp_path, fake_pat
     np.testing.assert_array_equal(
         ts_input["coordinates"], read_xyz(tmp_path / "ts_guess.xyz")[1],
     )
+
+
+def test_neb_candidate_selection_prefers_valid_climber_over_global_maximum():
+    frames = [np.full((2, 3), float(index)) for index in range(5)]
+    energies = [0.0, 0.1, 0.2, 2.0, 0.0]
+    selection = _select_neb_ts_candidate(
+        frames, energies, climbing_activated=True, climber_indices=[2],
+    )
+    assert selection["highest_energy_image_index"] == 3
+    assert selection["interior_maximum"] is True
+    assert selection["climbing_image_indices"] == [2]
+    assert selection["selected_climbing_image_index"] == 2
+    assert selection["ts_guess_image_index"] == 2
+    assert selection["ts_guess_source"] == "climbing_image"
+
+
+@pytest.mark.parametrize("bad_index", [0, 4, -1, 1.5, True, "2"])
+def test_neb_candidate_selection_rejects_invalid_climber_indices(bad_index):
+    frames = [np.full((2, 3), float(index)) for index in range(5)]
+    selection = _select_neb_ts_candidate(
+        frames, [0.0, 0.1, 0.2, 1.0, 0.0],
+        climbing_activated=True, climber_indices=[bad_index],
+    )
+    assert selection["climbing_image_indices"] == []
+    assert selection["selected_climbing_image_index"] is None
+    assert selection["ts_guess_image_index"] == 3
+    assert selection["ts_guess_source"] == "highest_energy_interior_image"
+
+
+def test_neb_candidate_selection_rejects_nonfinite_climber_geometry_and_energy():
+    frames = [np.zeros((2, 3)) for _ in range(5)]
+    energies = [0.0, 0.1, 0.2, 1.0, 0.0]
+    frames[2][0, 0] = np.nan
+    selection = _select_neb_ts_candidate(
+        frames, energies, climbing_activated=True, climber_indices=[2],
+    )
+    assert selection["climbing_image_indices"] == []
+    assert selection["ts_guess_source"] == "highest_energy_interior_image"
+    assert selection["ts_guess_image_index"] == 3
+
+    frames[2][0, 0] = 0.0
+    energies[2] = np.inf
+    selection = _select_neb_ts_candidate(
+        frames, energies, climbing_activated=True, climber_indices=[2],
+    )
+    assert selection["climbing_image_indices"] == []
+    assert selection["highest_energy_image_index"] == 2
+    assert selection["ts_guess_image_index"] is None
+
+
+def _configure_fake_neb_chain(monkeypatch, *, activated, climbers=(), energies=None):
+    import geometric.neb
+
+    original_band = geometric.neb.ElasticBand
+    original_optimize = geometric.neb.OptimizeChain
+    captured = {}
+
+    def make_band(*args, **kwargs):
+        band = original_band(*args, **kwargs)
+        if activated is not None:
+            band.climbSet = activated
+        if climbers is not None:
+            band.climbers = list(climbers)
+        if energies is not None:
+            for structure, energy in zip(band.Structures, energies):
+                structure.energy = float(energy)
+        return band
+
+    def optimize_chain(chain, engine, params):
+        captured["ncimg"] = params.ncimg
+        return original_optimize(chain, engine, params)
+
+    monkeypatch.setattr(geometric.neb, "ElasticBand", make_band)
+    monkeypatch.setattr(geometric.neb, "OptimizeChain", optimize_chain)
+    return captured
+
+
+@pytest.mark.parametrize("optimizer", ["geometric", "sella"])
+def test_active_climber_is_exact_neb_artifact_and_ts_optimizer_input(
+    tmp_path, fake_path_backend, monkeypatch, optimizer,
+):
+    import pyar.neb as neb
+
+    _, _ = fake_path_backend
+    # The global maximum is image 3; geomeTRIC reports image 2 as climbing.
+    energies = [0.0] * 11
+    energies[3] = 2.0
+    energies[5] = 1.0
+    captured = _configure_fake_neb_chain(
+        monkeypatch, activated=True, climbers=[2], energies=energies,
+    )
+    ts_input = {}
+    if optimizer == "sella":
+        def fake_sella(symbols, coordinates, calculator, max_steps, fmax):
+            ts_input["coordinates"] = np.asarray(coordinates).copy()
+            return [np.asarray(coordinates)], [-2.0], True, "test-sella"
+
+        monkeypatch.setattr(neb, "_optimize_sella", fake_sella)
+    else:
+        original_optimize = neb._optimize_geometry
+
+        def record_ts_input(symbols, coordinates, calculator, output, label, max_cycles, **kwargs):
+            if label == "ts":
+                ts_input["coordinates"] = np.asarray(coordinates).copy()
+            return original_optimize(symbols, coordinates, calculator, output, label, max_cycles, **kwargs)
+
+        monkeypatch.setattr(neb, "_optimize_geometry", record_ts_input)
+
+    result = run_neb(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz", software="xtb",
+        output=tmp_path, ts_optimizer=optimizer,
+    )
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    symbols, path_frames = _read_xyz_trajectory(tmp_path / "neb_path.xyz")
+    guess_symbols, guess_coordinates, comment = read_xyz(tmp_path / "ts_guess.xyz")
+    assert captured["ncimg"] == 1
+    assert summary["climbing_image_state_available"] is True
+    assert summary["climbing_image_activated"] is True
+    assert summary["climbing_image_indices"] == [2]
+    assert summary["selected_climbing_image_index"] == 2
+    assert summary["highest_energy_image_index"] == 3
+    assert summary["ts_guess_image_index"] == 2
+    assert summary["ts_guess_source"] == "climbing_image"
+    assert summary["requested_climbing_images"] == 1
+    assert summary["interior_maximum"] is True
+    assert "first_order_saddle_confirmed" not in summary
+    assert result["frequency"]["first_order_saddle_confirmed"] is True
+    assert symbols == guess_symbols
+    np.testing.assert_array_equal(guess_coordinates, path_frames[2])
+    path_comment = Path(tmp_path / "neb_path.xyz").read_text().splitlines()[2 * (len(symbols) + 2) + 1]
+    assert float(comment.split("energy_hartree=")[1]) == float(
+        path_comment.split("energy_hartree=")[1]
+    )
+    np.testing.assert_array_equal(ts_input["coordinates"], guess_coordinates)
+
+
+def test_inactive_climbing_state_uses_highest_energy_interior_fallback(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    _configure_fake_neb_chain(monkeypatch, activated=False)
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
+            software="xtb", stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["climbing_image_state_available"] is True
+    assert summary["climbing_image_activated"] is False
+    assert summary["climbing_image_indices"] == []
+    assert summary["selected_climbing_image_index"] is None
+    assert summary["highest_energy_image_index"] == 5
+    assert summary["ts_guess_image_index"] == 5
+    assert summary["ts_guess_source"] == "highest_energy_interior_image"
+
+
+@pytest.mark.parametrize("climbers", [[], [0], [10], [2.5], ["bad"]])
+def test_active_but_unusable_climber_deliberately_falls_back(
+    tmp_path, fake_path_backend, monkeypatch, climbers,
+):
+    _configure_fake_neb_chain(monkeypatch, activated=True, climbers=climbers)
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["climbing_image_activated"] is True
+    assert summary["climbing_image_indices"] == []
+    assert summary["selected_climbing_image_index"] is None
+    assert summary["ts_guess_image_index"] == summary["highest_energy_image_index"] == 5
+    assert summary["ts_guess_source"] == "highest_energy_interior_image"
+
+
+def test_multiple_valid_climbers_choose_highest_energy_climber_deterministically(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    energies = [0.0] * 11
+    energies[2], energies[3], energies[5] = 0.5, 0.75, 1.0
+    _configure_fake_neb_chain(monkeypatch, activated=True, climbers=[3, 2], energies=energies)
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["climbing_image_indices"] == [3, 2]
+    assert summary["selected_climbing_image_index"] == 3
+    assert summary["highest_energy_image_index"] == 5
+    assert summary["ts_guess_image_index"] == 3
+
+
+def test_missing_geometric_climbing_state_is_recorded_as_unavailable_and_falls_back(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    _configure_fake_neb_chain(monkeypatch, activated=None, climbers=None)
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["climbing_image_state_available"] is False
+    assert summary["climbing_image_activated"] is None
+    assert summary["climbing_image_indices"] == []
+    assert summary["ts_guess_source"] == "highest_energy_interior_image"
+
+
+def test_old_schema_two_neb_summary_without_climbing_fields_remains_reusable(
+    tmp_path, fake_path_backend,
+):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", output=tmp_path)
+    summary_path = tmp_path / "neb_summary.json"
+    summary = json.loads(summary_path.read_text())
+    for key in (
+        "climbing_image_state_available", "climbing_image_activated",
+        "climbing_image_indices", "selected_climbing_image_index",
+        "requested_climbing_images", "ts_guess_image_index", "ts_guess_source",
+    ):
+        summary.pop(key)
+    summary_path.write_text(json.dumps(summary))
+    assert run_neb(software="xtb", stage="ts", output=tmp_path)["ts_optimization_converged"]
+    unchanged = json.loads(summary_path.read_text())
+    assert all(key not in unchanged for key in (
+        "climbing_image_state_available", "climbing_image_activated", "ts_guess_source",
+    ))
+
+
+def test_endpoint_energy_maximum_does_not_create_ts_guess(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    energies = [2.0] + [0.0] * 10
+    _configure_fake_neb_chain(monkeypatch, activated=False, energies=energies)
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb", output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["highest_energy_image_index"] == 0
+    assert summary["interior_maximum"] is False
+    assert summary["ts_guess_image_index"] is None
+    assert summary["ts_guess_source"] is None
+    assert not (tmp_path / "ts_guess.xyz").exists()
+    with pytest.raises(ValueError, match="converged NEB with an interior maximum"):
+        run_neb(software="xtb", stage="ts", output=tmp_path)
+
+
+def test_converged_neb_uses_valid_climber_even_when_global_maximum_is_endpoint(
+    tmp_path, fake_path_backend, monkeypatch,
+):
+    energies = [2.0] + [0.0] * 10
+    _configure_fake_neb_chain(
+        monkeypatch, activated=True, climbers=[2], energies=energies,
+    )
+    result = run_neb(
+        DATA / "hcn.xyz", DATA / "hnc.xyz", DATA / "guess.xyz",
+        software="xtb", output=tmp_path,
+    )
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["converged"] is True
+    assert summary["interior_maximum"] is False
+    assert summary["highest_energy_image_index"] == 0
+    assert summary["ts_guess_image_index"] == 2
+    assert summary["ts_guess_source"] == "climbing_image"
+    assert result["ts"]["ts_optimization_converged"] is True
+
+
+def test_changing_climb_threshold_invalidates_neb_restart(tmp_path, fake_path_backend):
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            images=3, climb=0.5, output=tmp_path)
+    with pytest.raises(ValueError, match="Stage neb used different stage-specific parameters"):
+        run_neb(software="xtb", stage="ts", images=3, climb=0.4, output=tmp_path)
+
+
+@pytest.mark.parametrize("interpolation", ["linear", "idpp", "geodesic"])
+def test_climbing_handoff_is_independent_of_interpolation(
+    tmp_path, fake_path_backend, monkeypatch, interpolation,
+):
+    if interpolation == "geodesic" and find_spec("geodesic_interpolate") is None:
+        pytest.skip("geodesic-interpolate is an optional dependency")
+    kwargs = {"geodesic_max_iter": 3} if interpolation == "geodesic" else {}
+    _configure_fake_neb_chain(monkeypatch, activated=True, climbers=[2])
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb",
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", stage="neb",
+            interpolation=interpolation, **kwargs, output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["ts_guess_image_index"] == 2
+    assert summary["ts_guess_source"] == "climbing_image"
+
+
+@pytest.mark.parametrize("xtb_model", ["gxtb", "gfn2"])
+def test_climbing_handoff_is_independent_of_xtb_model(
+    tmp_path, fake_path_backend, monkeypatch, xtb_model,
+):
+    _configure_fake_neb_chain(monkeypatch, activated=True, climbers=[2])
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb", xtb_model=xtb_model,
+            stage="relax", output=tmp_path)
+    run_neb(ts_guess=DATA / "guess.xyz", software="xtb", xtb_model=xtb_model,
+            stage="neb", output=tmp_path)
+    summary = json.loads((tmp_path / "neb_summary.json").read_text())
+    assert summary["qc_params"]["xtb_model"] == xtb_model
+    assert summary["ts_guess_image_index"] == 2
 
 
 @pytest.mark.skipif(

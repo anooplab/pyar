@@ -8,6 +8,9 @@
   provider and reaction-path CLI, with model-aware provenance and restart
   validation. g-xTB requests now fail clearly when the executable does not
   advertise ``--gxtb`` support.
+- Prefer the final geomeTRIC climbing image as the NEB-to-TS starting geometry,
+  with the highest-energy interior image retained as a documented fallback.
+  NEB summaries now record climbing state and the selected handoff candidate.
 
 ### Fixed
 
