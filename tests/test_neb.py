@@ -61,7 +61,10 @@ def test_cli_exposes_individual_workflow_stages():
     assert (geodesic["interpolation"], geodesic["geodesic_tol"],
             geodesic["geodesic_max_iter"]) == ("geodesic", 0.005, 8)
     assert defaults["ts_optimizer"] == "geometric"
+    assert defaults["ts_fmax"] is None
     assert defaults["sella_fmax"] == 0.05
+    shared_fmax = vars(parser.parse_args(["--software", "xtb", "--ts-fmax", "0.02"]))
+    assert shared_fmax["ts_fmax"] == 0.02
     sella = vars(parser.parse_args([
         "--software", "xtb", "--ts-optimizer", "sella", "--sella-fmax", "0.03",
     ]))
@@ -427,10 +430,18 @@ def test_ts_parameter_canonicalization_is_optimizer_aware():
         "ts_max_cycles": 200, "ts_optimizer": "geometric", "sella_fmax": float("nan"),
     })
     assert geometric_a == geometric_b == {
-        "ts_max_cycles": 200, "ts_optimizer": "geometric",
+        "ts_max_cycles": 200, "ts_optimizer": "geometric", "ts_fmax": None,
     }
     assert canonical_ts_parameters({"ts_max_cycles": 50, "ts_optimizer": "sella"}) == {
-        "ts_max_cycles": 50, "ts_optimizer": "sella", "sella_fmax": 0.05,
+        "ts_max_cycles": 50, "ts_optimizer": "sella", "ts_fmax": None,
+        "sella_fmax": 0.05,
+    }
+    assert canonical_ts_parameters({"ts_optimizer": "geometric", "ts_fmax": 0.02}) == {
+        "ts_optimizer": "geometric", "ts_fmax": 0.02,
+    }
+    assert canonical_ts_parameters({"ts_optimizer": "sella", "ts_fmax": 0.02,
+                                    "sella_fmax": 0.03}) == {
+        "ts_optimizer": "sella", "ts_fmax": 0.02,
     }
     with pytest.raises(ValueError, match="ts_optimizer must"):
         canonical_ts_parameters({"ts_optimizer": "other"})
@@ -510,6 +521,7 @@ def test_sella_adapter_passes_ase_force_threshold_and_step_limit(monkeypatch):
     class RecordingSella:
         def __init__(self, atoms, **kwargs):
             calls["constructor"] = kwargs
+            self.nsteps = 4
 
         def attach(self, observer, interval=1):
             self.observer = observer
@@ -520,13 +532,15 @@ def test_sella_adapter_passes_ase_force_threshold_and_step_limit(monkeypatch):
             return False
 
     monkeypatch.setattr(neb, "_sella_api", lambda: (RecordingSella, "test-version"))
+    calculator = HarmonicCalculator(coordinates)
     frames, energies, converged, _ = neb._optimize_sella(
-        symbols, coordinates, HarmonicCalculator(coordinates), 23, 0.037,
+        symbols, coordinates, calculator, 23, 0.037,
     )
     assert calls["constructor"] == {"logfile": None, "order": 1, "internal": False}
     assert calls["fmax"] == 0.037
     assert calls["steps"] == 23
     assert converged is False
+    assert calculator._pyar_optimizer_steps == 4
     assert len(frames) == len(energies) == 1
 
 
@@ -562,6 +576,13 @@ def test_sella_ts_stage_records_optimizer_only_and_downstream_reuses_artifacts(
     np.testing.assert_allclose(path[0], coordinates)
     np.testing.assert_allclose(path[-1], written_coordinates)
     assert result["ts_energy_hartree"] == -2.0
+    assert result["backend_energy_gradient_evaluations"] == 0
+    assert result["optimizer_steps"] is None
+    assert np.isfinite(result["wall_seconds"]) and result["wall_seconds"] >= 0
+    assert result["effective_ts_convergence"] == {
+        "max_steps": 17, "fmax_ev_per_angstrom": 0.025,
+        "geometric_convergence_set": None,
+    }
 
     def unexpected_sella_access(*args, **kwargs):
         raise AssertionError("downstream stages must not inspect Sella installation")
@@ -573,6 +594,65 @@ def test_sella_ts_stage_records_optimizer_only_and_downstream_reuses_artifacts(
                 ts_optimizer="geometric")
 
 
+@pytest.mark.parametrize("optimizer", ["geometric", "sella"])
+def test_shared_ts_fmax_is_passed_to_selected_optimizer_and_recorded(
+    tmp_path, fake_path_backend, monkeypatch, optimizer,
+):
+    import pyar.neb as neb
+
+    observed = {}
+    coordinates = read_xyz(DATA / "guess.xyz")[1]
+
+    if optimizer == "geometric":
+        def optimize_geometry(symbols, xyz, calculator, output, label, max_cycles, **kwargs):
+            observed.update(fmax=kwargs["fmax"], max_cycles=max_cycles)
+            frame = np.asarray(xyz, dtype=float).copy()
+            _write_xyz_trajectory(output / f"{label}_path.xyz", symbols, [frame], [-1.0])
+            return [frame], [-1.0], True
+
+        monkeypatch.setattr(neb, "_optimize_geometry", optimize_geometry)
+    else:
+        def optimize_sella(symbols, xyz, calculator, max_steps, fmax):
+            observed.update(fmax=fmax, max_steps=max_steps)
+            frame = np.asarray(xyz, dtype=float).copy()
+            return [frame], [-1.0], True, "test-version"
+
+        monkeypatch.setattr(neb, "_optimize_sella", optimize_sella)
+
+    result = run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
+        ts_optimizer=optimizer, ts_fmax=0.02, sella_fmax=0.04,
+    )
+    assert observed["fmax"] == 0.02
+    assert result["effective_ts_convergence"]["fmax_ev_per_angstrom"] == 0.02
+    assert result["parameters"]["ts_fmax"] == 0.02
+    assert "sella_fmax" not in result["parameters"]
+    _, optimized, _ = read_xyz(tmp_path / "ts_optimized.xyz")
+    np.testing.assert_array_equal(optimized, coordinates)
+
+
+def test_ts_fmax_is_part_of_restart_identity(tmp_path, fake_path_backend):
+    run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
+        ts_fmax=0.02,
+    )
+    summary = json.loads((tmp_path / "ts_summary.json").read_text())
+    calculator = SimpleNamespace(qc_params=summary["qc_params"])
+    same_parameters = canonical_ts_parameters({
+        "ts_optimizer": "geometric", "ts_max_cycles": 200, "ts_fmax": 0.02,
+        "sella_fmax": 0.05,
+    })
+    reused = _load_stage(
+        tmp_path, "ts", calculator, expected_parameters=same_parameters,
+    )
+    assert reused["effective_ts_convergence"]["fmax_ev_per_angstrom"] == 0.02
+    with pytest.raises(ValueError, match="different stage-specific parameters"):
+        _load_stage(tmp_path, "ts", calculator, expected_parameters=canonical_ts_parameters({
+            "ts_optimizer": "geometric", "ts_max_cycles": 200, "ts_fmax": 0.03,
+            "sella_fmax": 0.05,
+        }))
+
+
 def test_inactive_sella_controls_do_not_validate_or_affect_geometric_ts(
     tmp_path, fake_path_backend,
 ):
@@ -581,8 +661,13 @@ def test_inactive_sella_controls_do_not_validate_or_affect_geometric_ts(
         ts_optimizer="geometric", sella_fmax=float("nan"),
     )
     assert result["ts_optimization_converged"]
+    assert result["optimizer_steps"] is None
+    assert result["effective_ts_convergence"] == {
+        "max_steps": 200, "fmax_ev_per_angstrom": None,
+        "geometric_convergence_set": "GAU_TIGHT",
+    }
     assert result["parameters"] == {
-        "ts_max_cycles": 200, "ts_optimizer": "geometric",
+        "ts_max_cycles": 200, "ts_optimizer": "geometric", "ts_fmax": None,
     }
 
     with pytest.raises(ValueError, match="sella_fmax must be positive and finite"):

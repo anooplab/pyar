@@ -125,6 +125,9 @@ class PyarGeometricCalculator(Calculator):
             if self.release_tracker is not None and self._restart_checkpoint.get("release_tracker"):
                 self.release_tracker.load_state_dict(self._restart_checkpoint["release_tracker"])
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
+        # Count calls to the physical provider, independently of optimizer
+        # trajectory length or ASE cache hits.
+        self.backend_energy_gradient_evaluations = 0
         self.trace_enabled = bool(
             self.qc_params.get("trace_enabled") or self.qc_params.get("reaction_trace")
         )
@@ -333,6 +336,7 @@ class PyarGeometricCalculator(Calculator):
             self._restart_checkpoint = None
 
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
+        self.backend_energy_gradient_evaluations += 1
         backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
         self._last_backend_result = backend_result
         backend_energy, backend_forces = self._result_to_ase_units(backend_result)
