@@ -49,6 +49,29 @@ class AggregateRunStateTests(unittest.TestCase):
             with self.assertRaisesRegex(AggregateStateError, "does not match"):
                 AggregateRunState.load(tmpdir, changed)
 
+    def test_unversioned_selection_policy_is_not_silently_upgraded(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            AggregateRunState.create(tmpdir, self.request, ["abb"])
+            changed = {**self.request, "selection_policy_version": 1}
+            with self.assertRaisesRegex(AggregateStateError, "unversioned selection policy"):
+                AggregateRunState.load(tmpdir, changed)
+
+    def test_previous_selection_policy_cannot_resume_under_current_policy(self):
+        from pyar.selection.policy import SELECTION_POLICY_VERSION
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            AggregateRunState.create(tmpdir, {**self.request, "selection_policy_version": SELECTION_POLICY_VERSION - 1}, ["abb"])
+            with self.assertRaisesRegex(AggregateStateError, "different or unversioned selection policy"):
+                AggregateRunState.load(tmpdir, {**self.request, "selection_policy_version": SELECTION_POLICY_VERSION})
+
+    def test_auto_and_hybrid_are_equivalent_within_the_same_policy_version(self):
+        request = {**self.request, "selection_policy_version": 1,
+                   "selection_algorithm": "hybrid", "selection_system_type": "auto"}
+        with tempfile.TemporaryDirectory() as tmpdir:
+            AggregateRunState.create(tmpdir, request, ["abb"])
+            loaded = AggregateRunState.load(tmpdir, {**request, "selection_algorithm": "auto"})
+            self.assertEqual(loaded.remaining_pathway_labels(), ["abb"])
+
     def test_load_rejects_out_of_sequence_completed_pathways(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             state = AggregateRunState.create(tmpdir, self.request, ["abb", "bab"])

@@ -16,6 +16,7 @@ from pyar.backends.orca_scan import (
     load_orca_bond_scan_result,
     run_orca_bond_scan,
 )
+from pyar.backends.orca_methods import orca_external_method_block, orca_method, orca_method_keywords
 from pyar.core.molecule import Molecule
 from pyar.workflows.scan_bond import absolute_target_indices, run_scan_bond, scan_point_count
 
@@ -163,6 +164,63 @@ def test_scan_profile_writes_relative_energies_and_internal_maximum(tmp_path):
 
 def test_orca_keyword_maps_merged_uhf_to_unrestricted_dft():
     assert "UKS" in _orca_keyword({"method": "BP86", "basis": "def2-SVP"}, "uhf")
+
+
+def test_orca_gxtb_method_uses_external_optimizer_configuration(tmp_path):
+    wrapper = tmp_path / "oet_gxtb"
+    wrapper.write_text("#!/bin/sh\n")
+    params = {"method": "g-xTB", "gxtb_wrapper": str(wrapper)}
+
+    assert orca_method("gXTB") == ("g-xTB", True)
+    assert orca_method_keywords(params, "Opt") == ("! ExtOpt Opt", True)
+    assert str(wrapper) in orca_external_method_block(params)
+    with pytest.raises(ValueError, match="requires the path"):
+        orca_external_method_block({"method": "g-xTB"})
+
+
+def test_orca_gxtb_scan_input_uses_progext_without_dft_keywords(tmp_path):
+    from pyar.backends.orca_scan import _write_input
+
+    wrapper = tmp_path / "oet_gxtb"
+    wrapper.write_text("#!/bin/sh\n")
+    input_path = tmp_path / "gxtb.inp"
+    _write_input(
+        input_path, ["H", "H"], np.asarray([[0., 0., 0.], [1., 0., 0.]]),
+        0, 1, "rhf",
+        {"method": "g-xTB", "gxtb_wrapper": str(wrapper), "nprocs": 1,
+         "scf_cycles": 1000, "opt_cycles": 50},
+        OrcaBondScanRequest(0, 1, 1.0, 0.8, 3),
+    )
+    contents = input_path.read_text()
+    assert "! ExtOpt Opt" in contents
+    assert f'ProgExt "{wrapper}"' in contents
+    assert "RI def2/J D3BJ KDIIS" not in contents
+    assert "%scf" not in contents
+
+
+def test_scan_bond_cli_requires_gxtb_wrapper_and_dft_basis(tmp_path, monkeypatch):
+    from pyar.scripts import scan_bond
+
+    fragment_a = tmp_path / "A.xyz"
+    fragment_b = tmp_path / "B.xyz"
+    fragment_a.write_text("1\nA\nH 0 0 0\n")
+    fragment_b.write_text("1\nB\nH 1 0 0\n")
+    common = [str(fragment_a), str(fragment_b), "--atoms", "0", "0", "-N", "1"]
+
+    with pytest.raises(SystemExit):
+        scan_bond.main(common + ["--method", "BP86"])
+    with pytest.raises(SystemExit):
+        scan_bond.main(common + ["--method", "g-xTB"])
+
+    wrapper = tmp_path / "oet_gxtb"
+    wrapper.write_text("#!/bin/sh\n")
+    wrapper.chmod(0o755)
+    captured = {}
+    monkeypatch.setattr(scan_bond, "run_scan_bond", lambda *args: captured.setdefault("args", args))
+    scan_bond.main(common + ["--method", "g-xTB", "--gxtb-wrapper", str(wrapper)])
+    params = captured["args"][4]
+    assert params["basis"] is None
+    assert params["gxtb_wrapper"] == str(wrapper.resolve())
 
 
 def test_orca_scan_rejects_incomplete_trajectory(tmp_path, monkeypatch):

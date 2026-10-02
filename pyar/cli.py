@@ -13,6 +13,8 @@ import time
 from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
+from pyar.selection.distances import DISTANCE_METRICS
+from pyar.selection.policy import SYSTEM_TYPES
 from pyar.biases.controller import resolve_controller_policy
 from pyar.backend_capabilities import (
     backend_family,
@@ -339,11 +341,30 @@ chemical formula.
                         help='number of solvent molecules to be added')
     parser.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
                         type=int, help='maximum number of seeds')
-    parser.add_argument('-f', '--features',
-                        choices=['fingerprint', 'scm', 'moi', 'fsmd', 'soap', 'mbtr',
-                                 'ani', 'lmbtr', 'acsf', 'sinematrix', 'vallornav'],
-                        default='fingerprint',
-                        help="Choose the features to be used for clustering")
+    parser.add_argument(
+        '-f', '--features',
+        choices=['auto', 'mbtr', 'soap', 'distance-histogram'],
+        default=defualt_parameters.values.get('features', 'auto'),
+        help="Structural representation for aggregate seed clustering (default: auto by system type)",
+    )
+    parser.add_argument(
+        '--selection-algorithm',
+        choices=['auto', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
+        default=defualt_parameters.values.get('selection_algorithm', 'auto'),
+        help="Cluster-label algorithm; maxmin uses auto clustering and trims cluster minima",
+    )
+    parser.add_argument(
+        '--selection-distance',
+        choices=DISTANCE_METRICS,
+        default=defualt_parameters.values.get('selection_distance', 'euclidean'),
+        help="Descriptor or structural clustering distance (default: euclidean)",
+    )
+    parser.add_argument(
+        '--selection-system-type',
+        choices=SYSTEM_TYPES,
+        default='auto',
+        help="System class for automatic feature selection; auto uses workflow context and XYZ graph evidence",
+    )
     parser.add_argument(
         "--connectivity-policy",
         choices=["auto", "off", "prefer", "strict"],
@@ -907,6 +928,10 @@ def _run_aggregate_workflow(
         run_parameters['number_of_pathways'],
         site,
         connectivity_policy=run_parameters["connectivity_policy"],
+        selection_feature=run_parameters["features"],
+        selection_algorithm=run_parameters["selection_algorithm"],
+        selection_distance=run_parameters["selection_distance"],
+        selection_system_type=run_parameters["selection_system_type"],
     )
     _log_workflow_result(result)
     logger.info('Total Time: {}'.format(time.time() - t1_0))

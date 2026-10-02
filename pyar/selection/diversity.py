@@ -62,16 +62,26 @@ def _limit_seed_count(molecules, maximum_number_of_seeds, reason):
     return limited
 
 
-def _max_min_diversity_select(features, molecules, maximum_number_of_seeds, initial_selected_indices=None):
+def _max_min_diversity_select(
+    features,
+    molecules,
+    maximum_number_of_seeds,
+    initial_selected_indices=None,
+    distance_metric="euclidean",
+    distance_matrix=None,
+):
     """Select diverse seeds via greedy max-min (farthest-point) selection.
 
     When initial_selected_indices is provided, those points are treated as fixed
     anchors and only the additional selected molecules are returned.
     """
     from pyar.selection import clustering
+    from pyar.selection.distances import pairwise_distances, validate_distance_matrix
 
     if initial_selected_indices is None:
         initial_selected_indices = []
+    distances = (pairwise_distances(features, metric=distance_metric) if distance_matrix is None
+                 else validate_distance_matrix(distance_matrix, len(molecules)))
 
     if len(molecules) <= maximum_number_of_seeds and not initial_selected_indices:
         return molecules
@@ -91,9 +101,7 @@ def _max_min_diversity_select(features, molecules, maximum_number_of_seeds, init
         best_idx = None
         best_score = -np.inf
         for idx in remaining_indices:
-            min_distance = min(
-                np.linalg.norm(features[idx] - features[sidx]) for sidx in selected_indices
-            )
+            min_distance = min(distances[idx, sidx] for sidx in selected_indices)
             if min_distance > best_score and not np.isclose(min_distance, best_score):
                 best_score = min_distance
                 best_idx = idx

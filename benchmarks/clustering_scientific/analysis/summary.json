@@ -1,0 +1,1889 @@
+{
+  "schema_version": 1,
+  "data_source": "MPCONF196GEN; CC BY 4.0; see data/mpconf196gen/",
+  "primary_ranking": "micro-average basin retention weighted by the number of reference basins, then micro-average recall within 1 kcal/mol, then indexed heavy-atom RMSD coverage, then runtime",
+  "system_count": 3,
+  "total_input_geometries": 209,
+  "total_reference_basins": 145,
+  "completed_setting_runs": 45,
+  "unique_downstream_optimizations": 89,
+  "selected_seed_condition_occurrences": 450,
+  "successful_perturbed_optimizations": 450,
+  "verified_perturbed_basin_recoveries": 450,
+  "systems": [
+    {
+      "system": "CAMVES_I",
+      "frames": 10,
+      "reference_basins": 4,
+      "completed_settings": 15,
+      "selected_seed_condition_occurrences": 96,
+      "successful_perturbed_optimizations": 96,
+      "verified_perturbed_basin_recoveries": 96,
+      "unique_downstream_optimizations": 10,
+      "source_sha256": "de803ce09b1adc01d8236d5aa029b1c5183c7af1ec9da145796e242a7b739feb",
+      "xtb_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+      "threshold_sensitivity": {
+        "0.25": {
+          "basin_count": 5,
+          "largest_basin_size": 3
+        },
+        "0.35": {
+          "basin_count": 4,
+          "largest_basin_size": 6
+        },
+        "0.50": {
+          "basin_count": 3,
+          "largest_basin_size": 7
+        }
+      },
+      "inferred_topology_group_count": 1,
+      "source_comment_energy_delta": {
+        "interpretation": "comparison only; source comment units/meaning are ambiguous",
+        "mean_absolute_delta_numeric": 6.885450289928486e-08,
+        "maximum_absolute_delta_numeric": 3.2245800696273363e-07
+      }
+    },
+    {
+      "system": "FGG55",
+      "frames": 127,
+      "reference_basins": 98,
+      "completed_settings": 15,
+      "selected_seed_condition_occurrences": 180,
+      "successful_perturbed_optimizations": 180,
+      "verified_perturbed_basin_recoveries": 180,
+      "unique_downstream_optimizations": 44,
+      "source_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
+      "xtb_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+      "threshold_sensitivity": {
+        "0.25": {
+          "basin_count": 103,
+          "largest_basin_size": 3
+        },
+        "0.35": {
+          "basin_count": 98,
+          "largest_basin_size": 4
+        },
+        "0.50": {
+          "basin_count": 92,
+          "largest_basin_size": 5
+        }
+      },
+      "inferred_topology_group_count": 1,
+      "source_comment_energy_delta": {
+        "interpretation": "comparison only; source comment units/meaning are ambiguous",
+        "mean_absolute_delta_numeric": 6.538040934192108e-08,
+        "maximum_absolute_delta_numeric": 7.551420040385892e-07
+      }
+    },
+    {
+      "system": "WG01",
+      "frames": 72,
+      "reference_basins": 43,
+      "completed_settings": 15,
+      "selected_seed_condition_occurrences": 174,
+      "successful_perturbed_optimizations": 174,
+      "verified_perturbed_basin_recoveries": 174,
+      "unique_downstream_optimizations": 35,
+      "source_sha256": "30193a973b62faa6459e96007c5697a3d4dc162b631d362e94a6d19cc115ac2e",
+      "xtb_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+      "threshold_sensitivity": {
+        "0.25": {
+          "basin_count": 46,
+          "largest_basin_size": 4
+        },
+        "0.35": {
+          "basin_count": 43,
+          "largest_basin_size": 4
+        },
+        "0.50": {
+          "basin_count": 37,
+          "largest_basin_size": 5
+        }
+      },
+      "inferred_topology_group_count": 1,
+      "source_comment_energy_delta": {
+        "interpretation": "comparison only; source comment units/meaning are ambiguous",
+        "mean_absolute_delta_numeric": 5.1831236290588045e-08,
+        "maximum_absolute_delta_numeric": 7.958259971019288e-07
+      }
+    }
+  ],
+  "settings": [
+    {
+      "algorithm_requested": "agglomerative",
+      "feature_requested": "soap",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.46717291567789904,
+      "micro_basin_retention": 0.19310344827586207,
+      "per_system_basin_retention": {
+        "CAMVES_I": 1.0,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 4,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 6,
+          "macro_mean_recall": 0.611111111111111,
+          "micro_recall": 0.6,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 2,
+              "recall": 0.5
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 18,
+          "macro_mean_recall": 0.5384990253411306,
+          "micro_recall": 0.3103448275862069,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 7,
+              "recall": 0.19444444444444445
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 8,
+              "recall": 0.42105263157894735
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 28,
+          "macro_mean_recall": 0.46717291567789904,
+          "micro_recall": 0.19310344827586207,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 4,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.59216975641975,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.07713576333480887,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "agglomerative",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "agglomerative",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "agglomerative",
+          "feature": "soap",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "agglomerative",
+      "feature_requested": "distance-histogram",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.46717291567789904,
+      "micro_basin_retention": 0.19310344827586207,
+      "per_system_basin_retention": {
+        "CAMVES_I": 1.0,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 4,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 5,
+          "macro_mean_recall": 0.5277777777777778,
+          "micro_recall": 0.5,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 14,
+          "macro_mean_recall": 0.46832358674463936,
+          "micro_recall": 0.2413793103448276,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 7,
+              "recall": 0.19444444444444445
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 4,
+              "recall": 0.21052631578947367
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 28,
+          "macro_mean_recall": 0.46717291567789904,
+          "micro_recall": 0.19310344827586207,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 4,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.7587670739908648,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.10952556866444259,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "agglomerative",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "agglomerative",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "agglomerative",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "dbscan",
+      "feature_requested": "mbtr",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.4594209776934029,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 1.0,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.2558139534883721
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 4,
+        "FGG55": 12,
+        "WG01": 11
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 5,
+          "macro_mean_recall": 0.5277777777777778,
+          "micro_recall": 0.5,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 7,
+          "macro_mean_recall": 0.395224171539961,
+          "micro_recall": 0.1206896551724138,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 1,
+              "recall": 0.027777777777777776
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 3,
+              "recall": 0.15789473684210525
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.4594209776934029,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 4,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 11,
+              "recall": 0.2558139534883721
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6087572523864971,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 2.442655311334723,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "dbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "dbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "dbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "agglomerative",
+      "feature_requested": "mbtr",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.4594209776934029,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 1.0,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.2558139534883721
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 4,
+        "FGG55": 12,
+        "WG01": 11
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 5,
+          "macro_mean_recall": 0.5277777777777778,
+          "micro_recall": 0.5,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 11,
+          "macro_mean_recall": 0.43226120857699807,
+          "micro_recall": 0.1896551724137931,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 5,
+              "recall": 0.1388888888888889
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 3,
+              "recall": 0.15789473684210525
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.4594209776934029,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 4,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 11,
+              "recall": 0.2558139534883721
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6240597145042986,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 2.416559263333814,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "agglomerative",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "agglomerative",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "agglomerative",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "dbscan",
+      "feature_requested": "distance-histogram",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.4594209776934029,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 1.0,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.2558139534883721
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 4,
+        "FGG55": 12,
+        "WG01": 11
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 5,
+          "macro_mean_recall": 0.5277777777777778,
+          "micro_recall": 0.5,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 13,
+          "macro_mean_recall": 0.4590643274853801,
+          "micro_recall": 0.22413793103448276,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 3,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 6,
+              "recall": 0.16666666666666666
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 4,
+              "recall": 0.21052631578947367
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.4594209776934029,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 4,
+              "recall": 1.0
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 11,
+              "recall": 0.2558139534883721
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.7736162586410756,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.10954865900081738,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "dbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "dbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "dbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "optics",
+      "feature_requested": "soap",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 12,
+          "macro_mean_recall": 0.3562378167641325,
+          "micro_recall": 0.20689655172413793,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 5,
+              "recall": 0.1388888888888889
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 5,
+              "recall": 0.2631578947368421
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.626774675516121,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.18992133733506003,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "optics",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "optics",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "optics",
+          "feature": "soap",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "dbscan",
+      "feature_requested": "soap",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 9,
+          "macro_mean_recall": 0.31189083820662766,
+          "micro_recall": 0.15517241379310345,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 4,
+              "recall": 0.1111111111111111
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 3,
+              "recall": 0.15789473684210525
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6293081254896933,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.08042683666280936,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "dbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "dbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "dbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "auto",
+      "feature_requested": "soap",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 11,
+          "macro_mean_recall": 0.3469785575048732,
+          "micro_recall": 0.1896551724137931,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 4,
+              "recall": 0.1111111111111111
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 5,
+              "recall": 0.2631578947368421
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6349076483980131,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.09854267599924545,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "hdbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "hdbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "hdbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "maxmin",
+      "feature_requested": "soap",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 11,
+          "macro_mean_recall": 0.3469785575048732,
+          "micro_recall": 0.1896551724137931,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 4,
+              "recall": 0.1111111111111111
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 5,
+              "recall": 0.2631578947368421
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6349076483980131,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.10359696066977146,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "hdbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "hdbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "hdbscan",
+          "feature": "soap",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "optics",
+      "feature_requested": "distance-histogram",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 12,
+          "macro_mean_recall": 0.34795321637426896,
+          "micro_recall": 0.20689655172413793,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 6,
+              "recall": 0.16666666666666666
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 4,
+              "recall": 0.21052631578947367
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.7746711183762646,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.1287054546677003,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "optics",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "optics",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "optics",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "auto",
+      "feature_requested": "distance-histogram",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 12,
+          "macro_mean_recall": 0.34795321637426896,
+          "micro_recall": 0.20689655172413793,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 6,
+              "recall": 0.16666666666666666
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 4,
+              "recall": 0.21052631578947367
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.7820532784092901,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.1107656799989248,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "hdbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "hdbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "hdbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "maxmin",
+      "feature_requested": "distance-histogram",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3838395823445657,
+      "micro_basin_retention": 0.18620689655172415,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.27906976744186046
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 12
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 12,
+          "macro_mean_recall": 0.34795321637426896,
+          "micro_recall": 0.20689655172413793,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 6,
+              "recall": 0.16666666666666666
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 4,
+              "recall": 0.21052631578947367
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 27,
+          "macro_mean_recall": 0.3838395823445657,
+          "micro_recall": 0.18620689655172415,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 12,
+              "recall": 0.27906976744186046
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.7820532784092901,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 0.11637293466628762,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "hdbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "hdbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "hdbscan",
+          "feature": "distance-histogram",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "optics",
+      "feature_requested": "mbtr",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.37608764436006964,
+      "micro_basin_retention": 0.1793103448275862,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.2558139534883721
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 11
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 6,
+          "macro_mean_recall": 0.28411306042884993,
+          "micro_recall": 0.10344827586206896,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 1,
+              "recall": 0.027777777777777776
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 3,
+              "recall": 0.15789473684210525
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 26,
+          "macro_mean_recall": 0.37608764436006964,
+          "micro_recall": 0.1793103448275862,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 11,
+              "recall": 0.2558139534883721
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6211623687434646,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 3.358299351998236,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "optics",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "optics",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "optics",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "maxmin",
+      "feature_requested": "mbtr",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3450798924220851,
+      "micro_basin_retention": 0.15172413793103448,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.16279069767441862
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 7
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 6,
+          "macro_mean_recall": 0.27582846003898637,
+          "micro_recall": 0.10344827586206896,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 2,
+              "recall": 0.05555555555555555
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 2,
+              "recall": 0.10526315789473684
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 22,
+          "macro_mean_recall": 0.3450798924220851,
+          "micro_recall": 0.15172413793103448,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 7,
+              "recall": 0.16279069767441862
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6829550163985044,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 2.4583703706690962,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "hdbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "hdbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "hdbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        }
+      }
+    },
+    {
+      "algorithm_requested": "auto",
+      "feature_requested": "mbtr",
+      "systems": 3,
+      "macro_mean_basin_retention": 0.3450798924220851,
+      "micro_basin_retention": 0.15172413793103448,
+      "per_system_basin_retention": {
+        "CAMVES_I": 0.75,
+        "FGG55": 0.12244897959183673,
+        "WG01": 0.16279069767441862
+      },
+      "per_system_retained_reference_basins": {
+        "CAMVES_I": 3,
+        "FGG55": 12,
+        "WG01": 7
+      },
+      "energy_window_basin_retention": {
+        "1.0": {
+          "reference_basins_total": 10,
+          "retained_basins_total": 4,
+          "macro_mean_recall": 0.4166666666666667,
+          "micro_recall": 0.4,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 4,
+              "retained_basins": 1,
+              "recall": 0.25
+            },
+            "WG01": {
+              "reference_basins": 3,
+              "retained_basins": 1,
+              "recall": 0.3333333333333333
+            }
+          }
+        },
+        "3.0": {
+          "reference_basins_total": 58,
+          "retained_basins_total": 6,
+          "macro_mean_recall": 0.27582846003898637,
+          "micro_recall": 0.10344827586206896,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 3,
+              "retained_basins": 2,
+              "recall": 0.6666666666666666
+            },
+            "FGG55": {
+              "reference_basins": 36,
+              "retained_basins": 2,
+              "recall": 0.05555555555555555
+            },
+            "WG01": {
+              "reference_basins": 19,
+              "retained_basins": 2,
+              "recall": 0.10526315789473684
+            }
+          }
+        },
+        "6.0": {
+          "reference_basins_total": 145,
+          "retained_basins_total": 22,
+          "macro_mean_recall": 0.3450798924220851,
+          "micro_recall": 0.15172413793103448,
+          "per_system": {
+            "CAMVES_I": {
+              "reference_basins": 4,
+              "retained_basins": 3,
+              "recall": 0.75
+            },
+            "FGG55": {
+              "reference_basins": 98,
+              "retained_basins": 12,
+              "recall": 0.12244897959183673
+            },
+            "WG01": {
+              "reference_basins": 43,
+              "retained_basins": 7,
+              "recall": 0.16279069767441862
+            }
+          }
+        }
+      },
+      "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.6829550163985044,
+      "downstream_optimization_success_fraction": 1.0,
+      "verified_reference_basin_recovery_fraction": 1.0,
+      "basin_changed_after_complete_comparison": 0,
+      "uncertain_due_to_incomplete_mapping": 0,
+      "algorithm_fallback_systems": 0,
+      "feature_fallback_systems": 0,
+      "distance_fallback_systems": 0,
+      "macro_mean_runtime_seconds": 2.9759176240016436,
+      "actual_methods_by_system": {
+        "CAMVES_I": {
+          "algorithm": "hdbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "FGG55": {
+          "algorithm": "hdbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        },
+        "WG01": {
+          "algorithm": "hdbscan",
+          "feature": "mbtr",
+          "distance": "euclidean"
+        }
+      }
+    }
+  ],
+  "findings": {
+    "best_observed_setting": {
+      "algorithm": "agglomerative",
+      "feature": "soap",
+      "retained_basins": 28,
+      "reference_basins": 145,
+      "weighted_basin_recall": 0.19310344827586207,
+      "one_kcal_window": {
+        "reference_basins_total": 10,
+        "retained_basins_total": 6,
+        "macro_mean_recall": 0.611111111111111,
+        "micro_recall": 0.6,
+        "per_system": {
+          "CAMVES_I": {
+            "reference_basins": 3,
+            "retained_basins": 3,
+            "recall": 1.0
+          },
+          "FGG55": {
+            "reference_basins": 4,
+            "retained_basins": 2,
+            "recall": 0.5
+          },
+          "WG01": {
+            "reference_basins": 3,
+            "retained_basins": 1,
+            "recall": 0.3333333333333333
+          }
+        }
+      },
+      "three_kcal_window": {
+        "reference_basins_total": 58,
+        "retained_basins_total": 18,
+        "macro_mean_recall": 0.5384990253411306,
+        "micro_recall": 0.3103448275862069,
+        "per_system": {
+          "CAMVES_I": {
+            "reference_basins": 3,
+            "retained_basins": 3,
+            "recall": 1.0
+          },
+          "FGG55": {
+            "reference_basins": 36,
+            "retained_basins": 7,
+            "recall": 0.19444444444444445
+          },
+          "WG01": {
+            "reference_basins": 19,
+            "retained_basins": 8,
+            "recall": 0.42105263157894735
+          }
+        }
+      }
+    },
+    "all_settings_perturbed_optimizer_success_fraction": 1.0,
+    "all_settings_own_basin_recovery_fraction": 1.0
+  },
+  "limitations": [
+    "Only macrocycle conformer pools are represented.",
+    "The independent clustering benchmark excludes the workflow's pre-clustering deduplication stage.",
+    "Reference basins depend on coordinate-inferred connectivity and the stated RMSD cutoff.",
+    "Heavy-atom RMSD ignores hydrogen-coordinate-only rearrangements, while retaining hydrogen connectivity/count constraints.",
+    "Downstream optimization success is measured after deterministic 0.10 Angstrom Gaussian coordinate perturbations.",
+    "Successful optimization is distinct from recovery of the selected seed's basin; complete-comparison basin changes and incomplete graph mappings are reported separately.",
+    "Results do not establish policy for isomer pools, atomic clusters, or non-covalent aggregates."
+  ]
+}

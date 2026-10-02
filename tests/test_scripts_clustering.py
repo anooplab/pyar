@@ -1,4 +1,6 @@
 import io
+import csv
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -43,6 +45,34 @@ class ClusteringScriptTests(unittest.TestCase):
         self.assertTrue(output.strip().endswith("a.xyz"))
         self.assertEqual(chooser.call_args.kwargs["algorithm"], "maxmin")
         self.assertEqual(chooser.call_args.kwargs["maximum_number_of_seeds"], 1)
+
+    def test_labels_mode_writes_one_row_per_structure_and_fallback_report(self):
+        from pyar.scripts import clustering as clustering_script
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xyz_files = []
+            for name, distance in (("short", 0.7), ("long", 1.4)):
+                path = Path(tmpdir, f"{name}.xyz")
+                path.write_text(f"2\n{name}: energy={distance}\nH 0 0 0\nH {distance} 0 0\n")
+                xyz_files.append(str(path))
+            labels_path = Path(tmpdir, "labels.csv")
+            report_path = Path(tmpdir, "report.json")
+            with mock.patch(
+                "sys.argv",
+                ["pyar-clustering", *xyz_files, "--mode", "labels", "--feature", "distance-histogram",
+                 "-a", "agglomerative", "--labels-output", str(labels_path), "--report-output", str(report_path)],
+            ):
+                with redirect_stdout(io.StringIO()):
+                    clustering_script.main()
+
+            with labels_path.open(newline="", encoding="utf-8") as stream:
+                rows = list(csv.DictReader(stream))
+            report = json.loads(report_path.read_text())
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(report["feature_used"], "distance-histogram")
+        self.assertEqual(report["algorithm_used"], "agglomerative")
+        self.assertEqual(len(report["labels"]), 2)
 
 
 if __name__ == "__main__":

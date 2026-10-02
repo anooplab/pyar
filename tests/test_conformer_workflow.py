@@ -14,8 +14,11 @@ class ConformerWorkflowTests(unittest.TestCase):
     def _molecule_factory(self):
         def build_molecule(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):
             return Molecule(
-                ["C", "H"],
-                [[0.0, 0.0, float(conformer_id)], [1.0, 0.0, float(conformer_id)]],
+                # Distinct toy geometries for ranking tests. Translated C-H
+                # copies are duplicates under a rigid-motion invariant policy.
+                ["C", "C", "C"],
+                [[0.0, 0.0, 0.0], [3.0 * (conformer_id + 1), 0.0, 0.0],
+                 [0.0, 3.0 * (conformer_id + 1), 0.0]],
                 name=name,
                 title=f"seed {seed} conformer {conformer_id}",
                 charge=0 if charge is None else charge,

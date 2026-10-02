@@ -1,0 +1,2093 @@
+{
+  "schema_version": 1,
+  "seed": 20261001,
+  "structures_file": "structures.xyz",
+  "pools": [
+    {
+      "id": "water_dimer_packing",
+      "system_type": "molecular-aggregate",
+      "records": [
+        {
+          "id": "water_dimer_packing_00",
+          "family": "compact",
+          "energy": 0.0
+        },
+        {
+          "id": "water_dimer_packing_00_permuted",
+          "family": "compact",
+          "energy": 0.1
+        },
+        {
+          "id": "water_dimer_packing_01",
+          "family": "compact",
+          "energy": 1.0
+        },
+        {
+          "id": "water_dimer_packing_01_permuted",
+          "family": "compact",
+          "energy": 1.1
+        },
+        {
+          "id": "water_dimer_packing_02",
+          "family": "compact",
+          "energy": 2.0
+        },
+        {
+          "id": "water_dimer_packing_02_permuted",
+          "family": "compact",
+          "energy": 2.1
+        },
+        {
+          "id": "water_dimer_packing_03",
+          "family": "expanded",
+          "energy": 3.0
+        },
+        {
+          "id": "water_dimer_packing_03_permuted",
+          "family": "expanded",
+          "energy": 3.1
+        },
+        {
+          "id": "water_dimer_packing_04",
+          "family": "expanded",
+          "energy": 4.0
+        },
+        {
+          "id": "water_dimer_packing_04_permuted",
+          "family": "expanded",
+          "energy": 4.1
+        },
+        {
+          "id": "water_dimer_packing_05",
+          "family": "expanded",
+          "energy": 5.0
+        },
+        {
+          "id": "water_dimer_packing_05_permuted",
+          "family": "expanded",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "water_dimer_packing_00",
+          "second": "water_dimer_packing_00_permuted",
+          "order": [
+            2,
+            1,
+            0,
+            5,
+            3,
+            4
+          ],
+          "rotation": [
+            [
+              -0.12646612054960782,
+              -0.5341960376038354,
+              0.8358474225368495
+            ],
+            [
+              -0.25734714506716444,
+              -0.7960949796564385,
+              -0.5477273320655045
+            ],
+            [
+              0.9580077073170716,
+              -0.28437189870691704,
+              -0.03679478151737008
+            ]
+          ],
+          "translation": [
+            -3.4092903028385146,
+            0.29527981724417973,
+            -3.4467436943719623
+          ]
+        },
+        {
+          "first": "water_dimer_packing_01",
+          "second": "water_dimer_packing_01_permuted",
+          "order": [
+            5,
+            3,
+            4,
+            2,
+            1,
+            0
+          ],
+          "rotation": [
+            [
+              -0.7285486262106353,
+              -0.6828064231004826,
+              0.054701808190595586
+            ],
+            [
+              0.2780619473468422,
+              -0.22181583593204826,
+              0.934601138650841
+            ],
+            [
+              -0.6260179331970274,
+              0.6961128669278362,
+              0.3514661062083095
+            ]
+          ],
+          "translation": [
+            -0.8905372738407547,
+            3.7938189920871555,
+            4.372661161774506
+          ]
+        },
+        {
+          "first": "water_dimer_packing_02",
+          "second": "water_dimer_packing_02_permuted",
+          "order": [
+            3,
+            2,
+            4,
+            1,
+            5,
+            0
+          ],
+          "rotation": [
+            [
+              -0.2571944223543581,
+              0.9611611370770314,
+              0.10010143696569022
+            ],
+            [
+              -0.42907294980371874,
+              -0.2063978981022031,
+              0.8793726806114277
+            ],
+            [
+              0.8658795717976857,
+              0.18321892978559987,
+              0.46549263249988815
+            ]
+          ],
+          "translation": [
+            3.561353555732584,
+            -1.128640002970581,
+            -2.718911014440748
+          ]
+        },
+        {
+          "first": "water_dimer_packing_03",
+          "second": "water_dimer_packing_03_permuted",
+          "order": [
+            1,
+            3,
+            4,
+            5,
+            2,
+            0
+          ],
+          "rotation": [
+            [
+              -0.6783277669949839,
+              -0.504036156887882,
+              0.5346204196187172
+            ],
+            [
+              0.7243224309439504,
+              -0.3365115655862118,
+              0.6017615659529634
+            ],
+            [
+              -0.12340363266551335,
+              0.7954291412667824,
+              0.5933498332927583
+            ]
+          ],
+          "translation": [
+            0.9121744273330279,
+            3.7703086963141246,
+            2.4465535020154476
+          ]
+        },
+        {
+          "first": "water_dimer_packing_04",
+          "second": "water_dimer_packing_04_permuted",
+          "order": [
+            3,
+            4,
+            2,
+            5,
+            0,
+            1
+          ],
+          "rotation": [
+            [
+              -0.5127835064034547,
+              -0.5615059119254429,
+              0.6494337429125119
+            ],
+            [
+              -0.3265501658442496,
+              -0.5720336361246029,
+              -0.7524244203434377
+            ],
+            [
+              0.7939887056801695,
+              -0.5979035290202277,
+              0.10996956505091185
+            ]
+          ],
+          "translation": [
+            1.516134154807725,
+            2.582041507987255,
+            -2.8890574168510907
+          ]
+        },
+        {
+          "first": "water_dimer_packing_05",
+          "second": "water_dimer_packing_05_permuted",
+          "order": [
+            2,
+            1,
+            0,
+            3,
+            5,
+            4
+          ],
+          "rotation": [
+            [
+              -0.07810200411412538,
+              0.6911482440898841,
+              -0.7184804671282494
+            ],
+            [
+              -0.319859963600111,
+              -0.699953913661496,
+              -0.638556279771557
+            ],
+            [
+              -0.9442402663724382,
+              0.1799406108732139,
+              0.2757384556413591
+            ]
+          ],
+          "translation": [
+            0.43627776479295033,
+            3.009126602334767,
+            1.6248524873097896
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water_dimer_beyond_cutoff",
+      "system_type": "molecular-aggregate",
+      "records": [
+        {
+          "id": "water_dimer_beyond_cutoff_00",
+          "family": "separated",
+          "energy": 0.0
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_00_permuted",
+          "family": "separated",
+          "energy": 0.1
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_01",
+          "family": "separated",
+          "energy": 1.0
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_01_permuted",
+          "family": "separated",
+          "energy": 1.1
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_02",
+          "family": "separated",
+          "energy": 2.0
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_02_permuted",
+          "family": "separated",
+          "energy": 2.1
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_03",
+          "family": "more-separated",
+          "energy": 3.0
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_03_permuted",
+          "family": "more-separated",
+          "energy": 3.1
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_04",
+          "family": "more-separated",
+          "energy": 4.0
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_04_permuted",
+          "family": "more-separated",
+          "energy": 4.1
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_05",
+          "family": "more-separated",
+          "energy": 5.0
+        },
+        {
+          "id": "water_dimer_beyond_cutoff_05_permuted",
+          "family": "more-separated",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "water_dimer_beyond_cutoff_00",
+          "second": "water_dimer_beyond_cutoff_00_permuted",
+          "order": [
+            0,
+            5,
+            2,
+            3,
+            1,
+            4
+          ],
+          "rotation": [
+            [
+              -0.8860353838750925,
+              -0.4496259774174834,
+              0.11303883824902697
+            ],
+            [
+              0.1303883501844628,
+              -0.007691367691897532,
+              0.9914331651700993
+            ],
+            [
+              -0.44490468266527705,
+              0.8931838127140463,
+              0.06544081332095722
+            ]
+          ],
+          "translation": [
+            -2.9296379991729404,
+            0.7222899084278298,
+            -2.5149716526432098
+          ]
+        },
+        {
+          "first": "water_dimer_beyond_cutoff_01",
+          "second": "water_dimer_beyond_cutoff_01_permuted",
+          "order": [
+            1,
+            2,
+            0,
+            4,
+            5,
+            3
+          ],
+          "rotation": [
+            [
+              -0.9361663526507689,
+              -0.29837074766034666,
+              -0.18592325595568324
+            ],
+            [
+              0.19412711951526213,
+              0.002180491615444488,
+              -0.9809739583317293
+            ],
+            [
+              0.2930993374834954,
+              -0.9544475587463779,
+              0.05588055090830222
+            ]
+          ],
+          "translation": [
+            -1.8194448093273685,
+            -3.380585104416809,
+            4.027312259081745
+          ]
+        },
+        {
+          "first": "water_dimer_beyond_cutoff_02",
+          "second": "water_dimer_beyond_cutoff_02_permuted",
+          "order": [
+            1,
+            5,
+            2,
+            4,
+            3,
+            0
+          ],
+          "rotation": [
+            [
+              -0.8084892450972776,
+              0.5883183500999506,
+              -0.015055214967119838
+            ],
+            [
+              -0.0467021190089031,
+              -0.08963901028751028,
+              -0.9948787664407933
+            ],
+            [
+              -0.5866549689912397,
+              -0.8036456724019285,
+              0.09994788936010558
+            ]
+          ],
+          "translation": [
+            -3.8425714000103794,
+            -2.9683309355810716,
+            1.7459423148769577
+          ]
+        },
+        {
+          "first": "water_dimer_beyond_cutoff_03",
+          "second": "water_dimer_beyond_cutoff_03_permuted",
+          "order": [
+            2,
+            0,
+            5,
+            1,
+            4,
+            3
+          ],
+          "rotation": [
+            [
+              -0.1266050556743039,
+              0.9432815463332719,
+              -0.3069056601381236
+            ],
+            [
+              -0.6946072477693126,
+              0.1365748160674202,
+              0.7063059471379883
+            ],
+            [
+              0.7081609500841226,
+              0.30260079967386316,
+              0.6379191365782116
+            ]
+          ],
+          "translation": [
+            2.2075573500458052,
+            -2.2391859378680845,
+            2.500498488802826
+          ]
+        },
+        {
+          "first": "water_dimer_beyond_cutoff_04",
+          "second": "water_dimer_beyond_cutoff_04_permuted",
+          "order": [
+            2,
+            1,
+            3,
+            5,
+            0,
+            4
+          ],
+          "rotation": [
+            [
+              -0.44469929137906905,
+              -0.2719731618971353,
+              -0.8533892074866122
+            ],
+            [
+              0.8690506639620159,
+              0.09958223778291489,
+              -0.4845970711687457
+            ],
+            [
+              0.21677980467316005,
+              -0.9571384315373724,
+              0.19207430635055034
+            ]
+          ],
+          "translation": [
+            0.4031463127800947,
+            -2.583801969679851,
+            -4.2128393362474625
+          ]
+        },
+        {
+          "first": "water_dimer_beyond_cutoff_05",
+          "second": "water_dimer_beyond_cutoff_05_permuted",
+          "order": [
+            4,
+            1,
+            2,
+            5,
+            3,
+            0
+          ],
+          "rotation": [
+            [
+              -0.18838744547534003,
+              -0.9050355897923,
+              -0.3813407290030524
+            ],
+            [
+              -0.20538877243389964,
+              -0.34340016435684634,
+              0.9164560978452737
+            ],
+            [
+              -0.9603778540477553,
+              0.25097192737235463,
+              -0.12119186905743254
+            ]
+          ],
+          "translation": [
+            -1.5328941094787387,
+            0.7664207526164359,
+            4.73339186172441
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water_dimer_orientation",
+      "system_type": "molecular-aggregate",
+      "records": [
+        {
+          "id": "water_dimer_orientation_00",
+          "family": "co-oriented",
+          "energy": 0.0
+        },
+        {
+          "id": "water_dimer_orientation_00_permuted",
+          "family": "co-oriented",
+          "energy": 0.1
+        },
+        {
+          "id": "water_dimer_orientation_01",
+          "family": "co-oriented",
+          "energy": 1.0
+        },
+        {
+          "id": "water_dimer_orientation_01_permuted",
+          "family": "co-oriented",
+          "energy": 1.1
+        },
+        {
+          "id": "water_dimer_orientation_02",
+          "family": "co-oriented",
+          "energy": 2.0
+        },
+        {
+          "id": "water_dimer_orientation_02_permuted",
+          "family": "co-oriented",
+          "energy": 2.1
+        },
+        {
+          "id": "water_dimer_orientation_03",
+          "family": "turned",
+          "energy": 3.0
+        },
+        {
+          "id": "water_dimer_orientation_03_permuted",
+          "family": "turned",
+          "energy": 3.1
+        },
+        {
+          "id": "water_dimer_orientation_04",
+          "family": "turned",
+          "energy": 4.0
+        },
+        {
+          "id": "water_dimer_orientation_04_permuted",
+          "family": "turned",
+          "energy": 4.1
+        },
+        {
+          "id": "water_dimer_orientation_05",
+          "family": "turned",
+          "energy": 5.0
+        },
+        {
+          "id": "water_dimer_orientation_05_permuted",
+          "family": "turned",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "water_dimer_orientation_00",
+          "second": "water_dimer_orientation_00_permuted",
+          "order": [
+            5,
+            0,
+            1,
+            4,
+            2,
+            3
+          ],
+          "rotation": [
+            [
+              -0.4281966742399774,
+              -0.14332432771289674,
+              -0.8922475806946578
+            ],
+            [
+              -0.7140919881052086,
+              -0.5514287309936691,
+              0.43127599882054984
+            ],
+            [
+              -0.5538232937442893,
+              0.8218177971547942,
+              0.1337731945715151
+            ]
+          ],
+          "translation": [
+            -3.8052760837167234,
+            -0.43227035542523407,
+            -3.9370921039186046
+          ]
+        },
+        {
+          "first": "water_dimer_orientation_01",
+          "second": "water_dimer_orientation_01_permuted",
+          "order": [
+            4,
+            2,
+            3,
+            0,
+            5,
+            1
+          ],
+          "rotation": [
+            [
+              -0.32164883200541894,
+              -0.8674774297800855,
+              -0.3795061760916238
+            ],
+            [
+              0.9169118612185112,
+              -0.38536778071294103,
+              0.10375120406620807
+            ],
+            [
+              -0.236251280687227,
+              -0.31460226065703933,
+              0.9193534412635463
+            ]
+          ],
+          "translation": [
+            1.7033177177197185,
+            -1.7901233958679907,
+            -3.7855153136922715
+          ]
+        },
+        {
+          "first": "water_dimer_orientation_02",
+          "second": "water_dimer_orientation_02_permuted",
+          "order": [
+            3,
+            1,
+            4,
+            2,
+            0,
+            5
+          ],
+          "rotation": [
+            [
+              -0.16276535245286694,
+              -0.7598790342935877,
+              -0.6293578419960618
+            ],
+            [
+              0.9782178043765329,
+              -0.20756756519704764,
+              -0.0023734108209003363
+            ],
+            [
+              -0.128830769778223,
+              -0.6160353554133192,
+              0.7771120084255144
+            ]
+          ],
+          "translation": [
+            1.0115752646557077,
+            -3.747161687768761,
+            0.30525305585929097
+          ]
+        },
+        {
+          "first": "water_dimer_orientation_03",
+          "second": "water_dimer_orientation_03_permuted",
+          "order": [
+            5,
+            3,
+            0,
+            1,
+            2,
+            4
+          ],
+          "rotation": [
+            [
+              -0.7698554386447647,
+              -0.5495993564262022,
+              -0.32444283164369897
+            ],
+            [
+              0.6378597847092501,
+              -0.6796228330889437,
+              -0.3622812440560888
+            ],
+            [
+              -0.02138921783857955,
+              -0.48585322079828047,
+              0.8737786614470461
+            ]
+          ],
+          "translation": [
+            -3.687329332325616,
+            -3.4849621144044294,
+            -3.379927902500305
+          ]
+        },
+        {
+          "first": "water_dimer_orientation_04",
+          "second": "water_dimer_orientation_04_permuted",
+          "order": [
+            1,
+            5,
+            2,
+            0,
+            3,
+            4
+          ],
+          "rotation": [
+            [
+              -0.8726705863485831,
+              0.4867986745633688,
+              0.038380960975047
+            ],
+            [
+              -0.01789486769031979,
+              -0.11042833580912881,
+              0.9937229776757571
+            ],
+            [
+              0.48798137406295194,
+              0.8665059913778865,
+              0.105078758433185
+            ]
+          ],
+          "translation": [
+            -3.7476660432726905,
+            -3.5604705659008795,
+            4.687090291356119
+          ]
+        },
+        {
+          "first": "water_dimer_orientation_05",
+          "second": "water_dimer_orientation_05_permuted",
+          "order": [
+            3,
+            5,
+            4,
+            2,
+            1,
+            0
+          ],
+          "rotation": [
+            [
+              -0.6433995316895607,
+              0.22759579689871057,
+              0.7309153137372995
+            ],
+            [
+              0.6152787240387616,
+              -0.41435034209040644,
+              0.6706309609276896
+            ],
+            [
+              0.4554877982634525,
+              0.8812002878140723,
+              0.12655796454395307
+            ]
+          ],
+          "translation": [
+            0.7120656500771707,
+            3.187434489881957,
+            0.5181374287435805
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water_ammonia_packing",
+      "system_type": "molecular-aggregate",
+      "records": [
+        {
+          "id": "water_ammonia_packing_00",
+          "family": "compact",
+          "energy": 0.0
+        },
+        {
+          "id": "water_ammonia_packing_00_permuted",
+          "family": "compact",
+          "energy": 0.1
+        },
+        {
+          "id": "water_ammonia_packing_01",
+          "family": "compact",
+          "energy": 1.0
+        },
+        {
+          "id": "water_ammonia_packing_01_permuted",
+          "family": "compact",
+          "energy": 1.1
+        },
+        {
+          "id": "water_ammonia_packing_02",
+          "family": "compact",
+          "energy": 2.0
+        },
+        {
+          "id": "water_ammonia_packing_02_permuted",
+          "family": "compact",
+          "energy": 2.1
+        },
+        {
+          "id": "water_ammonia_packing_03",
+          "family": "expanded",
+          "energy": 3.0
+        },
+        {
+          "id": "water_ammonia_packing_03_permuted",
+          "family": "expanded",
+          "energy": 3.1
+        },
+        {
+          "id": "water_ammonia_packing_04",
+          "family": "expanded",
+          "energy": 4.0
+        },
+        {
+          "id": "water_ammonia_packing_04_permuted",
+          "family": "expanded",
+          "energy": 4.1
+        },
+        {
+          "id": "water_ammonia_packing_05",
+          "family": "expanded",
+          "energy": 5.0
+        },
+        {
+          "id": "water_ammonia_packing_05_permuted",
+          "family": "expanded",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "water_ammonia_packing_00",
+          "second": "water_ammonia_packing_00_permuted",
+          "order": [
+            5,
+            2,
+            3,
+            1,
+            0,
+            6,
+            4
+          ],
+          "rotation": [
+            [
+              -0.2075568180032581,
+              -0.7385971871821134,
+              0.6414003136786206
+            ],
+            [
+              0.9722000316881487,
+              -0.22839645029409633,
+              0.05159612270916596
+            ],
+            [
+              0.10838480375922364,
+              0.6342785323339633,
+              0.7654694492495101
+            ]
+          ],
+          "translation": [
+            -3.5456144171807793,
+            2.4486614754394562,
+            4.79951552632687
+          ]
+        },
+        {
+          "first": "water_ammonia_packing_01",
+          "second": "water_ammonia_packing_01_permuted",
+          "order": [
+            6,
+            1,
+            4,
+            3,
+            0,
+            5,
+            2
+          ],
+          "rotation": [
+            [
+              -0.04194542392355083,
+              -0.9362738182165853,
+              0.34875767910400296
+            ],
+            [
+              0.8201288512253021,
+              -0.2316308151890085,
+              -0.523197699577074
+            ],
+            [
+              0.5706393333794476,
+              0.26408048541498147,
+              0.777581023703156
+            ]
+          ],
+          "translation": [
+            -2.1261864573150735,
+            -3.718601953234736,
+            -4.983804993209917
+          ]
+        },
+        {
+          "first": "water_ammonia_packing_02",
+          "second": "water_ammonia_packing_02_permuted",
+          "order": [
+            1,
+            5,
+            4,
+            2,
+            6,
+            3,
+            0
+          ],
+          "rotation": [
+            [
+              -0.7620816711866627,
+              -0.23172967525066568,
+              -0.6045931558077413
+            ],
+            [
+              0.42391507947626683,
+              -0.8843785437519797,
+              -0.1953729683035973
+            ],
+            [
+              -0.48941550019791286,
+              -0.4051863138845501,
+              0.7722023822850311
+            ]
+          ],
+          "translation": [
+            -0.4652359599931337,
+            2.0986580483400363,
+            3.9526264335116217
+          ]
+        },
+        {
+          "first": "water_ammonia_packing_03",
+          "second": "water_ammonia_packing_03_permuted",
+          "order": [
+            4,
+            3,
+            5,
+            1,
+            6,
+            2,
+            0
+          ],
+          "rotation": [
+            [
+              -0.6833254378755402,
+              0.0782776458339215,
+              -0.7259056110231552
+            ],
+            [
+              0.6152060392083986,
+              -0.47367895992719194,
+              -0.6301982007621157
+            ],
+            [
+              -0.3931766463991924,
+              -0.8772119772808581,
+              0.27552000225263434
+            ]
+          ],
+          "translation": [
+            0.9199081550113437,
+            -4.369244780400708,
+            -4.781357270053109
+          ]
+        },
+        {
+          "first": "water_ammonia_packing_04",
+          "second": "water_ammonia_packing_04_permuted",
+          "order": [
+            0,
+            3,
+            5,
+            4,
+            6,
+            2,
+            1
+          ],
+          "rotation": [
+            [
+              -0.9492996965492269,
+              -0.13811417877134813,
+              0.28240849801991075
+            ],
+            [
+              -0.10720278095896499,
+              -0.7022606574200767,
+              -0.7038021972078424
+            ],
+            [
+              0.29552943996531034,
+              -0.6983941885942624,
+              0.6518496049331873
+            ]
+          ],
+          "translation": [
+            -2.8380581893492596,
+            1.835440409539629,
+            -0.8725125631142845
+          ]
+        },
+        {
+          "first": "water_ammonia_packing_05",
+          "second": "water_ammonia_packing_05_permuted",
+          "order": [
+            5,
+            1,
+            0,
+            4,
+            3,
+            2,
+            6
+          ],
+          "rotation": [
+            [
+              -0.22063605457929514,
+              -0.9420697728661395,
+              -0.25263466601324336
+            ],
+            [
+              0.08768761770213636,
+              -0.2771278910996789,
+              0.9568233973290834
+            ],
+            [
+              -0.971406512805739,
+              0.1889568073041699,
+              0.14375225859793817
+            ]
+          ],
+          "translation": [
+            -2.9096391622429216,
+            0.3621680093774895,
+            -2.6166945723051462
+          ]
+        }
+      ]
+    },
+    {
+      "id": "water_trimer_packing",
+      "system_type": "molecular-aggregate",
+      "records": [
+        {
+          "id": "water_trimer_packing_00",
+          "family": "triangle",
+          "energy": 0.0
+        },
+        {
+          "id": "water_trimer_packing_00_permuted",
+          "family": "triangle",
+          "energy": 0.1
+        },
+        {
+          "id": "water_trimer_packing_01",
+          "family": "triangle",
+          "energy": 1.0
+        },
+        {
+          "id": "water_trimer_packing_01_permuted",
+          "family": "triangle",
+          "energy": 1.1
+        },
+        {
+          "id": "water_trimer_packing_02",
+          "family": "triangle",
+          "energy": 2.0
+        },
+        {
+          "id": "water_trimer_packing_02_permuted",
+          "family": "triangle",
+          "energy": 2.1
+        },
+        {
+          "id": "water_trimer_packing_03",
+          "family": "chain",
+          "energy": 3.0
+        },
+        {
+          "id": "water_trimer_packing_03_permuted",
+          "family": "chain",
+          "energy": 3.1
+        },
+        {
+          "id": "water_trimer_packing_04",
+          "family": "chain",
+          "energy": 4.0
+        },
+        {
+          "id": "water_trimer_packing_04_permuted",
+          "family": "chain",
+          "energy": 4.1
+        },
+        {
+          "id": "water_trimer_packing_05",
+          "family": "chain",
+          "energy": 5.0
+        },
+        {
+          "id": "water_trimer_packing_05_permuted",
+          "family": "chain",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "water_trimer_packing_00",
+          "second": "water_trimer_packing_00_permuted",
+          "order": [
+            8,
+            4,
+            6,
+            3,
+            0,
+            1,
+            2,
+            7,
+            5
+          ],
+          "rotation": [
+            [
+              -0.04400215636347582,
+              -0.8190834060712469,
+              0.5719844264786319
+            ],
+            [
+              -0.2619160200061782,
+              -0.543054395953374,
+              -0.797804438129946
+            ],
+            [
+              0.9640870337783244,
+              -0.18491700012286813,
+              -0.1906355013266721
+            ]
+          ],
+          "translation": [
+            -1.5821737288523807,
+            3.8897759943474846,
+            1.1444668856033768
+          ]
+        },
+        {
+          "first": "water_trimer_packing_01",
+          "second": "water_trimer_packing_01_permuted",
+          "order": [
+            2,
+            8,
+            3,
+            5,
+            7,
+            1,
+            0,
+            4,
+            6
+          ],
+          "rotation": [
+            [
+              -0.8544704967297359,
+              0.129548340146288,
+              0.5030878628865739
+            ],
+            [
+              -0.512129842973889,
+              -0.3726014088239346,
+              -0.7738806200428844
+            ],
+            [
+              0.08719629667582403,
+              -0.9189044660397299,
+              0.384722481976633
+            ]
+          ],
+          "translation": [
+            -3.5957924999979074,
+            -1.2050679003024687,
+            4.024852141574328
+          ]
+        },
+        {
+          "first": "water_trimer_packing_02",
+          "second": "water_trimer_packing_02_permuted",
+          "order": [
+            4,
+            0,
+            8,
+            2,
+            1,
+            7,
+            5,
+            3,
+            6
+          ],
+          "rotation": [
+            [
+              -0.06721207068738155,
+              0.6094072442998212,
+              -0.79000338489706
+            ],
+            [
+              -0.9394224170282955,
+              -0.30538369074160415,
+              -0.15564807680710827
+            ],
+            [
+              -0.33610721494581103,
+              0.7316854597598167,
+              0.5930162966035892
+            ]
+          ],
+          "translation": [
+            4.965832123200682,
+            -0.4024840723489751,
+            -4.044820329558631
+          ]
+        },
+        {
+          "first": "water_trimer_packing_03",
+          "second": "water_trimer_packing_03_permuted",
+          "order": [
+            2,
+            1,
+            3,
+            5,
+            6,
+            7,
+            4,
+            8,
+            0
+          ],
+          "rotation": [
+            [
+              -0.8296561139799361,
+              -0.4756951156826311,
+              0.29220692916390484
+            ],
+            [
+              0.5532343492114716,
+              -0.630375865051472,
+              0.5445714127762932
+            ],
+            [
+              -0.07484976545234197,
+              0.6134659123996187,
+              0.786166068293101
+            ]
+          ],
+          "translation": [
+            4.950449035911493,
+            -1.8920093329450358,
+            1.442405805997307
+          ]
+        },
+        {
+          "first": "water_trimer_packing_04",
+          "second": "water_trimer_packing_04_permuted",
+          "order": [
+            3,
+            1,
+            6,
+            8,
+            2,
+            5,
+            4,
+            7,
+            0
+          ],
+          "rotation": [
+            [
+              -0.67821800850615,
+              -0.6337837931486724,
+              0.37193875366790285
+            ],
+            [
+              0.7163059917555438,
+              -0.683180878041674,
+              0.14201976641761516
+            ],
+            [
+              0.16409161804631922,
+              0.36274232096667147,
+              0.9173287030648576
+            ]
+          ],
+          "translation": [
+            -0.07279291324881143,
+            -2.07863712987846,
+            -4.223977824140426
+          ]
+        },
+        {
+          "first": "water_trimer_packing_05",
+          "second": "water_trimer_packing_05_permuted",
+          "order": [
+            6,
+            8,
+            4,
+            7,
+            5,
+            2,
+            1,
+            3,
+            0
+          ],
+          "rotation": [
+            [
+              -0.4790327837153703,
+              0.1803654640127841,
+              -0.8590668725526297
+            ],
+            [
+              -0.8511426024331634,
+              -0.33477936750594994,
+              0.40432542019469647
+            ],
+            [
+              -0.21467152221290353,
+              0.9248735451313163,
+              0.3138870227757524
+            ]
+          ],
+          "translation": [
+            -4.029771082814283,
+            -3.3559707301405703,
+            2.984410413538007
+          ]
+        }
+      ]
+    },
+    {
+      "id": "benzene_dimer_packing",
+      "system_type": "molecular-aggregate",
+      "records": [
+        {
+          "id": "benzene_dimer_packing_00",
+          "family": "stacked",
+          "energy": 0.0
+        },
+        {
+          "id": "benzene_dimer_packing_00_permuted",
+          "family": "stacked",
+          "energy": 0.1
+        },
+        {
+          "id": "benzene_dimer_packing_01",
+          "family": "stacked",
+          "energy": 1.0
+        },
+        {
+          "id": "benzene_dimer_packing_01_permuted",
+          "family": "stacked",
+          "energy": 1.1
+        },
+        {
+          "id": "benzene_dimer_packing_02",
+          "family": "stacked",
+          "energy": 2.0
+        },
+        {
+          "id": "benzene_dimer_packing_02_permuted",
+          "family": "stacked",
+          "energy": 2.1
+        },
+        {
+          "id": "benzene_dimer_packing_03",
+          "family": "slipped",
+          "energy": 3.0
+        },
+        {
+          "id": "benzene_dimer_packing_03_permuted",
+          "family": "slipped",
+          "energy": 3.1
+        },
+        {
+          "id": "benzene_dimer_packing_04",
+          "family": "slipped",
+          "energy": 4.0
+        },
+        {
+          "id": "benzene_dimer_packing_04_permuted",
+          "family": "slipped",
+          "energy": 4.1
+        },
+        {
+          "id": "benzene_dimer_packing_05",
+          "family": "slipped",
+          "energy": 5.0
+        },
+        {
+          "id": "benzene_dimer_packing_05_permuted",
+          "family": "slipped",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "benzene_dimer_packing_00",
+          "second": "benzene_dimer_packing_00_permuted",
+          "order": [
+            5,
+            7,
+            12,
+            6,
+            4,
+            14,
+            3,
+            16,
+            0,
+            13,
+            23,
+            17,
+            21,
+            9,
+            1,
+            11,
+            10,
+            19,
+            2,
+            8,
+            18,
+            20,
+            15,
+            22
+          ],
+          "rotation": [
+            [
+              -0.731433953362616,
+              0.5759120423422267,
+              -0.36514338464983737
+            ],
+            [
+              -0.4304965951583913,
+              0.02529261376634787,
+              0.9022377542787142
+            ],
+            [
+              0.5288450183422041,
+              0.8171203113214549,
+              0.2294282968610503
+            ]
+          ],
+          "translation": [
+            -3.3817562540642374,
+            -0.928550064703721,
+            0.2930132572151889
+          ]
+        },
+        {
+          "first": "benzene_dimer_packing_01",
+          "second": "benzene_dimer_packing_01_permuted",
+          "order": [
+            1,
+            10,
+            16,
+            8,
+            12,
+            22,
+            5,
+            9,
+            2,
+            15,
+            23,
+            3,
+            11,
+            0,
+            21,
+            6,
+            4,
+            18,
+            17,
+            19,
+            14,
+            7,
+            13,
+            20
+          ],
+          "rotation": [
+            [
+              -0.49157542610058713,
+              -0.7376352484981503,
+              -0.46286913985174927
+            ],
+            [
+              0.7098125917896362,
+              -0.647320265175153,
+              0.27774549290753375
+            ],
+            [
+              -0.5044994400303194,
+              -0.19201748479407116,
+              0.8417895227088851
+            ]
+          ],
+          "translation": [
+            -0.7744233362427577,
+            -2.7735403832428296,
+            -3.3861118672186308
+          ]
+        },
+        {
+          "first": "benzene_dimer_packing_02",
+          "second": "benzene_dimer_packing_02_permuted",
+          "order": [
+            8,
+            10,
+            5,
+            4,
+            7,
+            23,
+            3,
+            14,
+            0,
+            20,
+            2,
+            19,
+            6,
+            18,
+            15,
+            21,
+            11,
+            1,
+            9,
+            16,
+            13,
+            22,
+            12,
+            17
+          ],
+          "rotation": [
+            [
+              -0.44415349437876994,
+              -0.6731580827390173,
+              0.5912578702006919
+            ],
+            [
+              0.5969843699522964,
+              -0.7144391675642446,
+              -0.3649470343526149
+            ],
+            [
+              0.6680848265480871,
+              0.19087920655021376,
+              0.719185506696967
+            ]
+          ],
+          "translation": [
+            1.727479246579974,
+            0.5771987717059943,
+            -2.50119865140645
+          ]
+        },
+        {
+          "first": "benzene_dimer_packing_03",
+          "second": "benzene_dimer_packing_03_permuted",
+          "order": [
+            5,
+            6,
+            3,
+            9,
+            15,
+            22,
+            21,
+            0,
+            23,
+            11,
+            17,
+            4,
+            12,
+            7,
+            10,
+            8,
+            19,
+            16,
+            2,
+            20,
+            14,
+            13,
+            18,
+            1
+          ],
+          "rotation": [
+            [
+              -0.5683199042089833,
+              0.28240802959692674,
+              0.7728248128127572
+            ],
+            [
+              0.1532351217858477,
+              -0.8864941867202011,
+              0.4366314857663905
+            ],
+            [
+              0.8084129414669019,
+              0.36657026847586893,
+              0.46053746247005883
+            ]
+          ],
+          "translation": [
+            0.2756116121004144,
+            3.3495096586899358,
+            -2.319217701768462
+          ]
+        },
+        {
+          "first": "benzene_dimer_packing_04",
+          "second": "benzene_dimer_packing_04_permuted",
+          "order": [
+            5,
+            3,
+            20,
+            12,
+            19,
+            15,
+            11,
+            16,
+            17,
+            8,
+            22,
+            21,
+            18,
+            6,
+            4,
+            0,
+            7,
+            10,
+            13,
+            9,
+            2,
+            1,
+            14,
+            23
+          ],
+          "rotation": [
+            [
+              -0.702484800066234,
+              0.33399501359140604,
+              0.6284603699295442
+            ],
+            [
+              0.32858057465842144,
+              -0.6310935877771463,
+              0.7026775145283293
+            ],
+            [
+              0.6313080956498537,
+              0.7001201428059655,
+              0.3335893793337995
+            ]
+          ],
+          "translation": [
+            2.524388373977313,
+            4.8369780484784535,
+            -4.678426040390625
+          ]
+        },
+        {
+          "first": "benzene_dimer_packing_05",
+          "second": "benzene_dimer_packing_05_permuted",
+          "order": [
+            6,
+            17,
+            22,
+            2,
+            9,
+            3,
+            5,
+            20,
+            4,
+            18,
+            8,
+            11,
+            7,
+            15,
+            13,
+            14,
+            10,
+            19,
+            23,
+            1,
+            16,
+            12,
+            0,
+            21
+          ],
+          "rotation": [
+            [
+              -0.6930970311831719,
+              -0.5113689000482978,
+              -0.5080534946523518
+            ],
+            [
+              0.27908548517235005,
+              -0.8401992079501369,
+              0.46494793571546994
+            ],
+            [
+              -0.6646260582697516,
+              0.18046367785057688,
+              0.7250552142047224
+            ]
+          ],
+          "translation": [
+            -4.718094275235035,
+            -1.206072421907991,
+            0.5244535282213771
+          ]
+        }
+      ]
+    },
+    {
+      "id": "butane_torsions",
+      "system_type": "molecular",
+      "records": [
+        {
+          "id": "butane_torsions_00",
+          "family": "anti",
+          "energy": 0.0
+        },
+        {
+          "id": "butane_torsions_00_permuted",
+          "family": "anti",
+          "energy": 0.1
+        },
+        {
+          "id": "butane_torsions_01",
+          "family": "anti",
+          "energy": 1.0
+        },
+        {
+          "id": "butane_torsions_01_permuted",
+          "family": "anti",
+          "energy": 1.1
+        },
+        {
+          "id": "butane_torsions_02",
+          "family": "anti",
+          "energy": 2.0
+        },
+        {
+          "id": "butane_torsions_02_permuted",
+          "family": "anti",
+          "energy": 2.1
+        },
+        {
+          "id": "butane_torsions_03",
+          "family": "gauche",
+          "energy": 3.0
+        },
+        {
+          "id": "butane_torsions_03_permuted",
+          "family": "gauche",
+          "energy": 3.1
+        },
+        {
+          "id": "butane_torsions_04",
+          "family": "gauche",
+          "energy": 4.0
+        },
+        {
+          "id": "butane_torsions_04_permuted",
+          "family": "gauche",
+          "energy": 4.1
+        },
+        {
+          "id": "butane_torsions_05",
+          "family": "gauche",
+          "energy": 5.0
+        },
+        {
+          "id": "butane_torsions_05_permuted",
+          "family": "gauche",
+          "energy": 5.1
+        }
+      ],
+      "rigid_transform_witnesses": [
+        {
+          "first": "butane_torsions_00",
+          "second": "butane_torsions_00_permuted",
+          "order": [
+            9,
+            3,
+            4,
+            8,
+            12,
+            13,
+            1,
+            6,
+            5,
+            0,
+            11,
+            2,
+            10,
+            7
+          ],
+          "rotation": [
+            [
+              -0.938170242484968,
+              0.3459738390891153,
+              0.011777044690222246
+            ],
+            [
+              -0.25819531953346875,
+              -0.6766712301787766,
+              -0.6895297116291298
+            ],
+            [
+              -0.23059005417993747,
+              -0.6499370345766425,
+              0.7241616380332596
+            ]
+          ],
+          "translation": [
+            -1.3176191211811572,
+            -0.924658307405438,
+            2.6690614515228255
+          ]
+        },
+        {
+          "first": "butane_torsions_01",
+          "second": "butane_torsions_01_permuted",
+          "order": [
+            8,
+            5,
+            9,
+            0,
+            11,
+            6,
+            10,
+            12,
+            13,
+            7,
+            2,
+            1,
+            4,
+            3
+          ],
+          "rotation": [
+            [
+              -0.49849676077656757,
+              -0.5117025765618474,
+              0.6997581386702382
+            ],
+            [
+              0.60973292845749,
+              -0.7807530762633627,
+              -0.1365664302087043
+            ],
+            [
+              0.6162197136167611,
+              0.3585876560135085,
+              0.7012047899899247
+            ]
+          ],
+          "translation": [
+            -2.3815225531838893,
+            -3.9081123658320083,
+            -3.701021279053106
+          ]
+        },
+        {
+          "first": "butane_torsions_02",
+          "second": "butane_torsions_02_permuted",
+          "order": [
+            11,
+            0,
+            7,
+            2,
+            10,
+            4,
+            1,
+            3,
+            6,
+            8,
+            13,
+            9,
+            5,
+            12
+          ],
+          "rotation": [
+            [
+              -0.9074718343009334,
+              0.41618320877808596,
+              0.057327189724212274
+            ],
+            [
+              -0.3346071418514143,
+              -0.633500462135941,
+              -0.6976497868526708
+            ],
+            [
+              -0.2540333257124489,
+              -0.6522796188788405,
+              0.7141417003807771
+            ]
+          ],
+          "translation": [
+            -1.573034412630828,
+            1.5122115179711395,
+            2.442125097922183
+          ]
+        },
+        {
+          "first": "butane_torsions_03",
+          "second": "butane_torsions_03_permuted",
+          "order": [
+            8,
+            7,
+            13,
+            3,
+            1,
+            10,
+            2,
+            4,
+            12,
+            5,
+            11,
+            9,
+            0,
+            6
+          ],
+          "rotation": [
+            [
+              -0.7094666209679312,
+              0.4773105806366801,
+              0.5184898488346915
+            ],
+            [
+              -0.6751480221705513,
+              -0.6712892655301075,
+              -0.3058526935360249
+            ],
+            [
+              0.2020699430680839,
+              -0.5670496729531939,
+              0.7985126213856217
+            ]
+          ],
+          "translation": [
+            -3.699175164546653,
+            4.661812465776093,
+            -4.254282070440894
+          ]
+        },
+        {
+          "first": "butane_torsions_04",
+          "second": "butane_torsions_04_permuted",
+          "order": [
+            0,
+            1,
+            8,
+            4,
+            5,
+            7,
+            3,
+            11,
+            6,
+            13,
+            10,
+            9,
+            12,
+            2
+          ],
+          "rotation": [
+            [
+              -0.18294580128827054,
+              0.5801532007247807,
+              -0.793695846958888
+            ],
+            [
+              -0.7849962776633757,
+              -0.5722348748804058,
+              -0.23733539985693491
+            ],
+            [
+              -0.5918713355499129,
+              0.5796287705587078,
+              0.560106070753535
+            ]
+          ],
+          "translation": [
+            1.9537370727955325,
+            -0.6611043779093109,
+            -4.1247563078096015
+          ]
+        },
+        {
+          "first": "butane_torsions_05",
+          "second": "butane_torsions_05_permuted",
+          "order": [
+            2,
+            8,
+            13,
+            0,
+            4,
+            1,
+            7,
+            10,
+            3,
+            9,
+            5,
+            11,
+            6,
+            12
+          ],
+          "rotation": [
+            [
+              -0.8717585842954683,
+              0.34329644096070044,
+              0.34954902993840137
+            ],
+            [
+              -0.4032990909035162,
+              -0.09772130298895111,
+              -0.9098353643481545
+            ],
+            [
+              -0.27818485577679913,
+              -0.9341295951664618,
+              0.2236405272990197
+            ]
+          ],
+          "translation": [
+            -4.717533162883148,
+            -2.135191303723649,
+            0.6404902407927429
+          ]
+        }
+      ]
+    }
+  ],
+  "label_interpretation": "constructed packing/torsion families; not optimized PES basins",
+  "energy_interpretation": "synthetic ranking metadata only"
+}

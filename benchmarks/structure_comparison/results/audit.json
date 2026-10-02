@@ -1,0 +1,1949 @@
+{
+  "valid": true,
+  "errors": [],
+  "structures": 126,
+  "pairs": 189,
+  "label_counts": {
+    "same_structure": 26,
+    "different_connectivity": 72,
+    "unreviewed_conformer_pair": 42,
+    "ambiguous": 12,
+    "different_cluster_motif": 1,
+    "distorted_cluster": 1,
+    "different_composition": 1,
+    "different_cluster_arrangement": 2,
+    "coordinate_perturbation": 32
+  },
+  "pair_evidence": [
+    {
+      "pair_id": "pair_0001",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 7.932440456932947e-10
+    },
+    {
+      "pair_id": "pair_0002",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.463073846652415e-10
+    },
+    {
+      "pair_id": "pair_0003",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0540506066958613e-09
+    },
+    {
+      "pair_id": "pair_0004",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0469297874883717e-09
+    },
+    {
+      "pair_id": "pair_0005",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.1949129085525145e-09
+    },
+    {
+      "pair_id": "pair_0006",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0908836043078497e-09
+    },
+    {
+      "pair_id": "pair_0007",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0353099025673488e-09
+    },
+    {
+      "pair_id": "pair_0008",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0868063379762178e-09
+    },
+    {
+      "pair_id": "pair_0009",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0701704484919352e-09
+    },
+    {
+      "pair_id": "pair_0010",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.082609623937816e-10
+    },
+    {
+      "pair_id": "pair_0011",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.260871996112863e-10
+    },
+    {
+      "pair_id": "pair_0012",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.594816521706261e-10
+    },
+    {
+      "pair_id": "pair_0013",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 8.646608878581733e-10
+    },
+    {
+      "pair_id": "pair_0014",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.509215324074974e-10
+    },
+    {
+      "pair_id": "pair_0015",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.09095039049023e-10
+    },
+    {
+      "pair_id": "pair_0016",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.211673930552044e-09
+    },
+    {
+      "pair_id": "pair_0017",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 5.700811216674063e-10
+    },
+    {
+      "pair_id": "pair_0018",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.1269725071856357e-09
+    },
+    {
+      "pair_id": "pair_0019",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 8.263289993006179e-10
+    },
+    {
+      "pair_id": "pair_0020",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.245764919001741e-10
+    },
+    {
+      "pair_id": "pair_0021",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 9.953716203840075e-10
+    },
+    {
+      "pair_id": "pair_0022",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0037039307163577e-09
+    },
+    {
+      "pair_id": "pair_0023",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 8.363358998524865e-10
+    },
+    {
+      "pair_id": "pair_0024",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 1.0161263121870016e-09
+    },
+    {
+      "pair_id": "pair_0025",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0026",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0027",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0028",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0029",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0030",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0031",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0032",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0033",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0034",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0035",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0036",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0037",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0038",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0039",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0040",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0041",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0042",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0043",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0044",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0045",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0046",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0047",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0048",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0049",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0050",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0051",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0052",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0053",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0054",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0055",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0056",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0057",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0058",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0059",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0060",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0061",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0062",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0063",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0064",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0065",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0066",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0067",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0068",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0069",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0070",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0071",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0072",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0073",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0074",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0075",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0076",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0077",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0078",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0079",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0080",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0081",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0082",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0083",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0084",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0085",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0086",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0087",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0088",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0089",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0090",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0091",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0092",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0093",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0094",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0095",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0096",
+      "label": "different_connectivity",
+      "binary_expected": false,
+      "evidence": "independent_SMILES_formula_and_connectivity"
+    },
+    {
+      "pair_id": "pair_0097",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0098",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0099",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0100",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0101",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0102",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0103",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0104",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0105",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0106",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0107",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0108",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0109",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0110",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0111",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0112",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0113",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0114",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0115",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0116",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0117",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0118",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0119",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0120",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0121",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0122",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0123",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0124",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0125",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0126",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0127",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0128",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0129",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0130",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0131",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0132",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0133",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0134",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0135",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0136",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0137",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0138",
+      "label": "unreviewed_conformer_pair",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0139",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0140",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0141",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0142",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0143",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0144",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0145",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0146",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0147",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0148",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0149",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0150",
+      "label": "ambiguous",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0151",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 8.167404406994599e-10
+    },
+    {
+      "pair_id": "pair_0152",
+      "label": "different_cluster_motif",
+      "binary_expected": null,
+      "distance_spectrum_max_difference_angstrom": 1.3784550856114488
+    },
+    {
+      "pair_id": "pair_0153",
+      "label": "distorted_cluster",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0154",
+      "label": "different_composition",
+      "binary_expected": false
+    },
+    {
+      "pair_id": "pair_0155",
+      "label": "same_structure",
+      "binary_expected": true,
+      "recorded_mapping_max_residual_angstrom": 4.440892098500626e-16
+    },
+    {
+      "pair_id": "pair_0156",
+      "label": "different_cluster_arrangement",
+      "binary_expected": null,
+      "distance_spectrum_max_difference_angstrom": 0.9250814541429833
+    },
+    {
+      "pair_id": "pair_0157",
+      "label": "different_cluster_arrangement",
+      "binary_expected": null,
+      "distance_spectrum_max_difference_angstrom": 3.6818905654089957
+    },
+    {
+      "pair_id": "pair_0158",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0159",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0160",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0161",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0162",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0163",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0164",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0165",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0166",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0167",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0168",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0169",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0170",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0171",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0172",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0173",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0174",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0175",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0176",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0177",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0178",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0179",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0180",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0181",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0182",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0183",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0184",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0185",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0186",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0187",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0188",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    },
+    {
+      "pair_id": "pair_0189",
+      "label": "coordinate_perturbation",
+      "binary_expected": null
+    }
+  ],
+  "geometry_checks": [
+    {
+      "structure_id": "C4H10_1_conf1",
+      "minimum_separation_angstrom": 1.0944957562755475,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.268842808599402e-09,
+      "max_gradient_component_kcal_mol_A": 0.00014617359277953323
+    },
+    {
+      "structure_id": "C4H10_1_conf2",
+      "minimum_separation_angstrom": 1.0944957511743807,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.2603829091517582e-09,
+      "max_gradient_component_kcal_mol_A": 0.00019209704738222446
+    },
+    {
+      "structure_id": "C4H10_1_conf3",
+      "minimum_separation_angstrom": 1.094495593497429,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.1845218139683311e-09,
+      "max_gradient_component_kcal_mol_A": 0.00033352191305023636
+    },
+    {
+      "structure_id": "C4H10_2_conf1",
+      "minimum_separation_angstrom": 1.0951326498876806,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.6668112445827887e-09,
+      "max_gradient_component_kcal_mol_A": 0.00014546724237285424
+    },
+    {
+      "structure_id": "C4H10_2_conf2",
+      "minimum_separation_angstrom": 1.0951326882302288,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.4998901010088161e-09,
+      "max_gradient_component_kcal_mol_A": 0.00026714429891427915
+    },
+    {
+      "structure_id": "C4H10_2_conf3",
+      "minimum_separation_angstrom": 1.095132386979916,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.4137350179410646e-09,
+      "max_gradient_component_kcal_mol_A": 0.0005874283260589586
+    },
+    {
+      "structure_id": "C2H6O_1_conf1",
+      "minimum_separation_angstrom": 0.9723851200310631,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.8510338534459834e-09,
+      "max_gradient_component_kcal_mol_A": 0.0001984756866414671
+    },
+    {
+      "structure_id": "C2H6O_1_conf2",
+      "minimum_separation_angstrom": 0.972421008487292,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.976580842390831e-09,
+      "max_gradient_component_kcal_mol_A": 0.00013790670646995906
+    },
+    {
+      "structure_id": "C2H6O_1_conf3",
+      "minimum_separation_angstrom": 0.9724212526764315,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.927368430467482e-09,
+      "max_gradient_component_kcal_mol_A": 0.00015761121741906994
+    },
+    {
+      "structure_id": "C2H6O_2_conf1",
+      "minimum_separation_angstrom": 1.093292176213808,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 6.868408064519826e-10,
+      "max_gradient_component_kcal_mol_A": 1.814227167562521e-05
+    },
+    {
+      "structure_id": "C2H6O_2_conf2",
+      "minimum_separation_angstrom": 1.0932921595709744,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 6.830962462345269e-10,
+      "max_gradient_component_kcal_mol_A": 2.0491042796694225e-05
+    },
+    {
+      "structure_id": "C2H6O_2_conf3",
+      "minimum_separation_angstrom": 1.0932921847824084,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 6.561471366239857e-10,
+      "max_gradient_component_kcal_mol_A": 5.9932206888602124e-05
+    },
+    {
+      "structure_id": "C3H8O_1_conf1",
+      "minimum_separation_angstrom": 0.9723899980872395,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.4511002944270786e-09,
+      "max_gradient_component_kcal_mol_A": 0.0003182313454077601
+    },
+    {
+      "structure_id": "C3H8O_1_conf2",
+      "minimum_separation_angstrom": 0.9724085325640711,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.2550037392932154e-09,
+      "max_gradient_component_kcal_mol_A": 0.00013788726880231694
+    },
+    {
+      "structure_id": "C3H8O_1_conf3",
+      "minimum_separation_angstrom": 0.9724084782293363,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.079842520430475e-09,
+      "max_gradient_component_kcal_mol_A": 0.00032976080234981
+    },
+    {
+      "structure_id": "C3H8O_2_conf1",
+      "minimum_separation_angstrom": 0.972432715504705,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.1203632727970785e-09,
+      "max_gradient_component_kcal_mol_A": 0.00012120587757635803
+    },
+    {
+      "structure_id": "C3H8O_2_conf2",
+      "minimum_separation_angstrom": 0.9724328029169736,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.233628447813942e-09,
+      "max_gradient_component_kcal_mol_A": 0.0001813472546636748
+    },
+    {
+      "structure_id": "C3H8O_2_conf3",
+      "minimum_separation_angstrom": 0.9724327266584138,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.293733701921099e-09,
+      "max_gradient_component_kcal_mol_A": 0.00019585114297147183
+    },
+    {
+      "structure_id": "C3H6O_1_conf1",
+      "minimum_separation_angstrom": 1.0927572982809202,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.3381273301102965e-09,
+      "max_gradient_component_kcal_mol_A": 0.00011787068012686364
+    },
+    {
+      "structure_id": "C3H6O_1_conf2",
+      "minimum_separation_angstrom": 1.0927572490358166,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.324773567570105e-09,
+      "max_gradient_component_kcal_mol_A": 0.00013236476258599028
+    },
+    {
+      "structure_id": "C3H6O_1_conf3",
+      "minimum_separation_angstrom": 1.0927573379427733,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.2440896635677063e-09,
+      "max_gradient_component_kcal_mol_A": 0.00026644334147624127
+    },
+    {
+      "structure_id": "C3H6O_2_conf1",
+      "minimum_separation_angstrom": 1.0942865171096194,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 6.118123785370244e-10,
+      "max_gradient_component_kcal_mol_A": 9.131610837638223e-05
+    },
+    {
+      "structure_id": "C3H6O_2_conf2",
+      "minimum_separation_angstrom": 1.0942866360279624,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 7.260734236069766e-10,
+      "max_gradient_component_kcal_mol_A": 0.00025944702893227964
+    },
+    {
+      "structure_id": "C3H6O_2_conf3",
+      "minimum_separation_angstrom": 1.0942869434516997,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.1245824271810534e-09,
+      "max_gradient_component_kcal_mol_A": 0.0005828632001551762
+    },
+    {
+      "structure_id": "C4H8O_ring_chain_1_conf1",
+      "minimum_separation_angstrom": 1.0930214039830932,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.937173976784834e-09,
+      "max_gradient_component_kcal_mol_A": 0.00010636151232912283
+    },
+    {
+      "structure_id": "C4H8O_ring_chain_1_conf2",
+      "minimum_separation_angstrom": 1.0930213609869563,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.8769785725680777e-09,
+      "max_gradient_component_kcal_mol_A": 9.292371927061005e-05
+    },
+    {
+      "structure_id": "C4H8O_ring_chain_1_conf3",
+      "minimum_separation_angstrom": 1.0930213395726394,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.858122544717844e-09,
+      "max_gradient_component_kcal_mol_A": 0.00017302926093171536
+    },
+    {
+      "structure_id": "C4H8O_ring_chain_2_conf1",
+      "minimum_separation_angstrom": 1.0944934942015156,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.3182570590686282e-09,
+      "max_gradient_component_kcal_mol_A": 0.0001594455367932915
+    },
+    {
+      "structure_id": "C4H8O_ring_chain_2_conf2",
+      "minimum_separation_angstrom": 1.094493513790653,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.115354558185345e-09,
+      "max_gradient_component_kcal_mol_A": 0.00040623926845875097
+    },
+    {
+      "structure_id": "C4H8O_ring_chain_2_conf3",
+      "minimum_separation_angstrom": 1.0944935233629653,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.6972641897771155e-09,
+      "max_gradient_component_kcal_mol_A": 0.00031068958410673786
+    },
+    {
+      "structure_id": "C4H10O_1_conf1",
+      "minimum_separation_angstrom": 0.9723886135433181,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.9756902780443397e-09,
+      "max_gradient_component_kcal_mol_A": 0.0007326566153447178
+    },
+    {
+      "structure_id": "C4H10O_1_conf2",
+      "minimum_separation_angstrom": 0.97240477180536,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 9.063483297211405e-10,
+      "max_gradient_component_kcal_mol_A": 7.328863925329711e-05
+    },
+    {
+      "structure_id": "C4H10O_1_conf3",
+      "minimum_separation_angstrom": 0.9724047217888104,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.4603509512767232e-09,
+      "max_gradient_component_kcal_mol_A": 0.0003574153467182997
+    },
+    {
+      "structure_id": "C4H10O_2_conf1",
+      "minimum_separation_angstrom": 0.9724142594450375,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.3384895676013e-09,
+      "max_gradient_component_kcal_mol_A": 0.00016998837415328207
+    },
+    {
+      "structure_id": "C4H10O_2_conf2",
+      "minimum_separation_angstrom": 0.9724142757023264,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.495161132211933e-09,
+      "max_gradient_component_kcal_mol_A": 0.00020789674785126784
+    },
+    {
+      "structure_id": "C4H10O_2_conf3",
+      "minimum_separation_angstrom": 0.9724139229933301,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.914493256791275e-09,
+      "max_gradient_component_kcal_mol_A": 0.0003723409134248623
+    },
+    {
+      "structure_id": "C5H12_1_conf1",
+      "minimum_separation_angstrom": 1.094492608181439,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 5.877387465602624e-10,
+      "max_gradient_component_kcal_mol_A": 9.406332261889386e-05
+    },
+    {
+      "structure_id": "C5H12_1_conf2",
+      "minimum_separation_angstrom": 1.0944926654542617,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.5061110398592064e-10,
+      "max_gradient_component_kcal_mol_A": 0.00020572691125983779
+    },
+    {
+      "structure_id": "C5H12_1_conf3",
+      "minimum_separation_angstrom": 1.0944927792418735,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.2315216341439736e-10,
+      "max_gradient_component_kcal_mol_A": 0.0005928330160645534
+    },
+    {
+      "structure_id": "C5H12_2_conf1",
+      "minimum_separation_angstrom": 1.0937899906685942,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 1.3116985275729576e-10,
+      "max_gradient_component_kcal_mol_A": 0.0002490383464983049
+    },
+    {
+      "structure_id": "C5H12_2_conf2",
+      "minimum_separation_angstrom": 1.0937902291631874,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 2.3906310264720787e-10,
+      "max_gradient_component_kcal_mol_A": 0.00026093938454897596
+    },
+    {
+      "structure_id": "C5H12_2_conf3",
+      "minimum_separation_angstrom": 1.0937901406195254,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.0856217581032297e-10,
+      "max_gradient_component_kcal_mol_A": 0.00012181541254632376
+    },
+    {
+      "structure_id": "C4H8_1_conf1",
+      "minimum_separation_angstrom": 1.09265468900393,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.941096420907343e-10,
+      "max_gradient_component_kcal_mol_A": 2.5764841696713798e-05
+    },
+    {
+      "structure_id": "C4H8_1_conf2",
+      "minimum_separation_angstrom": 1.092654712202894,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 3.55976581545292e-10,
+      "max_gradient_component_kcal_mol_A": 8.673717214226131e-05
+    },
+    {
+      "structure_id": "C4H8_1_conf3",
+      "minimum_separation_angstrom": 1.0926546428154205,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.626166116850072e-11,
+      "max_gradient_component_kcal_mol_A": 0.00014730061503728797
+    },
+    {
+      "structure_id": "C4H8_2_conf1",
+      "minimum_separation_angstrom": 1.0855592055493817,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.874658010578514e-09,
+      "max_gradient_component_kcal_mol_A": 2.894413984884641e-05
+    },
+    {
+      "structure_id": "C4H8_2_conf2",
+      "minimum_separation_angstrom": 1.0855592278495498,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.833338174137225e-09,
+      "max_gradient_component_kcal_mol_A": 0.0001545696451744627
+    },
+    {
+      "structure_id": "C4H8_2_conf3",
+      "minimum_separation_angstrom": 1.0855589897870808,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic",
+      "energy_recomputed_error_kcal_mol": 4.773292872073398e-09,
+      "max_gradient_component_kcal_mol_A": 0.00015805882330915955
+    },
+    {
+      "structure_id": "transform_000",
+      "minimum_separation_angstrom": 0.9723851200448623,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_001",
+      "minimum_separation_angstrom": 1.0932921768051291,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_002",
+      "minimum_separation_angstrom": 1.092757297678842,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_003",
+      "minimum_separation_angstrom": 1.0942865164302809,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_004",
+      "minimum_separation_angstrom": 0.972389998843834,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_005",
+      "minimum_separation_angstrom": 0.9724327150379004,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_006",
+      "minimum_separation_angstrom": 0.9723886125533333,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_007",
+      "minimum_separation_angstrom": 0.9724142590525969,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_008",
+      "minimum_separation_angstrom": 1.0944957561318416,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_009",
+      "minimum_separation_angstrom": 1.0951326498316734,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_010",
+      "minimum_separation_angstrom": 1.0930214034451577,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_011",
+      "minimum_separation_angstrom": 1.0944934942530191,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_012",
+      "minimum_separation_angstrom": 1.0926546891717555,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_013",
+      "minimum_separation_angstrom": 1.0855592064598527,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_014",
+      "minimum_separation_angstrom": 1.0944926078717818,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_015",
+      "minimum_separation_angstrom": 1.0937899914656624,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_016",
+      "minimum_separation_angstrom": 0.9723851201263918,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_017",
+      "minimum_separation_angstrom": 1.0932921769439505,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_018",
+      "minimum_separation_angstrom": 1.092757298048011,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_019",
+      "minimum_separation_angstrom": 1.0942865171336897,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_020",
+      "minimum_separation_angstrom": 0.9723899981976376,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_021",
+      "minimum_separation_angstrom": 0.9724327158444994,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_022",
+      "minimum_separation_angstrom": 0.9723886127511088,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "transform_023",
+      "minimum_separation_angstrom": 0.9724142602194332,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_000",
+      "minimum_separation_angstrom": 0.9169947012317697,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_001",
+      "minimum_separation_angstrom": 1.0676972886509424,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_002",
+      "minimum_separation_angstrom": 0.965096319012092,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_003",
+      "minimum_separation_angstrom": 0.9908910794761421,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_004",
+      "minimum_separation_angstrom": 0.9916192306522883,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_005",
+      "minimum_separation_angstrom": 0.8815781965022298,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_006",
+      "minimum_separation_angstrom": 0.8895584939652073,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_007",
+      "minimum_separation_angstrom": 0.8114415398867492,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_008",
+      "minimum_separation_angstrom": 0.8715791438779645,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_009",
+      "minimum_separation_angstrom": 0.8334429457275049,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_010",
+      "minimum_separation_angstrom": 1.0176831159268498,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "nearby_ambiguous_011",
+      "minimum_separation_angstrom": 1.0090315375713912,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "organic"
+    },
+    {
+      "structure_id": "au13_ico",
+      "minimum_separation_angstrom": 3.8000000001953715,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "atomic_cluster"
+    },
+    {
+      "structure_id": "au13_cubocta",
+      "minimum_separation_angstrom": 3.800000000694548,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "atomic_cluster"
+    },
+    {
+      "structure_id": "ar13_ico",
+      "minimum_separation_angstrom": 3.8000000001953715,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "atomic_cluster"
+    },
+    {
+      "structure_id": "au13_ico_rotperm",
+      "minimum_separation_angstrom": 3.7999999994852267,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "atomic_cluster"
+    },
+    {
+      "structure_id": "au13_ico_distorted",
+      "minimum_separation_angstrom": 3.1630407135030634,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "atomic_cluster"
+    },
+    {
+      "structure_id": "water_dimer_hbond",
+      "minimum_separation_angstrom": 0.9572,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "molecular_non_covalent_cluster",
+      "minimum_interfragment_separation_angstrom": 1.8427999999999998
+    },
+    {
+      "structure_id": "water_dimer_side",
+      "minimum_separation_angstrom": 0.9571999999999998,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "molecular_non_covalent_cluster",
+      "minimum_interfragment_separation_angstrom": 2.5293675098727744
+    },
+    {
+      "structure_id": "water_trimer_ring",
+      "minimum_separation_angstrom": 0.9571999995385737,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "molecular_non_covalent_cluster",
+      "minimum_interfragment_separation_angstrom": 1.3393918511249883
+    },
+    {
+      "structure_id": "water_trimer_chain",
+      "minimum_separation_angstrom": 0.9572,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "molecular_non_covalent_cluster",
+      "minimum_interfragment_separation_angstrom": 1.8427999999999995
+    },
+    {
+      "structure_id": "water_dimer_hbond_fragperm",
+      "minimum_separation_angstrom": 0.9572,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "molecular_non_covalent_cluster",
+      "minimum_interfragment_separation_angstrom": 1.8427999999999998
+    },
+    {
+      "structure_id": "distorted_C2H6O_1_noise05",
+      "minimum_separation_angstrom": 1.0087386397651783,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_1_noise15",
+      "minimum_separation_angstrom": 0.8829203139390026,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_1_noise35",
+      "minimum_separation_angstrom": 0.45447214471098935,
+      "severe_close_contact_below_0.5_A": true,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_1_noise65",
+      "minimum_separation_angstrom": 0.7629588066867222,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_2_noise05",
+      "minimum_separation_angstrom": 0.9270409602839701,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_2_noise15",
+      "minimum_separation_angstrom": 0.8583092981185695,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_2_noise35",
+      "minimum_separation_angstrom": 0.5128536758366844,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C2H6O_2_noise65",
+      "minimum_separation_angstrom": 1.232926559978076,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_1_noise05",
+      "minimum_separation_angstrom": 0.8845550854463168,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_1_noise15",
+      "minimum_separation_angstrom": 0.753864606262928,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_1_noise35",
+      "minimum_separation_angstrom": 0.5527508966327457,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_1_noise65",
+      "minimum_separation_angstrom": 0.7894508502279278,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_2_noise05",
+      "minimum_separation_angstrom": 1.00238409629703,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_2_noise15",
+      "minimum_separation_angstrom": 0.9569023128468039,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_2_noise35",
+      "minimum_separation_angstrom": 0.27385599139949524,
+      "severe_close_contact_below_0.5_A": true,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H6O_2_noise65",
+      "minimum_separation_angstrom": 0.7426824964091402,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_1_noise05",
+      "minimum_separation_angstrom": 0.874552039012858,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_1_noise15",
+      "minimum_separation_angstrom": 0.9649811883850514,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_1_noise35",
+      "minimum_separation_angstrom": 0.4652615009372734,
+      "severe_close_contact_below_0.5_A": true,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_1_noise65",
+      "minimum_separation_angstrom": 1.088966291880701,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_2_noise05",
+      "minimum_separation_angstrom": 0.8678369503623622,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_2_noise15",
+      "minimum_separation_angstrom": 0.7932545063725015,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_2_noise35",
+      "minimum_separation_angstrom": 0.3780181824458202,
+      "severe_close_contact_below_0.5_A": true,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C3H8O_2_noise65",
+      "minimum_separation_angstrom": 0.7480001727683826,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_1_noise05",
+      "minimum_separation_angstrom": 0.9573122480474162,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_1_noise15",
+      "minimum_separation_angstrom": 0.617775702367663,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_1_noise35",
+      "minimum_separation_angstrom": 0.30390971157007235,
+      "severe_close_contact_below_0.5_A": true,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_1_noise65",
+      "minimum_separation_angstrom": 0.8209963957084595,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_2_noise05",
+      "minimum_separation_angstrom": 0.7873285862532443,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_2_noise15",
+      "minimum_separation_angstrom": 0.6828462061571297,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_2_noise35",
+      "minimum_separation_angstrom": 0.3988976664032072,
+      "severe_close_contact_below_0.5_A": true,
+      "category": "distorted_molecule"
+    },
+    {
+      "structure_id": "distorted_C4H10O_2_noise65",
+      "minimum_separation_angstrom": 0.7880427441489505,
+      "severe_close_contact_below_0.5_A": false,
+      "category": "distorted_molecule"
+    }
+  ],
+  "interpretation": "Only constructed invariance, composition, and SMILES isomer labels are scored. Others are diagnostic.",
+  "versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "networkx": "3.6.1",
+    "rdkit": "2026.3.6",
+    "irmsd": "0.1.2",
+    "python": "3.14.7 (main, Aug 10 2026, 00:00:00) [GCC 16.1.1 20260515 (Red Hat 16.1.1-2)]"
+  },
+  "sha256": {
+    "benchmarks/structure_comparison/structures.xyz": "393a20b504d784367a7ceefa8dae1ba3f059ea0bcdbf9ae387c2bf210b7283f8",
+    "benchmarks/structure_comparison/pairs.csv": "e23e9630da962179367a4099fc20636b6dd9534a9b4d2056c43ef83eda454f93",
+    "benchmarks/structure_comparison/generate_dataset.py": "e60e50cd20b2b7758434250379c5b347a47c7694ebd0ad8c61e25058921eb805",
+    "benchmarks/structure_comparison/systematic_test.py": "d73203b69a3fd8080a79f88467182f86a151398a2c30c5b5aff96fd44917062f",
+    "pyar/selection/deduplication.py": "d23b507d82401f8f1ceaa2cbd993f52022eaf488bb4fbcc8172225ee159c7ef9",
+    "pyar/structure_comparison/__init__.py": "2d7ffdf716c4c0515b4ae1ff39a8025361152364e8e03c9a40aebd146aef0b27",
+    "pyar/structure_comparison/coulomb_eigenvalue_rmsd.py": "e9bda004a192bd747589d13e9dc9e3e9ec76dd42efd0895278916edbe3d7e63b",
+    "pyar/structure_comparison/deduplication_policy.py": "4af533d2f91a3fc430e04f25e6a7f1401c7a3a1c1aaa9a1320dd29f377ebcb5c",
+    "pyar/structure_comparison/equivalence.py": "ac65b64f157f6ae29c79caa1a07978bfa081b7d41572aff21c8bd5297c5ab241",
+    "pyar/structure_comparison/graph_rmsd.py": "e46ad57c37b4db82583fe3eadd7fe6a54d2b112103d55f246b737c11a32984ef",
+    "pyar/structure_comparison/identity.py": "db6c6aa7a8de047c1a3ba0b1363d0345ad078b2996cbc51db8cf2cba3831e966",
+    "pyar/structure_comparison/irmsd.py": "840d72df3e1bdc5b9fd6790bc010482fc5212c6348c0b2bc2a37f349441f4b3b",
+    "pyar/structure_comparison/models.py": "6f8493d90d41cce4f566788cf86120dbb21dcd7a5667588b646f3b532d8bd7f7",
+    "pyar/structure_comparison/rmsd.py": "9e5dffc9fae4e2da54f66c3fd161b3e7e6dbaf34edd0b8ba17ef816e470ca1fc"
+  }
+}

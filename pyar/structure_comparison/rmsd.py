@@ -1,4 +1,4 @@
-"""Legacy permutation-aware Kabsch RMSD primitives."""
+"""Permutation-aware Kabsch RMSD primitives."""
 
 from __future__ import annotations
 

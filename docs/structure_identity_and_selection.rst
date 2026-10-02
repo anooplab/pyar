@@ -23,8 +23,37 @@ in ``pyar.structure_comparison`` allow identity providers and geometry
 comparators to evolve independently of diversity selection and workflow
 orchestration.
 
-This architectural foundation preserves current algorithms and defaults. The
-OpenBabel/InChI product identity decision, Coulomb-fingerprint prefilter,
-permutation-aware Kabsch RMSD, adaptive duplicate threshold, and current
-clustering/selection behavior remain in use. Alternative geometrical metrics
-and selection algorithms require separate scientific evaluation.
+Product identity remains separate from geometry comparison. The
+``CoulombEigenvalueRMSDComparator`` applies the sorted Coulomb eigenvalue
+prefilter followed by permutation-aware Kabsch RMSD. Candidate-pool
+deduplication now uses an element-labeled inferred graph followed by
+permutation-aware Kabsch RMSD. It removes a candidate only when graph comparison
+completes and RMSD is below the adaptive threshold. If graph connectivity
+matches but graph mapping reaches its cap, PyAR runs iRMSD in both argument
+orders in an isolated process. It removes the candidate only if both calls
+finish without diagnostics and both distances are below the threshold; it uses
+the larger distance. Graph mismatches, backend warnings, errors, and remaining
+incomplete comparisons retain both candidates. This follows “in doubt, keep.”
+The returned iRMSD atom correspondence must preserve element labels and the
+inferred adjacency, and its distance is checked independently with Kabsch
+alignment. Candidates with different known charges or multiplicities are
+incompatible even when their coordinates coincide.
+
+Optional RMSD strategies
+------------------------
+
+``IRMSDComparator`` is an optional element-permutation-invariant geometry
+metric. Install it with ``pip install 'pyar-chem[structure-comparison]'``.
+It does not establish molecular identity or check connectivity; equal-formula
+constitutional isomers can receive a finite distance. Keep identity checks
+separate when interpreting its result.
+
+``GraphRMSDComparator`` infers an element-labeled graph from the XYZ geometry
+using covalent radii and a configurable ``bond_scale`` (default ``1.15``).
+It computes a proper-rotation Kabsch RMSD only when those inferred graphs are
+isomorphic. This prevents an RMSD-only match across different inferred
+connectivities, but inferred bonds remain a geometric heuristic and do not
+encode bond orders. It supplies the primary comparison in the default
+deduplication policy. The native iRMSD package is also used as a gated secondary
+check by that policy. A graph match is required first, and native output is captured so an
+internal topology fallback cannot silently authorize deletion.

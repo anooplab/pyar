@@ -1,0 +1,479 @@
+{
+  "reference_caveat": "Operational graph RMSD labels at 0.35 A, not ground-truth minima",
+  "pools": [
+    {
+      "name": "CAMVES_I",
+      "input_count": 10,
+      "reference_labels": 4,
+      "conditions": [
+        {
+          "cutoff": 0.35,
+          "retained_count": 4,
+          "retained_reference_labels": 4,
+          "cross_label_removals": []
+        },
+        {
+          "cutoff": 0.5,
+          "retained_count": 3,
+          "retained_reference_labels": 3,
+          "cross_label_removals": [
+            {
+              "removed": "frame_0004",
+              "kept": "frame_0000",
+              "distance": 0.3781178685318082
+            }
+          ]
+        },
+        {
+          "cutoff": 0.75,
+          "retained_count": 3,
+          "retained_reference_labels": 3,
+          "cross_label_removals": [
+            {
+              "removed": "frame_0004",
+              "kept": "frame_0000",
+              "distance": 0.3781178685318082
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FGG55",
+      "input_count": 127,
+      "reference_labels": 98,
+      "conditions": [
+        {
+          "cutoff": 0.35,
+          "retained_count": 98,
+          "retained_reference_labels": 98,
+          "cross_label_removals": []
+        },
+        {
+          "cutoff": 0.5,
+          "retained_count": 92,
+          "retained_reference_labels": 92,
+          "cross_label_removals": [
+            {
+              "removed": "frame_0019",
+              "kept": "frame_0018",
+              "distance": 0.35209812870689267
+            },
+            {
+              "removed": "frame_0020",
+              "kept": "frame_0018",
+              "distance": 0.4227231195133311
+            },
+            {
+              "removed": "frame_0051",
+              "kept": "frame_0030",
+              "distance": 0.4798906274478218
+            },
+            {
+              "removed": "frame_0086",
+              "kept": "frame_0078",
+              "distance": 0.43842107911749645
+            },
+            {
+              "removed": "frame_0102",
+              "kept": "frame_0040",
+              "distance": 0.4040162480136295
+            },
+            {
+              "removed": "frame_0105",
+              "kept": "frame_0091",
+              "distance": 0.37064231461445596
+            },
+            {
+              "removed": "frame_0107",
+              "kept": "frame_0085",
+              "distance": 0.4828631740357366
+            },
+            {
+              "removed": "frame_0113",
+              "kept": "frame_0038",
+              "distance": 0.46515460806060455
+            }
+          ]
+        },
+        {
+          "cutoff": 0.75,
+          "retained_count": 68,
+          "retained_reference_labels": 68,
+          "cross_label_removals": [
+            {
+              "removed": "frame_0006",
+              "kept": "frame_0005",
+              "distance": 0.7446623833870183
+            },
+            {
+              "removed": "frame_0008",
+              "kept": "frame_0004",
+              "distance": 0.7279227622785097
+            },
+            {
+              "removed": "frame_0010",
+              "kept": "frame_0009",
+              "distance": 0.7097340406865986
+            },
+            {
+              "removed": "frame_0019",
+              "kept": "frame_0018",
+              "distance": 0.35209812870689267
+            },
+            {
+              "removed": "frame_0020",
+              "kept": "frame_0018",
+              "distance": 0.4227231195133311
+            },
+            {
+              "removed": "frame_0026",
+              "kept": "frame_0022",
+              "distance": 0.6158647470146598
+            },
+            {
+              "removed": "frame_0028",
+              "kept": "frame_0004",
+              "distance": 0.6078846828413235
+            },
+            {
+              "removed": "frame_0030",
+              "kept": "frame_0014",
+              "distance": 0.7207334764911077
+            },
+            {
+              "removed": "frame_0032",
+              "kept": "frame_0017",
+              "distance": 0.706414603811277
+            },
+            {
+              "removed": "frame_0034",
+              "kept": "frame_0014",
+              "distance": 0.527885438121609
+            },
+            {
+              "removed": "frame_0035",
+              "kept": "frame_0014",
+              "distance": 0.5414509905438631
+            },
+            {
+              "removed": "frame_0039",
+              "kept": "frame_0029",
+              "distance": 0.5367294894773624
+            },
+            {
+              "removed": "frame_0041",
+              "kept": "frame_0031",
+              "distance": 0.5607910250698236
+            },
+            {
+              "removed": "frame_0046",
+              "kept": "frame_0036",
+              "distance": 0.6964196514879353
+            },
+            {
+              "removed": "frame_0047",
+              "kept": "frame_0027",
+              "distance": 0.7466724621945818
+            },
+            {
+              "removed": "frame_0055",
+              "kept": "frame_0009",
+              "distance": 0.5778733197069211
+            },
+            {
+              "removed": "frame_0063",
+              "kept": "frame_0054",
+              "distance": 0.7179824752392658
+            },
+            {
+              "removed": "frame_0065",
+              "kept": "frame_0060",
+              "distance": 0.5940783768815745
+            },
+            {
+              "removed": "frame_0067",
+              "kept": "frame_0064",
+              "distance": 0.6666078722925809
+            },
+            {
+              "removed": "frame_0068",
+              "kept": "frame_0054",
+              "distance": 0.7498509718855946
+            },
+            {
+              "removed": "frame_0072",
+              "kept": "frame_0011",
+              "distance": 0.7349015981630567
+            },
+            {
+              "removed": "frame_0073",
+              "kept": "frame_0061",
+              "distance": 0.656995482597895
+            },
+            {
+              "removed": "frame_0074",
+              "kept": "frame_0061",
+              "distance": 0.6582494768071216
+            },
+            {
+              "removed": "frame_0075",
+              "kept": "frame_0069",
+              "distance": 0.5650014825938491
+            },
+            {
+              "removed": "frame_0081",
+              "kept": "frame_0051",
+              "distance": 0.6844730609752187
+            },
+            {
+              "removed": "frame_0086",
+              "kept": "frame_0078",
+              "distance": 0.43842107911749645
+            },
+            {
+              "removed": "frame_0088",
+              "kept": "frame_0077",
+              "distance": 0.6820940158395219
+            },
+            {
+              "removed": "frame_0089",
+              "kept": "frame_0085",
+              "distance": 0.7243644046795189
+            },
+            {
+              "removed": "frame_0094",
+              "kept": "frame_0013",
+              "distance": 0.6027823991500445
+            },
+            {
+              "removed": "frame_0099",
+              "kept": "frame_0050",
+              "distance": 0.5709711868601088
+            },
+            {
+              "removed": "frame_0102",
+              "kept": "frame_0040",
+              "distance": 0.4040162480136295
+            },
+            {
+              "removed": "frame_0105",
+              "kept": "frame_0091",
+              "distance": 0.37064231461445596
+            },
+            {
+              "removed": "frame_0107",
+              "kept": "frame_0085",
+              "distance": 0.4828631740357366
+            },
+            {
+              "removed": "frame_0108",
+              "kept": "frame_0060",
+              "distance": 0.712882094561689
+            },
+            {
+              "removed": "frame_0113",
+              "kept": "frame_0038",
+              "distance": 0.46515460806060455
+            },
+            {
+              "removed": "frame_0114",
+              "kept": "frame_0038",
+              "distance": 0.692095434624323
+            },
+            {
+              "removed": "frame_0116",
+              "kept": "frame_0077",
+              "distance": 0.6785936820379869
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WG01",
+      "input_count": 72,
+      "reference_labels": 43,
+      "conditions": [
+        {
+          "cutoff": 0.35,
+          "retained_count": 43,
+          "retained_reference_labels": 43,
+          "cross_label_removals": []
+        },
+        {
+          "cutoff": 0.5,
+          "retained_count": 37,
+          "retained_reference_labels": 37,
+          "cross_label_removals": [
+            {
+              "removed": "frame_0010",
+              "kept": "frame_0008",
+              "distance": 0.3632713041391276
+            },
+            {
+              "removed": "frame_0012",
+              "kept": "frame_0008",
+              "distance": 0.40813767915797156
+            },
+            {
+              "removed": "frame_0016",
+              "kept": "frame_0007",
+              "distance": 0.4590404943933248
+            },
+            {
+              "removed": "frame_0028",
+              "kept": "frame_0026",
+              "distance": 0.4930679028025978
+            },
+            {
+              "removed": "frame_0030",
+              "kept": "frame_0024",
+              "distance": 0.48376417939207916
+            },
+            {
+              "removed": "frame_0036",
+              "kept": "frame_0017",
+              "distance": 0.48832254156013616
+            },
+            {
+              "removed": "frame_0058",
+              "kept": "frame_0025",
+              "distance": 0.44963361720884526
+            },
+            {
+              "removed": "frame_0061",
+              "kept": "frame_0021",
+              "distance": 0.4193246052660235
+            }
+          ]
+        },
+        {
+          "cutoff": 0.75,
+          "retained_count": 30,
+          "retained_reference_labels": 30,
+          "cross_label_removals": [
+            {
+              "removed": "frame_0002",
+              "kept": "frame_0000",
+              "distance": 0.5731293025842723
+            },
+            {
+              "removed": "frame_0003",
+              "kept": "frame_0000",
+              "distance": 0.541115432444045
+            },
+            {
+              "removed": "frame_0010",
+              "kept": "frame_0008",
+              "distance": 0.3632713041391276
+            },
+            {
+              "removed": "frame_0012",
+              "kept": "frame_0008",
+              "distance": 0.40813767915797156
+            },
+            {
+              "removed": "frame_0016",
+              "kept": "frame_0006",
+              "distance": 0.7095391608117465
+            },
+            {
+              "removed": "frame_0028",
+              "kept": "frame_0026",
+              "distance": 0.4930679028025978
+            },
+            {
+              "removed": "frame_0030",
+              "kept": "frame_0024",
+              "distance": 0.48376417939207916
+            },
+            {
+              "removed": "frame_0031",
+              "kept": "frame_0022",
+              "distance": 0.5414597519181024
+            },
+            {
+              "removed": "frame_0032",
+              "kept": "frame_0027",
+              "distance": 0.5303696089034441
+            },
+            {
+              "removed": "frame_0035",
+              "kept": "frame_0017",
+              "distance": 0.5027517982005631
+            },
+            {
+              "removed": "frame_0036",
+              "kept": "frame_0017",
+              "distance": 0.48832254156013616
+            },
+            {
+              "removed": "frame_0048",
+              "kept": "frame_0014",
+              "distance": 0.5000934663008983
+            },
+            {
+              "removed": "frame_0049",
+              "kept": "frame_0009",
+              "distance": 0.6017693250708872
+            },
+            {
+              "removed": "frame_0052",
+              "kept": "frame_0047",
+              "distance": 0.7494257961489109
+            },
+            {
+              "removed": "frame_0057",
+              "kept": "frame_0017",
+              "distance": 0.6935063074104062
+            },
+            {
+              "removed": "frame_0058",
+              "kept": "frame_0025",
+              "distance": 0.44963361720884526
+            },
+            {
+              "removed": "frame_0061",
+              "kept": "frame_0021",
+              "distance": 0.4193246052660235
+            },
+            {
+              "removed": "frame_0063",
+              "kept": "frame_0053",
+              "distance": 0.7382613755017352
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "seven_water_identity_fragment_comparison": {
+    "distance": null,
+    "metadata": {
+      "atom_mode": "all",
+      "bond_scale": 1.15,
+      "distance_is_upper_bound": true,
+      "reason": "fragment permutation limit",
+      "comparison_complete": false
+    },
+    "purpose": "Mapping-budget probe only; generated chain is not an optimized physical benchmark"
+  },
+  "basin_archive_rigid_duplicate_eviction": {
+    "initial_names": [
+      "distorted_water",
+      "original_water"
+    ],
+    "final_names": [
+      "translated_water_1",
+      "translated_water_2",
+      "translated_water_3"
+    ],
+    "added_rmsds_to_original": [
+      4.8074067159589095e-17,
+      2.0014830212433605e-16,
+      4.669210529678814e-16
+    ],
+    "distinct_initial_geometry_evicted": true
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "comparator": {
+    "atom_mode": "all",
+    "max_fragment_permutations": 720,
+    "max_mappings": 10000,
+    "name": "fragment-rmsd"
+  },
+  "implementation_sha256": "87aaa315df240de835d9dec5fc51970f81d8145df27b96253795532f4aa1ec11",
+  "sample_size": 24,
+  "schema": 1,
+  "selected_geometry_sha256": "a585f888d6f2ebcf98e3047a37e21fd57e10a4e2bf773658e47111cc3850263d",
+  "selected_source_indices": [
+    0,
+    3,
+    7,
+    10,
+    14,
+    17,
+    21,
+    24,
+    27,
+    31,
+    34,
+    38,
+    41,
+    45,
+    48,
+    52,
+    55,
+    58,
+    62,
+    65,
+    69,
+    72,
+    76,
+    79
+  ],
+  "source_sha256": "c2f7f33ee5028c3029ed1271f110edd88d88dfacddc530bfce8e64c15483ae5e"
+}

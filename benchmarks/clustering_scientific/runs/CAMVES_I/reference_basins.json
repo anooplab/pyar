@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "source_file": "CAMVES_I_crest_conformers.xyz",
+  "source_sha256": "de803ce09b1adc01d8236d5aa029b1c5183c7af1ec9da145796e242a7b739feb",
+  "label_method": "GFN2-xTB opt then element-labelled coordinate-graph isomorphism and heavy-atom Kabsch RMSD",
+  "threshold_angstrom": 0.35,
+  "threshold_sensitivity": {
+    "0.25": {
+      "basin_count": 5,
+      "largest_basin_size": 3
+    },
+    "0.35": {
+      "basin_count": 4,
+      "largest_basin_size": 6
+    },
+    "0.50": {
+      "basin_count": 3,
+      "largest_basin_size": 7
+    }
+  },
+  "inferred_topology_groups": {
+    "205c7db141dbb1ad32660ac2e829fbb4": 10
+  },
+  "convergence_check": {
+    "normal_termination_required": true,
+    "finite_final_energy_and_gradient_required": true,
+    "maximum_final_gradient_norm_eh_per_alpha": 0.001
+  },
+  "basins": [
+    {
+      "basin_id": 0,
+      "representative": "frame_0000",
+      "members": [
+        "frame_0000",
+        "frame_0001",
+        "frame_0002",
+        "frame_0003",
+        "frame_0005",
+        "frame_0006"
+      ]
+    },
+    {
+      "basin_id": 1,
+      "representative": "frame_0004",
+      "members": [
+        "frame_0004"
+      ]
+    },
+    {
+      "basin_id": 2,
+      "representative": "frame_0007",
+      "members": [
+        "frame_0007"
+      ]
+    },
+    {
+      "basin_id": 3,
+      "representative": "frame_0008",
+      "members": [
+        "frame_0008",
+        "frame_0009"
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "name": "frame_0000",
+      "basin_id": 0,
+      "source_energy": -106.57416506,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.574165018645,
+      "final_gradient_norm_eh_per_alpha": 4.9499126e-05,
+      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0000/xtb.log"
+    },
+    {
+      "name": "frame_0001",
+      "basin_id": 0,
+      "source_energy": -106.57403233,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.574032345779,
+      "final_gradient_norm_eh_per_alpha": 0.000100231098,
+      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0001/xtb.log"
+    },
+    {
+      "name": "frame_0002",
+      "basin_id": 0,
+      "source_energy": -106.57390251,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.573902471546,
+      "final_gradient_norm_eh_per_alpha": 8.3145574e-05,
+      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0002/xtb.log"
+    },
+    {
+      "name": "frame_0003",
+      "basin_id": 0,
+      "source_energy": -106.57362323,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.573623163758,
+      "final_gradient_norm_eh_per_alpha": 2.9312628e-05,
+      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0003/xtb.log"
+    },
+    {
+      "name": "frame_0004",
+      "basin_id": 1,
+      "source_energy": -106.57360689,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.573606897572,
+      "final_gradient_norm_eh_per_alpha": 7.9499124e-05,
+      "optimized_xyz": "optimizations/frame_0004/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0004/xtb.log"
+    },
+    {
+      "name": "frame_0005",
+      "basin_id": 0,
+      "source_energy": -106.57360353,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.573603852458,
+      "final_gradient_norm_eh_per_alpha": 8.5407249e-05,
+      "optimized_xyz": "optimizations/frame_0005/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0005/xtb.log"
+    },
+    {
+      "name": "frame_0006",
+      "basin_id": 0,
+      "source_energy": -106.57304477,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.573044842596,
+      "final_gradient_norm_eh_per_alpha": 5.8612273e-05,
+      "optimized_xyz": "optimizations/frame_0006/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0006/xtb.log"
+    },
+    {
+      "name": "frame_0007",
+      "basin_id": 2,
+      "source_energy": -106.57264794,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.572647959715,
+      "final_gradient_norm_eh_per_alpha": 0.000106008941,
+      "optimized_xyz": "optimizations/frame_0007/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0007/xtb.log"
+    },
+    {
+      "name": "frame_0008",
+      "basin_id": 3,
+      "source_energy": -106.56566511,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.565665037037,
+      "final_gradient_norm_eh_per_alpha": 0.000138207809,
+      "optimized_xyz": "optimizations/frame_0008/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0008/xtb.log"
+    },
+    {
+      "name": "frame_0009",
+      "basin_id": 3,
+      "source_energy": -106.56529861,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
+      "xtb_energy_hartree": -106.565298578589,
+      "final_gradient_norm_eh_per_alpha": 8.6460342e-05,
+      "optimized_xyz": "optimizations/frame_0009/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0009/xtb.log"
+    }
+  ]
+}

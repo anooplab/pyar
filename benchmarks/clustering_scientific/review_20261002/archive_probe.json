@@ -1,0 +1,325 @@
+{
+  "entries": [
+    {
+      "descriptors": {
+        "geometry": {
+          "name": "element-pair-distance-histogram",
+          "parameters": {
+            "bins": 64,
+            "maximum_distance_angstrom": 12.0,
+            "normalization": "per-element-pair",
+            "species": [
+              "H"
+            ]
+          },
+          "values": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "version": 1
+        }
+      },
+      "energy": -1.0,
+      "geometry": {
+        "atoms": [
+          "H",
+          "H"
+        ],
+        "charge": 0,
+        "coordinates": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.74,
+            0.0,
+            0.0
+          ]
+        ],
+        "multiplicity": 1
+      },
+      "geometry_id": "bad27cf01243b360f32734374c1f41eaacc12a7aadfac8708fad78fba7c58e2f",
+      "name": "A"
+    },
+    {
+      "descriptors": {
+        "geometry": {
+          "name": "element-pair-distance-histogram",
+          "parameters": {
+            "bins": 64,
+            "maximum_distance_angstrom": 12.0,
+            "normalization": "per-element-pair",
+            "species": [
+              "H"
+            ]
+          },
+          "values": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "version": 1
+        }
+      },
+      "energy": -1.0,
+      "geometry": {
+        "atoms": [
+          "H",
+          "H"
+        ],
+        "charge": 0,
+        "coordinates": [
+          [
+            10.0,
+            0.0,
+            0.0
+          ],
+          [
+            10.74,
+            0.0,
+            0.0
+          ]
+        ],
+        "multiplicity": 1
+      },
+      "geometry_id": "037f1f77fd8835ba19a9935019d4a4c23bf4e9609239b1b2c56dd322275f0dab",
+      "name": "translated_A_1"
+    },
+    {
+      "descriptors": {
+        "geometry": {
+          "name": "element-pair-distance-histogram",
+          "parameters": {
+            "bins": 64,
+            "maximum_distance_angstrom": 12.0,
+            "normalization": "per-element-pair",
+            "species": [
+              "H"
+            ]
+          },
+          "values": [
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "version": 1
+        }
+      },
+      "energy": -1.0,
+      "geometry": {
+        "atoms": [
+          "H",
+          "H"
+        ],
+        "charge": 0,
+        "coordinates": [
+          [
+            20.0,
+            0.0,
+            0.0
+          ],
+          [
+            20.74,
+            0.0,
+            0.0
+          ]
+        ],
+        "multiplicity": 1
+      },
+      "geometry_id": "7d365b8a9fac8bf4f879f504133341e8c78aa45011281c97213cd5c4275043c7",
+      "name": "translated_A_2"
+    }
+  ],
+  "format": "pyar.basin-memory",
+  "schema_version": 2,
+  "stoichiometry": null
+}

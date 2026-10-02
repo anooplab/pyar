@@ -38,7 +38,7 @@ Useful options
 * ``--num-conformers`` controls how many conformers are embedded per seed
 * ``--num-seeds`` repeats embedding with deterministic seed offsets
 * ``--backend-top-n`` widens the set sent to backend refinement
-* ``--diversity-fraction`` protects part of that backend pool for heavy-atom
+* ``--diversity-fraction`` protects part of that backend pool for graph-mapped
   RMSD diversity instead of pure RDKit energy ranking
 * ``--compactness-fraction`` protects a contact-rich folded quota and a matching
   open-conformer quota, so folded structures are sampled without crowding out
@@ -56,8 +56,43 @@ Useful options
   around each embedded conformer
 * ``--torsion-dedup-rms`` removes near-duplicate trial conformers before
   backend selection
+* ``--dedup-atom-mode heavy`` (default) scores heavy atoms; ``all`` includes
+  hydrogens. This choice applies to generation-pool deduplication, diversity
+  selection, and final deduplication. Hydrogen-only systems use all atoms.
 * ``--rms-threshold`` or ``--prune-rms-threshold`` sets RDKit's greedy
   pruning threshold during embedding
+
+Comparison policy
+-----------------
+
+Conformer comparison uses the shared graph-first deduplication policy.
+Element-labelled coordinate graphs constrain atom permutations, and RMSD is
+calculated after translation and proper rotation. Full composition and
+connectivity are checked in both atom modes, including hydrogen attachments.
+Terminal hydrogen permutations are contracted in heavy-atom mode to avoid
+enumerating mappings that cannot change the scored distance. Known charge or
+multiplicity differences prevent removal.
+
+If graph mapping exceeds its limit, the shared bidirectional iRMSD check can
+confirm a duplicate only after verifying its returned atom correspondence.
+In heavy-atom mode, that correspondence is scored on heavy atoms after the
+full mapping has passed validation. Backend errors, diagnostics, timeouts,
+and missing or invalid geometries retain the candidate: **in doubt, keep**.
+An uncertain diversity distance is not reported as a measured RMSD.
+
+The existing thresholds remain in Angstrom: generation collapse uses
+``max(torsion_dedup_rms, rms_threshold, 0.5)``; final selection uses
+``torsion_dedup_rms`` without backend refinement and
+``max(torsion_dedup_rms, 0.75)`` after refinement. A confirmed duplicate must
+fall strictly below the threshold. Generation collapse keeps the lower RDKit
+energy representative; final selection preserves the supplied energy ranking.
+The output may contain fewer than ``top_n`` unique conformers.
+
+RDKit's embedding pruning remains a separate generation efficiency setting;
+it does not establish final identity. Set ``--rms-threshold 0`` to disable
+embedding pruning when hydrogen geometry coverage matters in ``all`` mode.
+Coordinate graphs encode adjacency, not bond order or chemical identity, so
+these comparisons do not replace a chemical identity analysis.
 
 Useful outputs
 --------------
@@ -68,6 +103,9 @@ Useful outputs
   gyration when available
 * ``conformers/state.json`` also records the stronger generation-collapse
   threshold used before backend refinement as ``generation_dedup_rms``
+* the request records ``dedup_atom_mode`` and ``final_dedup_rms``; the
+  ``comparison_policy`` section records the method, atom mode, uncertainty
+  policy, and comparison/fallback counts for each stage (state schema 3)
 * ``conformers/rdkit/`` for the embedded conformers before backend refinement
 * ``conformers/selected/`` for the final selected conformers
 

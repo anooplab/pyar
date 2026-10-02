@@ -1,0 +1,58 @@
+{
+  "ensemble": "WG01_crest_conformers.xyz",
+  "ensemble_sha256": "30193a973b62faa6459e96007c5697a3d4dc162b631d362e94a6d19cc115ac2e",
+  "frames": 72,
+  "source_composition": [
+    [
+      "C",
+      13
+    ],
+    [
+      "H",
+      15
+    ],
+    [
+      "N",
+      3
+    ],
+    [
+      "O",
+      3
+    ]
+  ],
+  "source_xyz_comment_energy_minus_gfn2_final_energy": {
+    "interpretation": "comparison only; source comment units/meaning are ambiguous",
+    "mean_absolute_delta_numeric": 5.1831236290588045e-08,
+    "maximum_absolute_delta_numeric": 7.958259971019288e-07
+  },
+  "reference_basins": 43,
+  "reference_labels": "reference_basins.json",
+  "analysis": "results/comparison.json",
+  "xTB": "xtb",
+  "xTB_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+  "pyar_git_revision": "65755e28743b0fa8b34cb07c880b03149253fd47",
+  "pyar_worktree_dirty": true,
+  "args": {
+    "ensemble": "WG01_crest_conformers.xyz",
+    "output": "WG01",
+    "xtb": "xtb",
+    "limit": null,
+    "basin_threshold": 0.35,
+    "max_seeds": 12,
+    "downstream_perturbation": 0.1,
+    "algorithms": [
+      "hybrid",
+      "agglomerative",
+      "dbscan",
+      "optics",
+      "maxmin"
+    ],
+    "features": [
+      "mbtr",
+      "soap",
+      "distance-histogram"
+    ],
+    "skip_downstream_optimization": false
+  },
+  "report_conditions": 15
+}

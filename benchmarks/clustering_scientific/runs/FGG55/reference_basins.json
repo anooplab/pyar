@@ -1,0 +1,2145 @@
+{
+  "schema_version": 1,
+  "source_file": "FGG55_crest_conformers.xyz",
+  "source_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
+  "label_method": "GFN2-xTB opt then element-labelled coordinate-graph isomorphism and heavy-atom Kabsch RMSD",
+  "threshold_angstrom": 0.35,
+  "threshold_sensitivity": {
+    "0.25": {
+      "basin_count": 103,
+      "largest_basin_size": 3
+    },
+    "0.35": {
+      "basin_count": 98,
+      "largest_basin_size": 4
+    },
+    "0.50": {
+      "basin_count": 92,
+      "largest_basin_size": 5
+    }
+  },
+  "inferred_topology_groups": {
+    "8a6e7820daddbc7e3b38b107d632ad28": 127
+  },
+  "convergence_check": {
+    "normal_termination_required": true,
+    "finite_final_energy_and_gradient_required": true,
+    "maximum_final_gradient_norm_eh_per_alpha": 0.001
+  },
+  "basins": [
+    {
+      "basin_id": 0,
+      "representative": "frame_0000",
+      "members": [
+        "frame_0000"
+      ]
+    },
+    {
+      "basin_id": 1,
+      "representative": "frame_0001",
+      "members": [
+        "frame_0001",
+        "frame_0002",
+        "frame_0023"
+      ]
+    },
+    {
+      "basin_id": 2,
+      "representative": "frame_0003",
+      "members": [
+        "frame_0003",
+        "frame_0007"
+      ]
+    },
+    {
+      "basin_id": 3,
+      "representative": "frame_0004",
+      "members": [
+        "frame_0004",
+        "frame_0024"
+      ]
+    },
+    {
+      "basin_id": 4,
+      "representative": "frame_0005",
+      "members": [
+        "frame_0005"
+      ]
+    },
+    {
+      "basin_id": 5,
+      "representative": "frame_0006",
+      "members": [
+        "frame_0006",
+        "frame_0050"
+      ]
+    },
+    {
+      "basin_id": 6,
+      "representative": "frame_0008",
+      "members": [
+        "frame_0008"
+      ]
+    },
+    {
+      "basin_id": 7,
+      "representative": "frame_0009",
+      "members": [
+        "frame_0009"
+      ]
+    },
+    {
+      "basin_id": 8,
+      "representative": "frame_0010",
+      "members": [
+        "frame_0010"
+      ]
+    },
+    {
+      "basin_id": 9,
+      "representative": "frame_0011",
+      "members": [
+        "frame_0011"
+      ]
+    },
+    {
+      "basin_id": 10,
+      "representative": "frame_0012",
+      "members": [
+        "frame_0012",
+        "frame_0033"
+      ]
+    },
+    {
+      "basin_id": 11,
+      "representative": "frame_0013",
+      "members": [
+        "frame_0013"
+      ]
+    },
+    {
+      "basin_id": 12,
+      "representative": "frame_0014",
+      "members": [
+        "frame_0014"
+      ]
+    },
+    {
+      "basin_id": 13,
+      "representative": "frame_0015",
+      "members": [
+        "frame_0015"
+      ]
+    },
+    {
+      "basin_id": 14,
+      "representative": "frame_0016",
+      "members": [
+        "frame_0016",
+        "frame_0072"
+      ]
+    },
+    {
+      "basin_id": 15,
+      "representative": "frame_0017",
+      "members": [
+        "frame_0017"
+      ]
+    },
+    {
+      "basin_id": 16,
+      "representative": "frame_0018",
+      "members": [
+        "frame_0018"
+      ]
+    },
+    {
+      "basin_id": 17,
+      "representative": "frame_0019",
+      "members": [
+        "frame_0019",
+        "frame_0020"
+      ]
+    },
+    {
+      "basin_id": 18,
+      "representative": "frame_0021",
+      "members": [
+        "frame_0021",
+        "frame_0052"
+      ]
+    },
+    {
+      "basin_id": 19,
+      "representative": "frame_0022",
+      "members": [
+        "frame_0022"
+      ]
+    },
+    {
+      "basin_id": 20,
+      "representative": "frame_0025",
+      "members": [
+        "frame_0025",
+        "frame_0043"
+      ]
+    },
+    {
+      "basin_id": 21,
+      "representative": "frame_0026",
+      "members": [
+        "frame_0026"
+      ]
+    },
+    {
+      "basin_id": 22,
+      "representative": "frame_0027",
+      "members": [
+        "frame_0027"
+      ]
+    },
+    {
+      "basin_id": 23,
+      "representative": "frame_0028",
+      "members": [
+        "frame_0028"
+      ]
+    },
+    {
+      "basin_id": 24,
+      "representative": "frame_0029",
+      "members": [
+        "frame_0029"
+      ]
+    },
+    {
+      "basin_id": 25,
+      "representative": "frame_0030",
+      "members": [
+        "frame_0030"
+      ]
+    },
+    {
+      "basin_id": 26,
+      "representative": "frame_0031",
+      "members": [
+        "frame_0031"
+      ]
+    },
+    {
+      "basin_id": 27,
+      "representative": "frame_0032",
+      "members": [
+        "frame_0032"
+      ]
+    },
+    {
+      "basin_id": 28,
+      "representative": "frame_0034",
+      "members": [
+        "frame_0034",
+        "frame_0035"
+      ]
+    },
+    {
+      "basin_id": 29,
+      "representative": "frame_0036",
+      "members": [
+        "frame_0036",
+        "frame_0062"
+      ]
+    },
+    {
+      "basin_id": 30,
+      "representative": "frame_0037",
+      "members": [
+        "frame_0037"
+      ]
+    },
+    {
+      "basin_id": 31,
+      "representative": "frame_0038",
+      "members": [
+        "frame_0038"
+      ]
+    },
+    {
+      "basin_id": 32,
+      "representative": "frame_0039",
+      "members": [
+        "frame_0039"
+      ]
+    },
+    {
+      "basin_id": 33,
+      "representative": "frame_0040",
+      "members": [
+        "frame_0040"
+      ]
+    },
+    {
+      "basin_id": 34,
+      "representative": "frame_0041",
+      "members": [
+        "frame_0041"
+      ]
+    },
+    {
+      "basin_id": 35,
+      "representative": "frame_0042",
+      "members": [
+        "frame_0042"
+      ]
+    },
+    {
+      "basin_id": 36,
+      "representative": "frame_0044",
+      "members": [
+        "frame_0044"
+      ]
+    },
+    {
+      "basin_id": 37,
+      "representative": "frame_0045",
+      "members": [
+        "frame_0045",
+        "frame_0083"
+      ]
+    },
+    {
+      "basin_id": 38,
+      "representative": "frame_0046",
+      "members": [
+        "frame_0046"
+      ]
+    },
+    {
+      "basin_id": 39,
+      "representative": "frame_0047",
+      "members": [
+        "frame_0047"
+      ]
+    },
+    {
+      "basin_id": 40,
+      "representative": "frame_0048",
+      "members": [
+        "frame_0048"
+      ]
+    },
+    {
+      "basin_id": 41,
+      "representative": "frame_0049",
+      "members": [
+        "frame_0049"
+      ]
+    },
+    {
+      "basin_id": 42,
+      "representative": "frame_0051",
+      "members": [
+        "frame_0051"
+      ]
+    },
+    {
+      "basin_id": 43,
+      "representative": "frame_0053",
+      "members": [
+        "frame_0053"
+      ]
+    },
+    {
+      "basin_id": 44,
+      "representative": "frame_0054",
+      "members": [
+        "frame_0054"
+      ]
+    },
+    {
+      "basin_id": 45,
+      "representative": "frame_0055",
+      "members": [
+        "frame_0055"
+      ]
+    },
+    {
+      "basin_id": 46,
+      "representative": "frame_0056",
+      "members": [
+        "frame_0056"
+      ]
+    },
+    {
+      "basin_id": 47,
+      "representative": "frame_0057",
+      "members": [
+        "frame_0057"
+      ]
+    },
+    {
+      "basin_id": 48,
+      "representative": "frame_0058",
+      "members": [
+        "frame_0058",
+        "frame_0109"
+      ]
+    },
+    {
+      "basin_id": 49,
+      "representative": "frame_0059",
+      "members": [
+        "frame_0059"
+      ]
+    },
+    {
+      "basin_id": 50,
+      "representative": "frame_0060",
+      "members": [
+        "frame_0060"
+      ]
+    },
+    {
+      "basin_id": 51,
+      "representative": "frame_0061",
+      "members": [
+        "frame_0061"
+      ]
+    },
+    {
+      "basin_id": 52,
+      "representative": "frame_0063",
+      "members": [
+        "frame_0063"
+      ]
+    },
+    {
+      "basin_id": 53,
+      "representative": "frame_0064",
+      "members": [
+        "frame_0064"
+      ]
+    },
+    {
+      "basin_id": 54,
+      "representative": "frame_0065",
+      "members": [
+        "frame_0065"
+      ]
+    },
+    {
+      "basin_id": 55,
+      "representative": "frame_0066",
+      "members": [
+        "frame_0066"
+      ]
+    },
+    {
+      "basin_id": 56,
+      "representative": "frame_0067",
+      "members": [
+        "frame_0067",
+        "frame_0068"
+      ]
+    },
+    {
+      "basin_id": 57,
+      "representative": "frame_0069",
+      "members": [
+        "frame_0069",
+        "frame_0071"
+      ]
+    },
+    {
+      "basin_id": 58,
+      "representative": "frame_0070",
+      "members": [
+        "frame_0070",
+        "frame_0118"
+      ]
+    },
+    {
+      "basin_id": 59,
+      "representative": "frame_0073",
+      "members": [
+        "frame_0073",
+        "frame_0074"
+      ]
+    },
+    {
+      "basin_id": 60,
+      "representative": "frame_0075",
+      "members": [
+        "frame_0075"
+      ]
+    },
+    {
+      "basin_id": 61,
+      "representative": "frame_0076",
+      "members": [
+        "frame_0076"
+      ]
+    },
+    {
+      "basin_id": 62,
+      "representative": "frame_0077",
+      "members": [
+        "frame_0077",
+        "frame_0090",
+        "frame_0117"
+      ]
+    },
+    {
+      "basin_id": 63,
+      "representative": "frame_0078",
+      "members": [
+        "frame_0078",
+        "frame_0079",
+        "frame_0080"
+      ]
+    },
+    {
+      "basin_id": 64,
+      "representative": "frame_0081",
+      "members": [
+        "frame_0081"
+      ]
+    },
+    {
+      "basin_id": 65,
+      "representative": "frame_0082",
+      "members": [
+        "frame_0082"
+      ]
+    },
+    {
+      "basin_id": 66,
+      "representative": "frame_0084",
+      "members": [
+        "frame_0084"
+      ]
+    },
+    {
+      "basin_id": 67,
+      "representative": "frame_0085",
+      "members": [
+        "frame_0085",
+        "frame_0087",
+        "frame_0104",
+        "frame_0106"
+      ]
+    },
+    {
+      "basin_id": 68,
+      "representative": "frame_0086",
+      "members": [
+        "frame_0086"
+      ]
+    },
+    {
+      "basin_id": 69,
+      "representative": "frame_0088",
+      "members": [
+        "frame_0088"
+      ]
+    },
+    {
+      "basin_id": 70,
+      "representative": "frame_0089",
+      "members": [
+        "frame_0089"
+      ]
+    },
+    {
+      "basin_id": 71,
+      "representative": "frame_0091",
+      "members": [
+        "frame_0091",
+        "frame_0092",
+        "frame_0103"
+      ]
+    },
+    {
+      "basin_id": 72,
+      "representative": "frame_0093",
+      "members": [
+        "frame_0093"
+      ]
+    },
+    {
+      "basin_id": 73,
+      "representative": "frame_0094",
+      "members": [
+        "frame_0094"
+      ]
+    },
+    {
+      "basin_id": 74,
+      "representative": "frame_0095",
+      "members": [
+        "frame_0095"
+      ]
+    },
+    {
+      "basin_id": 75,
+      "representative": "frame_0096",
+      "members": [
+        "frame_0096"
+      ]
+    },
+    {
+      "basin_id": 76,
+      "representative": "frame_0097",
+      "members": [
+        "frame_0097"
+      ]
+    },
+    {
+      "basin_id": 77,
+      "representative": "frame_0098",
+      "members": [
+        "frame_0098"
+      ]
+    },
+    {
+      "basin_id": 78,
+      "representative": "frame_0099",
+      "members": [
+        "frame_0099"
+      ]
+    },
+    {
+      "basin_id": 79,
+      "representative": "frame_0100",
+      "members": [
+        "frame_0100"
+      ]
+    },
+    {
+      "basin_id": 80,
+      "representative": "frame_0101",
+      "members": [
+        "frame_0101"
+      ]
+    },
+    {
+      "basin_id": 81,
+      "representative": "frame_0102",
+      "members": [
+        "frame_0102"
+      ]
+    },
+    {
+      "basin_id": 82,
+      "representative": "frame_0105",
+      "members": [
+        "frame_0105"
+      ]
+    },
+    {
+      "basin_id": 83,
+      "representative": "frame_0107",
+      "members": [
+        "frame_0107"
+      ]
+    },
+    {
+      "basin_id": 84,
+      "representative": "frame_0108",
+      "members": [
+        "frame_0108"
+      ]
+    },
+    {
+      "basin_id": 85,
+      "representative": "frame_0110",
+      "members": [
+        "frame_0110",
+        "frame_0111"
+      ]
+    },
+    {
+      "basin_id": 86,
+      "representative": "frame_0112",
+      "members": [
+        "frame_0112"
+      ]
+    },
+    {
+      "basin_id": 87,
+      "representative": "frame_0113",
+      "members": [
+        "frame_0113",
+        "frame_0114"
+      ]
+    },
+    {
+      "basin_id": 88,
+      "representative": "frame_0115",
+      "members": [
+        "frame_0115"
+      ]
+    },
+    {
+      "basin_id": 89,
+      "representative": "frame_0116",
+      "members": [
+        "frame_0116"
+      ]
+    },
+    {
+      "basin_id": 90,
+      "representative": "frame_0119",
+      "members": [
+        "frame_0119"
+      ]
+    },
+    {
+      "basin_id": 91,
+      "representative": "frame_0120",
+      "members": [
+        "frame_0120"
+      ]
+    },
+    {
+      "basin_id": 92,
+      "representative": "frame_0121",
+      "members": [
+        "frame_0121"
+      ]
+    },
+    {
+      "basin_id": 93,
+      "representative": "frame_0122",
+      "members": [
+        "frame_0122"
+      ]
+    },
+    {
+      "basin_id": 94,
+      "representative": "frame_0123",
+      "members": [
+        "frame_0123"
+      ]
+    },
+    {
+      "basin_id": 95,
+      "representative": "frame_0124",
+      "members": [
+        "frame_0124"
+      ]
+    },
+    {
+      "basin_id": 96,
+      "representative": "frame_0125",
+      "members": [
+        "frame_0125"
+      ]
+    },
+    {
+      "basin_id": 97,
+      "representative": "frame_0126",
+      "members": [
+        "frame_0126"
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "name": "frame_0000",
+      "basin_id": 0,
+      "source_energy": -61.56516532,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.565165345646,
+      "final_gradient_norm_eh_per_alpha": 7.4746409e-05,
+      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0000/xtb.log"
+    },
+    {
+      "name": "frame_0001",
+      "basin_id": 1,
+      "source_energy": -61.56459072,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.564590661754,
+      "final_gradient_norm_eh_per_alpha": 0.000209199547,
+      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0001/xtb.log"
+    },
+    {
+      "name": "frame_0002",
+      "basin_id": 1,
+      "source_energy": -61.56443164,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.564432084262,
+      "final_gradient_norm_eh_per_alpha": 8.6690851e-05,
+      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0002/xtb.log"
+    },
+    {
+      "name": "frame_0003",
+      "basin_id": 2,
+      "source_energy": -61.56439509,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.564395007559,
+      "final_gradient_norm_eh_per_alpha": 0.000121473201,
+      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0003/xtb.log"
+    },
+    {
+      "name": "frame_0004",
+      "basin_id": 3,
+      "source_energy": -61.56387683,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.563876784957,
+      "final_gradient_norm_eh_per_alpha": 0.000102497945,
+      "optimized_xyz": "optimizations/frame_0004/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0004/xtb.log"
+    },
+    {
+      "name": "frame_0005",
+      "basin_id": 4,
+      "source_energy": -61.56316587,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.563165740125,
+      "final_gradient_norm_eh_per_alpha": 0.000253365646,
+      "optimized_xyz": "optimizations/frame_0005/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0005/xtb.log"
+    },
+    {
+      "name": "frame_0006",
+      "basin_id": 5,
+      "source_energy": -61.56315161,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.563151679201,
+      "final_gradient_norm_eh_per_alpha": 0.000149077273,
+      "optimized_xyz": "optimizations/frame_0006/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0006/xtb.log"
+    },
+    {
+      "name": "frame_0007",
+      "basin_id": 2,
+      "source_energy": -61.56310133,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.563101284145,
+      "final_gradient_norm_eh_per_alpha": 8.799052e-05,
+      "optimized_xyz": "optimizations/frame_0007/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0007/xtb.log"
+    },
+    {
+      "name": "frame_0008",
+      "basin_id": 6,
+      "source_energy": -61.56308907,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.563089103851,
+      "final_gradient_norm_eh_per_alpha": 0.000107016614,
+      "optimized_xyz": "optimizations/frame_0008/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0008/xtb.log"
+    },
+    {
+      "name": "frame_0009",
+      "basin_id": 7,
+      "source_energy": -61.56247474,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.562474815795,
+      "final_gradient_norm_eh_per_alpha": 9.1719779e-05,
+      "optimized_xyz": "optimizations/frame_0009/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0009/xtb.log"
+    },
+    {
+      "name": "frame_0010",
+      "basin_id": 8,
+      "source_energy": -61.56240319,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.562403166549,
+      "final_gradient_norm_eh_per_alpha": 0.000158686905,
+      "optimized_xyz": "optimizations/frame_0010/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0010/xtb.log"
+    },
+    {
+      "name": "frame_0011",
+      "basin_id": 9,
+      "source_energy": -61.56225687,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.56225689046,
+      "final_gradient_norm_eh_per_alpha": 0.000112834922,
+      "optimized_xyz": "optimizations/frame_0011/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0011/xtb.log"
+    },
+    {
+      "name": "frame_0012",
+      "basin_id": 10,
+      "source_energy": -61.56217854,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.562178667882,
+      "final_gradient_norm_eh_per_alpha": 0.000126029401,
+      "optimized_xyz": "optimizations/frame_0012/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0012/xtb.log"
+    },
+    {
+      "name": "frame_0013",
+      "basin_id": 11,
+      "source_energy": -61.56206332,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.562063431076,
+      "final_gradient_norm_eh_per_alpha": 0.000151299423,
+      "optimized_xyz": "optimizations/frame_0013/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0013/xtb.log"
+    },
+    {
+      "name": "frame_0014",
+      "basin_id": 12,
+      "source_energy": -61.56196309,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561963064628,
+      "final_gradient_norm_eh_per_alpha": 6.1897253e-05,
+      "optimized_xyz": "optimizations/frame_0014/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0014/xtb.log"
+    },
+    {
+      "name": "frame_0015",
+      "basin_id": 13,
+      "source_energy": -61.56187126,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561871273538,
+      "final_gradient_norm_eh_per_alpha": 5.7994155e-05,
+      "optimized_xyz": "optimizations/frame_0015/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0015/xtb.log"
+    },
+    {
+      "name": "frame_0016",
+      "basin_id": 14,
+      "source_energy": -61.56184544,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561845458742,
+      "final_gradient_norm_eh_per_alpha": 4.4102075e-05,
+      "optimized_xyz": "optimizations/frame_0016/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0016/xtb.log"
+    },
+    {
+      "name": "frame_0017",
+      "basin_id": 15,
+      "source_energy": -61.56175111,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561751201888,
+      "final_gradient_norm_eh_per_alpha": 0.000209711722,
+      "optimized_xyz": "optimizations/frame_0017/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0017/xtb.log"
+    },
+    {
+      "name": "frame_0018",
+      "basin_id": 16,
+      "source_energy": -61.56174211,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561742187493,
+      "final_gradient_norm_eh_per_alpha": 0.000103935041,
+      "optimized_xyz": "optimizations/frame_0018/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0018/xtb.log"
+    },
+    {
+      "name": "frame_0019",
+      "basin_id": 17,
+      "source_energy": -61.56173953,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561739582859,
+      "final_gradient_norm_eh_per_alpha": 0.000142884944,
+      "optimized_xyz": "optimizations/frame_0019/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0019/xtb.log"
+    },
+    {
+      "name": "frame_0020",
+      "basin_id": 17,
+      "source_energy": -61.56169805,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561698015413,
+      "final_gradient_norm_eh_per_alpha": 0.0001461531,
+      "optimized_xyz": "optimizations/frame_0020/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0020/xtb.log"
+    },
+    {
+      "name": "frame_0021",
+      "basin_id": 18,
+      "source_energy": -61.56164545,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.56164552556,
+      "final_gradient_norm_eh_per_alpha": 0.000138104786,
+      "optimized_xyz": "optimizations/frame_0021/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0021/xtb.log"
+    },
+    {
+      "name": "frame_0022",
+      "basin_id": 19,
+      "source_energy": -61.56163795,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561637924281,
+      "final_gradient_norm_eh_per_alpha": 4.4412985e-05,
+      "optimized_xyz": "optimizations/frame_0022/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0022/xtb.log"
+    },
+    {
+      "name": "frame_0023",
+      "basin_id": 1,
+      "source_energy": -61.56161415,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561614116043,
+      "final_gradient_norm_eh_per_alpha": 0.000134526792,
+      "optimized_xyz": "optimizations/frame_0023/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0023/xtb.log"
+    },
+    {
+      "name": "frame_0024",
+      "basin_id": 3,
+      "source_energy": -61.56156749,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561567462964,
+      "final_gradient_norm_eh_per_alpha": 4.2755007e-05,
+      "optimized_xyz": "optimizations/frame_0024/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0024/xtb.log"
+    },
+    {
+      "name": "frame_0025",
+      "basin_id": 20,
+      "source_energy": -61.56149251,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561492467311,
+      "final_gradient_norm_eh_per_alpha": 7.7576207e-05,
+      "optimized_xyz": "optimizations/frame_0025/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0025/xtb.log"
+    },
+    {
+      "name": "frame_0026",
+      "basin_id": 21,
+      "source_energy": -61.56145055,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561450519091,
+      "final_gradient_norm_eh_per_alpha": 2.6516674e-05,
+      "optimized_xyz": "optimizations/frame_0026/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0026/xtb.log"
+    },
+    {
+      "name": "frame_0027",
+      "basin_id": 22,
+      "source_energy": -61.56132113,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561321044849,
+      "final_gradient_norm_eh_per_alpha": 0.000189091236,
+      "optimized_xyz": "optimizations/frame_0027/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0027/xtb.log"
+    },
+    {
+      "name": "frame_0028",
+      "basin_id": 23,
+      "source_energy": -61.56118267,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561182435889,
+      "final_gradient_norm_eh_per_alpha": 0.00038870529,
+      "optimized_xyz": "optimizations/frame_0028/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0028/xtb.log"
+    },
+    {
+      "name": "frame_0029",
+      "basin_id": 24,
+      "source_energy": -61.56113494,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561135053989,
+      "final_gradient_norm_eh_per_alpha": 0.000158957845,
+      "optimized_xyz": "optimizations/frame_0029/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0029/xtb.log"
+    },
+    {
+      "name": "frame_0030",
+      "basin_id": 25,
+      "source_energy": -61.56111834,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561118390295,
+      "final_gradient_norm_eh_per_alpha": 9.1792214e-05,
+      "optimized_xyz": "optimizations/frame_0030/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0030/xtb.log"
+    },
+    {
+      "name": "frame_0031",
+      "basin_id": 26,
+      "source_energy": -61.56108939,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.561089449496,
+      "final_gradient_norm_eh_per_alpha": 9.1106e-05,
+      "optimized_xyz": "optimizations/frame_0031/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0031/xtb.log"
+    },
+    {
+      "name": "frame_0032",
+      "basin_id": 27,
+      "source_energy": -61.56091117,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560911255526,
+      "final_gradient_norm_eh_per_alpha": 0.000193453762,
+      "optimized_xyz": "optimizations/frame_0032/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0032/xtb.log"
+    },
+    {
+      "name": "frame_0033",
+      "basin_id": 10,
+      "source_energy": -61.5608721,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560872140049,
+      "final_gradient_norm_eh_per_alpha": 0.000259636938,
+      "optimized_xyz": "optimizations/frame_0033/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0033/xtb.log"
+    },
+    {
+      "name": "frame_0034",
+      "basin_id": 28,
+      "source_energy": -61.56071991,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560719953704,
+      "final_gradient_norm_eh_per_alpha": 4.7143528e-05,
+      "optimized_xyz": "optimizations/frame_0034/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0034/xtb.log"
+    },
+    {
+      "name": "frame_0035",
+      "basin_id": 28,
+      "source_energy": -61.56071858,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560718536504,
+      "final_gradient_norm_eh_per_alpha": 8.9167543e-05,
+      "optimized_xyz": "optimizations/frame_0035/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0035/xtb.log"
+    },
+    {
+      "name": "frame_0036",
+      "basin_id": 29,
+      "source_energy": -61.56069392,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560693975092,
+      "final_gradient_norm_eh_per_alpha": 6.0674603e-05,
+      "optimized_xyz": "optimizations/frame_0036/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0036/xtb.log"
+    },
+    {
+      "name": "frame_0037",
+      "basin_id": 30,
+      "source_energy": -61.56067532,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560675367891,
+      "final_gradient_norm_eh_per_alpha": 0.000119182956,
+      "optimized_xyz": "optimizations/frame_0037/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0037/xtb.log"
+    },
+    {
+      "name": "frame_0038",
+      "basin_id": 31,
+      "source_energy": -61.56067321,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560673206104,
+      "final_gradient_norm_eh_per_alpha": 0.000119589157,
+      "optimized_xyz": "optimizations/frame_0038/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0038/xtb.log"
+    },
+    {
+      "name": "frame_0039",
+      "basin_id": 32,
+      "source_energy": -61.56054697,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560546997137,
+      "final_gradient_norm_eh_per_alpha": 0.000114320609,
+      "optimized_xyz": "optimizations/frame_0039/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0039/xtb.log"
+    },
+    {
+      "name": "frame_0040",
+      "basin_id": 33,
+      "source_energy": -61.56051945,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560519468069,
+      "final_gradient_norm_eh_per_alpha": 8.4903847e-05,
+      "optimized_xyz": "optimizations/frame_0040/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0040/xtb.log"
+    },
+    {
+      "name": "frame_0041",
+      "basin_id": 34,
+      "source_energy": -61.56049487,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.56049528728,
+      "final_gradient_norm_eh_per_alpha": 0.000180528855,
+      "optimized_xyz": "optimizations/frame_0041/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0041/xtb.log"
+    },
+    {
+      "name": "frame_0042",
+      "basin_id": 35,
+      "source_energy": -61.56045498,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560454922619,
+      "final_gradient_norm_eh_per_alpha": 0.000174609416,
+      "optimized_xyz": "optimizations/frame_0042/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0042/xtb.log"
+    },
+    {
+      "name": "frame_0043",
+      "basin_id": 20,
+      "source_energy": -61.56035929,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560359226908,
+      "final_gradient_norm_eh_per_alpha": 0.000196744095,
+      "optimized_xyz": "optimizations/frame_0043/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0043/xtb.log"
+    },
+    {
+      "name": "frame_0044",
+      "basin_id": 36,
+      "source_energy": -61.56003452,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.560034527972,
+      "final_gradient_norm_eh_per_alpha": 9.7606255e-05,
+      "optimized_xyz": "optimizations/frame_0044/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0044/xtb.log"
+    },
+    {
+      "name": "frame_0045",
+      "basin_id": 37,
+      "source_energy": -61.55989945,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559899407782,
+      "final_gradient_norm_eh_per_alpha": 6.4819708e-05,
+      "optimized_xyz": "optimizations/frame_0045/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0045/xtb.log"
+    },
+    {
+      "name": "frame_0046",
+      "basin_id": 38,
+      "source_energy": -61.55971861,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.55971862549,
+      "final_gradient_norm_eh_per_alpha": 7.8755664e-05,
+      "optimized_xyz": "optimizations/frame_0046/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0046/xtb.log"
+    },
+    {
+      "name": "frame_0047",
+      "basin_id": 39,
+      "source_energy": -61.55971829,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559718288529,
+      "final_gradient_norm_eh_per_alpha": 6.5576084e-05,
+      "optimized_xyz": "optimizations/frame_0047/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0047/xtb.log"
+    },
+    {
+      "name": "frame_0048",
+      "basin_id": 40,
+      "source_energy": -61.55969524,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559695284296,
+      "final_gradient_norm_eh_per_alpha": 7.5323761e-05,
+      "optimized_xyz": "optimizations/frame_0048/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0048/xtb.log"
+    },
+    {
+      "name": "frame_0049",
+      "basin_id": 41,
+      "source_energy": -61.55951204,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559512099537,
+      "final_gradient_norm_eh_per_alpha": 0.000111547269,
+      "optimized_xyz": "optimizations/frame_0049/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0049/xtb.log"
+    },
+    {
+      "name": "frame_0050",
+      "basin_id": 5,
+      "source_energy": -61.55951056,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559510549592,
+      "final_gradient_norm_eh_per_alpha": 6.1588512e-05,
+      "optimized_xyz": "optimizations/frame_0050/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0050/xtb.log"
+    },
+    {
+      "name": "frame_0051",
+      "basin_id": 42,
+      "source_energy": -61.5593254,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559325441172,
+      "final_gradient_norm_eh_per_alpha": 8.1340315e-05,
+      "optimized_xyz": "optimizations/frame_0051/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0051/xtb.log"
+    },
+    {
+      "name": "frame_0052",
+      "basin_id": 18,
+      "source_energy": -61.5593165,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.55931652417,
+      "final_gradient_norm_eh_per_alpha": 5.7391406e-05,
+      "optimized_xyz": "optimizations/frame_0052/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0052/xtb.log"
+    },
+    {
+      "name": "frame_0053",
+      "basin_id": 43,
+      "source_energy": -61.55930595,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559305918747,
+      "final_gradient_norm_eh_per_alpha": 7.9693412e-05,
+      "optimized_xyz": "optimizations/frame_0053/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0053/xtb.log"
+    },
+    {
+      "name": "frame_0054",
+      "basin_id": 44,
+      "source_energy": -61.55907071,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559070696371,
+      "final_gradient_norm_eh_per_alpha": 0.000121419154,
+      "optimized_xyz": "optimizations/frame_0054/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0054/xtb.log"
+    },
+    {
+      "name": "frame_0055",
+      "basin_id": 45,
+      "source_energy": -61.55902125,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.559021303244,
+      "final_gradient_norm_eh_per_alpha": 5.3132425e-05,
+      "optimized_xyz": "optimizations/frame_0055/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0055/xtb.log"
+    },
+    {
+      "name": "frame_0056",
+      "basin_id": 46,
+      "source_energy": -61.55891193,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558911981238,
+      "final_gradient_norm_eh_per_alpha": 0.00013406155,
+      "optimized_xyz": "optimizations/frame_0056/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0056/xtb.log"
+    },
+    {
+      "name": "frame_0057",
+      "basin_id": 47,
+      "source_energy": -61.55890463,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558904659903,
+      "final_gradient_norm_eh_per_alpha": 6.9327327e-05,
+      "optimized_xyz": "optimizations/frame_0057/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0057/xtb.log"
+    },
+    {
+      "name": "frame_0058",
+      "basin_id": 48,
+      "source_energy": -61.55889178,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558891818062,
+      "final_gradient_norm_eh_per_alpha": 0.000100074348,
+      "optimized_xyz": "optimizations/frame_0058/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0058/xtb.log"
+    },
+    {
+      "name": "frame_0059",
+      "basin_id": 49,
+      "source_energy": -61.55873486,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558734862825,
+      "final_gradient_norm_eh_per_alpha": 0.000157938793,
+      "optimized_xyz": "optimizations/frame_0059/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0059/xtb.log"
+    },
+    {
+      "name": "frame_0060",
+      "basin_id": 50,
+      "source_energy": -61.5586903,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558690301108,
+      "final_gradient_norm_eh_per_alpha": 0.000114218499,
+      "optimized_xyz": "optimizations/frame_0060/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0060/xtb.log"
+    },
+    {
+      "name": "frame_0061",
+      "basin_id": 51,
+      "source_energy": -61.55868373,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558683685882,
+      "final_gradient_norm_eh_per_alpha": 0.000175734748,
+      "optimized_xyz": "optimizations/frame_0061/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0061/xtb.log"
+    },
+    {
+      "name": "frame_0062",
+      "basin_id": 29,
+      "source_energy": -61.5586603,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558660254445,
+      "final_gradient_norm_eh_per_alpha": 0.000134533749,
+      "optimized_xyz": "optimizations/frame_0062/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0062/xtb.log"
+    },
+    {
+      "name": "frame_0063",
+      "basin_id": 52,
+      "source_energy": -61.55858925,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558589304758,
+      "final_gradient_norm_eh_per_alpha": 0.000316946424,
+      "optimized_xyz": "optimizations/frame_0063/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0063/xtb.log"
+    },
+    {
+      "name": "frame_0064",
+      "basin_id": 53,
+      "source_energy": -61.55852771,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558527683875,
+      "final_gradient_norm_eh_per_alpha": 8.7123449e-05,
+      "optimized_xyz": "optimizations/frame_0064/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0064/xtb.log"
+    },
+    {
+      "name": "frame_0065",
+      "basin_id": 54,
+      "source_energy": -61.55842148,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558421494579,
+      "final_gradient_norm_eh_per_alpha": 7.315141e-05,
+      "optimized_xyz": "optimizations/frame_0065/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0065/xtb.log"
+    },
+    {
+      "name": "frame_0066",
+      "basin_id": 55,
+      "source_energy": -61.55831737,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558317319391,
+      "final_gradient_norm_eh_per_alpha": 0.000152132059,
+      "optimized_xyz": "optimizations/frame_0066/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0066/xtb.log"
+    },
+    {
+      "name": "frame_0067",
+      "basin_id": 56,
+      "source_energy": -61.5582752,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558275252874,
+      "final_gradient_norm_eh_per_alpha": 0.000112683013,
+      "optimized_xyz": "optimizations/frame_0067/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0067/xtb.log"
+    },
+    {
+      "name": "frame_0068",
+      "basin_id": 56,
+      "source_energy": -61.5582738,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558273859838,
+      "final_gradient_norm_eh_per_alpha": 0.000156109273,
+      "optimized_xyz": "optimizations/frame_0068/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0068/xtb.log"
+    },
+    {
+      "name": "frame_0069",
+      "basin_id": 57,
+      "source_energy": -61.55826324,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558263138821,
+      "final_gradient_norm_eh_per_alpha": 0.000268330414,
+      "optimized_xyz": "optimizations/frame_0069/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0069/xtb.log"
+    },
+    {
+      "name": "frame_0070",
+      "basin_id": 58,
+      "source_energy": -61.55823691,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558236941103,
+      "final_gradient_norm_eh_per_alpha": 7.0665396e-05,
+      "optimized_xyz": "optimizations/frame_0070/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0070/xtb.log"
+    },
+    {
+      "name": "frame_0071",
+      "basin_id": 57,
+      "source_energy": -61.55821641,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558216587077,
+      "final_gradient_norm_eh_per_alpha": 0.000123191813,
+      "optimized_xyz": "optimizations/frame_0071/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0071/xtb.log"
+    },
+    {
+      "name": "frame_0072",
+      "basin_id": 14,
+      "source_energy": -61.55816749,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558167581896,
+      "final_gradient_norm_eh_per_alpha": 8.9162486e-05,
+      "optimized_xyz": "optimizations/frame_0072/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0072/xtb.log"
+    },
+    {
+      "name": "frame_0073",
+      "basin_id": 59,
+      "source_energy": -61.55812765,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558127649613,
+      "final_gradient_norm_eh_per_alpha": 0.000130824457,
+      "optimized_xyz": "optimizations/frame_0073/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0073/xtb.log"
+    },
+    {
+      "name": "frame_0074",
+      "basin_id": 59,
+      "source_energy": -61.55812147,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558121548401,
+      "final_gradient_norm_eh_per_alpha": 8.659646e-05,
+      "optimized_xyz": "optimizations/frame_0074/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0074/xtb.log"
+    },
+    {
+      "name": "frame_0075",
+      "basin_id": 60,
+      "source_energy": -61.55811492,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558114931314,
+      "final_gradient_norm_eh_per_alpha": 6.477824e-05,
+      "optimized_xyz": "optimizations/frame_0075/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0075/xtb.log"
+    },
+    {
+      "name": "frame_0076",
+      "basin_id": 61,
+      "source_energy": -61.55804168,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.558041730706,
+      "final_gradient_norm_eh_per_alpha": 8.8924653e-05,
+      "optimized_xyz": "optimizations/frame_0076/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0076/xtb.log"
+    },
+    {
+      "name": "frame_0077",
+      "basin_id": 62,
+      "source_energy": -61.55797957,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557979620603,
+      "final_gradient_norm_eh_per_alpha": 7.0464726e-05,
+      "optimized_xyz": "optimizations/frame_0077/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0077/xtb.log"
+    },
+    {
+      "name": "frame_0078",
+      "basin_id": 63,
+      "source_energy": -61.55790159,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557901748292,
+      "final_gradient_norm_eh_per_alpha": 0.00016815506,
+      "optimized_xyz": "optimizations/frame_0078/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0078/xtb.log"
+    },
+    {
+      "name": "frame_0079",
+      "basin_id": 63,
+      "source_energy": -61.55789197,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557891927274,
+      "final_gradient_norm_eh_per_alpha": 0.000121755055,
+      "optimized_xyz": "optimizations/frame_0079/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0079/xtb.log"
+    },
+    {
+      "name": "frame_0080",
+      "basin_id": 63,
+      "source_energy": -61.55786544,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557865389773,
+      "final_gradient_norm_eh_per_alpha": 0.000200481842,
+      "optimized_xyz": "optimizations/frame_0080/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0080/xtb.log"
+    },
+    {
+      "name": "frame_0081",
+      "basin_id": 64,
+      "source_energy": -61.5578248,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557824865694,
+      "final_gradient_norm_eh_per_alpha": 0.000123925432,
+      "optimized_xyz": "optimizations/frame_0081/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0081/xtb.log"
+    },
+    {
+      "name": "frame_0082",
+      "basin_id": 65,
+      "source_energy": -61.55781593,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557815984668,
+      "final_gradient_norm_eh_per_alpha": 9.4934979e-05,
+      "optimized_xyz": "optimizations/frame_0082/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0082/xtb.log"
+    },
+    {
+      "name": "frame_0083",
+      "basin_id": 37,
+      "source_energy": -61.55780875,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557808706964,
+      "final_gradient_norm_eh_per_alpha": 0.000136315143,
+      "optimized_xyz": "optimizations/frame_0083/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0083/xtb.log"
+    },
+    {
+      "name": "frame_0084",
+      "basin_id": 66,
+      "source_energy": -61.55779912,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.55779908174,
+      "final_gradient_norm_eh_per_alpha": 8.7565036e-05,
+      "optimized_xyz": "optimizations/frame_0084/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0084/xtb.log"
+    },
+    {
+      "name": "frame_0085",
+      "basin_id": 67,
+      "source_energy": -61.55775696,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557757013167,
+      "final_gradient_norm_eh_per_alpha": 0.00011164723,
+      "optimized_xyz": "optimizations/frame_0085/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0085/xtb.log"
+    },
+    {
+      "name": "frame_0086",
+      "basin_id": 68,
+      "source_energy": -61.55769972,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557699801272,
+      "final_gradient_norm_eh_per_alpha": 0.000127458969,
+      "optimized_xyz": "optimizations/frame_0086/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0086/xtb.log"
+    },
+    {
+      "name": "frame_0087",
+      "basin_id": 67,
+      "source_energy": -61.55763903,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557638976972,
+      "final_gradient_norm_eh_per_alpha": 0.000281579395,
+      "optimized_xyz": "optimizations/frame_0087/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0087/xtb.log"
+    },
+    {
+      "name": "frame_0088",
+      "basin_id": 69,
+      "source_energy": -61.55763245,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557632532013,
+      "final_gradient_norm_eh_per_alpha": 0.00023910907,
+      "optimized_xyz": "optimizations/frame_0088/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0088/xtb.log"
+    },
+    {
+      "name": "frame_0089",
+      "basin_id": 70,
+      "source_energy": -61.557524,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.55752372978,
+      "final_gradient_norm_eh_per_alpha": 0.000334769433,
+      "optimized_xyz": "optimizations/frame_0089/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0089/xtb.log"
+    },
+    {
+      "name": "frame_0090",
+      "basin_id": 62,
+      "source_energy": -61.55747746,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.55747751589,
+      "final_gradient_norm_eh_per_alpha": 9.6936233e-05,
+      "optimized_xyz": "optimizations/frame_0090/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0090/xtb.log"
+    },
+    {
+      "name": "frame_0091",
+      "basin_id": 71,
+      "source_energy": -61.55735831,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557358309466,
+      "final_gradient_norm_eh_per_alpha": 5.520989e-05,
+      "optimized_xyz": "optimizations/frame_0091/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0091/xtb.log"
+    },
+    {
+      "name": "frame_0092",
+      "basin_id": 71,
+      "source_energy": -61.55735808,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557358108354,
+      "final_gradient_norm_eh_per_alpha": 8.7621336e-05,
+      "optimized_xyz": "optimizations/frame_0092/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0092/xtb.log"
+    },
+    {
+      "name": "frame_0093",
+      "basin_id": 72,
+      "source_energy": -61.55735455,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557354550342,
+      "final_gradient_norm_eh_per_alpha": 5.2306912e-05,
+      "optimized_xyz": "optimizations/frame_0093/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0093/xtb.log"
+    },
+    {
+      "name": "frame_0094",
+      "basin_id": 73,
+      "source_energy": -61.55734352,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557343609963,
+      "final_gradient_norm_eh_per_alpha": 0.000124465262,
+      "optimized_xyz": "optimizations/frame_0094/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0094/xtb.log"
+    },
+    {
+      "name": "frame_0095",
+      "basin_id": 74,
+      "source_energy": -61.55730265,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557302691868,
+      "final_gradient_norm_eh_per_alpha": 6.969798e-05,
+      "optimized_xyz": "optimizations/frame_0095/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0095/xtb.log"
+    },
+    {
+      "name": "frame_0096",
+      "basin_id": 75,
+      "source_energy": -61.55722581,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557225786553,
+      "final_gradient_norm_eh_per_alpha": 4.6214043e-05,
+      "optimized_xyz": "optimizations/frame_0096/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0096/xtb.log"
+    },
+    {
+      "name": "frame_0097",
+      "basin_id": 76,
+      "source_energy": -61.55716288,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557162908077,
+      "final_gradient_norm_eh_per_alpha": 8.6744336e-05,
+      "optimized_xyz": "optimizations/frame_0097/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0097/xtb.log"
+    },
+    {
+      "name": "frame_0098",
+      "basin_id": 77,
+      "source_energy": -61.55702243,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.55702250462,
+      "final_gradient_norm_eh_per_alpha": 0.000115655522,
+      "optimized_xyz": "optimizations/frame_0098/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0098/xtb.log"
+    },
+    {
+      "name": "frame_0099",
+      "basin_id": 78,
+      "source_energy": -61.55701314,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.557013151762,
+      "final_gradient_norm_eh_per_alpha": 8.4640303e-05,
+      "optimized_xyz": "optimizations/frame_0099/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0099/xtb.log"
+    },
+    {
+      "name": "frame_0100",
+      "basin_id": 79,
+      "source_energy": -61.55696955,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556969571835,
+      "final_gradient_norm_eh_per_alpha": 6.9345282e-05,
+      "optimized_xyz": "optimizations/frame_0100/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0100/xtb.log"
+    },
+    {
+      "name": "frame_0101",
+      "basin_id": 80,
+      "source_energy": -61.55691908,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556919038031,
+      "final_gradient_norm_eh_per_alpha": 9.9126447e-05,
+      "optimized_xyz": "optimizations/frame_0101/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0101/xtb.log"
+    },
+    {
+      "name": "frame_0102",
+      "basin_id": 81,
+      "source_energy": -61.55687492,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556874920137,
+      "final_gradient_norm_eh_per_alpha": 0.000228894149,
+      "optimized_xyz": "optimizations/frame_0102/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0102/xtb.log"
+    },
+    {
+      "name": "frame_0103",
+      "basin_id": 71,
+      "source_energy": -61.55671998,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556719994026,
+      "final_gradient_norm_eh_per_alpha": 9.4693735e-05,
+      "optimized_xyz": "optimizations/frame_0103/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0103/xtb.log"
+    },
+    {
+      "name": "frame_0104",
+      "basin_id": 67,
+      "source_energy": -61.55671905,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556719090631,
+      "final_gradient_norm_eh_per_alpha": 0.000182427862,
+      "optimized_xyz": "optimizations/frame_0104/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0104/xtb.log"
+    },
+    {
+      "name": "frame_0105",
+      "basin_id": 82,
+      "source_energy": -61.55671359,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556713571253,
+      "final_gradient_norm_eh_per_alpha": 0.000265327068,
+      "optimized_xyz": "optimizations/frame_0105/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0105/xtb.log"
+    },
+    {
+      "name": "frame_0106",
+      "basin_id": 67,
+      "source_energy": -61.5567056,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556705623237,
+      "final_gradient_norm_eh_per_alpha": 6.8635579e-05,
+      "optimized_xyz": "optimizations/frame_0106/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0106/xtb.log"
+    },
+    {
+      "name": "frame_0107",
+      "basin_id": 83,
+      "source_energy": -61.5566959,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556695890068,
+      "final_gradient_norm_eh_per_alpha": 5.8491975e-05,
+      "optimized_xyz": "optimizations/frame_0107/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0107/xtb.log"
+    },
+    {
+      "name": "frame_0108",
+      "basin_id": 84,
+      "source_energy": -61.5566656,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556665696402,
+      "final_gradient_norm_eh_per_alpha": 0.000176911684,
+      "optimized_xyz": "optimizations/frame_0108/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0108/xtb.log"
+    },
+    {
+      "name": "frame_0109",
+      "basin_id": 48,
+      "source_energy": -61.55653741,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556537379943,
+      "final_gradient_norm_eh_per_alpha": 2.1398158e-05,
+      "optimized_xyz": "optimizations/frame_0109/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0109/xtb.log"
+    },
+    {
+      "name": "frame_0110",
+      "basin_id": 85,
+      "source_energy": -61.55647288,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556472938791,
+      "final_gradient_norm_eh_per_alpha": 0.000118778393,
+      "optimized_xyz": "optimizations/frame_0110/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0110/xtb.log"
+    },
+    {
+      "name": "frame_0111",
+      "basin_id": 85,
+      "source_energy": -61.55646083,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556460788835,
+      "final_gradient_norm_eh_per_alpha": 4.0564338e-05,
+      "optimized_xyz": "optimizations/frame_0111/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0111/xtb.log"
+    },
+    {
+      "name": "frame_0112",
+      "basin_id": 86,
+      "source_energy": -61.5564281,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556428153584,
+      "final_gradient_norm_eh_per_alpha": 0.000162572943,
+      "optimized_xyz": "optimizations/frame_0112/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0112/xtb.log"
+    },
+    {
+      "name": "frame_0113",
+      "basin_id": 87,
+      "source_energy": -61.55640552,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556405537082,
+      "final_gradient_norm_eh_per_alpha": 6.745703e-05,
+      "optimized_xyz": "optimizations/frame_0113/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0113/xtb.log"
+    },
+    {
+      "name": "frame_0114",
+      "basin_id": 87,
+      "source_energy": -61.55638734,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556387427374,
+      "final_gradient_norm_eh_per_alpha": 0.000120294284,
+      "optimized_xyz": "optimizations/frame_0114/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0114/xtb.log"
+    },
+    {
+      "name": "frame_0115",
+      "basin_id": 88,
+      "source_energy": -61.55612304,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556123066217,
+      "final_gradient_norm_eh_per_alpha": 0.000154651354,
+      "optimized_xyz": "optimizations/frame_0115/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0115/xtb.log"
+    },
+    {
+      "name": "frame_0116",
+      "basin_id": 89,
+      "source_energy": -61.55609831,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556098403109,
+      "final_gradient_norm_eh_per_alpha": 7.6355035e-05,
+      "optimized_xyz": "optimizations/frame_0116/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0116/xtb.log"
+    },
+    {
+      "name": "frame_0117",
+      "basin_id": 62,
+      "source_energy": -61.55604647,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556046514844,
+      "final_gradient_norm_eh_per_alpha": 0.000139386849,
+      "optimized_xyz": "optimizations/frame_0117/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0117/xtb.log"
+    },
+    {
+      "name": "frame_0118",
+      "basin_id": 58,
+      "source_energy": -61.55601186,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.556011887038,
+      "final_gradient_norm_eh_per_alpha": 8.6030589e-05,
+      "optimized_xyz": "optimizations/frame_0118/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0118/xtb.log"
+    },
+    {
+      "name": "frame_0119",
+      "basin_id": 90,
+      "source_energy": -61.55598561,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555985629168,
+      "final_gradient_norm_eh_per_alpha": 7.6085166e-05,
+      "optimized_xyz": "optimizations/frame_0119/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0119/xtb.log"
+    },
+    {
+      "name": "frame_0120",
+      "basin_id": 91,
+      "source_energy": -61.55596658,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555966602519,
+      "final_gradient_norm_eh_per_alpha": 8.4280333e-05,
+      "optimized_xyz": "optimizations/frame_0120/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0120/xtb.log"
+    },
+    {
+      "name": "frame_0121",
+      "basin_id": 92,
+      "source_energy": -61.55578895,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555789439676,
+      "final_gradient_norm_eh_per_alpha": 6.0381646e-05,
+      "optimized_xyz": "optimizations/frame_0121/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0121/xtb.log"
+    },
+    {
+      "name": "frame_0122",
+      "basin_id": 93,
+      "source_energy": -61.55574778,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555747772555,
+      "final_gradient_norm_eh_per_alpha": 4.0720029e-05,
+      "optimized_xyz": "optimizations/frame_0122/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0122/xtb.log"
+    },
+    {
+      "name": "frame_0123",
+      "basin_id": 94,
+      "source_energy": -61.55571584,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555715849185,
+      "final_gradient_norm_eh_per_alpha": 7.7186717e-05,
+      "optimized_xyz": "optimizations/frame_0123/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0123/xtb.log"
+    },
+    {
+      "name": "frame_0124",
+      "basin_id": 95,
+      "source_energy": -61.55568065,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555681405142,
+      "final_gradient_norm_eh_per_alpha": 0.000145908483,
+      "optimized_xyz": "optimizations/frame_0124/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0124/xtb.log"
+    },
+    {
+      "name": "frame_0125",
+      "basin_id": 96,
+      "source_energy": -61.55567952,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555679401634,
+      "final_gradient_norm_eh_per_alpha": 0.000262168914,
+      "optimized_xyz": "optimizations/frame_0125/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0125/xtb.log"
+    },
+    {
+      "name": "frame_0126",
+      "basin_id": 97,
+      "source_energy": -61.55561356,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.555613649968,
+      "final_gradient_norm_eh_per_alpha": 0.000106186271,
+      "optimized_xyz": "optimizations/frame_0126/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0126/xtb.log"
+    }
+  ]
+}

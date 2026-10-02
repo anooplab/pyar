@@ -16,6 +16,7 @@ import numpy as np
 from pyar import __version__
 from pyar.backends import require_executable
 from pyar.backends.subprocess_utils import run_command
+from pyar.conformer.comparison import ConformerComparisons
 from pyar.conformer.request import ConformerRequest, ConformerRequestError
 from pyar.core.molecule import Molecule
 from pyar.optional_dependencies import optional_dependency_error
@@ -25,7 +26,7 @@ from pyar.workflows._growth import _working_directory, workflow_run_directory, w
 
 conformer_logger = logging.getLogger("pyar.workflows.conformer")
 
-STATE_VERSION = 2
+STATE_VERSION = 3
 
 
 class ConformerWorkflowError(RuntimeError):
@@ -623,101 +624,48 @@ def _record_sort_key(record):
     return (record.rdkit_energy, record.seed, record.source_conf_id)
 
 
-def _diversity_coordinates(record):
-    """Return heavy-atom coordinates for conformer diversity scoring."""
-    molecule = record.molecule
-    if molecule is not None and molecule.coordinates is not None:
-        coordinates = np.asarray(molecule.coordinates, dtype=float)
-        if coordinates.ndim != 2 or coordinates.shape[1] != 3:
-            return None
-        heavy_indices = [
-            index
-            for index, atom in enumerate(molecule.atoms_list)
-            if str(atom).upper() != "H"
-        ]
-        if not heavy_indices:
-            heavy_indices = list(range(len(molecule.atoms_list)))
-        return coordinates[np.asarray(heavy_indices, dtype=int)]
-
-    rdkit_molecule = record.rdkit_molecule
-    if rdkit_molecule is None:
-        return None
-    try:
-        conformer_id = record.source_conf_id if record.rdkit_conf_id is None else record.rdkit_conf_id
-        conformer = rdkit_molecule.GetConformer(int(conformer_id))
-    except (RuntimeError, ValueError):
-        try:
-            conformer = rdkit_molecule.GetConformer()
-        except (RuntimeError, ValueError):
-            return None
-    coordinates = []
-    heavy_indices = []
-    for atom in rdkit_molecule.GetAtoms():
-        atom_index = atom.GetIdx()
-        position = conformer.GetAtomPosition(atom_index)
-        coordinates.append([float(position.x), float(position.y), float(position.z)])
-        if atom.GetAtomicNum() > 1:
-            heavy_indices.append(atom_index)
-    if not heavy_indices:
-        heavy_indices = list(range(len(coordinates)))
-    if not coordinates:
-        return None
-    return np.asarray(coordinates, dtype=float)[np.asarray(heavy_indices, dtype=int)]
-
-
-def _deduplicate_records(records, rms_threshold, *, sort_key=_record_sort_key):
-    """Return low-energy conformers after heavy-atom RMSD deduplication."""
+def _deduplicate_records(records, rms_threshold, *, sort_key=_record_sort_key,
+                         atom_mode="heavy", comparisons=None, stage="deduplication"):
+    """Keep records unless the shared comparison policy confirms a duplicate."""
     threshold = float(rms_threshold)
     ordered_records = list(records) if sort_key is None else sorted(records, key=sort_key)
-    if threshold <= 0.0:
+    if not np.isfinite(threshold) or threshold < 0:
+        raise ValueError("rms_threshold must be finite and nonnegative")
+    if threshold == 0.0:
         return ordered_records
+    comparisons = comparisons or ConformerComparisons(atom_mode)
     selected = []
     for record in ordered_records:
-        record_coordinates = _diversity_coordinates(record)
-        if record_coordinates is None or len(record_coordinates) < 3:
-            selected.append(record)
-            continue
-        is_duplicate = False
-        for accepted in selected:
-            accepted_coordinates = _diversity_coordinates(accepted)
-            if accepted_coordinates is None or len(accepted_coordinates) < 3:
-                continue
-            if _kabsch_rmsd(record_coordinates, accepted_coordinates) < threshold:
-                is_duplicate = True
-                break
-        if not is_duplicate:
+        if not any(comparisons.compare(record, accepted, threshold, stage=stage).equivalent is True
+                   for accepted in selected):
             selected.append(record)
     return selected
 
 
-def _collapse_generation_records(records, rms_threshold):
+def _collapse_generation_records(records, rms_threshold, **kwargs):
     """Collapse generated conformers into a similarity-pruned pool."""
-    return _deduplicate_records(records, rms_threshold)
+    return _deduplicate_records(records, rms_threshold, stage="generation", **kwargs)
 
 
-def _select_unique_records(records, limit, rms_threshold):
-    """Return up to limit low-energy records after geometry deduplication."""
-    return _deduplicate_records(records, rms_threshold, sort_key=None)[: int(limit)]
+def _select_unique_records(records, limit, rms_threshold, **kwargs):
+    """Return up to limit ranked records after geometry deduplication."""
+    return _deduplicate_records(records, rms_threshold, sort_key=None,
+                                stage="final", **kwargs)[: int(limit)]
 
 
-def _is_duplicate_record(record, references, rms_threshold):
-    """Return True when record is within RMS threshold of any reference record."""
+def _is_duplicate_record(record, references, rms_threshold, *, atom_mode="heavy", comparisons=None):
+    """Return True only for a confirmed duplicate of a reference record."""
     threshold = float(rms_threshold)
-    if threshold <= 0.0:
+    if not np.isfinite(threshold) or threshold < 0:
+        raise ValueError("rms_threshold must be finite and nonnegative")
+    if threshold == 0.0:
         return False
-    record_coordinates = _diversity_coordinates(record)
-    if record_coordinates is None or len(record_coordinates) < 3:
-        return False
-    for reference in references:
-        reference_coordinates = _diversity_coordinates(reference)
-        if reference_coordinates is None or len(reference_coordinates) < 3:
-            continue
-        if _kabsch_rmsd(record_coordinates, reference_coordinates) < threshold:
-            return True
-    return False
+    comparisons = comparisons or ConformerComparisons(atom_mode)
+    return any(comparisons.compare(record, reference, threshold).equivalent is True
+               for reference in references)
 
 
-def _select_torsion_parent_records(records, limit, diversity_fraction, compactness_fraction):
+def _select_torsion_parent_records(records, limit, diversity_fraction, compactness_fraction, *, comparisons=None):
     """Return a bounded low-energy and compact/diverse pool for another torsion round."""
     records = sorted(records, key=_record_sort_key)
     if int(limit) >= len(records):
@@ -728,6 +676,7 @@ def _select_torsion_parent_records(records, limit, diversity_fraction, compactne
         min(int(limit), max(1, int(limit) // 2)),
         diversity_fraction,
         compactness_fraction,
+        comparisons=comparisons,
     )
 
 
@@ -790,32 +739,11 @@ def _open_score(record):
     return rgyr, -contact_count
 
 
-def _kabsch_rmsd(reference, mobile):
-    """Return RMSD after optimal translation and proper rotation."""
-    reference = np.asarray(reference, dtype=float)
-    mobile = np.asarray(mobile, dtype=float)
-    if reference.shape != mobile.shape:
-        return float("inf")
-    reference_centered = reference - np.mean(reference, axis=0)
-    mobile_centered = mobile - np.mean(mobile, axis=0)
-    covariance = mobile_centered.T @ reference_centered
-    left_vectors, _, right_vectors = np.linalg.svd(covariance)
-    correction = np.eye(3)
-    if np.linalg.det(left_vectors @ right_vectors) < 0:
-        correction[-1, -1] = -1.0
-    rotation = left_vectors @ correction @ right_vectors
-    aligned = mobile_centered @ rotation
-    difference = aligned - reference_centered
-    return float(np.sqrt(np.mean(np.sum(difference * difference, axis=1))))
-
-
-def _conformer_rmsd(left, right):
-    """Return a heavy-atom RMSD between two conformer records."""
-    left_coordinates = _diversity_coordinates(left)
-    right_coordinates = _diversity_coordinates(right)
-    if left_coordinates is None or right_coordinates is None:
-        return 0.0
-    return _kabsch_rmsd(left_coordinates, right_coordinates)
+def _conformer_rmsd(left, right, *, comparisons=None):
+    """Return shared symmetry-aware RMSD, or infinity for an abstention."""
+    comparisons = comparisons or ConformerComparisons()
+    result = comparisons.compare(left, right, stage="diversity")
+    return float("inf") if result.distance is None else result.distance
 
 
 def _append_selected_record(selected, selected_ids, record, reason, diversity=None):
@@ -830,8 +758,9 @@ def _append_selected_record(selected, selected_ids, record, reason, diversity=No
     return True
 
 
-def _select_diverse_record(candidates, selected):
+def _select_diverse_record(candidates, selected, *, comparisons=None):
     """Return the candidate farthest from the current selected set."""
+    comparisons = comparisons or ConformerComparisons()
     best_candidate = None
     best_key = None
     for candidate in candidates:
@@ -839,14 +768,14 @@ def _select_diverse_record(candidates, selected):
             nearest_selected = 0.0
         else:
             nearest_selected = min(
-                _conformer_rmsd(candidate, chosen)
+                _conformer_rmsd(candidate, chosen, comparisons=comparisons)
                 for chosen in selected
             )
         key = (nearest_selected, -candidate.rdkit_energy, -candidate.seed, -candidate.source_conf_id)
         if best_key is None or key > best_key:
             best_key = key
             best_candidate = candidate
-    return best_candidate, None if best_key is None else float(best_key[0])
+    return best_candidate, None if best_key is None or not np.isfinite(best_key[0]) else float(best_key[0])
 
 
 def _selection_quota(limit, fraction):
@@ -856,8 +785,9 @@ def _selection_quota(limit, fraction):
     return max(1, int(math.ceil(limit * float(fraction))))
 
 
-def _select_refinement_records(records, limit, top_n, diversity_fraction, compactness_fraction):
+def _select_refinement_records(records, limit, top_n, diversity_fraction, compactness_fraction, *, comparisons=None):
     """Select backend candidates from energy, diversity, compact, and open basins."""
+    comparisons = comparisons or ConformerComparisons()
     limit = min(int(limit), len(records))
     if limit <= 0:
         return []
@@ -909,7 +839,7 @@ def _select_refinement_records(records, limit, top_n, diversity_fraction, compac
 
     for _ in range(max(0, min(diversity_count, limit - len(selected)))):
         candidates = [candidate for candidate in ordered_records if id(candidate) not in selected_ids]
-        candidate, diversity = _select_diverse_record(candidates, selected)
+        candidate, diversity = _select_diverse_record(candidates, selected, comparisons=comparisons)
         if candidate is None:
             break
         _append_selected_record(selected, selected_ids, candidate, "diversity", diversity)
@@ -928,7 +858,7 @@ def _select_refinement_records(records, limit, top_n, diversity_fraction, compac
 
     while len(selected) < limit:
         candidates = [candidate for candidate in ordered_records if id(candidate) not in selected_ids]
-        candidate, diversity = _select_diverse_record(candidates, selected)
+        candidate, diversity = _select_diverse_record(candidates, selected, comparisons=comparisons)
         if candidate is None:
             break
         _append_selected_record(selected, selected_ids, candidate, "diversity", diversity)
@@ -1104,6 +1034,7 @@ def _build_conformer_request(
     multiplicity,
     scftype,
     qc_params,
+    dedup_atom_mode="heavy",
 ):
     """Validate and normalize the persisted conformer workflow request."""
     try:
@@ -1124,6 +1055,7 @@ def _build_conformer_request(
             torsion_kicks_per_conformer=torsion_kicks_per_conformer,
             torsion_max_bonds=torsion_max_bonds,
             torsion_dedup_rms=torsion_dedup_rms,
+            dedup_atom_mode=dedup_atom_mode,
             force_field=force_field,
             seed=seed,
             num_threads=num_threads,
@@ -1156,6 +1088,7 @@ def conformer_search(
     torsion_kicks_per_conformer=6,
     torsion_max_bonds=3,
     torsion_dedup_rms=0.5,
+    dedup_atom_mode="heavy",
     force_field="auto",
     seed=1,
     num_threads=0,
@@ -1184,6 +1117,7 @@ def conformer_search(
         torsion_kicks_per_conformer=torsion_kicks_per_conformer,
         torsion_max_bonds=torsion_max_bonds,
         torsion_dedup_rms=torsion_dedup_rms,
+        dedup_atom_mode=dedup_atom_mode,
         force_field=force_field,
         seed=seed,
         num_threads=num_threads,
@@ -1216,6 +1150,7 @@ def conformer_search(
     scftype = request["scftype"]
     qc_params = request["backend_parameters"]
     generation_dedup_rms = request["generation_dedup_rms"]
+    comparisons = ConformerComparisons(request["dedup_atom_mode"], charge=charge, multiplicity=multiplicity)
 
     root_directory = os.getcwd() if root_directory is None else root_directory
     Chem, AllChem = _rdkit_modules()
@@ -1255,6 +1190,7 @@ def conformer_search(
                 torsion_parent_limit,
                 diversity_fraction,
                 compactness_fraction,
+                comparisons=comparisons,
             )
             kicked_records = _generate_torsion_random_records(
                 parent_records,
@@ -1269,8 +1205,8 @@ def conformer_search(
             )
             if not kicked_records:
                 break
-            records = _collapse_generation_records(records + kicked_records, generation_dedup_rms)
-    records = _collapse_generation_records(records, generation_dedup_rms)
+            records = _collapse_generation_records(records + kicked_records, generation_dedup_rms, comparisons=comparisons)
+    records = _collapse_generation_records(records, generation_dedup_rms, comparisons=comparisons)
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
     if not records:
         state = _build_state(
@@ -1281,6 +1217,7 @@ def conformer_search(
             source_format=source_format,
             backend_requested=bool(qc_params and qc_params.get("software")),
         )
+        state["comparison_policy"] = comparisons.summary()
         _write_json_atomic(state_path, state)
         raise ConformerWorkflowError("RDKit did not generate any conformers")
 
@@ -1306,12 +1243,14 @@ def conformer_search(
             top_n,
             diversity_fraction,
             compactness_fraction,
+            comparisons=comparisons,
         )
         refined_records = _refine_with_backend(retained_records, run_directory, qc_params)
         selected_records = _select_unique_records(
             refined_records,
             min(int(top_n), len(refined_records)),
-            max(float(torsion_dedup_rms), 0.75),
+            request["final_dedup_rms"],
+            comparisons=comparisons,
         )
         status = "completed" if selected_records else "completed_no_backend_success"
     else:
@@ -1321,11 +1260,13 @@ def conformer_search(
             top_n,
             diversity_fraction,
             compactness_fraction,
+            comparisons=comparisons,
         )
         selected_records = _select_unique_records(
             retained_records,
             min(int(top_n), len(retained_records)),
-            float(torsion_dedup_rms),
+            request["final_dedup_rms"],
+            comparisons=comparisons,
         )
         status = "completed"
 
@@ -1339,6 +1280,7 @@ def conformer_search(
         source_format=source_format,
         backend_requested=backend_requested,
     )
+    state["comparison_policy"] = comparisons.summary()
     _write_json_atomic(state_path, state)
 
     conformer_logger.info(
@@ -1354,6 +1296,7 @@ def conformer_search(
         state_path=str(state_path),
         selected_paths=tuple(selected_paths),
         metadata={
+            "comparison_policy": comparisons.summary(),
             "source_format": source_format,
             "generated_conformers": len(records),
             "selected_conformers": len(selected_records),

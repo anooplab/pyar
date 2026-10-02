@@ -1,0 +1,10 @@
+dataset,feature_requested,feature_used,feature_fallbacks,status,error,pairwise_same_basin_auc,positive_same_basin_pairs,negative_different_basin_pairs,pair_count
+CAMVES_I,mbtr,mbtr,[],available,,0.8706896551724138,16,29,45
+CAMVES_I,soap,soap,[],available,,0.9051724137931034,16,29,45
+CAMVES_I,distance-histogram,distance-histogram,[],available,,0.9030172413793103,16,29,45
+FGG55,mbtr,mbtr,[],available,,0.9965822696519495,36,7965,8001
+FGG55,soap,soap,[],available,,0.9977749877938202,36,7965,8001
+FGG55,distance-histogram,distance-histogram,[],available,,0.9710992536792914,36,7965,8001
+WG01,mbtr,mbtr,[],available,,0.9858398785693184,39,2517,2556
+WG01,soap,soap,[],available,,0.9977792039770587,39,2517,2556
+WG01,distance-histogram,distance-histogram,[],available,,0.9423815490561617,39,2517,2556

@@ -15,6 +15,16 @@ class DummyMolecule:
 
 
 class AggregateRequestTests(unittest.TestCase):
+    def test_structural_distance_choices_are_persisted_with_current_policy(self):
+        from pyar.selection.policy import SELECTION_POLICY_VERSION
+
+        for distance in ("graph-rmsd", "fragment-rmsd", "soap-rematch"):
+            with self.subTest(distance=distance):
+                request = AggregateRequest.from_options(**self._request_kwargs(selection_distance=distance))
+                state = request.to_state_dict()
+                self.assertEqual(state["selection_distance"], distance)
+                self.assertEqual(state["selection_policy_version"], SELECTION_POLICY_VERSION)
+
     def _request_kwargs(self, **overrides):
         kwargs = {
             "molecules": [DummyMolecule()],

@@ -1,6 +1,7 @@
 import unittest
 from unittest import mock
 
+import numpy as np
 from dscribe.core.system import System
 
 from pyar import representations
@@ -34,6 +35,25 @@ class RepresentationTests(unittest.TestCase):
 
         self.assertGreater(len(result), 0)
         self.assertTrue(any(value != 0.0 for value in result))
+
+    def test_mbtr_pair_and_angular_blocks_are_finite(self):
+        result = representations.mbtr_descriptor(
+            ["O", "H", "H"],
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.96], [0.9, 0.0, 0.0]],
+            species=("H", "O"),
+            include_angles=True,
+        )
+        self.assertTrue(len(result) > 100)
+        self.assertTrue(np.isfinite(result).all())
+
+    def test_soap_descriptor_is_finite_for_molecule(self):
+        result = representations.soap_structure_descriptor(
+            ["O", "H", "H"],
+            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.96], [0.9, 0.0, 0.0]],
+            species=("H", "O"),
+        )
+        self.assertGreater(len(result), 0)
+        self.assertTrue(np.isfinite(result).all())
 
     def test_fingerprint_handles_overlapping_atoms(self):
         result = representations.fingerprint(

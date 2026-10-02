@@ -21,10 +21,12 @@ The public entry points are :func:`aggregate` and
 from __future__ import annotations
 
 import copy
+import json
 import os
 import string
 from collections import OrderedDict
 from pathlib import Path
+from pyar.structure_comparison.coordinate_graph import analyze_coordinate_structure
 
 from pyar.aggregation import AggregateRequest
 from pyar.state.aggregate import AggregateRunState, AggregateStateError
@@ -92,6 +94,10 @@ def aggregate(
     number_of_pathways,
     site,
     connectivity_policy="auto",
+    selection_feature="auto",
+    selection_algorithm="auto",
+    selection_distance="euclidean",
+    selection_system_type="auto",
 ):
     """Run an aggregate or cluster-generation workflow.
 
@@ -114,6 +120,10 @@ def aggregate(
         number_of_pathways,
         site,
         connectivity_policy,
+        selection_feature,
+        selection_algorithm,
+        selection_distance,
+        selection_system_type,
     )
     molecules = list(aggregate_request.molecules)
     aggregate_sizes = list(aggregate_request.aggregate_sizes)
@@ -123,6 +133,10 @@ def aggregate(
     number_of_pathways = aggregate_request.number_of_pathways
     site = None if aggregate_request.site is None else list(aggregate_request.site)
     connectivity_policy = aggregate_request.connectivity_policy
+    selection_feature = aggregate_request.selection_feature
+    selection_algorithm = aggregate_request.selection_algorithm
+    selection_distance = aggregate_request.selection_distance
+    selection_system_type = aggregate_request.selection_system_type
 
     number_of_orientations = _resolve_orientation_count(hm_orientations)
     sampling = sampling_configuration(
@@ -153,6 +167,39 @@ def aggregate(
 
     with _working_directory(parent_folder):
         starting_directory = os.getcwd()
+
+        # Capture what the workflow was given before aggregation changes the
+        # structures. This is a coordinate-only diagnostic, not identity
+        # assignment and not an input to candidate selection.
+        structural_analysis_directory = Path("structural_analysis")
+        structural_analysis_directory.mkdir(exist_ok=True)
+        try:
+            input_analysis = {
+                "stage": "workflow-input",
+                "workflow": "aggregate",
+                "method": "coordinate-only-adjacency",
+                "structures": [
+                    analyze_coordinate_structure(molecule) for molecule in molecules
+                ],
+                "limitations": [
+                    "XYZ coordinates do not provide bond orders, charge, spin, or fragment intent.",
+                    "Adjacency is geometric and should not be interpreted as definitive chemical identity.",
+                ],
+            }
+        except (KeyError, ValueError, TypeError) as exc:
+            # Diagnostic analysis is informative only and must not gate a run.
+            aggregator_logger.warning("Input structural analysis skipped: %s", exc)
+            input_analysis = {
+                "stage": "workflow-input",
+                "workflow": "aggregate",
+                "method": "coordinate-only-adjacency",
+                "status": "skipped",
+                "reason": f"{type(exc).__name__}: {exc}",
+                "structures": [],
+            }
+        with (structural_analysis_directory / "input.json").open("w", encoding="utf-8") as stream:
+            json.dump(input_analysis, stream, indent=2)
+            stream.write("\n")
 
         if restart:
             aggregator_logger.info(f"Restarting aggregation in {starting_directory}")
@@ -270,6 +317,10 @@ def aggregate(
                         maximum_number_of_seeds,
                         site,
                         connectivity_policy=final_connectivity_policy,
+                        selection_feature=selection_feature,
+                        selection_algorithm=selection_algorithm,
+                        selection_distance=selection_distance,
+                        selection_system_type=selection_system_type,
                     )
                 if len(seed_storage[ag_id]) == 0:
                     aggregator_logger.info(
@@ -289,8 +340,11 @@ def aggregate(
         final_selected = _finalize_selected_geometries(
             aggregate_root=".",
             maximum_number_of_seeds=maximum_number_of_seeds,
-            algorithm="hybrid",
+            feature=selection_feature,
+            algorithm=selection_algorithm,
+            distance_metric=selection_distance,
             connectivity_policy=final_connectivity_policy,
+            system_type=selection_system_type,
         )
         if final_selected:
             aggregator_logger.info(
@@ -331,6 +385,10 @@ def aggregate_from_formulas(
     number_of_pathways,
     site,
     connectivity_policy="auto",
+    selection_feature="auto",
+    selection_algorithm="auto",
+    selection_distance="euclidean",
+    selection_system_type="auto",
 ):
     """Generate initial molecules from formulas and run the aggregate workflow.
 
@@ -349,4 +407,8 @@ def aggregate_from_formulas(
         number_of_pathways,
         site,
         connectivity_policy=connectivity_policy,
+        selection_feature=selection_feature,
+        selection_algorithm=selection_algorithm,
+        selection_distance=selection_distance,
+        selection_system_type=selection_system_type,
     )

@@ -1,0 +1,218 @@
+{
+  "coulomb_eigenvalue_energy_rule": {
+    "forward_status": {
+      "ok": 189
+    },
+    "all_call_status": {
+      "ok": 504
+    },
+    "threshold_sweep": {
+      "energy_eigenvalue_rule": {
+        "true_positive": 24,
+        "true_negative": 72,
+        "unscored": 90,
+        "abstained_positive": 2,
+        "abstained_negative": 1
+      }
+    },
+    "directional_disagreements": [],
+    "self_status": {
+      "ok": 126
+    },
+    "nonzero_or_rejected_self": [],
+    "forward_comparison_seconds": 0.3665317210688954
+  },
+  "coulomb_eigenvalue_prefilter_rmsd": {
+    "forward_status": {
+      "ok": 189
+    },
+    "all_call_status": {
+      "ok": 504
+    },
+    "threshold_sweep": {
+      "0.05": {
+        "false_split": 21,
+        "true_positive": 5,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.1": {
+        "false_split": 21,
+        "true_positive": 5,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.2": {
+        "false_split": 21,
+        "true_positive": 5,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.5": {
+        "false_split": 21,
+        "true_positive": 5,
+        "true_negative": 73,
+        "unscored": 90
+      }
+    },
+    "directional_disagreements": [],
+    "self_status": {
+      "ok": 126
+    },
+    "nonzero_or_rejected_self": [],
+    "forward_comparison_seconds": 0.21174937102477998
+  },
+  "graph_rmsd": {
+    "forward_status": {
+      "ok": 186,
+      "incomplete": 3
+    },
+    "all_call_status": {
+      "ok": 492,
+      "incomplete": 12
+    },
+    "threshold_sweep": {
+      "0.05": {
+        "true_positive": 25,
+        "true_negative": 73,
+        "unscored": 90,
+        "abstained_positive": 1
+      },
+      "0.1": {
+        "true_positive": 25,
+        "true_negative": 73,
+        "unscored": 90,
+        "abstained_positive": 1
+      },
+      "0.2": {
+        "true_positive": 25,
+        "true_negative": 73,
+        "unscored": 90,
+        "abstained_positive": 1
+      },
+      "0.5": {
+        "true_positive": 25,
+        "true_negative": 73,
+        "unscored": 90,
+        "abstained_positive": 1
+      }
+    },
+    "directional_disagreements": [],
+    "self_status": {
+      "ok": 120,
+      "incomplete": 6
+    },
+    "nonzero_or_rejected_self": [],
+    "forward_comparison_seconds": 2.945925838990661
+  },
+  "irmsd": {
+    "forward_status": {
+      "ok": 188,
+      "backend_fallback": 1
+    },
+    "all_call_status": {
+      "ok": 502,
+      "backend_fallback": 2
+    },
+    "threshold_sweep": {
+      "0.05": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.1": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.2": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.5": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      }
+    },
+    "directional_disagreements": [
+      {
+        "pair_id": "pair_0027",
+        "kind": "distance",
+        "difference_angstrom": 0.06289908075123551
+      },
+      {
+        "pair_id": "pair_0030",
+        "kind": "distance",
+        "difference_angstrom": 0.06289909256834703
+      },
+      {
+        "pair_id": "pair_0033",
+        "kind": "distance",
+        "difference_angstrom": 0.06290056375349384
+      },
+      {
+        "pair_id": "pair_0088",
+        "kind": "distance",
+        "difference_angstrom": 0.03264741203977284
+      },
+      {
+        "pair_id": "pair_0090",
+        "kind": "distance",
+        "difference_angstrom": 0.03264804687909506
+      },
+      {
+        "pair_id": "pair_0092",
+        "kind": "distance",
+        "difference_angstrom": 0.05347314238539935
+      },
+      {
+        "pair_id": "pair_0095",
+        "kind": "distance",
+        "difference_angstrom": 0.05347329600414086
+      }
+    ],
+    "self_status": {
+      "ok": 126
+    },
+    "nonzero_or_rejected_self": [],
+    "forward_comparison_seconds": 0.9977124840152101
+  },
+  "graph_irmsd_policy": {
+    "forward_status": {
+      "ok": 189
+    },
+    "all_call_status": {
+      "ok": 504
+    },
+    "threshold_sweep": {
+      "0.05": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.1": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.2": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      },
+      "0.5": {
+        "true_positive": 26,
+        "true_negative": 73,
+        "unscored": 90
+      }
+    },
+    "directional_disagreements": [],
+    "self_status": {
+      "ok": 126
+    },
+    "nonzero_or_rejected_self": [],
+    "forward_comparison_seconds": 3.127259424982185
+  }
+}

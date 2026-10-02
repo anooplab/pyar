@@ -12,27 +12,21 @@ import argparse
 import time
 from collections import Counter
 from pathlib import Path
-from unittest import mock
-
 import numpy as np
 
 from pyar.core.molecule import Molecule
 from pyar import representations
 from pyar.selection import clustering
 from pyar.selection import reports as selection_reports
+from pyar.selection.features import FEATURES
+from pyar.selection.distances import DISTANCE_METRICS
 
 
 DEFAULT_ALGORITHMS = [
-    "hdbscan",
-    "optics",
-    "affinity",
+    "auto",
     "agglomerative",
-    "mean_shift",
-    "spectral",
     "dbscan",
-    "kmeans",
-    "gaussian_mixture",
-    "rbf_kernel",
+    "optics",
     "maxmin",
 ]
 
@@ -51,6 +45,7 @@ def _load_pool(path: Path):
     for each_file in files:
         mol = Molecule.from_xyz(str(each_file))
         mol.energy = selection_reports.read_energy_from_xyz_file(str(each_file))
+        mol.relative_path = str(each_file)
         molecules.append(mol)
     return molecules
 
@@ -103,20 +98,23 @@ def _tetrahedral_score(molecule):
     return float(sum(abs(angle - target) for angle in angles))
 
 
-def _benchmark_algorithm(pool, algorithm, max_seeds):
-    clustering._MBTR_RUNTIME_DISABLED = False
-    clustering._MBTR_DISABLE_REASON = None
-
-    with mock.patch("pyar.selection.clustering._load_basin_registry", return_value=[]):
-        start = time.perf_counter()
-        selected = clustering.choose_geometries(
-            pool,
-            maximum_number_of_seeds=max_seeds,
-            persist_basin_memory=False,
-            algorithm=algorithm,
-        )
-        runtime = time.perf_counter() - start
-
+def _benchmark_algorithm(pool, algorithm, max_seeds, feature="mbtr", distance_metric="euclidean"):
+    compositions = {tuple(sorted(Counter(molecule.atoms_list).items())) for molecule in pool}
+    if len(compositions) > 1:
+        raise ValueError("Clustering benchmark coverage requires a single composition; split the pool by formula")
+    cluster_info = {}
+    start = time.perf_counter()
+    selected = clustering.choose_geometries(
+        pool,
+        maximum_number_of_seeds=max_seeds,
+        persist_basin_memory=False,
+        apply_basin_memory=False,
+        algorithm=algorithm,
+        feature=feature,
+        distance_metric=distance_metric,
+        diagnostics=cluster_info,
+    )
+    runtime = time.perf_counter() - start
     best_energy = min(float(molecule.energy) for molecule in selected) if selected else float("inf")
     spread = _pairwise_mean_distance(selected)
     coverage = _coverage_distance(pool, selected)
@@ -131,6 +129,14 @@ def _benchmark_algorithm(pool, algorithm, max_seeds):
         "best_tetra": best_tetra,
         "runtime": runtime,
         "selected_names": [m.name for m in selected],
+        "feature_requested": feature,
+        "distance_metric": distance_metric,
+        "feature_used": cluster_info["feature_used"],
+        "algorithm_used": cluster_info["algorithm_used"],
+        "fallbacks": {
+            "feature": cluster_info["feature_fallbacks"],
+            "algorithm": cluster_info["algorithm_fallbacks"],
+        },
     }
 
 
@@ -156,6 +162,8 @@ def main():
         action="store_true",
         help="Print selected molecule names for each benchmark row",
     )
+    parser.add_argument("--feature", choices=FEATURES, default="mbtr")
+    parser.add_argument("--distance", choices=DISTANCE_METRICS, default="euclidean")
     args = parser.parse_args()
 
     pools = []
@@ -173,6 +181,11 @@ def main():
     header = [
         "pool",
         "algorithm",
+        "feature_requested",
+        "distance_metric",
+        "feature_used",
+        "algorithm_used",
+        "fallbacks",
         "selected",
         "best_energy",
         "spread",
@@ -187,10 +200,17 @@ def main():
     for path, pool in pools:
         for algorithm in args.algorithms:
             try:
-                row = _benchmark_algorithm(pool, algorithm, args.max_seeds)
+                row = _benchmark_algorithm(
+                    pool, algorithm, args.max_seeds, args.feature, args.distance,
+                )
                 values = [
                     str(path),
                     row["algorithm"],
+                    row["feature_requested"],
+                    row["distance_metric"],
+                    row["feature_used"],
+                    row["algorithm_used"],
+                    str(row["fallbacks"]),
                     str(row["selected"]),
                     f"{row['best_energy']:.6f}",
                     f"{row['spread']:.6f}",
@@ -205,6 +225,11 @@ def main():
                 values = [
                     str(path),
                     algorithm,
+                    args.feature,
+                    args.distance,
+                    "-",
+                    "-",
+                    str(exc),
                     "error",
                     "-",
                     "-",

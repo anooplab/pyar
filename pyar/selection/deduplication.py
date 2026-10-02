@@ -59,7 +59,7 @@ def _assigned_element_order(reference_atoms, reference, mobile_atoms, mobile):
 
 
 def _iterative_assigned_rmsd(reference_atoms, reference, mobile_atoms, mobile):
-    """Compatibility wrapper for the legacy iterative assignment RMSD."""
+    """Compatibility wrapper for iterative element-assignment RMSD."""
     return _rmsd.iterative_assigned_rmsd(
         reference_atoms, reference, mobile_atoms, mobile,
     )
@@ -85,9 +85,9 @@ def _adaptive_duplicate_rmsd_threshold(molecules):
                 break
             if len(left.atoms_list) != len(right.atoms_list):
                 continue
-            if not _structure_is_similar(left, right):
-                continue
             try:
+                if not _structure_is_similar(left, right):
+                    continue
                 sampled_rmsd.append(_rmsd_after_alignment(left, right))
             except Exception:
                 continue
@@ -105,27 +105,36 @@ def _adaptive_duplicate_rmsd_threshold(molecules):
 
 
 def remove_similar(list_of_molecules):
-    """Remove near-duplicate geometries from a candidate pool."""
+    """Remove geometrical duplicates under the graph-first comparison policy.
+
+    iRMSD is used only when graph identity matched but graph mapping enumeration
+    was incomplete. Any failed, asymmetric-threshold, or diagnostic fallback
+    keeps both candidates.
+    """
     from pyar.selection import clustering
 
     ordered_molecules = sorted(list_of_molecules, key=lambda molecule: (float(molecule.energy), molecule.name))
     final_list = []
     removed_duplicates = []
     rmsd_threshold = _adaptive_duplicate_rmsd_threshold(ordered_molecules)
-    from pyar.structure_comparison import LegacyRMSDComparator
+    from pyar.structure_comparison import GraphFirstDeduplicationComparator
 
-    comparator = LegacyRMSDComparator(
-        threshold=rmsd_threshold,
-        fingerprint_distance=clustering.calc_fingerprint_distance,
-    )
+    comparator = GraphFirstDeduplicationComparator(threshold=rmsd_threshold)
     clustering.cluster_logger.debug('Number of molecules before similarity elimination,  {}'.format(len(ordered_molecules)))
     for candidate in ordered_molecules:
         duplicate = False
         for kept in final_list:
             if len(candidate.atoms_list) < 2 or len(kept.atoms_list) < 2:
                 continue
-            comparison = comparator.compare(candidate, kept)
-            if comparison.equivalent:
+            try:
+                comparison = comparator.compare(candidate, kept)
+            except Exception as exc:
+                clustering.cluster_logger.warning(
+                    "Retaining %s and %s: structural comparison failed (%s: %s).",
+                    candidate.name, kept.name, type(exc).__name__, exc,
+                )
+                continue
+            if comparison.equivalent is True:
                 aligned_rmsd = comparison.distance
                 duplicate = True
                 removed_duplicates.append((candidate.name, kept.name, aligned_rmsd))
@@ -133,6 +142,15 @@ def remove_similar(list_of_molecules):
                     'Removing {} as a near-duplicate of {}'.format(candidate.name, kept.name)
                 )
                 break
+            if (comparison.metadata.get("comparison_complete") is False
+                    and comparison.metadata.get("fallback_status") != "ok"):
+                clustering.cluster_logger.warning(
+                    "Retaining %s and %s: graph RMSD was incomplete after %d mappings; iRMSD check status=%s.",
+                    candidate.name,
+                    kept.name,
+                    comparison.metadata.get("isomorphisms_evaluated", 0),
+                    comparison.metadata.get("fallback_status", "not_run"),
+                )
         if not duplicate:
             final_list.append(candidate)
     clustering.cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
@@ -165,7 +183,7 @@ def remove_similar(list_of_molecules):
 
 def _prefer_connected_structures(molecules, policy="prefer"):
     """Prefer geometries that remain connected under a covalent-radius graph."""
-    if len(molecules) < 2:
+    if not molecules:
         return molecules
 
     try:

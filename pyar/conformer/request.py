@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
@@ -50,6 +52,7 @@ class ConformerRequest:
     multiplicity: int
     scftype: str
     backend_parameters: Mapping[str, Any] = field(default_factory=dict)
+    dedup_atom_mode: str = "heavy"
 
     @classmethod
     def from_options(
@@ -79,6 +82,7 @@ class ConformerRequest:
         multiplicity,
         scftype,
         qc_params,
+        dedup_atom_mode="heavy",
     ):
         """Build a normalized request from public workflow arguments."""
         num_conformers = int(num_conformers)
@@ -98,6 +102,12 @@ class ConformerRequest:
             raise ConformerRequestError("--top-n must be at least 1")
         if num_seeds < 1:
             raise ConformerRequestError("--num-seeds must be at least 1")
+        if not math.isfinite(rms_threshold):
+            raise ConformerRequestError("--rms-threshold must be finite")
+        if not math.isfinite(torsion_dedup_rms):
+            raise ConformerRequestError("--torsion-dedup-rms must be finite")
+        if dedup_atom_mode not in {"heavy", "all"}:
+            raise ConformerRequestError("--dedup-atom-mode must be heavy or all")
         if rms_threshold < 0.0:
             raise ConformerRequestError("--rms-threshold must be non-negative")
         if torsion_rounds < 0:
@@ -144,6 +154,7 @@ class ConformerRequest:
             charge=charge,
             multiplicity=int(multiplicity),
             scftype=scftype,
+            dedup_atom_mode=dedup_atom_mode,
             backend_parameters=dict(qc_params or {}),
         )
 
@@ -165,6 +176,7 @@ class ConformerRequest:
             "compactness_fraction": self.compactness_fraction,
             "rms_threshold": self.rms_threshold,
             "generation_dedup_rms": self.generation_dedup_rms,
+            "final_dedup_rms": max(self.torsion_dedup_rms, 0.75) if self.backend_requested else self.torsion_dedup_rms,
             "use_random_coords": self.use_random_coords,
             "torsion_kicks": self.torsion_kicks,
             "torsion_rounds": self.torsion_rounds,
@@ -172,6 +184,7 @@ class ConformerRequest:
             "torsion_kicks_per_conformer": self.torsion_kicks_per_conformer,
             "torsion_max_bonds": self.torsion_max_bonds,
             "torsion_dedup_rms": self.torsion_dedup_rms,
+            "dedup_atom_mode": self.dedup_atom_mode,
             "force_field": self.force_field,
             "seed": self.seed,
             "seed_values": list(self.seed_values),

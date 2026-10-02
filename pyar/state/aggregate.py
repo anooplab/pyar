@@ -81,17 +81,48 @@ class AggregateRunState:
             raise AggregateStateError(f"Unsupported aggregation state format in {state_file}")
         state = cls(root_directory, data)
         state.validate_progress()
-        state.validate_request(expected_request)
         if data.get("status") != "running":
             raise AggregateStateError(
                 f"Aggregation state in {state_file} is already {data.get('status')!r}; "
                 "start a new calculation in a new directory."
             )
+        state.validate_request(expected_request)
         return state
 
     def validate_request(self, expected_request):
         """Reject resume attempts that change the aggregation calculation."""
-        if self.data.get("request") != _json_value(expected_request):
+        saved_request = _json_value(self.data.get("request"))
+        expected_request = _json_value(expected_request)
+        if isinstance(saved_request, dict) and isinstance(expected_request, dict):
+            expected_version = expected_request.get("selection_policy_version")
+            if expected_version is not None and saved_request.get("selection_policy_version") != expected_version:
+                raise AggregateStateError(
+                    "Existing aggregation state uses a different or unversioned selection policy; "
+                    "resume with the PyAR version that created it or start a new calculation directory. "
+                    "The current policy changes distance scaling, topology partitioning, and selection."
+                )
+        # State files written before structural feature/clusterer options were
+        # exposed used MBTR plus the HDBSCAN-first automatic policy. Preserve their ability to
+        # resume with those defaults.
+        if isinstance(saved_request, dict) and isinstance(expected_request, dict):
+            if "selection_feature" in expected_request or "selection_feature" in saved_request:
+                saved_request.setdefault("selection_feature", "mbtr")
+                expected_request.setdefault("selection_feature", "mbtr")
+            if "selection_algorithm" in expected_request or "selection_algorithm" in saved_request:
+                saved_request.setdefault("selection_algorithm", "auto")
+                expected_request.setdefault("selection_algorithm", "auto")
+            if "selection_distance" in expected_request or "selection_distance" in saved_request:
+                saved_request.setdefault("selection_distance", "euclidean")
+                expected_request.setdefault("selection_distance", "euclidean")
+            if "selection_system_type" in expected_request or "selection_system_type" in saved_request:
+                saved_request.setdefault("selection_system_type", "auto")
+                expected_request.setdefault("selection_system_type", "auto")
+            # Old state files and API callers may have used ``hybrid`` for the
+            # HDBSCAN-first automatic policy. Canonicalize that legacy spelling.
+            for request in (saved_request, expected_request):
+                if request.get("selection_algorithm") == "hybrid":
+                    request["selection_algorithm"] = "auto"
+        if saved_request != expected_request:
             raise AggregateStateError(
                 "Existing aggregation state does not match this invocation; "
                 "resume with the original inputs and settings or use a new directory."

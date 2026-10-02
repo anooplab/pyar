@@ -68,6 +68,8 @@ class ConformerRequestTests(unittest.TestCase):
         state = request.to_state_dict()
         self.assertEqual(state["seed_values"], [10, 11, 12])
         self.assertEqual(state["generation_dedup_rms"], 0.5)
+        self.assertEqual(state["final_dedup_rms"], 0.75)
+        self.assertEqual(state["dedup_atom_mode"], "heavy")
         self.assertEqual(state["backend_parameters"], {"software": "xtb"})
 
     def test_from_options_rejects_invalid_values(self):
@@ -80,6 +82,9 @@ class ConformerRequestTests(unittest.TestCase):
             ("diversity_fraction", 1.5, "--diversity-fraction must be between 0 and 1"),
             ("compactness_fraction", -0.1, "--compactness-fraction must be between 0 and 1"),
             ("torsion_mode", "grid", "--torsion-mode must be 'random'"),
+            ("dedup_atom_mode", "carbon", "--dedup-atom-mode must be heavy or all"),
+            ("rms_threshold", float("nan"), "--rms-threshold must be finite"),
+            ("torsion_dedup_rms", float("inf"), "--torsion-dedup-rms must be finite"),
         ]
 
         for option, value, message in invalid_values:
