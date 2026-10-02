@@ -128,6 +128,7 @@ class PyarGeometricCalculator(Calculator):
         # Count calls to the physical provider, independently of optimizer
         # trajectory length or ASE cache hits.
         self.backend_energy_gradient_evaluations = 0
+        self._pyar_optimizer_steps_total = 0
         self.trace_enabled = bool(
             self.qc_params.get("trace_enabled") or self.qc_params.get("reaction_trace")
         )

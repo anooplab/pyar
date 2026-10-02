@@ -52,6 +52,13 @@ class PackagingMetadataTests(unittest.TestCase):
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["conformer"])
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["all"])
 
+    def test_ts_benchmark_entrypoint_is_declared(self):
+        metadata = tomllib.loads(Path("pyproject.toml").read_text())
+        self.assertEqual(
+            metadata["project"]["scripts"]["pyar-benchmark-ts"],
+            "pyar.scripts.ts_optimizer_benchmark:main",
+        )
+
     def test_python310_declares_tomli_runtime_fallback(self):
         metadata = tomllib.loads(Path("pyproject.toml").read_text())
 

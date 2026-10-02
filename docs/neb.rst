@@ -158,8 +158,11 @@ sets one shared force convergence threshold in eV/angstrom for either optimizer.
 When omitted, geomeTRIC retains its historical ``GAU_TIGHT`` criteria and Sella
 uses ``--sella-fmax`` (default 0.05). ``--ts-max-cycles`` sets the maximum
 optimizer steps. The selected optimizer, effective convergence settings,
-backend energy/gradient evaluation count, optimizer step count, and optimization
-wall time are recorded in ``ts_summary.json``. Changes to active convergence
+backend energy/gradient evaluation counts, optimizer step counts, and elapsed
+stage times are recorded in stage summaries. The TS summary also records the
+optimizer-only wall time. Frequency summaries identify the finite-difference
+Cartesian Hessian source and record its provider evaluation count and wall time.
+Changes to active convergence
 settings invalidate TS-stage reuse; changing ``--sella-fmax`` while using
 geomeTRIC does not.
 

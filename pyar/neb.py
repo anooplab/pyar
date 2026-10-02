@@ -637,6 +637,15 @@ def _engine(symbols, coordinates, calculator):
     return molecule, EngineASE(molecule, calculator)
 
 
+def _record_optimizer_steps(calculator, steps):
+    """Accumulate optimizer-reported steps, preserving unknown values as null."""
+    total = getattr(calculator, "_pyar_optimizer_steps_total", 0)
+    if steps is None or total is None:
+        calculator._pyar_optimizer_steps_total = None
+    else:
+        calculator._pyar_optimizer_steps_total = total + int(steps)
+
+
 def _optimize_geometry(symbols, coordinates, calculator, output, label, max_cycles,
                        *, transition=False, direction=None, hessian=None, fmax=None):
     """Run one geomeTRIC optimization or IRC direction and retain failures."""
@@ -671,6 +680,7 @@ def _optimize_geometry(symbols, coordinates, calculator, output, label, max_cycl
         progress = optimizer.progress
     steps = getattr(optimizer, "Iteration", None)
     calculator._pyar_optimizer_steps = None if steps is None else int(steps)
+    _record_optimizer_steps(calculator, calculator._pyar_optimizer_steps)
     frames = [np.asarray(frame).copy() for frame in progress.xyzs]
     energies = [float(energy) for energy in progress.qm_energies]
     _write_xyz_trajectory(output / f"{label}_path.xyz", symbols, frames, energies)
@@ -715,6 +725,7 @@ def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax):
         converged = bool(optimizer.run(fmax=fmax, steps=max_steps))
         steps = getattr(optimizer, "nsteps", None)
         calculator._pyar_optimizer_steps = None if steps is None else int(steps)
+        _record_optimizer_steps(calculator, calculator._pyar_optimizer_steps)
     except Exception as exc:
         raise RuntimeError(f"Sella TS optimization failed: {exc}") from exc
 
@@ -774,7 +785,19 @@ def _frequency(symbols, coordinates, calculator, output, label, threshold):
     norms = np.linalg.norm(gradient, axis=1)
     max_gradient = float(np.max(norms))
     rms_gradient = float(np.sqrt(np.mean(norms**2)))
+    hessian_evaluation_start = getattr(
+        calculator, "backend_energy_gradient_evaluations", None,
+    )
+    hessian_started = time.perf_counter()
     hessian = calc_cartesian_hessian(coords_bohr.copy(), molecule, engine, scratch, read_data=False)
+    hessian_wall_seconds = time.perf_counter() - hessian_started
+    hessian_evaluation_end = getattr(
+        calculator, "backend_energy_gradient_evaluations", None,
+    )
+    hessian_evaluations = (
+        None if hessian_evaluation_start is None or hessian_evaluation_end is None
+        else hessian_evaluation_end - hessian_evaluation_start
+    )
     if hessian.shape != (coords_bohr.size, coords_bohr.size) or not np.all(np.isfinite(hessian)):
         raise ValueError("Invalid Cartesian Hessian")
     # Central differences have small numerical asymmetry; use the symmetric Hessian.
@@ -803,6 +826,9 @@ def _frequency(symbols, coordinates, calculator, output, label, threshold):
         "stationary": stationary,
         "first_order_saddle_confirmed": stationary and imaginary.size == 1,
         "minimum_confirmed": stationary and imaginary.size == 0,
+        "hessian_source": "finite_difference_cartesian",
+        "hessian_evaluations": hessian_evaluations,
+        "hessian_wall_seconds": float(hessian_wall_seconds),
     }
 
 
@@ -831,6 +857,9 @@ def _match_endpoints(symbols, observed, expected, tolerance):
 
 def _execute_stage(stage, output, calculator, options):
     """Execute a single stage; dependent results are checked before use."""
+    stage_started = time.perf_counter()
+    evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
+    optimizer_steps_start = getattr(calculator, "_pyar_optimizer_steps_total", None)
     expected_by_stage = {
         name: {key: options[key] for key in keys}
         for name, keys in _STAGE_OPTIONS.items()
@@ -853,6 +882,18 @@ def _execute_stage(stage, output, calculator, options):
         )
 
     def save(result, inputs=(), artifacts=(), dependencies=()):
+        result = dict(result)
+        result.setdefault(
+            "backend_energy_gradient_evaluations",
+            getattr(calculator, "backend_energy_gradient_evaluations", 0) - evaluation_count_start,
+        )
+        optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
+        result.setdefault(
+            "optimizer_steps",
+            None if optimizer_steps_start is None or optimizer_steps_end is None
+            else optimizer_steps_end - optimizer_steps_start,
+        )
+        result.setdefault("wall_seconds", float(time.perf_counter() - stage_started))
         if stage == "neb" and options["interpolation"] == "geodesic":
             result["geodesic_interpolate_version"] = options["geodesic_interpolate_version"]
         parameters = (
@@ -957,7 +998,6 @@ def _execute_stage(stage, output, calculator, options):
                 )
             guess, dependencies = output / "ts_guess.xyz", ["neb"]
         symbols, geometry, _ = read_xyz(guess)
-        evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
         optimization_started = time.perf_counter()
         effective_fmax = (
             options["ts_fmax"] if options["ts_fmax"] is not None
@@ -975,16 +1015,11 @@ def _execute_stage(stage, output, calculator, options):
                 transition=True, fmax=effective_fmax,
             )
         optimization_wall_seconds = time.perf_counter() - optimization_started
-        optimizer_steps = getattr(calculator, "_pyar_optimizer_steps", None)
         _write_xyz_trajectory(output / "ts_optimized.xyz", symbols, [frames[-1]], [energies[-1]])
         result = {
             "ts_optimization_converged": converged,
             "ts_energy_hartree": energies[-1],
-            "backend_energy_gradient_evaluations": (
-                getattr(calculator, "backend_energy_gradient_evaluations", 0) - evaluation_count_start
-            ),
-            "optimizer_steps": optimizer_steps,
-            "wall_seconds": float(optimization_wall_seconds),
+            "ts_optimization_wall_seconds": float(optimization_wall_seconds),
             "effective_ts_convergence": {
                 "max_steps": options["ts_max_cycles"],
                 "fmax_ev_per_angstrom": effective_fmax,
@@ -1156,6 +1191,9 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     results = {"reactant_product_connection_confirmed": False}
     for current in stages:
         _write_json(output / f"{current}_summary.json", {"stage": current, "status": "running"})
+        stage_started = time.perf_counter()
+        evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
+        optimizer_steps_start = getattr(calculator, "_pyar_optimizer_steps_total", None)
         try:
             # During all, the TS must consume the optimized NEB maximum, not the input waypoint.
             current_options = dict(options)
@@ -1163,7 +1201,22 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                 current_options["ts_guess"] = None
             result = _execute_stage(current, output, calculator, current_options)
         except Exception as exc:
-            _write_json(output / f"{current}_summary.json", {"stage": current, "status": "failed", "error": str(exc)})
+            evaluation_count_end = getattr(calculator, "backend_energy_gradient_evaluations", 0)
+            optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
+            stage_evaluations = (
+                evaluation_count_end - evaluation_count_start
+                if isinstance(evaluation_count_start, int) and isinstance(evaluation_count_end, int)
+                else None
+            )
+            _write_json(output / f"{current}_summary.json", {
+                "stage": current, "status": "failed", "error": str(exc),
+                "backend_energy_gradient_evaluations": stage_evaluations,
+                "optimizer_steps": (
+                    None if optimizer_steps_start is None or optimizer_steps_end is None
+                    else optimizer_steps_end - optimizer_steps_start
+                ),
+                "wall_seconds": float(time.perf_counter() - stage_started),
+            })
             if stage == "all":
                 _write_json(output / "workflow_summary.json", dict(results, status="failed", failed_stage=current, error=str(exc)))
             raise

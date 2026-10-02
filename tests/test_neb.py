@@ -274,6 +274,8 @@ def test_standalone_geometry_stages_do_not_load_geodesic_dependency(
     else:
         assert result["first_order_saddle_confirmed"]
         assert fake_path_backend[0] == ["frequency_ts"]
+        assert result["backend_energy_gradient_evaluations"] == 2
+        assert result["wall_seconds"] >= 0
 
 
 @pytest.mark.skipif(
@@ -991,6 +993,11 @@ def fake_path_backend(monkeypatch):
 
     def frequency(symbols, coordinates, calculator, output, label, threshold):
         calls.append(f"frequency_{label}")
+        calculator.backend_energy_gradient_evaluations = (
+            getattr(calculator, "backend_energy_gradient_evaluations", 0) + 2
+        )
+        if "frequency_exception" in failures:
+            raise RuntimeError("fixture frequency failure after backend calls")
         np.savetxt(output / f"{label}_hessian.txt", np.eye(3 * len(symbols)))
         (output / f"{label}_frequencies.vdata").write_text("frequency data")
         return {"first_order_saddle_confirmed": label == "ts" and "frequency_ts" not in failures,
@@ -1455,6 +1462,20 @@ def test_failed_frequency_gate_prevents_irc_and_preserves_failed_status(tmp_path
     assert json.loads((tmp_path / "irc_summary.json").read_text())["status"] == "failed"
 
 
+def test_failed_stage_summary_retains_provider_calls_and_elapsed_time(tmp_path, fake_path_backend):
+    _, failures = fake_path_backend
+    failures.add("frequency_exception")
+    with pytest.raises(RuntimeError, match="after backend calls"):
+        run_neb(
+            ts_geometry=DATA / "guess.xyz", software="xtb", stage="frequency",
+            output=tmp_path,
+        )
+    summary = json.loads((tmp_path / "frequency_summary.json").read_text())
+    assert summary["status"] == "failed"
+    assert summary["backend_energy_gradient_evaluations"] == 2
+    assert summary["wall_seconds"] >= 0
+
+
 @pytest.mark.parametrize("failure", ["neb", "no_interior_maximum"])
 def test_invalid_neb_does_not_launch_ts(tmp_path, fake_path_backend, failure):
     calls, failures = fake_path_backend
@@ -1502,6 +1523,9 @@ def test_frequency_index_alone_does_not_establish_stationarity(tmp_path):
     calculator = HarmonicCalculator(coordinates + [0.1, 0., 0.])
     result = _frequency(symbols, coordinates, calculator, tmp_path, "test", 20.)
     assert result["imaginary_frequency_count"] == 0
+    assert result["hessian_source"] == "finite_difference_cartesian"
+    assert result["hessian_evaluations"] is None
+    assert result["hessian_wall_seconds"] >= 0
     assert not result["stationary"]
     assert not result["minimum_confirmed"]
 

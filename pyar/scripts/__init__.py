@@ -13,6 +13,7 @@ Command line arguments in pyar
 * pyar-conformer-benchmark: diagnose conformer-search benchmark failures.
 * pyar-benchmark-clustering: benchmark cluster-selection algorithms.
 * pyar-benchmark-orientations: benchmark trial-direction samplers.
+* pyar-benchmark-ts: run paired transition-state optimizer benchmarks.
 * pyar-reaction-trace: analyze a reaction trace and generate plots.
 
 """
