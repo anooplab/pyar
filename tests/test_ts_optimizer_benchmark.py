@@ -129,6 +129,7 @@ def test_manifest_resolves_paths_and_requires_explicit_common_protocol(tmp_path)
     (lambda x: x["cases"][0].update(multiplicity=0), "multiplicity must be a positive integer"),
     (lambda x: x["cases"][0].update(product=None), "both reactant and product"),
     (lambda x: x["settings"].update(silent_fallback=True), "unsupported settings key"),
+    (lambda x: x["qc_model"].update(method="BP86"), "method and qc_model.basis are not used"),
 ])
 def test_manifest_rejects_invalid_inputs(tmp_path, mutate, message):
     path = _manifest(tmp_path)

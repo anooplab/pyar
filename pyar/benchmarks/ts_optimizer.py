@@ -152,8 +152,16 @@ def load_ts_optimizer_benchmark(path):
             raise TSOptimizerBenchmarkError(str(exc)) from exc
     elif "xtb_model" in qc_model:
         raise TSOptimizerBenchmarkError("qc_model.xtb_model is valid only when software is 'xtb'")
-    qc_model.setdefault("method", defualt_parameters.values["method"])
-    qc_model.setdefault("basis", defualt_parameters.values["basis"])
+    if software == "xtb":
+        unused = {key for key in ("method", "basis") if key in qc_model}
+        if unused:
+            raise TSOptimizerBenchmarkError(
+                "qc_model.method and qc_model.basis are not used by software='xtb'; "
+                "select its Hamiltonian with xtb_model"
+            )
+    else:
+        qc_model.setdefault("method", defualt_parameters.values["method"])
+        qc_model.setdefault("basis", defualt_parameters.values["basis"])
     qc_model.setdefault("nprocs", 1)
     for key in ("method", "basis"):
         if key in qc_model and (not isinstance(qc_model[key], str) or not qc_model[key].strip()):
@@ -422,13 +430,14 @@ def _prepare_run_root(spec, output):
 def _stage_arguments(spec, case, output):
     args = {
         "software": spec.qc_model["software"],
-        "method": spec.qc_model.get("method"),
-        "basis": spec.qc_model.get("basis"),
         "charge": case.charge,
         "multiplicity": case.multiplicity,
         "nprocs": spec.qc_model.get("nprocs", 1),
         "output": output,
     }
+    for key in ("method", "basis"):
+        if key in spec.qc_model:
+            args[key] = spec.qc_model[key]
     if str(spec.qc_model["software"]).lower() == "xtb":
         args["xtb_model"] = spec.qc_model["xtb_model"]
     return args
