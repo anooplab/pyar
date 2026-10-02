@@ -6,6 +6,8 @@
 
 - Added a deterministic, atom-count-stratified adapter for preparing local
   RGD1-TSopt-GFN2 pilot manifests without bundling its copyrighted dataset.
+- Added a reaction-cluster-aware analysis script and saved report for the paired
+  15-reaction RGD1 pilot.
 - Added a manifest-driven ``pyar-benchmark-ts`` runner and collector for paired
   geomeTRIC/Sella jobs, preserving per-run artifacts and separating TS costs
   from frequency/IRC/endpoint validation costs.

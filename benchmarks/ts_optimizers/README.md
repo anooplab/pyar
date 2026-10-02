@@ -56,6 +56,14 @@ pyar-benchmark-ts collect /path/to/rgd1_pilot_run
 ```
 
 The execution order and cache policy are recorded in `pilot_execution.json`.
+The reproducible pilot analysis script and generated report are saved under
+`analysis/`; regenerate the report with:
+
+```bash
+python benchmarks/ts_optimizers/analysis/analyze_rgd1_pilot.py \
+  /path/to/rgd1_pilot_run \
+  --output benchmarks/ts_optimizers/analysis/rgd1_pilot_report.md
+```
 
 ## Manifest
 
