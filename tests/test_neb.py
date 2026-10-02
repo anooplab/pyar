@@ -915,6 +915,7 @@ def test_stage_handoff_rejects_modified_artifacts_and_different_methods(tmp_path
     summary_path = tmp_path / "ts_summary.json"
     historical_summary = json.loads(summary_path.read_text())
     historical_summary["qc_params"].pop("xtb_model")
+    historical_summary["qc_params"].update({"method": "BP86", "basis": "def2-SVP"})
     summary_path.write_text(json.dumps(historical_summary))
     assert _load_stage(tmp_path, "ts", calculator)["ts_optimization_converged"]
     parallel = SimpleNamespace(qc_params=dict(calculator.qc_params, nprocs=8))
@@ -937,6 +938,8 @@ def test_xtb_model_is_physical_provenance_and_controls_stage_reuse(
     summary_path = tmp_path / "ts_summary.json"
     summary = json.loads(summary_path.read_text())
     assert summary["qc_params"]["xtb_model"] == "gxtb"
+    assert "method" not in summary["qc_params"]
+    assert "basis" not in summary["qc_params"]
     assert summary["backend_model"] == "g-xTB (--gxtb)"
 
     # The unchanged model permits a downstream stage to consume the TS stage.
@@ -958,6 +961,8 @@ def test_xtb_model_is_physical_provenance_and_controls_stage_reuse(
     )
     gfn2_summary = json.loads((gfn2_output / "ts_summary.json").read_text())
     assert gfn2_summary["qc_params"]["xtb_model"] == "gfn2"
+    assert "method" not in gfn2_summary["qc_params"]
+    assert "basis" not in gfn2_summary["qc_params"]
     assert gfn2_summary["backend_model"] == "GFN2-xTB (--gfn 2)"
 
 

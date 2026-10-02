@@ -505,9 +505,14 @@ def _hash(path):
 def _physical_settings(calculator):
     """Exclude execution resources, but bind artifacts to the physical method."""
     qc_params = calculator.qc_params
-    settings = {key: value for key, value in qc_params.items()
-                if key not in {"nprocs", "xtb_model"}}
-    if str(qc_params.get("software", "")).lower() == "xtb":
+    is_xtb = str(qc_params.get("software", "")).lower() == "xtb"
+    excluded = {"nprocs", "xtb_model"}
+    if is_xtb:
+        # The standalone xTB provider selects its Hamiltonian with xtb_model;
+        # PyAR's DFT method/basis defaults are not used by that calculator.
+        excluded.update({"method", "basis"})
+    settings = {key: value for key, value in qc_params.items() if key not in excluded}
+    if is_xtb:
         settings["xtb_model"] = canonical_xtb_model(qc_params.get("xtb_model"))
     return settings
 
@@ -559,10 +564,16 @@ def _load_stage(output, stage, calculator, visited=None, *,
     # Prior schema-2 xTB stages always ran the hard-coded --gxtb command.
     # Preserve their reuse under the historical default while distinguishing
     # them from explicitly requested GFN2-xTB stages.
-    if (str(recorded_qc_params.get("software", "")).lower() == "xtb"
-            and "xtb_model" not in recorded_qc_params
-            and result.get("backend_model") == "g-xTB (--gxtb)"):
-        recorded_qc_params = dict(recorded_qc_params, xtb_model="gxtb")
+    if str(recorded_qc_params.get("software", "")).lower() == "xtb":
+        # Method/basis values appeared in pre-PR25 summaries even though the
+        # provider never used them. Normalize them away so compatible GFN2 and
+        # historical g-xTB artifacts remain reusable after provenance cleanup.
+        recorded_qc_params = dict(recorded_qc_params)
+        recorded_qc_params.pop("method", None)
+        recorded_qc_params.pop("basis", None)
+        if ("xtb_model" not in recorded_qc_params
+                and result.get("backend_model") == "g-xTB (--gxtb)"):
+            recorded_qc_params["xtb_model"] = "gxtb"
     if recorded_qc_params != requested_qc_params:
         raise ValueError(f"Stage {stage} used different backend or electronic-structure settings")
     for group in ("inputs", "artifacts"):
