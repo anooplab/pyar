@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib
 import json
+from numbers import Integral
 import os
 from pathlib import Path
 import tempfile
@@ -45,12 +46,82 @@ _NEB_PARAMETER_KEYS = frozenset(
 _STAGE_GATES = {
     "relax": ("reactant_relaxation_converged", "product_relaxation_converged",
               "reactant_connectivity_survived_relaxation", "product_connectivity_survived_relaxation"),
-    "neb": ("converged", "interior_maximum"),
+    "neb": ("converged",),
     "ts": ("ts_optimization_converged",),
     "frequency": ("first_order_saddle_confirmed",),
     "irc": ("irc_converged",),
     "endpoints": ("reactant_product_connection_confirmed",),
 }
+
+
+def _geometric_climbing_state(chain):
+    """Return explicit geomeTRIC climbing state without guessing from gradients."""
+    activated = getattr(chain, "climbSet", None)
+    if not isinstance(activated, (bool, np.bool_)):
+        return False, None, []
+    if not activated:
+        return True, False, []
+    climbers = getattr(chain, "climbers", None)
+    if climbers is None:
+        return True, True, []
+    try:
+        return True, True, list(climbers)
+    except TypeError:
+        return True, True, []
+
+
+def _select_neb_ts_candidate(frames, energies, *, climbing_activated, climber_indices):
+    """Choose a valid geomeTRIC climber, or the historical interior maximum."""
+    if not frames or not energies:
+        raise ValueError("NEB must return at least one image and energy")
+    highest = int(np.argmax(energies))
+    interior = 0 < highest < len(frames) - 1
+
+    valid_climbers = []
+    for value in climber_indices:
+        if isinstance(value, (bool, np.bool_)) or not isinstance(value, Integral):
+            continue
+        index = int(value)
+        if not 0 < index < len(frames) - 1 or index >= len(energies):
+            continue
+        if not np.all(np.isfinite(np.asarray(frames[index], dtype=float))):
+            continue
+        if not np.isfinite(energies[index]):
+            continue
+        if index not in valid_climbers:
+            valid_climbers.append(index)
+
+    selected_climber = None
+    if climbing_activated and valid_climbers:
+        selected_climber = max(
+            valid_climbers, key=lambda index: (energies[index], -index),
+        )
+        selected, source = selected_climber, "climbing_image"
+    elif interior and highest < len(frames) and np.isfinite(energies[highest]) \
+            and np.all(np.isfinite(np.asarray(frames[highest], dtype=float))):
+        selected, source = highest, "highest_energy_interior_image"
+    else:
+        selected, source = None, None
+
+    return {
+        "highest_energy_image_index": highest,
+        "interior_maximum": interior,
+        "climbing_image_indices": valid_climbers,
+        "selected_climbing_image_index": selected_climber,
+        "ts_guess_image_index": selected,
+        "ts_guess_source": source,
+    }
+
+
+def _stage_gate_passed(result, stage):
+    """Apply gates while retaining the interior-image rule for old NEB summaries."""
+    if stage == "neb":
+        if result.get("converged") is not True:
+            return False
+        if "ts_guess_image_index" in result:
+            return result["ts_guess_image_index"] is not None
+        return result.get("interior_maximum") is True
+    return all(result.get(key) is True for key in _STAGE_GATES[stage])
 
 
 def read_xyz(path):
@@ -497,7 +568,7 @@ def _load_stage(output, stage, calculator, visited=None, *,
         if (schema_version == 2 and result.get("dependency_hashes", {}).get(dependency)
                 != _hash(dependency_path)):
             raise ValueError(f"Stale {stage} dependency: {dependency}; rerun {stage}")
-        if not all(upstream.get(key) is True for key in _STAGE_GATES[dependency]):
+        if not _stage_gate_passed(upstream, dependency):
             raise ValueError(f"Stage {stage} depends on scientifically invalid {dependency}; rerun that stage")
     if schema_version == 1:
         # Legacy records have strong hashes for their numerical files and
@@ -810,22 +881,36 @@ def _execute_stage(stage, output, calculator, options):
         engine = EngineASE(molecule, calculator)
         params = NEBParams(images=options["images"], neb_maxcyc=options["max_cycles"],
                            maxg=options["max_gradient"], avgg=options["average_gradient"],
-                           nebk=options["spring"], climb=options["climb"], align=options["align"])
+                           nebk=options["spring"], climb=options["climb"], align=options["align"],
+                           ncimg=1)
         scratch = tempfile.mkdtemp(prefix="geometric_neb_", dir=output)
         chain, cycles = OptimizeChain(ElasticBand(molecule, engine, scratch, params, plain=0), engine, params)
         frames = [structure.M.xyzs[0].copy() for structure in chain.Structures]
         energies = [float(structure.energy) for structure in chain.Structures]
-        highest = int(np.argmax(energies))
+        climbing_state_available, climbing_activated, climber_indices = _geometric_climbing_state(chain)
+        candidate = _select_neb_ts_candidate(
+            frames, energies, climbing_activated=climbing_activated is True,
+            climber_indices=climber_indices,
+        )
+        highest = candidate["highest_energy_image_index"]
         _write_xyz_trajectory(output / "neb_path.xyz", symbols, frames, energies)
-        interior = 0 < highest < len(frames) - 1
         artifacts = ["neb_path.xyz"]
-        if interior:
-            _write_xyz_trajectory(output / "ts_guess.xyz", symbols, [frames[highest]], [energies[highest]])
+        selected = candidate["ts_guess_image_index"]
+        if selected is not None:
+            _write_xyz_trajectory(output / "ts_guess.xyz", symbols, [frames[selected]], [energies[selected]])
             artifacts.append("ts_guess.xyz")
         return save({
             "converged": bool(chain.avgg <= options["average_gradient"] and chain.maxg <= options["max_gradient"]),
             "images": len(frames), "cycles": int(cycles),
-            "interior_maximum": interior, "highest_energy_image_index": highest,
+            "climbing_image_state_available": climbing_state_available,
+            "climbing_image_activated": climbing_activated,
+            "climbing_image_indices": candidate["climbing_image_indices"],
+            "selected_climbing_image_index": candidate["selected_climbing_image_index"],
+            "requested_climbing_images": 1,
+            "interior_maximum": candidate["interior_maximum"],
+            "highest_energy_image_index": highest,
+            "ts_guess_image_index": selected,
+            "ts_guess_source": candidate["ts_guess_source"],
             "highest_energy_hartree": energies[highest],
             "average_rms_gradient_ev_per_angstrom": float(chain.avgg),
             "maximum_rms_gradient_ev_per_angstrom": float(chain.maxg),
@@ -836,8 +921,15 @@ def _execute_stage(stage, output, calculator, options):
         dependencies = []
         if guess is None:
             neb = load("neb")
-            if not neb["converged"] or not neb["interior_maximum"]:
-                raise ValueError("TS optimization requires a converged NEB with an interior maximum")
+            has_candidate = (
+                neb["ts_guess_image_index"] is not None
+                if "ts_guess_image_index" in neb else neb["interior_maximum"]
+            )
+            if not neb["converged"] or not has_candidate:
+                raise ValueError(
+                    "TS optimization requires a converged NEB with an interior maximum "
+                    "or a usable climbing image"
+                )
             guess, dependencies = output / "ts_guess.xyz", ["neb"]
         symbols, geometry, _ = read_xyz(guess)
         if options["ts_optimizer"] == "sella":
