@@ -1,0 +1,16 @@
+reference_rmsd_proxy_cutoff_angstrom,feature,reference_near_pairs,reference_far_proxy_pairs,proxy_pair_auc,specificity_target,feature_distance_threshold,tp,fp,fn,tn,sensitivity,specificity,precision,false_positive_rate,false_discovery_rate,miss_rate,f1,reference_method
+0.6,mbtr,5,271,0.9845018450184502,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+0.6,soap,5,271,0.8738007380073801,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+0.6,distance-histogram,5,271,0.9837638376383764,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+0.75,mbtr,15,261,0.9558109833971904,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+0.75,mbtr,15,261,0.9558109833971904,0.95,27.932523504960635,10,8,5,253,0.6666666666666666,0.9693486590038314,0.5555555555555556,0.03065134099616858,0.4444444444444444,0.3333333333333333,0.6060606060606061,fragment-matched global Kabsch RMSD upper bound
+0.75,mbtr,15,261,0.9558109833971904,0.99,21.31544040474208,5,1,10,260,0.3333333333333333,0.9961685823754789,0.8333333333333334,0.0038314176245210726,0.16666666666666666,0.6666666666666666,0.47619047619047616,fragment-matched global Kabsch RMSD upper bound
+0.75,soap,15,261,0.8513409961685824,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+0.75,soap,15,261,0.8513409961685824,0.95,22.94260691455464,6,13,9,248,0.4,0.9501915708812261,0.3157894736842105,0.04980842911877394,0.6842105263157895,0.6,0.35294117647058826,fragment-matched global Kabsch RMSD upper bound
+0.75,soap,15,261,0.8513409961685824,0.99,19.2065055199391,3,2,12,259,0.2,0.9923371647509579,0.6,0.007662835249042145,0.4,0.8,0.3,fragment-matched global Kabsch RMSD upper bound
+0.75,distance-histogram,15,261,0.8845466155810983,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+0.75,distance-histogram,15,261,0.8845466155810983,0.95,9.271859784468713,9,11,6,250,0.6,0.9578544061302682,0.45,0.0421455938697318,0.55,0.4,0.5142857142857142,fragment-matched global Kabsch RMSD upper bound
+0.75,distance-histogram,15,261,0.8845466155810983,0.99,7.145600631984418,5,0,10,261,0.3333333333333333,1.0,1.0,0.0,0.0,0.6666666666666666,0.5,fragment-matched global Kabsch RMSD upper bound
+1.0,mbtr,61,215,0.852306519252764,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+1.0,soap,61,215,0.8188333968738086,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound
+1.0,distance-histogram,61,215,0.8190621425848265,,,,,,,,,,,,,,fragment-matched global Kabsch RMSD upper bound

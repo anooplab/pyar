@@ -45,6 +45,18 @@ def test_persist_writes_geometry_and_versioned_descriptor(tmp_path):
     assert "fingerprint" not in entry
 
 
+def test_memory_compacts_verified_rigid_and_permuted_copies_before_capacity(tmp_path):
+    path = tmp_path / "basin_registry.json"
+    first = molecule("first", ["H", "H"], [[0, 0, 0], [0.74, 0, 0]])
+    rotated_copy = molecule("copy", ["H", "H"], [[3, 2, 1], [3, 2.74, 1]])
+    distinct = molecule("distinct", ["H", "H"], [[0, 0, 0], [1.2, 0, 0]])
+
+    _persist_basin_registry(str(path), [first, rotated_copy, distinct], max_entries=2)
+    entries = _load_basin_registry(str(path))
+
+    assert [entry["name"] for entry in entries] == ["first", "distinct"]
+
+
 def test_legacy_migration_is_explicit_and_preserves_opaque_fingerprint(tmp_path):
     path = tmp_path / "basin_registry.json"
     original = {"stoichiometry": "H2", "entries": [{"name": "old", "energy": -1.0,

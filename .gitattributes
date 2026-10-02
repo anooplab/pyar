@@ -1,0 +1,4 @@
+# Preserve source and external-program text outputs byte-for-byte; these contain
+# intentional column padding that `git diff --check` would otherwise flag.
+benchmarks/clustering_scientific/data/water_clusters/*.txt -diff
+benchmarks/clustering_scientific/runs/*/optimizations/*/xtb.log -diff

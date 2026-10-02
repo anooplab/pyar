@@ -299,6 +299,52 @@ def _geometry_id(geometry):
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _geometry_identity_signature(geometry):
+    """Return a rigid-motion and atom-order invariant candidate key.
+
+    This is only an index: entries sharing it still need a complete structural
+    comparison before one can be discarded. Rounding limits false negatives
+    from harmless coordinate serialization noise; it never proves identity.
+    """
+    atoms = geometry["atoms"]
+    if len(atoms) < 2:
+        # With no pair distances the index cannot safely distinguish anything.
+        return None
+    coordinates = np.asarray(geometry["coordinates"], dtype=float)
+    pairs = []
+    for left in range(len(atoms)):
+        for right in range(left + 1, len(atoms)):
+            pair_type = tuple(sorted((atoms[left], atoms[right])))
+            distance = float(np.linalg.norm(coordinates[left] - coordinates[right]))
+            pairs.append((pair_type, round(distance, 4)))
+    return (tuple(sorted(Counter(atoms).items())), tuple(sorted(pairs)))
+
+
+def _verified_duplicate(entry, geometry, comparator):
+    """Only suppress an archive entry after a complete near-zero RMSD result."""
+    previous = entry.get("geometry")
+    if not _valid_geometry(previous):
+        return False
+    if (previous.get("charge"), previous.get("multiplicity")) != (
+            geometry.get("charge"), geometry.get("multiplicity")):
+        return False
+    from types import SimpleNamespace
+
+    def as_molecule(record):
+        return SimpleNamespace(
+            atoms_list=list(record["atoms"]),
+            coordinates=np.asarray(record["coordinates"], dtype=float),
+        )
+
+    try:
+        result = comparator.compare(as_molecule(previous), as_molecule(geometry))
+    except Exception:
+        return False
+    return (result.compatible and result.metadata.get("comparison_complete") is True
+            and result.distance is not None and np.isfinite(result.distance)
+            and result.distance <= 1.0e-5)
+
+
 def _persist_basin_registry(registry_path, selected_molecules, existing_entries=None, max_entries=200):
     """Atomically persist selected geometries and versioned descriptors."""
     if not registry_path or not selected_molecules:
@@ -309,11 +355,37 @@ def _persist_basin_registry(registry_path, selected_molecules, existing_entries=
         existing_entries = _load_basin_registry(registry_path)
     entries = [_migrate_entry(entry) for entry in existing_entries if isinstance(entry, dict)]
     entries = [entry for entry in entries if entry is not None]
+    from pyar.structure_comparison import GraphFirstDeduplicationComparator
+
+    comparator = GraphFirstDeduplicationComparator(threshold=1.0e-5, atom_mode="all")
+    indexed_entries = {}
+    for entry in entries:
+        geometry = entry.get("geometry")
+        if _valid_geometry(geometry) and _geometry_identity_signature(geometry) is not None:
+            indexed_entries.setdefault(_geometry_identity_signature(geometry), []).append(entry)
+    compacted = []
+    for entry in entries:
+        geometry = entry.get("geometry")
+        signature = _geometry_identity_signature(geometry) if _valid_geometry(geometry) else None
+        if signature is not None and any(
+                candidate is not entry and _verified_duplicate(candidate, geometry, comparator)
+                for candidate in indexed_entries[signature] if candidate in compacted):
+            continue
+        compacted.append(entry)
+    entries = compacted
     seen_ids = {entry.get("geometry_id") for entry in entries if entry.get("geometry_id")}
+    indexed_entries = {}
+    for entry in entries:
+        geometry = entry.get("geometry")
+        if _valid_geometry(geometry) and _geometry_identity_signature(geometry) is not None:
+            indexed_entries.setdefault(_geometry_identity_signature(geometry), []).append(entry)
     for molecule in selected_molecules:
         geometry = _geometry_record(molecule)
         geometry_id = _geometry_id(geometry)
-        if geometry_id in seen_ids:
+        signature = _geometry_identity_signature(geometry)
+        if geometry_id in seen_ids or any(
+                _verified_duplicate(entry, geometry, comparator)
+                for entry in indexed_entries.get(signature, ())):
             continue
         seen_ids.add(geometry_id)
         energy = getattr(molecule, "energy", None)
@@ -330,6 +402,7 @@ def _persist_basin_registry(registry_path, selected_molecules, existing_entries=
             "geometry": geometry,
             "descriptors": {"geometry": _geometry_descriptor(molecule)},
         })
+        indexed_entries.setdefault(signature, []).append(entries[-1])
     directory_label = os.path.basename(os.path.dirname(registry_path))
     stoichiometry = directory_label.removeprefix("stoichiometry_") if directory_label.startswith("stoichiometry_") else None
     payload = {

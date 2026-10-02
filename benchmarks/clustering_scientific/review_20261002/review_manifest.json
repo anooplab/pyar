@@ -1,0 +1,64 @@
+{
+  "review_window_start": "2026-10-01T03:23:44+05:30",
+  "review_window_end": "2026-10-02T11:23:44+05:30",
+  "head": "f48a6b662f052f5bdf1518d26ccc21cc19647a2c",
+  "scope": "three commits in window plus current staged, unstaged, and untracked relevant benchmark changes",
+  "python": "3.14.7",
+  "packages": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "hdbscan": "0.8.44",
+    "dscribe": "2.1.2",
+    "networkx": "3.6.1",
+    "ase": "3.29.0",
+    "rdkit": "2026.3.6",
+    "irmsd": "0.1.2"
+  },
+  "source_sha256": {
+    "pyar/selection/clusterers.py": "a97c9c89386e9b39b5bfe10755b67e066bdcfd2211cab58a814c17ac3dab773f",
+    "pyar/selection/clustering.py": "2e7d66f27e2eee932f198f5a3377a618109e933550ccea7bffc62ad2c886859c",
+    "pyar/selection/policy.py": "f936ec104c80c26fd28178f6d679ffcd548bf5e3d0db6366a5678c3b126f400a",
+    "pyar/selection/basin_memory.py": "d828afc263a3b4f089aa5f5d104aeda20ffeb427aae0f7e55235563555d9414a",
+    "pyar/selection/deduplication.py": "36b458df1f84b87fadffd5eee1bd3b1e000bd138385b57405e28ba0ba875cd39",
+    "pyar/selection/structural_distances.py": "baae465ed3f67c2fe0ea9abd0eb78b5907ace5e59722478f87ea123aa588dcd6",
+    "pyar/conformer/request.py": "2726d14e5662674f7eb2e62aac87421aeaba1b4a0bdcf63362547b29759dfc7a",
+    "pyar/conformer/comparison.py": "b71f62d64408a922d32ddb5cdd69d6744d3aaad39985de26fb08384d6e9e6f8d",
+    "pyar/structure_comparison/deduplication_policy.py": "ee715c886dcd329fe5da13b4193c2b9e134310e64b8115965f4417eb3ffd7b2b",
+    "pyar/structure_comparison/fragment_rmsd.py": "5fe69e5350e0c92d253dcfed6a3c8cb87f675ee62865e4c8af72dcae21d381ac",
+    "pyar/scripts/scientific_clustering_benchmark.py": "25fbbfb4b361286e8433f8437f37488b2c3e195d54554aa476a10d71f8dae7fa",
+    "pyar/scripts/water_cluster_similarity_benchmark.py": "510740ef20772ce1695abbff9998f968beffa394048d67b4cea56a25083c551d",
+    "pyar/scripts/atomic_cluster_benchmark.py": "410e6b9d1f5edaf05e5f4b5369f1af4c9f035136eef07f3407484998280cc69f",
+    "pyar/scripts/meta_analyze_clustering_benchmarks.py": "6f712bcfb26d7536d7a825c1d3482c52f3711efc2feaef094332a5e6c2933d40"
+  },
+  "probe_sha256": {
+    "comparison_probe.py": "62c839b36f171dcf33963e1f57966bf6c825d6b1f818872f754e5d181a8d3609",
+    "benchmark_probe.py": "16867e42baa52f55fa3cb17ff4b64371924c11c92b76d77bb1ab84756be524d4",
+    "policy_probe.py": "433a708aff67c4dc113787173d485e85e380a21342354dc17bae76b6a53811de",
+    "water_direction_probe.py": "1b0f551a1838aac3a2102ffa497440df5ce92f9619e7654953c7abedfa0603a7"
+  },
+  "verification": {
+    "pytest_passed": 255,
+    "subtests_passed": 38,
+    "git_diff_check": "passed",
+    "independent_conformer_confusion_conditions": 45,
+    "water_auc_calculation": "positive-negative pair ranking with half credit for ties",
+    "conformer_auc": "consistency rerun; not an independent descriptor implementation",
+    "water_direction_pairs_sampled": 3
+  },
+  "production_code_changed_by_review": false,
+  "follow_up_implementation": {
+    "date": "2026-10-02",
+    "focused_regressions": [
+      "tests/test_basin_memory.py::test_memory_compacts_verified_rigid_and_permuted_copies_before_capacity",
+      "tests/test_scientific_clustering_benchmark.py::test_optimization_cache_is_invalidated_by_changed_geometry",
+      "tests/test_water_cluster_similarity_benchmark.py::test_water_pair_cache_checks_source_and_comparator_identity",
+      "tests/test_meta_analyze_clustering_benchmarks.py::test_false_positive_rate_and_false_discovery_rate_use_distinct_denominators"
+    ],
+    "full_pytest_passed": 720,
+    "full_pytest_subtests_passed": 189,
+    "water_reference_pairs_recomputed": 276,
+    "meta_analysis_regenerated": true,
+    "review_follow_up_notes": "See README Implementation follow-up section; the original review hashes and initial test count are retained as historical evidence."
+  }
+}

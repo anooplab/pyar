@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_file": "/home/anoop/repos/pyar/benchmarks/clustering_scientific/data/mpconf196gen/FGG55_crest_conformers.xyz",
+  "source_file": "FGG55_crest_conformers.xyz",
   "source_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
   "label_method": "GFN2-xTB opt then element-labelled coordinate-graph isomorphism and heavy-atom Kabsch RMSD",
   "threshold_angstrom": 0.35,

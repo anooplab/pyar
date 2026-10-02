@@ -1,5 +1,5 @@
 {
-  "ensemble": "/home/anoop/repos/pyar/benchmarks/clustering_scientific/data/mpconf196gen/FGG55_crest_conformers.xyz",
+  "ensemble": "FGG55_crest_conformers.xyz",
   "ensemble_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
   "frames": 127,
   "source_composition": [
@@ -26,15 +26,15 @@
     "maximum_absolute_delta_numeric": 7.551420040385892e-07
   },
   "reference_basins": 98,
-  "reference_labels": "benchmarks/clustering_scientific/runs/FGG55/reference_basins.json",
+  "reference_labels": "reference_basins.json",
   "analysis": "results/comparison.json",
   "xTB": "xtb",
   "xTB_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
   "pyar_git_revision": "65755e28743b0fa8b34cb07c880b03149253fd47",
   "pyar_worktree_dirty": true,
   "args": {
-    "ensemble": "benchmarks/clustering_scientific/data/mpconf196gen/FGG55_crest_conformers.xyz",
-    "output": "benchmarks/clustering_scientific/runs/FGG55",
+    "ensemble": "FGG55_crest_conformers.xyz",
+    "output": "FGG55",
     "xtb": "xtb",
     "limit": null,
     "basin_threshold": 0.35,

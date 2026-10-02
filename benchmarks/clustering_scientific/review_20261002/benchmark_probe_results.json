@@ -1,0 +1,120 @@
+{
+  "conformer_stale_cache_demonstration": {
+    "new_input_bond_length": 4.0,
+    "returned_cached_bond_length": 0.74,
+    "optimizer_was_not_called": true
+  },
+  "water_stale_cache_demonstration": {
+    "source_hash_changed": true,
+    "total_comparator_calls_for_two_runs": 1,
+    "expected_calls_if_inputs_checked": 2,
+    "manifest_replaced_with_new_source_hash": true
+  },
+  "conformer_label_diagnostics": {
+    "CAMVES_I": {
+      "threshold_sensitivity": {
+        "0.25": {
+          "basin_count": 5,
+          "largest_basin_size": 3
+        },
+        "0.35": {
+          "basin_count": 4,
+          "largest_basin_size": 6
+        },
+        "0.50": {
+          "basin_count": 3,
+          "largest_basin_size": 7
+        }
+      },
+      "maximum_same_label_energy_spread_kcal_mol": 0.7029210832951437,
+      "source_hash_matches_reference": true,
+      "maximum_current_source_vs_saved_optimizer_input_deviation": 0.0
+    },
+    "FGG55": {
+      "threshold_sensitivity": {
+        "0.25": {
+          "basin_count": 103,
+          "largest_basin_size": 3
+        },
+        "0.35": {
+          "basin_count": 98,
+          "largest_basin_size": 4
+        },
+        "0.50": {
+          "basin_count": 92,
+          "largest_basin_size": 5
+        }
+      },
+      "maximum_same_label_energy_spread_kcal_mol": 2.3079025650691,
+      "source_hash_matches_reference": true,
+      "maximum_current_source_vs_saved_optimizer_input_deviation": 0.0
+    },
+    "WG01": {
+      "threshold_sensitivity": {
+        "0.25": {
+          "basin_count": 46,
+          "largest_basin_size": 4
+        },
+        "0.35": {
+          "basin_count": 43,
+          "largest_basin_size": 4
+        },
+        "0.50": {
+          "basin_count": 37,
+          "largest_basin_size": 5
+        }
+      },
+      "maximum_same_label_energy_spread_kcal_mol": 2.2707321831940983,
+      "source_hash_matches_reference": true,
+      "maximum_current_source_vs_saved_optimizer_input_deviation": 0.0
+    }
+  },
+  "independent_recomputation": {
+    "water_metrics_match_saved": true,
+    "conformer_confusion_matches_saved": true,
+    "conformer_auc": [
+      {
+        "feature_requested": "mbtr",
+        "macro_pairwise_same_basin_auc": 0.951037267797894,
+        "per_dataset_auc": {
+          "CAMVES_I": 0.8706896551724138,
+          "FGG55": 0.9965822696519495,
+          "WG01": 0.9858398785693184
+        },
+        "per_dataset_pair_counts": {
+          "CAMVES_I": 45,
+          "FGG55": 8001,
+          "WG01": 2556
+        }
+      },
+      {
+        "feature_requested": "soap",
+        "macro_pairwise_same_basin_auc": 0.9669088685213274,
+        "per_dataset_auc": {
+          "CAMVES_I": 0.9051724137931034,
+          "FGG55": 0.9977749877938202,
+          "WG01": 0.9977792039770587
+        },
+        "per_dataset_pair_counts": {
+          "CAMVES_I": 45,
+          "FGG55": 8001,
+          "WG01": 2556
+        }
+      },
+      {
+        "feature_requested": "distance-histogram",
+        "macro_pairwise_same_basin_auc": 0.9388326813715877,
+        "per_dataset_auc": {
+          "CAMVES_I": 0.9030172413793103,
+          "FGG55": 0.9710992536792914,
+          "WG01": 0.9423815490561617
+        },
+        "per_dataset_pair_counts": {
+          "CAMVES_I": 45,
+          "FGG55": 8001,
+          "WG01": 2556
+        }
+      }
+    ]
+  }
+}

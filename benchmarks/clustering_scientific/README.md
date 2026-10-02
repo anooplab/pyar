@@ -63,7 +63,8 @@ own unperturbed basin. A complete graph comparison above the cutoff is
 reported as a basin change; a graph mapping that hits its limit is uncertain.
 Optimizer convergence alone does not count as basin recovery.
 
-The tested factorial is algorithms `hybrid`, `agglomerative`, `dbscan`,
+The tested factorial is algorithms `auto` (HDBSCAN first with agglomerative
+fallback), `agglomerative`, `dbscan`,
 `optics`, and `maxmin` crossed with `mbtr`, `soap`, and `distance-histogram`.
 All feature and algorithm fallback diagnostics are retained. Requested method
 names must be interpreted alongside the actual method and fallback reported
@@ -102,3 +103,31 @@ needs independently labelled pools for small-molecule conformers/isomers,
 atomic clusters, and molecular aggregates, with a separate reference protocol
 for each structural class. This pilot should not be presented as validating a
 single feature or algorithm for all those classes.
+
+## Atomic-cluster extension
+
+The LJ13 and Au13 pilot uses published minima and cluster entries without
+claiming verified basin labels. It records geometric pair-spectrum coverage,
+source energies, and provenance. See
+[`atomic_clusters/README.md`](atomic_clusters/README.md) for interpretation,
+reproduction, and limitations, and [`data/SOURCES.md`](data/SOURCES.md) for
+source attribution and checksums.
+
+For a fixed-composition aggregate similarity study, see the small W6 water
+cluster pilot in [`water_similarity/README.md`](water_similarity/README.md)
+and its [results](water_similarity/report.md).
+
+## Cross-domain meta-analysis
+
+The exploratory cross-domain synthesis is in
+[`meta_analysis/report.md`](meta_analysis/report.md), with machine-readable
+tables and JSON alongside it. It reports conformer pairwise ROC/AUC and
+cluster-assignment confusion matrices, water-cluster proxy ROC/AUC and
+high-specificity operating points, and atomic-cluster coverage metrics. The
+three domains are kept separate because their reference labels differ and the
+atomic-cluster pilot has no validated same/different labels. Rebuild it with:
+
+```bash
+python -m pyar.scripts.meta_analyze_clustering_benchmarks \
+  --output benchmarks/clustering_scientific/meta_analysis
+```

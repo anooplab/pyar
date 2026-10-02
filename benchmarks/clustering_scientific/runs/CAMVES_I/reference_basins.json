@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_file": "/home/anoop/repos/pyar/benchmarks/clustering_scientific/data/mpconf196gen/CAMVES_I_crest_conformers.xyz",
+  "source_file": "CAMVES_I_crest_conformers.xyz",
   "source_sha256": "de803ce09b1adc01d8236d5aa029b1c5183c7af1ec9da145796e242a7b739feb",
   "label_method": "GFN2-xTB opt then element-labelled coordinate-graph isomorphism and heavy-atom Kabsch RMSD",
   "threshold_angstrom": 0.35,

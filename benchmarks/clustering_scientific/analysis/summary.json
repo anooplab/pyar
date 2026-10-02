@@ -908,7 +908,7 @@
       }
     },
     {
-      "algorithm_requested": "hybrid",
+      "algorithm_requested": "auto",
       "feature_requested": "soap",
       "systems": 3,
       "macro_mean_basin_retention": 0.3838395823445657,
@@ -1250,7 +1250,7 @@
       }
     },
     {
-      "algorithm_requested": "hybrid",
+      "algorithm_requested": "auto",
       "feature_requested": "distance-histogram",
       "systems": 3,
       "macro_mean_basin_retention": 0.3838395823445657,
@@ -1706,7 +1706,7 @@
       }
     },
     {
-      "algorithm_requested": "hybrid",
+      "algorithm_requested": "auto",
       "feature_requested": "mbtr",
       "systems": 3,
       "macro_mean_basin_retention": 0.3450798924220851,

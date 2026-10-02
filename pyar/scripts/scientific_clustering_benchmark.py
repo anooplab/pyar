@@ -30,7 +30,7 @@ from pyar.structure_comparison.graph_rmsd import GraphRMSDComparator, infer_mole
 from pyar.structure_comparison.rmsd import kabsch_rmsd
 
 
-ALGORITHMS = ("hybrid", "agglomerative", "dbscan", "optics", "maxmin")
+ALGORITHMS = ("auto", "agglomerative", "dbscan", "optics", "maxmin")
 FEATURES = ("mbtr", "soap", "distance-histogram")
 ENERGY_RE = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[Ee][-+]?\d+)?")
 TOTAL_ENERGY_RE = re.compile(r"TOTAL ENERGY\s+([-+0-9.Ee]+)")
@@ -97,21 +97,43 @@ def optimize_ensemble(ensemble, run_dir: Path, xtb: str, limit: int | None = Non
     executable = shutil.which(xtb) if "/" not in xtb else xtb
     if not executable or not Path(executable).is_file():
         raise RuntimeError(f"Cannot find xTB executable {xtb!r}")
+    executable = str(Path(executable).resolve())
     records = []
     subset = ensemble if limit is None else ensemble[:limit]
+    executable_hash = _sha256(Path(executable))
+    optimization_settings = {
+        "schema": 1, "executable": str(Path(executable).resolve()),
+        "executable_sha256": executable_hash,
+        "arguments": ["--opt", "--gfn", "2", "--chrg", "0", "--uhf", "0"],
+    }
     for record in subset:
         frame_dir = run_dir / "optimizations" / record["name"]
         output_path = frame_dir / "xtbopt.xyz"
         log_path = frame_dir / "xtb.log"
-        if not (output_path.is_file() and log_path.is_file()
-                and _normally_terminated(log_path.read_text(errors="replace"))):
+        cache_path = frame_dir / "cache.json"
+        input_identity = hashlib.sha256(json.dumps({
+            "symbols": record["atoms"].get_chemical_symbols(),
+            "coordinates": np.asarray(record["atoms"].positions, dtype=float).tolist(),
+            "settings": optimization_settings,
+        }, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+        cache_valid = False
+        if output_path.is_file() and log_path.is_file() and cache_path.is_file():
+            try:
+                cache = json.loads(cache_path.read_text())
+                cache_valid = (
+                    cache.get("input_identity") == input_identity
+                    and cache.get("output_sha256") == _sha256(output_path)
+                    and cache.get("settings") == optimization_settings
+                    and _normally_terminated(log_path.read_text(errors="replace"))
+                )
+            except (OSError, ValueError, TypeError):
+                cache_valid = False
+        if not cache_valid:
             frame_dir.mkdir(parents=True, exist_ok=True)
             input_path = frame_dir / "input.xyz"
             _write_xyz(input_path, record["atoms"], record["name"])
             completed = subprocess.run(
-                # xTB's CLI rejects path-qualified geometry arguments on some
-                # builds; execute in the frame directory and pass the basename.
-                [executable, input_path.name, "--opt", "--gfn", "2", "--chrg", "0", "--uhf", "0"],
+                [executable, input_path.name, *optimization_settings["arguments"]],
                 cwd=frame_dir, capture_output=True, text=True, timeout=1800, check=False,
             )
             log_path.write_text(completed.stdout + "\n--- STDERR ---\n" + completed.stderr)
@@ -119,6 +141,12 @@ def optimize_ensemble(ensemble, run_dir: Path, xtb: str, limit: int | None = Non
                 raise RuntimeError(
                     f"xTB failed for {record['name']} (exit {completed.returncode}); see {log_path}"
                 )
+            if not output_path.is_file() or not _normally_terminated(log_path.read_text(errors="replace")):
+                raise RuntimeError(f"xTB optimization did not terminate normally for {record['name']}")
+            cache_path.write_text(json.dumps({
+                "schema": 1, "input_identity": input_identity,
+                "settings": optimization_settings, "output_sha256": _sha256(output_path),
+            }, indent=2, sort_keys=True) + "\n")
         log = log_path.read_text(errors="replace")
         if not _normally_terminated(log) or not output_path.is_file():
             raise RuntimeError(f"xTB optimization did not terminate normally for {record['name']}")
@@ -230,7 +258,8 @@ def _coverage(records, selected_records, threshold):
     }
 
 
-def _cluster_first_select(molecules, algorithm, feature, maximum_seeds):
+def _cluster_first_select(molecules, algorithm, feature, maximum_seeds,
+                          system_type="conformers"):
     """Run the cluster/minima/budget stages without the separate deduplicator."""
     cluster_algorithm = "auto" if algorithm == "maxmin" else algorithm
     result = clustering.cluster_molecules(
@@ -239,7 +268,7 @@ def _cluster_first_select(molecules, algorithm, feature, maximum_seeds):
         algorithm=cluster_algorithm,
         maximum_number_of_clusters=maximum_seeds,
         distance_metric="euclidean",
-        system_type="conformers",
+        system_type=system_type,
     )
     labels = np.asarray(result.labels, dtype=int)
     minima = []
@@ -392,7 +421,7 @@ def run_conditions(records, representatives, output_dir: Path, algorithms, featu
                    "mean_nearest_indexed_heavy_atom_rmsd_angstrom",
                    "max_nearest_indexed_heavy_atom_rmsd_angstrom",
                    "runtime_seconds", "algorithm_used", "feature_used"]
-        writer = csv.DictWriter(stream, fieldnames=columns)
+        writer = csv.DictWriter(stream, fieldnames=columns, lineterminator="\n")
         writer.writeheader()
         for row in report["conditions"]:
             writer.writerow({
@@ -427,7 +456,7 @@ def write_reference_labels(records, representatives, run_dir: Path, source_path:
         }
     payload = {
         "schema_version": 1,
-        "source_file": str(source_path),
+        "source_file": source_path.name,
         "source_sha256": _sha256(source_path),
         "label_method": "GFN2-xTB opt then element-labelled coordinate-graph isomorphism and heavy-atom Kabsch RMSD",
         "threshold_angstrom": threshold,
@@ -485,7 +514,7 @@ def main(argv=None):
     optimized = optimize_ensemble(ensemble, args.output, args.xtb, limit=args.limit)
     optimized, representatives = assign_reference_basins(optimized, args.basin_threshold)
     label_path = write_reference_labels(optimized, representatives, args.output,
-                                        args.ensemble.resolve(), args.basin_threshold)
+                                        args.ensemble, args.basin_threshold)
     report = run_conditions(
         optimized, representatives, args.output, args.algorithms, args.features,
         args.max_seeds, args.basin_threshold, not args.skip_downstream_optimization,
@@ -501,7 +530,7 @@ def main(argv=None):
                                 text=True, check=False).stdout.strip())
     comment_energy_deltas = [r["source_energy"] - r["xtb_energy_hartree"] for r in optimized]
     manifest = {
-        "ensemble": str(args.ensemble.resolve()),
+        "ensemble": args.ensemble.name,
         "ensemble_sha256": _sha256(args.ensemble),
         "frames": len(optimized),
         "source_composition": optimized[0]["composition"],
@@ -511,13 +540,13 @@ def main(argv=None):
             "maximum_absolute_delta_numeric": float(np.max(np.abs(comment_energy_deltas))),
         },
         "reference_basins": len(representatives),
-        "reference_labels": str(label_path),
+        "reference_labels": label_path.name,
         "analysis": "results/comparison.json",
         "xTB": args.xtb,
         "xTB_version": xtb_version,
         "pyar_git_revision": revision,
         "pyar_worktree_dirty": dirty,
-        "args": vars(args) | {"ensemble": str(args.ensemble), "output": str(args.output)},
+        "args": vars(args) | {"ensemble": args.ensemble.name, "output": args.output.name},
         "report_conditions": len(report["conditions"]),
     }
     (args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

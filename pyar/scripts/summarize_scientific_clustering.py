@@ -58,6 +58,11 @@ def summarize(runs: list[Path], output: Path):
             "source_comment_energy_delta": manifest["source_xyz_comment_energy_minus_gfn2_final_energy"],
         })
         for condition in report["conditions"]:
+            # Older saved runs called today's HDBSCAN-first auto policy
+            # ``hybrid``. Preserve the measurements while reporting the
+            # canonical public method name.
+            if condition["algorithm_requested"] == "hybrid":
+                condition["algorithm_requested"] = "auto"
             key = (condition["algorithm_requested"], condition["feature_requested"])
             structure_by_name, basin_energy, global_minimum = reference_by_system[system_name]
             selected_basins = {

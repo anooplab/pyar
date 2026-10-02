@@ -1,5 +1,7 @@
 from pathlib import Path
 import json
+from types import SimpleNamespace
+from unittest import mock
 
 import numpy as np
 from ase import Atoms
@@ -9,6 +11,7 @@ from pyar.scripts.scientific_clustering_benchmark import (
     assign_reference_basins,
     compare_perturbed_seeds,
     load_ensemble,
+    optimize_ensemble,
 )
 from pyar.scripts.summarize_scientific_clustering import summarize
 
@@ -20,6 +23,29 @@ def test_xTB_termination_parser_rejects_abnormal_phrase():
     assert _normally_terminated("normal termination of xtb\n")
     assert not _normally_terminated("abnormal termination of xtb\n")
     assert not _normally_terminated("xTB terminated without a final status\n")
+
+
+def test_optimization_cache_is_invalidated_by_changed_geometry(tmp_path):
+    xtb = tmp_path / "xtb"
+    xtb.write_text("test executable identity")
+    record = {"name": "frame_0000", "atoms": Atoms(["H", "H"], positions=[[0, 0, 0], [0, 0, .74]])}
+    calls = []
+
+    def fake_run(command, *, cwd, **kwargs):
+        calls.append(command)
+        from ase.io import write
+        write(str(Path(cwd) / "xtbopt.xyz"), record["atoms"], format="xyz")
+        return SimpleNamespace(returncode=0, stdout=(
+            "TOTAL ENERGY -1.0\nGRADIENT NORM 0.0001\nnormal termination of xtb\n"
+        ), stderr="")
+
+    with mock.patch("pyar.scripts.scientific_clustering_benchmark.subprocess.run", side_effect=fake_run):
+        optimize_ensemble([record], tmp_path, str(xtb))
+        optimize_ensemble([record], tmp_path, str(xtb))
+        record["atoms"].positions[1, 2] = .80
+        optimize_ensemble([record], tmp_path, str(xtb))
+
+    assert len(calls) == 2
 
 
 def test_curated_source_ensembles_have_stable_atom_order_and_energies():

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "pyar_revision": "f48a6b662f052f5bdf1518d26ccc21cc19647a2c",
+  "manifests": [
+    {
+      "dataset": "lj13",
+      "system_type": "atomic-cluster",
+      "source_file": "LJ13.tar.bz2",
+      "source_sha256": "f915652c397a3c253985e6c88c3e21e965f6deaeb79c717627e1cf85895fd0ff",
+      "structure_count": 1510,
+      "analysis": "lj13/comparison.json",
+      "license_note": "No explicit reuse license identified in CCD source page",
+      "conditions": 15
+    },
+    {
+      "dataset": "qcd_au13",
+      "system_type": "atomic-cluster",
+      "source_file": "nomad_archive.zip",
+      "source_sha256": "77e447eb139654542049a67106b2170ceed373b7f8d9dc63f5517be4b2c1dd83",
+      "structure_count": 30,
+      "analysis": "qcd_au13/comparison.json",
+      "license_note": "NOMAD source records declare CC BY 4.0; entry-level attribution retained in structures.csv",
+      "conditions": 15
+    }
+  ]
+}

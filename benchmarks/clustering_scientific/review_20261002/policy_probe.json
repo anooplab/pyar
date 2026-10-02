@@ -1,0 +1,584 @@
+{
+  "archive_capacity": {
+    "configured_capacity": 3,
+    "stored_names": [
+      "A",
+      "translated_A_1",
+      "translated_A_2"
+    ],
+    "translated_copies_verified_equivalent": true,
+    "distinct_geometry_evicted": true,
+    "fixture_note": "Synthetic H2 coordinates test storage invariance; no physical basin labels claimed"
+  },
+  "mixed_topology_graph_rmsd": {
+    "feature_requested": "distance-histogram",
+    "feature_used": "local-soap",
+    "feature_fallbacks": [],
+    "algorithm_requested": "agglomerative",
+    "algorithm_used": "agglomerative",
+    "distance_metric": "graph-rmsd",
+    "distance_requested": "graph-rmsd",
+    "distance_used": "soap-rematch",
+    "distance_units": "dimensionless",
+    "distance_parameters": {
+      "species": [
+        "C",
+        "H",
+        "O"
+      ],
+      "soap_cutoff": 5.0,
+      "n_max": 6,
+      "l_max": 4,
+      "sigma": 0.5,
+      "rematch_alpha": 1.0,
+      "rematch_iterations": 1000,
+      "transport_tolerance": 1e-08,
+      "average": "off",
+      "distance_formula": "sqrt(2*(1-normalized_kernel))",
+      "numerical_zero_tolerance": 1e-07
+    },
+    "distance_fallbacks": [
+      {
+        "distance": "graph-rmsd",
+        "reason": "ValueError: Pair (0, 1) has no graph-rmsd distance: incompatible or incomplete mapping"
+      }
+    ],
+    "algorithm_fallbacks": [],
+    "system_type": "isomers",
+    "system_confidence": "medium",
+    "policy_reason": "same-composition connected structures have different inferred element-labelled graphs",
+    "topology_group_ids": [
+      0,
+      1
+    ],
+    "number_of_structures": 2,
+    "number_of_clusters": 2,
+    "number_of_noise_points": 0,
+    "labels": [
+      0,
+      1
+    ]
+  },
+  "explicit_dbscan_fallback": {
+    "feature_requested": "distance-histogram",
+    "feature_used": "distance-histogram",
+    "feature_fallbacks": [],
+    "algorithm_requested": "dbscan",
+    "algorithm_used": "agglomerative",
+    "distance_metric": "euclidean",
+    "distance_requested": "euclidean",
+    "distance_used": "euclidean",
+    "distance_units": "standardized-feature-units",
+    "distance_parameters": {},
+    "distance_fallbacks": [],
+    "algorithm_fallbacks": [
+      {
+        "algorithm": "dbscan",
+        "reason": "ValueError: Clusterer classified every structure as noise"
+      }
+    ],
+    "system_type": "unknown",
+    "system_confidence": "low",
+    "policy_reason": "feature explicitly requested; cluster-label algorithm explicitly requested",
+    "topology_group_ids": [],
+    "number_of_structures": 4,
+    "number_of_clusters": 2,
+    "number_of_noise_points": 0,
+    "labels": [
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "conformer_confusion_independent_check": {
+    "conditions_verified": 45,
+    "results": [
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "auto",
+        "feature": "mbtr",
+        "tp": 7,
+        "fp": 2,
+        "fn": 9,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "auto",
+        "feature": "soap",
+        "tp": 7,
+        "fp": 2,
+        "fn": 9,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "auto",
+        "feature": "distance-histogram",
+        "tp": 4,
+        "fp": 2,
+        "fn": 12,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "agglomerative",
+        "feature": "mbtr",
+        "tp": 0,
+        "fp": 0,
+        "fn": 16,
+        "tn": 29
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "agglomerative",
+        "feature": "soap",
+        "tp": 0,
+        "fp": 0,
+        "fn": 16,
+        "tn": 29
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "agglomerative",
+        "feature": "distance-histogram",
+        "tp": 0,
+        "fp": 0,
+        "fn": 16,
+        "tn": 29
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "dbscan",
+        "feature": "mbtr",
+        "tp": 3,
+        "fp": 0,
+        "fn": 13,
+        "tn": 29
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "dbscan",
+        "feature": "soap",
+        "tp": 3,
+        "fp": 2,
+        "fn": 13,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "dbscan",
+        "feature": "distance-histogram",
+        "tp": 4,
+        "fp": 0,
+        "fn": 12,
+        "tn": 29
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "optics",
+        "feature": "mbtr",
+        "tp": 4,
+        "fp": 2,
+        "fn": 12,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "optics",
+        "feature": "soap",
+        "tp": 4,
+        "fp": 2,
+        "fn": 12,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "optics",
+        "feature": "distance-histogram",
+        "tp": 4,
+        "fp": 2,
+        "fn": 12,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "maxmin",
+        "feature": "mbtr",
+        "tp": 7,
+        "fp": 2,
+        "fn": 9,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "maxmin",
+        "feature": "soap",
+        "tp": 7,
+        "fp": 2,
+        "fn": 9,
+        "tn": 27
+      },
+      {
+        "dataset": "CAMVES_I",
+        "algorithm": "maxmin",
+        "feature": "distance-histogram",
+        "tp": 4,
+        "fp": 2,
+        "fn": 12,
+        "tn": 27
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "auto",
+        "feature": "mbtr",
+        "tp": 31,
+        "fp": 173,
+        "fn": 5,
+        "tn": 7792
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "auto",
+        "feature": "soap",
+        "tp": 28,
+        "fp": 152,
+        "fn": 8,
+        "tn": 7813
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "auto",
+        "feature": "distance-histogram",
+        "tp": 33,
+        "fp": 4537,
+        "fn": 3,
+        "tn": 3428
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "agglomerative",
+        "feature": "mbtr",
+        "tp": 36,
+        "fp": 1570,
+        "fn": 0,
+        "tn": 6395
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "agglomerative",
+        "feature": "soap",
+        "tp": 36,
+        "fp": 1462,
+        "fn": 0,
+        "tn": 6503
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "agglomerative",
+        "feature": "distance-histogram",
+        "tp": 36,
+        "fp": 5867,
+        "fn": 0,
+        "tn": 2098
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "dbscan",
+        "feature": "mbtr",
+        "tp": 34,
+        "fp": 416,
+        "fn": 2,
+        "tn": 7549
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "dbscan",
+        "feature": "soap",
+        "tp": 36,
+        "fp": 112,
+        "fn": 0,
+        "tn": 7853
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "dbscan",
+        "feature": "distance-histogram",
+        "tp": 32,
+        "fp": 2916,
+        "fn": 4,
+        "tn": 5049
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "optics",
+        "feature": "mbtr",
+        "tp": 33,
+        "fp": 63,
+        "fn": 3,
+        "tn": 7902
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "optics",
+        "feature": "soap",
+        "tp": 30,
+        "fp": 72,
+        "fn": 6,
+        "tn": 7893
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "optics",
+        "feature": "distance-histogram",
+        "tp": 19,
+        "fp": 30,
+        "fn": 17,
+        "tn": 7935
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "maxmin",
+        "feature": "mbtr",
+        "tp": 31,
+        "fp": 173,
+        "fn": 5,
+        "tn": 7792
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "maxmin",
+        "feature": "soap",
+        "tp": 28,
+        "fp": 152,
+        "fn": 8,
+        "tn": 7813
+      },
+      {
+        "dataset": "FGG55",
+        "algorithm": "maxmin",
+        "feature": "distance-histogram",
+        "tp": 33,
+        "fp": 4537,
+        "fn": 3,
+        "tn": 3428
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "auto",
+        "feature": "mbtr",
+        "tp": 37,
+        "fp": 1057,
+        "fn": 2,
+        "tn": 1460
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "auto",
+        "feature": "soap",
+        "tp": 38,
+        "fp": 100,
+        "fn": 1,
+        "tn": 2417
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "auto",
+        "feature": "distance-histogram",
+        "tp": 38,
+        "fp": 1565,
+        "fn": 1,
+        "tn": 952
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "agglomerative",
+        "feature": "mbtr",
+        "tp": 38,
+        "fp": 479,
+        "fn": 1,
+        "tn": 2038
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "agglomerative",
+        "feature": "soap",
+        "tp": 39,
+        "fp": 215,
+        "fn": 0,
+        "tn": 2302
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "agglomerative",
+        "feature": "distance-histogram",
+        "tp": 38,
+        "fp": 1510,
+        "fn": 1,
+        "tn": 1007
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "dbscan",
+        "feature": "mbtr",
+        "tp": 33,
+        "fp": 131,
+        "fn": 6,
+        "tn": 2386
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "dbscan",
+        "feature": "soap",
+        "tp": 35,
+        "fp": 25,
+        "fn": 4,
+        "tn": 2492
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "dbscan",
+        "feature": "distance-histogram",
+        "tp": 36,
+        "fp": 1191,
+        "fn": 3,
+        "tn": 1326
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "optics",
+        "feature": "mbtr",
+        "tp": 30,
+        "fp": 15,
+        "fn": 9,
+        "tn": 2502
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "optics",
+        "feature": "soap",
+        "tp": 37,
+        "fp": 16,
+        "fn": 2,
+        "tn": 2501
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "optics",
+        "feature": "distance-histogram",
+        "tp": 24,
+        "fp": 17,
+        "fn": 15,
+        "tn": 2500
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "maxmin",
+        "feature": "mbtr",
+        "tp": 37,
+        "fp": 1057,
+        "fn": 2,
+        "tn": 1460
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "maxmin",
+        "feature": "soap",
+        "tp": 38,
+        "fp": 100,
+        "fn": 1,
+        "tn": 2417
+      },
+      {
+        "dataset": "WG01",
+        "algorithm": "maxmin",
+        "feature": "distance-histogram",
+        "tp": 38,
+        "fp": 1565,
+        "fn": 1,
+        "tn": 952
+      }
+    ]
+  },
+  "water_independent_metrics": [
+    {
+      "feature": "mbtr",
+      "specificity_target": 0.95,
+      "tp": 10,
+      "fp": 8,
+      "fn": 5,
+      "tn": 253,
+      "auc": 0.9558109833971903,
+      "specificity": 0.9693486590038314,
+      "precision": 0.5555555555555556,
+      "false_positive_rate": 0.03065134099616858,
+      "false_discovery_fraction": 0.4444444444444444
+    },
+    {
+      "feature": "mbtr",
+      "specificity_target": 0.99,
+      "tp": 5,
+      "fp": 1,
+      "fn": 10,
+      "tn": 260,
+      "auc": 0.9558109833971903,
+      "specificity": 0.9961685823754789,
+      "precision": 0.8333333333333334,
+      "false_positive_rate": 0.0038314176245210726,
+      "false_discovery_fraction": 0.16666666666666666
+    },
+    {
+      "feature": "soap",
+      "specificity_target": 0.95,
+      "tp": 6,
+      "fp": 13,
+      "fn": 9,
+      "tn": 248,
+      "auc": 0.8513409961685824,
+      "specificity": 0.9501915708812261,
+      "precision": 0.3157894736842105,
+      "false_positive_rate": 0.04980842911877394,
+      "false_discovery_fraction": 0.6842105263157895
+    },
+    {
+      "feature": "soap",
+      "specificity_target": 0.99,
+      "tp": 3,
+      "fp": 2,
+      "fn": 12,
+      "tn": 259,
+      "auc": 0.8513409961685824,
+      "specificity": 0.9923371647509579,
+      "precision": 0.6,
+      "false_positive_rate": 0.007662835249042145,
+      "false_discovery_fraction": 0.4
+    },
+    {
+      "feature": "distance-histogram",
+      "specificity_target": 0.95,
+      "tp": 9,
+      "fp": 11,
+      "fn": 6,
+      "tn": 250,
+      "auc": 0.8845466155810984,
+      "specificity": 0.9578544061302682,
+      "precision": 0.45,
+      "false_positive_rate": 0.0421455938697318,
+      "false_discovery_fraction": 0.55
+    },
+    {
+      "feature": "distance-histogram",
+      "specificity_target": 0.99,
+      "tp": 5,
+      "fp": 0,
+      "fn": 10,
+      "tn": 261,
+      "auc": 0.8845466155810984,
+      "specificity": 1.0,
+      "precision": 1.0,
+      "false_positive_rate": 0.0,
+      "false_discovery_fraction": 0.0
+    }
+  ]
+}
