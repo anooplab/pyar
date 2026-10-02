@@ -14,6 +14,7 @@ from importlib.metadata import PackageNotFoundError, version as package_version
 import numpy as np
 
 from pyar.data import defualt_parameters
+from pyar.backends.xtb_utils import canonical_xtb_model
 
 
 STAGES = ("relax", "neb", "ts", "frequency", "irc", "endpoints")
@@ -411,7 +412,12 @@ def _hash(path):
 
 def _physical_settings(calculator):
     """Exclude execution resources, but bind artifacts to the physical method."""
-    return {key: value for key, value in calculator.qc_params.items() if key != "nprocs"}
+    qc_params = calculator.qc_params
+    settings = {key: value for key, value in qc_params.items()
+                if key not in {"nprocs", "xtb_model"}}
+    if str(qc_params.get("software", "")).lower() == "xtb":
+        settings["xtb_model"] = canonical_xtb_model(qc_params.get("xtb_model"))
+    return settings
 
 
 def _save_stage(output, stage, result, calculator, inputs, artifacts, dependencies=(), parameters=None):
@@ -422,10 +428,13 @@ def _save_stage(output, stage, result, calculator, inputs, artifacts, dependenci
     result["dependency_hashes"] = {
         dependency: _hash(output / f"{dependency}_summary.json") for dependency in dependencies
     }
-    result["backend_model"] = (
-        "g-xTB (--gxtb)" if str(calculator.qc_params.get("software")).lower() == "xtb"
-        else calculator.qc_params.get("method")
-    )
+    if str(calculator.qc_params.get("software", "")).lower() == "xtb":
+        model = canonical_xtb_model(calculator.qc_params.get("xtb_model"))
+        result["backend_model"] = (
+            "g-xTB (--gxtb)" if model == "gxtb" else "GFN2-xTB (--gfn 2)"
+        )
+    else:
+        result["backend_model"] = calculator.qc_params.get("method")
     result["inputs"] = {str(Path(path).resolve()): _hash(path) for path in inputs}
     result["artifacts"] = {str(Path(path).resolve()): _hash(path) for path in artifacts}
     _write_json(output / f"{stage}_summary.json", result)
@@ -453,7 +462,16 @@ def _load_stage(output, stage, calculator, visited=None, *,
             "Pass --reuse-legacy-summaries to verify its artifacts and reuse it, "
             "or rerun the stage."
         )
-    if result.get("qc_params") != _physical_settings(calculator):
+    recorded_qc_params = result.get("qc_params", {})
+    requested_qc_params = _physical_settings(calculator)
+    # Prior schema-2 xTB stages always ran the hard-coded --gxtb command.
+    # Preserve their reuse under the historical default while distinguishing
+    # them from explicitly requested GFN2-xTB stages.
+    if (str(recorded_qc_params.get("software", "")).lower() == "xtb"
+            and "xtb_model" not in recorded_qc_params
+            and result.get("backend_model") == "g-xTB (--gxtb)"):
+        recorded_qc_params = dict(recorded_qc_params, xtb_model="gxtb")
+    if recorded_qc_params != requested_qc_params:
         raise ValueError(f"Stage {stage} used different backend or electronic-structure settings")
     for group in ("inputs", "artifacts"):
         for filename, digest in result[group].items():
@@ -924,7 +942,7 @@ def _execute_stage(stage, output, calculator, options):
 
 def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
                           max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
-                          nprocs=1, max_gradient=0.05, average_gradient=0.025, spring=1.0,
+                          nprocs=1, xtb_model="gxtb", max_gradient=0.05, average_gradient=0.025, spring=1.0,
                           climb=0.5, align=False, product_relaxation_fmax=0.05,
                           product_relaxation_max_steps=200, ts_max_cycles=200,
                           irc_max_cycles=200, imaginary_frequency_threshold=20.0,
@@ -989,6 +1007,8 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
+    if str(software).lower() == "xtb":
+        qc_params["xtb_model"] = canonical_xtb_model(xtb_model)
     calculator = PyarGeometricCalculator(qc_params=qc_params)
     stages = STAGES if stage == "all" else (stage,)
     results = {"reactant_product_connection_confirmed": False}
@@ -1042,6 +1062,10 @@ def _build_parser():
     parser.add_argument("--ts-guess", help="NEB waypoint for all/neb, or explicit guess for ts")
     parser.add_argument("--ts-geometry", help="Explicit geometry for ts or frequency")
     parser.add_argument("--software", required=True, help="PyAR energy-gradient backend")
+    parser.add_argument(
+        "--xtb-model", choices=("gxtb", "gfn2"), default="gxtb",
+        help="xTB Hamiltonian for the xTB energy-gradient provider (default: gxtb)",
+    )
     parser.add_argument("--output", default="neb_run")
     parser.add_argument("--images", type=int, default=11)
     parser.add_argument(
