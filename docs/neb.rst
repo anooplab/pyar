@@ -153,11 +153,15 @@ TS optimization
 ``--ts-optimizer geometric`` is the default and preserves the existing
 geomeTRIC TS optimization. Optionally, install ``pip install 'pyar-chem[sella]'``
 and select ``--ts-optimizer sella`` to run Sella's first-order saddle optimizer
-with the same unbiased PyAR energy/gradient calculator. ``--sella-fmax`` sets
-Sella's force convergence threshold in eV/angstrom (default 0.05), and
-``--ts-max-cycles`` sets its maximum optimizer steps. These controls are recorded
-only when Sella is selected; changing inactive Sella options does not invalidate
-a geomeTRIC TS stage.
+with the same unbiased PyAR energy/gradient calculator. ``--ts-fmax`` optionally
+sets one shared force convergence threshold in eV/angstrom for either optimizer.
+When omitted, geomeTRIC retains its historical ``GAU_TIGHT`` criteria and Sella
+uses ``--sella-fmax`` (default 0.05). ``--ts-max-cycles`` sets the maximum
+optimizer steps. The selected optimizer, effective convergence settings,
+backend energy/gradient evaluation count, optimizer step count, and optimization
+wall time are recorded in ``ts_summary.json``. Changes to active convergence
+settings invalidate TS-stage reuse; changing ``--sella-fmax`` while using
+geomeTRIC does not.
 
 Sella convergence records optimizer convergence only. It does not confirm a
 transition state or replace the independent frequency validation, which remains

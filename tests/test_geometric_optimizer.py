@@ -96,6 +96,7 @@ class GeometricOptimizerTests(unittest.TestCase):
 
         self.assertAlmostEqual(calculator.results["energy"], backend_energy)
         np.testing.assert_allclose(calculator.results["forces"], backend_forces)
+        self.assertEqual(calculator.backend_energy_gradient_evaluations, 1)
 
     def test_geometric_calculator_combines_backend_and_afir(self):
         from pyar.backends.geometric import PyarGeometricCalculator

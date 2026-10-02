@@ -4,6 +4,9 @@
 
 ### Added
 
+- Added optional shared ``--ts-fmax`` convergence control for geomeTRIC and
+  Sella TS optimization, with stage-local backend evaluation, optimizer-step,
+  and elapsed-time metrics recorded in TS provenance.
 - Added explicit g-xTB/GFN2-xTB model selection to the xTB energy-gradient
   provider and reaction-path CLI, with model-aware provenance and restart
   validation. g-xTB requests now fail clearly when the executable does not
