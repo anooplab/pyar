@@ -1,9 +1,61 @@
 # Transition state optimizer benchmark
 
-This directory documents the paired benchmark runner. It does not contain a
-dataset or benchmark results yet. The first comparison uses the same starting
+This directory documents the paired benchmark runner. It does not contain
+third-party dataset files. The first comparison uses the same starting
 geometry, charge, multiplicity, electronic structure model, force threshold,
 and step ceiling for geomeTRIC and Sella.
+
+## RGD1-TSopt-GFN2 pilot
+
+The adapter supports the external [RGD1-TSopt-GFN2 dataset](https://doi.org/10.5281/zenodo.20489312)
+(version 1.0). The Zenodo record describes 1,500 distinct neutral, closed-shell
+C/H/N/O transition states and 4,500 deterministic starting geometries across
+easy, med, and hard tiers. Each reference saddle, start, and reaction endpoint
+is stored in XYZ; `manifest.tsv` gives atom counts and displacement metadata.
+The reference implementation is tblite 0.6.0 at SCF accuracy 0.01. PyAR runs
+the normal `xtb` executable with `--gfn 2`; matching the model family does not
+claim exact numerical identity between tblite and `xtb`.
+
+The Zenodo record states copyright and does not give an open redistribution
+license. The adapter reads an extracted local copy and writes only a manifest
+with paths, hashes, and source metadata. Do not commit the dataset archive or
+structures into this repository.
+
+Extract the dataset locally, then make the default 15-reaction pilot (45
+starting geometries, with each reaction represented at all three difficulty
+tiers):
+
+```bash
+pyar-benchmark-ts prepare-rgd1 \
+  --dataset-dir /path/to/RGD1-TSopt-GFN2 \
+  --output /path/to/RGD1-TSopt-GFN2/pyar_pilot.json
+```
+
+Selection is deterministic and stratified over four atom-count ranges. The
+manifest records the random seed, selected reaction IDs, source dataset
+manifest/settings hashes, displacement metadata, and the reference energy.
+Choose 7–16 reactions for a 21–48 input pilot, or set `--tiers` to include a
+subset of tiers. `--ts-fmax` and `--ts-max-cycles` are shared by both optimizers;
+the adapter defaults are 0.02 eV/angstrom and 200 steps. A first paired smoke
+case was nonstationary for Sella at 0.03 eV/angstrom but passed independent
+frequency/IRC/endpoint checks at 0.02, so 0.02 is the provisional pilot target.
+The full pilot will check it across the sampled set; this does not select a
+production optimizer default.
+
+Run the paired jobs in a deterministic shuffled order. Each optimizer/case is
+launched in a separate process, and Sella gets a fresh temporary JAX compilation
+cache for each run so warm-cache effects do not depend on job order:
+
+```bash
+python benchmarks/ts_optimizers/prepare/run_pilot.py \
+  /path/to/RGD1-TSopt-GFN2/pyar_pilot.json \
+  --output /path/to/rgd1_pilot_run \
+  --schedule-seed 20261003
+
+pyar-benchmark-ts collect /path/to/rgd1_pilot_run
+```
+
+The execution order and cache policy are recorded in `pilot_execution.json`.
 
 ## Manifest
 
