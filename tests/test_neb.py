@@ -23,6 +23,7 @@ from pyar.neb import (
     _frequency,
     _load_stage,
     _match_endpoints,
+    _physical_settings,
     _save_stage,
     _write_xyz_trajectory,
     run_neb,
@@ -36,6 +37,7 @@ def test_cli_exposes_individual_workflow_stages():
     parser = _build_parser()
     defaults = vars(parser.parse_args(["--software", "xtb"]))
     assert defaults["stage"] == "all"
+    assert defaults["xtb_model"] == "gxtb"
     assert defaults["interpolation"] == "linear"
     assert defaults["idpp_fmax"] == 0.1
     assert defaults["idpp_steps"] == 100
@@ -63,6 +65,10 @@ def test_cli_exposes_individual_workflow_stages():
         "--software", "xtb", "--ts-optimizer", "sella", "--sella-fmax", "0.03",
     ]))
     assert (sella["ts_optimizer"], sella["sella_fmax"]) == ("sella", 0.03)
+    gfn2 = vars(parser.parse_args(["--software", "xtb", "--xtb-model", "gfn2"]))
+    assert gfn2["xtb_model"] == "gfn2"
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--software", "xtb", "--xtb-model", "gfn1"])
 
 
 class HarmonicCalculator(Calculator):
@@ -818,6 +824,11 @@ def test_stage_handoff_rejects_modified_artifacts_and_different_methods(tmp_path
     geometry = tmp_path / "geometry.xyz"
     geometry.write_text((DATA / "hcn.xyz").read_text())
     _save_stage(tmp_path, "ts", {"ts_optimization_converged": True}, calculator, [], [geometry])
+    summary_path = tmp_path / "ts_summary.json"
+    historical_summary = json.loads(summary_path.read_text())
+    historical_summary["qc_params"].pop("xtb_model")
+    summary_path.write_text(json.dumps(historical_summary))
+    assert _load_stage(tmp_path, "ts", calculator)["ts_optimization_converged"]
     parallel = SimpleNamespace(qc_params=dict(calculator.qc_params, nprocs=8))
     assert _load_stage(tmp_path, "ts", parallel)["ts_optimization_converged"]
     charged = SimpleNamespace(qc_params=dict(calculator.qc_params, charge=1))
@@ -826,6 +837,47 @@ def test_stage_handoff_rejects_modified_artifacts_and_different_methods(tmp_path
     geometry.write_text((DATA / "hnc.xyz").read_text())
     with pytest.raises(ValueError, match="Stale ts artifact"):
         _load_stage(tmp_path, "ts", calculator)
+
+
+def test_xtb_model_is_physical_provenance_and_controls_stage_reuse(
+    tmp_path, fake_path_backend,
+):
+    run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts",
+        xtb_model="gxtb", output=tmp_path,
+    )
+    summary_path = tmp_path / "ts_summary.json"
+    summary = json.loads(summary_path.read_text())
+    assert summary["qc_params"]["xtb_model"] == "gxtb"
+    assert summary["backend_model"] == "g-xTB (--gxtb)"
+
+    # The unchanged model permits a downstream stage to consume the TS stage.
+    frequency = run_neb(
+        software="xtb", stage="frequency", xtb_model="gxtb", output=tmp_path,
+    )
+    assert frequency["first_order_saddle_confirmed"]
+
+    # A different Hamiltonian must fail before any downstream calculation.
+    with pytest.raises(ValueError, match="different backend or electronic-structure settings"):
+        run_neb(
+            software="xtb", stage="frequency", xtb_model="gfn2", output=tmp_path,
+        )
+
+    gfn2_output = tmp_path / "gfn2"
+    run_neb(
+        ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts",
+        xtb_model="gfn2", output=gfn2_output,
+    )
+    gfn2_summary = json.loads((gfn2_output / "ts_summary.json").read_text())
+    assert gfn2_summary["qc_params"]["xtb_model"] == "gfn2"
+    assert gfn2_summary["backend_model"] == "GFN2-xTB (--gfn 2)"
+
+
+def test_xtb_model_is_ignored_for_non_xtb_provenance():
+    calculator = SimpleNamespace(qc_params={
+        "software": "gaussian", "method": "B97-D", "xtb_model": "gfn2", "nprocs": 2,
+    })
+    assert _physical_settings(calculator) == {"software": "gaussian", "method": "B97-D"}
 
 
 @pytest.fixture

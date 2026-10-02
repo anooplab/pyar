@@ -1,6 +1,25 @@
 """Shared helpers for xTB-backed backends."""
 
 
+XTB_MODELS = ("gxtb", "gfn2")
+
+
+def canonical_xtb_model(value=None):
+    """Return a validated xTB energy/gradient model, defaulting to g-xTB."""
+    model = "gxtb" if value is None else str(value).strip().lower()
+    if model not in XTB_MODELS:
+        raise ValueError(
+            f"Unsupported xtb_model {value!r}; choose 'gxtb' or 'gfn2'"
+        )
+    return model
+
+
+def xtb_model_arguments(model):
+    """Return the sole xTB executable selector for a canonical model."""
+    model = canonical_xtb_model(model)
+    return ["--gxtb"] if model == "gxtb" else ["--gfn", "2"]
+
+
 def build_xtb_command(executable, start_xyz_file, qc_params, opt_threshold=None):
     """Build an xTB command line from PyAR QC settings."""
     command = [executable, start_xyz_file]

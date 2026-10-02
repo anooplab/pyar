@@ -23,7 +23,8 @@ from pyar.backend_capabilities import (
 )
 from pyar.data.units import bohr2angstrom
 from pyar.backends import require_executable
-from pyar.backends.xtb_utils import xtb_parallel_args
+from pyar.backends.xtb import xtb_supports_gxtb
+from pyar.backends.xtb_utils import canonical_xtb_model, xtb_model_arguments, xtb_parallel_args
 from pyar.bonding_analysis import parse_bonding_analysis, unavailable_bonding_analysis
 
 
@@ -134,9 +135,22 @@ class XtbEnergyGradientProvider:
 
     def __init__(self, qc_params=None):
         self.qc_params = dict(qc_params or {})
+        self.xtb_model = canonical_xtb_model(self.qc_params.get("xtb_model"))
+        self.qc_params["xtb_model"] = self.xtb_model
+        self._gxtb_support_by_executable = {}
 
     def evaluate(self, molecule, coordinates_bohr):
         xtb_executable = require_executable("xtb", "xTB")
+        if self.xtb_model == "gxtb":
+            if xtb_executable not in self._gxtb_support_by_executable:
+                self._gxtb_support_by_executable[xtb_executable] = xtb_supports_gxtb(
+                    xtb_executable
+                )
+            if not self._gxtb_support_by_executable[xtb_executable]:
+                raise RuntimeError(
+                    f"xTB executable {xtb_executable!r} does not advertise --gxtb support; "
+                    "refusing to run a different Hamiltonian as g-xTB"
+                )
         coordinates_bohr = _as_numpy_positions(coordinates_bohr)
         coordinates_angstrom = bohr2angstrom(coordinates_bohr)
 
@@ -149,7 +163,8 @@ class XtbEnergyGradientProvider:
                 job_name="pyar_geometric_xtb",
                 precision=15,
             )
-            command = [xtb_executable, str(xyz_path), "--gxtb"]
+            command = [xtb_executable, str(xyz_path)]
+            command.extend(xtb_model_arguments(self.xtb_model))
             command.extend(xtb_parallel_args(self.qc_params))
             if self.qc_params.get("charge", 0) != 0:
                 command.extend(["-chrg", str(self.qc_params["charge"])])

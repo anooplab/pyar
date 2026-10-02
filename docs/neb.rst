@@ -47,9 +47,25 @@ For the bundled HCN/HNC isomerization example::
      --ts-guess tests/data/neb/guess.xyz --software xtb --max-cycles 200 \
      --output hcn_hnc
 
-``--stage all`` is the default. PyAR's ``xtb`` gradient provider currently invokes
-``xtb --gxtb``; ``--method`` and ``--basis`` do not change that provider's model.
-For other backends, use their supported method/basis settings consistently.
+``--stage all`` is the default. PyAR's ``xtb`` gradient provider defaults to
+g-xTB. Select its Hamiltonian explicitly with ``--xtb-model``:
+
+* ``--xtb-model gxtb`` runs ``xtb input.xyz --gxtb --grad`` (the default, for
+  backward compatibility).
+* ``--xtb-model gfn2`` runs ``xtb input.xyz --gfn 2 --grad``.
+
+The executable must advertise ``--gxtb`` for g-xTB. If it does not, PyAR stops
+with an error rather than silently calculating with the executable's default
+Hamiltonian.
+
+The selected model is part of physical restart provenance, so changing it
+invalidates stages calculated with the other Hamiltonian. The explicit GFN2-xTB
+selection allows controlled calculations on the same Hamiltonian family used
+by GFN2-xTB benchmark datasets such as RGD1-TSopt-GFN2. This selects the model
+through the ``xtb`` executable; it does not claim numerical identity with other
+xTB implementations such as tblite. ``--method`` and ``--basis`` do not select
+the model for the xTB energy-gradient provider. For other backends, use their
+supported method/basis settings consistently; ``--xtb-model`` has no effect.
 
 Each stage is independently runnable. Use the same output directory and physical
 settings for consecutive stages::

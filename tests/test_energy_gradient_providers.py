@@ -41,6 +41,7 @@ class EnergyGradientProviderTests(unittest.TestCase):
         provider = get_energy_gradient_provider('xtb', {'nprocs': 1})
         atoms = Atoms('CN', positions=coordinates)
         with mock.patch('pyar.energy_gradient_providers.require_executable', return_value='xtb'), \
+                mock.patch('pyar.energy_gradient_providers.xtb_supports_gxtb', return_value=True) as support_check, \
                 mock.patch('pyar.energy_gradient_providers.subp.run', side_effect=fake_run):
             result = provider.evaluate(atoms, coordinates)
             h = 1e-6
@@ -48,6 +49,72 @@ class EnergyGradientProviderTests(unittest.TestCase):
             e_minus = provider.evaluate(atoms, coordinates-h*direction).energy_hartree
         self.assertAlmostEqual((e_plus-e_minus)/(2*h),
                                float(np.sum(result.gradient_hartree_per_bohr*direction)), places=8)
+        support_check.assert_called_once_with("xtb")
+
+    def test_xtb_model_selection_runs_through_provider_and_preserves_controls(self):
+        coordinates = np.asarray([[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]])
+        molecule = Atoms("H2", positions=coordinates)
+        for model, selector in ((None, ["--gxtb"]),
+                                ("gxtb", ["--gxtb"]),
+                                ("gfn2", ["--gfn", "2"])):
+            with self.subTest(model=model):
+                qc_params = {
+                    "charge": -1,
+                    "multiplicity": 3,
+                    "nprocs": 4,
+                    "bias_controller": "adaptive",
+                }
+                if model is not None:
+                    qc_params["xtb_model"] = model
+                provider = get_energy_gradient_provider("xtb", qc_params)
+                captured = []
+
+                def fake_run(command, cwd=None, **kwargs):
+                    captured.append(list(command))
+                    np.savetxt(Path(cwd) / "gradient", np.zeros((2, 3)))
+                    return SimpleNamespace(
+                        returncode=0, stdout="| TOTAL ENERGY -1.000000 Eh", stderr="",
+                    )
+
+                with mock.patch(
+                    "pyar.energy_gradient_providers.require_executable", return_value="xtb",
+                ), mock.patch(
+                    "pyar.energy_gradient_providers.xtb_supports_gxtb", return_value=True,
+                ), mock.patch(
+                    "pyar.energy_gradient_providers.subp.run", side_effect=fake_run,
+                ):
+                    result = provider.evaluate(molecule, coordinates)
+
+                self.assertEqual(result.energy_hartree, -1.0)
+                command = captured[0]
+                model_args = [arg for arg in command if arg in {"--gxtb", "--gfn"}]
+                self.assertEqual(model_args, selector[:1])
+                if selector == ["--gfn", "2"]:
+                    self.assertEqual(command[command.index("--gfn"):][:2], ["--gfn", "2"])
+                    self.assertNotIn("--gxtb", command)
+                else:
+                    self.assertEqual(command.count("--gxtb"), 1)
+                    self.assertNotIn("--gfn", command)
+                self.assertEqual(command[command.index("--parallel"):][:2], ["--parallel", "4"])
+                self.assertEqual(command[command.index("-chrg"):][:2], ["-chrg", "-1"])
+                self.assertEqual(command[command.index("-uhf"):][:2], ["-uhf", "2"])
+                self.assertIn("--grad", command)
+                self.assertIn("--wbo", command)
+
+    def test_xtb_provider_rejects_unsupported_model(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported xtb_model 'gfn1'.*gxtb.*gfn2"):
+            get_energy_gradient_provider("xtb", {"xtb_model": "gfn1"})
+
+    def test_xtb_provider_refuses_gxtb_when_executable_does_not_support_it(self):
+        provider = get_energy_gradient_provider("xtb")
+        with mock.patch(
+            "pyar.energy_gradient_providers.require_executable", return_value="xtb",
+        ), mock.patch(
+            "pyar.energy_gradient_providers.xtb_supports_gxtb", return_value=False,
+        ), mock.patch("pyar.energy_gradient_providers.subp.run") as run:
+            with self.assertRaisesRegex(RuntimeError, "does not advertise --gxtb support"):
+                provider.evaluate(Atoms("H", positions=[[0.0, 0.0, 0.0]]), np.zeros((1, 3)))
+        run.assert_not_called()
 
     def test_energy_gradient_result_rejects_nonfinite_energy(self):
         with self.assertRaisesRegex(ValueError, "finite scalar"):
@@ -166,6 +233,7 @@ class EnergyGradientProviderTests(unittest.TestCase):
                 "basis": "def2-SVP",
                 "nprocs": 1,
                 "scf_cycles": 50,
+                "xtb_model": "gfn2",
             },
         )
         molecule = Atoms(symbols=["H", "H"], positions=np.zeros((2, 3)))
@@ -182,7 +250,10 @@ class EnergyGradientProviderTests(unittest.TestCase):
             ]
         )
 
+        captured = []
+
         def fake_run(command, cwd=None, capture_output=None, text=None, check=None):
+            captured.append(list(command))
             return SimpleNamespace(returncode=0, stdout=gaussian_output, stderr="")
 
         with mock.patch("pyar.energy_gradient_providers.require_executable", return_value="g16"), \
@@ -190,6 +261,9 @@ class EnergyGradientProviderTests(unittest.TestCase):
             result = provider.evaluate(molecule, coordinates_bohr)
 
         self.assertAlmostEqual(result.energy_hartree, -1.234)
+        self.assertEqual(captured[0][0], "g16")
+        self.assertNotIn("--gxtb", captured[0])
+        self.assertNotIn("--gfn", captured[0])
         np.testing.assert_allclose(
             result.gradient_hartree_per_bohr,
             np.asarray([[-0.01, -0.02, -0.03], [0.01, 0.02, 0.03]]),

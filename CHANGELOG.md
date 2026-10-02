@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- Added explicit g-xTB/GFN2-xTB model selection to the xTB energy-gradient
+  provider and reaction-path CLI, with model-aware provenance and restart
+  validation. g-xTB requests now fail clearly when the executable does not
+  advertise ``--gxtb`` support.
+
 ### Fixed
 
 - Prevented feature standardization from amplifying roundoff in nearly constant
