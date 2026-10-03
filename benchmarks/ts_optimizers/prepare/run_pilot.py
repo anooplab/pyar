@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+OPTIMIZERS = ("geometric", "sella")
 
 
 def _sha256(path):
@@ -30,19 +31,26 @@ def argument_parse(argv=None):
     parser.add_argument("manifest", help="prepared pyar-benchmark-ts JSON manifest")
     parser.add_argument("--output", required=True, help="benchmark run directory")
     parser.add_argument("--schedule-seed", type=int, default=20261003)
+    parser.add_argument(
+        "--optimizers", nargs="+", choices=OPTIMIZERS, default=list(OPTIMIZERS),
+        help="optimizer jobs to run (default: both geometric and sella)",
+    )
     return parser.parse_args(argv)
 
 
-def run_pilot(manifest_path, output, *, schedule_seed=20261003):
+def run_pilot(manifest_path, output, *, schedule_seed=20261003, optimizers=OPTIMIZERS):
     manifest_path = Path(manifest_path).expanduser().resolve()
     output = Path(output).expanduser().resolve()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     cases = manifest.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ValueError("manifest has no cases")
+    optimizers = tuple(optimizers)
+    if not optimizers or any(name not in OPTIMIZERS for name in optimizers):
+        raise ValueError("optimizers must be a non-empty subset of geometric and sella")
     tasks = [
         {"case_id": case["id"], "optimizer": optimizer}
-        for case in cases for optimizer in ("geometric", "sella")
+        for case in cases for optimizer in optimizers
     ]
     random.Random(schedule_seed).shuffle(tasks)
     output.mkdir(parents=True, exist_ok=True)
@@ -51,6 +59,7 @@ def run_pilot(manifest_path, output, *, schedule_seed=20261003):
         "schema_version": 1,
         "manifest_sha256": _sha256(manifest_path),
         "schedule_seed": schedule_seed,
+        "optimizers": list(optimizers),
         "randomized_jobs": tasks,
         "jax_cache_policy": "fresh temporary JAX compilation cache for each Sella job",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -62,7 +71,8 @@ def run_pilot(manifest_path, output, *, schedule_seed=20261003):
             raise ValueError("run_manifest.json belongs to a different benchmark manifest")
     if schedule_path.exists():
         previous = json.loads(schedule_path.read_text(encoding="utf-8"))
-        for key in ("manifest_sha256", "schedule_seed", "randomized_jobs", "jax_cache_policy"):
+        previous.setdefault("optimizers", list(OPTIMIZERS))
+        for key in ("manifest_sha256", "schedule_seed", "optimizers", "randomized_jobs", "jax_cache_policy"):
             if previous.get(key) != plan[key]:
                 raise ValueError(
                     "pilot_execution.json belongs to a different benchmark or schedule"
@@ -122,7 +132,8 @@ def run_pilot(manifest_path, output, *, schedule_seed=20261003):
 
 def main(argv=None):
     args = argument_parse(argv)
-    run_pilot(args.manifest, args.output, schedule_seed=args.schedule_seed)
+    run_pilot(args.manifest, args.output, schedule_seed=args.schedule_seed,
+              optimizers=args.optimizers)
     return None
 
 

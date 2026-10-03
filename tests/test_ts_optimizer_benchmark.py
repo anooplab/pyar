@@ -399,3 +399,85 @@ def test_cli_has_independent_run_and_collect_commands():
     )
     collect = argument_parse(["collect", "benchmark_run"])
     assert (collect.command, collect.output) == ("collect", "benchmark_run")
+
+
+def test_uppercase_xtb_is_canonical_and_has_no_dft_defaults(tmp_path):
+    path = _manifest(tmp_path)
+    raw = json.loads(path.read_text())
+    raw['qc_model']['software'] = 'XTB'
+    path.write_text(json.dumps(raw))
+    spec = benchmark.load_ts_optimizer_benchmark(path)
+    assert spec.qc_model['software'] == 'xtb'
+    assert 'method' not in spec.qc_model and 'basis' not in spec.qc_model
+    raw['qc_model']['basis'] = 'def2-SVP'
+    path.write_text(json.dumps(raw))
+    with pytest.raises(benchmark.TSOptimizerBenchmarkError, match='not used'):
+        benchmark.load_ts_optimizer_benchmark(path)
+
+
+def test_custom_validation_settings_reach_every_dependency_check(tmp_path, monkeypatch):
+    calls = _fake_run_neb(monkeypatch)
+    settings = dict(ts_fmax=.03, ts_max_cycles=40, imaginary_frequency_threshold=31.,
+                    product_relaxation_fmax=.017, product_relaxation_max_steps=71,
+                    irc_max_cycles=72, endpoint_max_cycles=73, irc_endpoint_rmsd_tolerance=.13)
+    path = _manifest(tmp_path, settings=settings)
+    result = benchmark.run_ts_optimizer_case(path, case_id='case_0001_medium',
+                                             optimizer='geometric', output=tmp_path / 'run')
+    assert result['outcome'] == 'reaction_connected_success'
+    assert [stage for stage, _ in calls] == ['ts', 'frequency', 'relax', 'irc', 'endpoints']
+    for _, kwargs in calls:
+        assert {key: kwargs[key] for key in benchmark.VALIDATION_SETTINGS} == {
+            key: settings[key] for key in benchmark.VALIDATION_SETTINGS}
+
+
+@pytest.mark.parametrize('invalid_geometry', [False, True])
+def test_orca_runner_preserves_validation_protocol_and_handles_bad_geometry(tmp_path, monkeypatch, invalid_geometry):
+    from types import SimpleNamespace
+    from pyar.benchmarks import orca_optts as runner
+    calls = _fake_run_neb(monkeypatch)
+    monkeypatch.setattr(runner, 'run_neb', benchmark.run_neb)
+    executable = tmp_path / 'xtb'
+    executable.touch()
+    monkeypatch.setattr(runner.shutil, 'which', lambda _: str(executable))
+    monkeypatch.setattr(runner, '_xtb_version', lambda _: 'xtb version 6.7.1')
+    def process(command, *, cwd, **kwargs):
+        target = Path(cwd) / 'orca_optts.xyz'
+        if invalid_geometry:
+            target.write_text('broken')
+        else:
+            shutil.copy2(Path(cwd) / 'input_ts_guess.xyz', target)
+        return SimpleNamespace(returncode=0, stdout=(
+            '***        THE OPTIMIZATION HAS CONVERGED     ***\n****ORCA TERMINATED NORMALLY****\n'), stderr='')
+    monkeypatch.setattr(runner.subprocess, 'run', process)
+    settings = dict(ts_fmax=.03, ts_max_cycles=40, imaginary_frequency_threshold=31.,
+                    product_relaxation_fmax=.017, product_relaxation_max_steps=71,
+                    irc_max_cycles=72, endpoint_max_cycles=73, irc_endpoint_rmsd_tolerance=.13)
+    path = _manifest(tmp_path, settings=settings)
+    result = runner.run_orca_optts_case(path, case_id='case_0001_medium', output=tmp_path / 'run',
+                                      xtb_executable=executable, orca_executable=executable)
+    if invalid_geometry:
+        assert result['outcome'] == 'optimized_geometry_invalid'
+        assert not calls
+    else:
+        assert result['outcome'] == 'reaction_connected_success'
+        assert [stage for stage, _ in calls] == ['frequency', 'relax', 'irc', 'endpoints']
+        for _, kwargs in calls:
+            for key in benchmark.VALIDATION_SETTINGS:
+                assert kwargs[key] == settings[key] == result['settings'][key]
+        assert set(result['input_hashes']) == {'ts_guess', 'reference_ts', 'reactant', 'product'}
+    assert (tmp_path / 'run/cases/case_0001_medium/orca_optts/benchmark_result.json').is_file()
+
+
+def test_malformed_ts_artifact_still_records_benchmark_failure(tmp_path, monkeypatch):
+    _fake_run_neb(monkeypatch)
+    fake = benchmark.run_neb
+    def corrupt(**kwargs):
+        result = fake(**kwargs)
+        if kwargs['stage'] == 'ts':
+            (Path(kwargs['output']) / 'ts_optimized.xyz').write_text('broken')
+        return result
+    monkeypatch.setattr(benchmark, 'run_neb', corrupt)
+    result = benchmark.run_ts_optimizer_case(_manifest(tmp_path), case_id='case_0001_medium',
+                                             optimizer='geometric', output=tmp_path / 'run')
+    assert result['outcome'] == 'optimizer_exception'
+    assert 'Invalid optimized geometry' in result['error']

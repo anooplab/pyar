@@ -137,8 +137,8 @@ def load_ts_optimizer_benchmark(path):
         raise TSOptimizerBenchmarkError("qc_model must be an object")
     if not isinstance(settings, dict):
         raise TSOptimizerBenchmarkError("settings must be an object")
-    software = _required_text(qc_model, "software", "qc_model")
-    qc_model = dict(qc_model, software=software.lower())
+    software = _required_text(qc_model, "software", "qc_model").lower()
+    qc_model = dict(qc_model, software=software)
     for key in ("name", "version", "license"):
         _required_text(source, key, "source")
     if not any(isinstance(source.get(key), str) and source[key].strip() for key in ("doi", "url")):
@@ -181,7 +181,7 @@ def load_ts_optimizer_benchmark(path):
     allowed_settings = {
         "ts_fmax", "ts_max_cycles", "imaginary_frequency_threshold", "irc_max_cycles",
         "endpoint_max_cycles", "product_relaxation_fmax", "product_relaxation_max_steps",
-        "irc_endpoint_rmsd_tolerance",
+        "irc_endpoint_rmsd_tolerance", "sella_internal_coordinates",
     }
     unsupported_settings = set(settings) - allowed_settings
     if unsupported_settings:
@@ -196,6 +196,10 @@ def load_ts_optimizer_benchmark(path):
     cycles = settings["ts_max_cycles"]
     if isinstance(cycles, bool) or not isinstance(cycles, int) or cycles < 1:
         raise TSOptimizerBenchmarkError("settings.ts_max_cycles must be a positive integer")
+    if "sella_internal_coordinates" in settings and not isinstance(
+        settings["sella_internal_coordinates"], bool
+    ):
+        raise TSOptimizerBenchmarkError("settings.sella_internal_coordinates must be a boolean")
     settings.setdefault("imaginary_frequency_threshold", 20.0)
     settings["imaginary_frequency_threshold"] = _require_number(
         settings["imaginary_frequency_threshold"],
@@ -427,6 +431,13 @@ def _prepare_run_root(spec, output):
     return output
 
 
+VALIDATION_SETTINGS = (
+    "imaginary_frequency_threshold", "product_relaxation_fmax",
+    "product_relaxation_max_steps", "irc_max_cycles", "endpoint_max_cycles",
+    "irc_endpoint_rmsd_tolerance",
+)
+
+
 def _stage_arguments(spec, case, output):
     args = {
         "software": spec.qc_model["software"],
@@ -434,10 +445,15 @@ def _stage_arguments(spec, case, output):
         "multiplicity": case.multiplicity,
         "nprocs": spec.qc_model.get("nprocs", 1),
         "output": output,
+        # Later stages recursively verify their dependencies against these
+        # settings. Carry the same protocol through every stage, including IRC.
+        **{key: spec.settings[key] for key in VALIDATION_SETTINGS},
     }
     for key in ("method", "basis"):
         if key in spec.qc_model:
             args[key] = spec.qc_model[key]
+    if spec.settings.get("sella_internal_coordinates") is True:
+        args["sella_internal_coordinates"] = True
     if str(spec.qc_model["software"]).lower() == "xtb":
         args["xtb_model"] = spec.qc_model["xtb_model"]
     return args
@@ -578,7 +594,6 @@ def _run_ts_optimizer_case_locked(benchmark, *, case_id, optimizer, output):
             failure_stage = "frequency"
             frequency_result = run_neb(
                 ts_geometry=run_directory / "ts_optimized.xyz", stage="frequency",
-                imaginary_frequency_threshold=settings["imaginary_frequency_threshold"],
                 **base,
             )
             stages["frequency"] = frequency_result
@@ -592,24 +607,19 @@ def _run_ts_optimizer_case_locked(benchmark, *, case_id, optimizer, output):
                 failure_stage = "relax"
                 run_neb(
                     start=input_paths["reactant"], end=input_paths["product"], stage="relax",
-                    product_relaxation_fmax=settings["product_relaxation_fmax"],
-                    product_relaxation_max_steps=settings["product_relaxation_max_steps"],
                     **base,
                 )
                 stages["relax"] = json.loads(
                     (run_directory / "relax_summary.json").read_text(encoding="utf-8")
                 )
                 failure_stage = "irc"
-                run_neb(stage="irc", irc_max_cycles=settings["irc_max_cycles"], **base)
+                run_neb(stage="irc", **base)
                 stages["irc"] = json.loads(
                     (run_directory / "irc_summary.json").read_text(encoding="utf-8")
                 )
                 failure_stage = "endpoints"
                 endpoint_result = run_neb(
                     start=input_paths["reactant"], end=input_paths["product"], stage="endpoints",
-                    endpoint_max_cycles=settings["endpoint_max_cycles"],
-                    imaginary_frequency_threshold=settings["imaginary_frequency_threshold"],
-                    irc_endpoint_rmsd_tolerance=settings["irc_endpoint_rmsd_tolerance"],
                     **base,
                 )
                 stages["endpoints"] = endpoint_result
@@ -633,9 +643,15 @@ def _run_ts_optimizer_case_locked(benchmark, *, case_id, optimizer, output):
     energy_difference = None
     final_geometry = run_directory / "ts_optimized.xyz"
     if ts_summary and final_geometry.is_file():
-        final_symbols, final_coordinates, _ = read_xyz(final_geometry)
-        if final_symbols == reference_symbols:
+        try:
+            final_symbols, final_coordinates, _ = read_xyz(final_geometry)
+            if final_symbols != reference_symbols:
+                raise ValueError("optimized geometry atom identities/order differ from reference")
             reference_rmsd = _aligned_rmsd(reference_coordinates, final_coordinates)
+        except (OSError, ValueError) as exc:
+            if error is None:
+                error = f"Invalid optimized geometry: {exc}"
+                outcome, failure_stage = "optimizer_exception", "ts"
         final_energy = ts_summary.get("ts_energy_hartree")
         if case.reference_energy_hartree is not None and isinstance(final_energy, (int, float)):
             energy_difference = float(final_energy) - case.reference_energy_hartree

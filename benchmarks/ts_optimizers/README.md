@@ -125,6 +125,60 @@ successful optimizer outcomes. Paired differences are emitted only when both
 runs use the manifest's matching starting-geometry hash. The summary is
 descriptive; it does not select a default optimizer.
 
+## ORCA OptTS reference
+
+An additional reference run uses ORCA 6.1 OptTS with its GFN2-xTB interface.
+Set `XTBEXE` to the same xTB executable used by PyAR; ORCA's GFN2-xTB interface
+requires xTB 6.7.1 or later. The runner records both executable versions and
+validates the optimized candidate using PyAR's existing frequency, IRC, and
+endpoint checks.
+
+```bash
+python benchmarks/ts_optimizers/prepare/run_orca_optts.py \
+  /path/to/RGD1-TSopt-GFN2/pyar_pilot.json \
+  --output /path/to/orca_optts_run \
+  --orca-executable /path/to/orca \
+  --xtb-executable /path/to/xtb \
+  --match-ts-fmax
+
+python benchmarks/ts_optimizers/analysis/analyze_orca_optts_comparison.py \
+  /path/to/orca_optts_run \
+  /path/to/paired_pyar_run \
+  --geometric-run /path/to/geometric_run \
+  --sella-run /path/to/sella_run \
+  --sella-cartesian-run /path/to/sella_cartesian_run \
+  --output benchmarks/ts_optimizers/analysis/orca_optts_comparison.md
+```
+
+PyAR requests `InHess XTB2` and Bofill Hessian updates for ORCA OptTS. ORCA's
+default convergence thresholds differ from PyAR's `ts_fmax`; the ORCA output
+is retained for inspection. `--match-ts-fmax` converts the manifest's maximum
+gradient target to ORCA's `TolMaxG` and `TolRMSG`; ORCA's energy and displacement
+criteria remain enabled at their native defaults. ORCA uses redundant internal
+coordinates. PyAR's geomeTRIC optimizer uses delocalized internal coordinates.
+Sella can be run with internal coordinates by setting
+`settings.sella_internal_coordinates` to `true` in the benchmark manifest.
+ORCA log timing records are not interpreted as exact PyAR provider calls.
+Even when the gradient target and coordinates are aligned, optimizer-specific
+Hessians and remaining convergence criteria differ. ORCA's `OptTS` result is
+still only a candidate until the independent frequency, IRC, and endpoint
+checks pass.
+
+The paired ORCA pilot comparison and its input-hash checks are saved in
+`analysis/rgd1_orca_optts_15_reaction_20261003.md`. The follow-up all-internal,
+matched-gradient comparison is saved in
+`analysis/rgd1_orca_optts_matched_internal_15_reaction_20261003.md`; it uses
+the matched-gradient ORCA option, internal-coordinate Sella, and the existing
+geomeTRIC batch whose thresholds and coordinate system match this protocol.
+
+Comparison integrity: an explicit `--xtb-executable` must resolve to the same
+executable as `xtb` on PATH, because PyAR uses that executable for subsequent
+validation. The runners carry the manifest's full validation settings through
+every stage. Comparison analysis rejects contradictory recorded physical settings,
+validation settings or input hashes and lists unavailable historical provenance.
+See [the 2026-10-03 review](../reviews/20261003_32h/REVIEW.md) and its regenerated
+matched-coordinate analysis for the review findings and validation results.
+
 ## Outcome definitions
 
 - `optimizer_not_converged`: optimizer returned without convergence.

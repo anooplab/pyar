@@ -4,10 +4,16 @@
 
 ### Added
 
+- Added energy/gradient backend support to relaxed bond scans and cumulative
+  `--through` modes for NEB, TS, frequency, IRC and endpoint validation, with
+  validated stage reuse and separate endpoint optimization/frequency stages.
+
 - Added a deterministic, atom-count-stratified adapter for preparing local
   RGD1-TSopt-GFN2 pilot manifests without bundling its copyrighted dataset.
 - Added a reaction-cluster-aware analysis script and saved report for the paired
   15-reaction RGD1 pilot.
+- Added an ORCA OptTS reference runner using the same external GFN2-xTB
+  executable, plus paired outcome analysis against geomeTRIC and Sella.
 - Added a manifest-driven ``pyar-benchmark-ts`` runner and collector for paired
   geomeTRIC/Sella jobs, preserving per-run artifacts and separating TS costs
   from frequency/IRC/endpoint validation costs.
@@ -24,6 +30,13 @@
   NEB summaries now record climbing state and the selected handoff candidate.
 
 ### Fixed
+
+- Isolate generic scan calculator state and verify completed scan artifacts
+  before reuse. Keep custom validation settings across benchmark stages and
+  reject ORCA/xTB executable mismatches before running a comparison.
+- Prevent stale xTB optimization output from satisfying an invalidated cache;
+  verify conformer source hashes before pairing reference labels. Comparison
+  reports now check recorded physical provenance and mark missing evidence.
 
 - Prevented feature standardization from amplifying roundoff in nearly constant
   large descriptor columns into artificial structural diversity. Explicit
