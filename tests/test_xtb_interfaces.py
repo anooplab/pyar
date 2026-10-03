@@ -70,6 +70,20 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("16", runner.cmd)
         self.assertIn("-opt", runner.cmd)
 
+    def test_xtb_native_wrapper_uses_explicit_reaction_model(self):
+        from pyar.backends import xtb
+
+        with temporary_cwd(), mock.patch.object(xtb, "require_executable", return_value="xtb"), \
+                mock.patch.object(xtb, "xtb_supports_gxtb", return_value=False) as support:
+            runner = xtb.Xtb(self.molecule, {"opt_threshold": "normal", "xtb_model": "gfn2"})
+        self.assertEqual(runner.cmd[-2:], ["--gfn", "2"])
+        support.assert_not_called()
+
+        with temporary_cwd(), mock.patch.object(xtb, "require_executable", return_value="xtb"), \
+                mock.patch.object(xtb, "xtb_supports_gxtb", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "does not advertise --gxtb support"):
+                xtb.Xtb(self.molecule, {"opt_threshold": "normal", "xtb_model": "gxtb"})
+
     def test_xtb_turbo_wrapper_uses_parallel_threads(self):
         from pyar.backends import xtb_turbo
 

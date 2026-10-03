@@ -324,6 +324,9 @@ chemical formula.
                         type=str, help='The model to be used for the '
                                        'aggregation. Default is '
                                        'aimnet2_wb97m-d3_ens.jpt')
+    parser.add_argument('--xtb-model', choices=('gxtb', 'gfn2'), default=None,
+                        help='Hamiltonian for standalone xTB (default: g-xTB '
+                             'for reaction energy and gradients)')
     parser.add_argument('-basis', '--basis', type=str,
                         help='Basis set (default=def2-SVP)')
     parser.add_argument('-method', '--method', type=str,
@@ -750,6 +753,8 @@ def _validate_backend_spin_inputs(input_molecules):
 
 def _build_qc_parameters(run_parameters, args, run_mode):
     """Build backend-aware QC parameters and return reporting metadata."""
+    if run_parameters.get('xtb_model') is not None and run_parameters['software'] != 'xtb':
+        sys.exit('--xtb-model requires --software xtb')
     custom_keywords = run_parameters['custom_keywords']
     provided_qc_options = _provided_qc_options(args)
     if run_mode == "react" and run_parameters["geometry_optimizer"] == "geometric":
@@ -795,6 +800,10 @@ def _build_qc_parameters(run_parameters, args, run_mode):
         'custom_keyword': custom_keywords,
         'model': run_parameters['model']
     }
+    if run_parameters['software'] == 'xtb' and (
+        run_mode == 'react' or run_parameters.get('xtb_model') is not None
+    ):
+        quantum_chemistry_parameters['xtb_model'] = run_parameters.get('xtb_model') or 'gxtb'
     if run_mode == 'react':
         quantum_chemistry_parameters['release_retry_limit'] = run_parameters['release_retry_limit']
         quantum_chemistry_parameters['release_margin_factor'] = run_parameters['release_margin_factor']
