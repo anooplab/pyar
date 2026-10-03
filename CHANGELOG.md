@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.4.1 - 2026-10-03
+
+### Fixed
+
+- Exposed ``--xtb-model gfn2`` for reaction searches so installations without
+  ``--gxtb`` can use GFN2-xTB for both biased optimization and native product
+  relaxation. The g-xTB default remains explicit in reaction state.
+
 ## 1.4.0 - 2026-10-03
 
 ### Added
