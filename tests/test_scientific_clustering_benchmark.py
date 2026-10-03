@@ -36,16 +36,21 @@ def test_optimization_cache_is_invalidated_by_changed_geometry(tmp_path):
         from ase.io import write
         write(str(Path(cwd) / "xtbopt.xyz"), record["atoms"], format="xyz")
         return SimpleNamespace(returncode=0, stdout=(
-            "TOTAL ENERGY -1.0\nGRADIENT NORM 0.0001\nnormal termination of xtb\n"
+            "TOTAL ENERGY -0.5\nTOTAL ENERGY -1.0\nGRADIENT NORM 0.0001\nnormal termination of xtb\n"
         ), stderr="")
 
     with mock.patch("pyar.scripts.scientific_clustering_benchmark.subprocess.run", side_effect=fake_run):
-        optimize_ensemble([record], tmp_path, str(xtb))
+        result = optimize_ensemble([record], tmp_path, str(xtb))
+        assert result[0]["xtb_energy_hartree"] == -1.0
         optimize_ensemble([record], tmp_path, str(xtb))
         record["atoms"].positions[1, 2] = .80
         optimize_ensemble([record], tmp_path, str(xtb))
+        log = tmp_path / 'optimizations/frame_0000/xtb.log'
+        log.write_text(log.read_text().replace('-1.0', '-2.0'))
+        result = optimize_ensemble([record], tmp_path, str(xtb))
+        assert result[0]['xtb_energy_hartree'] == -1.0
 
-    assert len(calls) == 2
+    assert len(calls) == 3
 
 
 def test_curated_source_ensembles_have_stable_atom_order_and_energies():
@@ -147,3 +152,22 @@ def test_summary_calculates_micro_and_energy_window_basin_recall(tmp_path):
     assert setting["energy_window_basin_retention"]["1.0"]["micro_recall"] == 1.0
     assert setting["energy_window_basin_retention"]["3.0"]["micro_recall"] == 0.5
     assert setting["verified_reference_basin_recovery_fraction"] == 1.0
+
+
+def test_changed_input_cannot_reuse_old_optimizer_output_or_restart(tmp_path):
+    import pytest
+    xtb = tmp_path / 'xtb'
+    xtb.write_text('executable')
+    record = {'name': 'frame_0000', 'atoms': Atoms('H2', positions=[[0, 0, 0], [0, 0, .74]])}
+    frame = tmp_path / 'optimizations' / record['name']
+    frame.mkdir(parents=True)
+    (frame / 'xtbopt.xyz').write_text('stale optimized geometry')
+    (frame / 'xtbrestart').write_text('stale restart')
+    def run(command, *, cwd, **kwargs):
+        assert not (Path(cwd) / 'xtbrestart').exists()
+        assert not (Path(cwd) / 'xtbopt.xyz').exists()
+        return SimpleNamespace(returncode=0, stdout='normal termination of xtb', stderr='')
+    with mock.patch('pyar.scripts.scientific_clustering_benchmark.subprocess.run', side_effect=run):
+        with pytest.raises(RuntimeError, match='did not terminate normally'):
+            optimize_ensemble([record], tmp_path, str(xtb))
+    assert not (frame / 'cache.json').exists()

@@ -14,6 +14,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from copy import deepcopy
 from pathlib import Path
@@ -123,6 +124,7 @@ def optimize_ensemble(ensemble, run_dir: Path, xtb: str, limit: int | None = Non
                 cache_valid = (
                     cache.get("input_identity") == input_identity
                     and cache.get("output_sha256") == _sha256(output_path)
+                    and cache.get("log_sha256") == _sha256(log_path)
                     and cache.get("settings") == optimization_settings
                     and _normally_terminated(log_path.read_text(errors="replace"))
                 )
@@ -130,45 +132,54 @@ def optimize_ensemble(ensemble, run_dir: Path, xtb: str, limit: int | None = Non
                 cache_valid = False
         if not cache_valid:
             frame_dir.mkdir(parents=True, exist_ok=True)
-            input_path = frame_dir / "input.xyz"
+            # Never let old xtbopt.xyz or xtbrestart files satisfy a new run.
+            # Keep each attempt for inspection, including failures.
+            attempt = Path(tempfile.mkdtemp(prefix="attempt_", dir=frame_dir))
+            input_path = attempt / "input.xyz"
             _write_xyz(input_path, record["atoms"], record["name"])
             completed = subprocess.run(
                 [executable, input_path.name, *optimization_settings["arguments"]],
-                cwd=frame_dir, capture_output=True, text=True, timeout=1800, check=False,
+                cwd=attempt, capture_output=True, text=True, timeout=1800, check=False,
             )
-            log_path.write_text(completed.stdout + "\n--- STDERR ---\n" + completed.stderr)
+            attempt_log = attempt / "xtb.log"
+            attempt_log.write_text(completed.stdout + "\n--- STDERR ---\n" + completed.stderr)
             if completed.returncode != 0:
                 raise RuntimeError(
-                    f"xTB failed for {record['name']} (exit {completed.returncode}); see {log_path}"
+                    f"xTB failed for {record['name']} (exit {completed.returncode}); see {attempt_log}"
                 )
-            if not output_path.is_file() or not _normally_terminated(log_path.read_text(errors="replace")):
+            if not (attempt / "xtbopt.xyz").is_file() or not _normally_terminated(attempt_log.read_text(errors="replace")):
                 raise RuntimeError(f"xTB optimization did not terminate normally for {record['name']}")
+            for name in ("input.xyz", "xtbopt.xyz", "xtb.log"):
+                shutil.copy2(attempt / name, frame_dir / name)
             cache_path.write_text(json.dumps({
                 "schema": 1, "input_identity": input_identity,
                 "settings": optimization_settings, "output_sha256": _sha256(output_path),
+                "log_sha256": _sha256(log_path),
             }, indent=2, sort_keys=True) + "\n")
         log = log_path.read_text(errors="replace")
         if not _normally_terminated(log) or not output_path.is_file():
             raise RuntimeError(f"xTB optimization did not terminate normally for {record['name']}")
-        match = TOTAL_ENERGY_RE.search(log)
-        if match is None:
+        energy_matches = TOTAL_ENERGY_RE.findall(log)
+        if not energy_matches or not np.isfinite(float(energy_matches[-1])):
             raise RuntimeError(f"No final TOTAL ENERGY found in xTB log for {record['name']}")
         gradient_matches = GRADIENT_NORM_RE.findall(log)
         if not gradient_matches:
             raise RuntimeError(f"No final gradient norm found in xTB log for {record['name']}")
         final_gradient_norm = float(gradient_matches[-1])
-        if final_gradient_norm > MAX_REFERENCE_GRADIENT_NORM:
+        if not np.isfinite(final_gradient_norm) or final_gradient_norm > MAX_REFERENCE_GRADIENT_NORM:
             raise RuntimeError(
                 f"xTB geometry for {record['name']} is not sufficiently stationary "
                 f"(gradient norm {final_gradient_norm:.3g}); see {log_path}"
             )
         optimized = read(str(output_path))
+        if not np.isfinite(optimized.positions).all():
+            raise ValueError(f"Nonfinite optimized coordinates for {record['name']}")
         if optimized.get_chemical_symbols() != record["atoms"].get_chemical_symbols():
             raise ValueError(f"xTB changed atom identities/order in {record['name']}")
         records.append({
             **record,
             "optimized_atoms": optimized,
-            "xtb_energy_hartree": float(match.group(1)),
+            "xtb_energy_hartree": float(energy_matches[-1]),
             "final_gradient_norm_eh_per_alpha": final_gradient_norm,
             "optimization_log": str(log_path),
         })

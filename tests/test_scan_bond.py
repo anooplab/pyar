@@ -342,6 +342,16 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     )
     assert scan_calls == 1
     assert rerun["results"][0]["status"] == "scan_success_relax_success"
+    artifact = tmp_path / "scan_bond/orientation_000/ts_candidates/highest_scan_energy.xyz"
+    artifact.write_text("tampered")
+    repaired = run_scan_bond(
+        a, b, (0, 0), 1,
+        {"software": "orca", "method": "BP86", "basis": "def2-SVP",
+         "nprocs": 1, "scf_cycles": 1000},
+        tmp_path / "scan_bond", scan_end=0.5, scan_points=2,
+    )
+    assert repaired["results"][0]["status"] == "scan_success_relax_success"
+    assert artifact.read_text() != "tampered"
 
 
 def test_restart_reuses_completed_scan_after_relaxation_failure(tmp_path, monkeypatch):

@@ -274,6 +274,8 @@ def test_standalone_geometry_stages_do_not_load_geodesic_dependency(
     else:
         assert result["first_order_saddle_confirmed"]
         assert fake_path_backend[0] == ["frequency_ts"]
+        assert result["backend_energy_gradient_evaluations"] == 2
+        assert result["wall_seconds"] >= 0
 
 
 @pytest.mark.skipif(
@@ -612,8 +614,8 @@ def test_shared_ts_fmax_is_passed_to_selected_optimizer_and_recorded(
 
         monkeypatch.setattr(neb, "_optimize_geometry", optimize_geometry)
     else:
-        def optimize_sella(symbols, xyz, calculator, max_steps, fmax):
-            observed.update(fmax=fmax, max_steps=max_steps)
+        def optimize_sella(symbols, xyz, calculator, max_steps, fmax, *, internal=False):
+            observed.update(fmax=fmax, max_steps=max_steps, internal=internal)
             frame = np.asarray(xyz, dtype=float).copy()
             return [frame], [-1.0], True, "test-version"
 
@@ -622,11 +624,15 @@ def test_shared_ts_fmax_is_passed_to_selected_optimizer_and_recorded(
     result = run_neb(
         ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
         ts_optimizer=optimizer, ts_fmax=0.02, sella_fmax=0.04,
+        sella_internal_coordinates=(optimizer == "sella"),
     )
     assert observed["fmax"] == 0.02
+    assert observed.get("internal", False) is (optimizer == "sella")
     assert result["effective_ts_convergence"]["fmax_ev_per_angstrom"] == 0.02
     assert result["parameters"]["ts_fmax"] == 0.02
     assert "sella_fmax" not in result["parameters"]
+    if optimizer == "sella":
+        assert result["parameters"]["sella_internal_coordinates"] is True
     _, optimized, _ = read_xyz(tmp_path / "ts_optimized.xyz")
     np.testing.assert_array_equal(optimized, coordinates)
 
@@ -913,6 +919,7 @@ def test_stage_handoff_rejects_modified_artifacts_and_different_methods(tmp_path
     summary_path = tmp_path / "ts_summary.json"
     historical_summary = json.loads(summary_path.read_text())
     historical_summary["qc_params"].pop("xtb_model")
+    historical_summary["qc_params"].update({"method": "BP86", "basis": "def2-SVP"})
     summary_path.write_text(json.dumps(historical_summary))
     assert _load_stage(tmp_path, "ts", calculator)["ts_optimization_converged"]
     parallel = SimpleNamespace(qc_params=dict(calculator.qc_params, nprocs=8))
@@ -935,6 +942,8 @@ def test_xtb_model_is_physical_provenance_and_controls_stage_reuse(
     summary_path = tmp_path / "ts_summary.json"
     summary = json.loads(summary_path.read_text())
     assert summary["qc_params"]["xtb_model"] == "gxtb"
+    assert "method" not in summary["qc_params"]
+    assert "basis" not in summary["qc_params"]
     assert summary["backend_model"] == "g-xTB (--gxtb)"
 
     # The unchanged model permits a downstream stage to consume the TS stage.
@@ -956,6 +965,8 @@ def test_xtb_model_is_physical_provenance_and_controls_stage_reuse(
     )
     gfn2_summary = json.loads((gfn2_output / "ts_summary.json").read_text())
     assert gfn2_summary["qc_params"]["xtb_model"] == "gfn2"
+    assert "method" not in gfn2_summary["qc_params"]
+    assert "basis" not in gfn2_summary["qc_params"]
     assert gfn2_summary["backend_model"] == "GFN2-xTB (--gfn 2)"
 
 
@@ -991,6 +1002,11 @@ def fake_path_backend(monkeypatch):
 
     def frequency(symbols, coordinates, calculator, output, label, threshold):
         calls.append(f"frequency_{label}")
+        calculator.backend_energy_gradient_evaluations = (
+            getattr(calculator, "backend_energy_gradient_evaluations", 0) + 2
+        )
+        if "frequency_exception" in failures:
+            raise RuntimeError("fixture frequency failure after backend calls")
         np.savetxt(output / f"{label}_hessian.txt", np.eye(3 * len(symbols)))
         (output / f"{label}_frequencies.vdata").write_text("frequency data")
         return {"first_order_saddle_confirmed": label == "ts" and "frequency_ts" not in failures,
@@ -1455,6 +1471,20 @@ def test_failed_frequency_gate_prevents_irc_and_preserves_failed_status(tmp_path
     assert json.loads((tmp_path / "irc_summary.json").read_text())["status"] == "failed"
 
 
+def test_failed_stage_summary_retains_provider_calls_and_elapsed_time(tmp_path, fake_path_backend):
+    _, failures = fake_path_backend
+    failures.add("frequency_exception")
+    with pytest.raises(RuntimeError, match="after backend calls"):
+        run_neb(
+            ts_geometry=DATA / "guess.xyz", software="xtb", stage="frequency",
+            output=tmp_path,
+        )
+    summary = json.loads((tmp_path / "frequency_summary.json").read_text())
+    assert summary["status"] == "failed"
+    assert summary["backend_energy_gradient_evaluations"] == 2
+    assert summary["wall_seconds"] >= 0
+
+
 @pytest.mark.parametrize("failure", ["neb", "no_interior_maximum"])
 def test_invalid_neb_does_not_launch_ts(tmp_path, fake_path_backend, failure):
     calls, failures = fake_path_backend
@@ -1502,6 +1532,9 @@ def test_frequency_index_alone_does_not_establish_stationarity(tmp_path):
     calculator = HarmonicCalculator(coordinates + [0.1, 0., 0.])
     result = _frequency(symbols, coordinates, calculator, tmp_path, "test", 20.)
     assert result["imaginary_frequency_count"] == 0
+    assert result["hessian_source"] == "finite_difference_cartesian"
+    assert result["hessian_evaluations"] is None
+    assert result["hessian_wall_seconds"] >= 0
     assert not result["stationary"]
     assert not result["minimum_confirmed"]
 
@@ -1513,3 +1546,116 @@ def test_numerically_linear_geometry_retains_both_bending_modes(tmp_path):
     result = _frequency(symbols, distorted, HarmonicCalculator(geometry), tmp_path, "test", 20.)
     assert 0 < result["linear_geometry_correction_angstrom"] < 1e-5
     assert len(result["frequencies_cm-1"]) == 4
+
+
+def test_split_endpoint_stages_validate_without_reoptimizing_or_mutating_upstream(tmp_path, fake_path_backend):
+    import hashlib
+    run_neb(DATA / 'hcn.xyz', DATA / 'hnc.xyz', DATA / 'guess.xyz', software='xtb', output=tmp_path)
+    calls, _ = fake_path_backend
+    calls.clear()
+    relaxed = run_neb(software='xtb', output=tmp_path, stage='endpoint-relax')
+    assert calls == ['irc_forward_relaxed', 'irc_backward_relaxed']
+    assert not relaxed['endpoint_frequencies_evaluated']
+    assert not relaxed['reactant_product_connection_confirmed']
+    snapshots = {path: hashlib.sha256(path.read_bytes()).hexdigest() for path in (
+        tmp_path / 'endpoint-relax_summary.json', tmp_path / 'irc_forward_relaxed.xyz',
+        tmp_path / 'irc_backward_relaxed.xyz')}
+    calls.clear()
+    verified = run_neb(software='xtb', output=tmp_path, stage='endpoint-frequency')
+    assert calls == ['frequency_irc_forward_relaxed', 'frequency_irc_backward_relaxed']
+    assert verified['endpoint_frequencies_evaluated']
+    assert verified['reactant_product_connection_confirmed']
+    assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in snapshots.items())
+    calls.clear()
+    cached = run_neb(software='xtb', output=tmp_path, stage='endpoint-frequency', reuse=True)
+    assert cached == verified
+    assert calls == []
+
+
+def test_stage_reuse_rejects_changed_optimizer_parameters(tmp_path, fake_path_backend):
+    run_neb(DATA / 'hcn.xyz', DATA / 'hnc.xyz', DATA / 'guess.xyz', software='xtb', output=tmp_path)
+    calls, _ = fake_path_backend
+    calls.clear()
+    run_neb(software='xtb', output=tmp_path, stage='ts', reuse=True)
+    assert calls == []
+    run_neb(software='xtb', output=tmp_path, stage='ts', ts_fmax=0.02, reuse=True)
+    assert calls == ['ts']
+
+
+def test_split_endpoint_frequency_requires_converged_endpoint_optimizations(tmp_path, fake_path_backend):
+    run_neb(DATA / 'hcn.xyz', DATA / 'hnc.xyz', DATA / 'guess.xyz', software='xtb', output=tmp_path)
+    calls, failures = fake_path_backend
+    failures.add('irc_backward_relaxed')
+    run_neb(software='xtb', output=tmp_path, stage='endpoint-relax')
+    calls.clear()
+    with pytest.raises(ValueError, match='scientifically invalid endpoint-relax'):
+        run_neb(software='xtb', output=tmp_path, stage='endpoint-frequency')
+    assert not any(call.startswith('frequency_') for call in calls)
+
+
+@pytest.mark.parametrize('through', ['scan', 'neb', 'ts', 'frequency', 'endpoints', 'all'])
+def test_scan_workflow_continues_using_standardized_neb_handoff(tmp_path, fake_path_backend, monkeypatch, through):
+    import importlib
+    from pyar.backends.orca_scan import OrcaBondScanResult
+    from pyar.core.molecule import Molecule as PyarMolecule
+    workflow = importlib.import_module('pyar.workflows.scan_bond')
+    symbols, hcn, _ = read_xyz(DATA / 'hcn.xyz')
+    _, hnc, _ = read_xyz(DATA / 'hnc.xyz')
+    _, guess, _ = read_xyz(DATA / 'guess.xyz')
+    fragment_a, fragment_b = tmp_path / 'H.xyz', tmp_path / 'CN.xyz'
+    _write_xyz_trajectory(fragment_a, symbols[:1], [hcn[:1]], [-1.])
+    _write_xyz_trajectory(fragment_b, symbols[1:], [hcn[1:]], [-1.])
+    orientation = PyarMolecule(symbols, hcn, fragments=[[0], [1, 2]])
+    monkeypatch.setattr(workflow, '_make_orientations', lambda *args: [(0, orientation, None)])
+    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: {})
+    scan_calls, scan_results = [], []
+    def scan(molecule, request, directory, qc_params):
+        scan_calls.append(request)
+        directory.mkdir(parents=True, exist_ok=True)
+        frames = [hcn, guess, hnc]
+        profile = [{'target_distance_angstrom': float(np.linalg.norm(frame[0] - frame[1])),
+                    'energy_hartree': energy} for frame, energy in zip(frames, [-1., 0., -1.])]
+        trajectory, final = directory / 'scan_trajectory.xyz', directory / 'final_scan.xyz'
+        _write_xyz_trajectory(trajectory, symbols, frames, [-1., 0., -1.])
+        _write_xyz_trajectory(final, symbols, [hnc], [-1.])
+        recovered = OrcaBondScanResult(True, trajectory, final, hnc, directory / 'request.json',
+                                  directory / 'summary.json', 'success',
+                                  [(symbols, frame, '') for frame in frames], profile)
+        scan_results.append(recovered)
+        return recovered
+    monkeypatch.setattr('pyar.backends.bond_scan.run_bond_scan', scan)
+    monkeypatch.setattr('pyar.backends.bond_scan.load_bond_scan_result', lambda *args: scan_results[-1])
+    result = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 1, {'software': 'xtb'},
+                                    tmp_path / 'scan', scan_points=3, through=through)
+    row = result['results'][0]
+    assert len(scan_calls) == 1
+    assert row['scan_status'] == 'success'
+    calls, _ = fake_path_backend
+    assert ('neb' in calls) == (through != 'scan')
+    assert ('ts' in calls) == (through not in {'scan', 'neb'})
+    assert ('frequency_ts' in calls) == (through not in {'scan', 'neb', 'ts'})
+    assert ('frequency_irc_forward_relaxed' in calls) == (through == 'all')
+    assert row.get('reactant_product_connection_confirmed', False) == (through == 'all')
+    if through not in {'scan', 'neb'}:
+        _, optimized, _ = read_xyz(tmp_path / 'scan' / 'orientation_000' / 'reaction_path' / 'ts_optimized.xyz')
+        np.testing.assert_allclose(optimized, guess)
+
+    if through == 'neb':
+        previous_calls = len(calls)
+        extended = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 1, {'software': 'xtb'},
+                                          tmp_path / 'scan', scan_points=3, through='all')
+        assert len(scan_calls) == 1
+        assert 'neb' not in calls[previous_calls:]
+        assert 'reactant' not in calls[previous_calls:]
+        assert extended['results'][0]['reactant_product_connection_confirmed']
+
+
+def test_stage_reuse_respects_new_explicit_input(tmp_path, fake_path_backend):
+    run_neb(DATA / 'hcn.xyz', DATA / 'hnc.xyz', DATA / 'guess.xyz', software='xtb', output=tmp_path)
+    replacement = tmp_path / 'different_ts_input.xyz'
+    replacement.write_text((DATA / 'guess.xyz').read_text())
+    calls, _ = fake_path_backend
+    calls.clear()
+    result = run_neb(software='xtb', output=tmp_path, stage='ts', ts_geometry=replacement, reuse=True)
+    assert calls == ['ts']
+    assert str(replacement.resolve()) in result['inputs']

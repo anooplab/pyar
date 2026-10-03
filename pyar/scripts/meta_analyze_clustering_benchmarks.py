@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -60,7 +61,8 @@ def _same_basin_labels(reference_path: Path, input_count: int) -> np.ndarray:
     reference = json.loads(reference_path.read_text())
     basin_by_name = {row["name"]: row["basin_id"] for row in reference["structures"]}
     names = [f"frame_{index:04d}" for index in range(input_count)]
-    if any(name not in basin_by_name for name in names):
+    if (len(reference["structures"]) != len(basin_by_name)
+            or set(basin_by_name) != set(names)):
         raise ValueError(f"Reference-basin labels do not cover all input frames in {reference_path}")
     return np.asarray([basin_by_name[name] for name in names], dtype=int)
 
@@ -82,6 +84,9 @@ def analyze_conformers(run_root: Path, data_root: Path):
     confusion_rows, auc_rows, condition_rows = [], [], []
     for dataset in CONFORMERS:
         source_path = data_root / "mpconf196gen" / f"{dataset}_crest_conformers.xyz"
+        manifest = json.loads((run_root / dataset / "manifest.json").read_text())
+        if manifest.get("ensemble_sha256") != hashlib.sha256(source_path.read_bytes()).hexdigest():
+            raise ValueError(f"Source ensemble hash mismatch for {dataset}; labels cannot be paired")
         ensemble = load_ensemble(source_path)
         molecules = [_as_molecule(row["atoms"], row["name"]) for row in ensemble]
         report_path = run_root / dataset / "results" / "comparison.json"

@@ -41,3 +41,27 @@ def test_conservative_water_threshold_returns_none_when_target_is_unattainable()
     feature_distance = np.array([0.1, 0.4, 0.2, 0.3])
 
     assert _conservative_operating_point(reference, feature_distance, 1.1) is None
+
+
+def test_reference_labels_reject_duplicate_frame_names(tmp_path):
+    import json
+    import pytest
+    from pyar.scripts.meta_analyze_clustering_benchmarks import _same_basin_labels
+    path = tmp_path / 'reference.json'
+    path.write_text(json.dumps({'structures': [{'name': 'frame_0000', 'basin_id': 0},
+                                               {'name': 'frame_0000', 'basin_id': 1}]}))
+    with pytest.raises(ValueError, match='do not cover'):
+        _same_basin_labels(path, 1)
+
+
+def test_meta_analysis_rejects_changed_source_before_pairing_labels(tmp_path, monkeypatch):
+    import json
+    import pytest
+    from pyar.scripts import meta_analyze_clustering_benchmarks as analysis
+    monkeypatch.setattr(analysis, 'CONFORMERS', ('fixture',))
+    (tmp_path / 'mpconf196gen').mkdir()
+    (tmp_path / 'mpconf196gen/fixture_crest_conformers.xyz').write_text('changed')
+    (tmp_path / 'fixture').mkdir()
+    (tmp_path / 'fixture/manifest.json').write_text(json.dumps({'ensemble_sha256': 'old'}))
+    with pytest.raises(ValueError, match='Source ensemble hash mismatch'):
+        analysis.analyze_conformers(tmp_path, tmp_path)
