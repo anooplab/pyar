@@ -185,3 +185,15 @@ Outputs include ``neb_path.xyz``, ``ts_optimized.xyz``, ``frequency_geometry.xyz
 ``irc_forward_relaxed.xyz`` / ``irc_backward_relaxed.xyz`` with their Hessians
 and frequency files. Iteration-limit trajectories are retained, but do not count
 as converged. The CLI exits nonzero when its requested scientific validation fails.
+
+
+Separate endpoint stages
+------------------------
+
+The existing ``--stage endpoints`` still performs both endpoint optimizations
+and frequency checks. For incremental workflows, ``--stage endpoint-relax``
+optimizes both IRC endpoints without claiming minima or reaction confirmation;
+``--stage endpoint-frequency`` then validates those saved geometries with
+frequencies and endpoint matching, without optimizing again. Both stages use
+the same physical provenance and artifact/dependency validation as the other
+reaction-path stages. ``scan-bond --through all`` uses these separate stages.

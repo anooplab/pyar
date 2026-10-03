@@ -4,14 +4,15 @@ Reaction Search
 Bond scan
 ---------
 
-For an ORCA-only relaxed scan along selected atoms, use fragment-local
-zero-based indices. The scan is followed by an unconstrained ORCA relaxation:
+For a relaxed scan along selected atoms, use fragment-local zero-based
+indices. ORCA uses a native scan; xTB, Gaussian and AIMNet2 use constrained
+geomeTRIC scans:
 
 .. code-block:: bash
 
    pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 --software orca -N 4
 
-ORCA is the only scan-bond backend at present and is the default. DFT methods
+ORCA remains the default scan-bond backend. DFT methods
 require an explicit ``--basis``; xTB methods such as ``GFN2-xTB`` do not:
 
 .. code-block:: bash
@@ -31,7 +32,10 @@ The default endpoint is 0.8 times the sum of the selected atoms' PyAR covalent
 radii and the default spacing is 0.10 Angstrom. Use ``--scan-end`` and either
 ``--scan-step`` or ``--scan-points`` to override them. Results are written to
 ``scan_bond/`` with raw ORCA files, scan trajectories, relaxed structures, and
-``request.json``/``summary.json``/``summary.csv`` provenance.
+``request.json``/``summary.json``/``summary.csv`` provenance. The CLI defaults
+to scan only. ``--through neb``, ``ts``, ``frequency``, ``irc``, ``endpoints``,
+``endpoint-frequency`` or ``all`` extend through the corresponding reaction
+stages. See :doc:`bond_scan` for the cumulative modes and validation gates.
 
 Use reaction search when you want PyAR to explore possible bond formation,
 bond rearrangement, or close-contact reaction candidates between two input

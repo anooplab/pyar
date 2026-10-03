@@ -1,4 +1,4 @@
-"""ORCA-only relaxed bond-scan workflow."""
+"""Relaxed bond scans and optional validated reaction-path continuation."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def _fragment_signature(molecule):
             "charge": molecule.charge, "multiplicity": molecule.multiplicity, "scftype": molecule.scftype}
 
 
-def _write_scan_profile(directory, frames, profile):
+def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxscanact.dat"):
     """Write a normalized energy profile and scan-maximum geometry candidates."""
     if len(frames) != len(profile) or not profile:
         raise ValueError("scan geometry and energy point counts do not match")
@@ -89,7 +89,7 @@ def _write_scan_profile(directory, frames, profile):
         writer.writerows(profile_rows)
     json_path = directory / "scan_profile.json"
     json_path.write_text(json.dumps({
-        "energy_source": "scan.relaxscanact.dat",
+        "energy_source": energy_source,
         "relative_energy_reference_scan_index": 1,
         "points": profile_rows,
     }, indent=2, sort_keys=True))
@@ -112,7 +112,7 @@ def _write_scan_profile(directory, frames, profile):
             candidate_files[label] = str(candidate_path)
     maximum_energy = profile[maximum_frame]["energy_hartree"]
     maximum_metadata = {
-        "energy_source": "scan.relaxscanact.dat",
+        "energy_source": energy_source,
         "maximum_scan_index": maximum_frame + 1,
         "maximum_frame_index": maximum_frame,
         "maximum_target_distance_angstrom": profile[maximum_frame]["target_distance_angstrom"],
@@ -127,7 +127,7 @@ def _write_scan_profile(directory, frames, profile):
     return {
         "scan_profile_csv": str(csv_path),
         "scan_profile_json": str(json_path),
-        "scan_energy_source": "scan.relaxscanact.dat",
+        "scan_energy_source": energy_source,
         **maximum_metadata,
         "ts_candidate_metadata": str(metadata_path),
     }
@@ -176,10 +176,30 @@ def _make_orientations(fragment_a, fragment_b, n, local_i, local_j):
 
 
 def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
-                  scan_end=None, scan_step=None, scan_points=None):
-    """Run the complete ORCA scan/relaxation workflow."""
-    if str(qc_params.get("software", "orca")).lower() != "orca":
-        raise ValueError("scan-bond currently supports only the ORCA backend")
+                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None):
+    """Run a scan, optionally continuing through a named reaction-path stage.
+
+    ``through=None`` preserves the original Python scan-plus-relaxation API.
+    Explicit ``through="scan"`` performs only the constrained scan.
+    """
+    from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
+    from pyar.backends.bond_scan import run_bond_scan, load_bond_scan_result
+    from pyar.workflows.scan_path import validate_continuation, continue_scan_paths
+
+    software = normalize_backend_name(qc_params.get("software", "orca"))
+    if software not in supported_geometry_backends():
+        raise ValueError(f"scan-bond requires an energy/gradient backend; unsupported: {software}")
+    qc_params = dict(qc_params, software=software)
+    if software == "xtb":
+        from pyar.backends.xtb_utils import canonical_xtb_model
+        qc_params["xtb_model"] = canonical_xtb_model(qc_params.get("xtb_model"))
+    if through is not None:
+        validate_continuation(through, reaction_options or {})
+        if software == "orca" and through != "scan":
+            from pyar.backends.orca_methods import orca_method
+            if orca_method(qc_params.get("method", "BP86"))[0] == "g-xTB":
+                raise ValueError("ORCA external g-xTB supports native scanning only; "
+                                 "use software=xtb, xtb_model=gxtb for continuation")
     if isinstance(orientations, bool) or int(orientations) != orientations or orientations < 1:
         raise ValueError("orientation count must be a positive integer")
     if scan_end is not None and (not math.isfinite(float(scan_end)) or scan_end <= 0):
@@ -220,7 +240,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
          "generation_error": generation_error}
         for index, orientation, generation_error in orientation_items
     ]
-    root = Path(output_dir)
+    root = Path(output_dir).resolve()
     request = {
         "schema_version": 2,
         "inputs": {"A": str(input_a), "B": str(input_b)},
@@ -255,6 +275,11 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     request_temp.replace(request_path)
     results = []
     def save_result(directory, result):
+        if result.get("status") == "scan_success_relax_success":
+            result["completed_artifact_hashes"] = {
+                str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in completed_artifacts if path.is_file()
+            }
         (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
 
     for index, orientation, generation_error in orientation_items:
@@ -270,6 +295,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             except (OSError, json.JSONDecodeError):
                 previous_result = None
         completed_artifacts = (
+            directory / "start.xyz",
             directory / "result_relaxed.xyz",
             scan_dir / "final_scan.xyz",
             scan_dir / "scan_trajectory.xyz",
@@ -280,7 +306,11 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         )
         if (previous_result
                 and previous_result.get("status") == "scan_success_relax_success"
-                and all(path.is_file() for path in completed_artifacts)):
+                and all(path.is_file() for path in completed_artifacts)
+                and previous_result.get("completed_artifact_hashes") == {
+                    str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+                    for path in completed_artifacts
+                }):
             results.append(previous_result)
             continue
         if orientation is None:
@@ -303,10 +333,12 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         request_model = OrcaBondScanRequest(absolute_i, absolute_j, start_distance, end_distance, n_points)
         scan = None
         if previous_result and previous_result.get("scan_status") == "success":
-            scan = load_orca_bond_scan_result(orientation, request_model, scan_dir)
+            scan = (load_orca_bond_scan_result if software == "orca" else load_bond_scan_result)(
+                orientation, request_model, scan_dir)
         if scan is None or not scan.success:
             try:
-                scan = run_orca_bond_scan(orientation, request_model, scan_dir, qc_params)
+                scan = (run_orca_bond_scan if software == "orca" else run_bond_scan)(
+                    orientation, request_model, scan_dir, qc_params)
             except Exception as exc:
                 result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
                           "error": str(exc), "target_distance_start_angstrom": start_distance,
@@ -330,10 +362,18 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                     f"scan returned {len(scan.frames or [])} geometries and "
                     f"{len(scan.profile or [])} energies; expected {n_points} points"
                 )
-            result.update(_write_scan_profile(scan_dir, scan.frames, scan.profile))
+            result.update(_write_scan_profile(
+                scan_dir, scan.frames, scan.profile,
+                "scan.relaxscanact.dat" if software == "orca" else "scan_summary.json"))
         except Exception as exc:
             result["status"] = "scan_success_analysis_failed"
             result["error"] = str(exc)
+            save_result(directory, result)
+            results.append(result)
+            continue
+        if through is not None:
+            result["status"] = "scan_success"
+            result["requested_through"] = through
             save_result(directory, result)
             results.append(result)
             continue
@@ -351,7 +391,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         old_cwd = Path.cwd()
         try:
             os.chdir(relax_run_dir)
-            relax_status = optimise(relaxed, dict(qc_params, geometry_optimizer="native", gamma=0.0))
+            relax_status = optimise(relaxed, dict(
+                qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0))
         except Exception as exc:
             result["status"] = "scan_success_relax_failed"
             result["error"] = str(exc)
@@ -404,9 +445,18 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             result["status"] = "scan_success_relax_failed"
         save_result(directory, result)
         results.append(result)
+    if through not in (None, "scan"):
+        continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
     (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
     with (root / "summary.csv").open("w", newline="") as handle:
         fields = sorted({key for result in results for key in result})
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader(); writer.writerows(results)
-    return {"workflow": "scan-bond", "output_dir": str(root), "results": results}
+    if through is None:
+        complete = all(row.get("status") == "scan_success_relax_success" for row in results)
+    elif through == "scan":
+        complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"} for row in results)
+    else:
+        complete = all(row.get("continuation_status") == "complete" for row in results)
+    return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
+            "status": "complete" if complete else "failed", "requested_through": through}

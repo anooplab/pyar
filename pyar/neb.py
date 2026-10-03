@@ -20,11 +20,15 @@ from pyar.backends.xtb_utils import canonical_xtb_model
 
 
 STAGES = ("relax", "neb", "ts", "frequency", "irc", "endpoints")
+_SPLIT_ENDPOINT_STAGES = ("endpoint-relax", "endpoint-frequency")
 _STAGE_OPTIONS = {
     "relax": ("product_relaxation_fmax", "product_relaxation_max_steps"),
     "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
             "interpolation", "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter"),
-    "ts": ("ts_max_cycles", "ts_optimizer", "ts_fmax", "sella_fmax"),
+    "ts": ("ts_max_cycles", "ts_optimizer", "ts_fmax", "sella_fmax",
+           "sella_internal_coordinates"),
+    "endpoint-relax": ("endpoint_max_cycles",),
+    "endpoint-frequency": ("imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"),
     "frequency": ("imaginary_frequency_threshold",),
     "irc": ("irc_max_cycles",),
     "endpoints": ("endpoint_max_cycles", "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"),
@@ -40,7 +44,7 @@ _NEB_COMMON_PARAMETERS = (
 _IDPP_PARAMETERS = ("idpp_fmax", "idpp_steps")
 _GEODESIC_PARAMETERS = ("geodesic_tol", "geodesic_max_iter")
 _TS_SHARED_PARAMETERS = ("ts_max_cycles",)
-_TS_SELLA_PARAMETERS = ("sella_fmax",)
+_TS_SELLA_PARAMETERS = ("sella_fmax", "sella_internal_coordinates")
 _NEB_PARAMETER_KEYS = frozenset(
     (*_NEB_COMMON_PARAMETERS, "interpolation", *_IDPP_PARAMETERS, *_GEODESIC_PARAMETERS)
 )
@@ -52,6 +56,8 @@ _STAGE_GATES = {
     "frequency": ("first_order_saddle_confirmed",),
     "irc": ("irc_converged",),
     "endpoints": ("reactant_product_connection_confirmed",),
+    "endpoint-relax": ("forward_optimization_converged", "backward_optimization_converged"),
+    "endpoint-frequency": ("reactant_product_connection_confirmed",),
 }
 
 
@@ -338,6 +344,9 @@ def canonical_ts_parameters(parameters):
     optimizer = values.get("ts_optimizer", "geometric")
     if optimizer not in {"geometric", "sella"}:
         raise ValueError("ts_optimizer must be 'geometric' or 'sella'")
+    sella_internal = values.get("sella_internal_coordinates", False)
+    if not isinstance(sella_internal, (bool, np.bool_)):
+        raise ValueError("sella_internal_coordinates must be a boolean")
     canonical = {key: values[key] for key in _TS_SHARED_PARAMETERS if key in values}
     canonical["ts_optimizer"] = optimizer
     ts_fmax = values.get("ts_fmax")
@@ -362,6 +371,8 @@ def canonical_ts_parameters(parameters):
         if not np.isfinite(sella_fmax) or sella_fmax <= 0:
             raise ValueError("sella_fmax must be positive and finite (eV/angstrom)")
         canonical["sella_fmax"] = sella_fmax
+    if optimizer == "sella" and sella_internal:
+        canonical["sella_internal_coordinates"] = True
     return canonical
 
 
@@ -716,7 +727,7 @@ def _sella_api():
     return Sella, installed_version
 
 
-def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax):
+def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax, *, internal=False):
     """Optimize a TS candidate with Sella using PyAR's unbiased ASE calculator."""
     from ase import Atoms
     from ase.units import Hartree
@@ -731,7 +742,7 @@ def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax):
         energies.append(float(atoms.get_potential_energy()) / Hartree)
 
     try:
-        optimizer = Sella(atoms, logfile=None, order=1, internal=False)
+        optimizer = Sella(atoms, logfile=None, order=1, internal=internal)
         optimizer.attach(record_frame, interval=1)
         converged = bool(optimizer.run(fmax=fmax, steps=max_steps))
         steps = getattr(optimizer, "nsteps", None)
@@ -880,7 +891,7 @@ def _execute_stage(stage, output, calculator, options):
     # Optimizer choices describe how a TS was produced. Once the TS summary
     # and its hashes are validated, downstream scientific stages consume the
     # artifact independently of the optimizer currently selected or installed.
-    if options["stage"] in {"frequency", "irc", "endpoints"}:
+    if options["stage"] in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
         expected_by_stage["ts"] = None
 
     def load(stage_name):
@@ -1016,9 +1027,15 @@ def _execute_stage(stage, output, calculator, options):
             else None
         )
         if options["ts_optimizer"] == "sella":
-            frames, energies, converged, sella_version = _optimize_sella(
-                symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
-            )
+            if options["sella_internal_coordinates"]:
+                frames, energies, converged, sella_version = _optimize_sella(
+                    symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
+                    internal=True,
+                )
+            else:
+                frames, energies, converged, sella_version = _optimize_sella(
+                    symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
+                )
             _write_xyz_trajectory(output / "ts_path.xyz", symbols, frames, energies)
         else:
             frames, energies, converged = _optimize_geometry(
@@ -1083,8 +1100,13 @@ def _execute_stage(stage, output, calculator, options):
         return save(result, [output / "frequency_geometry.xyz", output / "ts_hessian.txt"],
                     artifacts + ["irc_path.xyz"], ["frequency"])
 
-    if stage == "endpoints":
+    if stage in {"endpoints", *_SPLIT_ENDPOINT_STAGES}:
         irc = load("irc")
+        if stage in _SPLIT_ENDPOINT_STAGES and not _stage_gate_passed(irc, "irc"):
+            raise ValueError("Endpoint stages require two converged IRC branches")
+        endpoint_relaxation = load("endpoint-relax") if stage == "endpoint-frequency" else None
+        if endpoint_relaxation is not None and not _stage_gate_passed(endpoint_relaxation, "endpoint-relax"):
+            raise ValueError("Cannot validate scientifically invalid endpoint-relax; rerun endpoint relaxation")
         load("relax")
         symbols, reactant, _ = read_xyz(start_path)
         end_symbols, product, _ = read_xyz(end_path)
@@ -1097,21 +1119,41 @@ def _execute_stage(stage, output, calculator, options):
             if symbols != branch_symbols:
                 raise ValueError("IRC atom order differs from relaxed endpoints")
             label = f"irc_{direction}_relaxed"
-            frames, energies, converged = _optimize_geometry(
-                symbols, geometry, calculator, output, label, options["endpoint_max_cycles"],
-            )
+            if endpoint_relaxation is not None:
+                branch_symbols, final_geometry, final_energy = read_xyz(output / f"{label}.xyz")
+                if branch_symbols != symbols:
+                    raise ValueError("Optimized IRC endpoint atom order differs")
+                frames, energies = [final_geometry], [final_energy]
+                converged = endpoint_relaxation[f"{direction}_optimization_converged"]
+            else:
+                frames, energies, converged = _optimize_geometry(
+                    symbols, geometry, calculator, output, label, options["endpoint_max_cycles"],
+                )
             # Topology is free to change here: classify the actual final minimum.
             observed.append(frames[-1])
-            _write_xyz_trajectory(output / f"{label}.xyz", symbols, [frames[-1]], [energies[-1]])
+            if endpoint_relaxation is None:
+                _write_xyz_trajectory(output / f"{label}.xyz", symbols, [frames[-1]], [energies[-1]])
             result[f"{direction}_optimization_converged"] = converged
             result[f"{direction}_topology_changed_on_relaxation"] = _bond_set(symbols, geometry) != _bond_set(symbols, frames[-1])
+            if stage == "endpoint-relax":
+                artifacts.extend([f"{label}.xyz", f"{label}_path.xyz"])
+                inputs.append(path)
+                continue
             verification = _frequency(symbols, frames[-1], calculator, output, label,
                                       options["imaginary_frequency_threshold"])
             observed[-1] = np.asarray(verification["evaluated_coordinates_angstrom"])
-            _write_xyz_trajectory(output / f"{label}.xyz", symbols, [observed[-1]], [verification["energy_hartree"]])
+            verified_label = f"{label}_verified" if endpoint_relaxation is not None else label
+            _write_xyz_trajectory(output / f"{verified_label}.xyz", symbols, [observed[-1]], [verification["energy_hartree"]])
             result[f"{direction}_frequency"] = verification
-            artifacts.extend([f"{label}.xyz", f"{label}_path.xyz", f"{label}_hessian.txt", f"{label}_frequencies.vdata"])
+            artifacts.extend([f"{verified_label}.xyz", f"{label}_hessian.txt", f"{label}_frequencies.vdata"])
+            if endpoint_relaxation is None:
+                artifacts.append(f"{label}_path.xyz")
             inputs.append(path)
+        if stage == "endpoint-relax":
+            result["endpoint_frequencies_evaluated"] = False
+            result["reactant_product_connection_confirmed"] = False
+            return save(result, inputs, artifacts, ["irc", "relax"])
+        result["endpoint_frequencies_evaluated"] = True
         result.update(_match_endpoints(symbols, observed, [reactant, product], options["irc_endpoint_rmsd_tolerance"]))
         result["endpoints_are_minima"] = all(
             result[f"{direction}_optimization_converged"] and result[f"{direction}_frequency"]["minimum_confirmed"]
@@ -1125,7 +1167,8 @@ def _execute_stage(stage, output, calculator, options):
             and result["observed_endpoints_distinct"]
             and result["irc_endpoint_connectivities_match"] and result["irc_endpoint_geometries_match"]
         )
-        return save(result, inputs, artifacts, ["irc", "relax"])
+        return save(result, inputs, artifacts,
+                    ["endpoint-relax", "relax"] if endpoint_relaxation is not None else ["irc", "relax"])
     raise ValueError(f"Unknown stage: {stage}")
 
 
@@ -1139,13 +1182,14 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                           endpoint_max_cycles=300, reuse_legacy_summaries=False,
                           interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
                           geodesic_tol=0.002, geodesic_max_iter=15,
-                          ts_optimizer="geometric", ts_fmax=None, sella_fmax=0.05):
+                          ts_optimizer="geometric", ts_fmax=None, sella_fmax=0.05,
+                          sella_internal_coordinates=False, backend_options=None, reuse=False):
     from pyar.backends.geometric import PyarGeometricCalculator
 
     options = dict(locals())
     options["geodesic_interpolate_version"] = None
     output = Path(output).resolve()
-    if stage not in ("all",) + STAGES:
+    if stage not in ("all",) + STAGES + _SPLIT_ENDPOINT_STAGES:
         raise ValueError(f"Unknown stage: {stage}")
     if stage in {"all", "relax"} and (start is None or end is None):
         raise ValueError("This stage requires --start and --end")
@@ -1161,7 +1205,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
         "neb": {"neb_path.xyz", "ts_guess.xyz"},
         "ts": {"ts_optimized.xyz", "ts_path.xyz"},
         "frequency": {"frequency_geometry.xyz"},
-        "irc": set(), "endpoints": set(),
+        "irc": set(), "endpoints": set(), "endpoint-relax": set(), "endpoint-frequency": set(),
     }
     reserved = set().union(*overwritten.values()) if stage == "all" else overwritten[stage]
     for path in (start, end, ts_guess, ts_geometry):
@@ -1191,16 +1235,61 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             "ts_max_cycles": ts_max_cycles,
             "ts_fmax": ts_fmax,
             "sella_fmax": sella_fmax,
+            "sella_internal_coordinates": sella_internal_coordinates,
         })
     qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
                      basis=basis or defualt_parameters.values["basis"], charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
+    if str(software).lower() == "orca":
+        from pyar.backends.orca_methods import orca_method
+        canonical_method, is_orca_xtb = orca_method(qc_params["method"])
+        qc_params["method"] = canonical_method
+        if is_orca_xtb:
+            qc_params["basis"] = None
     if str(software).lower() == "xtb":
         qc_params["xtb_model"] = canonical_xtb_model(xtb_model)
+    if backend_options:
+        allowed = {"scf_cycles", "scftype"}
+        if set(backend_options) - allowed:
+            raise ValueError("Unsupported backend_options; supported keys: scf_cycles, scftype")
+        qc_params.update(backend_options)
     calculator = PyarGeometricCalculator(qc_params=qc_params)
     stages = STAGES if stage == "all" else (stage,)
     results = {"reactant_product_connection_confirmed": False}
     for current in stages:
+        if reuse and (output / f"{current}_summary.json").is_file():
+            expected = {name: {key: options[key] for key in keys}
+                        for name, keys in _STAGE_OPTIONS.items()}
+            expected["neb"] = canonical_neb_parameters(expected["neb"])
+            expected["ts"] = canonical_ts_parameters(expected["ts"])
+            if stage in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
+                expected["ts"] = None
+            try:
+                cached = _load_stage(output, current, calculator,
+                                     expected_parameters=expected[current], expected_by_stage=expected,
+                                     expected_geodesic_version=options.get("geodesic_interpolate_version"))
+            except (ValueError, KeyError, OSError, json.JSONDecodeError):
+                cached = None
+            if cached is not None:
+                requested_inputs = (
+                    [start, end] if current == "relax"
+                    else [ts_guess] if current == "neb"
+                    else [ts_geometry or ts_guess] if current == "ts" and stage != "all"
+                    else [ts_geometry] if current == "frequency"
+                    else []
+                )
+                # Valid old artifacts do not justify reusing a stage when the
+                # caller explicitly supplied a different starting structure.
+                if any(str(Path(path).resolve()) not in cached["inputs"]
+                       for path in requested_inputs if path is not None):
+                    cached = None
+            if cached is not None:
+                if stage != "all":
+                    return cached
+                results[current] = cached
+                results["reactant_product_connection_confirmed"] = bool(
+                    cached.get("reactant_product_connection_confirmed", False))
+                continue
         _write_json(output / f"{current}_summary.json", {"stage": current, "status": "running"})
         stage_started = time.perf_counter()
         evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
@@ -1258,7 +1347,7 @@ def run_neb(start=None, end=None, ts_guess=None, **kwargs):
 
 def _build_parser():
     parser = argparse.ArgumentParser(prog="pyar-neb", description="Run unbiased geomeTRIC reaction-path stages.")
-    parser.add_argument("--stage", choices=("all",) + STAGES, default="all")
+    parser.add_argument("--stage", choices=("all",) + STAGES + _SPLIT_ENDPOINT_STAGES, default="all")
     parser.add_argument(
         "--reuse-legacy-summaries", action="store_true",
         help="verify and reuse schema-1 stage files; their original stage options were not recorded",
@@ -1306,6 +1395,8 @@ def _build_parser():
                         help="optional shared TS force convergence in eV/angstrom for geomeTRIC and Sella")
     parser.add_argument("--sella-fmax", type=float, default=0.05,
                         help="Sella force convergence in eV/angstrom (used only with --ts-optimizer sella)")
+    parser.add_argument("--sella-internal-coordinates", action="store_true",
+                        help="use internal coordinates for Sella TS optimization")
     parser.add_argument("--irc-max-cycles", type=int, default=200)
     parser.add_argument("--endpoint-max-cycles", type=int, default=300)
     parser.add_argument("--imaginary-frequency-threshold", type=float, default=20.0)
