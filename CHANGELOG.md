@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.4.0 - 2026-10-03
+
 ### Added
 
 - Added energy/gradient backend support to relaxed bond scans and cumulative
@@ -110,12 +112,12 @@
 - Split structural feature construction from cluster-label assignment and
   seed selection. Aggregate workflows and ``pyar-clustering`` now expose MBTR,
   SOAP, and distance-histogram features, plus Euclidean, Manhattan, and cosine
-  distance metrics with feature/algorithm fallback provenance; the existing
-  hybrid cluster-minima policy remains unchanged.
+  distance metrics with feature/algorithm fallback provenance. The default
+  cluster-label policy is HDBSCAN-first ``auto`` with agglomerative fallback.
 - Replaced the order-dependent RBF grouping with threshold-graph connected
   components, corrected DBSCAN epsilon estimation to use Euclidean distances,
   and made average-linkage agglomerative clustering the deterministic fallback.
-- Hybrid seed selection now keeps only the lowest-energy representative from
+- Cluster-first seed selection keeps only the lowest-energy representative from
   each cluster when there are fewer cluster minima than the requested limit.
   Max-min diversity trims the cluster minima only when there are too many; it
   no longer fills unused seed slots with additional geometries.

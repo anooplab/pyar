@@ -6,3 +6,8 @@ recursive-exclude pyar/mlatom/aiqm1_model *.pt
 include THIRD_PARTY_LICENSES/AIMNet2-LICENSE
 include THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md
 recursive-include benchmarks *.json *.xyz
+
+# These directories contain local benchmark reruns and review fixtures, not
+# distributable benchmark inputs.
+prune benchmarks/clustering_scientific/runs
+prune benchmarks/clustering_scientific/review_20261002
