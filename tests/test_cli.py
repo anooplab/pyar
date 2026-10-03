@@ -368,6 +368,22 @@ class CliSmokeTests(unittest.TestCase):
         self.assertIsNone(qc_params["model"])
         self.assertIsNone(qc_params["nprocs"])
 
+    def test_reaction_xtb_model_reaches_backend_parameters(self):
+        base = ["-r", "a.xyz", "b.xyz", "-N", "8", "--software", "xtb"]
+        for extra, expected in (([], "gxtb"), (["--xtb-model", "gfn2"], "gfn2")):
+            with self.subTest(model=expected):
+                args, run_parameters, run_mode = self._parse_run_parameters(base + extra)
+                qc_params, *_ = self.cli._build_qc_parameters(run_parameters, args, run_mode)
+                self.assertEqual(qc_params["xtb_model"], expected)
+
+    def test_xtb_model_rejects_other_backends(self):
+        args, run_parameters, run_mode = self._parse_run_parameters([
+            "-r", "a.xyz", "b.xyz", "-N", "8", "--software", "orca",
+            "--xtb-model", "gfn2",
+        ])
+        with self.assertRaisesRegex(SystemExit, "requires --software xtb"):
+            self.cli._build_qc_parameters(run_parameters, args, run_mode)
+
     def test_connectivity_policy_rejects_unknown_value(self):
         with self.assertRaises(SystemExit):
             self.cli.argument_parse([

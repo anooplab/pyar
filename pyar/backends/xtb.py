@@ -7,7 +7,7 @@ import sys
 import numpy as np
 
 from pyar.backends import SF, require_executable, write_xyz
-from pyar.backends.xtb_utils import build_xtb_command
+from pyar.backends.xtb_utils import build_xtb_command, canonical_xtb_model, xtb_model_arguments
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
@@ -41,7 +41,16 @@ class Xtb(SF):
             opt_threshold=method['opt_threshold'],
         )
 
-        if xtb_supports_gxtb(self.xtb_executable):
+        if method.get('xtb_model') is not None:
+            xtb_model = canonical_xtb_model(method['xtb_model'])
+            if xtb_model == 'gxtb' and not xtb_supports_gxtb(self.xtb_executable):
+                raise RuntimeError(
+                    f"xTB executable {self.xtb_executable!r} does not advertise --gxtb support; "
+                    "refusing to run a different Hamiltonian as g-xTB"
+                )
+            self.cmd.extend(xtb_model_arguments(xtb_model))
+            xtb_logger.info('Using xTB model %s', xtb_model)
+        elif xtb_supports_gxtb(self.xtb_executable):
             self.cmd.append('--gxtb')
             xtb_logger.info('Using xTB with --gxtb flag')
         else:
