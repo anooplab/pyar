@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "benchmark": "smoke",
+  "input_count": 4,
+  "reference_basin_count": 3,
+  "reference_label": {
+    "method": "independent GFN2-xTB local optimization followed by complete element-labelled coordinate-graph isomorphism plus Kabsch RMSD",
+    "rmsd_threshold_angstrom": 0.35,
+    "incomplete_graph_comparisons": "never merged; retained as separate labels",
+    "charge": 0,
+    "multiplicity": 1
+  },
+  "seed_budget": 1,
+  "conditions": [
+    {
+      "algorithm_requested": "agglomerative",
+      "feature_requested": "mbtr",
+      "runtime_seconds": 0.6266401289976784,
+      "selected_count": 1,
+      "selected_names": [
+        "frame_0000"
+      ],
+      "selected_reference_basin_ids": [
+        0
+      ],
+      "basins_retained": 1,
+      "retention_fraction": 0.3333333333333333,
+      "coverage": {
+        "reference_basin_count": 3,
+        "covered_basins_at_label_threshold": 1,
+        "basin_recall": 0.3333333333333333,
+        "mean_nearest_graph_rmsd_angstrom": 1.151943191659484,
+        "max_nearest_graph_rmsd_angstrom": 2.40290168547162
+      },
+      "diagnostics": {
+        "selection_algorithm_requested": "agglomerative",
+        "algorithm_used": "agglomerative",
+        "feature_requested": "mbtr",
+        "feature_used": "mbtr",
+        "distance_metric": "euclidean",
+        "feature_fallbacks": [],
+        "algorithm_fallbacks": [],
+        "distance_requested": "euclidean",
+        "distance_used": "euclidean",
+        "distance_units": "standardized-feature-units",
+        "distance_fallbacks": [],
+        "input_count": 4,
+        "basin_memory": {
+          "status": "disabled-by-request",
+          "schema_version": 2
+        },
+        "candidate_names": [
+          "frame_0000",
+          "frame_0001",
+          "frame_0002",
+          "frame_0003"
+        ],
+        "candidate_paths": [
+          "frame_0000",
+          "frame_0001",
+          "frame_0002",
+          "frame_0003"
+        ],
+        "algorithm_requested": "agglomerative",
+        "distance_parameters": {},
+        "system_type": "molecular",
+        "system_confidence": "explicit",
+        "policy_reason": "feature explicitly requested; cluster-label algorithm explicitly requested",
+        "topology_group_ids": [],
+        "number_of_structures": 4,
+        "number_of_clusters": 1,
+        "number_of_noise_points": 0,
+        "labels": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "selection_stage": "cluster-minima",
+        "selected_names": [
+          "frame_0000"
+        ],
+        "selected_count": 1
+      },
+      "downstream_optimization": {
+        "successful_terminations": 1,
+        "selected_count": 1,
+        "success_fraction": 1.0,
+        "distinct_reoptimized_basins": 1,
+        "unknown_reference_basin_count": 0,
+        "selected_basins_retained_after_reoptimization": 1,
+        "coordinate_perturbation_sigma_angstrom": 0.1,
+        "perturbation_seed_policy": "input frame index + 90210"
+      }
+    }
+  ]
+}

@@ -19,6 +19,66 @@ pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
 
 ## Supported Workflows
 
+The task-oriented CLI pilot supports clustering:
+
+```bash
+pyar clustering *.xyz
+pyar clustering --help
+```
+
+`pyar-clustering *.xyz` continues to work with the same options, defaults,
+and implementation. The shell expands `*.xyz` into input paths. Other
+workflows continue to use their existing commands.
+
+Optimize every supplied XYZ independently with the same computational settings:
+
+```bash
+pyar optimize *.xyz --backend xtb
+pyar optimize *.xyz --backend xtb --check
+pyar optimize *.xyz --backend orca --method r2scan-3c --nprocs 8
+```
+
+`--check` validates all inputs, electronic states, options, and requirements
+without starting calculations or creating job directories. A backend is always
+explicit. Charge defaults to zero; omitted multiplicity is inferred as singlet
+for even electron counts and doublet for odd counts, separately for each input.
+xTB uses GFN2-xTB without a basis; ORCA/Gaussian/Turbomole use BP86/def2-SVP
+unless overridden (ORCA built-in composite methods supply their own basis).
+Processors default to one and the geometry optimizer to native (geomeTRIC for
+Gaussian, whose existing native adapter emits a single-point route); geomeTRIC is
+available for backends with an existing energy/gradient route.
+
+`pyar-optimiser` remains available with its original options and defaults.
+The modern command performs minimum optimizations only and omits reaction
+bias controls (`--gamma`, `--site`). Options the selected adapter cannot consume
+are rejected rather than silently ignored. Distinct input basenames are required
+because they identify independent optimization jobs.
+
+The modern bond scan uses two XYZ fragments and 0-based, fragment-local atom
+indices, with eight starting orientations by default:
+
+```bash
+pyar scan-bond A.xyz B.xyz --atoms 3 4 --backend xtb
+pyar scan-bond A.xyz B.xyz --atoms 3 4 --backend orca --method BP86 --basis def2-SVP
+pyar scan-bond A.xyz B.xyz --atoms 3 4 --backend xtb --through all
+pyar scan-bond A.xyz B.xyz --atoms 3 4 --backend xtb --through all --check
+```
+
+The backend is explicit; `--orientations` (or `-N`) overrides the orientation
+count. Standalone xTB defaults to GFN2-xTB; `--xtb-model` selects another
+supported model. ORCA retains its existing method/basis and external g-xTB
+wrapper validation. A single charge or multiplicity applies to both fragments;
+two values apply separately. Omitted multiplicities follow electron parity.
+The default `--through scan` stops after the scan. Later stages keep the existing
+continuation controls and output hierarchy (`--output scan_bond`).
+
+All inputs, atom indices, settings and stage-dependent requirements are checked
+before orientation generation. `--check` performs this validation without
+launching programs, creating output directories, or running any stage. It checks
+dependency availability and importable APIs, rather than probing executables.
+`pyar-cli scan-bond` remains supported with its original `--software` option,
+ORCA default, and required `-N` argument.
+
 - `aggregate` for clusters, aggregates, and noncovalent complexes
 - `react` for AFIR-style reaction searches between two reactants
 - `solvate` for microsolvation, ligand addition, and growth around a core

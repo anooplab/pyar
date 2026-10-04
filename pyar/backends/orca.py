@@ -48,7 +48,7 @@ class Orca(SF):
             'tight': ' TightOpt',
         }.get(qc_params.get('opt_threshold'), ' Opt').strip()
         keyword, is_xtb = orca_method_keywords(qc_params, optimization_keyword)
-        if not is_xtb and any(x >= 21 for x in molecule.atomic_number):
+        if not is_xtb and not qc_params.get('orca_builtin_method') and any(x >= 21 for x in molecule.atomic_number):
             keyword += ' def2-ECP'
         if not is_xtb and self.scftype in {'uks', 'uhf'}:
             keyword += ' UKS'

@@ -1,0 +1,2 @@
+algorithm_requested,feature_requested,selected_count,basins_retained,reference_basin_count,retention_fraction,mean_nearest_graph_rmsd_angstrom,max_nearest_graph_rmsd_angstrom,runtime_seconds,algorithm_used,feature_used
+agglomerative,mbtr,1,1,3,0.3333333333333333,1.151943191659484,2.40290168547162,0.6266401289976784,agglomerative,mbtr

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "dataset": "W6 water-cluster structural-similarity subset",
+  "source_url": "https://sites.uw.edu/wdbase/files/2019/01/W6_geoms_5.0_KCal-1hgztfv.txt",
+  "source_file": "/home/anoop/repos/pyar/benchmarks/clustering_scientific/review_20261002/water_source_fixture.txt",
+  "source_sha256": "145a181253b9476ae55071730b311062435d33ef91f973fb82d2c14e668e606f",
+  "source_geometry_count": 80,
+  "sampled_geometry_count": 2,
+  "sample_strategy": "evenly spaced source ranks over the energy-sorted within-5-kcal/mol source subset",
+  "composition": "(H2O)6; every geometry is kept in one fixed-composition pool",
+  "coordinate_unit": "angstrom",
+  "energy_unit": "kcal/mol; source TTM2.1-F potential energy",
+  "reference_similarity": {
+    "method": "fragment-matched global Kabsch RMSD upper bound",
+    "implementation": "PyAR FragmentRMSDComparator",
+    "atom_mode": "all atoms; six water fragments can permute, and water hydrogens can permute within each fragment",
+    "fragment_validation": "six coordinate-inferred disconnected H2O graphs per structure",
+    "mapping_limits": {
+      "max_fragment_permutations": 720,
+      "max_mappings": 10000
+    },
+    "threshold_labels": "none; continuous pairwise distances are retained to avoid inventing class labels",
+    "comparison_pairs": 1,
+    "all_comparisons_complete": true,
+    "distance_quantiles_angstrom": {
+      "0": 1.234,
+      "10": 1.234,
+      "25": 1.234,
+      "50": 1.234,
+      "75": 1.234,
+      "90": 1.234,
+      "100": 1.234
+    }
+  },
+  "distance_matrix_row_order": "sample_index order in structures.csv and structures.xyz",
+  "structures": [
+    {
+      "sample_index": 0,
+      "source_index": 0,
+      "energy_kcal_per_mol": -46.5315552,
+      "source_file": "water_source_fixture.txt"
+    },
+    {
+      "sample_index": 1,
+      "source_index": 79,
+      "energy_kcal_per_mol": -41.5934715,
+      "source_file": "water_source_fixture.txt"
+    }
+  ],
+  "feature_distance_comparison": [],
+  "limitations": [
+    "Only one composition and one cluster size are represented.",
+    "The reference comparator reports a mapped RMSD upper bound, not a guaranteed global minimum over all possible mappings.",
+    "The source structures are distinct TTM2.1-F local minima; energy-window membership is not a basin-equivalence label.",
+    "The source page does not state a separate reuse license for the per-size file; attribution and original URL are retained."
+  ]
+}

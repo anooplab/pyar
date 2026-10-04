@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "source_file": "FGG55_crest_conformers.xyz",
+  "source_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
+  "label_method": "GFN2-xTB opt then element-labelled coordinate-graph isomorphism and Kabsch RMSD",
+  "threshold_angstrom": 0.35,
+  "threshold_sensitivity": {
+    "0.25": {
+      "basin_count": 4,
+      "largest_basin_size": 1
+    },
+    "0.35": {
+      "basin_count": 3,
+      "largest_basin_size": 2
+    },
+    "0.50": {
+      "basin_count": 3,
+      "largest_basin_size": 2
+    }
+  },
+  "inferred_topology_groups": {
+    "8a6e7820daddbc7e3b38b107d632ad28": 4
+  },
+  "convergence_check": {
+    "normal_termination_required": true,
+    "finite_final_energy_and_gradient_required": true,
+    "maximum_final_gradient_norm_eh_per_alpha": 0.001
+  },
+  "basins": [
+    {
+      "basin_id": 0,
+      "representative": "frame_0000",
+      "members": [
+        "frame_0000"
+      ]
+    },
+    {
+      "basin_id": 1,
+      "representative": "frame_0001",
+      "members": [
+        "frame_0001",
+        "frame_0002"
+      ]
+    },
+    {
+      "basin_id": 2,
+      "representative": "frame_0003",
+      "members": [
+        "frame_0003"
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "name": "frame_0000",
+      "basin_id": 0,
+      "source_energy": -61.56516532,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.565165345646,
+      "final_gradient_norm_eh_per_alpha": 7.4746827e-05,
+      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0000/xtb.log"
+    },
+    {
+      "name": "frame_0001",
+      "basin_id": 1,
+      "source_energy": -61.56459072,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.564590661754,
+      "final_gradient_norm_eh_per_alpha": 0.000209199547,
+      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0001/xtb.log"
+    },
+    {
+      "name": "frame_0002",
+      "basin_id": 1,
+      "source_energy": -61.56443164,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.564432084262,
+      "final_gradient_norm_eh_per_alpha": 8.6690851e-05,
+      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0002/xtb.log"
+    },
+    {
+      "name": "frame_0003",
+      "basin_id": 2,
+      "source_energy": -61.56439509,
+      "source_energy_interpretation": "untrusted upstream XYZ comment; see provenance note",
+      "inferred_topology_hash": "8a6e7820daddbc7e3b38b107d632ad28",
+      "xtb_energy_hartree": -61.564395007559,
+      "final_gradient_norm_eh_per_alpha": 0.000121473201,
+      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz",
+      "optimization_log": "optimizations/frame_0003/xtb.log"
+    }
+  ]
+}

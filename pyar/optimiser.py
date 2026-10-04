@@ -249,7 +249,14 @@ def write_csv_file(csv_filename, energy_dict):
 
 def bulk_optimize(input_molecules, qc_params):
     """Optimize molecules and keep only usable results."""
-    status_list = [optimise(each_mol, qc_params) for each_mol in input_molecules]
+    # Modern requests resolve spin on every molecule, including mixed-parity pools.
+    # Keep the historical parameter path unchanged for existing callers.
+    status_list = [optimise(each_mol, {
+        **qc_params, 'charge': each_mol.charge,
+        'multiplicity': each_mol.multiplicity, 'scftype': each_mol.scftype,
+        'xtb_unpaired_electrons': each_mol.multiplicity - 1,
+    } if qc_params.get('_electronic_state_from_molecule') else qc_params)
+        for each_mol in input_molecules]
     status_counts = {}
     for status in status_list:
         key = _status_label(status)

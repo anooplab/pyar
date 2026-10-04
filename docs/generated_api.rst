@@ -110,6 +110,18 @@ pyar.backend_capabilities
    :undoc-members:
    :show-inheritance:
 
+Backend Errors
+--------------
+
+pyar.backend_errors
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.backend_errors
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Backends
 --------
 
@@ -143,6 +155,33 @@ pyar.benchmarks.conformer
    :undoc-members:
    :show-inheritance:
 
+pyar.benchmarks.orca_optts
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.benchmarks.orca_optts
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.benchmarks.rgd1_tsopt
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.benchmarks.rgd1_tsopt
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.benchmarks.ts_optimizer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.benchmarks.ts_optimizer
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Biases
 ------
 
@@ -159,6 +198,45 @@ pyar.biases.afir
 ~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.biases.afir
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.biases.collective_coordinates
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.biases.collective_coordinates
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.biases.controller
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.biases.controller
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.biases.softmin
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.biases.softmin
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Bonding Analysis
+----------------
+
+pyar.bonding_analysis
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.bonding_analysis
    :no-index:
    :members:
    :undoc-members:
@@ -183,6 +261,15 @@ pyar.conformer
 ~~~~~~~~~~~~~~
 
 .. automodule:: pyar.conformer
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.conformer.comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.conformer.comparison
    :no-index:
    :members:
    :undoc-members:
@@ -419,6 +506,18 @@ pyar.molecule_merge
    :undoc-members:
    :show-inheritance:
 
+Neb
+---
+
+pyar.neb
+~~~~~~~~
+
+.. automodule:: pyar.neb
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Optimiser
 ---------
 
@@ -527,6 +626,18 @@ pyar.reactor
    :undoc-members:
    :show-inheritance:
 
+Release
+-------
+
+pyar.release
+~~~~~~~~~~~~
+
+.. automodule:: pyar.release
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Representations
 ---------------
 
@@ -611,10 +722,37 @@ pyar.scripts
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.atomic_cluster_benchmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.atomic_cluster_benchmark
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.basin_memory
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.basin_memory
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.benchmark_clustering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.benchmark_clustering
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.benchmark_distances
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.benchmark_distances
    :no-index:
    :members:
    :undoc-members:
@@ -683,6 +821,15 @@ pyar.scripts.explore
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.meta_analyze_clustering_benchmarks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.meta_analyze_clustering_benchmarks
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.optimiser
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -710,6 +857,24 @@ pyar.scripts.reaction_trace
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.scan_bond
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.scan_bond
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.scientific_clustering_benchmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.scientific_clustering_benchmark
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.similarity
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -719,10 +884,37 @@ pyar.scripts.similarity
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.summarize_scientific_clustering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.summarize_scientific_clustering
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.trial_generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.trial_generation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.ts_optimizer_benchmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.ts_optimizer_benchmark
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.water_cluster_similarity_benchmark
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.water_cluster_similarity_benchmark
    :no-index:
    :members:
    :undoc-members:
@@ -749,6 +941,15 @@ pyar.selection.basin_memory
    :undoc-members:
    :show-inheritance:
 
+pyar.selection.clusterers
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.clusterers
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.selection.clustering
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -767,6 +968,15 @@ pyar.selection.deduplication
    :undoc-members:
    :show-inheritance:
 
+pyar.selection.distances
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.distances
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.selection.diversity
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -776,10 +986,37 @@ pyar.selection.diversity
    :undoc-members:
    :show-inheritance:
 
+pyar.selection.features
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.features
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.selection.policy
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.policy
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.selection.reports
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.selection.reports
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.selection.structural_distances
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.structural_distances
    :no-index:
    :members:
    :undoc-members:
@@ -869,6 +1106,108 @@ pyar.state.solvation
    :undoc-members:
    :show-inheritance:
 
+Structure Comparison
+--------------------
+
+pyar.structure_comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.coordinate_graph
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.coordinate_graph
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.coulomb_eigenvalue_rmsd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.coulomb_eigenvalue_rmsd
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.deduplication_policy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.deduplication_policy
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.equivalence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.equivalence
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.fragment_rmsd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.fragment_rmsd
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.graph_rmsd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.graph_rmsd
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.identity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.identity
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.irmsd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.irmsd
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.models
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.rmsd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.rmsd
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Trial Generation
 ----------------
 
@@ -936,6 +1275,24 @@ pyar.workflows.reaction
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.workflows.reaction
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.scan_bond
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.scan_bond
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.scan_path
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.scan_path
    :no-index:
    :members:
    :undoc-members:

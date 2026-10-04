@@ -21,9 +21,9 @@ from pyar.selection.policy import SYSTEM_TYPES, classify_system_pool, resolve_cl
 from pyar.structure_comparison.coordinate_graph import analyze_coordinate_structure
 
 
-def main():
-    """Cluster or filter the provided XYZ pool and print the selected files."""
-    parser = argparse.ArgumentParser()
+def build_parser(prog=None):
+    """Build the shared parser for the standalone and task-oriented interfaces."""
+    parser = argparse.ArgumentParser(prog=prog)
     parser.add_argument('input_files', type=str, nargs='+',
                         help="input xyz files for analysis")
     parser.add_argument('-m', '--mode', choices=['filter', 'cluster', 'labels', 'analyze'],
@@ -72,7 +72,13 @@ def main():
         help='Explicit adjacency cutoff in Angstrom for --coordinate-model distance-cutoff',
     )
     parser.add_argument('--structure-report', help='Write coordinate-only structure analysis as JSON')
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv=None, *, prog=None):
+    """Cluster or filter the provided XYZ pool and print the selected files."""
+    parser = build_parser(prog=prog)
+    args = parser.parse_args(argv)
     if args.mode == 'labels' and args.algorithm == 'maxmin':
         parser.error('maxmin selects a subset and does not assign cluster labels')
     if args.report_output and args.mode not in {'cluster', 'labels'}:

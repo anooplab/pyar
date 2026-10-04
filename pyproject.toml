@@ -45,6 +45,7 @@ Repository = "https://github.com/anooplab/pyar"
 Issues = "https://github.com/anooplab/pyar/issues"
 
 [project.scripts]
+pyar = "pyar.modern_cli:main"
 pyar-cli = "pyar.cli:main"
 pyar-react = "pyar.scripts.react:main"
 pyar-explore = "pyar.scripts.explore:main"

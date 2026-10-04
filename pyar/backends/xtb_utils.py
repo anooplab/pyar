@@ -36,7 +36,7 @@ def build_xtb_command(executable, start_xyz_file, qc_params, opt_threshold=None)
     if qc_params.get("charge", 0) != 0:
         command.extend(["-chrg", str(qc_params["charge"])])
     if qc_params.get("multiplicity", 1) != 1:
-        command.extend(["-uhf", str(qc_params["multiplicity"])])
+        command.extend(["-uhf", str(qc_params.get("xtb_unpaired_electrons", qc_params["multiplicity"]))])
     scftype = qc_params.get("scftype", "rhf")
     if qc_params.get("multiplicity", 1) == 1 and scftype != "rhf":
         command.append(f"-{scftype}")

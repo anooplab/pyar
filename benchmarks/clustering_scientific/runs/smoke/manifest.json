@@ -1,0 +1,52 @@
+{
+  "ensemble": "FGG55_crest_conformers.xyz",
+  "ensemble_sha256": "a03d7acd9479745f9d24c26c22e74438c9f889c96fe70c595dcbcd8f6e70cfee",
+  "frames": 4,
+  "source_composition": [
+    [
+      "C",
+      13
+    ],
+    [
+      "H",
+      17
+    ],
+    [
+      "N",
+      3
+    ],
+    [
+      "O",
+      4
+    ]
+  ],
+  "source_xyz_comment_energy_minus_gfn2_final_energy": {
+    "interpretation": "comparison only; source comment units/meaning are ambiguous",
+    "mean_absolute_delta_numeric": 1.526487487524264e-07,
+    "maximum_absolute_delta_numeric": 4.4426199963254476e-07
+  },
+  "reference_basins": 3,
+  "reference_labels": "reference_basins.json",
+  "analysis": "results/comparison.json",
+  "xTB": "xtb",
+  "xTB_version": "* xtb version 6.7.1-6.fc44.fc44 compiled by Fedora project on Sun Jan 18 23:32:34 UTC 2026",
+  "pyar_git_revision": "65755e28743b0fa8b34cb07c880b03149253fd47",
+  "pyar_worktree_dirty": true,
+  "args": {
+    "ensemble": "FGG55_crest_conformers.xyz",
+    "output": "smoke",
+    "xtb": "xtb",
+    "limit": 4,
+    "basin_threshold": 0.35,
+    "max_seeds": 1,
+    "downstream_perturbation": 0.1,
+    "algorithms": [
+      "agglomerative"
+    ],
+    "features": [
+      "mbtr"
+    ],
+    "skip_downstream_optimization": false
+  },
+  "report_conditions": 1
+}

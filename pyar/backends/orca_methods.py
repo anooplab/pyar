@@ -39,7 +39,7 @@ def orca_method_keywords(qc_params, optimization_keyword=None):
             pieces.append(optimization_keyword)
         return " ".join(pieces), True
     pieces = ["!", method]
-    if not is_xtb:
+    if not is_xtb and not qc_params.get("orca_builtin_method"):
         basis = qc_params.get("basis")
         if not basis:
             raise ValueError("ORCA DFT calculations require a basis set")

@@ -1,0 +1,58 @@
+{
+  "backend_energy_hartree": 0.0009398894664707874,
+  "bias_controller": null,
+  "bias_energy_hartree": 0.0,
+  "bias_parameters": {
+    "alpha_max_hartree_per_bohr": 0.0,
+    "beta_per_bohr": null,
+    "coordinate_unit": "bohr",
+    "distance_power": 6.0,
+    "force_unit": "hartree/bohr",
+    "gamma_kj_mol": 0.0,
+    "potential": "afir",
+    "strength_unit": "hartree/bohr"
+  },
+  "bias_potential": "afir",
+  "energy_ev": 0.02557569509237317,
+  "energy_hartree": 0.0009398894664707874,
+  "forces_ev_per_angstrom": [
+    [
+      -2.2250052457604808,
+      -0.14342740606703863,
+      5.872583078608034e-16
+    ],
+    [
+      2.2280836986861448,
+      0.13821409847611107,
+      -5.859927757870869e-16
+    ],
+    [
+      -0.0030784529256641996,
+      0.005213307590927566,
+      -1.2655320737165106e-18
+    ]
+  ],
+  "gamma": 0.0,
+  "opt_target": "minimum",
+  "positions_angstrom": [
+    [
+      -0.023973007891938406,
+      -0.0613711630612872,
+      9.466316886786818e-17
+    ],
+    [
+      1.273344691509604,
+      0.02209611687216158,
+      -2.4768388151773663e-16
+    ],
+    [
+      0.5507655597848213,
+      1.1302015796156966,
+      -5.00354023292374e-16
+    ]
+  ],
+  "release": null,
+  "softmin_beta": 1.0,
+  "software": "xtb",
+  "total_energy_hartree": 0.0009398894664707874
+}

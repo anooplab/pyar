@@ -1,0 +1,2 @@
+algorithm_requested,feature_requested,selected_count,basins_retained,reference_basin_count,retention_fraction,mean_nearest_indexed_heavy_atom_rmsd_angstrom,max_nearest_indexed_heavy_atom_rmsd_angstrom,runtime_seconds,algorithm_used,feature_used
+agglomerative,mbtr,1,1,3,0.3333333333333333,0.989513203905091,2.0908995181003567,0.6265514230035478,agglomerative,mbtr

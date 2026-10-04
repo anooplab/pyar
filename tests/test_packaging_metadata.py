@@ -15,6 +15,12 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
 
 
 class PackagingMetadataTests(unittest.TestCase):
+    def test_modern_and_legacy_entrypoints_are_declared(self):
+        scripts = tomllib.loads(Path("pyproject.toml").read_text())["project"]["scripts"]
+        self.assertEqual(scripts["pyar"], "pyar.modern_cli:main")
+        self.assertEqual(scripts["pyar-cli"], "pyar.cli:main")
+        self.assertEqual(scripts["pyar-clustering"], "pyar.scripts.clustering:main")
+
     def test_distribution_version_and_import_namespace(self):
         import pyar
 

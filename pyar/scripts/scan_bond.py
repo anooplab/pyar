@@ -5,20 +5,27 @@ import os
 from pathlib import Path
 
 from pyar.backends.orca_methods import orca_method
-from pyar.backend_capabilities import supported_geometry_backends
+from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
 from pyar.workflows.scan_path import THROUGH_STAGES, validate_continuation
 from pyar.workflows.scan_bond import run_scan_bond
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description="Relaxed bond scan with optional NEB, TS, frequency, IRC and endpoint validation.")
+def build_parser(*, modern=False, prog=None):
+    parser = argparse.ArgumentParser(prog=prog, description="Relaxed bond scan with optional NEB, TS, frequency, IRC and endpoint validation.")
     parser.add_argument("inputs", nargs=2, metavar="XYZ", help="fragment A and fragment B XYZ files")
     parser.add_argument("--atoms", nargs=2, type=int, required=True, metavar=("I", "J"),
                         help="0-based atom indices local to fragments A and B")
-    parser.add_argument("-N", "--number-of-orientations", type=int, required=True, dest="orientations")
-    parser.add_argument("--software", type=str.lower, choices=supported_geometry_backends(), default="orca")
+    if modern:
+        from pyar.data.defualt_parameters import values
+        parser.add_argument("-N", "--orientations", type=int, default=values['how_many_orientations'])
+        parser.add_argument("--backend", dest="software", type=lambda name: normalize_backend_name(name.lower()),
+                            choices=supported_geometry_backends())
+        parser.add_argument("--check", action="store_true", help="Validate the complete requested path without calculation")
+    else:
+        parser.add_argument("-N", "--number-of-orientations", type=int, required=True, dest="orientations")
+        parser.add_argument("--software", type=str.lower, choices=supported_geometry_backends(), default="orca")
     parser.add_argument("--method", help="electronic-structure method (ORCA default: BP86)")
-    parser.add_argument("--xtb-model", choices=("gxtb", "gfn2"), default="gfn2",
+    parser.add_argument("--xtb-model", choices=("gxtb", "gfn2"), default=None if modern else "gfn2",
                         help="standalone xTB model (default: gfn2)")
     parser.add_argument("--basis", help="basis set; required for DFT methods, not used by xTB methods")
     parser.add_argument("--gxtb-wrapper", help="executable ORCA external-method wrapper (oet_gxtb) for --method g-xTB")
@@ -31,8 +38,8 @@ def main(argv=None):
     group.add_argument("--scan-step", type=float)
     group.add_argument("--scan-points", type=int)
     parser.add_argument("-c", "--charge", type=int, nargs="+", default=[0])
-    parser.add_argument("-m", "--multiplicity", type=int, nargs="+", default=[1])
-    parser.add_argument("--scftype", nargs="+", default=["rhf"])
+    parser.add_argument("-m", "--multiplicity", type=int, nargs="+", default=None if modern else [1])
+    parser.add_argument("--scftype", nargs="+", default=None if modern else ["rhf"])
     parser.add_argument("--output", default="scan_bond")
     parser.add_argument("--through", choices=THROUGH_STAGES, default="scan",
                         help="last stage to execute; all includes endpoint frequencies (default: scan)")
@@ -59,7 +66,24 @@ def main(argv=None):
     parser.add_argument("--endpoint-max-cycles", type=int, default=300)
     parser.add_argument("--imaginary-frequency-threshold", type=float, default=20.0)
     parser.add_argument("--irc-endpoint-rmsd-tolerance", type=float, default=0.5)
+    return parser
+
+
+def modern_main(argv=None, *, prog=None):
+    # A console-script return value becomes sys.exit(value). Keep structured
+    # workflow results on the internal API, rather than using them as exit codes.
+    main(argv, modern=True, prog=prog)
+
+
+def main(argv=None, *, modern=False, prog=None):
+    parser = build_parser(modern=modern, prog=prog)
     args = parser.parse_args(argv)
+    if modern and args.software is None:
+        parser.error("A backend is required.\nExample: pyar scan-bond A.xyz B.xyz --atoms 1 2 --backend xtb")
+    if modern and args.xtb_model is not None and args.software != 'xtb':
+        parser.error('--xtb-model requires --backend xtb')
+    if args.software == 'xtb':
+        args.xtb_model = args.xtb_model or 'gfn2'
     if args.orientations < 1:
         parser.error("orientation count must be at least 1")
     if args.nprocs < 1 or args.opt_cycles < 1 or args.scf_cycles < 1:
@@ -80,7 +104,8 @@ def main(argv=None):
                 parser.error("--gxtb-wrapper must point to an executable wrapper file")
             args.gxtb_wrapper = str(wrapper_path)
             if args.through != "scan":
-                parser.error("ORCA external g-xTB supports native scanning only; use --software xtb --xtb-model gxtb for continuation")
+                backend_option = '--backend' if modern else '--software'
+                parser.error(f"ORCA external g-xTB supports native scanning only; use {backend_option} xtb --xtb-model gxtb for continuation")
         elif args.gxtb_wrapper:
             parser.error("--gxtb-wrapper is only valid with --method g-xTB")
     elif args.software == "gaussian":
@@ -98,6 +123,12 @@ def main(argv=None):
         parser.error(str(exc))
     if not all(Path(path).is_file() for path in args.inputs):
         parser.error("both input XYZ files must exist")
+    if modern:
+        from pyar.scan_request import validate_inputs
+        try:
+            molecules = validate_inputs(args)
+        except ValueError as exc:
+            parser.error(str(exc))
     def pair_value(values, label, index):
         if len(values) == 1: return values[0]
         if len(values) == 2: return values[index]
@@ -114,6 +145,18 @@ def main(argv=None):
               "scftype_b": pair_value(args.scftype, "scftype", 1)}
     if args.software == "xtb":
         params["xtb_model"] = args.xtb_model
+    if modern:
+        from pyar.scan_request import preflight_scan
+        try:
+            requirements = preflight_scan(args, params, molecules)
+        except (ValueError, ImportError, FileNotFoundError, RuntimeError) as exc:
+            parser.error(f"Preflight failed for: scan-bond\n{exc}\nNo calculations were started.")
+        print(f"Preflight: scan-bond; backend: {args.software}; orientations: {args.orientations}; through: {args.through}")
+        print(f"Inputs: {args.inputs[0]}, {args.inputs[1]}; bond: A[{args.atoms[0]}] -> B[{args.atoms[1]}]")
+        print("Requirements satisfied: " + ", ".join(requirements))
+        if args.check:
+            print("Ready to run. --check specified; no calculations were performed.")
+            return
     result = run_scan_bond(args.inputs[0], args.inputs[1], args.atoms, args.orientations,
                          params, args.output, args.scan_end, args.scan_step, args.scan_points,
                          args.through, reaction_options)

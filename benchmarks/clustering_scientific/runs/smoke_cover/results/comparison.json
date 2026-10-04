@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "benchmark": "smoke_cover",
+  "input_count": 4,
+  "reference_basin_count": 3,
+  "reference_label": {
+    "method": "independent GFN2-xTB local optimization followed by complete element-labelled coordinate-graph isomorphism plus heavy-atom Kabsch RMSD",
+    "rmsd_threshold_angstrom": 0.35,
+    "atom_mode": "heavy",
+    "terminal_hydrogen_connectivity_and_counts_checked_but_hydrogen_coordinates_excluded": true,
+    "incomplete_graph_comparisons": "never merged; retained as separate labels",
+    "charge": 0,
+    "multiplicity": 1
+  },
+  "seed_budget": 1,
+  "conditions": [
+    {
+      "algorithm_requested": "agglomerative",
+      "feature_requested": "mbtr",
+      "runtime_seconds": 0.6265514230035478,
+      "selected_count": 1,
+      "selected_names": [
+        "frame_0000"
+      ],
+      "selected_reference_basin_ids": [
+        0
+      ],
+      "basins_retained": 1,
+      "retention_fraction": 0.3333333333333333,
+      "coverage": {
+        "distance_method": "atom-order-corresponding heavy-atom Kabsch RMSD; the upstream XYZ ensemble preserves a common atom order",
+        "reference_basin_count": 3,
+        "covered_basins_at_label_threshold": 1,
+        "basin_recall": 0.3333333333333333,
+        "mean_nearest_indexed_heavy_atom_rmsd_angstrom": 0.989513203905091,
+        "max_nearest_indexed_heavy_atom_rmsd_angstrom": 2.0908995181003567
+      },
+      "diagnostics": {
+        "feature_requested": "mbtr",
+        "feature_used": "mbtr",
+        "feature_fallbacks": [],
+        "algorithm_requested": "agglomerative",
+        "algorithm_used": "agglomerative",
+        "distance_metric": "euclidean",
+        "distance_requested": "euclidean",
+        "distance_used": "euclidean",
+        "distance_units": "standardized-feature-units",
+        "distance_parameters": {},
+        "distance_fallbacks": [],
+        "algorithm_fallbacks": [],
+        "system_type": "molecular",
+        "system_confidence": "explicit",
+        "policy_reason": "feature explicitly requested; cluster-label algorithm explicitly requested",
+        "topology_group_ids": [],
+        "number_of_structures": 4,
+        "number_of_clusters": 1,
+        "number_of_noise_points": 0,
+        "labels": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "selection_algorithm_requested": "agglomerative",
+        "selection_stage": "cluster-minima-then-maxmin-budget-trim",
+        "deduplication_stage": "excluded-to-isolate-clustering-and-feature-quality",
+        "cluster_minimum_count": 1,
+        "selected_count": 1,
+        "selected_names": [
+          "frame_0000"
+        ]
+      },
+      "downstream_optimization": null
+    }
+  ]
+}
