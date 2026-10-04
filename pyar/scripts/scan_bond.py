@@ -18,8 +18,8 @@ def main(argv=None):
     parser.add_argument("-N", "--number-of-orientations", type=int, required=True, dest="orientations")
     parser.add_argument("--software", type=str.lower, choices=supported_geometry_backends(), default="orca")
     parser.add_argument("--method", help="electronic-structure method (ORCA default: BP86)")
-    parser.add_argument("--xtb-model", choices=("gxtb", "gfn2"), default="gxtb",
-                        help="standalone xTB model (default: gxtb)")
+    parser.add_argument("--xtb-model", choices=("gxtb", "gfn2"), default="gfn2",
+                        help="standalone xTB model (default: gfn2)")
     parser.add_argument("--basis", help="basis set; required for DFT methods, not used by xTB methods")
     parser.add_argument("--gxtb-wrapper", help="executable ORCA external-method wrapper (oet_gxtb) for --method g-xTB")
     parser.add_argument("--nprocs", type=int, default=1)

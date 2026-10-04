@@ -4,9 +4,16 @@
 XTB_MODELS = ("gxtb", "gfn2")
 
 
+def check_xtb_output(output):
+    """Reject command-line errors that xTB may report with exit status zero."""
+    for line in output.splitlines():
+        if "unknown option" in line.lower():
+            raise RuntimeError(f"xTB rejected its command line: {line.strip()}")
+
+
 def canonical_xtb_model(value=None):
-    """Return a validated xTB energy/gradient model, defaulting to g-xTB."""
-    model = "gxtb" if value is None else str(value).strip().lower()
+    """Return a validated xTB energy/gradient model, defaulting to GFN2-xTB."""
+    model = "gfn2" if value is None else str(value).strip().lower()
     if model not in XTB_MODELS:
         raise ValueError(
             f"Unsupported xtb_model {value!r}; choose 'gxtb' or 'gfn2'"

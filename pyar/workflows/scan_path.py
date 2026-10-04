@@ -88,7 +88,7 @@ def continue_scan_paths(root, results, qc_params, through, options):
             base = dict(software=qc_params["software"], output=path_dir,
                         method=qc_params.get("method"), basis=qc_params.get("basis"),
                         charge=metadata["charge"], multiplicity=metadata["multiplicity"],
-                        nprocs=qc_params.get("nprocs", 1), xtb_model=qc_params.get("xtb_model", "gxtb"),
+                        nprocs=qc_params.get("nprocs", 1), xtb_model=qc_params.get("xtb_model", "gfn2"),
                         backend_options={"scftype": metadata.get("scftype", "rhf"),
                                          **{name: qc_params[name] for name in ("scf_cycles",) if name in qc_params}},
                         reuse=True, **options)

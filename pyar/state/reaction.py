@@ -35,6 +35,18 @@ def _json_value(value):
     return str(value)
 
 
+def _request_with_implicit_xtb_model(request):
+    """Use the historical g-xTB default when comparing restart requests."""
+    if not isinstance(request, dict):
+        return request
+    backend = request.get("backend_parameters")
+    if not isinstance(backend, dict) or backend.get("software") != "xtb" or "xtb_model" in backend:
+        return request
+    normalized = dict(request)
+    normalized["backend_parameters"] = {**backend, "xtb_model": "gxtb"}
+    return normalized
+
+
 def _safe_name(value):
     """Return a filesystem-safe fragment of a molecule or job name."""
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", str(value)).strip("_") or "molecule"
@@ -181,7 +193,9 @@ class ReactionRunState:
 
     def validate_request(self, expected_request):
         """Fail clearly when a resume invocation changes scientific settings."""
-        if self.data.get("request") != _json_value(expected_request):
+        saved = _request_with_implicit_xtb_model(self.data.get("request"))
+        expected = _request_with_implicit_xtb_model(_json_value(expected_request))
+        if saved != expected:
             raise ReactionStateError(
                 "Existing reaction state does not match this invocation; "
                 "resume with the original inputs and settings or use a new directory."
@@ -241,6 +255,12 @@ class ReactionRunState:
         """Persist terminal workflow state while retaining the run record."""
         self.data["status"] = status
         self.data["pending_orientations"] = []
+        self.save()
+
+    def fail(self, error):
+        """Persist a failed run without discarding pending orientation evidence."""
+        self.data["status"] = "failed_backend"
+        self.data["failure"] = str(error)
         self.save()
 
     def save(self):

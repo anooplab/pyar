@@ -1174,7 +1174,7 @@ def _execute_stage(stage, output, calculator, options):
 
 def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
                           max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
-                          nprocs=1, xtb_model="gxtb", max_gradient=0.05, average_gradient=0.025, spring=1.0,
+                          nprocs=1, xtb_model="gfn2", max_gradient=0.05, average_gradient=0.025, spring=1.0,
                           climb=0.5, align=False, product_relaxation_fmax=0.05,
                           product_relaxation_max_steps=200, ts_max_cycles=200,
                           irc_max_cycles=200, imaginary_frequency_threshold=20.0,
@@ -1358,8 +1358,8 @@ def _build_parser():
     parser.add_argument("--ts-geometry", help="Explicit geometry for ts or frequency")
     parser.add_argument("--software", required=True, help="PyAR energy-gradient backend")
     parser.add_argument(
-        "--xtb-model", choices=("gxtb", "gfn2"), default="gxtb",
-        help="xTB Hamiltonian for the xTB energy-gradient provider (default: gxtb)",
+        "--xtb-model", choices=("gxtb", "gfn2"), default="gfn2",
+        help="xTB Hamiltonian for the xTB energy-gradient provider (default: gfn2)",
     )
     parser.add_argument("--output", default="neb_run")
     parser.add_argument("--images", type=int, default=11)

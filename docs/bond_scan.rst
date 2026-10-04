@@ -33,9 +33,9 @@ PyAR model. Standalone xTB selects its Hamiltonian using ``--xtb-model``:
 
 .. code-block:: bash
 
-   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --software xtb --xtb-model gfn2
+   pyar-cli scan-bond A.xyz B.xyz --atoms 0 1 -N 4 --software xtb
 
-``gxtb`` remains the standalone xTB default. Both models use the normal
+``gfn2`` is the standalone xTB default. Both models use the normal
 ``xtb`` executable; no equivalence with a different implementation is claimed.
 
 ORCA's g-xTB support uses its external-method wrapper rather than a built-in

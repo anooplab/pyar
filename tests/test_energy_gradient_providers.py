@@ -49,12 +49,12 @@ class EnergyGradientProviderTests(unittest.TestCase):
             e_minus = provider.evaluate(atoms, coordinates-h*direction).energy_hartree
         self.assertAlmostEqual((e_plus-e_minus)/(2*h),
                                float(np.sum(result.gradient_hartree_per_bohr*direction)), places=8)
-        support_check.assert_called_once_with("xtb")
+        support_check.assert_not_called()
 
     def test_xtb_model_selection_runs_through_provider_and_preserves_controls(self):
         coordinates = np.asarray([[0.0, 0.0, 0.0], [0.7, 0.0, 0.0]])
         molecule = Atoms("H2", positions=coordinates)
-        for model, selector in ((None, ["--gxtb"]),
+        for model, selector in ((None, ["--gfn", "2"]),
                                 ("gxtb", ["--gxtb"]),
                                 ("gfn2", ["--gfn", "2"])):
             with self.subTest(model=model):
@@ -106,7 +106,7 @@ class EnergyGradientProviderTests(unittest.TestCase):
             get_energy_gradient_provider("xtb", {"xtb_model": "gfn1"})
 
     def test_xtb_provider_refuses_gxtb_when_executable_does_not_support_it(self):
-        provider = get_energy_gradient_provider("xtb")
+        provider = get_energy_gradient_provider("xtb", {"xtb_model": "gxtb"})
         with mock.patch(
             "pyar.energy_gradient_providers.require_executable", return_value="xtb",
         ), mock.patch(

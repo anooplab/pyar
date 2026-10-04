@@ -13,6 +13,7 @@ import time
 from collections import Counter, defaultdict
 
 from pyar.data import defualt_parameters
+from pyar.backend_errors import BackendExecutionError
 from pyar.selection.distances import DISTANCE_METRICS
 from pyar.selection.policy import SYSTEM_TYPES
 from pyar.biases.controller import resolve_controller_policy
@@ -325,8 +326,7 @@ chemical formula.
                                        'aggregation. Default is '
                                        'aimnet2_wb97m-d3_ens.jpt')
     parser.add_argument('--xtb-model', choices=('gxtb', 'gfn2'), default=None,
-                        help='Hamiltonian for standalone xTB (default: g-xTB '
-                             'for reaction energy and gradients)')
+                        help='Hamiltonian for standalone xTB (default: GFN2-xTB)')
     parser.add_argument('-basis', '--basis', type=str,
                         help='Basis set (default=def2-SVP)')
     parser.add_argument('-method', '--method', type=str,
@@ -626,6 +626,21 @@ def _preflight_cli_requirements(run_mode, software, geometry_optimizer):
         )
 
 
+def _preflight_xtb_model(qc_params):
+    """Reject a requested xTB Hamiltonian the installed executable cannot run."""
+    if qc_params.get("software") != "xtb" or qc_params.get("xtb_model") != "gxtb":
+        return
+    from pyar.backends import require_executable
+    from pyar.backends.xtb import xtb_supports_gxtb
+
+    executable = require_executable("xtb", "xTB")
+    if not xtb_supports_gxtb(executable):
+        raise BackendExecutionError(
+            f"xTB executable {executable!r} does not support --gxtb; "
+            "select --xtb-model gfn2 or install a g-xTB-capable executable"
+        )
+
+
 def _merge_run_parameters(args):
     """Overlay parsed CLI arguments onto default run parameters."""
     run_parameters = defaultdict(lambda: None, defualt_parameters.values)
@@ -803,7 +818,7 @@ def _build_qc_parameters(run_parameters, args, run_mode):
     if run_parameters['software'] == 'xtb' and (
         run_mode == 'react' or run_parameters.get('xtb_model') is not None
     ):
-        quantum_chemistry_parameters['xtb_model'] = run_parameters.get('xtb_model') or 'gxtb'
+        quantum_chemistry_parameters['xtb_model'] = run_parameters.get('xtb_model') or 'gfn2'
     if run_mode == 'react':
         quantum_chemistry_parameters['release_retry_limit'] = run_parameters['release_retry_limit']
         quantum_chemistry_parameters['release_margin_factor'] = run_parameters['release_margin_factor']
@@ -1071,6 +1086,11 @@ def main():
         effective_qc_options,
         staged_optimization,
     ) = _build_qc_parameters(run_parameters, args, run_mode)
+    try:
+        _preflight_xtb_model(quantum_chemistry_parameters)
+    except (BackendExecutionError, FileNotFoundError) as exc:
+        logger.critical(str(exc))
+        sys.exit(str(exc))
     _log_qc_context(
         run_parameters,
         quantum_chemistry_parameters,
@@ -1129,7 +1149,8 @@ def main():
             )
             return
 
-    except (FileNotFoundError, AggregateStateError, ReactionStateError, SolvationStateError, ValueError) as exc:
+    except (FileNotFoundError, AggregateStateError, ReactionStateError, SolvationStateError,
+            ValueError, BackendExecutionError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

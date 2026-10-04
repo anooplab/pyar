@@ -25,6 +25,7 @@ from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult, get_energy_gradient_provider
 from pyar.data.units import angstrom2bohr
 from pyar.backends import SF, require_executable, write_xyz
+from pyar.backend_errors import BackendExecutionError
 from pyar.reaction_trace import ReactionTraceRecorder
 from pyar.release import ReleaseTracker
 
@@ -629,7 +630,10 @@ class Geometric(SF):
                 self.software,
                 proc.returncode,
             )
-            return False
+            raise BackendExecutionError(
+                f"geomeTRIC failed for {self.job_name} with {self.software} "
+                f"(exit {proc.returncode}); see {Path('geometric.out').resolve()}"
+            )
 
         try:
             self.optimized_coordinates = self._read_final_xyz()
@@ -642,7 +646,10 @@ class Geometric(SF):
                 raise FileNotFoundError(_GEOMETRIC_STATE_FILE)
         except Exception as exc:
             geometric_logger.error("geomeTRIC completed but final state was incomplete: %s", exc)
-            return False
+            raise BackendExecutionError(
+                f"geomeTRIC produced no usable final state for {self.job_name}: {exc}; "
+                f"see {Path('geometric.out').resolve()}"
+            ) from exc
 
         write_xyz(
             self.atoms_list,

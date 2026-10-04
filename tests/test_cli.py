@@ -270,7 +270,9 @@ class CliSmokeTests(unittest.TestCase):
         self.assertEqual(captured["selection_system_type"], "atomic-cluster")
 
     def test_scan_bond_subcommand_dispatches_to_dedicated_parser(self):
-        with mock.patch("pyar.scripts.scan_bond.main") as scan_main:
+        scan_main = mock.Mock()
+        scan_module = make_stub_module("pyar.scripts.scan_bond", main=scan_main)
+        with mock.patch.dict(sys.modules, {"pyar.scripts.scan_bond": scan_module}):
             sys.argv = ["pyar-cli", "scan-bond", "A.xyz", "B.xyz", "--atoms", "0", "1", "-N", "1"]
             self.cli.main()
         scan_main.assert_called_once_with(["A.xyz", "B.xyz", "--atoms", "0", "1", "-N", "1"])
@@ -370,7 +372,7 @@ class CliSmokeTests(unittest.TestCase):
 
     def test_reaction_xtb_model_reaches_backend_parameters(self):
         base = ["-r", "a.xyz", "b.xyz", "-N", "8", "--software", "xtb"]
-        for extra, expected in (([], "gxtb"), (["--xtb-model", "gfn2"], "gfn2")):
+        for extra, expected in (([], "gfn2"), (["--xtb-model", "gxtb"], "gxtb")):
             with self.subTest(model=expected):
                 args, run_parameters, run_mode = self._parse_run_parameters(base + extra)
                 qc_params, *_ = self.cli._build_qc_parameters(run_parameters, args, run_mode)

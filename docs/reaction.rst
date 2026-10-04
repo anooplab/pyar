@@ -67,16 +67,19 @@ Run a reaction search with xTB:
    pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
 ``A.xyz`` and ``B.xyz`` are Cartesian coordinate files for the two reactants.
-The xTB reaction energy and gradient provider defaults to g-xTB, which requires
-an executable supporting ``--gxtb``. With a standard GFN2-xTB installation,
-select that Hamiltonian explicitly:
+The xTB reaction energy and gradient provider defaults to GFN2-xTB. Select
+g-xTB explicitly if your executable supports ``--gxtb``:
 
 .. code-block:: bash
 
-   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb --xtb-model gfn2
+   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb --xtb-model gxtb
 
 The selection also applies to native xTB relaxation of reaction candidates.
 Start in a new directory when changing the Hamiltonian of an existing run.
+PyAR exits with a nonzero status before creating reaction state if the selected
+xTB executable cannot run ``--gxtb``. If a backend fails during optimization,
+``reaction/state.json`` records ``failed_backend`` and the error; such a run is
+not reported as ``completed_no_candidates``.
 
 Backends
 --------

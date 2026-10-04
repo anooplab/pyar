@@ -7,7 +7,9 @@ import sys
 import numpy as np
 
 from pyar.backends import SF, require_executable, write_xyz
-from pyar.backends.xtb_utils import build_xtb_command, canonical_xtb_model, xtb_model_arguments
+from pyar.backends.xtb_utils import (
+    build_xtb_command, canonical_xtb_model, check_xtb_output, xtb_model_arguments,
+)
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
@@ -41,20 +43,14 @@ class Xtb(SF):
             opt_threshold=method['opt_threshold'],
         )
 
-        if method.get('xtb_model') is not None:
-            xtb_model = canonical_xtb_model(method['xtb_model'])
-            if xtb_model == 'gxtb' and not xtb_supports_gxtb(self.xtb_executable):
-                raise RuntimeError(
-                    f"xTB executable {self.xtb_executable!r} does not advertise --gxtb support; "
-                    "refusing to run a different Hamiltonian as g-xTB"
-                )
-            self.cmd.extend(xtb_model_arguments(xtb_model))
-            xtb_logger.info('Using xTB model %s', xtb_model)
-        elif xtb_supports_gxtb(self.xtb_executable):
-            self.cmd.append('--gxtb')
-            xtb_logger.info('Using xTB with --gxtb flag')
-        else:
-            xtb_logger.info('Installed xTB does not support --gxtb; running without it')
+        xtb_model = canonical_xtb_model(method.get('xtb_model'))
+        if xtb_model == 'gxtb' and not xtb_supports_gxtb(self.xtb_executable):
+            raise RuntimeError(
+                f"xTB executable {self.xtb_executable!r} does not advertise --gxtb support; "
+                "refusing to run a different Hamiltonian as g-xTB"
+            )
+        self.cmd.extend(xtb_model_arguments(xtb_model))
+        xtb_logger.info('Using xTB model %s', xtb_model)
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
@@ -74,6 +70,13 @@ class Xtb(SF):
                 xtb_logger.info('    Optimization failed')
                 xtb_logger.error(f'      {e}')
                 return False
+
+        try:
+            with open('xtb.out') as output_file_pointer:
+                check_xtb_output(output_file_pointer.read())
+        except RuntimeError as exc:
+            xtb_logger.error('%s', exc)
+            return False
 
         if os.path.isfile('.xtboptok'):
             write_xyz(

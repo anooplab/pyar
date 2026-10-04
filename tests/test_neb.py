@@ -38,7 +38,7 @@ def test_cli_exposes_individual_workflow_stages():
     parser = _build_parser()
     defaults = vars(parser.parse_args(["--software", "xtb"]))
     assert defaults["stage"] == "all"
-    assert defaults["xtb_model"] == "gxtb"
+    assert defaults["xtb_model"] == "gfn2"
     assert defaults["interpolation"] == "linear"
     assert defaults["idpp_fmax"] == 0.1
     assert defaults["idpp_steps"] == 100
@@ -912,7 +912,9 @@ def test_identical_observed_minima_fail_with_overlapping_reference_tolerances():
 
 
 def test_stage_handoff_rejects_modified_artifacts_and_different_methods(tmp_path):
-    calculator = SimpleNamespace(qc_params={"software": "xtb", "charge": 0, "nprocs": 1})
+    calculator = SimpleNamespace(qc_params={
+        "software": "xtb", "xtb_model": "gxtb", "charge": 0, "nprocs": 1,
+    })
     geometry = tmp_path / "geometry.xyz"
     geometry.write_text((DATA / "hcn.xyz").read_text())
     _save_stage(tmp_path, "ts", {"ts_optimization_converged": True}, calculator, [], [geometry])

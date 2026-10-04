@@ -131,7 +131,7 @@ def test_cli_xtb_full_cycle_does_not_require_basis(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(scan_bond, "run_scan_bond", lambda *args: calls.append(args))
     scan_bond.main([str(path), str(path), "--atoms", "0", "0", "-N", "1", "--software", "xtb",
-                    "--xtb-model", "gfn2", "--through", "all", "--ts-optimizer", "sella"])
+                    "--through", "all", "--ts-optimizer", "sella"])
     assert calls[0][4]["xtb_model"] == "gfn2"
     assert calls[0][9] == "all"
     assert calls[0][10]["ts_optimizer"] == "sella"

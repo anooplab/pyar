@@ -64,6 +64,18 @@ class ReactionRunStateTests(unittest.TestCase):
         self.assertEqual(molecule.multiplicity, 2)
         np.testing.assert_allclose(molecule.coordinates, self.orientation.coordinates)
 
+    def test_backend_failure_preserves_pending_work_and_reason(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state = ReactionRunState.create(
+                tmpdir, self.request, [self.orientation],
+                (self.reactant_a, self.reactant_b),
+            )
+            state.fail("xTB rejected the input")
+            saved = json.loads(state.state_file.read_text())
+            self.assertEqual(saved["status"], "failed_backend")
+            self.assertEqual(saved["failure"], "xTB rejected the input")
+            self.assertEqual(len(saved["pending_orientations"]), 1)
+
     def test_load_rejects_changed_request(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             Path(tmpdir, "reaction").mkdir()
@@ -76,6 +88,52 @@ class ReactionRunStateTests(unittest.TestCase):
             )
             changed = {**self.request, "gamma_schedule": [100.0, 300.0]}
 
+            with self.assertRaisesRegex(ReactionStateError, "does not match"):
+                ReactionRunState.load(tmpdir, changed)
+
+    def test_load_accepts_missing_legacy_xtb_model_as_gxtb(self):
+        legacy_request = {**self.request, "backend_parameters": {"software": "xtb"}}
+        explicit_request = {
+            **legacy_request,
+            "backend_parameters": {"software": "xtb", "xtb_model": "gxtb"},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state = ReactionRunState.create(
+                tmpdir,
+                legacy_request,
+                [self.orientation],
+                (self.reactant_a, self.reactant_b),
+            )
+
+            resumed = ReactionRunState.load(tmpdir, explicit_request)
+
+            self.assertNotIn("xtb_model", resumed.data["request"]["backend_parameters"])
+            with state.state_file.open() as fp:
+                self.assertNotIn("xtb_model", json.load(fp)["request"]["backend_parameters"])
+
+            changed_model = {
+                **explicit_request,
+                "backend_parameters": {"software": "xtb", "xtb_model": "gfn2"},
+            }
+            with self.assertRaisesRegex(ReactionStateError, "does not match"):
+                ReactionRunState.load(tmpdir, changed_model)
+
+            changed_schedule = {**explicit_request, "gamma_schedule": [100.0, 300.0]}
+            with self.assertRaisesRegex(ReactionStateError, "does not match"):
+                ReactionRunState.load(tmpdir, changed_schedule)
+
+    def test_load_does_not_assume_gxtb_for_other_backends(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ReactionRunState.create(
+                tmpdir,
+                self.request,
+                [self.orientation],
+                (self.reactant_a, self.reactant_b),
+            )
+            changed = {
+                **self.request,
+                "backend_parameters": {"software": "xtb_turbo", "xtb_model": "gxtb"},
+            }
             with self.assertRaisesRegex(ReactionStateError, "does not match"):
                 ReactionRunState.load(tmpdir, changed)
 

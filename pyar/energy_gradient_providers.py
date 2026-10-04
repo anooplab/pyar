@@ -24,7 +24,9 @@ from pyar.backend_capabilities import (
 from pyar.data.units import bohr2angstrom
 from pyar.backends import require_executable
 from pyar.backends.xtb import xtb_supports_gxtb
-from pyar.backends.xtb_utils import canonical_xtb_model, xtb_model_arguments, xtb_parallel_args
+from pyar.backends.xtb_utils import (
+    canonical_xtb_model, check_xtb_output, xtb_model_arguments, xtb_parallel_args,
+)
 from pyar.bonding_analysis import parse_bonding_analysis, unavailable_bonding_analysis
 
 
@@ -189,6 +191,7 @@ class XtbEnergyGradientProvider:
                     "xTB energy/gradient evaluation failed: "
                     + (proc.stderr.strip() or proc.stdout.strip() or "unknown error")
                 )
+            check_xtb_output("\n".join((proc.stdout or "", proc.stderr or "")))
 
             gradient_path = Path(tmpdir) / "gradient"
             if not gradient_path.exists():

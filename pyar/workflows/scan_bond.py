@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from pyar.backends import write_xyz
+from pyar.backend_errors import BackendExecutionError
 from pyar.backends.orca_scan import (
     OrcaBondScanRequest,
     load_orca_bond_scan_result,
@@ -339,6 +340,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             try:
                 scan = (run_orca_bond_scan if software == "orca" else run_bond_scan)(
                     orientation, request_model, scan_dir, qc_params)
+            except BackendExecutionError:
+                raise
             except Exception as exc:
                 result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
                           "error": str(exc), "target_distance_start_angstrom": start_distance,
@@ -393,6 +396,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             os.chdir(relax_run_dir)
             relax_status = optimise(relaxed, dict(
                 qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0))
+        except BackendExecutionError:
+            raise
         except Exception as exc:
             result["status"] = "scan_success_relax_failed"
             result["error"] = str(exc)

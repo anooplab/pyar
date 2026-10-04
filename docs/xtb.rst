@@ -66,9 +66,14 @@ Reaction search:
 Shared behaviour
 ----------------
 
+* GFN2-xTB (``--gfn 2``) is the default. Select g-xTB explicitly with
+  ``--xtb-model gxtb`` where the workflow offers that option and the executable
+  supports ``--gxtb``.
 * ``--nprocs`` is passed through to xTB as ``--parallel``.
 * Charge, multiplicity, and spin handling are normalized in
   ``pyar.backends.xtb_utils``.
 * The wrappers fail fast if ``xtb`` is not available on ``PATH``.
+* xTB can warn about an unknown option yet exit successfully. PyAR checks the
+  output and rejects that result rather than accepting a different calculation.
 
 See the full API documentation in :doc:`api`.

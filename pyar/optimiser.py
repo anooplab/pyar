@@ -21,6 +21,7 @@ import numpy as np
 from pyar import file_manager
 from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import normalize_backend_name, validate_backend_capability
+from pyar.backend_errors import BackendExecutionError
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
@@ -210,12 +211,30 @@ def optimise(molecule, qc_params):
                 normalized_status,
                 software,
             )
+            optimizer = qc_params.get('geometry_optimizer')
+            output_file = (
+                'geometric.out' if optimizer == 'geometric'
+                else 'xtb.out' if software == 'xtb' else None
+            )
+            output_hint = (
+                f"; see {os.path.join(os.getcwd(), output_file)}" if output_file else ""
+            )
+            raise BackendExecutionError(
+                f"{software} optimization failed for {molecule.name}: "
+                f"{normalized_status}{output_hint}"
+            )
         return optimize_status
-    except Exception:
+    except BackendExecutionError:
+        molecule.energy = None
+        molecule.coordinates = None
+        raise
+    except Exception as exc:
         optimiser_logger.exception("Optimization crashed: name=%s", molecule.name)
         molecule.energy = None
         molecule.coordinates = None
-        return None
+        raise BackendExecutionError(
+            f"{software} optimization crashed for {molecule.name}: {exc}"
+        ) from exc
     finally:
         os.chdir(cwd)
 

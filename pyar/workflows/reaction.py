@@ -29,6 +29,7 @@ import pyar.scan
 from pyar import file_manager
 from pyar.data import defualt_parameters
 from pyar.backend_capabilities import backend_supports_native_optimization
+from pyar.backend_errors import BackendExecutionError
 from pyar.selection import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
 from pyar.sampling import trial_generator as trial_generation
@@ -697,13 +698,18 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         os.chdir(gamma_home)
 
         gamma_qc_params = with_gamma(qc_params, gamma)
-        optimized_molecules = optimize_all(
-            gamma_id,
-            orientations_to_optimize,
-            run_state,
-            product_dir,
-            gamma_qc_params,
-        )
+        try:
+            optimized_molecules = optimize_all(
+                gamma_id,
+                orientations_to_optimize,
+                run_state,
+                product_dir,
+                gamma_qc_params,
+            )
+        except BackendExecutionError as exc:
+            run_state.fail(exc)
+            os.chdir(workdir)
+            raise
 
         reactor_logger.info(
             f"Gamma cycle optimized geometries: {len(optimized_molecules)}")

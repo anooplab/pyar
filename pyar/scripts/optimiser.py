@@ -68,7 +68,7 @@ def main():
             input_molecules.append(mol)
         except IOError:
             logger.critical(f"File {each_file} does not exist")
-            sys.exit()
+            sys.exit(f"File {each_file} does not exist")
     quantum_chemistry_parameters = {
         'basis': run_parameters['basis'],
         'method': run_parameters['method'],

@@ -7,7 +7,7 @@ from unittest import mock
 
 import numpy as np
 
-from pyar.backends.xtb_utils import build_xtb_command, xtb_parallel_args
+from pyar.backends.xtb_utils import build_xtb_command, check_xtb_output, xtb_parallel_args
 
 
 @contextmanager
@@ -46,6 +46,13 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertEqual(xtb_parallel_args({"nprocs": 0}), [])
         self.assertEqual(xtb_parallel_args({"nprocs": "not-an-int"}), [])
 
+    def test_xtb_zero_exit_unknown_option_is_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "Unknown option '--gxtb'"):
+            check_xtb_output(
+                "Unknown option '--gxtb' provided\n"
+                "Hamiltonian GFN2-xTB\nnormal termination of xtb\n"
+            )
+
     def test_build_xtb_command_includes_common_qc_settings(self):
         command = build_xtb_command(
             "xtb",
@@ -69,6 +76,7 @@ class XtbInterfaceTests(unittest.TestCase):
         self.assertIn("--parallel", runner.cmd)
         self.assertIn("16", runner.cmd)
         self.assertIn("-opt", runner.cmd)
+        self.assertEqual(runner.cmd[-2:], ["--gfn", "2"])
 
     def test_xtb_native_wrapper_uses_explicit_reaction_model(self):
         from pyar.backends import xtb
@@ -83,6 +91,18 @@ class XtbInterfaceTests(unittest.TestCase):
                 mock.patch.object(xtb, "xtb_supports_gxtb", return_value=False):
             with self.assertRaisesRegex(RuntimeError, "does not advertise --gxtb support"):
                 xtb.Xtb(self.molecule, {"opt_threshold": "normal", "xtb_model": "gxtb"})
+
+    def test_xtb_native_wrapper_rejects_unknown_option_even_with_zero_exit(self):
+        from pyar.backends import xtb
+
+        def fake_run(command, stdout, stderr):
+            stdout.write("Unknown option '--gfn' provided\nnormal termination of xtb\n")
+            return 0
+
+        with temporary_cwd(), mock.patch.object(xtb, "require_executable", return_value="xtb"), \
+                mock.patch.object(xtb.subp, "check_call", side_effect=fake_run):
+            runner = xtb.Xtb(self.molecule, {"opt_threshold": "normal"})
+            self.assertFalse(runner.optimize())
 
     def test_xtb_turbo_wrapper_uses_parallel_threads(self):
         from pyar.backends import xtb_turbo
