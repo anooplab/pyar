@@ -100,3 +100,34 @@ If you use PyAR, cite the paper that matches your chemistry problem. See [docs/p
 
 - Nandi et al., *Computational and Theoretical Chemistry* 1111, 69-81 (2017)
 - Khatun et al., *Frontiers in Chemistry* 7:644 (2019)
+
+### Inspect stored energies and compare structures
+
+```bash
+pyar energies *.xyz
+pyar compare reactant.xyz product.xyz
+pyar compare A.xyz B.xyz --atom-mode all
+pyar compare A.xyz B.xyz --json
+pyar energies *.xyz --json
+```
+
+`energies` ranks stored XYZ comment-line energies from lowest to highest, using
+Eh for absolute energies and kcal/mol relative to the global minimum. Every
+input must contain a readable energy. `pyar-energy-table` remains supported.
+
+`compare` reports composition, stored energies (when available), graph-aware
+aligned RMSD, component counts, and inferred edge changes. Its energy sign is
+ΔE = E(B) − E(A). Energy differences between different compositions are not
+relative isomer/conformer energies. The default RMSD uses heavy atoms, with
+all atoms used for hydrogen-only systems. No default geometry-equivalence
+threshold is applied; `--rmsd-threshold` requests an explicit threshold.
+
+Connectivity uses an element-labelled coordinate graph with covalent-radius
+adjacency (default `--bond-scale 1.15`), not formal bond orders. Indexed edge
+changes use 0-based indices and assume row correspondence when element order
+matches; XYZ cannot verify correspondence of repeated elements. When element
+order differs, indexed changes are omitted while graph-isomorphism and
+permutation-aware RMSD remain available. `--maximum-mappings` controls the
+existing enumeration limit, and incomplete comparisons are reported explicitly.
+Both commands read files without running calculations. The legacy
+`pyar-similarity` pool deduplication command remains available unchanged.

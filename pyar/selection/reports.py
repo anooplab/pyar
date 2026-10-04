@@ -14,6 +14,9 @@ __all__ = [
 ]
 
 
+HARTREE_TO_KCAL_MOL = 627.51
+
+
 def print_energy_table(molecules, stream=None, title=None):
     """Report energies with relative values against the global minimum."""
     entries = []
@@ -38,7 +41,7 @@ def print_energy_table(molecules, stream=None, title=None):
         header += "  Relative path"
     lines.append(header)
     for name, energy, relative_path in sorted(entries, key=operator.itemgetter(1)):
-        row = f"{name:>35}  {energy:12.6f}  {(energy - ref) * 627.51:18.2f}"
+        row = f"{name:>35}  {energy:12.6f}  {(energy - ref) * HARTREE_TO_KCAL_MOL:18.2f}"
         if show_paths:
             row += f"  {relative_path or name}"
         lines.append(row)

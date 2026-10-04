@@ -13,6 +13,8 @@ from pyar import __version__
 
 # Add future tasks here without importing their scientific dependencies at startup.
 _COMMANDS = {
+    "energies": ("pyar.scripts.energy_table", "Print a relative-energy table from XYZ files"),
+    "compare": ("pyar.scripts.compare", "Compare two structures, energies, geometry, and connectivity"),
     "clustering": ("pyar.scripts.clustering", "Cluster or filter XYZ structures"),
     "optimize": ("pyar.scripts.optimize", "Optimize each XYZ structure independently"),
     "scan-bond": ("pyar.scripts.scan_bond", "Relaxed bond scan with optional reaction-path continuation"),
