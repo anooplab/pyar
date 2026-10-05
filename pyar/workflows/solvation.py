@@ -17,7 +17,7 @@ from pyar.solvation.request import normalize_connectivity_policy
 from pyar.state.solvation import SolvationRunState, SolvationStateError
 from pyar import file_manager
 from pyar.workflow_results import SolvationResult
-from pyar.workflows._growth import (
+from pyar.growth.service import (
     add_one,
     aggregator_logger,
     check_stop_signal,
@@ -153,6 +153,7 @@ def solvate(
                 maximum_number_of_seeds,
                 site,
                 connectivity_policy=resolved_connectivity_policy,
+                bound_geometry_only=False,
             )
             aggregator_logger.info(f"Solvation cycle completed: {aggregation_counter}")
         run_state.complete_cycle(aggregation_counter, seeds)

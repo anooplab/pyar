@@ -47,3 +47,8 @@ class ReactionResult(WorkflowResult):
 @dataclass(frozen=True)
 class ConformerResult(WorkflowResult):
     """Structured result for conformational-search runs."""
+
+
+@dataclass(frozen=True)
+class GrowResult(WorkflowResult):
+    """Structured result for fixed-seed sequential growth."""

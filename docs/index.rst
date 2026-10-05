@@ -165,6 +165,7 @@ The fastest way to verify a local install is:
    :caption: Chemistry tasks
 
    aggregate
+   grow
    react
    bond_scan
    neb

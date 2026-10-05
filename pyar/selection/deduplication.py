@@ -104,16 +104,18 @@ def _adaptive_duplicate_rmsd_threshold(molecules):
     return float(np.clip(threshold, 0.05, 0.15))
 
 
-def remove_similar(list_of_molecules):
+def remove_similar(list_of_molecules, *, energy_ranked=True):
     """Remove geometrical duplicates under the graph-first comparison policy.
 
     iRMSD is used only when graph identity matched but graph mapping enumeration
     was incomplete. Any failed, asymmetric-threshold, or diagnostic fallback
-    keeps both candidates.
+    keeps both candidates. With energy_ranked=False, preserve input order
+    and do not require or report energies.
     """
     from pyar.selection import clustering
 
-    ordered_molecules = sorted(list_of_molecules, key=lambda molecule: (float(molecule.energy), molecule.name))
+    ordered_molecules = (sorted(list_of_molecules, key=lambda molecule: (float(molecule.energy), molecule.name))
+                         if energy_ranked else list(list_of_molecules))
     final_list = []
     removed_duplicates = []
     rmsd_threshold = _adaptive_duplicate_rmsd_threshold(ordered_molecules)
@@ -177,7 +179,8 @@ def remove_similar(list_of_molecules):
             )
     from pyar.selection.reports import print_energy_table
 
-    print_energy_table(final_list)
+    if energy_ranked:
+        print_energy_table(final_list)
     return final_list
 
 

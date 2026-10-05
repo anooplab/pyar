@@ -449,3 +449,16 @@ The next architectural work consists of two coupled priorities:
 
 Both remain coupled: the optimizer path must stay scientifically appropriate,
 and long calculations must remain safely restartable.
+
+Shared single-addition service
+------------------------------
+
+``pyar.growth.service.add_one`` is the shared orientation/optimization/selection
+engine. ``pyar.workflows._growth`` remains a compatibility alias. Aggregate
+retains composition and pathway orchestration and its existing restart schema;
+grow owns fixed-seed sequential orchestration, a typed ``GrowRequest``, atomic
+``GrowRunState``, intermediate pools, and ``GrowResult``. Solvation continues to
+use the same service with unchanged frontend semantics, including its legacy
+geometry-only propagation. Aggregate and grow geometry-only pools
+are bounded using existing graph-first pruning and max-min diversity, without
+energy assignment.

@@ -40,3 +40,11 @@ See also
 * :doc:`quickstart`
 * :doc:`installation`
 * :doc:`workflows`
+
+Aggregate versus grow
+---------------------
+
+Aggregate searches the requested final composition without a permanently
+privileged seed and may explore alternative build pathways. For a specified
+seed with one repeatedly added species and retained intermediate stages, use
+:doc:`grow`. Both use the same single-addition service.

@@ -32,7 +32,7 @@ from pyar.aggregation import AggregateRequest
 from pyar.state.aggregate import AggregateRunState, AggregateStateError
 from pyar import file_manager
 from pyar.workflow_results import AggregateResult
-from pyar.workflows._growth import (
+from pyar.growth.service import (
     add_one,
     aggregator_logger,
     check_stop_signal,
@@ -339,6 +339,7 @@ def aggregate(
 
         final_selected = _finalize_selected_geometries(
             aggregate_root=".",
+            energy_ranked=bool(qc_params.get("software")),
             maximum_number_of_seeds=maximum_number_of_seeds,
             feature=selection_feature,
             algorithm=selection_algorithm,

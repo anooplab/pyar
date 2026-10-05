@@ -275,6 +275,7 @@ molecular complexes or atomic clusters.
 """
     pyar_epilog = """Examples:
   pyar-cli aggregate C H -as 1 4 -N 8
+  pyar-cli grow seed.xyz monomer.xyz --count 4 -N 16 --software xtb
   pyar-cli react A.xyz B.xyz -N 8 --bias-min 100 --bias-max 1000
   pyar-cli solvate solute.xyz solvent.xyz -ss 10 -N 16
   pyar-cli -a C H -as 1 4 -N 8
@@ -1026,6 +1027,10 @@ def _run_reaction_workflow(
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "grow":
+        from pyar.scripts.grow import main as grow_main
+        grow_main(sys.argv[2:])
+        return
     if len(sys.argv) > 1 and sys.argv[1] in {"scan-bond", "scan_bond"}:
         from pyar.scripts.scan_bond import main as scan_bond_main
         scan_bond_main(sys.argv[2:])

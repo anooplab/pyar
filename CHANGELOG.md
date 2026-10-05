@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- Added `pyar-cli grow` for fixed-seed repeated-addend growth, bounded survivor
+  pools, retained intermediate stages, typed requests/results and atomic,
+  request-validated restart state.
+
+### Changed
+
+- Extracted the shared single-addition engine to `pyar.growth.service`, retaining
+  the `_growth` compatibility alias and existing aggregate/solvation orchestration.
+- Geometry-only additions now use graph-first pruning and max-min diversity
+  instead of propagating all orientations; no artificial energies are assigned.
+  Geometry-only aggregate pathways now retain bounded selected snapshots.
+
 ## 1.4.1 - 2026-10-03
 
 ### Fixed
