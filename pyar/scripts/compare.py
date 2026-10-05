@@ -3,7 +3,7 @@
 import argparse
 import json
 
-from pyar.structure_inspection import compare_structures
+from pyar.structure_inspection import compare_structures, format_formula
 
 
 def build_parser(prog=None):
@@ -12,6 +12,8 @@ def build_parser(prog=None):
         description='Compare XYZ coordinates and stored energies. ΔE = E(B) - E(A).')
     parser.add_argument('first', metavar='A.xyz')
     parser.add_argument('second', metavar='B.xyz')
+    parser.add_argument('--charge', type=int, nargs='+', metavar='Q',
+                        help='Charge for both structures, or A and B separately; otherwise assume neutral')
     parser.add_argument('--atom-mode', choices=('heavy', 'all'), default='heavy')
     parser.add_argument('--bond-scale', type=float, default=1.15,
                         help='Covalent-radius adjacency scale (default: 1.15)')
@@ -33,17 +35,32 @@ def render_comparison(result):
     print('\nComposition')
     print(f"  Atoms: {r['first_atom_count']} / {r['second_atom_count']}")
     for side in ('first', 'second'):
-        formula = ''.join(element + (str(count) if count != 1 else '')
-                          for element, count in r[f'{side}_composition'].items())
+        formula = format_formula(r[f'{side}_composition'])
         print(f"  {'A' if side == 'first' else 'B'}: {formula}")
     print(f"  Same composition: {_yes(r['same_composition'])}")
     print(f"  Same atom order (element sequence): {_yes(r['same_atom_order'])}")
+    print('\nChemical identity (independent RDKit bond-order perception)')
+    chemical = r['chemical_identity']
+    for label, side in [('A', 'first'), ('B', 'second')]:
+        identity = chemical[side]
+        print(f"  {label} canonical SMILES: " + (identity['canonical_smiles'] or 'unavailable'))
+        print(f"  {label} charge used: {identity['charge_used']} ({identity['charge_source']})")
+        print(f"  {label} perception: {identity['status']}")
+        if identity['reason']:
+            print(f"  {label} reason: {identity['reason']}")
+        if identity['installation_hint']:
+            print(f"  Enable perception: {identity['installation_hint']}")
+    print(f"  Canonical SMILES match: {_yes(chemical['canonical_smiles_match'])}")
+    print('  Method: RDKit DetermineBonds (xyz2mol)')
     print('\nEnergy')
     for label, key in [('A', 'first_energy_hartree'), ('B', 'second_energy_hartree')]:
         energy = r[key]
         print(f"  {label}: " + ('unavailable' if energy is None else f'{energy:.6f} Eh'))
     delta = r['delta_energy_kcal_mol']
     print('  ΔE (B - A): ' + ('unavailable' if delta is None else f'{delta:+.2f} kcal/mol'))
+    if not r['energy_difference_is_isomer_comparison']:
+        reason = 'compositions differ' if not r['same_composition'] else 'charges differ'
+        print(f'  ΔE not interpreted as relative isomer/conformer energy: {reason}.')
     if delta is not None:
         print('  Lower energy: ' + ('A' if delta > 0 else 'B' if delta < 0 else 'equal'))
     print('\nGeometry')
@@ -58,7 +75,7 @@ def render_comparison(result):
     if r['rmsd_threshold_angstrom'] is not None:
         print(f"  Equivalent below {r['rmsd_threshold_angstrom']} Å: "
               f"{_yes(r['geometry_equivalent_under_threshold'])}")
-    print('\nConnectivity (inferred adjacency; indices are 0-based)')
+    print('\nCoordinate topology (inferred adjacency; indices are 0-based)')
     print(f"  Components: {r['input_component_count']} → {r['output_component_count']}")
     print(f"  Inferred edges: {r['input_edge_count']} → {r['output_edge_count']}")
     if r['same_atom_order']:
@@ -84,7 +101,7 @@ def main(argv=None, *, prog=None):
         result = compare_structures(args.first, args.second, atom_mode=args.atom_mode,
                                    bond_scale=args.bond_scale,
                                    maximum_mappings=args.maximum_mappings,
-                                   rmsd_threshold=args.rmsd_threshold)
+                                   rmsd_threshold=args.rmsd_threshold, charges=args.charge)
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
     if args.json:

@@ -106,6 +106,7 @@ xtb = [
 openbabel = [
   "openbabel>=3.2.0",
 ]
+identity = ["rdkit"]
 conformer = [
   "rdkit",
 ]

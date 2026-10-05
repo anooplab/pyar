@@ -10,10 +10,10 @@ from pathlib import Path
 from pyar.reaction_analysis import analyse_reaction_trace, plot_reaction_trace
 
 
-def _build_parser():
+def _build_parser(prog=None):
     """Parse reaction-trace CLI arguments."""
     parser = argparse.ArgumentParser(
-        prog="pyar-reaction-trace",
+        prog=prog or "pyar-reaction-trace",
         description=(
             "Analyze a PyAR reaction trace, write the summary artifacts, and "
             "optionally generate PNG plots."
@@ -57,14 +57,14 @@ def _build_parser():
     return parser
 
 
-def argument_parse(argv=None):
+def argument_parse(argv=None, *, prog=None):
     """Parse reaction-trace CLI arguments."""
-    return _build_parser().parse_args(argv)
+    return _build_parser(prog).parse_args(argv)
 
 
-def main(argv=None):
+def main(argv=None, *, prog=None):
     """Run trace analysis and optionally emit plot artifacts."""
-    args = argument_parse(argv)
+    args = argument_parse(argv, prog=prog)
     job_path = Path(args.path)
     plot_only = bool(getattr(args, "plot_only", False))
     do_plot = bool(getattr(args, "plot", False)) or plot_only

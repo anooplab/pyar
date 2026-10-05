@@ -10,6 +10,7 @@ from pyar.structure_comparison import rmsd as _rmsd
 __all__ = [
     "calc_fingerprint_distance",
     "remove_similar",
+    "deduplicate_structures",
 ]
 
 
@@ -104,6 +105,80 @@ def _adaptive_duplicate_rmsd_threshold(molecules):
     return float(np.clip(threshold, 0.05, 0.15))
 
 
+def _deduplicate_ordered(ordered_molecules, comparator, *, logger=None, skip_single_atoms=False):
+    """Shared conservative elimination loop; diagnostics never imply duplicates."""
+    final_list, removed_duplicates, diagnostics = [], [], []
+
+    class Reporter:
+        def warning(self, message, *args):
+            diagnostics.append(message % args)
+            if logger is not None:
+                logger.warning(message, *args)
+
+        def debug(self, message, *args):
+            if logger is not None:
+                logger.debug(message, *args)
+
+    reporter = Reporter()
+    for candidate in ordered_molecules:
+        duplicate = False
+        for kept in final_list:
+            if skip_single_atoms and (len(candidate.atoms_list) < 2 or len(kept.atoms_list) < 2):
+                continue
+            try:
+                comparison = comparator.compare(candidate, kept)
+            except Exception as exc:
+                reporter.warning(
+                    "Retaining %s and %s: structural comparison failed (%s: %s).",
+                    candidate.name, kept.name, type(exc).__name__, exc,
+                )
+                continue
+            if comparison.equivalent is True:
+                aligned_rmsd = comparison.distance
+                duplicate = True
+                removed_duplicates.append((candidate.name, kept.name, aligned_rmsd))
+                reporter.debug(
+                    'Removing {} as a near-duplicate of {}'.format(candidate.name, kept.name)
+                )
+                break
+            if (comparison.metadata.get("comparison_complete") is False
+                    and comparison.metadata.get("fallback_status") != "ok"):
+                reporter.warning(
+                    "Retaining %s and %s: graph RMSD was incomplete after %d mappings; iRMSD check status=%s.",
+                    candidate.name,
+                    kept.name,
+                    comparison.metadata.get("isomorphisms_evaluated", 0),
+                    comparison.metadata.get("fallback_status", "not_run"),
+                )
+        if not duplicate:
+            final_list.append(candidate)
+    return final_list, removed_duplicates, diagnostics
+
+
+def deduplicate_structures(molecules, *, threshold=None, ordering="auto"):
+    """Deduplicate with the existing adaptive threshold and graph-first policy.
+
+    Auto ordering prefers lowest energy only when every energy is available;
+    otherwise input order is preserved. Workflows retain their historical
+    ordering, single-atom exemption and reporting through ``remove_similar``.
+    """
+    from pyar.structure_comparison import GraphFirstDeduplicationComparator
+
+    molecules = list(molecules)
+    if ordering not in {"auto", "input", "energy"}:
+        raise ValueError('ordering must be auto, input, or energy')
+    all_energies = all(m.energy is not None and np.isfinite(float(m.energy)) for m in molecules)
+    if ordering == "energy" and not all_energies:
+        raise ValueError('Energy ordering requires every structure to have an energy')
+    if ordering == "energy" or (ordering == "auto" and all_energies):
+        molecules = sorted(molecules, key=lambda molecule: float(molecule.energy))
+    resolved = _adaptive_duplicate_rmsd_threshold(molecules) if threshold is None else threshold
+    comparator = GraphFirstDeduplicationComparator(threshold=resolved)
+    kept, removed, diagnostics = _deduplicate_ordered(molecules, comparator)
+    return {"kept": kept, "removed": removed, "diagnostics": diagnostics,
+            "rmsd_threshold": resolved, "input_count": len(molecules)}
+
+
 def remove_similar(list_of_molecules):
     """Remove geometrical duplicates under the graph-first comparison policy.
 
@@ -114,45 +189,13 @@ def remove_similar(list_of_molecules):
     from pyar.selection import clustering
 
     ordered_molecules = sorted(list_of_molecules, key=lambda molecule: (float(molecule.energy), molecule.name))
-    final_list = []
-    removed_duplicates = []
     rmsd_threshold = _adaptive_duplicate_rmsd_threshold(ordered_molecules)
     from pyar.structure_comparison import GraphFirstDeduplicationComparator
 
     comparator = GraphFirstDeduplicationComparator(threshold=rmsd_threshold)
     clustering.cluster_logger.debug('Number of molecules before similarity elimination,  {}'.format(len(ordered_molecules)))
-    for candidate in ordered_molecules:
-        duplicate = False
-        for kept in final_list:
-            if len(candidate.atoms_list) < 2 or len(kept.atoms_list) < 2:
-                continue
-            try:
-                comparison = comparator.compare(candidate, kept)
-            except Exception as exc:
-                clustering.cluster_logger.warning(
-                    "Retaining %s and %s: structural comparison failed (%s: %s).",
-                    candidate.name, kept.name, type(exc).__name__, exc,
-                )
-                continue
-            if comparison.equivalent is True:
-                aligned_rmsd = comparison.distance
-                duplicate = True
-                removed_duplicates.append((candidate.name, kept.name, aligned_rmsd))
-                clustering.cluster_logger.debug(
-                    'Removing {} as a near-duplicate of {}'.format(candidate.name, kept.name)
-                )
-                break
-            if (comparison.metadata.get("comparison_complete") is False
-                    and comparison.metadata.get("fallback_status") != "ok"):
-                clustering.cluster_logger.warning(
-                    "Retaining %s and %s: graph RMSD was incomplete after %d mappings; iRMSD check status=%s.",
-                    candidate.name,
-                    kept.name,
-                    comparison.metadata.get("isomorphisms_evaluated", 0),
-                    comparison.metadata.get("fallback_status", "not_run"),
-                )
-        if not duplicate:
-            final_list.append(candidate)
+    final_list, removed_duplicates, _ = _deduplicate_ordered(
+        ordered_molecules, comparator, logger=clustering.cluster_logger, skip_single_atoms=True)
     clustering.cluster_logger.debug('Number of molecules after similarity elimination,  {}'.format(len(final_list)))
     if removed_duplicates:
         clustering.cluster_logger.info(

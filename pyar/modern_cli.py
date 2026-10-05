@@ -13,6 +13,13 @@ from pyar import __version__
 
 # Add future tasks here without importing their scientific dependencies at startup.
 _COMMANDS = {
+    "react": ("pyar.scripts.modern_react", "Search for reaction products with adaptive bias"),
+    "orient": ("pyar.scripts.orient", "Generate trial encounter geometries for two fragments"),
+    "deduplicate": ("pyar.scripts.deduplicate", "Remove structurally duplicate XYZ geometries"),
+    "select": ("pyar.scripts.select", "Select low-energy structures"),
+    "identify": ("pyar.scripts.identify", "Inspect composition and perceived chemical identity"),
+    "split": ("pyar.scripts.split", "Split disconnected coordinate components"),
+    "trace": ("pyar.scripts.reaction_trace", "Analyze a PyAR reaction trace"),
     "energies": ("pyar.scripts.energy_table", "Print a relative-energy table from XYZ files"),
     "compare": ("pyar.scripts.compare", "Compare two structures, energies, geometry, and connectivity"),
     "clustering": ("pyar.scripts.clustering", "Cluster or filter XYZ structures"),

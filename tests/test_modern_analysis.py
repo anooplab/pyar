@@ -127,7 +127,7 @@ def test_incomplete_mapping(tmp_path, capsys):
     a = xyz(tmp_path, 'a.xyz')
     incomplete = ComparisonResult(True, None, None, 'graph', metadata={
         'connectivity_match': True, 'comparison_complete': False, 'isomorphisms_evaluated': 10})
-    with patch('pyar.structure_inspection.GraphRMSDComparator.compare', return_value=incomplete):
+    with patch('pyar.structure_comparison.pairwise.GraphRMSDComparator.compare', return_value=incomplete):
         main(['compare', a, a])
     text = capsys.readouterr().out
     assert 'incomplete' in text and 'limit reached' in text
@@ -168,3 +168,14 @@ def test_invalid_geometry(tmp_path, capsys, command, bad):
     assert exc.value.code == 2
     captured = capsys.readouterr()
     assert not captured.out and 'bad.xyz' in captured.err
+
+
+def test_single_energy_and_required_input(tmp_path, capsys):
+    a = xyz(tmp_path, 'a.xyz')
+    main(['energies', a, '--json'])
+    result = json.loads(capsys.readouterr().out)
+    assert result['minimum'] == a
+    assert result['structures'][0]['relative_energy_kcal_mol'] == 0
+    with pytest.raises(SystemExit) as exc:
+        main(['energies'])
+    assert exc.value.code == 2

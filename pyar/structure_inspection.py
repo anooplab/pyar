@@ -1,6 +1,5 @@
 """Read-only pairwise inspection using PyAR's coordinate graph and RMSD APIs."""
 
-from collections import Counter
 import math
 from pathlib import Path
 
@@ -8,8 +7,7 @@ import numpy as np
 
 from pyar.core.molecule import Molecule, parse_xyz
 from pyar.selection import reports
-from pyar.structure_comparison.coordinate_graph import compare_coordinate_structures
-from pyar.structure_comparison.graph_rmsd import GraphRMSDComparator, selected_atom_indices
+from pyar.structure_comparison.pairwise import compare_structures as compare_molecules
 
 
 def load_structure(filename):
@@ -34,19 +32,25 @@ def optional_energy(filename):
 
 
 def compare_structures(first, second, *, atom_mode="heavy", bond_scale=1.15,
-                       maximum_mappings=10000, rmsd_threshold=None):
+                       maximum_mappings=10000, rmsd_threshold=None, charges=None):
     """Compare two XYZ paths; return JSON-ready data independently of rendering.
 
     Indexed edge changes follow the coordinate API's identical-element-order
     convention. XYZ cannot verify correspondence of repeated elements.
     """
-    comparator = GraphRMSDComparator(atom_mode=atom_mode, bond_scale=bond_scale,
-                                    max_isomorphisms=maximum_mappings,
-                                    threshold=rmsd_threshold)
     a, b = load_structure(first), load_structure(second)
-    connectivity = compare_coordinate_structures(a, b, scale=bond_scale)
-    comparable = connectivity['same_composition'] and connectivity['same_atom_count']
-    geometry = comparator.compare(a, b) if comparable else None
+    if charges is not None:
+        charges = list(charges)
+        if len(charges) == 1:
+            charges *= 2
+        if len(charges) != 2:
+            raise ValueError('--charge requires one value or one value per structure (two values)')
+    structural = compare_molecules(a, b, atom_mode=atom_mode, bond_scale=bond_scale,
+                                  maximum_mappings=maximum_mappings,
+                                  rmsd_threshold=rmsd_threshold, charges=charges)
+    comparable = structural['same_composition'] and structural['same_atom_count']
+    chemical = structural['chemical_identity']
+    same_charge = chemical['first']['charge_used'] == chemical['second']['charge_used']
     ea, eb = optional_energy(first), optional_energy(second)
     delta = None if ea is None or eb is None else eb - ea
     limitations = [
@@ -55,32 +59,46 @@ def compare_structures(first, second, *, atom_mode="heavy", bond_scale=1.15,
         "Same atom order means the same element sequence; indexed edge changes assume "
         "correspondence by row, which XYZ cannot verify for repeated elements.",
     ]
+    limitations.append("Canonical SMILES are perceived from coordinates and the stated/assumed charge; "
+                       "bond orders and stereochemistry are model-dependent, not definitive identity.")
     if not comparable:
         limitations.append("Absolute electronic energies of different compositions are not "
                            "directly interpretable as relative isomer/conformer energies.")
-    if geometry is not None and not geometry.metadata.get('comparison_complete', True):
+    if not same_charge:
+        limitations.append('Energies for different supplied/assumed charges are not relative '
+                           'isomer/conformer energies, even when composition matches.')
+    if structural['comparison_complete'] is False:
         limitations.append("Graph-isomorphism limit reached; RMSD comparison is incomplete.")
-    effective_mode = ('all' if len(selected_atom_indices(a.atoms_list, atom_mode))
-                      == len(a.atoms_list) and all(atom == 'H' for atom in a.atoms_list)
-                      else atom_mode)
     return {
         'first_file': str(Path(first)), 'second_file': str(Path(second)),
-        'first_atom_count': len(a.atoms_list), 'second_atom_count': len(b.atoms_list),
-        'first_composition': dict(sorted(Counter(a.atoms_list).items())),
-        'second_composition': dict(sorted(Counter(b.atoms_list).items())),
-        'atom_labels': a.atoms_list if connectivity['same_atom_order'] else None,
-        **connectivity,
+        **structural,
         'first_energy_hartree': ea, 'second_energy_hartree': eb,
         'delta_energy_hartree': delta,
         'delta_energy_kcal_mol': None if delta is None else delta * reports.HARTREE_TO_KCAL_MOL,
-        'energy_difference_is_isomer_comparison': comparable,
-        'connectivity_match': None if geometry is None else geometry.metadata.get('connectivity_match'),
-        'rmsd_angstrom': None if geometry is None else geometry.distance,
-        'rmsd_atom_mode': effective_mode,
-        'rmsd_threshold_angstrom': rmsd_threshold,
-        'geometry_equivalent_under_threshold': None if geometry is None else geometry.equivalent,
-        'comparison_complete': None if geometry is None else geometry.metadata.get('comparison_complete', True),
-        'mappings_evaluated': 0 if geometry is None else geometry.metadata.get('isomorphisms_evaluated', 0),
-        'coordinate_model': 'covalent-radii', 'bond_scale': bond_scale,
+        'energy_difference_is_isomer_comparison': comparable and same_charge,
         'limitations': limitations,
     }
+
+
+def format_formula(composition):
+    """Hill formula: C/H first when carbon is present, otherwise alphabetical."""
+    order = sorted(composition)
+    if 'C' in composition:
+        order = ['C'] + (['H'] if 'H' in composition else []) + [
+            element for element in order if element not in {'C', 'H'}]
+    return ''.join(element + (str(composition[element]) if composition[element] != 1 else '')
+                   for element in order)
+
+
+def identify_structure(molecule, *, charge=None, bond_scale=1.15):
+    """Enrich an already loaded geometry without making RDKit mandatory."""
+    from pyar.structure_comparison.coordinate_graph import analyze_coordinate_structure
+    from pyar.structure_comparison.chemical_identity import perceive_chemical_identity
+
+    topology = analyze_coordinate_structure(molecule, scale=bond_scale)
+    return {'file': str(getattr(molecule, 'relative_path', molecule.name)),
+            'atom_count': molecule.number_of_atoms, 'composition': topology['composition'],
+            'formula': format_formula(topology['composition']),
+            'energy_hartree': molecule.energy, 'component_count': topology['component_count'],
+            'coordinate_topology': topology,
+            'chemical_identity': perceive_chemical_identity(molecule, charge)}

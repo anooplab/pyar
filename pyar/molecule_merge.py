@@ -31,7 +31,11 @@ def merged_with(first, second):
     merged.fragments_atoms_list = [first.atoms_list, second.atoms_list]
     merged.name = f"{first.name} + {second.name}"
     merged.title = f"{first.title} + {second.title}"
-    merged.charge = first.charge + second.charge
-    merged.multiplicity = combine_multiplicity(first.multiplicity, second.multiplicity)
+    # Coordinate-only utilities carry unknown electronic state as None.
+    # Preserve historical arithmetic/heuristics whenever both states are known.
+    merged.charge = (None if first.charge is None or second.charge is None
+                     else first.charge + second.charge)
+    merged.multiplicity = (None if first.multiplicity is None or second.multiplicity is None
+                           else combine_multiplicity(first.multiplicity, second.multiplicity))
     merged.scftype = "rhf" if first.scftype == "rhf" and second.scftype == "rhf" else "uhf"
     return merged

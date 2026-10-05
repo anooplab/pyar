@@ -64,6 +64,11 @@ def print_energy_table(molecules, stream=None, title=None):
 
 def read_energy_from_xyz_file(xyz_file):
     """Return the trailing numeric energy token from an XYZ comment line."""
+    # Coordinate-only utilities may include numeric provenance, not energies.
+    with open(xyz_file, "r") as fr:
+        header = [fr.readline(), fr.readline()]
+    if re.search(r"\benergy\s+unavailable\b", header[1], re.IGNORECASE):
+        raise ValueError("XYZ explicitly declares energy unavailable")
     try:
         with open(xyz_file, "r") as fr:
             lines = fr.readlines()

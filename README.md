@@ -131,3 +131,134 @@ permutation-aware RMSD remain available. `--maximum-mappings` controls the
 existing enumeration limit, and incomplete comparisons are reported explicitly.
 Both commands read files without running calculations. The legacy
 `pyar-similarity` pool deduplication command remains available unchanged.
+
+`compare` also attempts optional chemical bond-order perception with RDKit's
+maintained `rdDetermineBonds` implementation of the xyz2mol approach, followed
+by canonical isomeric SMILES. This is separate from coordinate adjacency and
+RMSD. SMILES depend on the geometry and the charge used; XYZ alone does not
+encode charge, multiplicity, bond orders, or complete chemical identity.
+
+```bash
+pyar compare anion_a.xyz anion_b.xyz --charge -1
+pyar compare neutral.xyz anion.xyz --charge 0 -1
+```
+
+One `--charge` value applies to both structures; two values apply to A and B.
+Without this option, the XYZ interface assumes neutral charge and reports it
+as **assumed**, rather than known. The reusable molecular API can also accept
+reliably known charges from other input/state. PyAR never searches other
+charges to force successful perception. Perception failures retain their
+reason while coordinate and energy analysis continue. Canonical SMILES are
+model-dependent evidence; matching SMILES do not establish complete chemical
+or stereochemical identity.
+
+RDKit remains optional. To enable SMILES perception, install the existing
+extra with `pip install "pyar-chem[identity]"`. Without RDKit, the report shows
+chemical perception as unavailable and continues with all coordinate-based
+analysis. JSON includes each perception result, charge and source, failure
+reason, and canonical-SMILES match status.
+
+### Composable XYZ utilities
+
+```bash
+# Generate eight deterministic encounter geometries (no optimization)
+pyar orient A.xyz B.xyz
+# Inspect a unique geometry set without writing files
+pyar deduplicate *.xyz
+# Energy window first, then graph-first duplicate removal
+pyar select *.xyz --within 5 --unique
+# Inspect atoms, Hill formula, energy, components, and optional SMILES
+pyar identify *.xyz
+# Extract disconnected coordinate components
+pyar split complex.xyz
+# Use the existing reaction-trace analysis and plotting
+pyar trace reaction_job --plot
+```
+
+`orient` writes `orientations/` with `orientation_000.xyz`, etc., and the exact
+`trial_vectors.dat`. It uses the established Fibonacci directions, Halton
+quaternion rotations (disabled for atomic incoming fragments), and contact
+placement with scale 1.2 for atoms or 1.5 for molecules. Use `--orientations`
+(or `-N`), `--sequence-offset`, `--distance-scale`, and `--output` to override.
+
+`deduplicate` uses PyAR's existing adaptive RMSD threshold and conservative
+graph-first policy. It retains lower-energy representatives when every energy
+is available; otherwise input order is preserved. Failed or uncertain
+comparisons retain structures. `--rmsd-threshold` provides an explicit override.
+
+`select` requires `--within` (inclusive kcal/mol window) or `--top`. With both,
+it applies the window, then top N, then optional `--unique` pruning. Every
+input must contain a readable energy. Both `select` and `deduplicate` inspect
+only by default; `--output DIR` copies retained originals. Non-empty destinations
+and colliding input basenames are rejected.
+
+`identify` accepts one `--charge` for all inputs or one per input and supports
+`--json`. Missing charge is labelled assumed neutral. It shares RDKit
+DetermineBonds chemical perception with `compare`, without charge searching.
+RDKit is optional; `pip install "pyar-chem[identity]"` enables SMILES for both
+commands. Missing RDKit or failed perception leaves coordinate information
+available.
+
+`split` uses covalent-radius adjacency (`--bond-scale 1.15`) and preserves
+original atom order and coordinates. It writes `<stem>_fragments/` or `--output
+DIR`; one component produces no redundant file. Components are geometric
+adjacency groups, not formal chemical fragments. No energies, charges or spin
+states are assigned. Geometry-only outputs explicitly mark energies unavailable.
+
+`orient` and `split` refuse non-empty destinations. Inputs are never modified.
+`trace` retains legacy artifacts and options including `--plot`, `--plot-only`,
+`--plot-directory`, `--max-force`, and `--exclude-energy-outliers`; an omitted
+path defaults to the current directory. `pyar-reaction-trace` remains supported.
+
+### Modern reaction search
+
+```bash
+pyar react A.xyz B.xyz --backend xtb --bias-max 100
+pyar react A.xyz B.xyz --backend xtb --bias-max 100 --check
+pyar react A.xyz B.xyz --backend xtb --bias-max 100 --orientations 32
+pyar react A.xyz B.xyz --backend xtb --bias-max 150 --bias-alpha-margin 0.001
+pyar react A.xyz B.xyz --backend xtb --bias-max 100 --bias-potential softmin --softmin-beta 1.0
+pyar react A.xyz B.xyz --backend xtb --bias-controller fixed --bias-min 100 --bias-max 1000
+```
+
+Exactly two XYZ reactants, an explicit backend, and `--bias-max` are required.
+The bias ceiling is a chemical-problem-specific choice in kJ/mol; the example
+values above are syntax examples, **not universal recommended bias strengths**.
+Modern defaults are AFIR, accepted-step adaptive control, geomeTRIC/TRIC biased
+optimization, eight deterministic orientations, and the established proximity
+factor 2.3. Fixed and scheduled controllers retain the canonical bias-range
+semantics and require `--bias-min`. Use `--bias-scheduled-alpha` with an explicit
+scheduled controller. `--site I J` uses 0-based indices local to A and B.
+
+Charge defaults to zero per fragment. Multiplicity is inferred from electron
+parity when omitted. One `--charge`/`--multiplicity` value applies to both inputs;
+two values apply separately. Both fragment and merged states are validated.
+Standalone xTB uses the existing GFN2 Cartesian provider, without DFT method or
+basis settings or a Turbomole requirement. ORCA requires an explicit method and,
+for DFT, basis; its built-in xTB methods must omit basis. External ORCA g-xTB and
+composite methods are rejected for this reaction gradient route. Gaussian is
+currently rejected because its legacy native adapter does not request geometry
+optimization, so a valid native release cannot be guaranteed. Legacy behavior
+is unchanged. AIMNet2 uses the existing portable package-relative model/runtime
+asset validation; missing assets fail preflight, without consulting historical
+machine-specific global defaults.
+
+Every run validates inputs, controller/settings, both biased and native-release
+capabilities/dependencies, OpenBabel product identity, and restart compatibility
+before execution. `--check` runs that same read-only validation and prints the
+resolved request without creating directories, generating orientations, running
+programs, or changing state. Pip-installable geomeTRIC/ASE support is supplied by
+`pyar-chem[xtb]`; xTB, ORCA and the OpenBabel executable are external requirements.
+
+Biased candidates still undergo the existing native unbiased relaxation and
+canonical chemical-identity gate before product acceptance. `reaction/state.json`
+retains the existing restart protocol; compatible running states resume and
+incompatible/completed states are rejected. Existing legacy checkpoint policies
+are preserved; checkpoints lacking physical-energy provenance cannot resume on
+this route. No automatic NEB/TS/frequency/IRC pipeline is added.
+
+Inspect an orientation's existing reaction trace with
+`pyar trace reaction/gamma_adaptive/orientation_000_geom/job_adaptive_000_geom`.
+The completion report includes workflow status, product count/paths, run directory
+and state path. A completed zero-product search succeeds. Legacy `pyar-react`,
+`pyar-cli react`, and `pyar-cli -r` retain their existing parser/default semantics.
