@@ -252,3 +252,10 @@ way to probe whether a bond-forming or bond-breaking coordinate behaves as
 expected before committing to a more expensive reaction search.
 
 .. code-block:: bash
+
+Fixed-seed growth
+-----------------
+
+Use :doc:`grow` to add one species repeatedly to a specified seed, selecting a
+bounded pool at each step and retaining the growth series. Use :doc:`aggregate`
+to search a final composition without privileging an initial seed.

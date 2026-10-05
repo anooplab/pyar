@@ -4,6 +4,30 @@
 
 ### Added
 
+- Added `pyar-cli grow` for fixed-seed repeated-addend growth, bounded survivor
+  pools, retained intermediate stages, typed requests/results and atomic,
+  request-validated restart state.
+
+### Changed
+
+- Extracted the shared single-addition engine to `pyar.growth.service`, retaining
+  the `_growth` compatibility alias and existing aggregate/solvation orchestration.
+- Geometry-only additions now use graph-first pruning and max-min diversity
+  instead of propagating all orientations; no artificial energies are assigned.
+  Geometry-only aggregate pathways now retain bounded selected snapshots.
+
+## 1.4.1 - 2026-10-03
+
+### Fixed
+
+- Exposed ``--xtb-model gfn2`` for reaction searches so installations without
+  ``--gxtb`` can use GFN2-xTB for both biased optimization and native product
+  relaxation. The g-xTB default remains explicit in reaction state.
+
+## 1.4.0 - 2026-10-03
+
+### Added
+
 - Added energy/gradient backend support to relaxed bond scans and cumulative
   `--through` modes for NEB, TS, frequency, IRC and endpoint validation, with
   validated stage reuse and separate endpoint optimization/frequency stages.
@@ -110,12 +134,12 @@
 - Split structural feature construction from cluster-label assignment and
   seed selection. Aggregate workflows and ``pyar-clustering`` now expose MBTR,
   SOAP, and distance-histogram features, plus Euclidean, Manhattan, and cosine
-  distance metrics with feature/algorithm fallback provenance; the existing
-  hybrid cluster-minima policy remains unchanged.
+  distance metrics with feature/algorithm fallback provenance. The default
+  cluster-label policy is HDBSCAN-first ``auto`` with agglomerative fallback.
 - Replaced the order-dependent RBF grouping with threshold-graph connected
   components, corrected DBSCAN epsilon estimation to use Euclidean distances,
   and made average-linkage agglomerative clustering the deterministic fallback.
-- Hybrid seed selection now keeps only the lowest-energy representative from
+- Cluster-first seed selection keeps only the lowest-energy representative from
   each cluster when there are fewer cluster minima than the requested limit.
   Max-min diversity trims the cluster minima only when there are too many; it
   no longer fills unused seed slots with additional geometries.

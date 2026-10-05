@@ -79,11 +79,26 @@ dependency availability and importable APIs, rather than probing executables.
 `pyar-cli scan-bond` remains supported with its original `--software` option,
 ORCA default, and required `-N` argument.
 
-- `aggregate` for clusters, aggregates, and noncovalent complexes
+- `aggregate` searches a requested final composition with alternative build pathways
+- `grow` repeatedly adds one species to a specific seed and retains every selected stage
 - `react` for AFIR-style reaction searches between two reactants
 - `solvate` for microsolvation, ligand addition, and growth around a core
 - `scan-bond` for a simple bond-distance probe
 - `pyar-reaction-trace` for reaction-trace analysis
+
+## Aggregate and Grow
+
+```bash
+# Final-composition search, without a permanent privileged seed
+pyar-cli aggregate A.xyz B.xyz --aggregate-size 2 3 -N 16 --software xtb
+
+# Sequential additions to a specified seed, with bounded survivors at each step
+pyar-cli grow metal.xyz ligand.xyz --count 4 -N 16 --software xtb --xtb-model gfn2
+```
+
+Omit `--software` for bounded geometry-only growth. Intermediate stages, resolved
+request, restart state, and final summary are retained under `grow/`.
+See [growth documentation](docs/grow.rst) for selection and restart policy.
 
 ## External Program Requirements
 

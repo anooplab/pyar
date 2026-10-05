@@ -69,11 +69,14 @@ def _max_min_diversity_select(
     initial_selected_indices=None,
     distance_metric="euclidean",
     distance_matrix=None,
+    energy_ranked=True,
 ):
     """Select diverse seeds via greedy max-min (farthest-point) selection.
 
     When initial_selected_indices is provided, those points are treated as fixed
     anchors and only the additional selected molecules are returned.
+    With energy_ranked=False, use the first input as anchor and input order
+    for ties; no energies are fabricated or reported.
     """
     from pyar.selection import clustering
     from pyar.selection.distances import pairwise_distances, validate_distance_matrix
@@ -91,8 +94,8 @@ def _max_min_diversity_select(
     remaining_indices = set(range(len(molecules))) - set(selected_indices)
 
     if not selected_indices:
-        energies = np.array([float(m.energy) for m in molecules])
-        start_index = int(np.argmin(energies))
+        start_index = (int(np.argmin([float(m.energy) for m in molecules]))
+                       if energy_ranked else 0)
         selected_indices.append(start_index)
         returned_indices.append(start_index)
         remaining_indices.remove(start_index)
@@ -106,7 +109,7 @@ def _max_min_diversity_select(
                 best_score = min_distance
                 best_idx = idx
             elif np.isclose(min_distance, best_score) and best_idx is not None:
-                if float(molecules[idx].energy) < float(molecules[best_idx].energy):
+                if energy_ranked and float(molecules[idx].energy) < float(molecules[best_idx].energy):
                     best_idx = idx
         selected_indices.append(best_idx)
         returned_indices.append(best_idx)
@@ -123,7 +126,8 @@ def _max_min_diversity_select(
             "Selected %d diverse seeds by max-min strategy.",
             len(selected),
         )
-    print_energy_table(selected)
+    if energy_ranked:
+        print_energy_table(selected)
     return selected
 
 
