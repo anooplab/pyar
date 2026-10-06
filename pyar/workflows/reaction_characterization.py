@@ -190,7 +190,10 @@ def _prepare_route(root, product, product_number, options, qc_params, previous=N
 
     pathway_id = "route_001"
     route_dir = reaction_dir / "pathways" / f"product_{product_number:03d}" / pathway_id
-    start_out, end_out, waypoint_out = route_dir / "reactant.xyz", route_dir / "product.xyz", route_dir / "ts_guess.xyz"
+    start_out, end_out = route_dir / "reactant.xyz", route_dir / "product.xyz"
+    # The path engine writes its NEB waypoint as route_dir/ts_guess.xyz.
+    # Keep our immutable reaction-trace input elsewhere to avoid aliasing it.
+    waypoint_out = route_dir / "inputs" / "ts_guess.xyz"
     source_hashes = {"reactant_sha256": _sha256(source_path), "product_sha256": _sha256(product_path),
                      "ts_guess_sha256": _sha256(waypoint),
                      "reaction_trace_sha256": _sha256(trace_dir / "trace.jsonl"),
@@ -201,6 +204,7 @@ def _prepare_route(root, product, product_number, options, qc_params, previous=N
     if previous is not None and previous.get("path_options") != expected_options:
         raise ValueError("Saved pathway stage settings differ from this invocation")
     route_dir.mkdir(parents=True, exist_ok=True)
+    waypoint_out.parent.mkdir(parents=True, exist_ok=True)
     if not start_out.exists():
         write_xyz(start_elements, start_coordinates, start_out, job_name="reactant-side pathway endpoint", precision=12)
     if not end_out.exists():
@@ -219,6 +223,8 @@ def _prepare_route(root, product, product_number, options, qc_params, previous=N
         "backend_settings": {key: value for key, value in qc_params.items()
                              if key in {"software", "xtb_model", "method", "basis", "charge", "multiplicity", "scftype", "nprocs"}},
         "through": options["through"], "path_options": expected_options, "inputs": source_hashes,
+        "pathway_input_files": {"reactant": "reactant.xyz", "product": "product.xyz",
+                                "ts_guess": "inputs/ts_guess.xyz"},
         "prepared_geometry_sha256": {"reactant": _sha256(start_out), "product": _sha256(end_out),
                                      "ts_guess": _sha256(waypoint_out)},
         "status": "prepared",
@@ -333,8 +339,12 @@ def validate_characterization_restart(root, request, through, options):
         saved = json.loads(route_file.read_text(encoding="utf-8"))
         if saved.get("path_options") != path_options:
             raise ValueError("Pathway stage settings differ from this invocation")
-        for name, filename in (("reactant", "reactant.xyz"), ("product", "product.xyz"),
-                               ("ts_guess", "ts_guess.xyz")):
+        input_files = saved.get("pathway_input_files", {
+            "reactant": "reactant.xyz", "product": "product.xyz", "ts_guess": "ts_guess.xyz",
+        })
+        for name, filename in input_files.items():
+            if name not in {"reactant", "product", "ts_guess"}:
+                raise ValueError(f"Unknown pathway input geometry role {name!r} in {route_file}")
             artifact = directory / filename
             if not artifact.is_file() or _sha256(artifact) != saved.get("prepared_geometry_sha256", {}).get(name):
                 raise ValueError(f"Pathway input geometry was changed or removed: {artifact}")

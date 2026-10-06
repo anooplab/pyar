@@ -5,6 +5,7 @@ from unittest.mock import patch
 from pyar.reaction_request import resolve_reaction_request
 from pyar.workflows.reaction_characterization import characterize_reaction, validate_characterization_restart
 from pyar.workflows.scan_path import run_path_stages
+from pyar.neb import validate_stage_input_paths
 
 
 def _xyz(path, atoms, coords):
@@ -99,13 +100,25 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
         assert route["candidate_ts_is_validated_transition_state"] is False
         assert result["status"] == "complete"
         assert run.call_args.kwargs["through"] == "neb"
+        assert run.call_args.kwargs["ts_guess"].relative_to(run.call_args.kwargs["output"]).as_posix() == \
+            "inputs/ts_guess.xyz"
+        validate_stage_input_paths(run.call_args.kwargs["output"], "neb",
+                                   ts_guess=run.call_args.kwargs["ts_guess"])
         from pyar.workflows.reaction_characterization import _xyz_data
         import numpy as np
         assert np.allclose(_xyz_data(run.call_args.kwargs["start"])[1],
                            _xyz_data(steps / "step_000020.xyz")[1])
+        # A failed run created by the earlier bridge version stored the
+        # waypoint at route_dir/ts_guess.xyz. Accept that read-only state and
+        # migrate the immutable input before resuming NEB.
+        old_waypoint = route_file.parent / "ts_guess.xyz"
+        new_waypoint = route_file.parent / "inputs" / "ts_guess.xyz"
+        old_waypoint.write_bytes(new_waypoint.read_bytes())
+        new_waypoint.unlink()
+        route.pop("pathway_input_files")
+        route_file.write_text(json.dumps(route, indent=2, sort_keys=True) + "\n")
         # Identical reruns retain the same route files and invoke the engine in
         # the same output directory, where NEB's own stage hashes govern reuse.
-        first_bytes = route_file.read_bytes()
         before = {path.relative_to(reaction): path.read_bytes() for path in (reaction / "pathways").rglob("*")
                   if path.is_file()}
         validate_characterization_restart(tmp_path, request, "neb",
@@ -115,5 +128,7 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
         assert before == after
         characterize_reaction(tmp_path, request, "neb", options)
         assert run.call_count == 2
-        assert route_file.read_bytes() == first_bytes
+        resumed_route = json.loads(route_file.read_text())
+        assert resumed_route["pathway_input_files"]["ts_guess"] == "inputs/ts_guess.xyz"
+        assert run.call_args.kwargs["ts_guess"] == new_waypoint
         assert run.call_args.kwargs["output"] == run.call_args_list[0].kwargs["output"]
