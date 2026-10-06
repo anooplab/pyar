@@ -156,6 +156,27 @@ The file ``candidate_ts/highest_backend_energy.xyz`` is usually the first
 structure to inspect for later path-refinement work because it is selected from
 the physical backend energy, not the AFIR-biased total energy.
 
+Automated characterization
+---------------------------
+
+The modern ``pyar react`` command can hand accepted products to the existing
+unbiased path-stage engine. Discovery remains the product-generation stage;
+path characterization validates one selected route per unique product:
+
+.. code-block:: bash
+
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
+
+The route uses the accepted unbiased relaxed product, the latest suitable
+reactant-side trace frame (or that reaction job's oriented starting geometry),
+and by default ``candidate_ts/highest_backend_energy.xyz`` as a NEB waypoint.
+This waypoint is only an initializer. AFIR trace energies are not activation
+barriers, and candidate geometries are not confirmed transition states.
+Confirmation still depends on the existing NEB, TS, frequency, IRC, and
+endpoint-validation gates. Pathways and stage summaries are stored under
+``reaction/pathways/``; completed reaction state is retained if a downstream
+scientific gate fails.
+
 Trace analysis
 --------------
 

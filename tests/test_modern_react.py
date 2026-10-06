@@ -140,6 +140,30 @@ def test_check_no_mutations(tmp_path, workflow, monkeypatch, capsys):
     assert 'adaptive' in capsys.readouterr().out
 
 
+def test_through_all_preflights_full_chain_without_mutations(tmp_path, monkeypatch, workflow):
+    files = inputs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb']), patch(
+            'pyar.scripts.modern_react.preflight_path_request', return_value=['geometric', 'ase', 'sella']) as path_check:
+        main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--through', 'all', '--check'])
+    path_check.assert_called_once()
+    assert path_check.call_args.args[1] == 'all'
+    assert not workflow.called
+    assert not (tmp_path / 'reaction').exists()
+
+
+def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, workflow):
+    files = inputs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    characterization = {'status': 'complete', 'selected_routes': [], 'preparation_failures': []}
+    with patch('pyar.scripts.modern_react.preflight_path_request', return_value=[]), patch(
+            'pyar.scripts.modern_react.characterize_reaction', return_value=characterization) as characterize:
+        main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--through', 'neb'])
+    assert workflow.called
+    characterize.assert_called_once()
+    assert characterize.call_args.args[2] == 'neb'
+
+
 @pytest.mark.parametrize('failure', [ValueError("Missing executable 'xtb'; official installation"),
                                      ImportError('geometric missing; pip install "pyar-chem[xtb]"'),
                                      ValueError('native relaxation unavailable')])

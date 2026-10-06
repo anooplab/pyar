@@ -196,3 +196,6 @@ optimizes both IRC endpoints without claiming minima or reaction confirmation;
 frequencies and endpoint matching, without optimizing again. Both stages use
 the same physical provenance and artifact/dependency validation as the other
 reaction-path stages. ``scan-bond --through all`` uses these separate stages.
+Modern reaction discovery can also hand one selected product pathway to this
+same stage engine with ``pyar react ... --through all``. Its AFIR trace geometry
+is only a waypoint; the unbiased stage gates remain authoritative.

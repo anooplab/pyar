@@ -786,7 +786,7 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
     )
     pending_orientations = list(orientations)
 
-    def record_orientation_completion(job_name, status):
+    def record_orientation_completion(job_name, status, identity=None):
         """Persist the processed job and any orientations still pending."""
         pending_orientations.pop(0)
         if run_state is not None:
@@ -796,6 +796,7 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                 status,
                 pending_orientations,
                 table_of_optimized_molecules,
+                identity=identity,
             )
         reactor_logger.info(
             "Orientation completed! status=%s final_coordinate=%s",
@@ -947,7 +948,10 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                                 )
                             product_status = "new_product"
                         os.chdir(cwd)
-                        record_orientation_completion(job_name, product_status)
+                        record_orientation_completion(
+                            job_name, product_status,
+                            identity={"inchi": current_inchi, "smiles": current_smile},
+                        )
                         continue
                 elif is_cycle_exceeded(status):
                     table_of_optimized_molecules.append(before_relax)

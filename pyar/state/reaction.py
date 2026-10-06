@@ -119,6 +119,36 @@ class ReactionRunState:
         return state
 
     @classmethod
+    def read_completed(cls, root_directory, expected_request):
+        """Read completed reaction evidence for downstream analysis, read-only.
+
+        Normal restart loading deliberately rejects terminal runs. Path
+        characterization consumes a completed discovery as immutable input,
+        so it has a separate entry point that cannot turn that state back into
+        a writable reaction restart.
+        """
+        state_file = Path(root_directory).resolve() / "reaction" / STATE_FILENAME
+        if not state_file.is_file():
+            return None
+        try:
+            with state_file.open(encoding="utf-8") as fp:
+                data = json.load(fp)
+        except (OSError, ValueError) as exc:
+            raise ReactionStateError(f"Could not read reaction state file {state_file}: {exc}") from exc
+        if data.get("version") != STATE_VERSION:
+            raise ReactionStateError(
+                f"Unsupported reaction state version {data.get('version')!r} in {state_file}"
+            )
+        state = cls(root_directory, data)
+        state.validate_request(expected_request)
+        if data.get("status") not in {"completed", "completed_products_found", "completed_no_products",
+                                      "completed_no_candidates"}:
+            raise ReactionStateError(
+                f"Reaction state in {state_file} is {data.get('status')!r}, not a completed discovery."
+            )
+        return state
+
+    @classmethod
     def migrate_legacy(cls, root_directory, checkpoint, request, sampling=None):
         """Convert an unambiguous legacy ``jobs.pkl`` checkpoint to JSON state."""
         if request.get("backend_parameters", {}).get("reaction_energy_convention"):
@@ -220,11 +250,12 @@ class ReactionRunState:
             for product in self.data.get("products", [])
         }
 
-    def record_job(self, job_name, gamma, status, remaining_orientations, current_survivors):
+    def record_job(self, job_name, gamma, status, remaining_orientations, current_survivors, identity=None):
         """Record processed work plus pending and retained current-cycle candidates."""
-        self.data["completed_jobs"].append(
-            {"job_name": job_name, "gamma": float(gamma), "status": str(status)}
-        )
+        record = {"job_name": job_name, "gamma": float(gamma), "status": str(status)}
+        if identity:
+            record["product_identity"] = _json_value(identity)
+        self.data["completed_jobs"].append(record)
         self._replace_pending_orientations(remaining_orientations)
         self._replace_current_survivors(current_survivors)
         self.save()

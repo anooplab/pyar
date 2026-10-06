@@ -341,7 +341,20 @@ canonical chemical-identity gate before product acceptance. `reaction/state.json
 retains the existing restart protocol; compatible running states resume and
 incompatible/completed states are rejected. Existing legacy checkpoint policies
 are preserved; checkpoints lacking physical-energy provenance cannot resume on
-this route. No automatic NEB/TS/frequency/IRC pipeline is added.
+this route. By default `pyar react` performs discovery only. Add `--through neb`,
+`ts`, `frequency`, `irc`, `endpoints`, `endpoint-frequency`, or `all` to pass
+one selected route per unique product into the existing unbiased path engine.
+For example:
+
+```bash
+pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
+```
+
+The highest physical-backend-energy trace geometry is used as a NEB waypoint by
+default; it is only a TS guess. AFIR trace energies are not activation barriers,
+and a candidate geometry is not a confirmed transition state. Path stages and
+provenance are retained under `reaction/pathways/`, independently of completed
+reaction-discovery state.
 
 Inspect an orientation's existing reaction trace with
 `pyar trace reaction/gamma_adaptive/orientation_000_geom/job_adaptive_000_geom`.

@@ -13,6 +13,37 @@ Basic commands
    pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
    pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
 
+Modern reaction discovery and path validation
+----------------------------------------------
+
+The modern command defaults to product discovery only. ``--bias-max`` is a
+user-selected scientific ceiling; 100 in this syntax example is not a universal
+chemistry recommendation:
+
+.. code-block:: bash
+
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100
+
+To continue one selected route for each unique product through the existing
+unbiased validation stages, request a stopping point explicitly:
+
+.. code-block:: bash
+
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through neb
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
+
+``all`` includes endpoint relaxation, NEB, TS optimization, frequency
+validation, IRC, endpoint relaxation, and endpoint-frequency validation. The
+same physical backend and electronic state are used in discovery and path
+characterization. Completed reaction discovery is retained and can be consumed
+read-only when resuming interrupted path stages. Use ``--check`` or
+``--dry-run`` to preflight the requested complete chain before calculations.
+
+AFIR trace energies are not activation barriers. Geometries in
+``candidate_ts/`` are NEB waypoints/TS guesses, not confirmed transition
+states. A transition state is confirmed only by the independent TS and
+frequency gates in the path workflow.
+
 The reaction workflow uses AFIR-style biased optimisation and then checks
 whether the relaxed structure is a new product.
 

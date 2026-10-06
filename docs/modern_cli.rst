@@ -102,6 +102,13 @@ settings and artifact hashes before starting. It runs both IRC directions;
 endpoint optimization/validation remains a separate engine/scan continuation
 stage. Normal numerical and input/output-alias checks happen during preflight.
 The scan-bond ``--through`` workflow continues to use the same stage engine.
+Reaction discovery also accepts ``--through``. The default is discovery only;
+``pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all`` selects
+one route per unique accepted product and passes its accepted unbiased product,
+reactant-side trace geometry, and candidate waypoint to these same validated
+stages. ``candidate_ts`` geometries are guesses only, and AFIR trace energies
+must not be interpreted as activation barriers. ``--check``/``--dry-run``
+preflight both reaction discovery and the requested continuation before work.
 
 Compatibility spelling
 ----------------------
