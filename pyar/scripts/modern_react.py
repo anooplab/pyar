@@ -2,6 +2,7 @@
 
 import argparse
 
+from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar.backend_errors import BackendExecutionError
 from pyar.reaction_request import resolve_reaction_request, preflight_reaction, validate_restart
 from pyar.state.reaction import ReactionStateError
@@ -46,6 +47,10 @@ def main(argv=None, *, prog=None):
         validate_restart(request)
     except (ValueError, OSError, ImportError, ReactionStateError) as exc:
         parser.error(f'Preflight failed for react: {exc}\nNo calculations were started.')
+    prepared_run(args, request=request.restart_request, backend=request.qc_params,
+                 molecules=request.reactants, requirements=requirements, outputs=['reaction'],
+                 options={'orientations': request.orientations, 'bias_min': request.bias_min,
+                          'bias_max': request.bias_max, 'proximity_factor': request.proximity_factor})
     if args.check:
         print('Preflight: react')
         for path, molecule in zip(args.input_files, request.reactants):
@@ -57,11 +62,13 @@ def main(argv=None, *, prog=None):
         print('Ready to run.\n--check specified; no calculations were performed.')
         return
     try:
+        started_run()
         result = reaction_workflow.react(*request.reactants, request.bias_min, request.bias_max,
                                          request.orientations, request.qc_params, request.site,
                                          request.proximity_factor)
     except (ValueError, OSError, ReactionStateError, BackendExecutionError) as exc:
         parser.error(str(exc))
+    finished_run(result)
     print(f'Reaction search: {result.status}\nProducts found: {len(result.selected_paths)}\n'
           f'Run directory: {result.run_directory}\nState: {result.state_path}')
     for path in result.selected_paths:

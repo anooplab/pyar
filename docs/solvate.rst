@@ -1,6 +1,12 @@
 Solvate
 ========
 
+.. note::
+
+   ``pyar-cli solvate`` remains available for backward compatibility and
+   continues to read its existing ``solvation/state.json`` state. It is
+   deprecated; use :doc:`microsolvate` for solute-centred first-shell sampling.
+
 Use solvation when you want PyAR to add one or more copies of a fragment
 around a central structure. Microsolvation is the classic use case, but the
 same workflow also applies to ligand addition and local growth around a core.

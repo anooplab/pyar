@@ -2,11 +2,37 @@
 
 ## Unreleased
 
+## 1.5.0 - 2026-10-06
+
 ### Added
+
+- Extend ``pyar`` with modern NEB/TS/IRC entry points, installation and backend
+  diagnostics, run inspection, versioned task configs, reusable profiles, and
+  shared read-only dry-run controls.
+
+- Add the solute-centred `pyar microsolvate` workflow with deterministic
+  Fibonacci surface targets, shell coverage tracking, bounded survivor
+  selection, and a separate versioned restart state. Legacy `solvate` remains
+  available with a deprecation warning and its existing restart semantics.
 
 - Added `pyar-cli grow` for fixed-seed repeated-addend growth, bounded survivor
   pools, retained intermediate stages, typed requests/results and atomic,
   request-validated restart state.
+
+### Fixed
+
+- Exclude formulas and artifact paths from reusable methodology profiles, and
+  freeze resolved optimizer, model, and reaction-controller defaults in configs.
+- Validate scan-bond output/restart requests before reporting preflight success
+  or writing a configuration, without generating orientations during checks.
+
+- Keep modern NEB execution within endpoint relaxation and NEB; validate path
+  controls, input/output aliasing, and IRC artifact provenance before execution.
+- Replay editable run configurations with resolved settings, preserve explicit
+  CLI overrides and negative profile flags, and never persist validation-only
+  execution mode. Record actual workflow results and failures after start.
+- Keep JSON stdout machine-readable, scope verbosity to each invocation, and
+  refuse accidental configuration/profile replacement.
 
 ### Changed
 

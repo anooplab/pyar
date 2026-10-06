@@ -1,6 +1,33 @@
 Sequential Seed Growth
 ======================
 
+Modern interface
+----------------
+
+.. code-block:: bash
+
+   pyar grow metal.xyz ligand.xyz --count 4 --backend xtb
+   pyar grow cluster.xyz H.xyz --count 12
+   pyar grow seed.xyz monomer.xyz --count 4 --check
+
+The modern command uses ``--backend`` for optional optimization. Omission runs
+bounded geometry-only growth without invented energies. Orientations default to
+8 and the survivor budget to 12. Output defaults to ``grow/``; ``--output DIR``
+selects another directory. Every selected intermediate stage is retained.
+
+Charge/multiplicity accept one value for both fragments or one per fragment;
+omitted multiplicity follows electron parity. The existing stagewise spin rule
+and site-index translation remain unchanged. ``--check`` validates the complete
+request, backend dependencies when selected, and existing state/snapshots without
+creating directories, changing restart state or generating structures.
+
+Grow preserves a fixed seed and repeats one addend, whereas aggregate searches a
+final composition with alternative pathways. Grow is chemistry-neutral.
+Legacy ``pyar-cli grow`` retains its ``--software`` interface.
+Legacy ``solvate`` remains on its existing restart-compatible path and emits
+a deprecation warning; use :doc:`microsolvate` for solute-centred first-shell
+construction.
+
 ``grow`` starts from one specific seed structure and repeatedly adds one chosen
 species. Candidate structures are generated and selected after every addition;
 all intermediate selected stages are retained. This is a chemistry-neutral

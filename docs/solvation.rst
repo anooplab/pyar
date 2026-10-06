@@ -1,6 +1,11 @@
 Solvation and Growth Around a Core
 ==================================
 
+The modern ``pyar microsolvate`` workflow performs solute-centred first-shell
+surface sampling. This page describes the legacy ``solvate`` compatibility
+path and its existing restart behavior; see :doc:`microsolvate` for the new
+placement policy.
+
 Use solvation when you want PyAR to add one or more copies of a fragment around
 a central structure. Microsolvation is the classic use case, but the same idea
 also applies to ligand addition, coordination growth, and building local

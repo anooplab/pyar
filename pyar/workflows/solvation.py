@@ -11,6 +11,7 @@ selected backend, selects the surviving seed geometries, persists
 from __future__ import annotations
 
 import os
+import warnings
 
 from pyar.solvation import SolvationRequest
 from pyar.solvation.request import normalize_connectivity_policy
@@ -74,6 +75,13 @@ def solvate(
     :class:`~pyar.workflow_results.SolvationResult` describes the final run
     state and the output directory.
     """
+    warnings.warn(
+        "The legacy solvate workflow is deprecated. Use `pyar microsolvate` for "
+        "solute-centred first-shell sampling, or `pyar grow` for generic repeated-addend growth. "
+        "Existing solvation state continues through this compatibility path.",
+        FutureWarning,
+        stacklevel=2,
+    )
     if check_stop_signal():
         aggregator_logger.info("Function: solvate")
         return stopped_workflow_result("solvation", os.getcwd())

@@ -21,7 +21,9 @@ For most chemistry users, start with the task that matches your problem:
 * :doc:`react` for AFIR-style product and close-contact searches
 * :doc:`bond_scan` for an ORCA relaxed bond-distance scan
 * :doc:`neb` for a product-validated geomeTRIC reaction path and TS guess
-* :doc:`solvate` for microsolvation, ligand addition, and growth around a core
+* :doc:`grow` for generic sequential additions to a fixed seed
+* :doc:`microsolvate` for original-solute-centred first-shell sampling
+* :doc:`solvate` for the legacy compatibility workflow
 * :doc:`conformer` for RDKit-based conformer generation and refinement
 
 .. rubric:: Cite this work
@@ -64,10 +66,12 @@ Which paper matches my problem?
    * - Prebiotic reaction discovery and bond rearrangement
      - ``react``
      - [Nandi2018]_, [Panda2024]_
-   * - Microsolvation or ligand addition around a central core
+   * - Sequential ligand addition to a fixed seed
+     - ``grow``
+     - Retain selected structures at each addition stage
+   * - Microsolvation
      - ``solvate``
-     - Use the same build-up logic for solvent shells, coordination
-       complexes, and organometallic assembly
+     - Use the established solvation workflow
    * - Catalyst formation and sequential ligand addition
      - ``react``
      - [Roy2022]_
@@ -81,6 +85,9 @@ Start here
 * :doc:`quickstart`
 * :doc:`first_run`
 * :doc:`aggregate`
+* :doc:`grow`
+* :doc:`microsolvate`
+* :doc:`conformer`
 * :doc:`react`
 * :doc:`bond_scan`
 * :doc:`neb`
@@ -170,6 +177,7 @@ The fastest way to verify a local install is:
    bond_scan
    neb
    solvate
+   microsolvate
    conformer
 
 .. toctree::
@@ -213,3 +221,4 @@ The fastest way to verify a local install is:
    solvation
    migration_2_0
    structure_identity_and_selection
+   modern_cli

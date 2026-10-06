@@ -1172,6 +1172,22 @@ def _execute_stage(stage, output, calculator, options):
     raise ValueError(f"Unknown stage: {stage}")
 
 
+def validate_stage_input_paths(output, stage, *, start=None, end=None, ts_guess=None, ts_geometry=None):
+    """Reject input/output aliasing without creating the run directory."""
+    output = Path(output).resolve()
+    overwritten = {
+        "relax": {"reactant_relaxed.xyz", "product_relaxed.xyz"},
+        "neb": {"neb_path.xyz", "ts_guess.xyz"},
+        "ts": {"ts_optimized.xyz", "ts_path.xyz"},
+        "frequency": {"frequency_geometry.xyz"},
+        "irc": set(), "endpoints": set(), "endpoint-relax": set(), "endpoint-frequency": set(),
+    }
+    reserved = set().union(*overwritten.values()) if stage == "all" else overwritten[stage]
+    for path in (start, end, ts_guess, ts_geometry):
+        if path is not None and Path(path).resolve() in {output / name for name in reserved}:
+            raise ValueError("An input would be overwritten by this stage; use a new output directory")
+
+
 def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
                           max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
                           nprocs=1, xtb_model="gfn2", max_gradient=0.05, average_gradient=0.025, spring=1.0,
@@ -1200,17 +1216,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             raise ValueError("images must be an odd integer of at least 3")
     if ts_geometry is not None and stage not in {"ts", "frequency"}:
         raise ValueError("--ts-geometry is supported only for ts and frequency stages")
-    overwritten = {
-        "relax": {"reactant_relaxed.xyz", "product_relaxed.xyz"},
-        "neb": {"neb_path.xyz", "ts_guess.xyz"},
-        "ts": {"ts_optimized.xyz", "ts_path.xyz"},
-        "frequency": {"frequency_geometry.xyz"},
-        "irc": set(), "endpoints": set(), "endpoint-relax": set(), "endpoint-frequency": set(),
-    }
-    reserved = set().union(*overwritten.values()) if stage == "all" else overwritten[stage]
-    for path in (start, end, ts_guess, ts_geometry):
-        if path is not None and Path(path).resolve() in {output / name for name in reserved}:
-            raise ValueError("An input would be overwritten by this stage; use a new output directory")
+    validate_stage_input_paths(output, stage, start=start, end=end, ts_guess=ts_guess, ts_geometry=ts_geometry)
     for key in ("max_cycles", "product_relaxation_max_steps", "ts_max_cycles", "irc_max_cycles", "endpoint_max_cycles", "nprocs", "multiplicity"):
         if not isinstance(options[key], int) or options[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
@@ -1237,8 +1243,13 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             "sella_fmax": sella_fmax,
             "sella_internal_coordinates": sella_internal_coordinates,
         })
-    qc_params = dict(software=software, method=method or defualt_parameters.values["method"],
-                     basis=basis or defualt_parameters.values["basis"], charge=charge,
+    from pyar.backend_capabilities import get_backend_capabilities, normalize_backend_name
+    canonical_backend = normalize_backend_name(str(software).lower())
+    needs_dft_settings = get_backend_capabilities(canonical_backend).family == "dft_qc"
+    qc_params = dict(software=software,
+                     method=(method or defualt_parameters.values["method"]) if needs_dft_settings else method,
+                     basis=(basis or defualt_parameters.values["basis"]) if needs_dft_settings else basis,
+                     charge=charge,
                      multiplicity=multiplicity, nprocs=nprocs, gamma=0.0)
     if str(software).lower() == "orca":
         from pyar.backends.orca_methods import orca_method

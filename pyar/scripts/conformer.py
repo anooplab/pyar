@@ -13,10 +13,10 @@ from pyar.workflows.conformer import ConformerWorkflowError, conformer_search
 logger = logging.getLogger("pyar-conformer")
 
 
-def argument_parse(argv=None):
+def build_parser(prog=None, *, modern=False):
     """Parse conformer-search CLI arguments."""
     parser = argparse.ArgumentParser(
-        prog="pyar-cli conformer",
+        prog=prog or "pyar-cli conformer",
         description="Generate and optionally refine RDKit conformers.",
     )
     parser.add_argument("input", help="SMILES string, SDF/MOL file, or XYZ file")
@@ -29,15 +29,16 @@ def argument_parse(argv=None):
     parser.add_argument("--num-conformers", type=int, default=150)
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--backend-top-n", type=int)
-    parser.add_argument("--num-seeds", type=int, default=5)
-    parser.add_argument("--diversity-fraction", type=float, default=0.2)
-    parser.add_argument(
+    advanced = parser.add_argument_group("Advanced generation controls") if modern else parser
+    advanced.add_argument("--num-seeds", type=int, default=5)
+    advanced.add_argument("--diversity-fraction", type=float, default=0.2)
+    advanced.add_argument(
         "--compactness-fraction",
         type=float,
         default=0.2,
         help="Protected contact-rich folded-basin quota; matched by an open-basin quota for diversity.",
     )
-    parser.add_argument(
+    advanced.add_argument(
         "--rms-threshold",
         "--prune-rms-threshold",
         dest="rms_threshold",
@@ -45,44 +46,49 @@ def argument_parse(argv=None):
         default=0.25,
         help="RDKit greedy prune RMS threshold; lower values keep more embedded conformers.",
     )
-    parser.add_argument(
+    advanced.add_argument(
         "--use-random-coords",
         dest="use_random_coords",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Start RDKit embedding from random coordinates instead of distance geometry eigenvectors.",
     )
-    parser.add_argument(
+    advanced.add_argument(
         "--torsion-kicks",
         dest="torsion_kicks",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Generate local torsion-perturbed conformers before backend refinement.",
     )
-    parser.add_argument(
+    advanced.add_argument(
         "--torsion-mode",
         choices=["random"],
         default="random",
         help="Use the stratified random torsion-kick sampler.",
     )
-    parser.add_argument("--torsion-rounds", type=int, default=2)
-    parser.add_argument("--torsion-kicks-per-conformer", type=int, default=6)
-    parser.add_argument("--torsion-max-bonds", type=int, default=3)
-    parser.add_argument("--torsion-dedup-rms", type=float, default=0.5)
-    parser.add_argument(
+    advanced.add_argument("--torsion-rounds", type=int, default=2)
+    advanced.add_argument("--torsion-kicks-per-conformer", type=int, default=6)
+    advanced.add_argument("--torsion-max-bonds", type=int, default=3)
+    advanced.add_argument("--torsion-dedup-rms", type=float, default=0.5)
+    advanced.add_argument(
         "--dedup-atom-mode", choices=["heavy", "all"], default="heavy",
         help="Atoms scored by shared graph RMSD; full connectivity is always checked.",
     )
     parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")
-    parser.add_argument("--seed", type=int, default=1)
-    parser.add_argument("--num-threads", type=int, default=0)
-    parser.add_argument("--max-iterations", type=int, default=200)
+    advanced.add_argument("--seed", type=int, default=1)
+    advanced.add_argument("--num-threads", type=int, default=0)
+    advanced.add_argument("--max-iterations", type=int, default=200)
 
     molecule_group = parser.add_argument_group("molecule")
     molecule_group.add_argument("-c", "--charge", type=int)
-    molecule_group.add_argument("-m", "--multiplicity", type=int, default=1)
-    molecule_group.add_argument("--scftype", type=str, default="rhf")
+    molecule_group.add_argument("-m", "--multiplicity", type=int, default=None if modern else 1)
+    molecule_group.add_argument("--scftype", type=str, default=None if modern else "rhf")
 
+    if modern:
+        from pyar.modern_workflow import add_backend_arguments
+        add_backend_arguments(parser)
+        parser.add_argument('--check', action='store_true', help='Validate without embedding or creating a run directory')
+        return parser
     backend_group = parser.add_argument_group("backend refinement")
     backend_group.add_argument(
         "--software",
@@ -124,7 +130,11 @@ def argument_parse(argv=None):
     backend_group.add_argument("-nprocs", "--nprocs", type=int, default=defualt_parameters.values["nprocs"])
     backend_group.add_argument("--custom-keywords", type=str)
     backend_group.add_argument("-model", "--model", type=str, default=defualt_parameters.values["model"])
-    return parser.parse_args(argv)
+    return parser
+
+
+def argument_parse(argv=None):
+    return build_parser().parse_args(argv)
 
 
 def _backend_qc_params(args):
@@ -149,6 +159,19 @@ def _backend_qc_params(args):
     }
 
 
+def workflow_options(args, qc_params):
+    """Shared mapping for legacy and modern interfaces to the canonical engine."""
+    names = (
+        'input_format', 'num_conformers', 'top_n', 'backend_top_n', 'num_seeds',
+        'diversity_fraction', 'compactness_fraction', 'rms_threshold',
+        'use_random_coords', 'torsion_kicks', 'torsion_mode', 'torsion_rounds',
+        'torsion_kicks_per_conformer', 'torsion_max_bonds', 'torsion_dedup_rms',
+        'dedup_atom_mode', 'force_field', 'seed', 'num_threads', 'max_iterations',
+        'charge', 'multiplicity', 'scftype',
+    )
+    return {**{name: getattr(args, name) for name in names}, "qc_params": qc_params}
+
+
 def main(argv=None):
     """Run the RDKit conformer-search workflow."""
     args = argument_parse(argv)
@@ -163,33 +186,7 @@ def main(argv=None):
         )
 
     try:
-        result = conformer_search(
-            args.input,
-            input_format=args.input_format,
-            num_conformers=args.num_conformers,
-            top_n=args.top_n,
-            backend_top_n=args.backend_top_n,
-            num_seeds=args.num_seeds,
-            diversity_fraction=args.diversity_fraction,
-            compactness_fraction=args.compactness_fraction,
-            rms_threshold=args.rms_threshold,
-            use_random_coords=args.use_random_coords,
-            torsion_kicks=args.torsion_kicks,
-            torsion_mode=args.torsion_mode,
-            torsion_rounds=args.torsion_rounds,
-            torsion_kicks_per_conformer=args.torsion_kicks_per_conformer,
-            torsion_max_bonds=args.torsion_max_bonds,
-            torsion_dedup_rms=args.torsion_dedup_rms,
-            dedup_atom_mode=args.dedup_atom_mode,
-            force_field=args.force_field,
-            seed=args.seed,
-            num_threads=args.num_threads,
-            max_iterations=args.max_iterations,
-            charge=args.charge,
-            multiplicity=args.multiplicity,
-            scftype=args.scftype,
-            qc_params=qc_params,
-        )
+        result = conformer_search(args.input, **workflow_options(args, qc_params))
     except (ConformerWorkflowError, FileNotFoundError, ImportError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
 

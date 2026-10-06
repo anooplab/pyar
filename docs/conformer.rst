@@ -1,6 +1,27 @@
 Conformer Search
 ================
 
+Modern interface
+----------------
+
+.. code-block:: bash
+
+   pyar conformer "CCO"
+   pyar conformer "CCO" --backend xtb
+   pyar conformer molecule.sdf --check
+
+The modern interface retains the validated generation defaults and expert
+controls. Backend refinement is optional; standalone xTB receives GFN2 settings
+without a DFT method or basis. Charge is taken from reliable input chemistry
+unless explicitly supplied; otherwise it defaults to zero. Omitted multiplicity
+follows electron parity, with RHF/UHF selected accordingly.
+
+``--check`` loads and validates input without embedding or creating
+``conformers/``. XYZ input checks coordinates and the availability of the external
+OpenBabel converter, using in-memory conversion without writing files. RDKit is required: install
+``pip install "pyar-chem[conformer]"``. Existing conformer state cannot be resumed;
+use a fresh directory. Legacy commands retain their defaults and ``--software``.
+
 Use conformer search when you want PyAR to build and rank a set of plausible
 starting geometries for a single molecule before optional backend refinement.
 The workflow is RDKit-based and is aimed at flexible molecules where a single

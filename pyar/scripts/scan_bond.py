@@ -1,5 +1,7 @@
 """Backend-independent relaxed bond scans and reaction-path continuation."""
 
+from pyar.cli_runtime import prepared_run, started_run, finished_run
+
 import argparse
 import os
 from pathlib import Path
@@ -148,18 +150,29 @@ def main(argv=None, *, modern=False, prog=None):
     if modern:
         from pyar.scan_request import preflight_scan
         try:
+            from pyar.workflows.scan_bond import scan_request_fields, validate_scan_restart
+            request_fields = scan_request_fields(*args.inputs, *molecules, args.atoms,
+                                                  args.orientations, params, args.scan_end,
+                                                  args.scan_step, args.scan_points)
+            validate_scan_restart(args.output, request_fields)
             requirements = preflight_scan(args, params, molecules)
-        except (ValueError, ImportError, FileNotFoundError, RuntimeError) as exc:
+        except (ValueError, ImportError, OSError, RuntimeError) as exc:
             parser.error(f"Preflight failed for: scan-bond\n{exc}\nNo calculations were started.")
+        prepared_run(args, request={'scan': vars(args), 'continuation': reaction_options},
+                     backend=params, molecules=molecules, requirements=requirements, outputs=[args.output])
         print(f"Preflight: scan-bond; backend: {args.software}; orientations: {args.orientations}; through: {args.through}")
         print(f"Inputs: {args.inputs[0]}, {args.inputs[1]}; bond: A[{args.atoms[0]}] -> B[{args.atoms[1]}]")
         print("Requirements satisfied: " + ", ".join(requirements))
         if args.check:
             print("Ready to run. --check specified; no calculations were performed.")
             return
+    if modern:
+        started_run()
     result = run_scan_bond(args.inputs[0], args.inputs[1], args.atoms, args.orientations,
                          params, args.output, args.scan_end, args.scan_step, args.scan_points,
                          args.through, reaction_options)
+    if modern:
+        finished_run(result)
     if isinstance(result, dict) and "status" in result:
         print(f"scan-bond: {result['status']} through {args.through}; summaries: {result['output_dir']}")
         if result["status"] != "complete":

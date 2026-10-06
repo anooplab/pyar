@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import os
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -139,11 +140,29 @@ def _load_sdf_molecule(path, Chem):
 
 
 def _load_xyz_with_openbabel(input_path, run_directory, Chem):
-    """Convert an XYZ file to SDF with OpenBabel and load it into RDKit."""
+    """Convert XYZ to an RDKit molecule; None keeps the check read-only."""
     source = Path(input_path)
     if not source.is_file():
         raise ConformerWorkflowError(f"XYZ input file {input_path!r} does not exist")
     executable = require_executable("obabel", "OpenBabel")
+    if run_directory is None:
+        # OpenBabel writes SDF to stdout here; no run directory or log is made.
+        try:
+            converted = subprocess.run(
+                [executable, "-ixyz", str(source), "-osdf"],
+                check=True, capture_output=True,
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            detail = getattr(exc, "stderr", b"") or b""
+            if isinstance(detail, bytes):
+                detail = detail.decode(errors="replace").strip()
+            raise ConformerWorkflowError(
+                f"OpenBabel could not infer an RDKit-readable bond graph from {source}: {detail or exc}"
+            ) from exc
+        molecule = Chem.MolFromMolBlock(converted.stdout.decode(errors="replace"), removeHs=False)
+        if molecule is None:
+            raise ConformerWorkflowError(f"OpenBabel output for {source} is not a valid SDF molecule")
+        return molecule
     input_directory = run_directory / "input"
     input_directory.mkdir(parents=True, exist_ok=True)
     converted_sdf = input_directory / "input_from_xyz.sdf"

@@ -207,3 +207,41 @@ def test_structured_failure_stays_nonzero(inputs, dependencies):
 def test_successful_workflow_is_not_an_exit_value(inputs, dependencies):
     with mock.patch.object(scan_bond, 'run_scan_bond', return_value={'status': 'complete', 'output_dir': 'scan_bond'}):
         assert modern_cli.main([*inputs, '--backend', 'xtb']) is None
+
+
+@pytest.mark.parametrize('state', ['missing', 'invalid', 'modified'])
+def test_check_rejects_unusable_scan_output_before_config_write(inputs, state):
+    import json
+    root = Path('scan_bond'); root.mkdir()
+    if state != 'missing':
+        (root / 'request.json').write_text('invalid JSON' if state == 'invalid' else json.dumps({'request_signature': 'wrong'}))
+    before = {p: p.read_bytes() for p in root.iterdir()}
+    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(scan_bond, 'run_scan_bond') as engine:
+        with pytest.raises(SystemExit) as exc:
+            modern_cli.main([*inputs, '--backend', 'xtb', '--check', '--write-config', 'run.toml'])
+    assert exc.value.code == 2
+    engine.assert_not_called()
+    assert not Path('run.toml').exists()
+    assert before == {p: p.read_bytes() for p in root.iterdir()}
+
+
+def test_check_validates_saved_scan_request_without_sampling(inputs):
+    import hashlib
+    import json
+    from pyar.workflows import scan_bond as workflow
+    # Capture the exact resolved fields published by the shared preflight helper.
+    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(workflow, 'validate_scan_restart') as validator:
+        modern_cli.main([*inputs, '--backend', 'xtb', '--check'])
+    request = dict(validator.call_args.args[1], orientation_definitions=[], reactant_identity=None,
+                   reactant_identity_error=None)
+    request['request_signature'] = hashlib.sha256(json.dumps(request, sort_keys=True, separators=(',', ':'), default=str).encode()).hexdigest()
+    root = Path('scan_bond'); root.mkdir()
+    (root / 'request.json').write_text(json.dumps(request))
+    before = (root / 'request.json').read_bytes()
+    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(workflow, '_make_orientations') as sampling, mock.patch.object(scan_bond, 'run_scan_bond') as engine:
+        modern_cli.main([*inputs, '--backend', 'xtb', '--check'])
+        with pytest.raises(SystemExit):
+            modern_cli.main([*inputs, '--backend', 'xtb', '--orientations', '2', '--check'])
+        sampling.assert_not_called()
+        engine.assert_not_called()
+    assert (root / 'request.json').read_bytes() == before

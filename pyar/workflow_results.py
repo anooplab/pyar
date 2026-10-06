@@ -40,6 +40,11 @@ class SolvationResult(WorkflowResult):
 
 
 @dataclass(frozen=True)
+class MicrosolvationResult(WorkflowResult):
+    """Structured result for original-solute-centred shell construction."""
+
+
+@dataclass(frozen=True)
 class ReactionResult(WorkflowResult):
     """Structured result for reaction runs."""
 

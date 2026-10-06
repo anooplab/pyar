@@ -1,6 +1,6 @@
 # PyAR
 
-PyAR is a chemistry-focused structure-search package for aggregation, reaction discovery, solvation growth, and bond scans.
+PyAR is a chemistry-focused structure-search package for aggregation, reaction discovery, solvation workflows, and bond scans.
 
 ## Install
 
@@ -14,7 +14,7 @@ python -m pip install pyar-chem
 pyar-cli --help
 pyar-cli -a C H -as 1 4 -N 8
 pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
-pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
+pyar microsolvate solute.xyz solvent.xyz --count 10 --backend xtb
 ```
 
 ## Supported Workflows
@@ -82,9 +82,80 @@ ORCA default, and required `-N` argument.
 - `aggregate` searches a requested final composition with alternative build pathways
 - `grow` repeatedly adds one species to a specific seed and retains every selected stage
 - `react` for AFIR-style reaction searches between two reactants
-- `solvate` for microsolvation, ligand addition, and growth around a core
+- `microsolvate` for original-solute-centred first-shell sampling
+- legacy `solvate` for backward-compatible solvation restarts
 - `scan-bond` for a simple bond-distance probe
 - `pyar-reaction-trace` for reaction-trace analysis
+
+## Modern conformer, aggregate and grow commands
+
+```bash
+# RDKit conformer search, optionally followed by backend refinement
+pyar conformer "CCO"
+pyar conformer "CCO" --backend xtb
+
+# Requested final composition; inputs are building-block types, not a fixed seed
+pyar aggregate A.xyz B.xyz
+pyar aggregate water.xyz --size 6 --backend xtb
+pyar aggregate water.xyz ammonia.xyz --size 4 2 --backend xtb
+
+# Fixed seed, repeated addend; every selected intermediate stage is retained
+pyar grow metal.xyz ligand.xyz --count 4 --backend xtb
+pyar grow cluster.xyz H.xyz --count 12
+
+# First-shell microsolvation keeps targeting the original solute surface
+pyar microsolvate methane.xyz water.xyz --count 8
+pyar microsolvate methane.xyz water.xyz --count 8 --backend xtb
+pyar microsolvate solute.xyz water.xyz --count 3 --site 7 --backend xtb
+
+# Validate, save and inspect reusable task setups
+pyar optimize molecule.xyz --backend xtb --dry-run
+pyar react A.xyz B.xyz --backend xtb --bias-max 100 --write-config reaction.toml --check
+pyar run reaction.toml --check
+pyar info
+pyar backends
+pyar doctor
+
+# Read-only input, settings, requirements and restart validation
+pyar conformer "CCO" --check
+pyar aggregate A.xyz B.xyz --check
+pyar grow seed.xyz ligand.xyz --count 4 --check
+```
+
+All three commands allow omission of `--backend`: conformer uses its established
+RDKit search, while aggregate and grow use bounded structural diversity selection
+without fabricated energies. Aggregate explores requested final compositions and
+alternative build orders, with no permanently privileged seed. Grow repeatedly
+adds one species to a fixed seed and retains its growth series; it is not limited
+to solvation. Legacy `solvate` remains separate.
+
+Aggregate and grow default to eight orientations (`--orientations`/`-N`), with
+survivor budgets of eight and twelve respectively. Aggregate `--size` needs one
+positive count per input; omission means one of each for multiple inputs. A
+single building block requires an explicit size. Existing element/formula inputs
+and `--formula` expansion retain their coordinate/atomic-cluster semantics.
+
+Backend settings follow the modern minimum-optimization policy: standalone xTB
+uses GFN2 without DFT method/basis defaults. Charge defaults to neutral for XYZ;
+omitted multiplicity follows electron parity. Conformer uses a reliable input
+formal charge when available. Explicit charge/spin overrides are validated.
+RDKit remains optional: install `pip install "pyar-chem[conformer]"` for conformer
+search. XYZ conformer input also needs the external OpenBabel `obabel` executable.
+`--check` validates XYZ coordinates and converter availability without invoking
+OpenBabel conversion, embedding, optimization or writing state.
+
+Existing output layouts and restart policies remain authoritative: `conformers/`
+(requires a fresh run), `aggregates/` and `grow/` (or grow's `--output DIR`).
+`pyar-conformer`, `pyar-cli conformer`, `pyar-cli aggregate`, `pyar-cli grow` and
+legacy boolean workflow flags remain supported with their existing contracts.
+
+`grow` places repeated addends against the complete current structure. The new
+`microsolvate` workflow instead samples the original solute's accessible surface
+through first-shell construction; prior solvents block occupied regions and
+remain in the collision/energy environment but do not become new placement
+targets. Geometry-only microsolvation is bounded and does not invent energies.
+Legacy `pyar-cli solvate` remains on its existing restart-compatible path and
+prints a deprecation warning. See [microsolvation documentation](docs/microsolvate.rst).
 
 ## Aggregate and Grow
 

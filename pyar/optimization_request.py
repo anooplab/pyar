@@ -16,6 +16,22 @@ from pyar.backend_capabilities import (
 from pyar.core.molecule import Molecule, parse_xyz
 
 
+
+OPTIMIZATION_OPTIONS = frozenset({
+    'method', 'basis', 'nprocs', 'opt_cycles', 'opt_threshold',
+    'scf_cycles', 'scf_threshold', 'custom_keywords',
+})
+
+
+def unsupported_optimization_options(backend, optimizer, options):
+    """Apply the registry mask plus controls consumed by the selected route."""
+    unsupported = set(unsupported_qc_options(backend, options))
+    if backend == 'orca' or optimizer == 'geometric':
+        unsupported.discard('opt_cycles')
+        unsupported.discard('opt_threshold')
+    return unsupported
+
+
 def resolve_settings(args):
     if not args.backend:
         raise ValueError('A backend is required.\nExample: pyar optimize *.xyz --backend xtb')
@@ -44,19 +60,8 @@ def resolve_settings(args):
         value = getattr(args, name)
         if value is not None and not value.strip():
             raise ValueError(f'--{name} must not be empty')
-    explicit = {name for name in (
-        'method', 'basis', 'nprocs', 'opt_cycles', 'opt_threshold',
-        'scf_cycles', 'scf_threshold', 'custom_keywords',
-    ) if getattr(args, name) is not None}
-    unsupported = set(unsupported_qc_options(backend, explicit))
-    # Route-specific controls consumed by the existing adapters but not listed
-    # in the historical registry's workflow-level option mask.
-    if backend == 'orca' or optimizer == 'geometric':
-        unsupported.discard('opt_cycles')
-    if backend == 'orca':
-        unsupported.discard('opt_threshold')
-    if optimizer == 'geometric':
-        unsupported.discard('opt_threshold')
+    explicit = {name for name in OPTIMIZATION_OPTIONS if getattr(args, name) is not None}
+    unsupported = unsupported_optimization_options(backend, optimizer, explicit)
     if unsupported:
         raise ValueError(f'Backend {backend!r} with {optimizer} does not support: '
                          + ', '.join('--' + name.replace('_', '-') for name in sorted(unsupported)))
@@ -74,6 +79,35 @@ def resolve_settings(args):
         settings['xtb_model'] = 'gfn2'
     for name in explicit:
         settings[name] = getattr(args, name)
+    # Additional workflow callers expose model controls; bulk optimize's
+    # existing parser and defaults are unchanged.
+    for name in ('model', 'xtb_model', 'gxtb_wrapper'):
+        value = getattr(args, name, None)
+        if value is None:
+            continue
+        if name == 'model':
+            if unsupported_qc_options(backend, {'model'}):
+                raise ValueError(f'Backend {backend!r} does not support --model')
+            path = Path(value).expanduser().resolve()
+            if not path.is_file():
+                raise ValueError(f'Model file does not exist: {path}')
+            settings[name] = str(path)
+        elif name == 'xtb_model':
+            from pyar.backends.xtb_utils import canonical_xtb_model
+            if backend != 'xtb':
+                raise ValueError('--xtb-model is only valid for standalone xtb')
+            settings[name] = canonical_xtb_model(value)
+        else:
+            if backend != 'orca':
+                raise ValueError('--gxtb-wrapper is only valid for ORCA g-xTB')
+            from pyar.backends.orca_methods import orca_method
+            if orca_method(settings['method'])[0] != 'g-xTB':
+                raise ValueError('--gxtb-wrapper is only valid for ORCA --method g-xTB')
+            import os
+            path = Path(value).expanduser().resolve()
+            if not path.is_file() or not os.access(path, os.X_OK):
+                raise ValueError('--gxtb-wrapper must point to an executable wrapper file')
+            settings[name] = str(path)
     if backend == 'orca':
         from pyar.backends.orca_methods import orca_method, orca_method_keywords, orca_external_method_block
         method, is_xtb = orca_method(settings['method'])

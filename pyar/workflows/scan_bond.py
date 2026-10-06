@@ -67,6 +67,53 @@ def _fragment_signature(molecule):
             "charge": molecule.charge, "multiplicity": molecule.multiplicity, "scftype": molecule.scftype}
 
 
+
+def scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms, orientations,
+                        qc_params, scan_end=None, scan_step=None, scan_points=None):
+    """Scientific request fields that can be validated without sampling or jobs."""
+    local_i, local_j = map(int, atoms)
+    absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
+    target_radii = fragment_a.covalent_radius[local_i] + fragment_b.covalent_radius[local_j]
+    return {
+        "schema_version": 2,
+        "inputs": {"A": str(input_a), "B": str(input_b)},
+        "fragments": [_fragment_signature(fragment_a), _fragment_signature(fragment_b)],
+        "atoms_local": [local_i, local_j], "atoms_absolute": [absolute_i, absolute_j],
+        "target_symbols": [fragment_a.atoms_list[local_i], fragment_b.atoms_list[local_j]],
+        "qc_params": dict(qc_params), "orientations": int(orientations),
+        "scan_end": scan_end, "scan_step": scan_step, "scan_points": scan_points,
+        "default_scan_end_factor": DEFAULT_SCAN_END_FACTOR,
+        "default_scan_end_angstrom": DEFAULT_SCAN_END_FACTOR * target_radii,
+    }
+
+
+def validate_scan_restart(output_dir, request):
+    """Read-only output and request validation, also usable before sampling.
+
+    Preflight supplies static fields; execution additionally supplies generated
+    orientations and identity, retaining the full historical signature check.
+    """
+    root = Path(output_dir).resolve()
+    if not root.exists():
+        return
+    request_path = root / "request.json"
+    if not root.is_dir() or not request_path.is_file():
+        raise FileExistsError(f"scan-bond output directory has no resumable request state: {root}")
+    try:
+        previous = json.loads(request_path.read_text())
+        if not isinstance(previous, dict):
+            raise ValueError("request state must be an object")
+        signature = previous.get("request_signature")
+        payload = {key: value for key, value in previous.items() if key != "request_signature"}
+        digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
+        if not signature or signature != digest:
+            raise ValueError("request signature is missing or does not match its contents")
+    except (OSError, ValueError) as exc:
+        raise FileExistsError(f"scan-bond request state is unreadable or modified: {request_path}") from exc
+    if any(previous.get(key) != value for key, value in request.items()):
+        raise FileExistsError(f"scan-bond output directory belongs to a different request: {root}")
+
+
 def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxscanact.dat"):
     """Write a normalized energy profile and scan-maximum geometry candidates."""
     if len(frames) != len(profile) or not profile:
@@ -242,34 +289,14 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         for index, orientation, generation_error in orientation_items
     ]
     root = Path(output_dir).resolve()
-    request = {
-        "schema_version": 2,
-        "inputs": {"A": str(input_a), "B": str(input_b)},
-        "fragments": [_fragment_signature(fragment_a), _fragment_signature(fragment_b)],
-        "atoms_local": [local_i, local_j], "atoms_absolute": [absolute_i, absolute_j],
-        "target_symbols": [merged.atoms_list[absolute_i], merged.atoms_list[absolute_j]],
-        "qc_params": dict(qc_params), "orientations": int(orientations),
-        "orientation_definitions": orientation_definitions,
-        "scan_end": scan_end, "scan_step": scan_step, "scan_points": scan_points,
-        "default_scan_end_factor": DEFAULT_SCAN_END_FACTOR,
-        "default_scan_end_angstrom": default_scan_end,
-        "reactant_identity": reactant_identity,
-        "reactant_identity_error": reactant_identity_error,
-    }
+    request = scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms,
+                                  orientations, qc_params, scan_end, scan_step, scan_points)
+    request.update(orientation_definitions=orientation_definitions,
+                   reactant_identity=reactant_identity, reactant_identity_error=reactant_identity_error)
     signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
     request["request_signature"] = hashlib.sha256(signature_payload.encode("utf-8")).hexdigest()
-    if root.exists():
-        request_path = root / "request.json"
-        if not root.is_dir() or not request_path.is_file():
-            raise FileExistsError(f"scan-bond output directory has no resumable request state: {root}")
-        try:
-            previous_request = json.loads(request_path.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
-            raise FileExistsError(f"scan-bond request state is unreadable: {request_path}") from exc
-        if previous_request.get("request_signature") != request["request_signature"]:
-            raise FileExistsError(f"scan-bond output directory belongs to a different request: {root}")
-    else:
-        root.mkdir(parents=True)
+    validate_scan_restart(root, request)
+    root.mkdir(parents=True, exist_ok=True)
     request_path = root / "request.json"
     request_temp = root / "request.json.tmp"
     request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))

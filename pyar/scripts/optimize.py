@@ -2,6 +2,7 @@
 
 import argparse
 
+from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar import optimiser
 from pyar.backend_errors import BackendExecutionError
 from pyar.optimization_request import load_inputs, preflight, resolve_settings
@@ -39,6 +40,9 @@ def main(argv=None, *, prog=None):
         requirements = preflight(settings, molecules)
     except (ValueError, FileNotFoundError, ImportError) as exc:
         parser.error(f'Preflight failed for: optimize\n{exc}\nNo calculations were started.')
+    prepared_run(args, request={'inputs': args.input_files}, backend=settings,
+                 molecules=molecules, requirements=requirements, state_lists=False,
+                 outputs=[f'job_{m.name}' for m in molecules])
     print('Preflight: optimize')
     print(f'Inputs: {len(molecules)} XYZ files; backend: {settings["software"]}; '
           f'optimizer: {settings["geometry_optimizer"]}')
@@ -51,9 +55,12 @@ def main(argv=None, *, prog=None):
         print('Ready to run. --check specified; no calculations were performed.')
         return
     try:
+        started_run()
         results = optimiser.bulk_optimize(molecules, settings)
     except (BackendExecutionError, FileNotFoundError) as exc:
         parser.exit(1, f'Optimization failed: {exc}\n')
+    finished_run({'workflow': 'optimize', 'status': 'completed',
+                  'input_count': len(molecules), 'optimized_count': len(results)})
     print(f'Optimized {len(results)} of {len(molecules)} structures.')
 
 
