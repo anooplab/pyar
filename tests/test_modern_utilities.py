@@ -1,4 +1,9 @@
 import json
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -322,7 +327,6 @@ def test_orient_count_alias_and_molecular_rotations(tmp_path, alias):
 
 
 def test_identity_extra_optional():
-    import tomllib
     project = tomllib.loads((Path(__file__).parents[1]/'pyproject.toml').read_text())['project']
     assert project['optional-dependencies']['identity'] == ['rdkit']
     assert 'rdkit' in project['optional-dependencies']['conformer']

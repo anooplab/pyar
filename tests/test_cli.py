@@ -65,6 +65,12 @@ class CliSmokeTests(unittest.TestCase):
                 "pyar.workflows.solvation",
             )
         }
+        pyar_pkg = sys.modules.get("pyar")
+        self._original_package_attrs = {
+            attr: getattr(pyar_pkg, attr)
+            for attr in ("workflows", "scan")
+            if pyar_pkg is not None and hasattr(pyar_pkg, attr)
+        }
         self._install_stub_modules()
 
     def tearDown(self):
@@ -80,7 +86,9 @@ class CliSmokeTests(unittest.TestCase):
         pyar_pkg = sys.modules.get("pyar")
         if pyar_pkg is not None:
             for attr in ("workflows", "scan"):
-                if hasattr(pyar_pkg, attr):
+                if attr in self._original_package_attrs:
+                    setattr(pyar_pkg, attr, self._original_package_attrs[attr])
+                elif hasattr(pyar_pkg, attr):
                     delattr(pyar_pkg, attr)
 
     def _install_stub_modules(self):
