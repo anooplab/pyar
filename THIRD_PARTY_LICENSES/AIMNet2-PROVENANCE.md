@@ -5,7 +5,11 @@ PyAR bundles AIMNet2 assets for its `aimnet_2` and `xtb-aimnet2` interfaces.
 ## Bundled Paths
 
 - `pyar/AIMNet2/`
-- `pyar/AIMNet2/models/*.jpt`
+- `pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt`
+
+Only the default model used by PyAR is retained. Unused ensemble members,
+ensemble models, and B97-3c models have been removed. Model files are excluded
+from published wheels and source distributions.
 
 ## Upstream Sources
 

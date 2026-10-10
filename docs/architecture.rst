@@ -396,10 +396,11 @@ The professional package baseline should include:
 * executed examples in continuous integration
 * semantic versioning, a changelog, and a deprecation policy
 
-Bundled code such as ``pyar/mlatom/`` should either become an explicitly
-maintained vendored dependency or be replaced by an optional external adapter.
-PyAR now prefers the external ``mlatom`` package at runtime and keeps the
-vendored tree only as a compatibility fallback during the transition.
+PyAR uses the optional external ``mlatom`` package for MLatom calculations.
+The ``pyar/mlatom/__init__.py`` adapter preserves older package-level imports
+by forwarding them to the external package. The vendored source, binaries,
+and model assets have been removed; the adapter requires MLatom to be installed
+with ``python -m pip install "pyar-chem[ml]"``.
 
 Migration Plan
 --------------
@@ -431,8 +432,8 @@ Open plan:
 
 10. Core, sampling, state, backend, workflow, and bias implementations have
     moved to canonical package boundaries for the 2.0 API.
-11. MLatom has been externalized; keep the vendored compatibility tree only
-    until downstream consumers no longer need it.
+11. MLatom has been externalized and its vendored tree removed; retain the
+    package-level compatibility adapter for downstream consumers.
 12. Publish migration documentation and reproducibility examples.
 
 Immediate Priority

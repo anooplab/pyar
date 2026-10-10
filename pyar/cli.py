@@ -325,7 +325,7 @@ chemical formula.
     parser.add_argument('-model', '--model', metavar='model',
                         type=str, help='The model to be used for the '
                                        'aggregation. Default is '
-                                       'aimnet2_wb97m-d3_ens.jpt')
+                                       'aimnet2_wb97m-d3_0.jpt')
     parser.add_argument('--xtb-model', choices=('gxtb', 'gfn2'), default=None,
                         help='Hamiltonian for standalone xTB (default: GFN2-xTB)')
     parser.add_argument('-basis', '--basis', type=str,

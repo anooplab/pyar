@@ -5,8 +5,9 @@
 PyAR is a Python package distributed as `pyar-chem` while preserving the `pyar`
 import namespace. Core source lives in `pyar/`: CLI wiring in `pyar/cli.py`,
 console helpers in `pyar/scripts/`, backend adapters in `pyar/backends/`, sampling
-logic in `pyar/sampling/`, bundled model/runtime assets under `pyar/AIMNet2/`
-and `pyar/mlatom/`, and workflow/state code in the corresponding subpackages.
+logic in `pyar/sampling/`, bundled model/runtime assets under `pyar/AIMNet2/`,
+the external MLatom compatibility adapter in `pyar/mlatom/`, and workflow/state
+code in the corresponding subpackages.
 Tests live in `tests/` as `test_*.py`. Sphinx documentation lives in `docs/`.
 Avoid editing generated artifacts such as `build/`, `pyar_chem.egg-info/`,
 `__pycache__/`, and local log files.

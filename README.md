@@ -173,7 +173,7 @@ See [growth documentation](docs/grow.rst) for selection and restart policy.
 
 ## External Program Requirements
 
-Some workflows rely on external executables such as xTB, ORCA, Gaussian, Psi4, MOPAC, Turbomole, OpenBabel, MLatom, and DFT-D4. The optional extras install Python dependencies only; they do not bundle large model or vendor files into the main `pyar-chem` wheel. AIMNet2 `.jpt` models, AIQM1 `.pt` models, and vendored MLatom binaries must come from the upstream project or another separate model/package source. See [docs/external_programs.rst](docs/external_programs.rst) for the official project websites and installation notes.
+Some workflows rely on external executables such as xTB, ORCA, Gaussian, Psi4, MOPAC, Turbomole, OpenBabel, MLatom, and DFT-D4. The optional extras install Python dependencies only; they do not bundle large model or vendor files into the main `pyar-chem` wheel. AIMNet2 `.jpt` models must come from the upstream project or another separate model/package source. MLatom calculations use the external `mlatom` package, installed with `python -m pip install "pyar-chem[ml]"`; PyAR retains only a package-level compatibility adapter. See [docs/external_programs.rst](docs/external_programs.rst) for the official project websites and installation notes.
 
 ## Documentation
 

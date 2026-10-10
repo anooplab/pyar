@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.5.1 - 2026-10-11
+
+### Fixed
+
+- Remove the local MLatom placeholder that shadowed the external dependency
+  and silently returned empty calculation results. Missing MLatom now reports
+  installation guidance.
+- Remove the obsolete vendored MLatom implementation, binaries, and model
+  assets while retaining the package-level compatibility adapter.
+- Remove nine unused AIMNet2 models, retain the active default model and
+  calculators, and correct the stale machine-specific model default and CLI help.
+- Update packaging and documentation to reflect the external MLatom dependency
+  and retained AIMNet2 assets.
+
 ## 1.5.0 - 2026-10-06
 
 ### Added

@@ -1,8 +1,4 @@
 recursive-exclude pyar/AIMNet2/models *.jpt
-exclude pyar/mlatom/MLatomF
-exclude pyar/mlatom/cs.so
-exclude pyar/mlatom/ref.json
-recursive-exclude pyar/mlatom/aiqm1_model *.pt
 include THIRD_PARTY_LICENSES/AIMNet2-LICENSE
 include THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md
 recursive-include benchmarks *.json *.xyz
