@@ -49,8 +49,9 @@ def perceive_chemical_identity(molecule, charge=None, *, known_charge=None):
         result.update(reason=f'RDKit bond perception is unavailable: {exc}',
                       installation_hint=INSTALL_HINT)
         return result
+    # Fixed-point coordinates avoid RDKit XYZ readers rejecting exponent notation.
     xyz_block = f'{len(molecule.atoms_list)}\n\n' + ''.join(
-        f'{symbol} {x:.17g} {y:.17g} {z:.17g}\n'
+        f'{symbol} {x:.17f} {y:.17f} {z:.17f}\n'
         for symbol, (x, y, z) in zip(molecule.atoms_list, molecule.coordinates))
     try:
         # Preserve failure diagnostics in the result, without RDKit log noise.

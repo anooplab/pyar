@@ -6,6 +6,9 @@
 
 ### Fixed
 
+- Write fixed-point XYZ coordinates for chemical identity perception, avoiding
+  exponent-notation parse failures with newer RDKit versions.
+- Use the TOML compatibility fallback in CLI control tests on Python 3.10.
 - Remove the local MLatom placeholder that shadowed the external dependency
   and silently returned empty calculation results. Missing MLatom now reports
   installation guidance.

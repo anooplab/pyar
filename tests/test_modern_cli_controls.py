@@ -1,7 +1,11 @@
 """Tests for shared modern CLI controls and reporting commands."""
 
 import json
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 from pyar import modern_cli
 from pyar.run_config import PROFILE_KIND, resolve_run_spec, write_toml_document
@@ -150,7 +154,6 @@ def test_run_records_include_value_sources_and_failed_status(tmp_path, monkeypat
         raise AssertionError("mock failure did not propagate")
     records = list((tmp_path / ".pyar" / "runs").glob("*/pyar-run.toml"))
     assert len(records) == 1
-    import tomllib
     record = tomllib.loads(records[0].read_text())
     metadata = json.loads(record["metadata_json"])
     assert metadata["status"] == "failed"
