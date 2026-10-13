@@ -113,3 +113,22 @@ def test_broken_workflow_dependency_is_reported_before_execution():
         with pytest.raises(ImportError, match=r'pyar-chem\[aggregate\]') as caught:
             dependencies.require_workflow('aggregate')
     assert 'missing shared dependency' in str(caught.value)
+
+
+@pytest.mark.parametrize('source', ['input.xyz', 'input.sdf'])
+def test_direct_aimnet_optimizer_missing_torch_is_an_actionable_exit(source):
+    import builtins
+    from pyar.AIMNet2.calculators import aimnet2_ase_opt
+
+    original_import = builtins.__import__
+
+    def without_torch(name, *args, **kwargs):
+        if name == 'torch':
+            raise ModuleNotFoundError("No module named 'torch'", name='torch')
+        return original_import(name, *args, **kwargs)
+
+    with patch('sys.argv', ['pyar-aimnet2-ase-opt', '--charge', '0',
+                            'model.jpt', source, 'output.xyz']), \
+         patch('builtins.__import__', side_effect=without_torch):
+        with pytest.raises(SystemExit, match=r'pyar-chem\[aimnet2\]'):
+            aimnet2_ase_opt.main()

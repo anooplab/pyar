@@ -78,9 +78,16 @@ def main():
     # the pip-installable AIMNet2 stack; retain format/charge perception below
     # for direct callers requesting other formats or inferred charges.
     if guess_pybel_type(args.in_file) == 'xyz' and args.charge is not None:
-        import torch
-        from ase.io import read, write
-        from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+        try:
+            import torch
+            from ase.io import read, write
+            from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+        except ImportError as exc:
+            error = optional_dependency_error(
+                getattr(exc, "name", None) or "torch",
+                feature="AIMNet2 optimizer", extra="aimnet2",
+            )
+            raise SystemExit(str(error)) from None
 
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
@@ -103,11 +110,12 @@ def main():
                 'openbabel is required for pyar-aimnet2-ase-opt. '
                 'Install with `mamba install -c conda-forge openbabel`.'
             ) from exc
-        raise optional_dependency_error(
+        error = optional_dependency_error(
             module_name,
             feature="AIMNet2 optimizer",
             extra="aimnet2",
-        ) from exc
+        )
+        raise SystemExit(str(error)) from None
     pybel = openbabel_pybel
 
     torch.backends.cuda.matmul.allow_tf32 = False
