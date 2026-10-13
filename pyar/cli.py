@@ -553,7 +553,8 @@ _BACKEND_MODULE_REQUIREMENT_HINTS = {
 
 def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
     """Return user-facing messages for missing requirements on the active path."""
-    from pyar.dependencies import workflow_requirement_messages, missing_executable_message
+    from pyar.dependencies import (WORKFLOW_EXECUTABLES, workflow_requirement_messages,
+                                   missing_executable_message)
 
     missing = workflow_requirement_messages(run_mode)
     capabilities = get_backend_capabilities(software)
@@ -583,7 +584,8 @@ def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
             )
 
     canonical_software = normalize_backend_name(software)
-    for executable in capabilities.required_executables:
+    executables = set(capabilities.required_executables) | set(WORKFLOW_EXECUTABLES.get(run_mode, ()))
+    for executable in sorted(executables):
         if shutil.which(executable) is None:
             friendly_name, install_hint = _BACKEND_EXECUTABLE_REQUIREMENT_HINTS.get(
                 executable,
@@ -603,12 +605,18 @@ def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
                     )
                 )
 
-    return missing
+    return list(dict.fromkeys(missing))
 
 
 def _preflight_cli_requirements(run_mode, software, geometry_optimizer):
     """Fail fast when the selected workflow path is missing requirements."""
     missing = _workflow_requirement_messages(run_mode, software, geometry_optimizer)
+    if normalize_backend_name(software) in {"aimnet_2", "xtb-aimnet2"}:
+        from pyar.backends.aimnet2_assets import validate_aimnet2_runtime_assets
+        try:
+            validate_aimnet2_runtime_assets(include_script=geometry_optimizer == "native")
+        except FileNotFoundError as exc:
+            missing.append(str(exc))
     if missing:
         raise SystemExit(
             "Missing requirements for the selected workflow:\n- " + "\n- ".join(missing)

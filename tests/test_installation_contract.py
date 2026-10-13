@@ -69,6 +69,32 @@ def test_missing_orca_explains_separate_installation_and_discovery():
     assert 'pip install' not in message
 
 
+def test_backend_python_requirements_are_installed_by_their_capability_extra():
+    from pyar.backend_capabilities import BACKEND_CAPABILITIES
+
+    for name, capability in BACKEND_CAPABILITIES.items():
+        for module in capability.required_python_modules:
+            requirement = dependencies.PYTHON_REQUIREMENTS[module]
+            assert requirement.package.lower() in resolved_extra(capability.optional_extra_hint), name
+
+
+def test_backend_executables_have_authoritative_installation_metadata():
+    from pyar.backend_capabilities import BACKEND_CAPABILITIES
+
+    for capability in BACKEND_CAPABILITIES.values():
+        for executable in capability.required_executables:
+            requirement = dependencies.EXTERNAL_PROGRAMS[executable]
+            assert requirement.installation_url.startswith('https://')
+            assert not requirement.pip_installable
+
+
+def test_aiqm1_preflights_gaussian_before_starting_its_subprocess():
+    from pyar.backend_capabilities import get_backend_capabilities
+
+    assert 'g16' in get_backend_capabilities('aiqm1_mlatom').required_executables
+    assert {'g16', 'xtb'} <= get_backend_capabilities('xtb-aiqm1').required_executables
+
+
 def test_doctor_optional_absence_is_informational(capsys):
     from pyar.scripts import cli_meta
 
@@ -79,3 +105,11 @@ def test_doctor_optional_absence_is_informational(capsys):
     assert 'healthy' in output
     assert 'MISSING' in output
     assert 'only workflows' in output
+
+
+def test_broken_workflow_dependency_is_reported_before_execution():
+    with patch.object(dependencies, 'module_available', return_value=True), \
+         patch.object(dependencies, 'import_module', side_effect=ImportError('missing shared dependency')):
+        with pytest.raises(ImportError, match=r'pyar-chem\[aggregate\]') as caught:
+            dependencies.require_workflow('aggregate')
+    assert 'missing shared dependency' in str(caught.value)

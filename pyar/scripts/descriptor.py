@@ -27,7 +27,7 @@ def _require_descriptor_dependencies():
         raise optional_dependency_error(
             module_name,
             feature="descriptor script",
-            extra="selection",
+            extra="analysis",
         ) from exc
     warnings.filterwarnings("ignore", category=UserWarning, module="MDAnalysis.analysis.base")
     return pd, read, write

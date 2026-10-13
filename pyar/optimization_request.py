@@ -202,8 +202,7 @@ def preflight(settings, molecules, *, require_optimizer_executable=True, check_e
         try:
             import_module(module)
         except ImportError as exc:
-            extra = ('openbabel' if module == 'openbabel' else capabilities.optional_extra_hint
-                     or ('geometric' if module in {'ase', 'geometric'} else 'ml' if module == 'mlatom' else 'all'))
+            extra = (capabilities.optional_extra_hint or ('geometric' if module in {'ase', 'geometric'} else 'ml' if module == 'mlatom' else 'all'))
             raise ImportError(f'Cannot import {module}: {exc}. Install with '
                               f'python -m pip install "pyar-chem[{extra}]"') from exc
     return sorted(requirements | modules)

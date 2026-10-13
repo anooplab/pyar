@@ -176,6 +176,13 @@ def main(argv=None):
     """Run the RDKit conformer-search workflow."""
     args = argument_parse(argv)
     qc_params = _backend_qc_params(args)
+    input_format = args.input_format
+    if input_format == "xyz" or (input_format == "auto" and str(args.input).lower().endswith(".xyz")):
+        from pyar.backends import require_executable
+        try:
+            require_executable("obabel", "OpenBabel")
+        except FileNotFoundError as exc:
+            raise SystemExit(str(exc)) from None
     if qc_params is not None:
         from pyar.cli import _preflight_cli_requirements
 

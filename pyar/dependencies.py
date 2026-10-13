@@ -5,14 +5,15 @@ that metadata. Probes are descriptive and are never launched during discovery.
 """
 
 from dataclasses import dataclass
+from importlib import import_module
 import importlib.util
-import shutil
 
 
 @dataclass(frozen=True)
 class PythonRequirement:
     package: str
     extra: str
+    pip_installable: bool = True
 
     @property
     def install_hint(self):
@@ -32,7 +33,10 @@ PYTHON_REQUIREMENTS = {
     "rdkit": PythonRequirement("rdkit", "conformer"),
     "torch": PythonRequirement("torch", "aimnet2"),
     "torchani": PythonRequirement("torchani", "ml"),
+    "pkg_resources": PythonRequirement("setuptools", "ml"),
     "mlatom": PythonRequirement("mlatom", "ml"),
+    "requests": PythonRequirement("requests", "ml"),
+    "joblib": PythonRequirement("joblib", "ml"),
     "geometric": PythonRequirement("geometric", "geometric"),
     "sella": PythonRequirement("sella", "sella"),
     "geodesic_interpolate": PythonRequirement("geodesic-interpolate", "geodesic"),
@@ -58,6 +62,9 @@ WORKFLOW_MODULES = {
 }
 
 
+WORKFLOW_EXECUTABLES = {"reaction": ("obabel",), "react": ("obabel",)}
+
+
 @dataclass(frozen=True)
 class ExecutableRequirement:
     name: str
@@ -71,18 +78,18 @@ EXTERNAL_PROGRAMS = {
     "xtb": ExecutableRequirement("xTB", "https://xtb-docs.readthedocs.io/en/latest/setup.html",
         "mamba install -c conda-forge xtb", ("xtb", "--version")),
     "orca": ExecutableRequirement("ORCA", "https://www.faccts.de/docs/orca/6.1/tutorials/first_steps/install.html",
-        "Download the platform installer from the official ORCA distribution (registration required)", ("orca", "--version")),
-    "g16": ExecutableRequirement("Gaussian", "https://gaussian.com/installation/",
-        "Install licensed Gaussian 16 using the vendor instructions", ("g16",)),
-    "psi4": ExecutableRequirement("Psi4", "https://psicode.org/installs/",
+        "Download the platform installer from the official ORCA distribution (registration required)", ()),
+    "g16": ExecutableRequirement("Gaussian", "https://gaussian.com/g16/g16src_install.pdf",
+        "Install licensed Gaussian 16 using the vendor instructions", ()),
+    "psi4": ExecutableRequirement("Psi4", "https://psi4.github.io/psi4docs/master/conda.html",
         "Install Psi4 using its official platform instructions", ("psi4", "--version")),
     "mopac": ExecutableRequirement("MOPAC", "https://openmopac.net/",
-        "Install the official MOPAC distribution", ("mopac",)),
+        "Install the official MOPAC distribution", ()),
 }
 for _executable in ("define", "ridft", "rdgrad", "statpt", "jobex"):
     EXTERNAL_PROGRAMS[_executable] = ExecutableRequirement("Turbomole",
         "https://www.turbomole.org/turbomole/turbomole-documentation/",
-        "Install licensed Turbomole and configure its executable directory on PATH", (_executable,))
+        "Install licensed Turbomole and configure its executable directory on PATH", ())
 for _executable in ("obabel", "obminimize", "obenergy"):
     EXTERNAL_PROGRAMS[_executable] = ExecutableRequirement("OpenBabel",
         "https://openbabel.org/docs/Installation/install.html",
@@ -109,10 +116,11 @@ def missing_python_message(module, *, extra=None):
 def missing_executable_message(executable):
     requirement = EXTERNAL_PROGRAMS[executable]
     probe = " ".join(requirement.version_probe)
+    program_check = f"Program check: {probe}. " if probe else "Verify operation with the vendor sample calculation. "
     return (f"Missing executable '{executable}' for {requirement.name}. "
             f"{requirement.install_hint}. Make sure '{executable}' is on PATH. "
             f"Verify discovery with: command -v {executable}. "
-            f"Program check: {probe}. Official installation instructions: {requirement.installation_url}")
+            f"{program_check}Official installation instructions: {requirement.installation_url}")
 
 
 def workflow_requirement_messages(workflow):
@@ -126,4 +134,11 @@ def require_workflow(workflow):
     messages = workflow_requirement_messages(workflow)
     if messages:
         raise ImportError("\n".join(messages))
+    for module in WORKFLOW_MODULES.get(workflow, ()):
+        try:
+            import_module(module)
+        except (ImportError, OSError) as exc:
+            extra = "reaction" if workflow == "react" else "neb" if workflow in {"ts", "irc"} else workflow
+            raise ImportError(f"Cannot import {module}: {exc}. "
+                              + missing_python_message(module, extra=extra)) from exc
     return list(WORKFLOW_MODULES.get(workflow, ()))
