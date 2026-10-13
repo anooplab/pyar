@@ -8,24 +8,10 @@ native optimisations. The canonical backend modules live under
 Installable pieces
 ------------------
 
-Some backend dependencies are Python packages that can be installed directly
-with ``pip`` or through PyAR's optional extras:
-
-* ``python -m pip install "pyar-chem[selection]"`` for ``ase``, ``dscribe``,
-  ``hdbscan``, ``pandas``, ``scikit-learn``, and ``MDAnalysis``
-* ``python -m pip install "pyar-chem[ml]"`` for ``torchani``, ``mlatom``,
-  ``pyh5md``, and ``h5py``
-* ``python -m pip install "pyar-chem[aimnet2]"`` for the AIMNet2 runtime
-* ``python -m pip install "pyar-chem[xtb]"`` for ``geometric``
-* ``python -m pip install "pyar-chem[openbabel]"`` for the Open Babel Python
-  bindings
-
-If you only want one package, install it directly. For example:
-
-* ``python -m pip install ase``
-* ``python -m pip install geometric``
-* ``python -m pip install dscribe``
-* ``python -m pip install mlatom``
+Install the workflow you need as described in :doc:`installation`, then add
+Python capabilities such as ``aimnet2``, ``geometric``, ``sella``, or ``ml``.
+Workflow extras install their Python requirements automatically. External
+executables are installed separately; see :doc:`external_programs`.
 
 Current backend families
 ------------------------
