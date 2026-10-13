@@ -53,6 +53,8 @@ def main(argv=None, *, prog=None):
     parser = build_parser(prog)
     args = parser.parse_args(argv)
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow('microsolvate')
         request = resolve_request(args)
         surface = build_solute_surface(
             request.solute, points_per_atom=request.surface_points_per_atom,

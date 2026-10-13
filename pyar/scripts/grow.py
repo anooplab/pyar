@@ -49,6 +49,8 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow("grow")
         molecules = []
         for path in (args.seed, args.monomer):
             atoms, coordinates, name, title, energy = parse_xyz(path)
@@ -80,7 +82,7 @@ def main(argv=None):
         elif any((args.method, args.basis, args.model, args.xtb_model)):
             raise ValueError("Backend options require --software")
         result = grow(request, output=args.output)
-    except (ValueError, OSError, GrowStateError) as exc:
+    except (ImportError, ValueError, OSError, GrowStateError) as exc:
         parser.error(str(exc))
     print(f"Growth {result.status}: {result.metadata['completed_additions']}/{args.count} additions")
     print(f"Run directory: {result.run_directory}")

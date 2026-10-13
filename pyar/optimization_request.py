@@ -194,8 +194,6 @@ def preflight(settings, molecules, *, require_optimizer_executable=True, check_e
         from pyar.backends.aimnet2_assets import validate_aimnet2_runtime_assets
         validate_aimnet2_runtime_assets(include_script=optimizer == 'native')
         modules.update({'torch', 'ase'})
-        if optimizer == 'native':
-            modules.add('openbabel')
         requirements.add('AIMNet2 model assets')
     if missing:
         example = check_example or f'pyar optimize INPUT.xyz --backend {backend} --check'
@@ -204,8 +202,7 @@ def preflight(settings, molecules, *, require_optimizer_executable=True, check_e
         try:
             import_module(module)
         except ImportError as exc:
-            extra = ('openbabel' if module == 'openbabel' else capabilities.optional_extra_hint
-                     or ('xtb' if module in {'ase', 'geometric'} else 'ml' if module == 'mlatom' else 'all'))
+            extra = (capabilities.optional_extra_hint or ('geometric' if module in {'ase', 'geometric'} else 'ml' if module == 'mlatom' else 'all'))
             raise ImportError(f'Cannot import {module}: {exc}. Install with '
                               f'python -m pip install "pyar-chem[{extra}]"') from exc
     return sorted(requirements | modules)

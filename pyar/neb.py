@@ -1418,8 +1418,13 @@ def _build_parser():
 def main(argv=None):
     parser = _build_parser()
     try:
-        result = run_neb(**vars(parser.parse_args(argv)))
-    except (ValueError, OSError, RuntimeError) as exc:
+        args = parser.parse_args(argv)
+        from pyar.dependencies import require_workflow
+        from pyar.cli import _preflight_cli_requirements
+        require_workflow("neb")
+        _preflight_cli_requirements("neb", args.software, "geometric")
+        result = run_neb(**vars(args))
+    except (ValueError, OSError, RuntimeError, ImportError) as exc:
         parser.exit(1, f"pyar-neb: {exc}\n")
     print(json.dumps(result, indent=2))
     # A completed numerical calculation can still fail scientific validation.

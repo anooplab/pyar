@@ -1,5 +1,6 @@
 """AIMNet2 runtime asset paths and validation."""
 
+import os
 from importlib import resources
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from pathlib import Path
 MODEL_PATH = str(
     resources.files("pyar").joinpath("AIMNet2/models/aimnet2_wb97m-d3_0.jpt")
 )
+if os.environ.get("PYAR_AIMNET2_MODEL"):
+    MODEL_PATH = str(Path(os.environ["PYAR_AIMNET2_MODEL"]).expanduser().resolve())
 SCRIPT_PATH = str(
     resources.files("pyar").joinpath("AIMNet2/calculators/aimnet2_ase_opt.py")
 )
@@ -24,9 +27,8 @@ def aimnet2_asset_error(missing):
     """Build the standard missing-asset error message."""
     return (
         "AIMNet2 model assets are not bundled in the pyar-chem wheel. "
-        "Install or configure the model files separately, for example from the "
-        "upstream project, a separate model package, or a future model-download "
-        "command. Missing files: "
+        "Set PYAR_AIMNET2_MODEL to the legacy aimnet2_wb97m-d3_0.jpt model file "
+        "obtained from https://github.com/isayevlab/AIMNet2. Missing files: "
         + ", ".join(missing)
     )
 

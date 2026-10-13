@@ -70,6 +70,8 @@ def main(argv=None, *, prog=None):
     parser = build_parser(prog)
     args = parser.parse_args(argv)
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow('conformer')
         request, options, molecule = resolve_request(args)
         qc = dict(request.backend_parameters)
         requirements = ['RDKit'] + (['obabel'] if request.input_format == 'xyz' else [])

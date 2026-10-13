@@ -66,8 +66,7 @@ class Aimnet2(SF):
             self.inp_file,
             self.inp_min_file,
         ]
-        if self.charge != 0:
-            self.cmd.extend(["-c", str(self.charge)])
+        self.cmd.extend(["--charge", str(self.charge)])
 
     @staticmethod
     def _validate_runtime_files():

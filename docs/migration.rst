@@ -71,3 +71,41 @@ See also
 
 * :doc:`api`
 * :doc:`architecture`
+
+Packaging and installation
+--------------------------
+
+Install the workflow you need; see :doc:`installation` for examples.
+Existing CLI commands remain available. The packaging migration is:
+
+.. list-table:: Extras and dependency groups
+   :header-rows: 1
+
+   * - Previous installation
+     - Current installation
+   * - Base package with Autograd
+     - Base package without the unused Autograd requirement
+   * - ``selection``
+     - Retained alias for ``aggregate`` plus ``analysis``; prefer workflow extras
+   * - ``conformer``
+     - Retained RDKit workflow extra
+   * - ``xtb``
+     - Retained Python optimizer alias for ``geometric``; xTB remains external
+   * - ``aimnet2``
+     - ASE/Torch extra; configure the external model with ``PYAR_AIMNET2_MODEL``
+   * - ``ml``
+     - MLatom/TorchANI extra, including actual eager import requirements
+   * - ``identity``, ``structure-comparison``, ``geodesic``, ``sella``
+     - Retained composable Python capabilities
+   * - ``openbabel``
+     - Removed fragile source-build extra; use upstream or conda-forge installation
+   * - ``test`` and ``docs``
+     - Checkout dependency groups: ``pip install --group test`` / ``--group docs``
+   * - ``all``
+     - End-user Python capabilities only; developer tools use dependency groups
+
+New workflow extras are ``aggregate``, ``grow``, ``reaction``, ``microsolvate``,
+``solvate`` and ``neb``. New capability extras are ``geometric`` and ``analysis``.
+Development groups are ``test``, ``docs``, ``release`` and their combined ``dev``
+group. Dependency groups require pip 25.1+ and a checkout containing
+``pyproject.toml``. The package version is unchanged by this development branch.

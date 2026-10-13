@@ -39,7 +39,7 @@ jobs:
           cache: pip
 
       - name: Install package
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[test,selection,xtb]"
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[selection,xtb]" --group test
 
       - name: Verify installed dependencies
         run: python -m pip check
@@ -68,7 +68,7 @@ jobs:
           cache: pip
 
       - name: Install documentation dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[docs]"
+        run: python -m pip install --upgrade pip && python -m pip install -e . --group docs
 
       - name: Build documentation
         run: python -m sphinx -E -b html -W --keep-going docs docs/_build/html
@@ -89,7 +89,7 @@ jobs:
           cache: pip
 
       - name: Install geodesic optional extra
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[test,xtb,geodesic]"
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[xtb,geodesic]" --group test
 
       - name: Exercise geodesic NEB initialization with the released package
         run: python -m pytest tests/test_neb.py -q
@@ -113,7 +113,7 @@ jobs:
           cache: pip
 
       - name: Install Sella optional extra
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[test,xtb,sella]"
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[xtb,sella]" --group test
 
       - name: Exercise Sella TS optimization with the released package
         run: python -m pytest tests/test_neb.py -q
@@ -121,23 +121,66 @@ jobs:
       - name: Check NEB CLI help without loading Sella
         run: pyar-neb --help
 
-  build:
-    name: Build distributions
+  installation:
+    name: User installation (${{ matrix.mode }}, py${{ matrix.python }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [core, aggregate, reaction, aimnet2, neb, ml, analysis, microsolvate]
+        python: ["3.10", "3.13"]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install as an end user
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          case "${{ matrix.mode }}" in
+            core) python -m pip install . ;;
+            ml) python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; python -m pip install ".[ml]" ;;
+            aimnet2) python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; python -m pip install ".[conformer,aimnet2]" ;;
+            *) python -m pip install ".[${{ matrix.mode }}]" ;;
+          esac
+          python -m pip check
+      - name: Exercise installed package outside checkout
+        working-directory: /tmp
+        run: python "$GITHUB_WORKSPACE/tools/installation_smoke.py" "${{ matrix.mode }}"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+  archives:
+    name: Clean wheel and sdist installations
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip && python -m pip install build
-
-      - name: Build source and wheel distributions
-        run: python -m build
+      - run: python -m pip install --upgrade pip --group release
+      - run: python -m build
+      - name: Inspect archives
+        run: python tools/check_distributions.py dist
+      - name: Install wheel into clean environment
+        run: |
+          WHEEL=$(realpath dist/*.whl)
+          python -m venv /tmp/wheel-env
+          /tmp/wheel-env/bin/python -m pip install dist/*.whl
+          /tmp/wheel-env/bin/python -m pip check
+          cd /tmp
+          /tmp/wheel-env/bin/python "$GITHUB_WORKSPACE/tools/installation_smoke.py" core
+          /tmp/wheel-env/bin/python -m pip install "$WHEEL[aggregate]"
+          /tmp/wheel-env/bin/python "$GITHUB_WORKSPACE/tools/installation_smoke.py" aggregate
+          /tmp/wheel-env/bin/python -m pip install "$WHEEL[reaction]"
+          /tmp/wheel-env/bin/python "$GITHUB_WORKSPACE/tools/installation_smoke.py" reaction
+          /tmp/wheel-env/bin/python -m pip check
+      - name: Install sdist into clean environment
+        run: |
+          python -m venv /tmp/sdist-env
+          /tmp/sdist-env/bin/python -m pip install dist/*.tar.gz
+          /tmp/sdist-env/bin/python -m pip check
+          cd /tmp
+          /tmp/sdist-env/bin/python "$GITHUB_WORKSPACE/tools/installation_smoke.py" core

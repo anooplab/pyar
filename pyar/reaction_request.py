@@ -187,7 +187,7 @@ def preflight_reaction(request):
         # for Python requirements, without suggesting pip for external programs.
         if 'Python' in str(exc) or 'import' in str(exc):
             extra = get_backend_capabilities(backend).optional_extra_hint
-            hints = 'pip install "pyar-chem[xtb]"'
+            hints = 'pip install "pyar-chem[reaction]"'
             if extra:
                 hints += f' and pip install "pyar-chem[{extra}]"'
             raise ValueError(f'Reaction Python requirements: install with {hints}.\n{exc}') from exc

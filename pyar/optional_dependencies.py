@@ -3,21 +3,11 @@
 from __future__ import annotations
 
 
+from pyar.dependencies import PYTHON_REQUIREMENTS
+
 OPTIONAL_EXTRA_HINTS = {
-    "ase": ("selection", "pyar-chem[selection]"),
-    "dscribe": ("selection", "pyar-chem[selection]"),
-    "hdbscan": ("selection", "pyar-chem[selection]"),
-    "pandas": ("selection", "pyar-chem[selection]"),
-    "sklearn": ("selection", "pyar-chem[selection]"),
-    "MDAnalysis": ("selection", "pyar-chem[selection]"),
-    "torch": ("aimnet2", "pyar-chem[aimnet2]"),
-    "torchani": ("ml", "pyar-chem[ml]"),
-    "mlatom": ("ml", "pyar-chem[ml]"),
-    "pyh5md": ("ml", "pyar-chem[ml]"),
-    "h5py": ("ml", "pyar-chem[ml]"),
-    "geometric": ("xtb", "pyar-chem[xtb]"),
-    "openbabel": ("openbabel", "pyar-chem[openbabel]"),
-    "rdkit": ("conformer", "pyar-chem[conformer]"),
+    name: (requirement.extra, f"pyar-chem[{requirement.extra}]")
+    for name, requirement in PYTHON_REQUIREMENTS.items() if requirement.extra
 }
 
 

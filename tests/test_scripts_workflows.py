@@ -86,12 +86,14 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 )
                 with mock.patch.object(script, "argument_parse", return_value=arguments):
                     with mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]):
-                        with mock.patch.object(script.reaction_workflow, "react") as react:
+                        with mock.patch.object(script.reaction_workflow, "react") as react, \
+                             mock.patch('pyar.cli._preflight_cli_requirements') as preflight:
                             script.main()
             finally:
                 os.chdir(cwd)
 
         react.assert_called_once()
+        preflight.assert_called_once_with('react', 'xtb', 'geometric')
         self.assertEqual(len(react.call_args.args), 8)
         self.assertEqual(react.call_args.args[-2:], (None, 2.3))
         self.assertEqual(react.call_args.args[5]["softmin_beta"], 2.5)
@@ -117,6 +119,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     index=0,
                 )
                 with mock.patch.object(script, "argument_parse", return_value=arguments), \
+                    mock.patch('pyar.cli._preflight_cli_requirements'), \
                     mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
                     mock.patch.object(
                         script.reaction_workflow,

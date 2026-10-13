@@ -65,7 +65,7 @@ def main():
     import argparse
     global pybel
     parser = argparse.ArgumentParser()
-    parser.add_argument('--charge', type=int, default=None,
+    parser.add_argument('--charge', '-c', type=int, default=None,
                         help='Molecular charge (default: check molecule title for "charge: {int}" or get total charge from OpenBabel).')
     parser.add_argument('--traj', help='Trajectory file', type=str, default=None)
     parser.add_argument('--fmax', type=float, default=5e-3, help='Optimization threshold.')
@@ -73,6 +73,32 @@ def main():
     parser.add_argument('in_file')
     parser.add_argument('out_file')
     args = parser.parse_args()
+
+    # PyAR writes XYZ and supplies an explicit charge. This route needs only
+    # the pip-installable AIMNet2 stack; retain format/charge perception below
+    # for direct callers requesting other formats or inferred charges.
+    if guess_pybel_type(args.in_file) == 'xyz' and args.charge is not None:
+        try:
+            import torch
+            from ase.io import iread, write
+            from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+        except ImportError as exc:
+            error = optional_dependency_error(
+                getattr(exc, "name", None) or "torch",
+                feature="AIMNet2 optimizer", extra="aimnet2",
+            )
+            raise SystemExit(str(error)) from None
+
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = torch.jit.load(args.model, map_location=device)
+        with open(args.out_file, 'w') as output:
+            for atoms in iread(args.in_file, index=':'):
+                atoms.calc = AIMNet2Calculator(model, charge=args.charge)
+                optimize(atoms, prec=args.fmax, steps=2000, traj=args.traj)
+                write(output, atoms, format=guess_pybel_type(args.out_file))
+        return
 
     try:
         import torch
@@ -83,13 +109,14 @@ def main():
         if module_name == "openbabel":
             raise SystemExit(
                 'openbabel is required for pyar-aimnet2-ase-opt. '
-                'Install with `python -m pip install "pyar-chem[openbabel]"`.'
+                'Install with `mamba install -c conda-forge openbabel`.'
             ) from exc
-        raise optional_dependency_error(
+        error = optional_dependency_error(
             module_name,
             feature="AIMNet2 optimizer",
             extra="aimnet2",
-        ) from exc
+        )
+        raise SystemExit(str(error)) from None
     pybel = openbabel_pybel
 
     torch.backends.cuda.matmul.allow_tf32 = False

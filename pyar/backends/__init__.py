@@ -44,7 +44,10 @@ def require_executable(program, friendly_name=None):
     executable = which(program)
     if executable is None:
         name = friendly_name or program
-        raise FileNotFoundError(f"{name} executable '{program}' was not found on PATH")
+        from pyar.dependencies import EXTERNAL_PROGRAMS, missing_executable_message
+        message = (missing_executable_message(program) if program in EXTERNAL_PROGRAMS
+                   else f"{name} executable '{program}' was not found on PATH")
+        raise FileNotFoundError(message)
     return executable
 
 
