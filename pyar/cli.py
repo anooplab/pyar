@@ -540,31 +540,22 @@ def _missing_executable_message(program, friendly_name, install_hint):
     )
 
 
+from pyar.dependencies import EXTERNAL_PROGRAMS, PYTHON_REQUIREMENTS
+
 _BACKEND_EXECUTABLE_REQUIREMENT_HINTS = {
-    "g16": ("Gaussian", "https://www.gaussian.com/g16/g16src_install.pdf"),
-    "orca": ("ORCA", "https://orca-manual.mpi-muelheim.mpg.de/contents/quickstartguide/installation.html"),
-    "psi4": ("Psi4", "https://psicode.org/psi4manual/master/index.html"),
-    "define": ("Turbomole", "https://www.turbomole.org/turbomole/turbomole-documentation/"),
-    "xtb": ("xTB", "https://xtb-docs.readthedocs.io/en/latest/setup.html"),
-    "mopac": ("MOPAC", "https://openmopac.net/download/installer/"),
-    "obabel": ("OpenBabel", "https://openbabel.org/docs/Installation/install.html"),
-    "obminimize": ("OpenBabel", "https://openbabel.org/docs/Installation/install.html"),
-    "obenergy": ("OpenBabel", "https://openbabel.org/docs/Installation/install.html"),
+    name: (requirement.name, requirement.installation_url)
+    for name, requirement in EXTERNAL_PROGRAMS.items()
 }
-
-
 _BACKEND_MODULE_REQUIREMENT_HINTS = {
-    "mlatom": "https://mlatom.com/docs/installation.html",
-    "torch": "https://pytorch.org/get-started/locally/",
-    "torchani": "https://github.com/aiqm/torchani",
-    "ase": "https://wiki.fysik.dtu.dk/ase/install.html",
-    "geometric": "https://geometric.readthedocs.io/en/1.1/install.html",
+    name: requirement.install_hint for name, requirement in PYTHON_REQUIREMENTS.items()
 }
 
 
 def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
     """Return user-facing messages for missing requirements on the active path."""
-    missing = []
+    from pyar.dependencies import workflow_requirement_messages, missing_executable_message
+
+    missing = workflow_requirement_messages(run_mode)
     capabilities = get_backend_capabilities(software)
 
     if geometry_optimizer == "geometric" and software is not None:
@@ -599,11 +590,8 @@ def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
                 (canonical_software, 'python -m pip install "pyar-chem[all]"'),
             )
             missing.append(
-                _missing_executable_message(
-                    executable,
-                    friendly_name,
-                    install_hint,
-                )
+                missing_executable_message(executable) if executable in EXTERNAL_PROGRAMS
+                else _missing_executable_message(executable, friendly_name, install_hint)
             )
 
     for module_name in capabilities.required_python_modules:

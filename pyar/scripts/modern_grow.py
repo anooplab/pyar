@@ -38,6 +38,8 @@ def main(argv=None, *, prog=None):
     parser = build_parser(prog)
     args = parser.parse_args(argv)
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow('grow')
         request = resolve_request(args)
         GrowRunState.load(args.output, request.to_state_dict())
         qc = request.backend_parameters

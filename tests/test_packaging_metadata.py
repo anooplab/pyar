@@ -56,7 +56,7 @@ class PackagingMetadataTests(unittest.TestCase):
             "pyar.scripts.basin_memory:main",
         )
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["conformer"])
-        self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["all"])
+        self.assertIn("conformer", metadata["project"]["optional-dependencies"]["all"][0])
 
     def test_ts_benchmark_entrypoint_is_declared(self):
         metadata = tomllib.loads(Path("pyproject.toml").read_text())
@@ -155,7 +155,7 @@ class PackagingMetadataTests(unittest.TestCase):
                 clustering.hdbscan_clustering([[0.0], [1.0]])
 
         self.assertIn("selection", str(ctx.exception))
-        self.assertIn("pyar-chem[selection]", str(ctx.exception))
+        self.assertIn("pyar-chem[aggregate]", str(ctx.exception))
         if original_module is not None:
             sys.modules["pyar.selection.clustering"] = original_module
             pyar.selection.clustering = original_module

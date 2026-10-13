@@ -121,6 +121,8 @@ def main(command, argv=None, *, prog=None):
     args = parser.parse_args(argv)
     args.command = command
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow('neb')
         from pyar.neb import validate_stage_input_paths, _load_stage, _stage_gate_passed
         from pyar.workflows.scan_path import validate_continuation, REACTION_OPTION_NAMES
         validate_continuation(command, {key: value for key, value in vars(args).items()

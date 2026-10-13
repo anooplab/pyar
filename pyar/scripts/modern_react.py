@@ -74,6 +74,8 @@ def main(argv=None, *, prog=None):
     parser = build_parser(prog)
     args = parser.parse_args(argv)
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow('reaction')
         request = resolve_reaction_request(args.input_files, vars(args))
         path_options = {key: value for key, value in vars(args).items()
                         if key in REACTION_OPTION_NAMES and value is not None}

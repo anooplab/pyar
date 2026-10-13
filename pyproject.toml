@@ -32,7 +32,6 @@ classifiers = [
 ]
 dependencies = [
   "numpy>=1.18.4",
-  "autograd>=1.3",
   "scipy>=1.5.2",
   "networkx",
   "tomli>=1.1.0; python_version < '3.11'",
@@ -67,83 +66,34 @@ pyar-mlopt = "pyar.backends.mlopt:main"
 pyar-aimnet2-ase-opt = "pyar.AIMNet2.calculators.aimnet2_ase_opt:main"
 
 [project.optional-dependencies]
-test = [
-  "pytest",
-  "pytest-cov",
-  "build",
-  "twine",
-  "rdkit",
-]
-docs = [
-  "sphinx",
-  "sphinx-rtd-theme",
-]
-selection = [
-  "MDAnalysis",
-  "ase",
-  "dscribe",
-  "hdbscan",
-  "matplotlib",
-  "pandas>=1.0.5",
-  "scikit-learn>=0.23.2",
-]
-ml = [
-  "h5py",
-  "mlatom",
-  "pandas>=1.0.5",
-  "pyh5md",
-  "torch",
-  "torchani==2.0",
-]
-aimnet2 = [
-  "ase",
-  "torch",
-]
-xtb = [
-  "ase",
-  "geometric>=1.1",
-]
-openbabel = [
-  "openbabel>=3.2.0",
-]
+aggregate = ["ase", "dscribe", "hdbscan", "scikit-learn>=0.23.2"]
+grow = ["pyar-chem[aggregate]"]
+conformer = ["rdkit"]
+reaction = ["pyar-chem[aggregate,geometric]"]
+microsolvate = ["pyar-chem[aggregate]"]
+solvate = ["pyar-chem[microsolvate]"]
+neb = ["pyar-chem[geometric]"]
+geometric = ["ase", "geometric>=1.1"]
+aimnet2 = ["ase", "torch"]
+sella = ["sella>=2.6.0"]
+geodesic = ["geodesic-interpolate>=1.0.0"]
+structure-comparison = ["irmsd>=0.1.0"]
 identity = ["rdkit"]
-conformer = [
-  "rdkit",
-]
-structure-comparison = [
-  "irmsd>=0.1.0",
-]
-geodesic = [
-  "geodesic-interpolate>=1.0.0",
-]
-sella = [
-  "sella>=2.6.0",
-]
-all = [
-  "ase",
-  "build",
-  "dscribe",
-  "geometric>=1.1",
-  "geodesic-interpolate>=1.0.0",
-  "h5py",
-  "hdbscan",
-  "irmsd>=0.1.0",
-  "matplotlib",
-  "MDAnalysis",
-  "mlatom",
-  "openbabel>=3.2.0",
-  "pandas>=1.0.5",
-  "pyh5md",
-  "rdkit",
-  "pytest",
-  "pytest-cov",
-  "scikit-learn>=0.23.2",
-  "sella>=2.6.0",
-  "sphinx",
-  "sphinx-rtd-theme",
-  "torch",
-  "torchani==2.0",
-  "twine",
+analysis = ["MDAnalysis", "matplotlib", "pandas>=1.0.5"]
+ml = ["mlatom", "torch", "torchani==2.0", "ase"]
+# Compatibility aliases: xTB itself is an external executable.
+xtb = ["pyar-chem[geometric]"]
+selection = ["pyar-chem[aggregate,analysis]"]
+all = ["pyar-chem[aggregate,conformer,reaction,microsolvate,neb,aimnet2,sella,geodesic,structure-comparison,identity,analysis,ml]"]
+
+[dependency-groups]
+test = ["pytest", "pytest-cov", "rdkit"]
+docs = ["sphinx", "sphinx-rtd-theme"]
+release = ["build", "twine"]
+dev = [
+  {include-group = "test"},
+  {include-group = "docs"},
+  {include-group = "release"},
 ]
 
 [tool.setuptools]

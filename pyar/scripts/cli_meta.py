@@ -106,8 +106,16 @@ def doctor(argv=None, *, prog="pyar doctor"):
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     checks = {}
-    for module in ("numpy", "networkx"):
+    from pyar.dependencies import CORE_MODULES, PYTHON_REQUIREMENTS, EXTERNAL_PROGRAMS
+    core = (*CORE_MODULES, "tomli") if sys.version_info < (3, 11) else CORE_MODULES
+    for module in core:
         checks[f"python:{module}"] = {"ok": _module_available(module)}
+    for module, requirement in PYTHON_REQUIREMENTS.items():
+        if requirement.extra:
+            checks[f"optional:python:{module}"] = {"ok": _module_available(module), "install": requirement.install_hint}
+    for executable, requirement in EXTERNAL_PROGRAMS.items():
+        path = shutil.which(executable)
+        checks[f"optional:executable:{executable}"] = {"ok": bool(path), "path": path, "installation_url": requirement.installation_url}
     if args.all_backends:
         for name, cap in sorted(BACKEND_CAPABILITIES.items()):
             for executable in sorted(cap.required_executables):
@@ -117,15 +125,18 @@ def doctor(argv=None, *, prog="pyar doctor"):
                 found = _module_available(module)
                 checks[f"backend:{name}:python:{module}"] = {"ok": found}
     essential = all(check["ok"] for key, check in checks.items() if key.startswith("python:"))
-    ok = essential and (not args.all_backends or all(check["ok"] for check in checks.values()))
-    result = {"version": __version__, "ok": ok, "checks": checks}
+    ok = essential
+    result = {"version": __version__, "python": sys.version.split()[0], "ok": ok, "checks": checks}
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
+        print(f"Python {sys.version.split()[0]}")
         print(f"PyAR doctor: {'healthy' if ok else 'problems found'} (version {__version__})")
         for label, check in checks.items():
             suffix = f" ({check['path']})" if check.get("path") else ""
             print(f"  {'OK' if check['ok'] else 'MISSING'} {label}{suffix}")
+    if not args.json:
+        print("Unavailable optional components affect only workflows that require them.")
     if not ok:
         raise SystemExit(1)
 

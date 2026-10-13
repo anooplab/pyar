@@ -186,6 +186,8 @@ def main(argv=None):
         )
 
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow("conformer")
         result = conformer_search(args.input, **workflow_options(args, qc_params))
     except (ConformerWorkflowError, FileNotFoundError, ImportError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc

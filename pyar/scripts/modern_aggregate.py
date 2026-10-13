@@ -71,6 +71,8 @@ def main(argv=None, *, prog=None):
     parser = build_parser(prog)
     args = parser.parse_args(argv)
     try:
+        from pyar.dependencies import require_workflow
+        require_workflow('aggregate')
         request = resolve_request(args)
         validate_restart(request)
         qc = dict(request.backend_parameters)

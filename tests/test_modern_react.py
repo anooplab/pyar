@@ -165,7 +165,7 @@ def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, wo
 
 
 @pytest.mark.parametrize('failure', [ValueError("Missing executable 'xtb'; official installation"),
-                                     ImportError('geometric missing; pip install "pyar-chem[xtb]"'),
+                                     ImportError('geometric missing; pip install "pyar-chem[reaction]"'),
                                      ValueError('native relaxation unavailable')])
 def test_preflight_failure_no_work(tmp_path, monkeypatch, workflow, failure, capsys):
     monkeypatch.chdir(tmp_path)
@@ -239,7 +239,7 @@ def test_missing_geometric_has_pyar_extra_guidance(tmp_path):
     import importlib.util
     find = importlib.util.find_spec
     with patch('pyar.cli.importlib.util.find_spec', side_effect=lambda name: None if name == 'geometric' else find(name)):
-        with pytest.raises(ValueError, match=r'pyar-chem\[xtb\]'):
+        with pytest.raises(ValueError, match=r'pyar-chem\[reaction\]'):
             preflight_reaction(request)
 
 

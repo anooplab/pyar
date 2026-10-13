@@ -142,7 +142,7 @@ BACKEND_CAPABILITIES = {
         supports_multiplicity=True,
         supports_charge_multiplicity=True,
         supports_method_basis_options=False,
-        required_python_modules=frozenset({"torch"}),
+        required_python_modules=frozenset({"torch", "ase"}),
         optional_extra_hint="aimnet2",
         supported_options=frozenset(),
         notes="Uses external AIMNet2 model assets and the Cartesian energy/gradient provider."
@@ -171,6 +171,8 @@ BACKEND_CAPABILITIES = {
         supports_method_basis_options=False,
         required_executables=frozenset({"xtb"}),
         supported_options=frozenset({"opt_threshold", "nprocs"}),
+        required_python_modules=frozenset({"torch", "ase"}),
+        optional_extra_hint="aimnet2",
         notes="Two-stage xTB then AIMNet2 refinement."
     ),
     "xtb-aiqm1": BackendCapabilities(
@@ -185,6 +187,8 @@ BACKEND_CAPABILITIES = {
         supports_method_basis_options=False,
         required_executables=frozenset({"xtb"}),
         supported_options=frozenset({"opt_threshold", "nprocs"}),
+        required_python_modules=frozenset({"mlatom"}),
+        optional_extra_hint="ml",
         notes="Two-stage xTB then AIQM1 refinement."
     ),
 }

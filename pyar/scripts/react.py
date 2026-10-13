@@ -174,6 +174,9 @@ def main():
             "Non-fixed bias control requires a registered Cartesian energy-gradient backend "
             "and --geometry-optimizer geometric."
         )
+    from pyar.cli import _preflight_cli_requirements
+    _preflight_cli_requirements("react", software, geometry_optimizer)
+
     qc_params = {
         'software': run_parameters['software'],
         'index': index,
@@ -206,7 +209,7 @@ def main():
             None,
             2.3,
         )
-    except (FileNotFoundError, ReactionStateError, ValueError) as exc:
+    except (FileNotFoundError, ReactionStateError, ValueError, ImportError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

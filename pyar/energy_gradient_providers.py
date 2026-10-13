@@ -10,8 +10,6 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import numpy as np
-from ase import Atoms
-from ase.units import Bohr, Hartree
 
 from pyar import backends
 from pyar.backend_capabilities import (
@@ -129,6 +127,8 @@ def _read_xtb_gradient(gradient_file):
 
 def _forces_ev_per_angstrom_to_gradient_hartree_per_bohr(forces_ev_per_angstrom):
     """Convert ASE forces to an energy gradient in Hartree/Bohr."""
+    from ase.units import Bohr, Hartree
+
     return -np.asarray(forces_ev_per_angstrom, dtype=float) * Bohr / Hartree
 
 
@@ -225,6 +225,9 @@ class Aimnet2EnergyGradientProvider:
             load_default_aimnet2_model(),
             charge=int(self.qc_params.get("charge", 0) or 0),
         )
+        from ase import Atoms
+        from ase.units import Hartree
+
         ase_atoms = Atoms(
             symbols=molecule.get_chemical_symbols(),
             positions=coordinates_angstrom,
