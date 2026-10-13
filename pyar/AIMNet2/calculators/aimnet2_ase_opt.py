@@ -80,7 +80,7 @@ def main():
     if guess_pybel_type(args.in_file) == 'xyz' and args.charge is not None:
         try:
             import torch
-            from ase.io import read, write
+            from ase.io import iread, write
             from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
         except ImportError as exc:
             error = optional_dependency_error(
@@ -93,10 +93,11 @@ def main():
         torch.backends.cudnn.allow_tf32 = False
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model = torch.jit.load(args.model, map_location=device)
-        atoms = read(args.in_file)
-        atoms.calc = AIMNet2Calculator(model, charge=args.charge)
-        optimize(atoms, prec=args.fmax, steps=2000, traj=args.traj)
-        write(args.out_file, atoms, format=guess_pybel_type(args.out_file))
+        with open(args.out_file, 'w') as output:
+            for atoms in iread(args.in_file, index=':'):
+                atoms.calc = AIMNet2Calculator(model, charge=args.charge)
+                optimize(atoms, prec=args.fmax, steps=2000, traj=args.traj)
+                write(output, atoms, format=guess_pybel_type(args.out_file))
         return
 
     try:

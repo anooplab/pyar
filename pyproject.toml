@@ -87,7 +87,7 @@ selection = ["pyar-chem[aggregate,analysis]"]
 all = ["pyar-chem[aggregate,conformer,reaction,microsolvate,neb,aimnet2,sella,geodesic,structure-comparison,identity,analysis,ml]"]
 
 [dependency-groups]
-test = ["pytest", "pytest-cov", "rdkit"]
+test = ["pytest", "pytest-cov", "rdkit", "autograd>=1.3"]
 docs = ["sphinx", "sphinx-rtd-theme"]
 release = ["build", "twine"]
 dev = [

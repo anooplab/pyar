@@ -22,7 +22,7 @@ consumers; ReadTheDocs still consumes `docs/requirements.txt`.
 | SciPy | property distances; RMSD assignment; CLI selection distances | core |
 | NetworkX | coordinate/chemical graphs; CLI selection policy | core |
 | tomli | package/config TOML fallback on Python 3.10 | conditional core |
-| Autograd | no imports remain; bias gradients use NumPy analytical expressions | remove unused requirement |
+| Autograd | no production imports remain; tests retain an independent derivative reference | test dependency group |
 | ASE | representations; energy-gradient providers; NEB; AIMNet2 | aggregate, reaction, microsolvate, neb, geometric, aimnet2 |
 | DScribe | lazy SOAP/MBTR in representations; default growth selection | aggregate, reaction, microsolvate |
 | HDBSCAN | first auto clustering attempt in selection/clusterers.py | aggregate, reaction, microsolvate |
@@ -168,7 +168,7 @@ contract do not preserve PyAR's Python 3.10 and legacy model behavior.
 
 ## Validation record
 
-- Full suite: 1265 passed (including the existing subtest coverage); 685 warnings. Coverage run:
+- Full suite: 1268 passed (including the existing subtest coverage); 685 warnings. Coverage run:
   71.53%, above the existing 50% gate.
 - Clean non-editable core, aggregate, reaction, conformer+aimnet2, and
   neb+sella+geodesic+structure-comparison installs passed import/CLI checks.
@@ -177,7 +177,8 @@ contract do not preserve PyAR's Python 3.10 and legacy model behavior.
 - Python 3.10: core, aggregation, conformer+AIMNet2 and pip check passed.
   Python 3.13: core, reaction, conformer+AIMNet2 and pip check passed.
   Python 3.11 supplied the other representative local checks. CI covers
-  eight clean installation modes on both 3.10 and 3.13; remote CI has not run.
+  eight clean installation modes on both 3.10 and 3.13; the original run passed all clean-install jobs; full-suite collection exposed the
+  missing test-only Autograd dependency, corrected in the review fixes.
 - Actual xTB aggregation completed, selected a finite four-atom geometry,
   and its raw backend log reported normal termination and a finite energy.
 - Actual AIMNet2 methane conformer refinement completed with a finite energy
@@ -188,7 +189,7 @@ contract do not preserve PyAR's Python 3.10 and legacy model behavior.
   in the clean aggregate install, without Torch or geomeTRIC.
 - Final wheel and sdist: archive inspection rejects caches, model weights,
   obsolete binaries/machinery, and wheel development files; 212 wheel entries
-  and 362 sdist entries passed. Twine metadata checks passed. Core installs
+  and 363 sdist entries passed. Twine metadata checks passed. Core installs
   from both archives passed help, doctor and pip check. Representative workflow
   wheel checks exercise aggregation, reaction, grow, solvate and microsolvation.
 - Strict Sphinx builds passed in both the existing development environment and
@@ -282,6 +283,8 @@ unchanged Python support, task docs and migration aliases, focused acceptance
 tests. Sections 21–22: canonical stories verified through positive xTB/AIMNet and
 negative ORCA paths; scientific scope preserved. Sections 23–24: isolated branch,
 coherent commits, concrete verification and this detailed implementation report.
-All local implementation and validation gates above passed. Remote CI and
-vendor-licensed calculations are explicitly recorded as follow-ups, not as
-completed validations.
+All local implementation and validation gates above passed. Vendor-licensed calculations remain follow-ups. The review fixes add test-only
+Autograd, exercise Python 3.10 conditional core requirements, normalize relative
+AIMNet2 model paths before directory changes, and preserve every explicit-charge
+XYZ frame. Updated full-suite and distribution checks passed; the corrected
+remote full-suite run is checked separately.

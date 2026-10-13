@@ -95,10 +95,15 @@ def test_aiqm1_preflights_gaussian_before_starting_its_subprocess():
     assert {'g16', 'xtb'} <= get_backend_capabilities('xtb-aiqm1').required_executables
 
 
-def test_doctor_optional_absence_is_informational(capsys):
+@pytest.mark.parametrize('python_version', [(3, 10), (3, 13)])
+def test_doctor_optional_absence_is_informational(capsys, python_version):
     from pyar.scripts import cli_meta
 
-    with patch.object(cli_meta, '_module_available', side_effect=lambda name: name in dependencies.CORE_MODULES), \
+    core = set(dependencies.CORE_MODULES)
+    if python_version < (3, 11):
+        core.add('tomli')
+    with patch.object(cli_meta.sys, 'version_info', python_version), \
+         patch.object(cli_meta, '_module_available', side_effect=lambda name: name in core), \
          patch.object(cli_meta.shutil, 'which', return_value=None):
         cli_meta.doctor(['--all-backends'])
     output = capsys.readouterr().out

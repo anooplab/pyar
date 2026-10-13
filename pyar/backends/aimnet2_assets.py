@@ -5,9 +5,11 @@ from importlib import resources
 from pathlib import Path
 
 
-MODEL_PATH = os.environ.get("PYAR_AIMNET2_MODEL") or str(
+MODEL_PATH = str(
     resources.files("pyar").joinpath("AIMNet2/models/aimnet2_wb97m-d3_0.jpt")
 )
+if os.environ.get("PYAR_AIMNET2_MODEL"):
+    MODEL_PATH = str(Path(os.environ["PYAR_AIMNET2_MODEL"]).expanduser().resolve())
 SCRIPT_PATH = str(
     resources.files("pyar").joinpath("AIMNet2/calculators/aimnet2_ase_opt.py")
 )
