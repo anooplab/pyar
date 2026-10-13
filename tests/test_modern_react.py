@@ -305,7 +305,24 @@ def test_legacy_standalone_contract_unchanged(tmp_path, monkeypatch):
         with pytest.raises(SystemExit, match='bias-min'):
             legacy.main()  # No controller means legacy fixed, still requiring min.
     with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software', 'xtb', '--bias-min', '10', '--bias-max', '100']), patch(
-            'pyar.workflows.reaction.react') as run:
+            'pyar.workflows.reaction.react') as run, patch('pyar.cli._preflight_cli_requirements') as preflight:
         legacy.main()
+    preflight.assert_called_once_with('react', 'xtb', 'geometric')
     assert run.call_args.args[2:5] == (10, 100, 8)
     assert 'bias_controller' not in run.call_args.args[5]
+
+
+def test_legacy_standalone_missing_xtb_stops_before_workflow(tmp_path, monkeypatch):
+    from importlib import import_module
+    import sys
+
+    monkeypatch.chdir(tmp_path)
+    legacy = import_module('pyar.scripts.react')
+    files = inputs(tmp_path)
+    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software',
+                                  'xtb', '--bias-min', '10', '--bias-max', '100']), \
+         patch('pyar.cli.shutil.which', side_effect=lambda name: None if name == 'xtb' else '/mock/' + name), \
+         patch('pyar.workflows.reaction.react') as run:
+        with pytest.raises(SystemExit, match="Missing executable 'xtb'"):
+            legacy.main()
+    run.assert_not_called()

@@ -168,8 +168,8 @@ contract do not preserve PyAR's Python 3.10 and legacy model behavior.
 
 ## Validation record
 
-- Full suite: 1268 passed (including the existing subtest coverage); 685 warnings. Coverage run:
-  71.53%, above the existing 50% gate.
+- Full suite: 1269 passed (including the existing subtest coverage); 686 warnings. Coverage run:
+  71.55%, above the existing 50% gate.
 - Clean non-editable core, aggregate, reaction, conformer+aimnet2, and
   neb+sella+geodesic+structure-comparison installs passed import/CLI checks.
   Grow, microsolvate, and solvate passed against the clean aggregation stack,
@@ -286,5 +286,6 @@ coherent commits, concrete verification and this detailed implementation report.
 All local implementation and validation gates above passed. Vendor-licensed calculations remain follow-ups. The review fixes add test-only
 Autograd, exercise Python 3.10 conditional core requirements, normalize relative
 AIMNet2 model paths before directory changes, and preserve every explicit-charge
-XYZ frame. Updated full-suite and distribution checks passed; the corrected
-remote full-suite run is checked separately.
+XYZ frame. Legacy reaction dispatch tests also mock their external preflight boundary; a
+direct negative test verifies missing xTB stops before dispatch. Updated full-suite
+and distribution checks passed; the corrected remote run is checked separately.
