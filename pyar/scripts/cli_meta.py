@@ -100,6 +100,11 @@ def _module_available(module):
         return False
 
 
+def install(argv=None, *, prog="pyar install"):
+    from pyar.scripts.installation import main
+    return main(argv, prog=prog)
+
+
 def doctor(argv=None, *, prog="pyar doctor"):
     parser = argparse.ArgumentParser(prog=prog, description="Check the PyAR installation")
     parser.add_argument("--all-backends", action="store_true", help="also check optional backend requirements")

@@ -26,6 +26,7 @@ _COMMANDS = {
     "info": ("pyar.scripts.cli_meta", "Show PyAR installation information"),
     "backends": ("pyar.scripts.cli_meta", "List backend capabilities"),
     "doctor": ("pyar.scripts.cli_meta", "Check PyAR installation health"),
+    "install": ("pyar.scripts.cli_meta", "Show installation status for Python packages and external programs"),
     "inspect": ("pyar.scripts.cli_meta", "Inspect a PyAR run or workflow state"),
     "conformer": ("pyar.scripts.modern_conformer", "Generate and optionally refine molecular conformers"),
     "aggregate": ("pyar.scripts.modern_aggregate", "Search structures for a requested final composition"),
@@ -54,12 +55,12 @@ _CHECK_COMMANDS = {
     "react", "scan-bond", "optimize", "conformer", "aggregate", "grow",
     "microsolvate", "solvate", "neb", "ts", "irc",
 }
-_META_COMMANDS = {"run", "config", "profile", "info", "backends", "doctor", "inspect"}
+_META_COMMANDS = {"run", "config", "profile", "info", "backends", "doctor", "install", "inspect"}
 _COMMAND_GROUPS = {
     "Structure exploration": ("conformer", "aggregate", "grow", "microsolvate", "solvate", "optimize"),
     "Reaction exploration": ("react", "scan-bond", "neb", "ts", "irc"),
     "Analysis and geometry": ("clustering", "energies", "compare", "identify", "orient", "deduplicate", "select", "split", "trace"),
-    "Configuration and diagnostics": ("run", "config", "profile", "inspect", "info", "backends", "doctor"),
+    "Configuration and diagnostics": ("run", "config", "profile", "inspect", "info", "backends", "doctor", "install"),
 }
 
 
@@ -276,7 +277,7 @@ def invoke(command, arguments, *, config_file=None, profile_values=None, source_
         module = import_module(_COMMANDS[command][0])
         function = {'run': module.run_config, 'config': module.config, 'profile': module.profile,
                     'info': module.info, 'backends': module.backends, 'doctor': module.doctor,
-                    'inspect': module.inspect_run}[command]
+                    'inspect': module.inspect_run, 'install': module.install}[command]
         if command == 'run':
             return function(args, prog=f'pyar {command}', verbosity=verbosity, quiet=quiet)
         with _logging(verbosity, quiet):

@@ -36,12 +36,20 @@ Check your installation
    pyar --help
    pyar-cli --help
    pyar doctor
+   pyar install status
+   pyar install status --json
    pyar aggregate molecule.xyz --size 2 --backend xtb --check
    pyar react A.xyz B.xyz --backend orca --method BP86 --basis def2-SVP --bias-max 100 --check
 
 Normal execution automatically checks requirements. ``--check`` validates
 without calculations. Missing optional components in ``doctor`` are
 informational; missing core requirements make it fail.
+
+``pyar install status`` lists package versions, available workflow Python
+stacks, external executables on PATH and the AIMNet2 model file. It shows
+the interpreter and environment being inspected. This command is read-only;
+it does not install packages or launch external programs. Status reports
+metadata and discovery; workflow ``--check`` validates the selected route.
 
 Python capabilities
 -------------------

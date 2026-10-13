@@ -29,6 +29,9 @@ def main():
     run(sys.executable, '-m', 'pyar.cli', '--help')
     doctor = run(sys.executable, '-m', 'pyar.modern_cli', 'doctor', '--json')
     assert json.loads(doctor.stdout)['ok']
+    status = run(sys.executable, '-m', 'pyar.modern_cli', 'install', 'status', '--json')
+    inventory = json.loads(status.stdout)
+    assert inventory['ok'] and inventory['executable'] == sys.executable
     if mode == 'core':
         for module in ('ase', 'torch', 'rdkit', 'dscribe', 'geometric', 'sella'):
             assert importlib.util.find_spec(module) is None, module
