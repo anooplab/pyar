@@ -463,3 +463,10 @@ use the same service with unchanged frontend semantics, including its legacy
 geometry-only propagation. Aggregate and grow geometry-only pools
 are bounded using existing graph-first pruning and max-min diversity, without
 energy assignment.
+
+Run-layout v2 primitives
+------------------------
+
+The opt-in :doc:`persistence` module supplies paths, artifact references, JSON
+publication, version detection and local writer locking. PR 1 does not route
+existing workflows through it or alter any scientific state transitions.

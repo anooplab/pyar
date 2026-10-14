@@ -212,6 +212,7 @@ The fastest way to verify a local install is:
    reference
    generated_api
    architecture
+   persistence
 
 .. toctree::
    :hidden:

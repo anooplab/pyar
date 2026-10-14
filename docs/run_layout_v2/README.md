@@ -141,6 +141,19 @@ only wraps persistence for copying after save; it does not change saved bytes.
   is a PR 6 acceptance requirement. Before the grow pilot, retain durable v1
   restart fixtures and test their loaders; a hash inventory alone cannot stand
   in for accessible fixture bytes. No claim of portable raw snapshots is made.
-- PR 1 and subsequent milestones have not started and require authorization.
+- PR 1: `pyar.persistence` implements opt-in paths, validated artifact references,
+  strict atomic JSON publication, explicit version detection and a local POSIX
+  writer guard. Existing workflows do not import it. The user authorized
+  automated implementation, two review/fix passes and merge after successful
+  checks on 2026-10-14.
+- PR 1 review fixes: reject overflowing JSON numbers and unknown authority
+  schemas; reject special lock files; flush new directory entries; retain
+  recovery evidence across normal lock reuse.
+- PR 1 validation: 32 focused tests pass both in the development environment
+  and against the fresh installed wheel with only core dependencies/pytest.
+  Full suite: 1,305 passed, 1 skipped, 194 subtests passed; the skipped wheel
+  content check passed separately. Sphinx with warnings as errors and isolated
+  wheel/sdist build pass. All 787 inventoried v1 artifact entries are unchanged.
+- PR 2 and subsequent milestones have not started and require authorization.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.
