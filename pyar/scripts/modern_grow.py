@@ -1,4 +1,5 @@
 """Modern fixed-seed growth interface; the workflow owns sequential growth."""
+from pyar.persistence import LockError
 import argparse
 
 from pyar.cli_runtime import prepared_run, started_run, finished_run
@@ -21,6 +22,8 @@ def build_parser(prog=None):
     add_fragment_arguments(parser)
     add_selection_arguments(parser, maximum_seeds=12)
     parser.add_argument('--output', default='grow')
+    parser.add_argument("--recover-stale-lock", action="store_true",
+                        help="Explicitly recover stale v2 writer metadata; cannot break an active lock")
     return parser
 
 
@@ -54,8 +57,8 @@ def main(argv=None, *, prog=None):
                         ('Electronic states', [(m.charge, m.multiplicity) for m in (request.seed, request.monomer)])])
             return None
         started_run()
-        result = grow(request, output=args.output)
-    except (ValueError, OSError, ImportError, GrowStateError, BackendExecutionError) as exc:
+        result = grow(request, output=args.output, **({"recover_stale": True} if args.recover_stale_lock else {}))
+    except (ValueError, OSError, ImportError, GrowStateError, LockError, BackendExecutionError) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Growth {result.status}.\nCompleted additions: {result.metadata["completed_additions"]}/{request.count}\n'

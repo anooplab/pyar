@@ -1,4 +1,5 @@
 """Dedicated CLI for fixed-seed sequential growth."""
+from pyar.persistence import LockError
 import argparse
 
 from pyar.cli import (_normalize_parameter_list, _infer_default_multiplicities,
@@ -42,6 +43,8 @@ def build_parser():
     parser.add_argument("--selection-distance", default="euclidean")
     parser.add_argument("--selection-system-type", default="auto")
     parser.add_argument("--output", default="grow")
+    parser.add_argument("--recover-stale-lock", action="store_true",
+                        help="Explicitly recover stale v2 writer metadata; cannot break an active lock")
     return parser
 
 
@@ -81,8 +84,8 @@ def main(argv=None):
                 validate_aimnet2_runtime_assets()
         elif any((args.method, args.basis, args.model, args.xtb_model)):
             raise ValueError("Backend options require --software")
-        result = grow(request, output=args.output)
-    except (ImportError, ValueError, OSError, GrowStateError) as exc:
+        result = grow(request, output=args.output, **({"recover_stale": True} if args.recover_stale_lock else {}))
+    except (ImportError, ValueError, OSError, GrowStateError, LockError) as exc:
         parser.error(str(exc))
     print(f"Growth {result.status}: {result.metadata['completed_additions']}/{args.count} additions")
     print(f"Run directory: {result.run_directory}")

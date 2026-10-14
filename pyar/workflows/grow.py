@@ -7,7 +7,7 @@ from pyar.state.grow import GrowRunState, write_json
 from pyar.workflow_results import GrowResult
 
 
-def grow(request: GrowRequest, *, output="grow"):
+def _grow_v1(request: GrowRequest, *, output="grow"):
     """Retain every completed growth stage and resume a compatible request."""
     directory = Path(output).resolve()
     payload = request.to_state_dict()
@@ -91,4 +91,108 @@ def grow(request: GrowRequest, *, output="grow"):
                                   "stages": state.data["completed_steps"], "sampling": payload["sampling"]})
     if status == "completed":
         write_json(directory / "final" / "summary.json", result.to_dict())
+    return result
+
+
+def grow(request: GrowRequest, *, output="grow", recover_stale=False):
+    """Use v2 for fresh runs, retaining the original v1 restart implementation."""
+    from pyar.persistence import detect_version, RunLock
+    from pyar.growth.layout_v2 import GrowRunStateV2
+    directory = Path(output).resolve()
+    payload = request.to_state_dict()
+    def legacy(root):
+        return GrowRunState.load(root, payload) is not None
+    version = detect_version(directory, 'grow', validate_v1=legacy)
+    if version == 1:
+        return _grow_v1(request, output=output)
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    with RunLock(directory, recover_stale=recover_stale):
+        version = detect_version(directory, 'grow', validate_v1=legacy)
+        if version == 1:
+            return _grow_v1(request, output=output)
+        state = (GrowRunStateV2.create(directory, payload, request.seed, request.monomer)
+                 if version == 0 else GrowRunStateV2.load(directory, payload))
+        return _grow_v2(request, state)
+
+
+def _grow_v2(request, state):
+    from pyar.growth.layout_v2 import durable_pool, verify_refs
+    from pyar.persistence import RunLayout, write_json as publish
+    directory = state.directory
+    seeds = verify_refs(state.data['current_seeds'], directory)
+    status = state.data['status']
+    if status in {'running', 'stopped'}:
+        state.data['status'] = 'running'
+        for step in range(state.data['next_step'], request.count + 1):
+            if state.selection_path(step).exists():
+                state.accept_step(step)
+                seeds = verify_refs(state.data['current_seeds'], directory)
+                if not seeds:
+                    status = 'no_candidates'
+                    break
+                continue
+            if check_stop_signal():
+                status = 'stopped'
+                state.data['status'] = status
+                state.save()
+                break
+            stage = RunLayout(directory, 'grow').step(step)
+            execution = RunLayout(directory, 'grow').path(f'steps/step_{step:03d}/attempts/attempt_000/execution')
+            execution.mkdir(parents=True, exist_ok=True)
+            site = None if request.site is None else [[request.site[0]], [len(seeds[0]) + request.site[1]]]
+            from pyar.molecule_merge import combine_multiplicity
+            qc = dict(request.backend_parameters)
+            qc.update(charge=seeds[0].charge + request.monomer.charge,
+                      multiplicity=combine_multiplicity(seeds[0].multiplicity, request.monomer.multiplicity),
+                      scftype='rhf' if seeds[0].scftype == request.monomer.scftype == 'rhf' else 'uhf')
+            with _working_directory(execution):
+                selected = add_one(f'grow_{step:03d}', seeds, request.monomer,
+                                   request.number_of_orientations, qc,
+                                   request.maximum_number_of_seeds, site,
+                                   connectivity_policy=request.connectivity_policy,
+                                   selection_feature=request.selection_feature,
+                                   selection_algorithm=request.selection_algorithm,
+                                   selection_distance=request.selection_distance,
+                                   selection_system_type=request.selection_system_type)
+            if selected is None or selected is StopIteration:
+                status = 'stopped'
+                state.data['status'] = status
+                state.save()
+                break
+            if len(selected) > request.maximum_number_of_seeds:
+                raise RuntimeError('Shared growth engine exceeded the survivor budget')
+            refs = durable_pool(selected, stage / 'selected', directory)
+            mode = 'energy-ranked' if request.backend_parameters.get('software') else 'geometry-diversity'
+            source = execution / 'selected/selection_diagnostics.json'
+            if not source.exists():
+                source = execution / 'selection_diagnostics.json'
+            from pyar.persistence import read_json
+            diagnostics = read_json(source) if source.exists() else dict(selection_mode=mode,
+                selected_count=len(selected), maximum_number_of_seeds=request.maximum_number_of_seeds)
+            publish(stage / 'selected/selection_diagnostics.json', diagnostics)
+            state.commit_step(step, refs, mode)
+            seeds = selected
+            if not seeds:
+                status = 'no_candidates'
+                break
+        else:
+            status = 'completed'
+    if status == 'completed':
+        state.finish()
+    paths = tuple(str(directory / ref['path']) for ref in state.data['final_refs']) if status == 'completed' else ()
+    payload = request.to_state_dict()
+    result = GrowResult(workflow='grow', status=status, run_directory=str(directory),
+                       state_path=str(state.path), selected_paths=paths,
+                       metadata=dict(requested_additions=request.count,
+                           completed_additions=len(state.data['completed_steps']),
+                           orientations_per_seed=request.number_of_orientations,
+                           maximum_number_of_seeds=request.maximum_number_of_seeds,
+                           backend=request.backend_parameters.get('software'),
+                           connectivity_policy=request.connectivity_policy,
+                           selection_policy={k: payload[k] for k in payload if k.startswith('selection_')},
+                           stages=state.data['completed_steps'], sampling=payload['sampling'], layout_version=2))
+    if status == 'completed':
+        publish(directory / 'summary.json', result.to_dict())
+        publish(RunLayout(directory, 'grow').path('results/manifest.json'), dict(format='pyar-results-manifest',
+            manifest_schema_version=1, workflow='grow', run_id=state.data['run_id'], artifacts=state.data['final_refs']))
     return result
