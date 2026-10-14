@@ -88,9 +88,22 @@ Output and restart
 
 The default run directory is ``grow/``; override it with ``--output DIR``.
 ``request.json`` records the resolved request, and atomic ``state.json`` records
-completed additions. ``step_000/selected/`` retains the initial seed. Each
-``step_NNN/`` retains trial/jobs and a selected pool with selection diagnostics.
-``final/`` holds the final pool and structured ``summary.json``.
+completed additions. Fresh runs use an explicit v2 ``layout.json`` marker.
+``inputs/`` holds original seed/addend snapshots. ``steps/step_000/selected/``
+retains the initial seed; each ``steps/step_NNN/`` has a committed
+``selection.json``, selected pool and diagnostics. Native trial/job/selected
+execution files remain together under ``attempts/attempt_000/execution/``.
+Final structures are copied to ``results/structure_NNN.xyz`` with a rebuildable
+manifest; ``summary.json`` is a derived root report.
+
+Existing v1 runs retain their original ``step_NNN/`` and ``final/`` trees,
+loader and restart behavior; they are never migrated. New v2 runs have a local
+POSIX single-writer guard. A process crash requires explicit
+``--recover-stale-lock`` on execution; that flag cannot override an active
+writer. Preflight stays read-only. Missing or modified committed selection
+records/artifacts reject reuse, and interrupted uncommitted execution attempts
+retain native caches. A committed step whose progress update was interrupted
+is validated and adopted without repeating generation/optimization.
 
 A matching invocation resumes from the last completed addition, reusing
 existing job/trial artifacts for an interrupted addition. Completed runs return

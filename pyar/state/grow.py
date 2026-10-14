@@ -39,6 +39,9 @@ class GrowRunState:
     def load(cls, directory, request):
         directory = Path(directory).resolve()
         path = directory / "state.json"
+        if (directory / "layout.json").exists() or (directory / "layout.json").is_symlink():
+            from pyar.growth.layout_v2 import GrowRunStateV2
+            return GrowRunStateV2.load(directory, request)
         if not path.exists():
             if directory.exists() and any(directory.iterdir()):
                 raise GrowStateError(f"Non-empty growth directory without state: {directory}")

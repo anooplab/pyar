@@ -155,6 +155,16 @@ only wraps persistence for copying after save; it does not change saved bytes.
   Full suite: 1,305 passed, 1 skipped, 194 subtests passed; the skipped wheel
   content check passed separately. Sphinx with warnings as errors and isolated
   wheel/sdist build pass. All 787 inventoried v1 artifact entries are unchanged.
-- PR 2 and subsequent milestones have not started and require authorization.
+- The user authorized autonomous PRs 2–8 on 2026-10-14, with review/checks
+  after each PR and stop-plus-email to anoop.a@duk.ac.in if any PR fails.
+- PR 2: [PR #36](https://github.com/anooplab/pyar/pull/36); fresh grow runs use v2; existing v1 runs retain their original owner.
+  Committed selected pools and explicit dependency hashes survive interrupted
+  progress publication; native calculator/cache names stay inside execution
+  attempts. Final results are copied and indexed without touching selections.
+  Durable v1 fixture bytes are now tracked under tests/data/run_layout_v1/.
+  Reviewed twice; 1,312 full-suite tests and 40 grow-focused tests passed, with
+  warning-free Sphinx and a fresh wheel/sdist. Real geometry-only v1/v2 runs
+  produced byte-identical final structures. Live CI/merge status is on its PR.
+- PRs 3–8 wait for successful PR 2 merge; no overlapping milestones.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

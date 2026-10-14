@@ -1,0 +1,99 @@
+{
+  "completed_steps": [
+    {
+      "selected_count": 1,
+      "selected_paths": [
+        "step_001/selected/selected_000.xyz"
+      ],
+      "selection_mode": "geometry-diversity",
+      "step": 1
+    }
+  ],
+  "current_seeds": [
+    {
+      "charge": 0,
+      "energy": null,
+      "fragments": [],
+      "growth_metadata": {},
+      "multiplicity": 1,
+      "name": "stage_1",
+      "path": "step_001/selected/selected_000.xyz",
+      "scftype": "rhf",
+      "sha256": "547c509b6c2fda36cbe0c6a55966d344ba3f433117c006f4265087d6699c2898",
+      "title": "Title"
+    }
+  ],
+  "next_step": 2,
+  "request": {
+    "backend_parameters": {},
+    "connectivity_policy": "auto",
+    "count": 3,
+    "input_growth_metadata": [
+      {},
+      {}
+    ],
+    "maximum_number_of_seeds": 12,
+    "monomer": {
+      "atoms": [
+        "H",
+        "H"
+      ],
+      "charge": 0,
+      "coordinates": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.74
+        ]
+      ],
+      "fragment_definition": [],
+      "multiplicity": 1,
+      "scftype": "rhf"
+    },
+    "orientations": 8,
+    "sampling": {
+      "direction_method": "fibonacci",
+      "number_of_orientations": 8,
+      "oversample_factor": 8,
+      "rotation_method": "halton",
+      "sequence_offset": 0,
+      "use_angles": true
+    },
+    "seed": {
+      "atoms": [
+        "H",
+        "H"
+      ],
+      "charge": 0,
+      "coordinates": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.74
+        ]
+      ],
+      "fragment_definition": [],
+      "multiplicity": 1,
+      "scftype": "rhf"
+    },
+    "selection_algorithm": "auto",
+    "selection_distance": "euclidean",
+    "selection_feature": "auto",
+    "selection_policy_version": 3,
+    "selection_system_type": "auto",
+    "site": null
+  },
+  "status": "running",
+  "version": 1,
+  "workflow": "grow"
+}

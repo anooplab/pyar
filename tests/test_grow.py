@@ -40,7 +40,7 @@ def test_sequential_stages(count, tmp_path):
     assert [len(pool[0]) for pool in calls] == [2 + 2 * i for i in range(count)]
     assert len(Molecule.from_xyz(result.selected_paths[0])) == 2 + 2 * count
     for step in range(count + 1):
-        assert list((tmp_path / 'grow' / f'step_{step:03d}' / 'selected').glob('selected_*.xyz'))
+        assert list((tmp_path / 'grow' / 'steps' / f'step_{step:03d}' / 'selected').glob('selected_*.xyz'))
     with patch.object(workflow, 'add_one') as engine:
         assert grow(request, output=tmp_path / 'grow').status == 'completed'
         engine.assert_not_called()
@@ -57,13 +57,13 @@ def test_interrupted_restart_reuses_pool(tmp_path):
     with patch.object(workflow, 'add_one', side_effect=interrupted):
         with pytest.raises(RuntimeError):
             grow(request, output=tmp_path / 'grow')
-    before = (tmp_path / 'grow/step_001/selected/selected_000.xyz').read_bytes()
+    before = (tmp_path / 'grow/steps/step_001/selected/selected_000.xyz').read_bytes()
     with patch.object(workflow, 'add_one', side_effect=lambda aid, seeds, monomer, *a, **k: [added(seeds[0], monomer, 2)]) as engine:
         result = grow(request, output=tmp_path / 'grow')
         assert engine.call_count == 2
         assert len(engine.call_args_list[0].args[1][0]) == 4
     assert result.metadata['completed_additions'] == 3
-    assert before == (tmp_path / 'grow/step_001/selected/selected_000.xyz').read_bytes()
+    assert before == (tmp_path / 'grow/steps/step_001/selected/selected_000.xyz').read_bytes()
 
 
 @pytest.mark.parametrize('change', ['seed', 'monomer', 'count', 'selection_feature', 'backend_parameters', 'maximum_number_of_seeds'])
@@ -192,7 +192,7 @@ def test_snapshot_tampering_rejects_restart(tmp_path):
     request = GrowRequest(hydrogen(), hydrogen('monomer'), 1)
     with patch.object(workflow, 'add_one', return_value=[added(request.seed, request.monomer, 1)]):
         grow(request, output=tmp_path / 'grow')
-    path = tmp_path / 'grow/step_001/selected/selected_000.xyz'
+    path = tmp_path / 'grow/steps/step_001/selected/selected_000.xyz'
     path.write_text(path.read_text() + '\n')
     with pytest.raises(GrowStateError, match='modified'):
         grow(request, output=tmp_path / 'grow')

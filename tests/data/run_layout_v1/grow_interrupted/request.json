@@ -1,0 +1,69 @@
+{
+  "backend_parameters": {},
+  "connectivity_policy": "auto",
+  "count": 3,
+  "input_growth_metadata": [
+    {},
+    {}
+  ],
+  "maximum_number_of_seeds": 12,
+  "monomer": {
+    "atoms": [
+      "H",
+      "H"
+    ],
+    "charge": 0,
+    "coordinates": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.74
+      ]
+    ],
+    "fragment_definition": [],
+    "multiplicity": 1,
+    "scftype": "rhf"
+  },
+  "orientations": 8,
+  "sampling": {
+    "direction_method": "fibonacci",
+    "number_of_orientations": 8,
+    "oversample_factor": 8,
+    "rotation_method": "halton",
+    "sequence_offset": 0,
+    "use_angles": true
+  },
+  "seed": {
+    "atoms": [
+      "H",
+      "H"
+    ],
+    "charge": 0,
+    "coordinates": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.74
+      ]
+    ],
+    "fragment_definition": [],
+    "multiplicity": 1,
+    "scftype": "rhf"
+  },
+  "selection_algorithm": "auto",
+  "selection_distance": "euclidean",
+  "selection_feature": "auto",
+  "selection_policy_version": 3,
+  "selection_system_type": "auto",
+  "site": null
+}
