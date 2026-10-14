@@ -122,7 +122,8 @@ only wraps persistence for copying after save; it does not change saved bytes.
 
 ## Progress and review gate
 
-- PR 0: audit and draft freeze prepared; CI/architecture review pending.
+- PR 0: [draft PR #34](https://github.com/anooplab/pyar/pull/34); audit and draft
+  freeze prepared; architecture review pending. Live CI status is on the PR.
 - Proposed amendments: preserve native `execution/` subtrees; independently
   version layout/state/stage/manifest; use immutable stage completion records
   for v2; keep native stage output filenames inside each immutable attempt.
@@ -131,5 +132,5 @@ only wraps persistence for copying after save; it does not change saved bytes.
   and retry behavior in particular.
 - PR 1 and subsequent milestones have not started. Approval of this PR must
   resolve the proposed amendments and gaps before workflow implementation.
-- Keep the eventual GitHub PR link and architecture decisions here or in a
-  linked issue. A passing local baseline does not imply passing PR CI.
+- Keep architecture decisions here or in a linked issue. A passing local
+  baseline does not imply passing PR CI.
