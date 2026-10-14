@@ -1,0 +1,1794 @@
+source	line	evidence
+pyar/backends/__init__.py	61	self.job_name = molecule.name
+pyar/backends/__init__.py	62	self.start_xyz_file = 'trial_' + self.job_name + '.xyz'
+pyar/backends/__init__.py	63	self.result_xyz_file = 'result_' + self.job_name + '.xyz'
+pyar/backends/__init__.py	73	job_name=self.job_name)
+pyar/backends/__init__.py	76	def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0, *, precision=5):
+pyar/backends/__init__.py	80	fp.write(job_name + ':' + str(energy) + '\n')
+pyar/backends/adaptive_geometric.py	92	checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
+pyar/backends/adaptive_geometric.py	109	directory_root.mkdir(exist_ok=True)
+pyar/backends/adaptive_geometric.py	121	Path(directory).mkdir(exist_ok=True)
+pyar/backends/adaptive_geometric.py	134	checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
+pyar/backends/adaptive_geometric.py	183	state_path = Path("pyar_geometric_state.json")
+pyar/backends/adaptive_geometric.py	185	state = json.loads(state_path.read_text())
+pyar/backends/adaptive_geometric.py	187	state_path.write_text(json.dumps(state, indent=2, sort_keys=True))
+pyar/backends/aimnet_2.py	47	self.trajectory_xyz_file = 'traj_' + self.job_name + '.traj'
+pyar/backends/aimnet_2.py	52	self.job_name = molecule.name
+pyar/backends/aimnet_2.py	55	self.inp_file = 'trial_' + self.job_name + '.xyz'
+pyar/backends/aimnet_2.py	56	self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
+pyar/backends/aimnet_2.py	57	self.out_file = 'trial_' + self.job_name + '.out'
+pyar/backends/aimnet_2.py	80	f1.write("trial_" + self.job_name + "\n")
+pyar/backends/aimnet_2.py	104	write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+pyar/backends/aimnet_2.py	105	job_name=self.job_name,
+pyar/backends/aiqm1_mlatom.py	22	self.trajectory_xyz_file = 'traj_' + self.job_name + '.traj'
+pyar/backends/aiqm1_mlatom.py	27	self.job_name = molecule.name
+pyar/backends/aiqm1_mlatom.py	30	self.inp_file = 'trial_' + self.job_name + '.xyz'
+pyar/backends/aiqm1_mlatom.py	31	self.inp_min_file = 'trial_' + self.job_name + '_min.xyz'
+pyar/backends/aiqm1_mlatom.py	32	self.out_file = 'trial_' + self.job_name + '.out'
+pyar/backends/aiqm1_mlatom.py	42	f1.write("trial_" + self.job_name + "\n")
+pyar/backends/aiqm1_mlatom.py	66	write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+pyar/backends/aiqm1_mlatom.py	67	job_name=self.job_name,
+pyar/backends/babel.py	64	self.job_name, self.start_xyz_file, 'tmp.log', os.getcwd(),
+pyar/backends/babel.py	69	stdout_path=self.result_xyz_file,
+pyar/backends/babel.py	75	self.job_name, 'tmp.pdb', 'OBabel.log', os.getcwd(),
+pyar/backends/babel.py	80	self.job_name, self.start_xyz_file, self.result_xyz_file, 'tmp.pdb',
+pyar/backends/babel.py	86	self.job_name, self.result_xyz_file, self.job_name + '.ene', os.getcwd(),
+pyar/backends/babel.py	94	return np.loadtxt(self.result_xyz_file, dtype=float, skiprows=2, usecols=(1, 2, 3))
+pyar/backends/babel.py	98	energy_path = self.job_name + '.ene'
+pyar/backends/babel.py	99	exit_status = run_command([require_executable("obenergy", "OpenBabel"), "-ff", "uff", self.result_xyz_file],
+pyar/backends/babel.py	102	with open(self.job_name + '.ene', 'r') as energy_file:
+pyar/backends/babel.py	108	self.job_name, self.result_xyz_file, energy_path, os.getcwd(),
+pyar/backends/babel.py	114	self.job_name, self.result_xyz_file, energy_path, os.getcwd(),
+pyar/backends/bond_scan.py	19	return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+pyar/backends/bond_scan.py	25	summary = directory / "scan_summary.json"
+pyar/backends/bond_scan.py	28	failure = BondScanResult(False, None, None, None, directory / "scan_request.json",
+pyar/backends/bond_scan.py	31	scan_request = json.loads((directory / "scan_request.json").read_text())
+pyar/backends/bond_scan.py	41	state = json.loads(summary.read_text())
+pyar/backends/bond_scan.py	44	if set(state["artifacts"]) != {"scan_trajectory.xyz", "final_scan.xyz", "scan_request.json"}:
+pyar/backends/bond_scan.py	66	directory / "scan_request.json", summary, "success", frames, profile)
+pyar/backends/bond_scan.py	74	directory.mkdir(parents=True, exist_ok=True)
+pyar/backends/bond_scan.py	77	os.chdir(directory)
+pyar/backends/bond_scan.py	80	os.chdir(previous)
+pyar/backends/bond_scan.py	111	directory.mkdir(parents=True, exist_ok=True)
+pyar/backends/bond_scan.py	115	request_path = directory / "scan_request.json"
+pyar/backends/bond_scan.py	116	request_path.write_text(json.dumps({"scan": vars(request), "qc_params": params,
+pyar/backends/bond_scan.py	119	summary_path = directory / "scan_summary.json"
+pyar/backends/bond_scan.py	120	summary_path.write_text(json.dumps({"status": "running"}))
+pyar/backends/bond_scan.py	160	summary_path.write_text(json.dumps({"status": "point_not_converged", "point": index}))
+pyar/backends/bond_scan.py	169	summary_path.write_text(json.dumps({"status": "success", "profile": profile,
+pyar/backends/gaussian.py	42	self.inp_file = f'trial_{self.job_name}.com'
+pyar/backends/gaussian.py	43	self.out_file = f'trial_{self.job_name}.log'
+pyar/backends/gaussian.py	50	f"%chk=trial_{self.job_name}.chk\n" \
+pyar/backends/gaussian.py	60	f1.write(f"{self.job_name}\n\n")
+pyar/backends/gaussian.py	90	backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
+pyar/backends/gaussian.py	94	self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+pyar/backends/gaussian.py	99	self.job_name, self.inp_file, self.out_file, os.getcwd(),
+pyar/backends/gaussian.py	104	self.job_name, self.inp_file, self.out_file, os.getcwd(),
+pyar/backends/gaussian.py	142	gaussian_logger.warning("gaussian output file missing job=%s output=%s", self.job_name, self.out_file)
+pyar/backends/geometric.py	29	from pyar.reaction_trace import ReactionTraceRecorder
+pyar/backends/geometric.py	34	_GEOMETRIC_STATE_FILE = "pyar_geometric_state.json"
+pyar/backends/geometric.py	35	_CONTROLLER_STATE_FILE = "pyar_bias_controller_state.json"
+pyar/backends/geometric.py	61	lines = Path(path).read_text().splitlines()
+pyar/backends/geometric.py	120	self._restart_checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
+pyar/backends/geometric.py	134	self.qc_params.get("trace_enabled") or self.qc_params.get("reaction_trace")
+pyar/backends/geometric.py	139	trace_name = self.qc_params.get("trace_name", "reaction_trace")
+pyar/backends/geometric.py	151	def _result_to_ase_units(result):
+pyar/backends/geometric.py	233	if key not in {"bias_controller_restart", "trace_mode", "release_retry_attempt", "release_job_name", "adaptive_max_segments", "adaptive_suppress_release_candidate"}},
+pyar/backends/geometric.py	262	temporary.write_text(json.dumps(checkpoint, indent=2, sort_keys=True))
+pyar/backends/geometric.py	344	backend_energy, backend_forces = self._result_to_ase_units(backend_result)
+pyar/backends/geometric.py	583	for path in Path(".").glob("*.xyz")
+pyar/backends/geometric.py	605	self.job_name,
+pyar/backends/geometric.py	621	output_text = Path("geometric.out").read_text()
+pyar/backends/geometric.py	629	self.job_name,
+pyar/backends/geometric.py	634	f"geomeTRIC failed for {self.job_name} with {self.software} "
+pyar/backends/geometric.py	650	f"geomeTRIC produced no usable final state for {self.job_name}: {exc}; "
+pyar/backends/geometric.py	657	self.result_xyz_file,
+pyar/backends/geometric.py	658	job_name=self.job_name,
+pyar/backends/geometric.py	663	self.job_name,
+pyar/backends/geometric.py	670	self.job_name,
+pyar/backends/mlatom_aiqm1.py	29	# self.job_name = molecule.name
+pyar/backends/mlatom_aiqm1.py	33	self.inp_file = 'trial_' + self.job_name + '.xyz'
+pyar/backends/mlatom_aiqm1.py	34	# self.out_file = 'trial_' + self.job_name + '.log'
+pyar/backends/mlatom_aiqm1.py	42	f1.write("trial_" + self.job_name + "\n")
+pyar/backends/mlatom_aiqm1.py	86	backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
+pyar/backends/mopac.py	44	self.inp_file = 'trial_' + self.job_name + '.mop'
+pyar/backends/mopac.py	45	self.arc_file = 'trial_' + self.job_name + '.arc'
+pyar/backends/mopac.py	68	logfile = "trial_{}.log".format(self.job_name)
+pyar/backends/mopac.py	74	backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+pyar/backends/mopac.py	75	self.job_name, energy=self.energy)
+pyar/backends/mopac.py	78	self.job_name, self.inp_file, self.arc_file, logfile, self.result_xyz_file, self.energy,
+pyar/backends/mopac.py	83	self.job_name, self.inp_file, self.arc_file, logfile, os.getcwd(),
+pyar/backends/mopac.py	88	self.job_name, self.inp_file, logfile, os.getcwd(),
+pyar/backends/mopac.py	106	mopac_logger.warning("mopac arc file missing job=%s arc=%s", self.job_name, self.arc_file)
+pyar/backends/orca-afir.py	24	self.inp_file = 'trial_' + self.job_name + '.inp'
+pyar/backends/orca-afir.py	25	self.out_file = 'trial_' + self.job_name + '.out'
+pyar/backends/orca-afir.py	82	self.result_xyz_file, energy=self.energy)
+pyar/backends/orca-afir.py	113	engrad_fn = glob.glob(os.path.join(path, "*.engrad"))
+pyar/backends/orca.py	42	self.inp_file = 'trial_' + self.job_name + '.inp'
+pyar/backends/orca.py	43	self.out_file = 'trial_' + self.job_name + '.out'
+pyar/backends/orca.py	98	self.result_xyz_file, energy=self.energy)
+pyar/backends/orca.py	101	self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+pyar/backends/orca.py	106	self.job_name, self.inp_file, self.out_file, os.getcwd(),
+pyar/backends/orca.py	111	self.job_name, self.inp_file, self.out_file, os.getcwd(),
+pyar/backends/orca.py	130	orca_logger.warning("orca output file missing job=%s output=%s", self.job_name, self.out_file)
+pyar/backends/orca_aiqm1.py	16	self.inp_file = f'trial_{self.job_name}.inp'
+pyar/backends/orca_aiqm1.py	17	self.out_file = f'trial_{self.job_name}.out'
+pyar/backends/orca_aiqm1.py	62	write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, energy=self.energy)
+pyar/backends/orca_scan.py	41	lines = Path(path).read_text().splitlines()
+pyar/backends/orca_scan.py	81	def parse_orca_scan_profile(path):
+pyar/backends/orca_scan.py	84	for line_number, line in enumerate(Path(path).read_text().splitlines(), start=1):
+pyar/backends/orca_scan.py	138	Path(path).write_text("\n".join(lines) + "\n")
+pyar/backends/orca_scan.py	147	if not output_path.exists() or "****ORCA TERMINATED NORMALLY****" not in output_path.read_text():
+pyar/backends/orca_scan.py	164	"scan_profile_missing")
+pyar/backends/orca_scan.py	166	profile = parse_orca_scan_profile(profile_path)
+pyar/backends/orca_scan.py	169	"scan_profile_invalid")
+pyar/backends/orca_scan.py	172	"scan_profile_incomplete")
+pyar/backends/orca_scan.py	184	"scan_profile_grid_mismatch")
+pyar/backends/orca_scan.py	188	"scan_profile_geometry_mismatch")
+pyar/backends/orca_scan.py	191	write_xyz(molecule.atoms_list, final_coordinates, final_path, job_name="final_scan", precision=12)
+pyar/backends/orca_scan.py	194	stable_trajectory.write_text(trajectory_path.read_text())
+pyar/backends/orca_scan.py	202	directory.mkdir(parents=True, exist_ok=True)
+pyar/backends/orca_scan.py	215	os.chdir(directory)
+pyar/backends/orca_scan.py	218	os.chdir(old_cwd)
+pyar/backends/psi4.py	40	self.inp_file = 'trial_' + self.job_name + '.in'
+pyar/backends/psi4.py	41	self.out_file = 'trial_' + self.job_name + '.out'
+pyar/backends/psi4.py	84	self.result_xyz_file, energy=self.energy)
+pyar/backends/psi4.py	87	self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+pyar/backends/psi4.py	92	self.job_name, self.inp_file, self.out_file, os.getcwd(),
+pyar/backends/psi4.py	97	self.job_name, self.inp_file, self.out_file, os.getcwd(),
+pyar/backends/psi4.py	114	psi4_logger.warning("psi4 output file missing job=%s output=%s", self.job_name, self.out_file)
+pyar/backends/psi4.py	135	self.job_name, self.out_file, line.rstrip(),
+pyar/backends/psi4.py	139	psi4_logger.warning("psi4 output file missing job=%s output=%s", self.job_name, self.out_file)
+pyar/backends/turbomole.py	45	files = glob.glob(file_name)
+pyar/backends/turbomole.py	203	backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+pyar/backends/turbomole.py	204	self.job_name,
+pyar/backends/turbomole.py	287	self.result_xyz_file,
+pyar/backends/turbomole.py	288	self.job_name,
+pyar/backends/xtb.py	55	self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
+pyar/backends/xtb.py	85	self.result_xyz_file,
+pyar/backends/xtb.py	86	job_name=self.job_name,
+pyar/backends/xtb_aimnet2.py	56	self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
+pyar/backends/xtb_aimnet2.py	89	write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+pyar/backends/xtb_aimnet2.py	90	job_name=self.job_name,
+pyar/backends/xtb_aimnet2.py	97	return 'xtb_optimized_' + self.job_name + '.xyz'
+pyar/backends/xtb_aimnet2.py	101	return 'aimnet2_optimized_' + self.job_name + '.xyz'
+pyar/backends/xtb_aiqm1.py	41	self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
+pyar/backends/xtb_aiqm1.py	69	write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
+pyar/backends/xtb_aiqm1.py	70	job_name=self.job_name,
+pyar/backends/xtb_aiqm1.py	77	return 'xtb_optimized_' + self.job_name + '.xyz'
+pyar/backends/xtb_aiqm1.py	81	return 'aiqm1_optimized_' + self.job_name + '.xyz'
+pyar/backends/xtb_turbo.py	38	self.job_directory = "{}/job_{}".format(os.getcwd(), self.job_name)
+pyar/backends/xtb_turbo.py	100	self.result_xyz_file,
+pyar/backends/xtb_turbo.py	101	job_name=self.job_name,
+pyar/benchmarks/conformer.py	22	"generated_lost_selection": "reference-like conformer generated but not selected",
+pyar/benchmarks/conformer.py	37	"reference_found_selected",
+pyar/benchmarks/conformer.py	163	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/conformer.py	170	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/conformer.py	286	selected_paths = sorted(selected_directory.glob("*.xyz")) if selected_directory.is_dir() else []
+pyar/benchmarks/conformer.py	355	target.parent.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/conformer.py	356	shutil.copyfile(source_path, target)
+pyar/benchmarks/conformer.py	360	state_path = run_directory / "state.json"
+pyar/benchmarks/conformer.py	391	return "selected"
+pyar/benchmarks/conformer.py	430	return "generated_lost_selection", "reference-like conformer was generated but not selected"
+pyar/benchmarks/conformer.py	446	summary_rows = _read_summary_rows(run_directory / "summary.csv")
+pyar/benchmarks/conformer.py	465	selected_entries = _selected_entries(summary_rows, run_directory / "selected")
+pyar/benchmarks/conformer.py	510	"reference_found_selected": bool(selected_hit),
+pyar/benchmarks/conformer.py	532	"nearest_selected": nearest_selected,
+pyar/benchmarks/conformer.py	598	output_directory.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/conformer.py	609	case_directory.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/conformer.py	643	state_path=str(run_root / "conformers" / "state.json"),
+pyar/benchmarks/conformer.py	662	_copy_if_available(diagnosis["nearest_selected"].get("path"), case_directory / "nearest_selected.xyz")
+pyar/benchmarks/conformer.py	667	_write_csv(output_directory / "benchmark_summary.csv", rows)
+pyar/benchmarks/conformer.py	674	_write_json(output_directory / "benchmark_summary.json", payload)
+pyar/benchmarks/orca_optts.py	179	result_path = run_directory / "benchmark_result.json"
+pyar/benchmarks/orca_optts.py	180	if result_path.exists():
+pyar/benchmarks/orca_optts.py	181	raise TSOptimizerBenchmarkError(f"ORCA result already exists: {result_path}")
+pyar/benchmarks/orca_optts.py	187	run_directory.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/orca_optts.py	202	input_path.write_text(build_orca_optts_input(
+pyar/benchmarks/orca_optts.py	222	output_path.write_text(output_text, encoding="utf-8")
+pyar/benchmarks/orca_optts.py	389	_write_json(result_path, result)
+pyar/benchmarks/rgd1_tsopt.py	53	settings = json.loads(settings_path.read_text(encoding="utf-8"))
+pyar/benchmarks/rgd1_tsopt.py	164	reference_energy = float((case_root / "ts_ref.energy").read_text().split()[0])
+pyar/benchmarks/rgd1_tsopt.py	306	manifest_path.parent.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/ts_optimizer.py	120	raw_bytes = manifest_path.read_bytes()
+pyar/benchmarks/ts_optimizer.py	354	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/ts_optimizer.py	404	output.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/ts_optimizer.py	407	existing = json.loads(run_manifest_path.read_text(encoding="utf-8"))
+pyar/benchmarks/ts_optimizer.py	467	path = Path(run_directory) / f"{name}_summary.json"
+pyar/benchmarks/ts_optimizer.py	471	result = json.loads(path.read_text(encoding="utf-8"))
+pyar/benchmarks/ts_optimizer.py	529	result_path = run_directory / "benchmark_result.json"
+pyar/benchmarks/ts_optimizer.py	530	if result_path.exists():
+pyar/benchmarks/ts_optimizer.py	532	f"result already exists at {result_path}; choose a fresh output directory to preserve raw runs"
+pyar/benchmarks/ts_optimizer.py	547	run_manifest = json.loads((output_root / "run_manifest.json").read_text(encoding="utf-8"))
+pyar/benchmarks/ts_optimizer.py	554	run_directory.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/ts_optimizer.py	613	(run_directory / "relax_summary.json").read_text(encoding="utf-8")
+pyar/benchmarks/ts_optimizer.py	618	(run_directory / "irc_summary.json").read_text(encoding="utf-8")
+pyar/benchmarks/ts_optimizer.py	705	_write_json(result_path, result)
+pyar/benchmarks/ts_optimizer.py	720	run_directory.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/ts_optimizer.py	738	path = Path(run_directory) / f"{stage}_summary.json"
+pyar/benchmarks/ts_optimizer.py	740	return json.loads(path.read_text(encoding="utf-8"))
+pyar/benchmarks/ts_optimizer.py	745	def _result_row(result):
+pyar/benchmarks/ts_optimizer.py	769	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/benchmarks/ts_optimizer.py	782	run_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+pyar/benchmarks/ts_optimizer.py	787	result_map = {}
+pyar/benchmarks/ts_optimizer.py	792	result_path = output / "cases" / case_id / optimizer / "benchmark_result.json"
+pyar/benchmarks/ts_optimizer.py	794	if result_path.is_file():
+pyar/benchmarks/ts_optimizer.py	796	result = json.loads(result_path.read_text(encoding="utf-8"))
+pyar/benchmarks/ts_optimizer.py	809	result_map[key] = result
+pyar/benchmarks/ts_optimizer.py	810	rows.append(_result_row(result))
+pyar/benchmarks/ts_optimizer.py	817	geometric = result_map.get((case_id, "geometric"))
+pyar/benchmarks/ts_optimizer.py	818	sella = result_map.get((case_id, "sella"))
+pyar/benchmarks/ts_optimizer.py	948	_write_json(output / "summary.json", summary)
+pyar/checkvalidity.py	161	for readfile in sorted(glob.glob(readfileDir))[1:]:
+pyar/cli.py	248	from pyar.scripts.reaction_trace import main as reaction_trace_main
+pyar/cli.py	250	reaction_trace_main(argv)
+pyar/cli.py	939	"Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
+pyar/energy_gradient_providers.py	165	job_name="pyar_geometric_xtb",
+pyar/energy_gradient_providers.py	347	text = Path(engrad_path).read_text()
+pyar/file_manager.py	105	files = glob.glob(files_needed)
+pyar/file_manager.py	114	dirs = glob.glob(f"{destination}/{wildcard}")
+pyar/file_manager.py	146	for name in glob.glob(f'./*{str(items)}*'):
+pyar/file_manager.py	162	for name in glob.glob(f"./*{str(items)}*"):
+pyar/file_manager.py	172	with open(filename, mode) as result_file:
+pyar/file_manager.py	174	result_file.write(f"{name} = {value}   ")
+pyar/file_manager.py	175	result_file.write("\n")
+pyar/geometry_utilities.py	35	directory.mkdir(parents=True, exist_ok=True)
+pyar/geometry_utilities.py	39	filename = directory / f'orientation_{index:03d}.xyz'
+pyar/geometry_utilities.py	56	directory.mkdir(parents=True, exist_ok=True)
+pyar/growth/reporting.py	12	directory.mkdir(parents=True, exist_ok=True)
+pyar/growth/reporting.py	28	"sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+pyar/growth/reporting.py	41	if hashlib.sha256(path.read_bytes()).hexdigest() != ref["sha256"]:
+pyar/growth/service.py	43	os.chdir(path)
+pyar/growth/service.py	47	os.chdir(previous_cwd)
+pyar/growth/service.py	81	target.parent.mkdir(parents=True, exist_ok=True)
+pyar/growth/service.py	106	return str(Path(run_directory) / "state.json")
+pyar/growth/service.py	137	result_cls = _WORKFLOW_RESULTS[workflow_name]
+pyar/growth/service.py	139	return result_cls(
+pyar/growth/service.py	282	output_root="selected",
+pyar/growth/service.py	299	for old_result in Path(snapshot_dir).glob("result_*.xyz"):
+pyar/growth/service.py	303	target_file = os.path.join(snapshot_dir, f"result_{molecule.name}.xyz")
+pyar/growth/service.py	338	def _discover_selected_result_files(aggregate_root):
+pyar/growth/service.py	341	result_files = set()
+pyar/growth/service.py	342	for ag_dir in root_path.glob("ag_*"):
+pyar/growth/service.py	345	result_files.update(ag_dir.rglob("selected/result_*.xyz"))
+pyar/growth/service.py	346	return sorted(result_files)
+pyar/growth/service.py	349	def _selection_name_from_path(result_file, aggregate_root):
+pyar/growth/service.py	351	result_path = Path(result_file)
+pyar/growth/service.py	353	relative_path = result_path.relative_to(Path(aggregate_root))
+pyar/growth/service.py	355	relative_path = result_path
+pyar/growth/service.py	370	result_files = _discover_selected_result_files(aggregate_root)
+pyar/growth/service.py	371	if not result_files:
+pyar/growth/service.py	376	for each_file in result_files:
+pyar/growth/service.py	384	selected_root = os.path.join(aggregate_root, "selected")
+pyar/growth/service.py	612	if os.path.exists("selected"):
+pyar/growth/service.py	623	file_manager.make_directories("selected")
+pyar/growth/service.py	646	os.path.join("selected", "selection_diagnostics.json"),
+pyar/growth/service.py	680	with _working_directory("selected"):
+pyar/growth/service.py	689	xyz_file = f"job_{each_file.name}/result_{each_file.name}.xyz"
+pyar/growth/service.py	765	_snapshot_selected_geometries(selected, output_root="selected",
+pyar/growth/service.py	772	os.chdir("selected")
+pyar/growth/service.py	777	job_name = f"job_{molecule.name}"
+pyar/growth/service.py	778	result_name = f"result_{molecule.name}.xyz"
+pyar/growth/service.py	779	if job_name in selected_names and result_name in selected_names:
+pyar/growth/service.py	786	os.chdir(cwd)
+pyar/io/xyz.py	53	text = path.read_text().splitlines()
+pyar/modern_cli.py	45	"trace": ("pyar.scripts.reaction_trace", "Analyze a PyAR reaction trace"),
+pyar/modern_cli.py	236	path = directory / 'pyar-run.toml'
+pyar/modern_cli.py	238	path = directory / f'pyar-run-{uuid.uuid4().hex}.toml'
+pyar/neb.py	138	lines = Path(path).read_text().splitlines()
+pyar/neb.py	508	temporary.write_text(json.dumps(data, indent=2, allow_nan=False) + "\n")
+pyar/neb.py	513	return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+pyar/neb.py	537	dependency: _hash(output / f"{dependency}_summary.json") for dependency in dependencies
+pyar/neb.py	548	_write_json(output / f"{stage}_summary.json", result)
+pyar/neb.py	560	path = output / f"{stage}_summary.json"
+pyar/neb.py	563	result = json.loads(path.read_text())
+pyar/neb.py	595	dependency_path = output / f"{dependency}_summary.json"
+pyar/neb.py	626	dependency: _hash(output / f"{dependency}_summary.json")
+pyar/neb.py	1271	if reuse and (output / f"{current}_summary.json").is_file():
+pyar/neb.py	1304	_write_json(output / f"{current}_summary.json", {"stage": current, "status": "running"})
+pyar/neb.py	1322	_write_json(output / f"{current}_summary.json", {
+pyar/neb.py	1332	_write_json(output / "workflow_summary.json", dict(results, status="failed", failed_stage=current, error=str(exc)))
+pyar/neb.py	1338	_write_json(output / "workflow_summary.json", dict(results, status="running", completed_stage=current))
+pyar/neb.py	1340	_write_json(output / "workflow_summary.json", results)
+pyar/neb.py	1350	output.mkdir(parents=True, exist_ok=True)
+pyar/neb.py	1353	os.chdir(output)
+pyar/neb.py	1356	os.chdir(previous)
+pyar/optimiser.py	134	job_dir = f'job_{molecule.name}'
+pyar/optimiser.py	135	if not os.path.exists(job_dir):
+pyar/optimiser.py	136	file_manager.make_directories(job_dir)
+pyar/optimiser.py	138	os.path.join(job_dir, f"result_{molecule.name}.xyz"),
+pyar/optimiser.py	141	os.chdir(job_dir)
+pyar/optimiser.py	151	os.path.abspath(job_dir),
+pyar/optimiser.py	153	reuse_result = os.path.exists(f'result_{molecule.name}.xyz')
+pyar/optimiser.py	161	read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
+pyar/optimiser.py	164	state = json.loads(Path('pyar_geometric_state.json').read_text())
+pyar/optimiser.py	239	os.chdir(cwd)
+pyar/reaction_analysis.py	18	from pyar.reaction_trace import load_trace_records
+pyar/reaction_analysis.py	187	return str(Path("reaction_trace") / "steps" / f"step_{step_index:06d}.xyz")
+pyar/reaction_analysis.py	196	trace_directory = path / "reaction_trace"
+pyar/reaction_analysis.py	259	job_directory,
+pyar/reaction_analysis.py	269	candidate_directory = Path(job_directory) / "candidate_ts"
+pyar/reaction_analysis.py	288	"path_summary_csv": str(Path(job_directory) / "path_summary.csv"),
+pyar/reaction_analysis.py	289	"trace_file": str(Path(job_directory) / "reaction_trace" / "trace.jsonl"),
+pyar/reaction_analysis.py	308	def analyse_reaction_trace(job_directory, max_force=None, energy_outlier_z=None):
+pyar/reaction_analysis.py	311	``job_directory`` may point either to the workflow root or directly to a
+pyar/reaction_analysis.py	312	``reaction_trace/`` directory. The function writes ``path_summary.csv`` in
+pyar/reaction_analysis.py	313	the job root, exports the candidate XYZ files under ``candidate_ts/``, and
+pyar/reaction_analysis.py	316	job_directory, trace_directory = _resolve_trace_directory(job_directory)
+pyar/reaction_analysis.py	323	path_summary = job_directory / "path_summary.csv"
+pyar/reaction_analysis.py	324	candidate_directory = job_directory / "candidate_ts"
+pyar/reaction_analysis.py	325	candidate_directory.mkdir(parents=True, exist_ok=True)
+pyar/reaction_analysis.py	477	job_directory,
+pyar/reaction_analysis.py	498	metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+pyar/reaction_analysis.py	502	"candidate_ts_directory": str(candidate_directory),
+pyar/reaction_analysis.py	514	def _reaction_trace_plot_data(trace_records):
+pyar/reaction_analysis.py	584	def plot_reaction_trace(job_directory, output_directory=None):
+pyar/reaction_analysis.py	597	job_directory, trace_directory = _resolve_trace_directory(job_directory)
+pyar/reaction_analysis.py	603	data = _reaction_trace_plot_data(trace_records)
+pyar/reaction_analysis.py	605	output_directory = job_directory / "trace_plots"
+pyar/reaction_analysis.py	607	output_directory.mkdir(parents=True, exist_ok=True)
+pyar/reaction_analysis.py	620	energy_path = output_directory / "reaction_trace_energies.png"
+pyar/reaction_analysis.py	624	plot_paths["reaction_trace_energies"] = str(energy_path)
+pyar/reaction_analysis.py	649	metrics_path = output_directory / "reaction_trace_metrics.png"
+pyar/reaction_analysis.py	653	plot_paths["reaction_trace_metrics"] = str(metrics_path)
+pyar/reaction_trace.py	114	lines = Path(path).read_text().splitlines()
+pyar/reaction_trace.py	136	for path in Path(step_directory).glob("step_*.xyz"):
+pyar/reaction_trace.py	392	def __init__(self, job_directory, trace_name="reaction_trace", mode="write"):
+pyar/reaction_trace.py	399	self.job_directory = Path(job_directory)
+pyar/reaction_trace.py	400	self.trace_directory = self.job_directory / trace_name
+pyar/reaction_trace.py	411	self.trace_directory.mkdir(parents=True, exist_ok=True)
+pyar/reaction_trace.py	412	self.step_directory.mkdir(parents=True, exist_ok=True)
+pyar/reaction_trace.py	415	for existing in self.step_directory.glob("step_*.xyz"):
+pyar/reaction_trace.py	432	last_step_path = self.step_directory / f"step_{self.step_index - 1:06d}.xyz"
+pyar/reaction_trace.py	572	str(self.step_directory / f"step_{self.step_index:06d}.xyz"),
+pyar/reaction_trace.py	573	job_name=f"step_{self.step_index:06d}",
+pyar/reaction_trace.py	586	``reaction_trace/`` directory. Each line is validated and normalized
+pyar/release.py	9	from pyar.reaction_trace import infer_bonds
+pyar/run_config.py	24	RUN_CONFIG_KIND = "pyar-run-config"
+pyar/run_config.py	25	RUN_RECORD_KIND = "pyar-run-record"
+pyar/run_config.py	143	outputs = tuple(f"job_{Path(item).stem}/" for item in inputs)
+pyar/run_config.py	238	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/scripts/atomic_cluster_benchmark.py	148	output.mkdir(parents=True, exist_ok=True)
+pyar/scripts/atomic_cluster_benchmark.py	223	(output / "comparison.json").write_text(json.dumps(report, indent=2) + "\n")
+pyar/scripts/atomic_cluster_benchmark.py	280	(args.output / "manifest.json").write_text(json.dumps({
+pyar/scripts/benchmark_clustering.py	38	return sorted(path.rglob("result_*.xyz"))
+pyar/scripts/benchmark_clustering.py	125	"selected": len(selected),
+pyar/scripts/benchmark_clustering.py	145	parser.add_argument("paths", nargs="+", help="XYZ files or directories containing result_*.xyz files")
+pyar/scripts/benchmark_clustering.py	161	"--show-selected",
+pyar/scripts/benchmark_clustering.py	189	"selected",
+pyar/scripts/benchmark_clustering.py	214	str(row["selected"]),
+pyar/scripts/benchmark_distances.py	26	manifest = json.loads(manifest_path.read_text())
+pyar/scripts/benchmark_distances.py	30	lines = xyz.read_text().splitlines()
+pyar/scripts/benchmark_distances.py	105	"manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+pyar/scripts/benchmark_distances.py	106	"structures_sha256": hashlib.sha256(xyz.read_bytes()).hexdigest(),
+pyar/scripts/benchmark_distances.py	160	"code_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in code_files},
+pyar/scripts/benchmark_distances.py	166	Path(output).write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+pyar/scripts/cli_meta.py	151	parser.add_argument("run", help="run directory or pyar-run.toml")
+pyar/scripts/cli_meta.py	156	candidates = _run_records(path) + [path / "pyar-run.json", path / "state.json"]
+pyar/scripts/cli_meta.py	159	parser.error(f"No PyAR run record or state.json found in {path}")
+pyar/scripts/cli_meta.py	165	data = json.loads(path.read_text(encoding="utf-8"))
+pyar/scripts/cli_meta.py	238	create.add_argument("--output", "-o", default="pyar-run.toml")
+pyar/scripts/cli_meta.py	282	for path in sorted(directory.glob("*.toml")):
+pyar/scripts/cli_meta.py	344	return sorted((path for path in directory.glob('pyar-run*.toml') if path.is_file()),
+pyar/scripts/descriptor.py	64	xyz_files.extend(glob.glob(pattern))
+pyar/scripts/meta_analyze_clustering_benchmarks.py	61	reference = json.loads(reference_path.read_text())
+pyar/scripts/meta_analyze_clustering_benchmarks.py	87	manifest = json.loads((run_root / dataset / "manifest.json").read_text())
+pyar/scripts/meta_analyze_clustering_benchmarks.py	88	if manifest.get("ensemble_sha256") != hashlib.sha256(source_path.read_bytes()).hexdigest():
+pyar/scripts/meta_analyze_clustering_benchmarks.py	94	report = json.loads(report_path.read_text())
+pyar/scripts/meta_analyze_clustering_benchmarks.py	243	manifest = json.loads((path / "manifest.json").read_text())
+pyar/scripts/meta_analyze_clustering_benchmarks.py	295	report = json.loads((runs_root / "atomic_clusters" / dataset / "comparison.json").read_text())
+pyar/scripts/meta_analyze_clustering_benchmarks.py	317	path.write_text("")
+pyar/scripts/meta_analyze_clustering_benchmarks.py	330	output_dir.mkdir(parents=True, exist_ok=True)
+pyar/scripts/meta_analyze_clustering_benchmarks.py	352	(output_dir / "meta_analysis.json").write_text(json.dumps(summary, indent=2) + "\n")
+pyar/scripts/meta_analyze_clustering_benchmarks.py	354	(output_dir / "report.md").write_text(report)
+pyar/scripts/modern_conformer.py	64	if directory.exists() and (not directory.is_dir() or (directory / 'state.json').exists()):
+pyar/scripts/modern_path_stage.py	109	frequency_summary = run_dir / "frequency_summary.json"
+pyar/scripts/modern_path_stage.py	113	summary = json.loads(frequency_summary.read_text(encoding="utf-8"))
+pyar/scripts/modern_react.py	84	reaction_state_path = Path.cwd() / 'reaction' / 'state.json'
+pyar/scripts/modern_react.py	88	raw_status = json.loads(reaction_state_path.read_text(encoding='utf-8')).get('status')
+pyar/scripts/optimize.py	45	outputs=[f'job_{m.name}' for m in molecules])
+pyar/scripts/reaction_trace.py	10	from pyar.reaction_analysis import analyse_reaction_trace, plot_reaction_trace
+pyar/scripts/reaction_trace.py	26	help="Job directory or reaction_trace directory to analyze",
+pyar/scripts/reaction_trace.py	68	job_path = Path(args.path)
+pyar/scripts/reaction_trace.py	74	summary = analyse_reaction_trace(
+pyar/scripts/reaction_trace.py	75	job_path,
+pyar/scripts/reaction_trace.py	80	raise SystemExit(f"No reaction trace records found in {job_path}")
+pyar/scripts/reaction_trace.py	86	plot_summary = plot_reaction_trace(job_path, plot_directory)
+pyar/scripts/reaction_trace.py	88	raise SystemExit(f"No reaction trace records found in {job_path}")
+pyar/scripts/scan_bond.py	179	parser.exit(1, "One or more orientations failed; inspect summary.json for the failed stage and gate.\n")
+pyar/scripts/scientific_clustering_benchmark.py	93	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/scripts/scientific_clustering_benchmark.py	123	cache = json.loads(cache_path.read_text())
+pyar/scripts/scientific_clustering_benchmark.py	129	and _normally_terminated(log_path.read_text(errors="replace"))
+pyar/scripts/scientific_clustering_benchmark.py	134	frame_dir.mkdir(parents=True, exist_ok=True)
+pyar/scripts/scientific_clustering_benchmark.py	145	attempt_log.write_text(completed.stdout + "\n--- STDERR ---\n" + completed.stderr)
+pyar/scripts/scientific_clustering_benchmark.py	150	if not (attempt / "xtbopt.xyz").is_file() or not _normally_terminated(attempt_log.read_text(errors="replace")):
+pyar/scripts/scientific_clustering_benchmark.py	154	cache_path.write_text(json.dumps({
+pyar/scripts/scientific_clustering_benchmark.py	159	log = log_path.read_text(errors="replace")
+pyar/scripts/scientific_clustering_benchmark.py	316	out.mkdir(parents=True, exist_ok=True)
+pyar/scripts/scientific_clustering_benchmark.py	421	checkpoint_tmp.write_text(json.dumps(report, indent=2) + "\n")
+pyar/scripts/scientific_clustering_benchmark.py	427	(out / "comparison.json").write_text(json.dumps(report, indent=2) + "\n")
+pyar/scripts/scientific_clustering_benchmark.py	501	target.write_text(json.dumps(payload, indent=2) + "\n")
+pyar/scripts/scientific_clustering_benchmark.py	523	args.output.mkdir(parents=True, exist_ok=True)
+pyar/scripts/scientific_clustering_benchmark.py	563	(args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+pyar/scripts/similarity.py	128	files_xyz = glob.glob(args.files, recursive=True)
+pyar/scripts/summarize_scientific_clustering.py	17	manifest = json.loads((run / "manifest.json").read_text())
+pyar/scripts/summarize_scientific_clustering.py	18	report = json.loads((run / "results" / "comparison.json").read_text())
+pyar/scripts/summarize_scientific_clustering.py	20	reference = json.loads((run / "reference_basins.json").read_text())
+pyar/scripts/summarize_scientific_clustering.py	184	output.mkdir(parents=True, exist_ok=True)
+pyar/scripts/summarize_scientific_clustering.py	233	(output / "summary.json").write_text(json.dumps(payload, indent=2) + "\n")
+pyar/scripts/summarize_scientific_clustering.py	298	stream.write("\nThe ordering is descriptive for these three test pools, not a universal feature/algorithm policy. Requested methods can fall back; per-system actual methods are recorded in `summary.json`.\n")
+pyar/scripts/summarize_scientific_clustering.py	309	print(f"wrote {args.output / 'report.md'} and {args.output / 'summary.json'}")
+pyar/scripts/trial_generation.py	74	result.mol_to_xyz(f'result_{i:03}.xyz')
+pyar/scripts/water_cluster_similarity_benchmark.py	45	lines = path.read_text().splitlines()
+pyar/scripts/water_cluster_similarity_benchmark.py	144	output_dir.mkdir(parents=True, exist_ok=True)
+pyar/scripts/water_cluster_similarity_benchmark.py	167	"implementation_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+pyar/scripts/water_cluster_similarity_benchmark.py	180	cached_identity = json.loads(cache_manifest.read_text())
+pyar/scripts/water_cluster_similarity_benchmark.py	197	pair_csv.write_text("left_sample_index,right_sample_index,left_source_index,right_source_index,fragment_rmsd_upper_bound_angstrom,comparison_complete,rotation_hypotheses\n")
+pyar/scripts/water_cluster_similarity_benchmark.py	198	cache_manifest.write_text(json.dumps(cache_identity, indent=2, sort_keys=True) + "\n")
+pyar/scripts/water_cluster_similarity_benchmark.py	264	(output_dir / "structures.csv").write_text(
+pyar/scripts/water_cluster_similarity_benchmark.py	307	(output_dir / "manifest.json").write_text(json.dumps(report, indent=2) + "\n")
+pyar/selection/basin_memory.py	36	"_basin_registry_path",
+pyar/selection/basin_memory.py	39	"_load_basin_registry",
+pyar/selection/basin_memory.py	40	"_persist_basin_registry",
+pyar/selection/basin_memory.py	42	"migrate_basin_registry",
+pyar/selection/basin_memory.py	67	def _basin_registry_path(molecule, output_root="selected", group_by_stoichiometry=True):
+pyar/selection/basin_memory.py	70	return os.path.join(output_root, f"stoichiometry_{_stoichiometry_label(molecule)}", "basin_registry.json")
+pyar/selection/basin_memory.py	71	return os.path.join(output_root, "basin_registry.json")
+pyar/selection/basin_memory.py	205	def _load_basin_registry(registry_path):
+pyar/selection/basin_memory.py	242	def migrate_basin_registry(registry_path, *, dry_run=False):
+pyar/selection/basin_memory.py	348	def _persist_basin_registry(registry_path, selected_molecules, existing_entries=None, max_entries=200):
+pyar/selection/basin_memory.py	355	existing_entries = _load_basin_registry(registry_path)
+pyar/selection/basin_memory.py	579	def record_selected_basins(selected_molecules, output_root="selected"):
+pyar/selection/basin_memory.py	583	registry_path = _basin_registry_path(selected_molecules[0], output_root=output_root)
+pyar/selection/basin_memory.py	584	_persist_basin_registry(registry_path, selected_molecules)
+pyar/selection/basin_memory.py	591	parser.add_argument("registry", nargs="+", help="basin_registry.json file(s) to migrate")
+pyar/selection/basin_memory.py	595	reports = [migrate_basin_registry(path, dry_run=args.dry_run) for path in args.registry]
+pyar/selection/clustering.py	136	basin_registry_path = _basin_registry_path(
+pyar/selection/clustering.py	139	) if pruned_molecules and os.path.isdir('selected') else None
+pyar/selection/clustering.py	140	write_path = basin_registry_path if persist_basin_memory else None
+pyar/selection/clustering.py	145	elif basin_registry_path is None:
+pyar/selection/clustering.py	147	if basin_registry_path and (apply_basin_memory or persist_basin_memory):
+pyar/selection/clustering.py	151	basin_entries = _load_basin_registry(basin_registry_path)
+pyar/selection/clustering.py	163	"registry_path": basin_registry_path,
+pyar/selection/clustering.py	169	"registry_path": basin_registry_path,
+pyar/selection/clustering.py	509	_basin_registry_path,
+pyar/selection/clustering.py	512	_load_basin_registry,
+pyar/selection/clustering.py	513	_persist_basin_registry,
+pyar/selection/clustering.py	515	migrate_basin_registry,
+pyar/selection/diversity.py	37	def _finalize_selection(selected_molecules, basin_registry_path, existing_entries=None):
+pyar/selection/diversity.py	39	if basin_registry_path:
+pyar/selection/diversity.py	40	from pyar.selection.basin_memory import _persist_basin_registry
+pyar/selection/diversity.py	42	_persist_basin_registry(basin_registry_path, selected_molecules, existing_entries=existing_entries)
+pyar/selection/reports.py	28	relative_path = getattr(molecule, "result_path", None)
+pyar/similarity.py	139	files_xyz = glob.glob("./seed_00*/job*/res*.xyz")
+pyar/state/aggregate.py	15	STATE_FILENAME = "state.json"
+pyar/state/aggregate.py	183	"""Atomically write ``aggregates/state.json``."""
+pyar/state/aggregate.py	184	self.aggregate_directory.mkdir(parents=True, exist_ok=True)
+pyar/state/grow.py	16	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/state/grow.py	36	self.path = self.directory / "state.json"
+pyar/state/grow.py	41	path = directory / "state.json"
+pyar/state/grow.py	47	data = json.loads(path.read_text())
+pyar/state/grow.py	74	if hashlib.sha256(snapshot.read_bytes()).hexdigest() != reference.get("sha256"):
+pyar/state/microsolvation.py	24	self.path = self.directory / "state.json"
+pyar/state/microsolvation.py	29	state_path = directory / "state.json"
+pyar/state/microsolvation.py	37	data = json.loads(state_path.read_text(encoding="utf-8"))
+pyar/state/microsolvation.py	53	directory.mkdir(parents=True, exist_ok=True)
+pyar/state/microsolvation.py	54	(directory / "step_000" / "selected").mkdir(parents=True, exist_ok=True)
+pyar/state/microsolvation.py	68	data["current_seeds"] = state.snapshot_pool([initial_molecule], directory / "step_000" / "selected")
+pyar/state/microsolvation.py	69	write_json(directory / "request.json", request)
+pyar/state/microsolvation.py	102	destination.mkdir(parents=True, exist_ok=True)
+pyar/state/microsolvation.py	157	references = self.snapshot_pool(molecules, self.directory / f"step_{step:03d}" / "selected")
+pyar/state/microsolvation.py	168	write_json(self.directory / f"step_{step:03d}" / "coverage.json", step_record)
+pyar/state/reaction.py	18	STATE_FILENAME = "state.json"
+pyar/state/reaction.py	88	state.geometry_directory.mkdir(parents=True, exist_ok=True)
+pyar/state/reaction.py	219	state.geometry_directory.mkdir(parents=True, exist_ok=True)
+pyar/state/reaction.py	249	product["job_name"]: (product["inchi"], product["smiles"])
+pyar/state/reaction.py	253	def record_job(self, job_name, gamma, status, remaining_orientations, current_survivors, identity=None):
+pyar/state/reaction.py	255	record = {"job_name": job_name, "gamma": float(gamma), "status": str(status)}
+pyar/state/reaction.py	263	def record_product(self, job_name, gamma, inchi, smiles, path, trace_summary=None):
+pyar/state/reaction.py	266	"job_name": job_name,
+pyar/state/reaction.py	298	"""Atomically write ``reaction/state.json``."""
+pyar/state/reaction.py	299	self.reaction_directory.mkdir(parents=True, exist_ok=True)
+pyar/state/solvation.py	21	STATE_FILENAME = "state.json"
+pyar/state/solvation.py	96	state.geometry_directory.mkdir(parents=True, exist_ok=True)
+pyar/state/solvation.py	192	"""Atomically write ``solvation/state.json``."""
+pyar/state/solvation.py	193	self.solvation_directory.mkdir(parents=True, exist_ok=True)
+pyar/utility_io.py	54	path.mkdir(parents=True, exist_ok=True)
+pyar/utility_io.py	56	shutil.copyfile(source, path / source.name)
+pyar/workflows/aggregate.py	12	* persisting ``aggregates/state.json`` plus selected-geometry snapshots
+pyar/workflows/aggregate.py	82	def _selected_result_paths(pattern):
+pyar/workflows/aggregate.py	84	return sorted(str(path) for path in Path(".").glob(pattern))
+pyar/workflows/aggregate.py	175	structural_analysis_directory.mkdir(exist_ok=True)
+pyar/workflows/aggregate.py	267	"Imported legacy pyar.log pathway markers into aggregates/state.json."
+pyar/workflows/aggregate.py	334	_selected_result_paths(f"ag_*_{outside_counter:03d}/selected/result_*.xyz"),
+pyar/workflows/aggregate.py	355	run_state.finish(_selected_result_paths("selected/**/result_*.xyz"))
+pyar/workflows/conformer.py	83	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/workflows/conformer.py	167	input_directory.mkdir(parents=True, exist_ok=True)
+pyar/workflows/conformer.py	602	for child in ("input", "rdkit", "selected"):
+pyar/workflows/conformer.py	603	(run_directory / child).mkdir(parents=True, exist_ok=True)
+pyar/workflows/conformer.py	891	backend_directory.mkdir(parents=True, exist_ok=True)
+pyar/workflows/conformer.py	898	backend_result = backend_directory / f"job_{molecule.name}" / f"result_{molecule.name}.xyz"
+pyar/workflows/conformer.py	1292	selected_paths = _write_selected_conformers(selected_records, run_directory / "selected")
+pyar/workflows/conformer.py	1293	_write_summary(records, run_directory / "summary.csv")
+pyar/workflows/conformer.py	1322	"summary_path": str(run_directory / "summary.csv"),
+pyar/workflows/grow.py	16	directory.mkdir(parents=True, exist_ok=True)
+pyar/workflows/grow.py	17	refs = snapshot_pool([request.seed], directory / "step_000" / "selected", directory)
+pyar/workflows/grow.py	22	write_json(directory / "request.json", payload)
+pyar/workflows/grow.py	30	stage = directory / f"step_{step:03d}"
+pyar/workflows/grow.py	31	stage.mkdir(exist_ok=True)
+pyar/workflows/grow.py	52	refs = snapshot_pool(selected, stage / "selected", directory)
+pyar/workflows/grow.py	53	diagnostics_path = stage / "selected" / "selection_diagnostics.json"
+pyar/workflows/grow.py	58	diagnostics = json.loads(source.read_text())
+pyar/workflows/grow.py	93	write_json(directory / "final" / "summary.json", result.to_dict())
+pyar/workflows/microsolvation.py	74	os.chdir(path)
+pyar/workflows/microsolvation.py	77	os.chdir(self.old)
+pyar/workflows/microsolvation.py	144	stage = directory / f"step_{step:03d}"
+pyar/workflows/microsolvation.py	146	candidate_directory.mkdir(parents=True, exist_ok=True)
+pyar/workflows/microsolvation.py	164	(candidate_directory / f"{candidate.name}.xyz").parent.mkdir(parents=True, exist_ok=True)
+pyar/workflows/microsolvation.py	219	write_json(directory / "final" / "summary.json", {
+pyar/workflows/reaction.py	12	* persist ``reaction/state.json`` plus product and trace artifacts
+pyar/workflows/reaction.py	45	from pyar.reaction_trace import infer_bonds
+pyar/workflows/reaction.py	119	updated_qc_params["reaction_trace"] = trace_enabled
+pyar/workflows/reaction.py	138	unbiased['reaction_trace'] = False
+pyar/workflows/reaction.py	143	'release_job_name', 'release_retry_attempt', 'release_retry_limit',
+pyar/workflows/reaction.py	236	for job_name, (inchi, smiles) in run_state.saved_product_identities().items():
+pyar/workflows/reaction.py	237	saved_product_identities[job_name] = {"inchi": inchi, "smiles": smiles}
+pyar/workflows/reaction.py	294	molecule.mol_to_xyz('result_relax.xyz')
+pyar/workflows/reaction.py	302	job_name = qc_params.get("release_job_name")
+pyar/workflows/reaction.py	303	state_path = os.path.join(f"job_{job_name}", "pyar_geometric_state.json") if job_name else "pyar_geometric_state.json"
+pyar/workflows/reaction.py	349	state_path = os.path.join(f"job_{pre_release.name}", "pyar_geometric_state.json")
+pyar/workflows/reaction.py	372	def _set_release_outcome(job_name, state_name, reason):
+pyar/workflows/reaction.py	374	state_path = os.path.join(f"job_{job_name}", "pyar_geometric_state.json")
+pyar/workflows/reaction.py	386	reactor_logger.warning("Could not persist chemical release outcome for %s", job_name)
+pyar/workflows/reaction.py	412	checkpoint_path = os.path.join(f"job_{pre_release.name}", "pyar_bias_controller_state.json")
+pyar/workflows/reaction.py	530	def _orientation_final_coordinate_path(gamma_directory, orientation_directory, job_name):
+pyar/workflows/reaction.py	533	os.path.join(orientation_directory, "result_relax.xyz"),
+pyar/workflows/reaction.py	534	os.path.join(orientation_directory, "job_relax", "result_relax.xyz"),
+pyar/workflows/reaction.py	537	f"job_{job_name}",
+pyar/workflows/reaction.py	538	f"result_{job_name}.xyz",
+pyar/workflows/reaction.py	593	"Imported legacy jobs.pkl into reaction/state.json; "
+pyar/workflows/reaction.py	602	os.chdir('reaction')
+pyar/workflows/reaction.py	614	os.chdir('reaction')
+pyar/workflows/reaction.py	631	os.chdir('trial_geometries')
+pyar/workflows/reaction.py	651	os.chdir(cwd)
+pyar/workflows/reaction.py	698	os.chdir(gamma_home)
+pyar/workflows/reaction.py	711	os.chdir(workdir)
+pyar/workflows/reaction.py	729	result_status = "completed_no_candidates"
+pyar/workflows/reaction.py	730	os.chdir(workdir)
+pyar/workflows/reaction.py	733	result_status,
+pyar/workflows/reaction.py	753	os.chdir(workdir)
+pyar/workflows/reaction.py	756	reactor_logger.info("Reaction workflow completed. State retained in reaction/state.json.")
+pyar/workflows/reaction.py	789	def record_orientation_completion(job_name, status, identity=None):
+pyar/workflows/reaction.py	794	job_name,
+pyar/workflows/reaction.py	807	job_name,
+pyar/workflows/reaction.py	812	job_key = this_molecule.name
+pyar/workflows/reaction.py	813	reactor_logger.info(f'   Orientation: {job_key}')
+pyar/workflows/reaction.py	814	o_key = f"_{job_key[-8:]}"
+pyar/workflows/reaction.py	817	os.chdir(orientations_home)
+pyar/workflows/reaction.py	818	job_name = gamma_id + o_key
+pyar/workflows/reaction.py	819	this_molecule.name = job_name
+pyar/workflows/reaction.py	827	orientation_qc_param["release_job_name"] = job_name
+pyar/workflows/reaction.py	829	this_molecule.name = job_name
+pyar/workflows/reaction.py	833	reactor_logger.info("Energy E({}): {:12.7f}".format(job_name, this_molecule.energy))
+pyar/workflows/reaction.py	843	job_name,
+pyar/workflows/reaction.py	846	record_orientation_completion(job_name, "contact_not_release_ready")
+pyar/workflows/reaction.py	847	os.chdir(cwd)
+pyar/workflows/reaction.py	869	record_orientation_completion(job_name, "release_failed")
+pyar/workflows/reaction.py	870	os.chdir(cwd)
+pyar/workflows/reaction.py	872	current_identity = molecule_identity_from_xyz('result_relax.xyz')
+pyar/workflows/reaction.py	897	job_name, "RELEASE_FAILED", "relaxed_identity_matches_reactants"
+pyar/workflows/reaction.py	900	reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
+pyar/workflows/reaction.py	904	job_name, "PRODUCT_CONFIRMED", "free_relaxation_and_identity_changed"
+pyar/workflows/reaction.py	916	saved_product_identities[job_name] = current_identity
+pyar/workflows/reaction.py	917	shutil.copy('result_relax.xyz', f'{product_dir}/{job_name}.xyz')
+pyar/workflows/reaction.py	918	trace_directory = os.path.join(os.getcwd(), f'job_{job_name}')
+pyar/workflows/reaction.py	921	trace_summary = reaction_analysis.analyse_reaction_trace(trace_directory)
+pyar/workflows/reaction.py	924	job_name,
+pyar/workflows/reaction.py	925	trace_summary["candidate_ts_directory"] if trace_summary else "no trace records",
+pyar/workflows/reaction.py	930	job_name,
+pyar/workflows/reaction.py	938	"Reaction trace analysis failed for %s", job_name
+pyar/workflows/reaction.py	942	job_name,
+pyar/workflows/reaction.py	946	f'{product_dir}/{job_name}.xyz',
+pyar/workflows/reaction.py	950	os.chdir(cwd)
+pyar/workflows/reaction.py	952	job_name, product_status,
+pyar/workflows/reaction.py	958	reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
+pyar/workflows/reaction.py	963	job_name,
+pyar/workflows/reaction.py	969	reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
+pyar/workflows/reaction.py	971	record_orientation_completion(job_name, status)
+pyar/workflows/reaction.py	972	os.chdir(cwd)
+pyar/workflows/reaction_characterization.py	14	from pyar.reaction_trace import load_trace_records
+pyar/workflows/reaction_characterization.py	87	path.parent.mkdir(parents=True, exist_ok=True)
+pyar/workflows/reaction_characterization.py	124	path = trace_dir / "steps" / f"step_{index:06d}.xyz"
+pyar/workflows/reaction_characterization.py	152	matches = list((Path(root).resolve() / "reaction").rglob(f"job_{job['job_name']}"))
+pyar/workflows/reaction_characterization.py	153	alternatives.append({"reaction_job": job["job_name"], "gamma": job.get("gamma"),
+pyar/workflows/reaction_characterization.py	154	"trace_directory": str(matches[0] / "reaction_trace") if matches else None,
+pyar/workflows/reaction_characterization.py	164	candidate_dir = Path(summary.get("candidate_ts_directory", ""))
+pyar/workflows/reaction_characterization.py	167	job_dir = candidate_dir.parent
+pyar/workflows/reaction_characterization.py	176	trace_dir = job_dir / "reaction_trace"
+pyar/workflows/reaction_characterization.py	180	job_name = product["job_name"]
+pyar/workflows/reaction_characterization.py	181	initial = job_dir.parent / f"trial_{job_name}.xyz"
+pyar/workflows/reaction_characterization.py	183	raise ValueError(f"No reactant-side trace frame or oriented starting geometry for {product['job_name']}")
+pyar/workflows/reaction_characterization.py	185	reactant_source = "initial_oriented_reaction_job_geometry"
+pyar/workflows/reaction_characterization.py	199	"reaction_trace_sha256": _sha256(trace_dir / "trace.jsonl"),
+pyar/workflows/reaction_characterization.py	206	route_dir.mkdir(parents=True, exist_ok=True)
+pyar/workflows/reaction_characterization.py	207	waypoint_out.parent.mkdir(parents=True, exist_ok=True)
+pyar/workflows/reaction_characterization.py	209	write_xyz(start_elements, start_coordinates, start_out, job_name="reactant-side pathway endpoint", precision=12)
+pyar/workflows/reaction_characterization.py	211	write_xyz(product_elements, product_coordinates, end_out, job_name="accepted unbiased product endpoint", precision=12)
+pyar/workflows/reaction_characterization.py	214	job_name=f"candidate path waypoint from {waypoint_source}", precision=12)
+pyar/workflows/reaction_characterization.py	217	"reaction_job": product["job_name"], "gamma": product.get("gamma"),
+pyar/workflows/reaction_characterization.py	221	"candidate_ts_source": waypoint_source, "candidate_ts_is_validated_transition_state": False,
+pyar/workflows/reaction_characterization.py	244	raise ValueError("Path continuation requires a completed reaction/state.json")
+pyar/workflows/reaction_characterization.py	245	state_path = Path(root).resolve() / "reaction" / "pathways" / "pathways.json"
+pyar/workflows/reaction_characterization.py	247	existing = json.loads(state_path.read_text(encoding="utf-8"))
+pyar/workflows/reaction_characterization.py	250	if existing.get("reaction_state_sha256") not in (None, _sha256(Path(root).resolve() / "reaction" / "state.json")):
+pyar/workflows/reaction_characterization.py	268	"reaction_state_sha256": _sha256(Path(root).resolve() / "reaction" / "state.json"),
+pyar/workflows/reaction_characterization.py	282	failures.append({"product": product.get("job_name"), "status": "preparation_failed", "error": str(exc)})
+pyar/workflows/reaction_characterization.py	313	state_path = Path(root).resolve() / "reaction" / "pathways" / "pathways.json"
+pyar/workflows/reaction_characterization.py	320	existing = json.loads(state_path.read_text(encoding="utf-8")) if state_path.is_file() else None
+pyar/workflows/reaction_characterization.py	324	_sha256(Path(root).resolve() / "reaction" / "state.json")):
+pyar/workflows/reaction_characterization.py	339	saved = json.loads(route_file.read_text(encoding="utf-8"))
+pyar/workflows/reaction_characterization.py	356	candidate_dir = Path((product.get("trace_summary") or {}).get("candidate_ts_directory", ""))
+pyar/workflows/reaction_characterization.py	359	waypoint_source = saved.get("candidate_ts_source") or options.get(
+pyar/workflows/reaction_characterization.py	362	job_dir = candidate_dir.parent
+pyar/workflows/reaction_characterization.py	363	trace_dir = job_dir / "reaction_trace"
+pyar/workflows/reaction_characterization.py	366	trace_start = job_dir.parent / f"trial_{product['job_name']}.xyz"
+pyar/workflows/reaction_characterization.py	369	"reaction_trace_sha256": _sha256(trace_dir / "trace.jsonl"),
+pyar/workflows/scan_bond.py	99	request_path = root / "request.json"
+pyar/workflows/scan_bond.py	103	previous = json.loads(request_path.read_text())
+pyar/workflows/scan_bond.py	117	def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxscanact.dat"):
+pyar/workflows/scan_bond.py	132	csv_path = directory / "scan_profile.csv"
+pyar/workflows/scan_bond.py	138	json_path = directory / "scan_profile.json"
+pyar/workflows/scan_bond.py	139	json_path.write_text(json.dumps({
+pyar/workflows/scan_bond.py	146	candidate_dir = directory.parent / "ts_candidates"
+pyar/workflows/scan_bond.py	147	candidate_dir.mkdir(parents=True, exist_ok=True)
+pyar/workflows/scan_bond.py	158	job_name=f"{label}_scan_{frame_index + 1:03d}",
+pyar/workflows/scan_bond.py	174	metadata_path.write_text(json.dumps(maximum_metadata, indent=2, sort_keys=True))
+pyar/workflows/scan_bond.py	176	"scan_profile_csv": str(csv_path),
+pyar/workflows/scan_bond.py	177	"scan_profile_json": str(json_path),
+pyar/workflows/scan_bond.py	220	orientation.name = f"orientation_{index:03d}"
+pyar/workflows/scan_bond.py	299	root.mkdir(parents=True, exist_ok=True)
+pyar/workflows/scan_bond.py	300	request_path = root / "request.json"
+pyar/workflows/scan_bond.py	301	request_temp = root / "request.json.tmp"
+pyar/workflows/scan_bond.py	302	request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
+pyar/workflows/scan_bond.py	308	str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+pyar/workflows/scan_bond.py	311	(directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
+pyar/workflows/scan_bond.py	314	directory = root / f"orientation_{index:03d}"
+pyar/workflows/scan_bond.py	317	directory.mkdir(exist_ok=True)
+pyar/workflows/scan_bond.py	318	result_path = directory / "result.json"
+pyar/workflows/scan_bond.py	320	if result_path.is_file():
+pyar/workflows/scan_bond.py	322	previous_result = json.loads(result_path.read_text())
+pyar/workflows/scan_bond.py	327	directory / "result_relaxed.xyz",
+pyar/workflows/scan_bond.py	330	scan_dir / "scan_profile.csv",
+pyar/workflows/scan_bond.py	331	scan_dir / "scan_profile.json",
+pyar/workflows/scan_bond.py	332	directory / "ts_candidates" / "metadata.json",
+pyar/workflows/scan_bond.py	333	directory / "ts_candidates" / "highest_scan_energy.xyz",
+pyar/workflows/scan_bond.py	339	str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+pyar/workflows/scan_bond.py	351	write_xyz(orientation.atoms_list, orientation.coordinates, directory / "start.xyz", job_name=orientation.name, precision=12)
+pyar/workflows/scan_bond.py	395	result.update(_write_scan_profile(
+pyar/workflows/scan_bond.py	397	"scan.relaxscanact.dat" if software == "orca" else "scan_summary.json"))
+pyar/workflows/scan_bond.py	413	relax_dir.mkdir(parents=True, exist_ok=True)
+pyar/workflows/scan_bond.py	415	if (relax_dir / "job_relaxed").exists():
+pyar/workflows/scan_bond.py	420	relax_run_dir.mkdir()
+pyar/workflows/scan_bond.py	423	os.chdir(relax_run_dir)
+pyar/workflows/scan_bond.py	435	os.chdir(old_cwd)
+pyar/workflows/scan_bond.py	437	optimized_output = relax_run_dir / "job_relaxed" / "result_relaxed.xyz"
+pyar/workflows/scan_bond.py	445	shutil.copy(optimized_output, directory / "result_relaxed.xyz")
+pyar/workflows/scan_bond.py	453	result["relaxed_path"] = str(directory / "result_relaxed.xyz")
+pyar/workflows/scan_bond.py	467	relaxed_identity = molecule_identity_from_xyz(directory / "result_relaxed.xyz")
+pyar/workflows/scan_bond.py	482	(root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
+pyar/workflows/scan_bond.py	483	with (root / "summary.csv").open("w", newline="") as handle:
+pyar/workflows/scan_path.py	117	request = json.loads((root / "request.json").read_text())
+pyar/workflows/scan_path.py	119	if result.get("scan_status") != "success" or not result.get("scan_profile_json"):
+pyar/workflows/scan_path.py	122	directory = root / f"orientation_{result['orientation']:03d}"
+pyar/workflows/scan_path.py	125	path_dir.mkdir(exist_ok=True)
+pyar/workflows/scan_path.py	132	profile = json.loads(Path(result["scan_profile_json"]).read_text())["points"]
+pyar/workflows/scan_path.py	142	write_xyz(metadata["atoms"], waypoint, waypoint_path, job_name="NEB initializer", precision=12)
+pyar/workflows/scan_path.py	163	(directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True))
+pyar/workflows/solvation.py	7	``solvation/state.json`` plus cycle snapshots, and returns a structured
+tests/test_adaptive_geometric.py	18	from pyar.reaction_analysis import analyse_reaction_trace
+tests/test_adaptive_geometric.py	19	from pyar.reaction_trace import load_trace_records
+tests/test_adaptive_geometric.py	38	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_geometric.py	72	checkpoint = Path(_CONTROLLER_STATE_FILE).read_text()
+tests/test_adaptive_geometric.py	75	assert Path(_CONTROLLER_STATE_FILE).read_text() == checkpoint
+tests/test_adaptive_geometric.py	88	records = load_trace_records("reaction_trace")
+tests/test_adaptive_geometric.py	97	assert json.loads(Path("pyar_geometric_state.json").read_text())["bias_controller"] == records[-1]["bias_controller"]
+tests/test_adaptive_geometric.py	98	analyse_reaction_trace(Path.cwd())
+tests/test_adaptive_geometric.py	99	with open("path_summary.csv") as handle:
+tests/test_adaptive_geometric.py	165	state = json.loads(Path("pyar_geometric_state.json").read_text())
+tests/test_adaptive_geometric.py	179	state = json.loads(Path("pyar_geometric_state.json").read_text())
+tests/test_adaptive_geometric.py	182	checkpoint = json.loads(Path(_CONTROLLER_STATE_FILE).read_text())
+tests/test_adaptive_geometric.py	185	baseline = load_trace_records("reaction_trace")[0]
+tests/test_adaptive_geometric.py	199	state = json.loads(Path("pyar_geometric_state.json").read_text())
+tests/test_adaptive_geometric.py	214	record = load_trace_records("reaction_trace")[-1]
+tests/test_adaptive_geometric.py	216	analyse_reaction_trace(Path.cwd())
+tests/test_adaptive_geometric.py	217	with open("path_summary.csv") as stream:
+tests/test_adaptive_reaction_p0.py	22	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	101	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	121	assert captured["reaction_trace"] is False
+tests/test_adaptive_reaction_p0.py	130	job_names = []
+tests/test_adaptive_reaction_p0.py	131	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	134	job_names.append(candidate.name)
+tests/test_adaptive_reaction_p0.py	145	assert job_names == ["relax", "relax_attempt_1"]
+tests/test_adaptive_reaction_p0.py	167	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	187	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	193	probe = json.loads((tmp_path / "release_probe.json").read_text())
+tests/test_adaptive_reaction_p0.py	200	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	266	(tmp_path / path).write_text("retry geometry\n")
+tests/test_adaptive_reaction_p0.py	275	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	276	(tmp_path / "release_probe.json").write_text(json.dumps({
+tests/test_adaptive_reaction_p0.py	281	(tmp_path / "release_attempts.jsonl").write_text(first_probe + "\n")
+tests/test_adaptive_reaction_p0.py	294	summary = json.loads((tmp_path / "release_probe.json").read_text())
+tests/test_adaptive_reaction_p0.py	295	history = (tmp_path / "release_attempts.jsonl").read_text().splitlines()
+tests/test_adaptive_reaction_p0.py	311	monkeypatch.chdir(tmp_path)
+tests/test_adaptive_reaction_p0.py	312	job_dir = tmp_path / "job_candidate"
+tests/test_adaptive_reaction_p0.py	313	job_dir.mkdir()
+tests/test_adaptive_reaction_p0.py	320	path = job_dir / "pyar_bias_controller_state.json"
+tests/test_adaptive_reaction_p0.py	321	path.write_text(json.dumps(checkpoint))
+tests/test_adaptive_reaction_p0.py	324	saved = json.loads(path.read_text())
+tests/test_aggregate_state.py	37	state.complete_pathway("abb", ["ag_a_001_b_001_000/selected/result_one.xyz"])
+tests/test_aggregate_state.py	97	state.finish(["selected/stoichiometry_CH2/result_final.xyz"])
+tests/test_aggregate_state.py	101	["selected/stoichiometry_CH2/result_final.xyz"],
+tests/test_aggregator.py	35	Path(filename).write_text(
+tests/test_aggregator.py	118	os.chdir(tmpdir)
+tests/test_aggregator.py	134	os.chdir(cwd)
+tests/test_aggregator.py	155	os.chdir(tmpdir)
+tests/test_aggregator.py	170	snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
+tests/test_aggregator.py	171	second_snapshot_exists = Path(tmpdir, "selected", "result_trial_b.xyz").is_file()
+tests/test_aggregator.py	172	nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
+tests/test_aggregator.py	174	os.chdir(cwd)
+tests/test_aggregator.py	203	os.chdir(tmpdir)
+tests/test_aggregator.py	219	snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
+tests/test_aggregator.py	220	registry_exists = Path(tmpdir, "selected", "basin_registry.json").is_file()
+tests/test_aggregator.py	221	nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
+tests/test_aggregator.py	223	os.chdir(cwd)
+tests/test_aggregator.py	255	os.chdir(tmpdir)
+tests/test_aggregator.py	272	os.chdir(cwd)
+tests/test_aggregator.py	290	os.chdir(tmpdir)
+tests/test_aggregator.py	309	os.chdir(cwd)
+tests/test_aggregator.py	326	os.chdir(tmpdir)
+tests/test_aggregator.py	345	os.chdir(cwd)
+tests/test_aggregator.py	356	os.chdir(tmpdir)
+tests/test_aggregator.py	373	os.chdir(cwd)
+tests/test_aggregator.py	388	os.chdir(tmpdir)
+tests/test_aggregator.py	406	os.chdir(cwd)
+tests/test_aggregator.py	414	os.chdir(tmpdir)
+tests/test_aggregator.py	433	os.chdir(cwd)
+tests/test_aggregator.py	444	os.chdir(tmpdir)
+tests/test_aggregator.py	446	Path("selected", "job_done").mkdir(parents=True)
+tests/test_aggregator.py	447	Path("selected", "result_done.xyz").write_text("1\ndone\nH 0.0 0.0 0.0\n")
+tests/test_aggregator.py	451	os.chdir(cwd)
+tests/test_aggregator.py	475	os.chdir(tmpdir)
+tests/test_aggregator.py	481	self.assertEqual(snapshot_dir, "selected/stoichiometry_CH4")
+tests/test_aggregator.py	482	self.assertTrue(Path(tmpdir, "selected", "stoichiometry_CH4", "result_sel_1.xyz").is_file())
+tests/test_aggregator.py	483	self.assertTrue(Path(tmpdir, "selected", "stoichiometry_CH4", "result_sel_2.xyz").is_file())
+tests/test_aggregator.py	485	os.chdir(cwd)
+tests/test_aggregator.py	497	os.chdir(tmpdir)
+tests/test_aggregator.py	507	output_root="selected",
+tests/test_aggregator.py	515	log_text = log_path.read_text()
+tests/test_aggregator.py	517	os.chdir(cwd)
+tests/test_aggregator.py	521	self.assertIn("Global minimum: sel_low (result_sel_low.xyz)", log_text)
+tests/test_aggregator.py	529	os.chdir(tmpdir)
+tests/test_aggregator.py	533	output_root="selected",
+tests/test_aggregator.py	538	output_root="selected",
+tests/test_aggregator.py	541	result_files = sorted(path.name for path in Path("selected").glob("result_*.xyz"))
+tests/test_aggregator.py	543	os.chdir(cwd)
+tests/test_aggregator.py	545	self.assertEqual(result_files, ["result_current.xyz"])
+tests/test_aggregator.py	550	os.chdir(tmpdir)
+tests/test_aggregator.py	552	Path("ag_a_001_000", "selected").mkdir(parents=True)
+tests/test_aggregator.py	553	Path("ag_a_002_000", "selected").mkdir(parents=True)
+tests/test_aggregator.py	554	Path("ag_a_001_000", "selected", "result_one.xyz").write_text(
+tests/test_aggregator.py	562	Path("ag_a_002_000", "selected", "result_two.xyz").write_text(
+tests/test_aggregator.py	570	Path("ag_a_002_000", "selected", "stoichiometry_CH4").mkdir()
+tests/test_aggregator.py	572	"ag_a_002_000", "selected", "stoichiometry_CH4", "result_old_layout.xyz"
+tests/test_aggregator.py	573	).write_text(
+tests/test_aggregator.py	587	stale_final_dir = Path(tmpdir, "selected", "stoichiometry_CH4")
+tests/test_aggregator.py	588	stale_final_dir.mkdir(parents=True)
+tests/test_aggregator.py	589	stale_result = stale_final_dir / "result_stale.xyz"
+tests/test_aggregator.py	590	stale_result.write_text("1\nstale: -3.0\nH 0 0 0\n")
+tests/test_aggregator.py	596	final_snapshot_exists = Path(tmpdir, "selected", "stoichiometry_CH4").exists()
+tests/test_aggregator.py	597	final_readme_exists = Path(tmpdir, "selected", "stoichiometry_CH4", "README.txt").is_file()
+tests/test_aggregator.py	598	stale_final_result_exists = stale_result.exists()
+tests/test_aggregator.py	600	os.chdir(cwd)
+tests/test_aggregator.py	605	self.assertFalse(stale_final_result_exists)
+tests/test_aggregator.py	614	os.chdir(tmpdir)
+tests/test_aggregator.py	639	os.chdir(cwd)
+tests/test_aggregator.py	646	os.chdir(tmpdir)
+tests/test_aggregator.py	662	os.chdir(cwd)
+tests/test_aggregator.py	671	os.chdir(tmpdir)
+tests/test_aggregator.py	673	Path("aggregates").mkdir()
+tests/test_aggregator.py	691	with Path("aggregates", "state.json").open() as fp:
+tests/test_aggregator.py	694	os.chdir(cwd)
+tests/test_aggregator.py	706	os.chdir(tmpdir)
+tests/test_aggregator.py	720	with Path(tmpdir, "aggregates", "state.json").open() as fp:
+tests/test_aggregator.py	723	os.chdir(cwd)
+tests/test_aggregator.py	728	self.assertTrue(result.state_path.endswith("aggregates/state.json"))
+tests/test_aggregator.py	740	os.chdir(tmpdir)
+tests/test_aggregator.py	758	os.chdir(cwd)
+tests/test_aggregator.py	769	os.chdir(tmpdir)
+tests/test_aggregator.py	801	os.chdir(cwd)
+tests/test_aggregator.py	818	os.chdir(tmpdir)
+tests/test_aggregator.py	820	Path("aggregates", "archived_output").mkdir(parents=True)
+tests/test_aggregator.py	834	os.chdir(cwd)
+tests/test_aggregator.py	849	os.chdir(tmpdir)
+tests/test_aggregator.py	868	with Path("aggregates", "state.json").open() as fp:
+tests/test_aggregator.py	883	with Path("aggregates", "state.json").open() as fp:
+tests/test_aggregator.py	886	os.chdir(cwd)
+tests/test_aimnet2_installation.py	16	model.write_text('model placeholder')
+tests/test_aimnet2_installation.py	17	monkeypatch.chdir(tmp_path)
+tests/test_aimnet2_installation.py	21	job.mkdir()
+tests/test_aimnet2_installation.py	22	monkeypatch.chdir(job)
+tests/test_aimnet2_installation.py	34	source.write_text('1\nfirst\nH 0 0 0\n1\nsecond\nHe 0 0 2\n')
+tests/test_atomic_cluster_benchmark.py	25	path.write_text(payload)
+tests/test_babel_backend.py	23	Path(stdout_path).write_text(
+tests/test_babel_backend.py	31	Path(stdout_path).write_text(
+tests/test_babel_backend.py	36	Path(stdout_path).write_text(
+tests/test_babel_backend.py	50	os.chdir(tmpdir)
+tests/test_babel_backend.py	55	os.chdir(cwd)
+tests/test_babel_backend.py	59	result_xyz = Path(tmpdir) / "result_test.xyz"
+tests/test_babel_backend.py	60	self.assertTrue(result_xyz.exists())
+tests/test_babel_backend.py	61	contents = result_xyz.read_text().splitlines()
+tests/test_babel_backend.py	90	Path(stdout_path).write_text(
+tests/test_babel_backend.py	98	Path(stdout_path).write_text(
+tests/test_babel_backend.py	103	Path(stdout_path).write_text(
+tests/test_babel_backend.py	117	os.chdir(tmpdir)
+tests/test_babel_backend.py	122	os.chdir(cwd)
+tests/test_backend_failures.py	18	bin_dir.mkdir()
+tests/test_backend_failures.py	20	executable.write_text("#!/bin/sh\n" + fake_xtb)
+tests/test_backend_failures.py	43	assert not (tmp_path / "reaction" / "state.json").exists()
+tests/test_backend_failures.py	51	state = json.loads((tmp_path / "reaction" / "state.json").read_text())
+tests/test_basin_memory.py	12	_load_basin_registry,
+tests/test_basin_memory.py	13	_persist_basin_registry,
+tests/test_basin_memory.py	14	migrate_basin_registry,
+tests/test_basin_memory.py	30	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	33	_persist_basin_registry(str(path), [geometry])
+tests/test_basin_memory.py	34	payload = json.loads(path.read_text())
+tests/test_basin_memory.py	49	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	54	_persist_basin_registry(str(path), [first, rotated_copy, distinct], max_entries=2)
+tests/test_basin_memory.py	55	entries = _load_basin_registry(str(path))
+tests/test_basin_memory.py	61	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	64	path.write_text(json.dumps(original))
+tests/test_basin_memory.py	66	report = migrate_basin_registry(str(path), dry_run=True)
+tests/test_basin_memory.py	68	assert json.loads(path.read_text()) == original
+tests/test_basin_memory.py	69	report = migrate_basin_registry(str(path))
+tests/test_basin_memory.py	70	payload = json.loads(path.read_text())
+tests/test_basin_memory.py	78	assert _load_basin_registry(str(path))[0]["legacy_descriptors"]
+tests/test_basin_memory.py	79	second_report = migrate_basin_registry(str(path))
+tests/test_basin_memory.py	98	_persist_basin_registry(str(registry), [candidates[0], candidates[-1]])
+tests/test_basin_memory.py	99	entries = _load_basin_registry(str(registry))
+tests/test_basin_memory.py	160	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	161	path.write_text(json.dumps(payload))
+tests/test_basin_memory.py	162	original = path.read_bytes()
+tests/test_basin_memory.py	165	migrate_basin_registry(str(path))
+tests/test_basin_memory.py	167	assert path.read_bytes() == original
+tests/test_basin_memory.py	171	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	178	path.write_text(json.dumps(payload))
+tests/test_basin_memory.py	180	entries = _load_basin_registry(str(path))
+tests/test_basin_memory.py	189	selected = tmp_path / "selected" / "stoichiometry_H2"
+tests/test_basin_memory.py	190	selected.mkdir(parents=True)
+tests/test_basin_memory.py	191	path = selected / "basin_registry.json"
+tests/test_basin_memory.py	192	path.write_text('{"schema_version": 99, "entries": []}')
+tests/test_basin_memory.py	193	original = path.read_bytes()
+tests/test_basin_memory.py	194	monkeypatch.chdir(tmp_path)
+tests/test_basin_memory.py	204	assert path.read_bytes() == original
+tests/test_basin_memory.py	211	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	212	path.write_text('{"schema_version": 1, "entries": []}')
+tests/test_basin_memory.py	213	original = path.read_bytes()
+tests/test_basin_memory.py	218	_persist_basin_registry(str(path), [geometry])
+tests/test_basin_memory.py	220	assert path.read_bytes() == original
+tests/test_basin_memory.py	221	assert sorted(item.name for item in tmp_path.iterdir()) == ["basin_registry.json"]
+tests/test_basin_memory.py	227	path = tmp_path / "basin_registry.json"
+tests/test_basin_memory.py	228	path.write_text(json.dumps({"entries": [{"fingerprint": [1.0]}]}))
+tests/test_basin_memory.py	235	assert "fingerprint" in json.loads(path.read_text())["entries"][0]
+tests/test_basin_memory.py	241	monkeypatch.chdir(tmp_path)
+tests/test_basin_memory.py	244	_write_growth_selection_diagnostics(report, "selected/selection_diagnostics.json")
+tests/test_basin_memory.py	246	path = tmp_path / "selected" / "selection_diagnostics.json"
+tests/test_basin_memory.py	247	assert json.loads(path.read_text()) == report
+tests/test_bond_scan_backends.py	18	caller.mkdir()
+tests/test_bond_scan_backends.py	19	sentinel = caller / "pyar_geometric_state.json"
+tests/test_bond_scan_backends.py	20	sentinel.write_text("caller state")
+tests/test_bond_scan_backends.py	21	monkeypatch.chdir(caller)
+tests/test_bond_scan_backends.py	45	assert sentinel.read_text() == "caller state"
+tests/test_bond_scan_backends.py	46	assert (tmp_path / "pyar_geometric_state.json").is_file()
+tests/test_bond_scan_backends.py	56	result.trajectory_path.write_text(result.trajectory_path.read_text() + "tampering")
+tests/test_bond_scan_backends.py	66	scan.mkdir(parents=True)
+tests/test_bond_scan_backends.py	71	profile = scan / "scan_profile.json"
+tests/test_bond_scan_backends.py	72	profile.write_text(json.dumps({"points": [{"energy_hartree": energy} for energy in (-1., 0., -1.)]}))
+tests/test_bond_scan_backends.py	73	(root / "request.json").write_text(json.dumps({"orientation_definitions": [{
+tests/test_bond_scan_backends.py	75	result = {"orientation": 0, "scan_status": "success", "scan_profile_json": str(profile),
+tests/test_bond_scan_backends.py	130	path.write_text("1\nH\nH 0 0 0\n")
+tests/test_bond_scan_backends.py	201	path.write_text('1\nH\nH 0 0 0\n')
+tests/test_chemical_identity.py	24	path.write_text(f'{len(molecule.atoms_list)}\n-10\n' + ''.join(
+tests/test_cli.py	37	os.chdir(cls._tmpdir.name)
+tests/test_cli.py	42	os.chdir(cls._original_cwd)
+tests/test_cli.py	409	def test_trace_subcommand_dispatches_to_reaction_trace_cli(self):
+tests/test_cli.py	537	current_log = Path("pyar.log").read_text().rsplit("Run mode: react", 1)[-1]
+tests/test_cli.py	630	os.chdir(tmpdir)
+tests/test_cli.py	632	Path("a.xyz").write_text("1\na\nH 0.0 0.0 0.0\n")
+tests/test_cli.py	633	Path("b.xyz").write_text("1\nb\nH 0.0 0.0 0.0\n")
+tests/test_cli.py	652	os.chdir(cwd)
+tests/test_cli.py	704	Path("pyar.log").read_text(),
+tests/test_cli.py	706	self.assertIn("Backend family: none", Path("pyar.log").read_text())
+tests/test_cli.py	856	log_text = Path("pyar.log").read_text()
+tests/test_cli.py	905	log_text = Path("pyar.log").read_text()
+tests/test_cli.py	933	log_text = Path("pyar.log").read_text()
+tests/test_clustering.py	84	def test_algorithm_failure_persists_basin_registry(self):
+tests/test_clustering.py	92	os.chdir(tmpdir)
+tests/test_clustering.py	94	os.mkdir("selected")
+tests/test_clustering.py	98	registry_path = os.path.join("selected", "stoichiometry_H2", "basin_registry.json")
+tests/test_clustering.py	101	os.chdir(cwd)
+tests/test_clustering.py	110	os.chdir(tmpdir)
+tests/test_clustering.py	112	os.mkdir("selected")
+tests/test_clustering.py	118	registry_path = os.path.join("selected", "stoichiometry_H", "basin_registry.json")
+tests/test_clustering.py	121	os.chdir(cwd)
+tests/test_clustering.py	123	def test_pathway_basin_registry_can_be_kept_in_flat_selected_folder(self):
+tests/test_clustering.py	133	os.chdir(tmpdir)
+tests/test_clustering.py	135	os.makedirs("selected")
+tests/test_clustering.py	141	self.assertTrue(os.path.exists(os.path.join("selected", "basin_registry.json")))
+tests/test_clustering.py	142	self.assertFalse(os.path.exists(os.path.join("selected", "stoichiometry_H")))
+tests/test_clustering.py	144	os.chdir(cwd)
+tests/test_clustering.py	552	with mock.patch("pyar.selection.clustering._load_basin_registry", return_value=basin_entries):
+tests/test_clustering.py	566	with mock.patch("pyar.selection.clustering._load_basin_registry") as loader:
+tests/test_clustering.py	587	def test_basin_registry_persists_unique_entries(self):
+tests/test_clustering.py	597	registry_path = os.path.join(tmpdir, "selected", "stoichiometry_H", "basin_registry.json")
+tests/test_clustering.py	599	clustering._persist_basin_registry(registry_path, molecules)
+tests/test_clustering.py	600	clustering._persist_basin_registry(registry_path, molecules)
+tests/test_clustering_distance_dataset.py	26	manifest = json.loads(DATASET.read_text())
+tests/test_clustering_distance_dataset.py	28	(tmp_path / "dataset.json").write_text(json.dumps(manifest))
+tests/test_clustering_distance_dataset.py	29	(tmp_path / "structures.xyz").write_bytes(DATASET.with_name("structures.xyz").read_bytes())
+tests/test_clustering_review.py	127	path.write_text(f"2\nm{i}: energy={i}\nH 0 0 0\nH {distance} 0 0\n")
+tests/test_clustering_review.py	134	report = json.loads(output.read_text())
+tests/test_conformer_benchmark.py	13	path.parent.mkdir(parents=True, exist_ok=True)
+tests/test_conformer_benchmark.py	19	path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+tests/test_conformer_benchmark.py	23	path.write_text(
+tests/test_conformer_benchmark.py	60	(run_directory / "rdkit").mkdir(parents=True)
+tests/test_conformer_benchmark.py	61	(run_directory / "selected").mkdir(parents=True)
+tests/test_conformer_benchmark.py	66	(run_directory / "state.json").write_text(json.dumps(state), encoding="utf-8")
+tests/test_conformer_benchmark.py	74	selected_file = run_directory / "selected" / f"{selected_name}.xyz"
+tests/test_conformer_benchmark.py	98	with (run_directory / "summary.csv").open("w", newline="", encoding="utf-8") as fp:
+tests/test_conformer_benchmark.py	119	state_path=str(run_directory / "state.json"),
+tests/test_conformer_benchmark.py	139	spec_path.write_text(
+tests/test_conformer_benchmark.py	163	self.assertTrue(diagnosis["reference_found_selected"])
+tests/test_conformer_benchmark.py	164	self.assertEqual(diagnosis["reference_selection_reason"], "selected")
+tests/test_conformer_benchmark.py	313	summary_csv = output / "benchmark_summary.csv"
+tests/test_conformer_benchmark.py	314	summary_json = output / "benchmark_summary.json"
+tests/test_conformer_benchmark.py	363	spec_path.write_text(
+tests/test_conformer_comparison.py	216	monkeypatch.chdir(tmp_path)
+tests/test_conformer_comparison.py	233	state = json.loads((tmp_path / "conformers/state.json").read_text())
+tests/test_conformer_workflow.py	57	state = json.loads((run_directory / "state.json").read_text())
+tests/test_conformer_workflow.py	58	summary_rows = list(csv.DictReader((run_directory / "summary.csv").open()))
+tests/test_conformer_workflow.py	61	selected_file_exists = (run_directory / "selected" / "conf_0000.xyz").is_file()
+tests/test_conformer_workflow.py	203	job_dir = Path(f"job_{molecule.name}")
+tests/test_conformer_workflow.py	204	job_dir.mkdir()
+tests/test_conformer_workflow.py	205	(job_dir / f"result_{molecule.name}.xyz").write_text(
+tests/test_conformer_workflow.py	232	state = json.loads((Path(result.run_directory) / "state.json").read_text())
+tests/test_conformer_workflow.py	245	self.assertTrue(result.selected_paths[0].endswith("selected/conf_0000.xyz"))
+tests/test_conformer_workflow.py	377	summary_rows = list(csv.DictReader((Path(result.run_directory) / "summary.csv").open()))
+tests/test_conformer_workflow.py	523	state = json.loads((Path(result.run_directory) / "state.json").read_text())
+tests/test_conformer_workflow.py	590	job_dir = Path(f"job_{molecule.name}")
+tests/test_conformer_workflow.py	591	job_dir.mkdir()
+tests/test_conformer_workflow.py	592	(job_dir / f"result_{molecule.name}.xyz").write_text(
+tests/test_conformer_workflow.py	653	output_path.write_text("sdf")
+tests/test_conformer_workflow.py	658	xyz_path.write_text("1\nh\nH 0 0 0\n")
+tests/test_coordinate_graph.py	71	path.write_text("2\nfixture: energy=-1.0\nC 0 0 0\nH 0.7 0 0\n")
+tests/test_coordinate_graph.py	87	path.write_text("2\ncluster: energy=-1.0\nAu 0 0 0\nAu 2.5 0 0\n")
+tests/test_energy_gradient_providers.py	119	def test_energy_gradient_result_rejects_nonfinite_energy(self):
+tests/test_energy_gradient_providers.py	123	def test_energy_gradient_result_rejects_invalid_gradient_shape(self):
+tests/test_energy_gradient_providers.py	127	def test_energy_gradient_result_rejects_nonfinite_gradient_values(self):
+tests/test_energy_gradient_providers.py	216	engrad_path.write_text("2\n-1.234\n0.01\n0.02\n0.03\n0.04\n0.05\n0.06\n")
+tests/test_geometric_optimizer.py	48	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	53	os.chdir(cwd)
+tests/test_geometric_optimizer.py	91	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	95	os.chdir(cwd)
+tests/test_geometric_optimizer.py	127	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	131	os.chdir(cwd)
+tests/test_geometric_optimizer.py	165	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	169	os.chdir(cwd)
+tests/test_geometric_optimizer.py	196	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	206	os.chdir(cwd)
+tests/test_geometric_optimizer.py	245	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	250	os.chdir(cwd)
+tests/test_geometric_optimizer.py	261	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	270	os.chdir(cwd)
+tests/test_geometric_optimizer.py	282	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	296	Path("pyar_geometric_state.json").write_text(json.dumps({
+tests/test_geometric_optimizer.py	307	os.chdir(cwd)
+tests/test_geometric_optimizer.py	314	bin_dir.mkdir()
+tests/test_geometric_optimizer.py	333	os.chdir(tmpdir)
+tests/test_geometric_optimizer.py	343	os.chdir(cwd)
+tests/test_grow.py	43	assert list((tmp_path / 'grow' / f'step_{step:03d}' / 'selected').glob('selected_*.xyz'))
+tests/test_grow.py	60	before = (tmp_path / 'grow/step_001/selected/selected_000.xyz').read_bytes()
+tests/test_grow.py	66	assert before == (tmp_path / 'grow/step_001/selected/selected_000.xyz').read_bytes()
+tests/test_grow.py	87	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	92	assert json.loads(Path('selection_diagnostics.json').read_text())['energy_ranked'] is False
+tests/test_grow.py	96	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	128	(tmp_path / 'unrelated').write_text('preserve')
+tests/test_grow.py	143	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	185	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	195	path = tmp_path / 'grow/step_001/selected/selected_000.xyz'
+tests/test_grow.py	196	path.write_text(path.read_text() + '\n')
+tests/test_grow.py	202	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	216	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	225	monkeypatch.chdir(tmp_path)
+tests/test_grow.py	235	monkeypatch.chdir(tmp_path)
+tests/test_install_status.py	16	monkeypatch.chdir(tmp_path)
+tests/test_installation_contract.py	19	metadata = tomllib.loads(Path('pyproject.toml').read_text())
+tests/test_meta_analyze_clustering_benchmarks.py	51	path.write_text(json.dumps({'structures': [{'name': 'frame_0000', 'basin_id': 0},
+tests/test_meta_analyze_clustering_benchmarks.py	62	(tmp_path / 'mpconf196gen').mkdir()
+tests/test_meta_analyze_clustering_benchmarks.py	63	(tmp_path / 'mpconf196gen/fixture_crest_conformers.xyz').write_text('changed')
+tests/test_meta_analyze_clustering_benchmarks.py	64	(tmp_path / 'fixture').mkdir()
+tests/test_meta_analyze_clustering_benchmarks.py	65	(tmp_path / 'fixture/manifest.json').write_text(json.dumps({'ensemble_sha256': 'old'}))
+tests/test_microsolvation.py	155	snapshot.write_text("tampered\n")
+tests/test_microsolvation.py	169	monkeypatch.chdir(tmp_path)
+tests/test_modern_analysis.py	16	path.write_text(f'{len(atoms)}\n{comment}\n' + ''.join(
+tests/test_modern_analysis.py	140	monkeypatch.chdir(tmp_path)
+tests/test_modern_analysis.py	163	(tmp_path / 'bad.xyz').write_text('2\n-10\nH 0 0 0\n')
+tests/test_modern_analysis.py	165	(tmp_path / 'bad.xyz').write_text('1\n-10\nH nan 0 0\n')
+tests/test_modern_cli.py	39	path.write_text(f"2\n{name}: energy={distance}\nH 0 0 0\nH {distance} 0 0\n")
+tests/test_modern_cli.py	101	path.write_text(contents)
+tests/test_modern_cli_controls.py	18	path.write_text("\n".join(lines) + "\n")
+tests/test_modern_cli_controls.py	37	monkeypatch.chdir(tmp_path)
+tests/test_modern_cli_controls.py	48	config = tomllib.loads(config_path.read_text())
+tests/test_modern_cli_controls.py	148	monkeypatch.chdir(tmp_path)
+tests/test_modern_cli_controls.py	155	records = list((tmp_path / ".pyar" / "runs").glob("*/pyar-run.toml"))
+tests/test_modern_cli_controls.py	157	record = tomllib.loads(records[0].read_text())
+tests/test_modern_cli_review.py	18	monkeypatch.chdir(tmp_path)
+tests/test_modern_cli_review.py	20	Path(name + '.xyz').write_text('1\nfixture\nHe 0 0 0\n')
+tests/test_modern_cli_review.py	42	records = list(Path('.pyar/runs').glob('*/pyar-run.toml'))
+tests/test_modern_cli_review.py	44	data = [load_toml_document(path, 'pyar-run-record') for path in records]
+tests/test_modern_cli_review.py	84	path = next(Path('.pyar/runs').glob('*/pyar-run.toml'))
+tests/test_modern_cli_review.py	85	record = load_toml_document(path, 'pyar-run-record')
+tests/test_modern_cli_review.py	110	Path('--verbose').write_text('1\nenergy=-1\nHe 0 0 0\n')
+tests/test_modern_cli_review.py	120	write_toml_document(record, kind='pyar-run-record', workflow='grow', arguments=[],
+tests/test_modern_cli_review.py	124	before = target.read_bytes()
+tests/test_modern_cli_review.py	127	assert target.read_bytes() == before
+tests/test_modern_cli_review.py	137	def test_json_run_contains_result_without_console_exit_object(fragments, capsys):
+tests/test_modern_cli_review.py	156	text = Path('run.toml').read_text()
+tests/test_modern_cli_review.py	158	Path('run.toml').write_text(text.replace('"count" = 1', '"count" = 0'))
+tests/test_modern_cli_review.py	169	for name, status in [('pyar-run.toml', 'failed'), ('pyar-run-new.toml', 'completed')]:
+tests/test_modern_cli_review.py	171	os.utime(tmp_path / 'pyar-run.toml', ns=(1, 1))
+tests/test_modern_cli_review.py	190	monkeypatch.chdir(tmp_path)
+tests/test_modern_generation_cli.py	20	monkeypatch.chdir(tmp_path)
+tests/test_modern_generation_cli.py	22	Path(name + '.xyz').write_text(f'{len(atoms)}\n{name}\n' + ''.join(f'{a} 0 0 0\n' for a in atoms))
+tests/test_modern_generation_cli.py	216	Path('aggregates').mkdir()
+tests/test_modern_generation_cli.py	218	before = Path('aggregates/state.json').read_bytes()
+tests/test_modern_generation_cli.py	220	assert Path('aggregates/state.json').read_bytes() == before
+tests/test_modern_generation_cli.py	223	assert Path('aggregates/state.json').read_bytes() == before
+tests/test_modern_generation_cli.py	229	Path(name).mkdir()
+tests/test_modern_generation_cli.py	230	Path(name, 'unrelated').write_text('preserve')
+tests/test_modern_generation_cli.py	233	assert Path(name, 'unrelated').read_text() == 'preserve'
+tests/test_modern_generation_cli.py	239	before = {p: p.read_bytes() for p in Path('grow').rglob('*') if p.is_file()}
+tests/test_modern_generation_cli.py	243	assert before == {p: p.read_bytes() for p in before}
+tests/test_modern_generation_cli.py	270	Path('conformers').mkdir()
+tests/test_modern_generation_cli.py	271	Path('conformers/state.json').write_text('{"status":"completed"}')
+tests/test_modern_generation_cli.py	272	before = Path('conformers/state.json').read_bytes()
+tests/test_modern_generation_cli.py	275	assert Path('conformers/state.json').read_bytes() == before
+tests/test_modern_generation_cli.py	310	Path('water.xyz').write_text('3\nwater\nO 0 0 0\nH .8 0 .5\nH -.8 0 .5\n')
+tests/test_modern_optimize.py	15	monkeypatch.chdir(tmp_path)
+tests/test_modern_optimize.py	17	Path(name + '.xyz').write_text(f'1\n{name}\n{atom} 0 0 0\n')
+tests/test_modern_optimize.py	107	Path('bad.xyz').write_text(contents)
+tests/test_modern_optimize.py	188	(tmp_path / 'other').mkdir()
+tests/test_modern_optimize.py	189	(tmp_path / 'other' / 'a.xyz').write_text(Path('a.xyz').read_text())
+tests/test_modern_path_cli.py	14	monkeypatch.chdir(tmp_path)
+tests/test_modern_path_cli.py	16	Path(name + '.xyz').write_text('2\nH2\nH 0 0 0\nH 0 0 0.74\n')
+tests/test_modern_path_cli.py	51	Path('ts_guess.xyz').write_text(Path('guess.xyz').read_text())
+tests/test_modern_path_cli.py	61	root = Path('prior'); root.mkdir()
+tests/test_modern_path_cli.py	63	geometry.write_text(Path('guess.xyz').read_text())
+tests/test_modern_path_cli.py	70	before = {p: p.read_bytes() for p in root.iterdir()}
+tests/test_modern_path_cli.py	73	assert before == {p: p.read_bytes() for p in root.iterdir()}
+tests/test_modern_path_cli.py	74	geometry.write_text(geometry.read_text().replace('0.74', '0.75'))
+tests/test_modern_react.py	15	path.write_text(f'1\nreactant\n{symbol} 0 0 0\n')
+tests/test_modern_react.py	31	'reaction', 'completed_no_products', 'reaction', 'reaction/state.json')) as run:
+tests/test_modern_react.py	37	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	135	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	136	before = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+tests/test_modern_react.py	139	assert before == {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+tests/test_modern_react.py	145	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	157	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	171	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	206	before = state.state_file.read_bytes()
+tests/test_modern_react.py	208	assert state.state_file.read_bytes() == before
+tests/test_modern_react.py	212	assert state.state_file.read_bytes() == before
+tests/test_modern_react.py	219	before = state.state_file.read_bytes()
+tests/test_modern_react.py	220	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	222	assert not workflow.called and state.state_file.read_bytes() == before
+tests/test_modern_react.py	255	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	271	before = state.state_file.read_bytes()
+tests/test_modern_react.py	274	assert state.state_file.read_bytes() == before
+tests/test_modern_react.py	286	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	287	Path(files[1]).write_text('2\nmalformed\nH 0 0 0\n')
+tests/test_modern_react.py	296	monkeypatch.chdir(tmp_path)
+tests/test_modern_react.py	319	monkeypatch.chdir(tmp_path)
+tests/test_modern_scan_bond.py	14	monkeypatch.chdir(tmp_path)
+tests/test_modern_scan_bond.py	15	Path('a.xyz').write_text('2\nA\nH 0 0 0\nH 0 0 0.74\n')
+tests/test_modern_scan_bond.py	16	Path('b.xyz').write_text('2\nB\nH 0 0 0\nH 0 0 0.85\n')
+tests/test_modern_scan_bond.py	95	Path('b.xyz').write_text(contents)
+tests/test_modern_scan_bond.py	103	Path('b.xyz').write_text('1\nB\nH 0 0 0\n')
+tests/test_modern_scan_bond.py	117	Path(path).write_text('1\nH radical\nH 0 0 0\n')
+tests/test_modern_scan_bond.py	170	wrapper.write_text('#!/bin/sh\nexit 0\n')
+tests/test_modern_scan_bond.py	215	root = Path('scan_bond'); root.mkdir()
+tests/test_modern_scan_bond.py	217	(root / 'request.json').write_text('invalid JSON' if state == 'invalid' else json.dumps({'request_signature': 'wrong'}))
+tests/test_modern_scan_bond.py	218	before = {p: p.read_bytes() for p in root.iterdir()}
+tests/test_modern_scan_bond.py	225	assert before == {p: p.read_bytes() for p in root.iterdir()}
+tests/test_modern_scan_bond.py	238	root = Path('scan_bond'); root.mkdir()
+tests/test_modern_scan_bond.py	239	(root / 'request.json').write_text(json.dumps(request))
+tests/test_modern_scan_bond.py	240	before = (root / 'request.json').read_bytes()
+tests/test_modern_scan_bond.py	247	assert (root / 'request.json').read_bytes() == before
+tests/test_modern_utilities.py	27	path.write_text(f'{len(atoms)}\n' + ('geometry only' if energy is None else str(energy)) + '\n' + ''.join(
+tests/test_modern_utilities.py	50	inputs = [Path(a).read_bytes(), Path(b).read_bytes()]
+tests/test_modern_utilities.py	51	monkeypatch.chdir(tmp_path)
+tests/test_modern_utilities.py	60	assert len(list(first.glob('*.xyz'))) == 8
+tests/test_modern_utilities.py	63	assert {p.name: p.read_bytes() for p in first.iterdir()} == {
+tests/test_modern_utilities.py	64	p.name: p.read_bytes() for p in (tmp_path / 'again').iterdir()}
+tests/test_modern_utilities.py	65	assert inputs == [Path(a).read_bytes(), Path(b).read_bytes()]
+tests/test_modern_utilities.py	96	monkeypatch.chdir(tmp_path)
+tests/test_modern_utilities.py	153	monkeypatch.chdir(tmp_path)
+tests/test_modern_utilities.py	157	main(['select', a, '--within', '5', '--output', 'selected'])
+tests/test_modern_utilities.py	158	assert [p.name for p in (tmp_path/'selected').iterdir()] == ['a.xyz']
+tests/test_modern_utilities.py	207	monkeypatch.chdir(tmp_path)
+tests/test_modern_utilities.py	209	files = sorted((tmp_path/'complex_fragments').glob('*.xyz'))
+tests/test_modern_utilities.py	223	monkeypatch.chdir(tmp_path)
+tests/test_modern_utilities.py	228	assert len(list((tmp_path/'a_fragments').glob('*.xyz'))) == 2
+tests/test_modern_utilities.py	235	out.mkdir()
+tests/test_modern_utilities.py	237	existing.write_text('keep')
+tests/test_modern_utilities.py	241	assert existing.read_text() == 'keep' and list(out.iterdir()) == [existing]
+tests/test_modern_utilities.py	247	from pyar.scripts.reaction_trace import main as legacy
+tests/test_modern_utilities.py	248	with patch('pyar.scripts.reaction_trace.analyse_reaction_trace', return_value={'count': 2}) as analyze, patch(
+tests/test_modern_utilities.py	249	'pyar.scripts.reaction_trace.plot_reaction_trace', return_value={'files': ['plot.png']}) as plot:
+tests/test_modern_utilities.py	281	(tmp_path/'one').mkdir()
+tests/test_modern_utilities.py	282	(tmp_path/'two').mkdir()
+tests/test_modern_utilities.py	299	from pyar.reaction_trace import ReactionTraceRecorder
+tests/test_modern_utilities.py	313	assert (tmp_path/'path_summary.csv').is_file()
+tests/test_modern_utilities.py	314	from pyar.scripts.reaction_trace import main as legacy
+tests/test_modern_utilities.py	315	first_artifact = (tmp_path/'path_summary.csv').read_bytes()
+tests/test_modern_utilities.py	316	legacy([str(tmp_path/'reaction_trace')])
+tests/test_modern_utilities.py	317	assert (tmp_path/'path_summary.csv').read_bytes() == first_artifact
+tests/test_modern_utilities.py	325	assert len(list(out.glob('*.xyz'))) == 20
+tests/test_modern_utilities.py	330	project = tomllib.loads((Path(__file__).parents[1]/'pyproject.toml').read_text())['project']
+tests/test_molecule.py	14	path.write_text(
+tests/test_molecule.py	29	path.write_text(
+tests/test_molecule.py	39	path.write_text("notanint\nx\n")
+tests/test_molecule.py	46	path.write_text("notanint\nx\n")
+tests/test_molecule.py	71	def test_copy_preserves_failed_job_without_coordinates(self):
+tests/test_molecule_helpers.py	48	self.assertIn("$coord", path.read_text())
+tests/test_molecule_helpers.py	49	self.assertIn("$end", path.read_text())
+tests/test_neb.py	145	path.write_text(
+tests/test_neb.py	299	neb_summary_path = tmp_path / "neb_summary.json"
+tests/test_neb.py	300	neb_summary = json.loads(neb_summary_path.read_text())
+tests/test_neb.py	302	neb_summary_path.write_text(json.dumps(neb_summary))
+tests/test_neb.py	471	assert json.loads((tmp_path / "ts_summary.json").read_text())["status"] == "failed"
+tests/test_neb.py	645	summary = json.loads((tmp_path / "ts_summary.json").read_text())
+tests/test_neb.py	713	lines = Path(path).read_text().splitlines()
+tests/test_neb.py	768	stored = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	785	summary_path = tmp_path / "neb_summary.json"
+tests/test_neb.py	786	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	790	summary_path.write_text(json.dumps(summary))
+tests/test_neb.py	801	summary_path = tmp_path / "neb_summary.json"
+tests/test_neb.py	802	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	804	summary_path.write_text(json.dumps(summary))
+tests/test_neb.py	823	summary_path = tmp_path / "neb_summary.json"
+tests/test_neb.py	824	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	837	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	839	summary_path.write_text(json.dumps(summary))
+tests/test_neb.py	851	mismatch.write_text("3\nwrong order\nC 0 0 0\nH 1 0 0\nN 2 0 0\n")
+tests/test_neb.py	886	path.write_text(contents)
+tests/test_neb.py	919	geometry.write_text((DATA / "hcn.xyz").read_text())
+tests/test_neb.py	921	summary_path = tmp_path / "ts_summary.json"
+tests/test_neb.py	922	historical_summary = json.loads(summary_path.read_text())
+tests/test_neb.py	925	summary_path.write_text(json.dumps(historical_summary))
+tests/test_neb.py	932	geometry.write_text((DATA / "hnc.xyz").read_text())
+tests/test_neb.py	944	summary_path = tmp_path / "ts_summary.json"
+tests/test_neb.py	945	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	968	gfn2_summary = json.loads((gfn2_output / "ts_summary.json").read_text())
+tests/test_neb.py	1013	(output / f"{label}_frequencies.vdata").write_text("frequency data")
+tests/test_neb.py	1042	assert json.loads((tmp_path / "workflow_summary.json").read_text())["status"] == "complete"
+tests/test_neb.py	1086	parameters = json.loads((tmp_path / "neb_summary.json").read_text())["parameters"]
+tests/test_neb.py	1100	summary_path = tmp_path / "neb_summary.json"
+tests/test_neb.py	1101	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	1104	summary_path.write_text(json.dumps(summary))
+tests/test_neb.py	1240	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1257	path_comment = Path(tmp_path / "neb_path.xyz").read_text().splitlines()[2 * (len(symbols) + 2) + 1]
+tests/test_neb.py	1271	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1289	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1306	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1320	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1333	summary_path = tmp_path / "neb_summary.json"
+tests/test_neb.py	1334	summary = json.loads(summary_path.read_text())
+tests/test_neb.py	1341	summary_path.write_text(json.dumps(summary))
+tests/test_neb.py	1343	unchanged = json.loads(summary_path.read_text())
+tests/test_neb.py	1357	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1378	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1408	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1422	summary = json.loads((tmp_path / "neb_summary.json").read_text())
+tests/test_neb.py	1473	assert json.loads((tmp_path / "irc_summary.json").read_text())["status"] == "failed"
+tests/test_neb.py	1484	summary = json.loads((tmp_path / "frequency_summary.json").read_text())
+tests/test_neb.py	1501	(tmp_path / "ts_optimized.xyz").write_text((DATA / "hcn.xyz").read_text())
+tests/test_neb.py	1511	original = json.loads((tmp_path / "frequency_summary.json").read_text())
+tests/test_neb.py	1516	current = json.loads((tmp_path / "frequency_summary.json").read_text())
+tests/test_neb.py	1562	snapshots = {path: hashlib.sha256(path.read_bytes()).hexdigest() for path in (
+tests/test_neb.py	1563	tmp_path / 'endpoint-relax_summary.json', tmp_path / 'irc_forward_relaxed.xyz',
+tests/test_neb.py	1570	assert all(hashlib.sha256(path.read_bytes()).hexdigest() == digest for path, digest in snapshots.items())
+tests/test_neb.py	1616	directory.mkdir(parents=True, exist_ok=True)
+tests/test_neb.py	1623	recovered = OrcaBondScanResult(True, trajectory, final, hnc, directory / 'request.json',
+tests/test_neb.py	1624	directory / 'summary.json', 'success',
+tests/test_neb.py	1658	replacement.write_text((DATA / 'guess.xyz').read_text())
+tests/test_orca_optts_comparison.py	32	path.parent.mkdir(parents=True, exist_ok=True)
+tests/test_orca_optts_comparison.py	33	path.write_text(json.dumps(result), encoding="utf-8")
+tests/test_orca_optts_comparison.py	79	for source in paired.glob(f"cases/*/{method}/benchmark_result.json"):
+tests/test_orca_optts_comparison.py	81	target.parent.mkdir(parents=True, exist_ok=True)
+tests/test_orca_optts_comparison.py	82	shutil.copyfile(source, target)
+tests/test_orca_optts_comparison.py	100	for path in orca.glob("cases/*/orca_optts/benchmark_result.json"):
+tests/test_orca_optts_comparison.py	101	result = json.loads(path.read_text(encoding="utf-8"))
+tests/test_orca_optts_comparison.py	109	path.write_text(json.dumps(result), encoding="utf-8")
+tests/test_orca_optts_comparison.py	110	for path in paired.glob("cases/*/sella/benchmark_result.json"):
+tests/test_orca_optts_comparison.py	111	result = json.loads(path.read_text(encoding="utf-8"))
+tests/test_orca_optts_comparison.py	117	path.write_text(json.dumps(result), encoding="utf-8")
+tests/test_orca_optts_comparison.py	118	for path in paired.glob("cases/*/geometric/benchmark_result.json"):
+tests/test_orca_optts_comparison.py	119	result = json.loads(path.read_text(encoding="utf-8"))
+tests/test_orca_optts_comparison.py	121	path.write_text(json.dumps(result), encoding="utf-8")
+tests/test_orca_optts_comparison.py	147	result = json.loads(path.read_text())
+tests/test_orca_optts_comparison.py	153	path.write_text(json.dumps(result))
+tests/test_orientation_sampling.py	210	first = output_path.read_text()
+tests/test_orientation_sampling.py	212	second = output_path.read_text()
+tests/test_orientation_sampling.py	226	first_text = first_path.read_text()
+tests/test_orientation_sampling.py	227	second_text = second_path.read_text()
+tests/test_packaging_metadata.py	19	scripts = tomllib.loads(Path("pyproject.toml").read_text())["project"]["scripts"]
+tests/test_packaging_metadata.py	27	project_version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+tests/test_packaging_metadata.py	44	metadata = tomllib.loads(Path("pyproject.toml").read_text())
+tests/test_packaging_metadata.py	62	metadata = tomllib.loads(Path("pyproject.toml").read_text())
+tests/test_packaging_metadata.py	69	metadata = tomllib.loads(Path("pyproject.toml").read_text())
+tests/test_packaging_metadata.py	81	wheels = sorted(Path("dist").glob("pyar_chem-*.whl"))
+tests/test_reaction_characterization.py	12	path.parent.mkdir(parents=True, exist_ok=True)
+tests/test_reaction_characterization.py	13	path.write_text(f"{len(atoms)}\nfixture\n" + "".join(
+tests/test_reaction_characterization.py	55	job = reaction / "gamma_0100" / "orientation_x" / "job_gamma_0100_x"
+tests/test_reaction_characterization.py	56	candidates = job / "candidate_ts"
+tests/test_reaction_characterization.py	57	candidates.mkdir(parents=True)
+tests/test_reaction_characterization.py	64	(candidates / "metadata.json").write_text("{}\n")
+tests/test_reaction_characterization.py	65	trace = job / "reaction_trace"
+tests/test_reaction_characterization.py	66	trace.mkdir()
+tests/test_reaction_characterization.py	67	(trace / "trace.jsonl").write_text("trace metadata fixture\n")
+tests/test_reaction_characterization.py	78	product = {"job_name": "gamma_0100_x", "gamma": 100.0,
+tests/test_reaction_characterization.py	80	"trace_summary": {"candidate_ts_directory": str(candidates)}}
+tests/test_reaction_characterization.py	82	(reaction / "state.json").write_text(json.dumps({
+tests/test_reaction_characterization.py	96	route = json.loads(route_file.read_text())
+tests/test_reaction_characterization.py	99	assert route["candidate_ts_source"] == "highest_backend_energy"
+tests/test_reaction_characterization.py	100	assert route["candidate_ts_is_validated_transition_state"] is False
+tests/test_reaction_characterization.py	116	old_waypoint.write_bytes(new_waypoint.read_bytes())
+tests/test_reaction_characterization.py	119	route_file.write_text(json.dumps(route, indent=2, sort_keys=True) + "\n")
+tests/test_reaction_characterization.py	122	before = {path.relative_to(reaction): path.read_bytes() for path in (reaction / "pathways").rglob("*")
+tests/test_reaction_characterization.py	126	after = {path.relative_to(reaction): path.read_bytes() for path in (reaction / "pathways").rglob("*")
+tests/test_reaction_characterization.py	131	resumed_route = json.loads(route_file.read_text())
+tests/test_reaction_energy.py	19	monkeypatch.chdir(tmp_path)
+tests/test_reaction_energy.py	26	name = Path.cwd().name.removeprefix('job_')
+tests/test_reaction_energy.py	30	Path('pyar_geometric_state.json').write_text(json.dumps({
+tests/test_reaction_energy.py	44	saved = Molecule.from_xyz(f'job_{molecule.name}/result_{molecule.name}.xyz')
+tests/test_reaction_energy.py	48	write_xyz(['C', 'C'], molecules[0].coordinates, 'job_a/result_a.xyz', energy=100.)
+tests/test_reaction_energy.py	52	state = json.loads(Path('job_a/pyar_geometric_state.json').read_text())
+tests/test_reaction_energy.py	54	Path('job_a/pyar_geometric_state.json').write_text(json.dumps(state))
+tests/test_reaction_energy.py	58	state = json.loads(Path('job_a/pyar_geometric_state.json').read_text())
+tests/test_reaction_energy.py	61	Path('job_a/pyar_geometric_state.json').write_text(json.dumps(state))
+tests/test_reaction_identity.py	32	reference.write_text("1\nref\nH 0 0 0\n")
+tests/test_reaction_identity.py	42	xyz_path.write_text("1\ncandidate\nH 0 0 0\n")
+tests/test_reaction_identity.py	94	optimized_directory = orientation_directory / "job_0001_abcdefgh"
+tests/test_reaction_identity.py	95	optimized_directory.mkdir(parents=True)
+tests/test_reaction_identity.py	96	(orientation_directory / "result_relax.xyz").write_text("1\nrelaxed\nH 0 0 0\n")
+tests/test_reaction_identity.py	97	(optimized_directory / "result_0001_abcdefgh.xyz").write_text(
+tests/test_reaction_identity.py	107	self.assertEqual(final_coordinate, "orientation_abcdefgh/result_relax.xyz")
+tests/test_reaction_identity.py	109	def test_orientation_final_coordinate_path_uses_relax_job_when_snapshot_is_missing(self):
+tests/test_reaction_identity.py	113	relax_directory = orientation_directory / "job_relax"
+tests/test_reaction_identity.py	114	biased_directory = orientation_directory / "job_0001_abcdefgh"
+tests/test_reaction_identity.py	115	relax_directory.mkdir(parents=True)
+tests/test_reaction_identity.py	116	biased_directory.mkdir()
+tests/test_reaction_identity.py	117	(relax_directory / "result_relax.xyz").write_text("1\nrelax job\nH 0 0 0\n")
+tests/test_reaction_identity.py	118	(biased_directory / "result_0001_abcdefgh.xyz").write_text(
+tests/test_reaction_identity.py	128	self.assertEqual(final_coordinate, "orientation_abcdefgh/job_relax/result_relax.xyz")
+tests/test_reaction_identity.py	130	def test_reaction_optimize_all_logs_existing_biased_result_for_survivor(self):
+tests/test_reaction_identity.py	139	Path(filename).write_text("1\norientation\nH 0 0 0\n")
+tests/test_reaction_identity.py	159	result_directory = Path(f"job_{molecule.name}")
+tests/test_reaction_identity.py	160	result_directory.mkdir()
+tests/test_reaction_identity.py	161	(result_directory / f"result_{molecule.name}.xyz").write_text(
+tests/test_reaction_identity.py	170	os.chdir(tmpdir)
+tests/test_reaction_identity.py	172	product_dir.mkdir()
+tests/test_reaction_identity.py	188	os.chdir(cwd)
+tests/test_reaction_identity.py	192	"final_coordinate=orientation_abcdefgh/job_0001_abcdefgh/"
+tests/test_reaction_identity.py	193	"result_0001_abcdefgh.xyz",
+tests/test_reaction_identity.py	196	self.assertNotIn("final_coordinate=orientation_abcdefgh/result_relax.xyz", logged_messages)
+tests/test_reaction_identity.py	206	Path(filename).write_text("1\norientation\nH 0 0 0\n")
+tests/test_reaction_identity.py	235	os.chdir(tmpdir)
+tests/test_reaction_identity.py	244	os.chdir(cwd)
+tests/test_reaction_identity.py	257	Path(filename).write_text("1\norientation\nH 0 0 0\n")
+tests/test_reaction_identity.py	293	"analyse_reaction_trace",
+tests/test_reaction_identity.py	294	return_value={"candidate_ts_directory": "candidate_ts"},
+tests/test_reaction_identity.py	296	os.chdir(tmpdir)
+tests/test_reaction_identity.py	298	product_dir.mkdir()
+tests/test_reaction_identity.py	308	os.chdir(cwd)
+tests/test_reaction_identity.py	318	Path(filename).write_text("1\norientation\nH 0 0 0\n")
+tests/test_reaction_identity.py	363	os.chdir(tmpdir)
+tests/test_reaction_identity.py	365	product_dir.mkdir()
+tests/test_reaction_identity.py	374	os.chdir(cwd)
+tests/test_reaction_review_regressions.py	13	analyse_reaction_trace,
+tests/test_reaction_review_regressions.py	15	from pyar.reaction_trace import ReactionTraceRecorder
+tests/test_reaction_review_regressions.py	65	first = analyse_reaction_trace(tmp_path)
+tests/test_reaction_review_regressions.py	66	candidate = tmp_path / "candidate_ts" / "first_topology_change.xyz"
+tests/test_reaction_review_regressions.py	70	filtered = analyse_reaction_trace(tmp_path, max_force=0.05)
+tests/test_reaction_review_regressions.py	73	metadata = json.loads((tmp_path / "candidate_ts" / "metadata.json").read_text())
+tests/test_reaction_review_regressions.py	76	with (tmp_path / "path_summary.csv").open() as stream:
+tests/test_reaction_state.py	46	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	74	saved = json.loads(state.state_file.read_text())
+tests/test_reaction_state.py	81	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	140	def test_record_job_and_complete_cycle_are_persisted(self):
+tests/test_reaction_state.py	142	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	150	state.record_job("job_0", 100.0, "success", [], [self.orientation])
+tests/test_reaction_state.py	155	self.assertEqual(loaded.data["completed_jobs"][0]["job_name"], "job_0")
+tests/test_reaction_state.py	160	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	168	state.record_job("job_0", 100.0, "success", [], [self.orientation])
+tests/test_reaction_state.py	178	products.mkdir(parents=True)
+tests/test_reaction_state.py	199	products.mkdir(parents=True)
+tests/test_reaction_state.py	216	"path_summary_csv": "reaction/path_summary.csv",
+tests/test_reaction_state.py	217	"candidate_ts_directory": "reaction/candidate_ts",
+tests/test_reaction_state.py	223	loaded.data["products"][0]["trace_summary"]["candidate_ts_directory"],
+tests/test_reaction_state.py	224	"reaction/candidate_ts",
+tests/test_reaction_state.py	229	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	247	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	262	Path(tmpdir, "reaction").mkdir()
+tests/test_reaction_state.py	276	Path(tmpdir, "jobs.pkl").write_bytes(b"not a pickle")
+tests/test_reaction_trace.py	15	from pyar.reaction_analysis import _candidate_record_indices, analyse_reaction_trace
+tests/test_reaction_trace.py	16	from pyar.reaction_analysis import plot_reaction_trace
+tests/test_reaction_trace.py	17	from pyar.reaction_trace import bond_changes, infer_bonds, load_trace_records
+tests/test_reaction_trace.py	35	from pyar.reaction_trace import ReactionTraceRecorder
+tests/test_reaction_trace.py	72	records = load_trace_records(Path(tmpdir) / "reaction_trace")
+tests/test_reaction_trace.py	74	self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
+tests/test_reaction_trace.py	75	self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
+tests/test_reaction_trace.py	115	os.chdir(tmpdir)
+tests/test_reaction_trace.py	138	os.chdir(cwd)
+tests/test_reaction_trace.py	140	trace_records = load_trace_records(Path(tmpdir) / "reaction_trace")
+tests/test_reaction_trace.py	173	self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000000.xyz").exists())
+tests/test_reaction_trace.py	174	self.assertTrue((Path(tmpdir) / "reaction_trace" / "steps" / "step_000001.xyz").exists())
+tests/test_reaction_trace.py	180	trace_dir = Path(tmpdir) / "reaction_trace"
+tests/test_reaction_trace.py	181	trace_dir.mkdir()
+tests/test_reaction_trace.py	233	os.chdir(tmpdir)
+tests/test_reaction_trace.py	253	os.chdir(cwd)
+tests/test_reaction_trace.py	255	summary = analyse_reaction_trace(Path(tmpdir))
+tests/test_reaction_trace.py	256	trace_records = load_trace_records(Path(tmpdir) / "reaction_trace")
+tests/test_reaction_trace.py	259	self.assertTrue((Path(tmpdir) / "path_summary.csv").exists())
+tests/test_reaction_trace.py	260	self.assertTrue((Path(tmpdir) / "candidate_ts" / "metadata.json").exists())
+tests/test_reaction_trace.py	261	self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_backend_energy.xyz").exists())
+tests/test_reaction_trace.py	262	self.assertTrue((Path(tmpdir) / "candidate_ts" / "pre_product_geometry.xyz").exists())
+tests/test_reaction_trace.py	263	self.assertTrue((Path(tmpdir) / "candidate_ts" / "first_topology_change.xyz").exists())
+tests/test_reaction_trace.py	264	self.assertTrue((Path(tmpdir) / "candidate_ts" / "highest_total_energy.xyz").exists())
+tests/test_reaction_trace.py	266	self.assertIn("2", Path(tmpdir, "candidate_ts", "highest_backend_energy.xyz").read_text())
+tests/test_reaction_trace.py	268	with Path(tmpdir, "path_summary.csv").open(newline="", encoding="utf-8") as fp:
+tests/test_reaction_trace.py	277	self.assertEqual(rows[0]["xyz_file"], "reaction_trace/steps/step_000000.xyz")
+tests/test_reaction_trace.py	279	metadata = json.loads(Path(tmpdir, "candidate_ts", "metadata.json").read_text())
+tests/test_reaction_trace.py	285	job_dir = Path(tmpdir)
+tests/test_reaction_trace.py	286	trace_dir = job_dir / "reaction_trace"
+tests/test_reaction_trace.py	287	trace_dir.mkdir()
+tests/test_reaction_trace.py	382	summary = analyse_reaction_trace(job_dir)
+tests/test_reaction_trace.py	387	transition = Path(job_dir / "candidate_ts" / "first_topology_change.xyz").read_text()
+tests/test_reaction_trace.py	389	pre_product = Path(job_dir / "candidate_ts" / "pre_product_geometry.xyz").read_text()
+tests/test_reaction_trace.py	392	def test_reaction_trace_analysis_selects_backend_energy_not_total_energy(self):
+tests/test_reaction_trace.py	394	job_dir = Path(tmpdir)
+tests/test_reaction_trace.py	395	trace_dir = job_dir / "reaction_trace"
+tests/test_reaction_trace.py	396	trace_dir.mkdir()
+tests/test_reaction_trace.py	440	summary = analyse_reaction_trace(job_dir)
+tests/test_reaction_trace.py	443	self.assertTrue((job_dir / "path_summary.csv").exists())
+tests/test_reaction_trace.py	444	self.assertTrue((job_dir / "candidate_ts" / "highest_backend_energy.xyz").exists())
+tests/test_reaction_trace.py	445	self.assertTrue((job_dir / "candidate_ts" / "highest_total_energy.xyz").exists())
+tests/test_reaction_trace.py	446	self.assertTrue((job_dir / "candidate_ts" / "pre_product_geometry.xyz").exists())
+tests/test_reaction_trace.py	447	self.assertTrue((job_dir / "candidate_ts" / "first_topology_change.xyz").exists())
+tests/test_reaction_trace.py	449	highest_backend = Path(job_dir / "candidate_ts" / "highest_backend_energy.xyz").read_text()
+tests/test_reaction_trace.py	450	highest_total = Path(job_dir / "candidate_ts" / "highest_total_energy.xyz").read_text()
+tests/test_reaction_trace.py	454	def test_analyse_reaction_trace_rejects_duplicate_step_indices(self):
+tests/test_reaction_trace.py	456	job_dir = Path(tmpdir)
+tests/test_reaction_trace.py	457	trace_dir = job_dir / "reaction_trace"
+tests/test_reaction_trace.py	458	trace_dir.mkdir()
+tests/test_reaction_trace.py	503	analyse_reaction_trace(job_dir)
+tests/test_reaction_trace.py	505	def test_plot_reaction_trace_writes_png_files(self):
+tests/test_reaction_trace.py	507	job_dir = Path(tmpdir)
+tests/test_reaction_trace.py	508	trace_dir = job_dir / "reaction_trace"
+tests/test_reaction_trace.py	509	trace_dir.mkdir()
+tests/test_reaction_trace.py	553	plot_summary = plot_reaction_trace(job_dir)
+tests/test_reaction_trace.py	556	self.assertTrue(Path(plot_summary["plots"]["reaction_trace_energies"]).exists())
+tests/test_reaction_trace.py	557	self.assertTrue(Path(plot_summary["plots"]["reaction_trace_metrics"]).exists())
+tests/test_reaction_trace.py	558	self.assertEqual(plot_summary["plot_directory"], str(job_dir / "trace_plots"))
+tests/test_rgd1_tsopt_adapter.py	15	cases_root.mkdir(parents=True)
+tests/test_rgd1_tsopt_adapter.py	26	case_root.mkdir(parents=True)
+tests/test_rgd1_tsopt_adapter.py	32	(case_root / "ts_ref.xyz").write_text(geometry)
+tests/test_rgd1_tsopt_adapter.py	33	(case_root / "ts_ref.hessian").write_text("synthetic Hessian fixture\n")
+tests/test_rgd1_tsopt_adapter.py	34	(case_root / "provenance.txt").write_text(f"source=RGD1 reaction {case_id}\n")
+tests/test_rgd1_tsopt_adapter.py	35	(case_root / "reactant.xyz").write_text(geometry)
+tests/test_rgd1_tsopt_adapter.py	36	(case_root / "product.xyz").write_text(geometry)
+tests/test_rgd1_tsopt_adapter.py	37	(case_root / "ts_ref.energy").write_text("-1.2345\n")
+tests/test_rgd1_tsopt_adapter.py	39	(case_root / f"start_{tier}.xyz").write_text(geometry)
+tests/test_rgd1_tsopt_adapter.py	50	(root / "settings.json").write_text(json.dumps({
+tests/test_rgd1_tsopt_adapter.py	56	(root / "README.md").write_text("synthetic test dataset")
+tests/test_rgd1_tsopt_adapter.py	65	raw = json.loads(first.read_text())
+tests/test_rgd1_tsopt_adapter.py	85	second_raw = json.loads(second.read_text())
+tests/test_rgd1_tsopt_adapter.py	126	manifest_path.write_text("\t".join(rows[0]) + "\n" + "\t".join(
+tests/test_rgd1_tsopt_adapter.py	134	(case_root / "product.xyz").write_text("4\nwrong order\nH 0 0 0\nC 1 0 0\nH 2 0 0\nH 3 0 0\n")
+tests/test_scan_bond.py	14	parse_orca_scan_profile,
+tests/test_scan_bond.py	57	trajectory.write_text(
+tests/test_scan_bond.py	64	trajectory.write_text("2\ntruncated\nH 0 0 0\n")
+tests/test_scan_bond.py	71	trajectory.write_text("2\nframe\nH 0 0 0\nH nan 0 0\n")
+tests/test_scan_bond.py	84	Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
+tests/test_scan_bond.py	85	Path("scan.allxyz").write_text(
+tests/test_scan_bond.py	89	Path("scan.relaxscanact.dat").write_text("2.0 -1.0\n1.0 -0.5\n")
+tests/test_scan_bond.py	100	assert "B 0 1 = 2.0000000000, 1.0000000000, 2" in result.input_path.read_text()
+tests/test_scan_bond.py	101	assert "UKS" in result.input_path.read_text()
+tests/test_scan_bond.py	102	assert "MaxIter 25" in result.input_path.read_text()
+tests/test_scan_bond.py	112	def test_parse_orca_scan_profile_rejects_invalid_rows(tmp_path):
+tests/test_scan_bond.py	114	profile.write_text("2.0 -1.0\ninvalid row\n")
+tests/test_scan_bond.py	116	parse_orca_scan_profile(profile)
+tests/test_scan_bond.py	123	scan_dir.mkdir()
+tests/test_scan_bond.py	124	(scan_dir / "scan.out").write_text("****ORCA TERMINATED NORMALLY****")
+tests/test_scan_bond.py	125	(scan_dir / "scan.allxyz").write_text(
+tests/test_scan_bond.py	129	(scan_dir / "scan.relaxscanact.dat").write_text("1.9 -1.0\n1.0 -0.5\n")
+tests/test_scan_bond.py	132	assert result.status == "scan_profile_grid_mismatch"
+tests/test_scan_bond.py	135	def test_scan_profile_writes_relative_energies_and_internal_maximum(tmp_path):
+tests/test_scan_bond.py	136	from pyar.workflows.scan_bond import _write_scan_profile
+tests/test_scan_bond.py	139	scan_dir.mkdir(parents=True)
+tests/test_scan_bond.py	151	result = _write_scan_profile(scan_dir, frames, profile)
+tests/test_scan_bond.py	158	rows = (scan_dir / "scan_profile.csv").read_text().splitlines()
+tests/test_scan_bond.py	160	metadata = json.loads(Path(result["ts_candidate_metadata"]).read_text())
+tests/test_scan_bond.py	171	wrapper.write_text("#!/bin/sh\n")
+tests/test_scan_bond.py	185	wrapper.write_text("#!/bin/sh\n")
+tests/test_scan_bond.py	194	contents = input_path.read_text()
+tests/test_scan_bond.py	206	fragment_a.write_text("1\nA\nH 0 0 0\n")
+tests/test_scan_bond.py	207	fragment_b.write_text("1\nB\nH 1 0 0\n")
+tests/test_scan_bond.py	216	wrapper.write_text("#!/bin/sh\n")
+tests/test_scan_bond.py	231	Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
+tests/test_scan_bond.py	232	Path("scan.allxyz").write_text("2\nframe 1\nH 0 0 0\nH 2 0 0\n")
+tests/test_scan_bond.py	268	directory.mkdir(parents=True, exist_ok=True)
+tests/test_scan_bond.py	273	input_path.write_text("scan")
+tests/test_scan_bond.py	274	output_path.write_text("normal")
+tests/test_scan_bond.py	276	trajectory.write_text(
+tests/test_scan_bond.py	295	Path("job_relaxed").mkdir()
+tests/test_scan_bond.py	297	Path("job_relaxed") / "result_relaxed.xyz")
+tests/test_scan_bond.py	332	assert (tmp_path / "scan_bond" / "summary.json").exists()
+tests/test_scan_bond.py	333	assert (tmp_path / "scan_bond" / "orientation_000" / "result_relaxed.xyz").exists()
+tests/test_scan_bond.py	335	assert (tmp_path / "scan_bond" / "orientation_000" / "scan" / "scan_profile.csv").exists()
+tests/test_scan_bond.py	336	assert (tmp_path / "scan_bond" / "orientation_000" / "ts_candidates" / "highest_scan_energy.xyz").exists()
+tests/test_scan_bond.py	345	artifact = tmp_path / "scan_bond/orientation_000/ts_candidates/highest_scan_energy.xyz"
+tests/test_scan_bond.py	346	artifact.write_text("tampered")
+tests/test_scan_bond.py	354	assert artifact.read_text() != "tampered"
+tests/test_scan_bond.py	369	directory.mkdir(parents=True, exist_ok=True)
+tests/test_scan_bond.py	374	input_path.write_text("scan")
+tests/test_scan_bond.py	375	output_path.write_text("normal")
+tests/test_scan_bond.py	377	trajectory.write_text("2\nframe\nH 0 0 0\nH 1 0 0\n")
+tests/test_scan_bond.py	395	Path("job_relaxed").mkdir()
+tests/test_scan_bond.py	397	Path("job_relaxed") / "result_relaxed.xyz")
+tests/test_scan_bond.py	443	directory.mkdir(parents=True, exist_ok=True)
+tests/test_scan_bond.py	465	directory.mkdir(parents=True, exist_ok=True)
+tests/test_scan_bond.py	470	input_path.write_text("scan")
+tests/test_scan_bond.py	471	output_path.write_text("normal")
+tests/test_scan_bond.py	487	trajectory.write_text("".join(trajectory_text))
+tests/test_scan_bond.py	493	Path("job_relaxed").mkdir()
+tests/test_scan_bond.py	495	Path("job_relaxed") / "result_relaxed.xyz")
+tests/test_scan_bond.py	512	request = json.loads((tmp_path / "scan_bond" / "request.json").read_text())
+tests/test_scientific_clustering_benchmark.py	30	xtb.write_text("test executable identity")
+tests/test_scientific_clustering_benchmark.py	49	log.write_text(log.read_text().replace('-1.0', '-2.0'))
+tests/test_scientific_clustering_benchmark.py	104	(run / "results").mkdir(parents=True)
+tests/test_scientific_clustering_benchmark.py	105	(run / "manifest.json").write_text('''{
+tests/test_scientific_clustering_benchmark.py	113	(run / "reference_basins.json").write_text('''{
+tests/test_scientific_clustering_benchmark.py	145	(run / "results" / "comparison.json").write_text(
+tests/test_scientific_clustering_benchmark.py	160	xtb.write_text('executable')
+tests/test_scientific_clustering_benchmark.py	163	frame.mkdir(parents=True)
+tests/test_scientific_clustering_benchmark.py	164	(frame / 'xtbopt.xyz').write_text('stale optimized geometry')
+tests/test_scientific_clustering_benchmark.py	165	(frame / 'xtbrestart').write_text('stale restart')
+tests/test_scripts_clustering.py	19	path_a.write_text("1\na: 0.0\nH 0 0 0\n")
+tests/test_scripts_clustering.py	20	path_b.write_text("1\nb: 1.0\nH 0 0 1\n")
+tests/test_scripts_clustering.py	56	path.write_text(f"2\n{name}: energy={distance}\nH 0 0 0\nH {distance} 0 0\n")
+tests/test_scripts_clustering.py	70	report = json.loads(report_path.read_text())
+tests/test_scripts_energy_table.py	16	path_a.write_text("1\na: -10.0\nH 0 0 0\n")
+tests/test_scripts_energy_table.py	17	path_b.write_text("1\nb: -9.5\nH 0 0 1\n")
+tests/test_scripts_workflows.py	21	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	36	os.chdir(cwd)
+tests/test_scripts_workflows.py	45	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	60	os.chdir(cwd)
+tests/test_scripts_workflows.py	68	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	93	os.chdir(cwd)
+tests/test_scripts_workflows.py	109	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	132	os.chdir(cwd)
+tests/test_scripts_workflows.py	139	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	159	os.chdir(cwd)
+tests/test_scripts_workflows.py	171	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	190	os.chdir(cwd)
+tests/test_scripts_workflows.py	195	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	201	selected_paths=("conformers/selected/conf_0000.xyz",),
+tests/test_scripts_workflows.py	221	os.chdir(cwd)
+tests/test_scripts_workflows.py	244	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	250	selected_paths=("conformers/selected/conf_0000.xyz",),
+tests/test_scripts_workflows.py	255	os.chdir(cwd)
+tests/test_scripts_workflows.py	273	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	279	selected_paths=("conformers/selected/conf_0000.xyz",),
+tests/test_scripts_workflows.py	284	os.chdir(cwd)
+tests/test_scripts_workflows.py	291	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	303	os.chdir(cwd)
+tests/test_scripts_workflows.py	311	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	322	os.chdir(cwd)
+tests/test_scripts_workflows.py	326	def test_reaction_trace_script_analyzes_and_plots(self):
+tests/test_scripts_workflows.py	331	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	333	script = self._import_in_tempdir("pyar.scripts.reaction_trace")
+tests/test_scripts_workflows.py	334	trace_dir = Path(tmpdir) / "reaction_trace"
+tests/test_scripts_workflows.py	335	trace_dir.mkdir()
+tests/test_scripts_workflows.py	364	self.assertTrue((Path(tmpdir) / "path_summary.csv").exists())
+tests/test_scripts_workflows.py	365	self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_energies.png").exists())
+tests/test_scripts_workflows.py	366	self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_metrics.png").exists())
+tests/test_scripts_workflows.py	368	os.chdir(cwd)
+tests/test_scripts_workflows.py	370	def test_reaction_trace_script_plot_only_skips_summary_generation(self):
+tests/test_scripts_workflows.py	375	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	377	script = self._import_in_tempdir("pyar.scripts.reaction_trace")
+tests/test_scripts_workflows.py	378	trace_dir = Path(tmpdir) / "reaction_trace"
+tests/test_scripts_workflows.py	379	trace_dir.mkdir()
+tests/test_scripts_workflows.py	409	self.assertFalse((Path(tmpdir) / "path_summary.csv").exists())
+tests/test_scripts_workflows.py	410	self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_energies.png").exists())
+tests/test_scripts_workflows.py	411	self.assertTrue((Path(tmpdir) / "trace_plots" / "reaction_trace_metrics.png").exists())
+tests/test_scripts_workflows.py	413	os.chdir(cwd)
+tests/test_scripts_workflows.py	418	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	441	os.chdir(cwd)
+tests/test_scripts_workflows.py	461	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	477	os.chdir(cwd)
+tests/test_scripts_workflows.py	510	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	527	os.chdir(cwd)
+tests/test_scripts_workflows.py	552	def test_unbiased_relaxation_restores_job_name_after_failure(self):
+tests/test_scripts_workflows.py	563	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	569	os.chdir(cwd)
+tests/test_scripts_workflows.py	636	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	658	os.chdir(cwd)
+tests/test_scripts_workflows.py	678	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	692	os.chdir(cwd)
+tests/test_scripts_workflows.py	704	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	727	os.chdir(cwd)
+tests/test_scripts_workflows.py	795	os.chdir(tmpdir)
+tests/test_scripts_workflows.py	818	os.chdir(cwd)
+tests/test_selection_clusterers.py	76	def test_all_noise_result_uses_fallback_clusterer():
+tests/test_selection_reports.py	15	SimpleNamespace(name="low", energy=0.0, relative_path="selected/result_low.xyz"),
+tests/test_selection_reports.py	16	SimpleNamespace(name="high", energy=1.0, relative_path="selected/result_high.xyz"),
+tests/test_selection_reports.py	26	self.assertIn("Global minimum: low (selected/result_low.xyz)", output)
+tests/test_selection_reports.py	31	xyz_file.write_text("1\ntrial orientation 002_002_ag_a_001_b_004: -40.5243989267341\nH 0 0 0\n")
+tests/test_solvation.py	32	Path(filename).write_text(
+tests/test_solvation.py	58	os.chdir(tmpdir)
+tests/test_solvation.py	70	state_exists = Path("solvation", "state.json").is_file()
+tests/test_solvation.py	72	os.chdir(cwd)
+tests/test_solvation.py	77	self.assertTrue(result.state_path.endswith("solvation/state.json"))
+tests/test_solvation.py	87	os.chdir(tmpdir)
+tests/test_solvation.py	99	with Path("solvation", "state.json").open() as fp:
+tests/test_solvation.py	102	os.chdir(cwd)
+tests/test_solvation.py	115	os.chdir(tmpdir)
+tests/test_solvation.py	133	os.chdir(cwd)
+tests/test_solvation.py	143	os.chdir(tmpdir)
+tests/test_solvation.py	157	os.chdir(cwd)
+tests/test_solvation.py	167	os.chdir(tmpdir)
+tests/test_solvation.py	192	os.chdir(cwd)
+tests/test_solvation.py	209	os.chdir(tmpdir)
+tests/test_solvation.py	234	os.chdir(cwd)
+tests/test_solvation.py	249	os.chdir(tmpdir)
+tests/test_solvation.py	273	os.chdir(cwd)
+tests/test_structural_distances.py	222	path.write_text("\n".join(lines) + "\n")
+tests/test_structural_distances.py	229	payload = json.loads(report.read_text())
+tests/test_structure_comparison.py	82	def test_comparison_result_metadata_is_immutable():
+tests/test_structure_comparison.py	201	for path in package.glob("*.py"):
+tests/test_structure_comparison.py	202	tree = ast.parse(path.read_text(), filename=str(path))
+tests/test_structure_comparison_dataset.py	18	lines = (DATASET / "structures.xyz").read_text().splitlines()
+tests/test_structure_comparison_dataset.py	111	def test_graph_rmsd_returns_incomplete_result_for_excessive_cluster_symmetry():
+tests/test_trial_generation.py	63	first = output.read_text()
+tests/test_trial_generation.py	65	second = output.read_text()
+tests/test_ts_optimizer_benchmark.py	35	path.write_text(json.dumps(raw), encoding="utf-8")
+tests/test_ts_optimizer_benchmark.py	91	(output / f"{stage}_summary.json").write_text(
+tests/test_ts_optimizer_benchmark.py	118	raw = json.loads(manifest.read_text())
+tests/test_ts_optimizer_benchmark.py	120	manifest.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	136	raw = json.loads(path.read_text())
+tests/test_ts_optimizer_benchmark.py	138	path.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	180	assert (directory / "ts_summary.json").is_file()
+tests/test_ts_optimizer_benchmark.py	184	assert (tmp_path / "run" / "benchmark_manifest.json").read_bytes() == manifest.read_bytes()
+tests/test_ts_optimizer_benchmark.py	217	result_path = tmp_path / "run/cases/case_0001_medium/sella/benchmark_result.json"
+tests/test_ts_optimizer_benchmark.py	218	result = json.loads(result_path.read_text())
+tests/test_ts_optimizer_benchmark.py	220	result_path.write_text(json.dumps(result))
+tests/test_ts_optimizer_benchmark.py	235	result_path = tmp_path / "run/cases/case_0001_medium/sella/benchmark_result.json"
+tests/test_ts_optimizer_benchmark.py	236	result = json.loads(result_path.read_text())
+tests/test_ts_optimizer_benchmark.py	238	result_path.write_text(json.dumps(result))
+tests/test_ts_optimizer_benchmark.py	244	def test_collector_refuses_result_stored_under_wrong_optimizer(tmp_path, monkeypatch):
+tests/test_ts_optimizer_benchmark.py	251	result_path = tmp_path / "run/cases/case_0001_medium/sella/benchmark_result.json"
+tests/test_ts_optimizer_benchmark.py	252	result = json.loads(result_path.read_text())
+tests/test_ts_optimizer_benchmark.py	254	result_path.write_text(json.dumps(result))
+tests/test_ts_optimizer_benchmark.py	263	raw = json.loads(manifest.read_text())
+tests/test_ts_optimizer_benchmark.py	266	manifest.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	277	raw = json.loads(manifest.read_text())
+tests/test_ts_optimizer_benchmark.py	279	manifest.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	294	job_dir = tmp_path / "run/cases/case_0001_medium/geometric"
+tests/test_ts_optimizer_benchmark.py	295	job_dir.mkdir(parents=True)
+tests/test_ts_optimizer_benchmark.py	296	(job_dir / ".benchmark-job.lock").write_text("claimed")
+tests/test_ts_optimizer_benchmark.py	306	job_dir = tmp_path / "run/cases/case_0001_medium/geometric"
+tests/test_ts_optimizer_benchmark.py	307	job_dir.mkdir(parents=True)
+tests/test_ts_optimizer_benchmark.py	308	partial = job_dir / "ts_path.xyz"
+tests/test_ts_optimizer_benchmark.py	309	partial.write_text("partial data must not be overwritten")
+tests/test_ts_optimizer_benchmark.py	314	assert partial.read_text() == "partial data must not be overwritten"
+tests/test_ts_optimizer_benchmark.py	330	def test_converged_nonstationary_result_is_distinct_from_optimizer_failure(
+tests/test_ts_optimizer_benchmark.py	365	raw = json.loads(manifest.read_text())
+tests/test_ts_optimizer_benchmark.py	367	manifest.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	385	source_copy.write_text("{}")
+tests/test_ts_optimizer_benchmark.py	406	raw = json.loads(path.read_text())
+tests/test_ts_optimizer_benchmark.py	408	path.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	413	path.write_text(json.dumps(raw))
+tests/test_ts_optimizer_benchmark.py	446	target.write_text('broken')
+tests/test_ts_optimizer_benchmark.py	477	(Path(kwargs['output']) / 'ts_optimized.xyz').write_text('broken')
+tests/test_ts_optimizer_pilot_runner.py	14	manifest.write_text(json.dumps({"cases": [{"id": "r1_easy"}, {"id": "r2_hard"}]}))
+tests/test_ts_optimizer_pilot_runner.py	24	result.parent.mkdir(parents=True, exist_ok=True)
+tests/test_ts_optimizer_pilot_runner.py	25	result.write_text(json.dumps({"case_id": case_id, "optimizer": optimizer}))
+tests/test_ts_optimizer_pilot_runner.py	30	execution = json.loads((output / "pilot_execution.json").read_text())
+tests/test_ts_optimizer_pilot_runner.py	53	manifest.write_text(json.dumps({"cases": [{"id": "r1_easy"}]}))
+tests/test_ts_optimizer_pilot_runner.py	55	output.mkdir()
+tests/test_ts_optimizer_pilot_runner.py	56	(output / "run_manifest.json").write_text(json.dumps({"manifest_sha256": "wrong"}))
+tests/test_water_cluster_similarity_benchmark.py	26	source.write_text(_geometry_frame(-10.0) + "\n" + _geometry_frame(-9.0, 1.0) + "\n")
+tests/test_water_cluster_similarity_benchmark.py	52	source.write_text(_geometry_frame(-10.0) + "\n" + _geometry_frame(-9.0, 1.0) + "\n")
+tests/test_water_cluster_similarity_benchmark.py	80	source.write_text(_geometry_frame(-10.0) + "\n" + _geometry_frame(-9.0, 2.0) + "\n")
+tests/test_xtb_interfaces.py	17	os.chdir(tmpdir)
+tests/test_xtb_interfaces.py	21	os.chdir(cwd)
+docs/aggregate.rst	25	selected, and the existing ``aggregates/state.json`` restart request without
+docs/aggregate.rst	52	* persists restart state in ``aggregates/state.json``
+docs/aggregate.rst	57	* ``aggregates/state.json`` for restart and provenance
+docs/aggregate.rst	58	* ``selected/`` for the chosen structures
+docs/aggregation.rst	63	state.json
+docs/aggregation.rst	65	selected/
+docs/aggregation.rst	66	selected/
+docs/aggregation.rst	71	* ``aggregates/state.json`` records the request, restart state, and provenance.
+docs/aggregation.rst	72	* ``selected/`` contains the selected candidate structures.
+docs/aggregation.rst	87	``aggregates/state.json`` request payload. ``pyar.workflows.aggregate`` remains
+docs/architecture.rst	286	Reaction workflows use ``reaction/state.json`` together with XYZ snapshots
+docs/architecture.rst	288	``aggregates/state.json`` to validate the request, persist pathway order,
+docs/architecture.rst	301	state.json
+docs/architecture.rst	304	selected/
+docs/architecture.rst	305	selected/
+docs/bond_scan.rst	83	Each successful scan also writes ``scan/scan_profile.csv`` and
+docs/bond_scan.rst	84	``scan/scan_profile.json`` from ORCA's ``scan.relaxscanact.dat`` actual-energy
+docs/bond_scan.rst	85	table or the generic scan's final point energies. The energy source is recorded. ``ts_candidates/`` contains the highest-energy scan geometry and its
+docs/conf.py	87	for path in sorted(PACKAGE_ROOT.rglob("*.py")):
+docs/conf.py	142	output.write_text("\n".join(lines), encoding="utf-8")
+docs/conformer.rst	121	* ``conformers/state.json`` for restart/provenance-style metadata
+docs/conformer.rst	122	* ``conformers/summary.csv`` for the ranked conformer table, including the
+docs/conformer.rst	125	* ``conformers/state.json`` also records the stronger generation-collapse
+docs/conformer.rst	131	* ``conformers/selected/`` for the final selected conformers
+docs/conformer.rst	137	``conformers/state.json`` request payload. ``pyar.workflows.conformer`` remains
+docs/conformer.rst	178	The command writes ``benchmark_summary.csv``, ``benchmark_summary.json``, and
+docs/first_run.rst	53	state.json
+docs/first_run.rst	69	pyar-energy-table selected/*.xyz
+docs/first_run.rst	76	pyar-energy-table aggregate_002/selected/*.xyz
+docs/first_run.rst	86	* a ``state.json`` file recording restart and provenance information
+docs/generated_api.rst	608	pyar.reaction_trace
+docs/generated_api.rst	611	.. automodule:: pyar.reaction_trace
+docs/generated_api.rst	851	pyar.scripts.reaction_trace
+docs/generated_api.rst	854	.. automodule:: pyar.scripts.reaction_trace
+docs/grow.rst	90	``request.json`` records the resolved request, and atomic ``state.json`` records
+docs/grow.rst	91	completed additions. ``step_000/selected/`` retains the initial seed. Each
+docs/grow.rst	93	``final/`` holds the final pool and structured ``summary.json``.
+docs/microsolvate.rst	50	compatibility algorithm and existing ``solvation/state.json`` restart format.
+docs/modern_cli.rst	19	pyar inspect reaction/reaction/state.json
+docs/modern_cli.rst	52	pyar profile create careful-react --from reaction/pyar-run.toml
+docs/modern_cli.rst	77	and failures after the workflow starts write a ``pyar-run.toml`` record with
+docs/modern_cli.rst	109	stages. ``candidate_ts`` geometries are guesses only, and AFIR trace energies
+docs/neb.rst	47	``neb_summary.json``. Independent frequency and IRC validation remain required.
+docs/neb.rst	95	Every stage writes ``<stage>_summary.json`` with method settings, convergence
+docs/neb.rst	97	summaries. ``workflow_summary.json`` records
+docs/neb.rst	113	``workflow_summary.json`` unchanged; consult the current stage summary.
+docs/react.rst	43	``candidate_ts/`` are NEB waypoints/TS guesses, not confirmed transition
+docs/react.rst	80	and ``path_summary.csv``. ``pyar-react`` accepts the same flags.
+docs/react.rst	111	* ``reaction/state.json`` for restart and provenance
+docs/react.rst	112	* ``reaction_trace/trace.jsonl`` and ``reaction_trace/steps/`` for trace data
+docs/react.rst	113	* ``path_summary.csv`` for a compact path summary
+docs/react.rst	114	* ``candidate_ts/`` for candidate geometries to inspect further
+docs/reaction.rst	35	``request.json``/``summary.json``/``summary.csv`` provenance. The CLI defaults
+docs/reaction.rst	81	``reaction/state.json`` records ``failed_backend`` and the error; such a run is
+docs/reaction.rst	107	``candidate_ts/`` are not confirmed transition states.
+docs/reaction.rst	118	state.json
+docs/reaction.rst	129	reaction_trace/
+docs/reaction.rst	132	path_summary.csv
+docs/reaction.rst	133	candidate_ts/
+docs/reaction.rst	155	The file ``candidate_ts/highest_backend_energy.xyz`` is usually the first
+docs/reaction.rst	172	and by default ``candidate_ts/highest_backend_energy.xyz`` as a NEB waypoint.
+docs/reaction.rst	196	This writes ``path_summary.csv``, candidate geometries in ``candidate_ts/``,
+docs/reaction.rst	202	Files in ``candidate_ts/`` are candidate geometries for later path refinement.
+docs/reaction_optimization.rst	203	Reaction calculations now persist versioned state in ``reaction/state.json``
+docs/reaction_optimization.rst	210	directory in ``reaction_trace/``. Fixed-bias traces record backend evaluations;
+docs/reaction_optimization.rst	213	``path_summary.csv`` file together with ``candidate_ts/`` geometries for the
+docs/reaction_optimization.rst	240	reaction_trace/
+docs/reaction_optimization.rst	243	path_summary.csv
+docs/reaction_optimization.rst	244	candidate_ts/
+docs/reaction_optimization.rst	255	objective followed by geomeTRIC. Relative energies in ``path_summary.csv`` are
+docs/reaction_optimization.rst	261	Candidate geometries receive a ``candidate_ts/metadata.json`` sidecar and a
+docs/reaction_optimization.rst	263	``candidate_ts/`` are candidate geometries for later path refinement. They are
+docs/reference.rst	26	.. automodule:: pyar.scripts.reaction_trace
+docs/reference.rst	186	.. automodule:: pyar.reaction_trace
+docs/solvate.rst	7	continues to read its existing ``solvation/state.json`` state. It is
+docs/solvate.rst	38	* ``solvation/state.json`` for restart and provenance
+docs/solvation.rst	65	state.json
+docs/solvation.rst	71	``state.json`` records the input seed, added fragment, calculation settings,
+docs/solvation.rst	78	* ``solvation/state.json`` for restart and cycle progress
+docs/solvation.rst	86	connectivity policy, and the persisted ``solvation/state.json`` request
+docs/usage.rst	45	The command writes ``path_summary.csv`` and ``candidate_ts/`` in the job
+docs/usage.rst	58	The candidate file ``candidate_ts/highest_backend_energy.xyz`` is usually the
+docs/usage.rst	207	``selected/stoichiometry_<formula>/basin_registry.json`` (or the flat
+docs/usage.rst	208	``selected/basin_registry.json`` used by pathway selection). Schema 2 stores
+docs/usage.rst	225	pyar-basin-memory --dry-run selected/stoichiometry_C2H6/basin_registry.json
+docs/usage.rst	226	pyar-basin-memory selected/stoichiometry_C2H6/basin_registry.json
+docs/workflows.rst	41	state.json
+docs/workflows.rst	43	selected/
+docs/workflows.rst	44	selected/
+docs/workflows.rst	47	``state.json`` records the input geometry and calculation settings, selected
+docs/workflows.rst	63	* ``aggregates/state.json`` for restart and provenance
+docs/workflows.rst	64	* ``selected/`` for the chosen low-energy candidates
+docs/workflows.rst	102	state.json
+docs/workflows.rst	108	``state.json`` records the numeric gamma schedule, current cycle, pending and
+docs/workflows.rst	121	state.json
+docs/workflows.rst	124	reaction_trace/
+docs/workflows.rst	127	path_summary.csv
+docs/workflows.rst	128	candidate_ts/
+docs/workflows.rst	140	``candidate_ts/highest_backend_energy.xyz`` is usually the first structure to
+docs/workflows.rst	142	``candidate_ts/first_topology_change.xyz`` marks the first persistent
+docs/workflows.rst	173	state.json
+docs/workflows.rst	179	``state.json`` records the input seeds, added fragment, calculation settings,
+docs/workflows.rst	194	* ``solvation/state.json`` for restart and cycle progress
+docs/workflows.rst	242	* ``conformers/state.json`` for the recorded request and selected pool
+docs/workflows.rst	243	* ``conformers/summary.csv`` for the ranked conformer table
+benchmarks/clustering_distances/generate_dataset.py	116	root.mkdir(parents=True, exist_ok=True)
+benchmarks/clustering_distances/generate_dataset.py	122	(root / "structures.xyz").write_text("\n".join(lines) + "\n")
+benchmarks/clustering_distances/generate_dataset.py	123	(root / "dataset.json").write_text(json.dumps(manifest, indent=2) + "\n")
+benchmarks/clustering_scientific/analysis/report.md	59	The ordering is descriptive for these three test pools, not a universal feature/algorithm policy. Requested methods can fall back; per-system actual methods are recorded in `summary.json`.
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	29	frame.mkdir(parents=True, exist_ok=True)
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	33	(frame / "xtb.log").write_text(
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	47	source = next((BENCH / "data/water_clusters").rglob("W6_geoms_5.0_KCal-1hgztfv.txt"))
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	49	fixture_source.write_text(source.read_text())
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	51	fixture_run.mkdir(exist_ok=True)
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	69	lines = fixture_source.read_text().splitlines()
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	73	fixture_source.write_text("\n".join(lines) + "\n")
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	84	reference = json.loads((BENCH / "runs" / name / "reference_basins.json").read_text())
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	99	"source_hash_matches_reference": hashlib.sha256(source.read_bytes()).hexdigest() == reference["source_sha256"],
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	102	saved = json.loads((BENCH / "meta_analysis" / "meta_analysis.json").read_text())
+benchmarks/clustering_scientific/review_20261002/benchmark_probe.py	110	(ROOT / "benchmark_probe_results.json").write_text(json.dumps(result, indent=2) + "\n")
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	14	from pyar.selection.basin_memory import _persist_basin_registry, _load_basin_registry
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	20	lines = path.read_text().splitlines()
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	47	_persist_basin_registry(registry, [distinct, base], existing_entries=[], max_entries=3)
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	49	_persist_basin_registry(registry, [molecule], max_entries=3)
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	50	entries = _load_basin_registry(registry)
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	60	reference = json.loads((directory / "reference_basins.json").read_text())
+benchmarks/clustering_scientific/review_20261002/comparison_probe.py	89	target.write_text(json.dumps(output, indent=2) + "\n")
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	12	from pyar.selection.basin_memory import _persist_basin_registry, _load_basin_registry
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	36	_persist_basin_registry(archive, archived, existing_entries=[], max_entries=3)
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	37	stored = _load_basin_registry(archive)
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	66	summary=json.loads((BENCH / "meta_analysis/meta_analysis.json").read_text())
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	69	report=json.loads((BENCH / "runs" / name / "results/comparison.json").read_text())
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	70	refs=json.loads((BENCH / "runs" / name / "reference_basins.json").read_text())
+benchmarks/clustering_scientific/review_20261002/policy_probe.py	107	Path(__file__).with_suffix(".json").write_text(json.dumps(evidence,indent=2)+"\n")
+benchmarks/clustering_scientific/review_20261002/water_direction_probe.py	29	Path(__file__).with_suffix(".json").write_text(json.dumps(results,indent=2)+"\n")
+benchmarks/scan_bond/validate_backend_scans.py	22	root.mkdir(parents=True, exist_ok=True)
+benchmarks/scan_bond/validate_backend_scans.py	24	fragment.write_text("1\nH atom for H2 scan smoke test\nH 0 0 0\n")
+benchmarks/scan_bond/validate_backend_scans.py	37	profile = json.loads(Path(orientation["scan_profile_json"]).read_text())["points"]
+benchmarks/scan_bond/validate_backend_scans.py	46	(root / "smoke_results.json").write_text(json.dumps(records, indent=2))
+benchmarks/structure_comparison/README.md	19	- `results/summary.json`: threshold sweeps, abstentions, directional consistency,
+benchmarks/structure_comparison/generate_dataset.py	189	ROOT.mkdir(parents=True, exist_ok=True)
+benchmarks/structure_comparison/results/REPORT.md	115	and `summary.json`.
+benchmarks/structure_comparison/systematic_test.py	32	lines = (root / 'structures.xyz').read_text().splitlines()
+benchmarks/structure_comparison/systematic_test.py	326	args.output.mkdir(parents=True, exist_ok=True)
+benchmarks/structure_comparison/systematic_test.py	329	audit['sha256'] = {str(path.relative_to(REPO)): hashlib.sha256(path.read_bytes()).hexdigest()
+benchmarks/structure_comparison/systematic_test.py	332	*sorted((REPO / 'pyar/structure_comparison').glob('*.py'))]}
+benchmarks/structure_comparison/systematic_test.py	333	(args.output / 'audit.json').write_text(json.dumps(audit, indent=2) + '\n')
+benchmarks/structure_comparison/systematic_test.py	355	(args.output / 'pairwise_results.jsonl').write_text(''.join(json.dumps(r, allow_nan=False) + '\n' for r in rows))
+benchmarks/structure_comparison/systematic_test.py	357	(args.output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+benchmarks/ts_optimizers/README.md	122	Collection writes `runs.csv`, `runs.json`, `paired.csv`, and `summary.json`.
+benchmarks/ts_optimizers/analysis/analyze_orca_optts_comparison.py	25	for path in Path(directory).glob(pattern):
+benchmarks/ts_optimizers/analysis/analyze_orca_optts_comparison.py	26	result = json.loads(path.read_text(encoding="utf-8"))
+benchmarks/ts_optimizers/analysis/analyze_orca_optts_comparison.py	47	return input_path.is_file() and "CoordSys redundant" in input_path.read_text(encoding="utf-8")
+benchmarks/ts_optimizers/analysis/analyze_orca_optts_comparison.py	424	Path(args.output).write_text(report, encoding="utf-8")
+benchmarks/ts_optimizers/analysis/analyze_rgd1_pilot.py	19	for path in Path(run_dir).glob("cases/*/*/benchmark_result.json"):
+benchmarks/ts_optimizers/analysis/analyze_rgd1_pilot.py	20	result = json.loads(path.read_text(encoding="utf-8"))
+benchmarks/ts_optimizers/analysis/analyze_rgd1_pilot.py	97	summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+benchmarks/ts_optimizers/analysis/analyze_rgd1_pilot.py	288	output.parent.mkdir(parents=True, exist_ok=True)
+benchmarks/ts_optimizers/analysis/analyze_rgd1_pilot.py	289	output.write_text(report, encoding="utf-8")
+benchmarks/ts_optimizers/prepare/run_orca_optts.py	40	output.mkdir(parents=True, exist_ok=True)
+benchmarks/ts_optimizers/prepare/run_pilot.py	44	manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+benchmarks/ts_optimizers/prepare/run_pilot.py	56	output.mkdir(parents=True, exist_ok=True)
+benchmarks/ts_optimizers/prepare/run_pilot.py	69	run_manifest = json.loads(run_manifest_path.read_text(encoding="utf-8"))
+benchmarks/ts_optimizers/prepare/run_pilot.py	73	previous = json.loads(schedule_path.read_text(encoding="utf-8"))
+benchmarks/ts_optimizers/prepare/run_pilot.py	83	temporary.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+benchmarks/ts_optimizers/prepare/run_pilot.py	93	result_path = (
+benchmarks/ts_optimizers/prepare/run_pilot.py	96	if result_path.is_file():
+benchmarks/ts_optimizers/prepare/run_pilot.py	109	job_environment = dict(environment, JAX_COMPILATION_CACHE_DIR=cache_dir)
+benchmarks/ts_optimizers/prepare/run_pilot.py	111	command, cwd=REPOSITORY_ROOT, env=job_environment,
