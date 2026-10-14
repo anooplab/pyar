@@ -1,0 +1,49 @@
+{
+  "baseline_commit": "8ab5bcca43d43fbcf69a76644fad79e1c233b37e",
+  "build_artifacts": [
+    {
+      "name": "pyar_chem-1.5.1-py3-none-any.whl",
+      "sha256": "37b79955b8f7e190b2386ecf7b310afe54b93beb5fc23b7179e5cbf009fb58a0",
+      "size": 507142
+    },
+    {
+      "name": "pyar_chem-1.5.1.tar.gz",
+      "sha256": "03fd361a5217c65329a18377a27836006124f65723fea29ccb1cb3ec851e0c49",
+      "size": 830176
+    }
+  ],
+  "checks": {
+    "build": {
+      "log_sha256": "3b0e4fc0c08571eabaedf336e43722acd276ecfac97ded7a2fe0a5553d2cda9c"
+    },
+    "fixture_capture": {
+      "log_sha256": "a143f88d450d743e796fc4a2f5fdd76626c83b918666cf6e5bb6dd07fea2f38e"
+    },
+    "pytest": {
+      "log_sha256": "6c93ede915edf52d2feae1e9071690321ced8e86b6c5b84aeb2b9599a5321719"
+    },
+    "sphinx": {
+      "log_sha256": "03c4ee859218dda2a8815859c806afcdb72f2a44ac1f1cb2df93eb8d6fe71382"
+    }
+  },
+  "date": "2026-10-14",
+  "fixtures": {
+    "snapshots": 44,
+    "tests_passed": 16,
+    "verified_artifact_entries": 787
+  },
+  "full_suite": {
+    "passed": 1273,
+    "skip_reason": "tests/test_packaging_metadata.py:80: built wheel not available; build output intentionally placed outside repository dist/",
+    "skipped": 1,
+    "subtests_passed": 194,
+    "warnings": 685
+  },
+  "package": "pyar-chem 1.5.1",
+  "python": "3.14.7",
+  "wheel_content_test": {
+    "passed": 1,
+    "test": "PackagingMetadataTests::test_built_wheel_excludes_large_model_assets",
+    "wheel": "pyar_chem-1.5.1-py3-none-any.whl"
+  }
+}
