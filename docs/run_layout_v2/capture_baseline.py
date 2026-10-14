@@ -12,6 +12,7 @@ import importlib
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from unittest.mock import patch
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+BASELINE = "8ab5bcca43d43fbcf69a76644fad79e1c233b37e"
 sys.path.insert(0, str(ROOT))
 
 TESTS = [
@@ -81,6 +83,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    baseline_check = subprocess.run(
+        ["git", "diff", "--quiet", BASELINE, "--", "pyar", "tests", "pyproject.toml"],
+        cwd=ROOT, check=False,
+    )
+    if baseline_check.returncode != 0:
+        parser.error("Baseline source/tests/metadata differ or cannot be verified; "
+                     "capture from the audited baseline checkout")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     capture = Capture(output)
@@ -114,7 +123,7 @@ def main():
     finally:
         for instrument in reversed(patches):
             instrument.stop()
-        inventory = {"baseline_commit": "8ab5bcca43d43fbcf69a76644fad79e1c233b37e",
+        inventory = {"baseline_commit": BASELINE,
                      "scope": "existing tests; mocked calculators and deterministic geometry-only runs",
                      "results": capture.results, "snapshots": capture.records}
         (output / "inventory.json").write_text(json.dumps(inventory, indent=2, sort_keys=True) + "\n")

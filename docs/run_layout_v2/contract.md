@@ -286,8 +286,12 @@ No cross-host/distributed locking guarantee or thread-safe `os.chdir` guarantee
 is implied. PR 1 must validate the narrowly scoped lock before the pilot.
 
 Execution first snapshots inputs and writes valid metadata. Missing marker plus
-nonempty recognized v1 state dispatches to the unchanged v1 owner; no marker is
-added. Nonempty unrecognized output is rejected. Unknown version, malformed
+nonempty recognized v1 records dispatches to the unchanged v1 owner; no marker is
+added. Recognition is workflow-specific: scan-bond uses its request signature
+and native result/recovery records, without requiring `state.json`. Other
+workflows use their established state/request contracts. Directory spelling or
+an arbitrary JSON file alone does not establish a recognized run.
+Nonempty unrecognized output is rejected. Unknown version, malformed
 marker, marker/workflow/run-ID mismatch or mixed v1/v2 authority fails closed.
 Interrupted initialization with a valid marker but incomplete required metadata
 fails with an actionable explicit recovery/fresh-output instruction; it is not

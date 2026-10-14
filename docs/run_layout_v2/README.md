@@ -1,6 +1,6 @@
 # PR 0: run-layout audit and proposed contract freeze
 
-Status: **ready for architecture review; implementation is not authorized by this document**.
+Status: **architecture reviewed for PR 0; later milestones require separate authorization**.
 Audited on 2026-10-14 at `8ab5bcca43d43fbcf69a76644fad79e1c233b37e`
 (PyAR 1.5.1). No package, workflow, scientific algorithm, test or public CLI
 implementation is changed in PR 0.
@@ -81,6 +81,9 @@ Raw absolute references remain in raw snapshots; do not relocate them and claim
 they are portable restart fixtures. Regenerate in place with the capture helper.
 It captures state after each successful save, so interrupted progress is retained
 even when the existing test subsequently resumes the same calculation.
+The helper checks source, tests and package metadata against the audited commit
+before creating its destination; later workflow changes cannot silently produce
+evidence mislabeled as this baseline.
 
 ## Fixture coverage and scientific evidence
 
@@ -122,15 +125,22 @@ only wraps persistence for copying after save; it does not change saved bytes.
 
 ## Progress and review gate
 
-- PR 0: [draft PR #34](https://github.com/anooplab/pyar/pull/34); audit and draft
-  freeze prepared; architecture review pending. Live CI status is on the PR.
-- Proposed amendments: preserve native `execution/` subtrees; independently
+- PR 0: [PR #34](https://github.com/anooplab/pyar/pull/34); architecture reviewed
+  on 2026-10-14 under the user's explicit review-and-merge instruction. Live
+  merge and CI status is on the PR.
+- Accepted amendments: preserve native `execution/` subtrees; independently
   version layout/state/stage/manifest; use immutable stage completion records
   for v2; keep native stage output filenames inside each immutable attempt.
-- Exact new schema/tree proposals are in `contract.md`; they are not approved
-  merely because they are written down. Review the API selected-path changes
-  and retry behavior in particular.
-- PR 1 and subsequent milestones have not started. Approval of this PR must
-  resolve the proposed amendments and gaps before workflow implementation.
+- The contract in `contract.md` is accepted as the starting architecture;
+  scientific equivalence and operational locking/recovery still require the
+  owning milestone's tests. Explicit fresh-v2 result paths require coordinated
+  consumer changes and documentation, with unchanged v1 API behavior.
+- Review corrections: guard fixture capture against baseline drift; recognize
+  v1 scans through request/result records rather than requiring state.json.
+- The disclosed lack of a real integrated discovery/characterization fixture
+  is a PR 6 acceptance requirement. Before the grow pilot, retain durable v1
+  restart fixtures and test their loaders; a hash inventory alone cannot stand
+  in for accessible fixture bytes. No claim of portable raw snapshots is made.
+- PR 1 and subsequent milestones have not started and require authorization.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.
