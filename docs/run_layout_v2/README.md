@@ -141,7 +141,8 @@ only wraps persistence for copying after save; it does not change saved bytes.
   is a PR 6 acceptance requirement. Before the grow pilot, retain durable v1
   restart fixtures and test their loaders; a hash inventory alone cannot stand
   in for accessible fixture bytes. No claim of portable raw snapshots is made.
-- PR 1: `pyar.persistence` implements opt-in paths, validated artifact references,
+- PR 1: [PR #35](https://github.com/anooplab/pyar/pull/35); live merge/CI
+  status is on the PR. `pyar.persistence` implements opt-in paths, validated artifact references,
   strict atomic JSON publication, explicit version detection and a local POSIX
   writer guard. Existing workflows do not import it. The user authorized
   automated implementation, two review/fix passes and merge after successful
