@@ -157,7 +157,7 @@ only wraps persistence for copying after save; it does not change saved bytes.
   wheel/sdist build pass. All 787 inventoried v1 artifact entries are unchanged.
 - The user authorized autonomous PRs 2–8 on 2026-10-14, with review/checks
   after each PR and stop-plus-email to anoop.a@duk.ac.in if any PR fails.
-- PR 2: fresh grow runs use v2; existing v1 runs retain their original owner.
+- PR 2: [PR #36](https://github.com/anooplab/pyar/pull/36); fresh grow runs use v2; existing v1 runs retain their original owner.
   Committed selected pools and explicit dependency hashes survive interrupted
   progress publication; native calculator/cache names stay inside execution
   attempts. Final results are copied and indexed without touching selections.
