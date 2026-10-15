@@ -50,3 +50,30 @@ The legacy ``pyar-cli solvate`` interface remains available through its
 compatibility algorithm and existing ``solvation/state.json`` restart format.
 It emits a deprecation warning. Existing legacy state is not interpreted as a
 new microsolvation run.
+
+Output layout and continuation
+------------------------------
+
+Fresh runs retain the public ``microsolvation/`` root, with explicit v2
+``layout.json`` metadata, immutable ``inputs/{solute,solvent}.xyz``, and the
+original ``surface/initial_surface.json``. Each ``steps/step_NNN/`` contains
+selected snapshots, coverage and an immutable ``selection.json`` commit. Native
+candidates and calculator job/cache files stay together under
+``attempts/attempt_000/execution/candidates/``. Final copies and their manifest
+are in ``results/``; the root summary and manifest are rebuildable reports.
+
+Committed records retain the original-solute prefix, solvent-fragment identity,
+shell coverage, scientific request and upstream byte hashes. Restart validates
+all these records and adopts a committed step whose progress update was
+interrupted without repeating that step. Completed result bytes and stable
+artifact IDs are retained on rerun. An altered original surface or committed
+survivor blocks reuse. The existing shell post-filter, site restrictions and
+coverage/energy/diversity selection rules are unchanged.
+
+Existing v1 microsolvation runs continue through their original ``step_NNN/``
+and ``final/`` paths and are never converted. Legacy ``pyar-cli solvate`` stays
+on its own v1 solvation implementation. Modern ``pyar solvate`` remains an
+alias for this microsolvation command. New v2 execution has a local POSIX
+single-writer guard; after a process crash use ``--recover-stale-lock``
+explicitly. It cannot break an active writer. ``--check`` and ``--dry-run``
+only validate and do not acquire a writer lock or mutate calculation output.

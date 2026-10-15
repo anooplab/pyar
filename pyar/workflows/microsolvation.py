@@ -100,7 +100,7 @@ def _result(state):
     )
 
 
-def microsolvate(request: MicrosolvationRequest, *, output="microsolvation"):
+def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation"):
     """Generate a bounded ensemble by targeting original-solute surface sites.
 
     The solute atom prefix and its surface define placement targets at every
@@ -225,4 +225,151 @@ def microsolvate(request: MicrosolvationRequest, *, output="microsolvation"):
             "selection_policy": "surface validity and coverage precede energy and structural diversity",
         })
     state.save()
+    return _result(state)
+
+
+def microsolvate(request: MicrosolvationRequest, *, output="microsolvation", recover_stale=False):
+    """Create fresh v2 runs and keep established v1 continuation unchanged."""
+    from pyar.persistence import detect_version, RunLock
+    directory = Path(output).resolve()
+    payload = request.to_state_dict()
+    def legacy(root):
+        return MicrosolvationRunState.load(root, payload) is not None
+    version = detect_version(directory, 'microsolvation', validate_v1=legacy)
+    if version == 1:
+        return _microsolvate_v1(request, output=output)
+    directory.parent.mkdir(parents=True, exist_ok=True)
+    with RunLock(directory, recover_stale=recover_stale):
+        version = detect_version(directory, 'microsolvation', validate_v1=legacy)
+        if version == 1:
+            return _microsolvate_v1(request, output=output)
+        return _microsolvate_v2(request, output=output)
+
+
+def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation"):
+    """Generate a bounded ensemble by targeting original-solute surface sites.
+
+    The solute atom prefix and its surface define placement targets at every
+    step. The full cluster is used for steric rejection and backend energy.
+    Optimized candidates are screened by a documented shell-validity
+    post-filter; no optimization restraint is claimed or applied.
+    """
+    from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2
+    from pyar.persistence import RunLayout
+    directory = Path(output).resolve()
+    layout = RunLayout(directory, "microsolvation")
+    payload = request.to_state_dict()
+    state = MicrosolvationRunStateV2.load(directory, payload) if layout.marker.exists() else None
+    if state is None:
+        initial = request.solute.copy()
+        initial.solute_atom_indices = tuple(range(len(initial)))
+        initial.solvent_fragments = ()
+        initial.microsolvation_coverage = {
+            "surface_points": 0, "covered_points": 0, "open_points": 0,
+            "coverage_fraction": 0.0, "whole_solute_coverage_fraction": 0.0,
+        }
+        state = MicrosolvationRunStateV2.create(directory, payload, initial, request.solvent)
+    if state.data["status"] == "completed":
+        state.report_results()
+        return _result(state)
+    if state.data["status"] not in {"running", "stopped"}:
+        raise RuntimeError(f"Cannot resume microsolvation state in status {state.data['status']!r}")
+    from pyar.microsolvation.surface import build_solute_surface
+    initial_surface = build_solute_surface(
+        request.solute, points_per_atom=request.surface_points_per_atom,
+        probe_radius=request.probe_radius,
+    )
+    state.publish_surface({
+        "model": "vdw-probe-fibonacci-v1",
+        "points_per_atom": request.surface_points_per_atom,
+        "probe_radius_angstrom": request.probe_radius,
+        "points_angstrom": initial_surface.points.tolist(),
+        "parent_solute_atoms": initial_surface.parent_atoms.tolist(),
+        "normals": initial_surface.normals.tolist(),
+        "weights_angstrom2": initial_surface.weights.tolist(),
+    })
+    seeds = state.restore_pool()
+    state.data["status"] = "running"
+    for step in range(state.data["next_step"], request.count + 1):
+        if state.selection_path(step).exists():
+            state.accept_step(step)
+            seeds = state.restore_pool()
+            continue
+        stage = layout.path(f"steps/step_{step:03d}")
+        candidate_directory = layout.path(f"steps/step_{step:03d}/attempts/attempt_000/execution/candidates")
+        candidate_directory.mkdir(parents=True, exist_ok=True)
+        candidates = []
+        generated_count = 0
+        shell_rejected = 0
+        target_rejected = 0
+        for seed_index, seed in enumerate(seeds):
+            try:
+                generated = generate_microsolvation_candidates(
+                    seed, request, step=step * 10000 + seed_index,
+                    solute_atom_count=len(request.solute),
+                )
+            except ValueError:
+                target_rejected += 1
+                continue
+            for candidate in generated:
+                generated_count += 1
+                coverage = assess_shell(candidate, request)
+                candidate.microsolvation_coverage = coverage
+                (candidate_directory / f"{candidate.name}.xyz").parent.mkdir(parents=True, exist_ok=True)
+                candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}.xyz"))
+                if request.backend_parameters.get("software"):
+                    qc = dict(request.backend_parameters)
+                    qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
+                              scftype=candidate.scftype, opt_target="minimum", gamma=None)
+                    try:
+                        with _working_directory(candidate_directory):
+                            from pyar.optimiser import is_usable, optimise
+                            status = optimise(candidate, qc)
+                        if not is_usable(status) or candidate.coordinates is None:
+                            continue
+                    except BackendExecutionError:
+                        raise
+                    except Exception as exc:
+                        raise BackendExecutionError(f"Microsolvation optimization failed for {candidate.name}: {exc}") from exc
+                    if candidate.coordinates is None or not candidate.solvent_fragments:
+                        continue
+                    # Reject remote solvent-droplet collapse after relaxation.
+                    coverage = assess_shell(candidate, request)
+                    candidate.microsolvation_coverage = coverage
+                    if not coverage["shell_valid"]:
+                        shell_rejected += 1
+                        continue
+                    candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}_optimized.xyz"))
+                else:
+                    if not coverage["shell_valid"]:
+                        shell_rejected += 1
+                        continue
+                candidates.append(candidate)
+        selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds)
+        diagnostics.update({
+            "selection_basis": "geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy",
+            "surface_saturated_at_placement": any(
+                getattr(candidate, "surface_saturated_at_placement", False) for candidate in candidates
+            ),
+            "generated_count": generated_count,
+            "rejected_outside_shell": shell_rejected,
+            "seeds_without_accessible_target_surface": target_rejected,
+        })
+        write_json(stage / "selection_diagnostics.json", diagnostics)
+        if not selected:
+            state.data["status"] = "no_candidates"
+            state.save()
+            break
+        state.complete_step(step, selected, diagnostics)
+        state.data["solute_atom_indices"] = list(selected[0].solute_atom_indices)
+        state.data["solvent_fragments"] = [list(part) for part in selected[0].solvent_fragments]
+        state.save()
+        seeds = selected
+    else:
+        state.data["status"] = "completed"
+    if state.data["status"] == "completed":
+        state.finish_results()
+        state.report_results()
+    else:
+        state.save()
     return _result(state)

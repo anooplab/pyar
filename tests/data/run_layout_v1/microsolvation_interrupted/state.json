@@ -1,0 +1,377 @@
+{
+  "completed_steps": [
+    {
+      "coverage": [
+        {
+          "confinement_mode": "post-optimization-shell-validity-filter",
+          "coverage_fraction": 0.06517566979707769,
+          "covered_points": 3,
+          "max_solvent_center_to_surface_angstrom": 1.249573697880678,
+          "name": "micro_10000_000",
+          "open_points": 52,
+          "optimization_restraint_applied": false,
+          "shell_tolerance_angstrom": 3.5,
+          "shell_valid": true,
+          "site_atoms": null,
+          "solute_atom_count": 5,
+          "surface_points": 55,
+          "whole_solute_coverage_fraction": 0.06517566979707769,
+          "whole_solute_covered_points": 3,
+          "whole_solute_surface_points": 55
+        },
+        {
+          "confinement_mode": "post-optimization-shell-validity-filter",
+          "coverage_fraction": 0.04058445712531026,
+          "covered_points": 2,
+          "max_solvent_center_to_surface_angstrom": 1.101120367696447,
+          "name": "micro_10000_002",
+          "open_points": 53,
+          "optimization_restraint_applied": false,
+          "shell_tolerance_angstrom": 3.5,
+          "shell_valid": true,
+          "site_atoms": null,
+          "solute_atom_count": 5,
+          "surface_points": 55,
+          "whole_solute_coverage_fraction": 0.04058445712531026,
+          "whole_solute_covered_points": 2,
+          "whole_solute_surface_points": 55
+        }
+      ],
+      "selected_count": 2,
+      "selected_paths": [
+        "step_001/selected/selected_000.xyz",
+        "step_001/selected/selected_001.xyz"
+      ],
+      "selected_references": [
+        {
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "post-optimization-shell-validity-filter",
+            "coverage_fraction": 0.06517566979707769,
+            "covered_points": 3,
+            "max_solvent_center_to_surface_angstrom": 1.249573697880678,
+            "open_points": 52,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 5,
+            "surface_points": 55,
+            "whole_solute_coverage_fraction": 0.06517566979707769,
+            "whole_solute_covered_points": 3,
+            "whole_solute_surface_points": 55
+          },
+          "energy": null,
+          "multiplicity": 1,
+          "name": "micro_10000_000",
+          "path": "step_001/selected/selected_000.xyz",
+          "scftype": "rhf",
+          "sha256": "802dce9330a9498924819509ea9ae4da82d5985c71706c3390f78dd0f37e9efb",
+          "solute_atom_indices": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "solvent_fragments": [
+            [
+              5,
+              6,
+              7
+            ]
+          ],
+          "target_atom": 3,
+          "title": "methane + 1 solvent molecule(s)"
+        },
+        {
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "post-optimization-shell-validity-filter",
+            "coverage_fraction": 0.04058445712531026,
+            "covered_points": 2,
+            "max_solvent_center_to_surface_angstrom": 1.101120367696447,
+            "open_points": 53,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 5,
+            "surface_points": 55,
+            "whole_solute_coverage_fraction": 0.04058445712531026,
+            "whole_solute_covered_points": 2,
+            "whole_solute_surface_points": 55
+          },
+          "energy": null,
+          "multiplicity": 1,
+          "name": "micro_10000_002",
+          "path": "step_001/selected/selected_001.xyz",
+          "scftype": "rhf",
+          "sha256": "9521b510fb703654b70e75a0b66e013556cb506801d57118ca246e1347cbe22a",
+          "solute_atom_indices": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "solvent_fragments": [
+            [
+              5,
+              6,
+              7
+            ]
+          ],
+          "target_atom": 4,
+          "title": "methane + 1 solvent molecule(s)"
+        }
+      ],
+      "selection": {
+        "adaptive_rmsd_threshold_angstrom": 0.15,
+        "comparison_diagnostics": [],
+        "coverage_frontier_fraction_tolerance": 0.03,
+        "energy_ranked": false,
+        "generated_count": 3,
+        "input_count": 3,
+        "maximum_number_of_seeds": 2,
+        "rejected_outside_shell": 0,
+        "seeds_without_accessible_target_surface": 0,
+        "selected_count": 2,
+        "selection_basis": "geometry-only",
+        "selection_mode": "solute-surface-coverage-then-energy-and-structural-diversity",
+        "surface_saturated_at_placement": false,
+        "unique_count": 3
+      },
+      "solvent_count": 1,
+      "step": 1
+    }
+  ],
+  "coverage_history": [
+    [
+      {
+        "confinement_mode": "post-optimization-shell-validity-filter",
+        "coverage_fraction": 0.06517566979707769,
+        "covered_points": 3,
+        "max_solvent_center_to_surface_angstrom": 1.249573697880678,
+        "name": "micro_10000_000",
+        "open_points": 52,
+        "optimization_restraint_applied": false,
+        "shell_tolerance_angstrom": 3.5,
+        "shell_valid": true,
+        "site_atoms": null,
+        "solute_atom_count": 5,
+        "surface_points": 55,
+        "whole_solute_coverage_fraction": 0.06517566979707769,
+        "whole_solute_covered_points": 3,
+        "whole_solute_surface_points": 55
+      },
+      {
+        "confinement_mode": "post-optimization-shell-validity-filter",
+        "coverage_fraction": 0.04058445712531026,
+        "covered_points": 2,
+        "max_solvent_center_to_surface_angstrom": 1.101120367696447,
+        "name": "micro_10000_002",
+        "open_points": 53,
+        "optimization_restraint_applied": false,
+        "shell_tolerance_angstrom": 3.5,
+        "shell_valid": true,
+        "site_atoms": null,
+        "solute_atom_count": 5,
+        "surface_points": 55,
+        "whole_solute_coverage_fraction": 0.04058445712531026,
+        "whole_solute_covered_points": 2,
+        "whole_solute_surface_points": 55
+      }
+    ]
+  ],
+  "current_seeds": [
+    {
+      "charge": 0,
+      "coverage": {
+        "confinement_mode": "post-optimization-shell-validity-filter",
+        "coverage_fraction": 0.06517566979707769,
+        "covered_points": 3,
+        "max_solvent_center_to_surface_angstrom": 1.249573697880678,
+        "open_points": 52,
+        "optimization_restraint_applied": false,
+        "shell_tolerance_angstrom": 3.5,
+        "shell_valid": true,
+        "site_atoms": null,
+        "solute_atom_count": 5,
+        "surface_points": 55,
+        "whole_solute_coverage_fraction": 0.06517566979707769,
+        "whole_solute_covered_points": 3,
+        "whole_solute_surface_points": 55
+      },
+      "energy": null,
+      "multiplicity": 1,
+      "name": "micro_10000_000",
+      "path": "step_001/selected/selected_000.xyz",
+      "scftype": "rhf",
+      "sha256": "802dce9330a9498924819509ea9ae4da82d5985c71706c3390f78dd0f37e9efb",
+      "solute_atom_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "solvent_fragments": [
+        [
+          5,
+          6,
+          7
+        ]
+      ],
+      "target_atom": 3,
+      "title": "methane + 1 solvent molecule(s)"
+    },
+    {
+      "charge": 0,
+      "coverage": {
+        "confinement_mode": "post-optimization-shell-validity-filter",
+        "coverage_fraction": 0.04058445712531026,
+        "covered_points": 2,
+        "max_solvent_center_to_surface_angstrom": 1.101120367696447,
+        "open_points": 53,
+        "optimization_restraint_applied": false,
+        "shell_tolerance_angstrom": 3.5,
+        "shell_valid": true,
+        "site_atoms": null,
+        "solute_atom_count": 5,
+        "surface_points": 55,
+        "whole_solute_coverage_fraction": 0.04058445712531026,
+        "whole_solute_covered_points": 2,
+        "whole_solute_surface_points": 55
+      },
+      "energy": null,
+      "multiplicity": 1,
+      "name": "micro_10000_002",
+      "path": "step_001/selected/selected_001.xyz",
+      "scftype": "rhf",
+      "sha256": "9521b510fb703654b70e75a0b66e013556cb506801d57118ca246e1347cbe22a",
+      "solute_atom_indices": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "solvent_fragments": [
+        [
+          5,
+          6,
+          7
+        ]
+      ],
+      "target_atom": 4,
+      "title": "methane + 1 solvent molecule(s)"
+    }
+  ],
+  "next_step": 2,
+  "request": {
+    "backend_parameters": {},
+    "confinement": {
+      "mode": "placement-and-post-optimization-shell-filter"
+    },
+    "count": 2,
+    "maximum_number_of_seeds": 2,
+    "orientations": 3,
+    "sampling": {
+      "directions": "fibonacci",
+      "rotations": "halton"
+    },
+    "selection_policy": {
+      "coverage_frontier_fraction_tolerance": 0.03,
+      "deduplication": "adaptive-graph-first-rmsd",
+      "name": "surface-coverage-energy-diversity-v1"
+    },
+    "shell_policy": "original-solute-first-shell-postfilter-v1",
+    "shell_tolerance_angstrom": 3.5,
+    "solute": {
+      "atoms": [
+        "C",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "charge": 0,
+      "coordinates": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.629,
+          0.629,
+          0.629
+        ],
+        [
+          -0.629,
+          -0.629,
+          0.629
+        ],
+        [
+          -0.629,
+          0.629,
+          -0.629
+        ],
+        [
+          0.629,
+          -0.629,
+          -0.629
+        ]
+      ],
+      "fragment_definition": [],
+      "multiplicity": 1,
+      "scftype": "rhf"
+    },
+    "solute_site_atoms": null,
+    "solvent": {
+      "atoms": [
+        "O",
+        "H",
+        "H"
+      ],
+      "charge": 0,
+      "coordinates": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.9572,
+          0.0,
+          0.0
+        ],
+        [
+          -0.239,
+          0.927,
+          0.0
+        ]
+      ],
+      "fragment_definition": [],
+      "multiplicity": 1,
+      "scftype": "rhf"
+    },
+    "surface": {
+      "model": "vdw-probe-fibonacci-v1",
+      "points_per_atom": 32,
+      "probe_radius_angstrom": 1.4
+    }
+  },
+  "solute_atom_indices": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "solvent_fragments": [],
+  "status": "running",
+  "version": 1,
+  "workflow": "microsolvation"
+}

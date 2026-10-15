@@ -1,0 +1,16 @@
+{
+  "adaptive_rmsd_threshold_angstrom": 0.15,
+  "comparison_diagnostics": [],
+  "coverage_frontier_fraction_tolerance": 0.03,
+  "energy_ranked": false,
+  "generated_count": 3,
+  "input_count": 3,
+  "maximum_number_of_seeds": 2,
+  "rejected_outside_shell": 0,
+  "seeds_without_accessible_target_surface": 0,
+  "selected_count": 2,
+  "selection_basis": "geometry-only",
+  "selection_mode": "solute-surface-coverage-then-energy-and-structural-diversity",
+  "surface_saturated_at_placement": false,
+  "unique_count": 3
+}

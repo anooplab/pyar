@@ -27,6 +27,9 @@ class MicrosolvationRunState:
     def load(cls, directory, request):
         directory = Path(directory).resolve()
         state_path = directory / "state.json"
+        if (directory / "layout.json").exists() or (directory / "layout.json").is_symlink():
+            from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2
+            return MicrosolvationRunStateV2.load(directory, request)
         if not state_path.exists():
             if directory.exists() and any(directory.iterdir()):
                 raise MicrosolvationStateError(
