@@ -19,12 +19,16 @@ def run(*arguments, expected=0, env=None, cwd=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['core', 'aggregate', 'reaction', 'aimnet2', 'neb', 'ml', 'analysis', 'microsolvate', 'grow', 'solvate'])
+    parser.add_argument('mode', choices=['core', 'aggregate', 'reaction', 'aimnet2', 'neb', 'ml', 'analysis', 'microsolvate', 'grow', 'solvate', 'conformer'])
     mode = parser.parse_args().mode
     import pyar
     from pyar.dependencies import require_workflow
 
     assert 'site-packages' in pyar.__file__, pyar.__file__
+    for name in ('pyar.persistence', 'pyar.growth.layout_v2', 'pyar.microsolvation.layout_v2',
+                 'pyar.aggregation.layout_v2', 'pyar.state.reaction_v2',
+                 'pyar.workflows.scan_layout', 'pyar.workflows.path_layout', 'pyar.conformer.layout_v2'):
+        importlib.import_module(name)
     run(sys.executable, '-m', 'pyar.modern_cli', '--help')
     run(sys.executable, '-m', 'pyar.cli', '--help')
     doctor = run(sys.executable, '-m', 'pyar.modern_cli', 'doctor', '--json')
@@ -61,7 +65,7 @@ def main():
     modules = {
         'microsolvate': 'microsolvation', 'solvate': 'microsolvation',
         'grow': 'grow', 'reaction': 'reaction', 'aimnet2': 'conformer',
-        'aggregate': 'aggregate', 'neb': 'scan_path',
+        'aggregate': 'aggregate', 'neb': 'scan_path', 'conformer': 'conformer',
     }
     module_name = modules[mode]
     importlib.import_module('pyar.workflows.' + module_name)
@@ -89,6 +93,22 @@ def main():
                 assert "Missing executable 'xtb'" in result.stderr
                 assert 'mamba install -c conda-forge xtb' in result.stderr
             assert list(Path(directory).iterdir()) == [source]
+            result = run(sys.executable, '-m', 'pyar.modern_cli', 'aggregate', str(source),
+                         '--size', '2', '--orientations', '2', '--maximum-number-of-seeds', '1',
+                         '--selection-feature', 'distance-histogram', '--connectivity-policy', 'off', cwd=directory)
+            root = Path(directory) / 'aggregates'
+            assert json.loads((root / 'layout.json').read_text())['layout_version'] == 2
+            manifest = json.loads((root / 'results/manifest.json').read_text())
+            assert manifest['artifacts']
+            from pyar.persistence import ArtifactRef
+            for ref in manifest['artifacts']:
+                ArtifactRef.from_dict({key: ref[key] for key in ('artifact_id', 'role', 'path', 'sha256')}).verify(root)
+            growth = Path(directory) / 'growth'
+            growth.mkdir()
+            run(sys.executable, '-m', 'pyar.modern_cli', 'grow', str(source), str(source),
+                '--count', '1', '--orientations', '2', '--maximum-number-of-seeds', '1',
+                '--selection-feature', 'distance-histogram', '--connectivity-policy', 'off', cwd=growth)
+            assert json.loads((growth / 'grow/layout.json').read_text())['layout_version'] == 2
     elif mode == 'aimnet2':
         from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
         from pyar.backends.aimnet_2 import Aimnet2
@@ -99,6 +119,15 @@ def main():
         assert importlib.util.find_spec('geometric') is None
         run(sys.executable, '-m', 'pyar.modern_cli', 'conformer', 'CCO',
                 '--input-format', 'smiles', '--check')
+    elif mode == 'conformer':
+        from pyar.conformer.layout_v2 import selected_artifacts
+        with tempfile.TemporaryDirectory() as directory:
+            run(sys.executable, '-m', 'pyar.modern_cli', 'conformer', 'CCCC',
+                '--num-conformers', '4', '--top-n', '1', '--num-seeds', '1',
+                '--no-torsion-kicks', '--seed', '13', '--num-threads', '1', cwd=directory)
+            root = Path(directory) / 'conformers'
+            assert selected_artifacts(root)
+            assert json.loads((root / 'state.json').read_text())['workflow_state_schema_version'] == 4
     elif mode == 'reaction':
         import os
         with tempfile.TemporaryDirectory() as directory:
@@ -115,6 +144,17 @@ def main():
                 assert "Missing executable 'orca'" in result.stderr, result.stderr
                 assert 'https://www.faccts.de/' in result.stderr
             assert sorted(path.name for path in Path(directory).iterdir()) == ['a.xyz', 'b.xyz']
+    elif mode == 'microsolvate':
+        with tempfile.TemporaryDirectory() as directory:
+            source, solvent = Path(directory) / 'methane.xyz', Path(directory) / 'water.xyz'
+            source.write_text('5\nmethane\nC 0 0 0\nH .629 .629 .629\nH -.629 -.629 .629\nH -.629 .629 -.629\nH .629 -.629 -.629\n')
+            solvent.write_text('3\nwater\nO 0 0 0\nH .9572 0 0\nH -.239 .927 0\n')
+            run(sys.executable, '-m', 'pyar.modern_cli', 'microsolvate', str(source), str(solvent),
+                '--count', '1', '--orientations', '2', '--maximum-number-of-seeds', '1',
+                '--surface-points-per-atom', '32', '--shell-tolerance', '3.5', cwd=directory)
+            root = Path(directory) / 'microsolvation'
+            assert json.loads((root / 'layout.json').read_text())['layout_version'] == 2
+            assert json.loads((root / 'results/manifest.json').read_text())['artifacts']
     elif mode == 'neb':
         importlib.import_module('pyar.neb')
         run(sys.executable, '-m', 'pyar.neb', '--help')

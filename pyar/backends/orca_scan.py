@@ -138,7 +138,7 @@ def _write_input(path, atoms, coordinates, charge, multiplicity, scftype, qc_par
     Path(path).write_text("\n".join(lines) + "\n")
 
 
-def load_orca_bond_scan_result(molecule, request, directory):
+def load_orca_bond_scan_result(molecule, request, directory, *, publish=True):
     """Recover and validate a completed scan from its retained ORCA files."""
     directory = Path(directory)
     input_path = directory / "scan.inp"
@@ -188,10 +188,14 @@ def load_orca_bond_scan_result(molecule, request, directory):
                                       "scan_profile_geometry_mismatch")
     final_coordinates = frames[-1][1]
     final_path = directory / "final_scan.xyz"
-    write_xyz(molecule.atoms_list, final_coordinates, final_path, job_name="final_scan", precision=12)
     stable_trajectory = directory / "scan_trajectory.xyz"
-    if stable_trajectory != trajectory_path:
-        stable_trajectory.write_text(trajectory_path.read_text())
+    if publish:
+        write_xyz(molecule.atoms_list, final_coordinates, final_path, job_name="final_scan", precision=12)
+        if stable_trajectory != trajectory_path:
+            stable_trajectory.write_text(trajectory_path.read_text())
+    elif not final_path.is_file() or not stable_trajectory.is_file():
+        return OrcaBondScanResult(False, trajectory_path, None, None, input_path, output_path,
+                                  "normalized_scan_artifacts_missing")
     return OrcaBondScanResult(True, stable_trajectory, final_path, final_coordinates,
                               input_path, output_path, "success", frames, profile)
 

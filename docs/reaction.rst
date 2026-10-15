@@ -174,18 +174,19 @@ This waypoint is only an initializer. AFIR trace energies are not activation
 barriers, and candidate geometries are not confirmed transition states.
 Confirmation still depends on the existing NEB, TS, frequency, IRC, and
 endpoint-validation gates. Pathways and stage summaries are stored under
-``reaction/pathways/``; completed reaction state is retained if a downstream
-scientific gate fails.
+``reaction/characterization/`` in fresh v2 runs (``reaction/pathways/`` for v1);
+the immutable discovery commit is retained if a downstream scientific gate fails.
 
 Trace analysis
 --------------
 
 After a successful geomeTRIC-backed AFIR reaction job, analyse one orientation
-job directory with:
+job directory with the recorded path. Copy committed evidence before reanalysis,
+since candidate files can be written:
 
 .. code-block:: bash
 
-   pyar-reaction-trace reaction/gamma_0100/orientation_xxxxx --plot
+   pyar-reaction-trace copied_trace_job_directory --plot
 
 or, from inside the orientation directory:
 

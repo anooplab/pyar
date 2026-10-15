@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar.backend_errors import BackendExecutionError
+from pyar.persistence import LockError
 from pyar.reaction_request import resolve_reaction_request, preflight_reaction, validate_restart
 from pyar.state.reaction import ReactionStateError
 from pyar.workflows import reaction as reaction_workflow
@@ -29,6 +30,8 @@ def build_parser(prog=None):
                         help='Continue each unique product through unbiased path validation (default: react only)')
     parser.add_argument('--bias-potential', choices=('afir', 'softmin'), help='Default: afir')
     parser.add_argument('--bias-controller', choices=('adaptive', 'fixed', 'scheduled'), help='Default: adaptive')
+    parser.add_argument('--recover-stale-lock', action='store_true',
+                        help='Explicit stale v2 writer recovery; never breaks an active lock')
     parser.add_argument('--check', action='store_true', help='Validate both phases and restart; run no calculations')
     advanced = parser.add_argument_group('Advanced reaction/backend overrides')
     advanced.add_argument('--bias-min', type=float, help='Required for fixed/scheduled; ignored for adaptive')
@@ -127,7 +130,8 @@ def main(argv=None, *, prog=None):
         if completed_state is None:
             result = reaction_workflow.react(*request.reactants, request.bias_min, request.bias_max,
                                              request.orientations, request.qc_params, request.site,
-                                             request.proximity_factor)
+                                             request.proximity_factor,
+                                             **({"recover_stale": True} if args.recover_stale_lock else {}))
         else:
             products = completed_state.data.get('products', [])
             result = reaction_workflow.ReactionResult(
@@ -140,11 +144,12 @@ def main(argv=None, *, prog=None):
                 metadata={'products': tuple(products), 'resumed_discovery': True})
         if args.through != 'react' and not result.status.startswith('failed'):
             characterization = characterize_reaction(
-                Path.cwd(), request, args.through, dict(path_options, pathway_ts_source=args.pathway_ts_source))
+                Path.cwd(), request, args.through, dict(path_options, pathway_ts_source=args.pathway_ts_source),
+                **({'recover_stale': True} if args.recover_stale_lock else {}))
             result = replace(result, status=(result.status if characterization['status'] in
                               {'complete', 'complete_no_products'} else 'completed_path_failed'),
                              metadata={**dict(result.metadata), 'characterization': characterization})
-    except (ValueError, OSError, ReactionStateError, BackendExecutionError) as exc:
+    except (ValueError, OSError, ReactionStateError, BackendExecutionError, LockError) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Reaction search: {result.status}\nProducts found: {len(result.selected_paths)}\n'

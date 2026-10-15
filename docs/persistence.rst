@@ -1,10 +1,11 @@
 Run-layout persistence primitives
 =================================
 
-``pyar.persistence`` provides opt-in building blocks for future v2 runs.
-No existing workflow uses them in PR 1. Existing output trees, restart states,
-calculator caches, CLI defaults and returned paths remain unchanged. The
-architecture contract and baseline inventory are in ``docs/run_layout_v2/``.
+``pyar.persistence`` provides the building blocks used by fresh layout v2 runs.
+Existing v1 trees retain their workflow owners and paths. See :doc:`run_layout`
+for output discovery and compatibility. The architecture contract and baseline
+inventory are in ``docs/run_layout_v2/``. The primitives do not implement a
+generic scientific state machine.
 
 Path and artifact references
 ----------------------------
@@ -89,4 +90,5 @@ Example for primitive validation
        reference.verify(layout.root)
 
 This illustrates the primitives, not initialization of a complete v2 workflow
-or a new grow resume API. Those integrations belong to subsequent milestones.
+or an independent grow resume API. Workflow-owned loaders and scientific gates
+remain necessary for safe continuation.

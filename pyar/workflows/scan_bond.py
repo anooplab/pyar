@@ -384,7 +384,8 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         scan = None
         if previous_result and previous_result.get("scan_status") == "success":
             scan = (load_orca_bond_scan_result if software == "orca" else load_bond_scan_result)(
-                orientation, request_model, scan_dir)
+                orientation, request_model, scan_dir,
+                **({"publish": False} if committed is not None and software == "orca" else {}))
         if committed is not None and (scan is None or not scan.success):
             raise ValueError('Committed scan no longer passes native scan validation')
         if scan is None or not scan.success:

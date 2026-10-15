@@ -42,7 +42,8 @@ def test_scan_extension_preserves_commit_and_native_bytes(scan_run, monkeypatch)
     assert run()['status'] == 'complete'
     commit = root / 'orientation_000/scan_commit.json'
     record = read_json(commit)
-    hashes = {root / item['path']: item['sha256'] for item in record['artifacts']}
+    hashes = {root / item['path']: (item['sha256'], (root / item['path']).stat().st_mtime_ns)
+              for item in record['artifacts']}
     digest = sha256_file(commit)
     def continuation(root, results, *args):
         for result in results:
@@ -52,7 +53,8 @@ def test_scan_extension_preserves_commit_and_native_bytes(scan_run, monkeypatch)
     assert run('all')['status'] == 'complete'
     assert len(calls) == 1
     assert sha256_file(commit) == digest
-    assert all(sha256_file(path) == digest for path, digest in hashes.items())
+    assert all((sha256_file(path), path.stat().st_mtime_ns) == evidence
+               for path, evidence in hashes.items())
     assert all(not Path(ref['path']).is_absolute() for ref in record['artifacts'])
     assert read_json(root / 'layout.json')['layout_version'] == 2
     assert read_json(root / 'results/manifest.json')['artifacts']

@@ -116,9 +116,12 @@ Useful outputs
 Trace analysis
 ~~~~~~~~~~~~~~
 
+Use recorded job references to locate a trace. Copy committed evidence before
+reanalysis, since trace analysis can write candidate files.
+
 .. code-block:: bash
 
-   pyar-reaction-trace reaction/gamma_0100/orientation_xxxxx --plot
+   pyar-reaction-trace copied_trace_job_directory --plot
    pyar-reaction-trace . --plot
 
 See also

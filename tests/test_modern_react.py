@@ -326,3 +326,18 @@ def test_legacy_standalone_missing_xtb_stops_before_workflow(tmp_path, monkeypat
         with pytest.raises(SystemExit, match="Missing executable 'xtb'"):
             legacy.main()
     run.assert_not_called()
+
+
+def test_stale_lock_recovery_is_explicit(tmp_path, monkeypatch, workflow):
+    files = inputs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--recover-stale-lock'])
+    assert workflow.call_args.kwargs == {'recover_stale': True}
+
+
+def test_recovery_flag_does_not_mutate_check_mode(tmp_path, monkeypatch, workflow):
+    files = inputs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--recover-stale-lock', '--check'])
+    workflow.assert_not_called()
+    assert not (tmp_path / 'reaction').exists()

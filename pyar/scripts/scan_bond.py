@@ -10,6 +10,7 @@ from pyar.backends.orca_methods import orca_method
 from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
 from pyar.workflows.scan_path import THROUGH_STAGES, validate_continuation
 from pyar.workflows.scan_bond import run_scan_bond
+from pyar.persistence import LockError
 
 
 def build_parser(*, modern=False, prog=None):
@@ -43,6 +44,8 @@ def build_parser(*, modern=False, prog=None):
     parser.add_argument("-m", "--multiplicity", type=int, nargs="+", default=None if modern else [1])
     parser.add_argument("--scftype", nargs="+", default=None if modern else ["rhf"])
     parser.add_argument("--output", default="scan_bond")
+    parser.add_argument("--recover-stale-lock", action="store_true",
+                        help="Explicit stale v2 writer recovery; never breaks an active lock")
     parser.add_argument("--through", choices=THROUGH_STAGES, default="scan",
                         help="last stage to execute; all includes endpoint frequencies (default: scan)")
     parser.add_argument("--images", type=int, default=11)
@@ -168,9 +171,13 @@ def main(argv=None, *, modern=False, prog=None):
             return
     if modern:
         started_run()
-    result = run_scan_bond(args.inputs[0], args.inputs[1], args.atoms, args.orientations,
-                         params, args.output, args.scan_end, args.scan_step, args.scan_points,
-                         args.through, reaction_options)
+    try:
+        result = run_scan_bond(args.inputs[0], args.inputs[1], args.atoms, args.orientations,
+                             params, args.output, args.scan_end, args.scan_step, args.scan_points,
+                             args.through, reaction_options,
+                             **({"recover_stale": True} if args.recover_stale_lock else {}))
+    except LockError as exc:
+        parser.error(str(exc))
     if modern:
         finished_run(result)
     if isinstance(result, dict) and "status" in result:

@@ -701,10 +701,10 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
     for gamma in gamma_list:
         adaptive_mode = qc_params.get("bias_controller") == "adaptive"
         gamma_id = "adaptive" if adaptive_mode else format_gamma_id(gamma)
-        reactor_logger.info(f"Gamma cycle path: reaction/gamma_{gamma_id}")
         reactor_logger.info(f'Gamma cycle start: {gamma_id}')
         gamma_home = (str(run_state.cycle_execution(gamma_id, gamma))
                       if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/gamma_{gamma_id}')
+        reactor_logger.info('Gamma cycle path: %s', os.path.relpath(gamma_home, workdir))
         if not os.path.exists(gamma_home):
             file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)

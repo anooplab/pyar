@@ -361,11 +361,14 @@ pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
 The highest physical-backend-energy trace geometry is used as a NEB waypoint by
 default; it is only a TS guess. AFIR trace energies are not activation barriers,
 and a candidate geometry is not a confirmed transition state. Path stages and
-provenance are retained under `reaction/pathways/`, independently of completed
-reaction-discovery state.
+provenance are retained under `reaction/characterization/`, independently of
+the immutable `reaction/discovery/commit.json`. Existing v1 runs retain
+`reaction/pathways/`.
 
-Inspect an orientation's existing reaction trace with
-`pyar trace reaction/gamma_adaptive/orientation_000_geom/job_adaptive_000_geom`.
+Trace and candidate locations are recorded with each accepted product. Use
+those references; copy committed evidence before reanalysis with `pyar trace`,
+which can write new candidate files. See the [run-layout guide](docs/run_layout.rst)
+for v2 outputs, manifests, restart limits and v1 compatibility.
 The completion report includes workflow status, product count/paths, run directory
 and state path. A completed zero-product search succeeds. Legacy `pyar-react`,
 `pyar-cli react`, and `pyar-cli -r` retain their existing parser/default semantics.
