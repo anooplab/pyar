@@ -18,7 +18,7 @@ from pyar.backends.orca_scan import (
 )
 from pyar.backends.orca_methods import orca_external_method_block, orca_method, orca_method_keywords
 from pyar.core.molecule import Molecule
-from pyar.workflows.scan_bond import absolute_target_indices, run_scan_bond, scan_point_count
+from pyar.workflows.scan_bond import absolute_target_indices, _run_scan_bond as run_scan_bond, scan_point_count
 
 
 def test_fragment_local_indices_are_merged_asymmetric():

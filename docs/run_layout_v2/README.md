@@ -187,6 +187,17 @@ only wraps persistence for copying after save; it does not change saved bytes.
   Production pathway sampling is unchanged. Full suite: 1,324 passed, 1 skipped,
   194 subtests passed; 64 focused checks, warning-free Sphinx and package builds
   passed. GitHub CI remains the merge gate.
-- PRs 5–8 wait for successful PR 4 merge; no overlapping milestones.
+- PR 4 merged as [PR #38](https://github.com/anooplab/pyar/pull/38) after all
+  checks passed; master verified at 8074deb.
+- PR 5: fresh scans publish copied inputs and immutable scan/free-relaxation
+  commits. Scan-only to cumulative continuation reuses verified native scans;
+  missing progress reports are recovered from commits. Path stages keep native
+  cumulative files within one attempt and publish per-stage commits (contract
+  amendment documented). Existing v1 scans retain native paths and routing.
+  Review fixed integration consumers to read returned artifact references.
+  Full validation: 1,330 passed, 1 skipped, 194 subtests passed; strict Sphinx
+  and source/wheel builds pass. Local /tmp quota failures were resolved with
+  a command-scoped TMPDIR on a filesystem with capacity. CI is the merge gate.
+- PRs 6–8 wait for successful PR 5 merge; no overlapping milestones.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

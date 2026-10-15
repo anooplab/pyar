@@ -165,3 +165,25 @@ frequencies reuses the optimized endpoint geometries without optimizing them
 again or rewriting their upstream artifacts. Changing the Hamiltonian requires
 a new scan output directory; changing downstream convergence settings reruns
 the affected reaction stages and invalidates dependent stages.
+
+Run layout v2
+-------------
+
+Fresh scans use explicit ``layout.json`` and immutable copied inputs. Each
+``orientation_NNN`` retains ``start.xyz`` and ``result.json``; native scan,
+profile, candidate and free-relaxation files live together under
+``attempts/attempt_000/execution``. A successful scan publishes
+``scan_commit.json`` with request identity and hashed relative artifact refs.
+Changing ``--through`` does not change that identity. Corrupt committed files
+are rejected rather than silently rescanned. Free relaxation has a separate
+``relax_commit.json``; mutable reports are not restart authority.
+
+Reaction-path continuation copies its inputs into ``reaction_path/inputs``.
+Native cumulative stage files share ``reaction_path/attempts/attempt_NNN/execution``;
+per-stage commits under ``reaction_path/stages`` index their provenance and
+scientific gates. Changing continuation settings selects another attempt and
+preserves prior commits. Native stage names and scientific reuse checks remain
+unchanged. Existing v1 runs continue with their original paths.
+
+``results/manifest.json`` indexes scan-maximum candidates in their native
+locations. These candidates are explicitly **not validated transition states**.
