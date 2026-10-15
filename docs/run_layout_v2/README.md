@@ -165,6 +165,16 @@ only wraps persistence for copying after save; it does not change saved bytes.
   Reviewed twice; 1,312 full-suite tests and 40 grow-focused tests passed, with
   warning-free Sphinx and a fresh wheel/sdist. Real geometry-only v1/v2 runs
   produced byte-identical final structures. Live CI/merge status is on its PR.
-- PRs 3–8 wait for successful PR 2 merge; no overlapping milestones.
+- PR 2 merged after all 48 checks passed; master verified at eee1d3e.
+- PR 3: fresh microsolvation uses immutable original inputs/surface, per-step
+  selected-pool commits and coverage, native execution attempts and final
+  result copies/manifest. Legacy microsolvation and deprecated solvate retain
+  their existing owners and paths. Original-solute targeting, shell filtering
+  and selection calls are unchanged (source AST checked). Durable v1 fixture
+  snapshot 013 is retained with its original hashes.
+  Two review passes and 1,319 full-suite tests passed, plus warning-free Sphinx,
+  package builds and byte-identical real geometry-only v1/v2 results/coverage.
+  Live CI/merge status is on the PR.
+- PRs 4–8 wait for successful PR 3 merge; no overlapping milestones.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

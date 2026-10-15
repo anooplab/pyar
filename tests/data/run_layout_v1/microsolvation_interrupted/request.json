@@ -1,0 +1,94 @@
+{
+  "backend_parameters": {},
+  "confinement": {
+    "mode": "placement-and-post-optimization-shell-filter"
+  },
+  "count": 2,
+  "maximum_number_of_seeds": 2,
+  "orientations": 3,
+  "sampling": {
+    "directions": "fibonacci",
+    "rotations": "halton"
+  },
+  "selection_policy": {
+    "coverage_frontier_fraction_tolerance": 0.03,
+    "deduplication": "adaptive-graph-first-rmsd",
+    "name": "surface-coverage-energy-diversity-v1"
+  },
+  "shell_policy": "original-solute-first-shell-postfilter-v1",
+  "shell_tolerance_angstrom": 3.5,
+  "solute": {
+    "atoms": [
+      "C",
+      "H",
+      "H",
+      "H",
+      "H"
+    ],
+    "charge": 0,
+    "coordinates": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.629,
+        0.629,
+        0.629
+      ],
+      [
+        -0.629,
+        -0.629,
+        0.629
+      ],
+      [
+        -0.629,
+        0.629,
+        -0.629
+      ],
+      [
+        0.629,
+        -0.629,
+        -0.629
+      ]
+    ],
+    "fragment_definition": [],
+    "multiplicity": 1,
+    "scftype": "rhf"
+  },
+  "solute_site_atoms": null,
+  "solvent": {
+    "atoms": [
+      "O",
+      "H",
+      "H"
+    ],
+    "charge": 0,
+    "coordinates": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.9572,
+        0.0,
+        0.0
+      ],
+      [
+        -0.239,
+        0.927,
+        0.0
+      ]
+    ],
+    "fragment_definition": [],
+    "multiplicity": 1,
+    "scftype": "rhf"
+  },
+  "surface": {
+    "model": "vdw-probe-fibonacci-v1",
+    "points_per_atom": 32,
+    "probe_radius_angstrom": 1.4
+  }
+}

@@ -99,7 +99,7 @@ def test_geometry_only_workflow_is_bounded_and_records_coverage_and_identity(tmp
     assert len(result.selected_paths) <= 2
     assert result.metadata["completed_solvents"] == 2
     assert len(result.metadata["coverage_history"]) == 2
-    assert (tmp_path / "microsolvation" / "step_001" / "coverage.json").is_file()
+    assert (tmp_path / "microsolvation" / "steps" / "step_001" / "coverage.json").is_file()
     state = MicrosolvationRunState.load(tmp_path / "microsolvation", req.to_state_dict())
     assert state is not None
     restored = state.restore_pool()

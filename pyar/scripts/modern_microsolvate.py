@@ -1,5 +1,6 @@
 """Modern CLI for solute-centred first-shell microsolvation."""
 
+from pyar.persistence import LockError
 import argparse
 
 from pyar.cli_runtime import prepared_run, started_run, finished_run
@@ -33,6 +34,8 @@ def build_parser(prog=None):
     parser.add_argument("--shell-tolerance", type=float, default=3.5,
                         help="Maximum solvent-centre distance from the target surface after relaxation (Angstrom)")
     parser.add_argument("--output", default="microsolvation")
+    parser.add_argument("--recover-stale-lock", action="store_true",
+                        help="Explicit stale v2 writer recovery; cannot break an active lock")
     parser.add_argument("--check", action="store_true", help="Validate request and preflight without creating files")
     return parser
 
@@ -86,8 +89,8 @@ def main(argv=None, *, prog=None):
             print("Ready to run.\n--check specified; no calculations were performed.")
             return None
         started_run()
-        result = microsolvate(request, output=args.output)
-    except (ValueError, OSError, ImportError, MicrosolvationStateError, BackendExecutionError) as exc:
+        result = microsolvate(request, output=args.output, **({"recover_stale": True} if args.recover_stale_lock else {}))
+    except (ValueError, OSError, ImportError, MicrosolvationStateError, LockError, BackendExecutionError) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(
