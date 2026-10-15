@@ -163,7 +163,7 @@ def _load_xyz_with_openbabel(input_path, run_directory, Chem):
         if molecule is None:
             raise ConformerWorkflowError(f"OpenBabel output for {source} is not a valid SDF molecule")
         return molecule
-    input_directory = run_directory / "input"
+    input_directory = run_directory / ("inputs" if (run_directory / "layout.json").exists() else "input")
     input_directory.mkdir(parents=True, exist_ok=True)
     converted_sdf = input_directory / "input_from_xyz.sdf"
     log_path = input_directory / "openbabel_xyz_to_sdf.log"
@@ -584,7 +584,7 @@ def _molecule_from_rdkit_conformer(
     )
 
 
-def _prepare_run_directory(root_directory):
+def _prepare_run_directory(root_directory, *, v2=False):
     """Create the conformer run directory, rejecting completed prior runs."""
     run_directory = Path(workflow_run_directory(root_directory, "conformers"))
     state_file = Path(workflow_state_path(str(run_directory)))
@@ -599,7 +599,7 @@ def _prepare_run_directory(root_directory):
             f"{existing_state.get('status', 'unknown')!r}; start a new calculation "
             "in a new directory."
         )
-    for child in ("input", "rdkit", "selected"):
+    for child in (("inputs", "generated", "results") if v2 else ("input", "rdkit", "selected")):
         (run_directory / child).mkdir(parents=True, exist_ok=True)
     return run_directory
 
@@ -885,9 +885,9 @@ def _select_refinement_records(records, limit, top_n, diversity_fraction, compac
     return sorted(selected, key=_record_sort_key)
 
 
-def _refine_with_backend(records, run_directory, qc_params):
+def _refine_with_backend(records, run_directory, qc_params, *, v2=False):
     """Optimize selected RDKit conformers with an existing PyAR backend."""
-    backend_directory = run_directory / "backend"
+    backend_directory = run_directory / ("refinement/execution" if v2 else "backend")
     backend_directory.mkdir(parents=True, exist_ok=True)
     refined = []
     with _working_directory(backend_directory):
@@ -1089,7 +1089,7 @@ def _build_conformer_request(
     return request.to_state_dict()
 
 
-def conformer_search(
+def _conformer_search(
     input_spec,
     *,
     input_format="auto",
@@ -1117,6 +1117,7 @@ def conformer_search(
     scftype="rhf",
     qc_params=None,
     root_directory=None,
+    _v2=False,
 ):
     """Generate and optionally refine conformers for one molecule."""
     request = _build_conformer_request(
@@ -1173,7 +1174,11 @@ def conformer_search(
 
     root_directory = os.getcwd() if root_directory is None else root_directory
     Chem, AllChem = _rdkit_modules()
-    run_directory = _prepare_run_directory(root_directory)
+    run_directory = _prepare_run_directory(root_directory, **({"v2": True} if _v2 else {}))
+    layout = None
+    if _v2:
+        from pyar.conformer.layout_v2 import ConformerLayout
+        layout = ConformerLayout(run_directory, request)
     state_path = Path(workflow_state_path(str(run_directory)))
 
     rdkit_molecule, source_format = _load_rdkit_molecule(
@@ -1237,13 +1242,16 @@ def conformer_search(
             backend_requested=bool(qc_params and qc_params.get("software")),
         )
         state["comparison_policy"] = comparisons.summary()
-        _write_json_atomic(state_path, state)
+        if layout is None:
+            _write_json_atomic(state_path, state)
+        else:
+            layout.publish(state)
         raise ConformerWorkflowError("RDKit did not generate any conformers")
 
     _write_rdkit_conformers(
         records,
         rdkit_molecule,
-        run_directory / "rdkit",
+        run_directory / ("generated" if _v2 else "rdkit"),
         charge=charge,
         multiplicity=multiplicity,
         scftype=scftype,
@@ -1264,7 +1272,8 @@ def conformer_search(
             compactness_fraction,
             comparisons=comparisons,
         )
-        refined_records = _refine_with_backend(retained_records, run_directory, qc_params)
+        refined_records = _refine_with_backend(retained_records, run_directory, qc_params,
+                                                **({"v2": True} if _v2 else {}))
         selected_records = _select_unique_records(
             refined_records,
             min(int(top_n), len(refined_records)),
@@ -1289,7 +1298,7 @@ def conformer_search(
         )
         status = "completed"
 
-    selected_paths = _write_selected_conformers(selected_records, run_directory / "selected")
+    selected_paths = _write_selected_conformers(selected_records, run_directory / ("results" if _v2 else "selected"))
     _write_summary(records, run_directory / "summary.csv")
     state = _build_state(
         status=status,
@@ -1300,7 +1309,10 @@ def conformer_search(
         backend_requested=backend_requested,
     )
     state["comparison_policy"] = comparisons.summary()
-    _write_json_atomic(state_path, state)
+    if layout is None:
+        _write_json_atomic(state_path, state)
+    else:
+        layout.publish(state)
 
     conformer_logger.info(
         "Conformer workflow completed: generated=%d selected=%d backend=%s",
@@ -1334,3 +1346,51 @@ def conformer_search(
             "torsion_dedup_rms": float(torsion_dedup_rms),
         },
     )
+
+
+def conformer_search(
+    input_spec,
+    *,
+    input_format="auto",
+    num_conformers=150,
+    top_n=10,
+    backend_top_n=None,
+    num_seeds=5,
+    diversity_fraction=0.2,
+    compactness_fraction=0.2,
+    rms_threshold=0.25,
+    use_random_coords=True,
+    torsion_kicks=True,
+    torsion_rounds=2,
+    torsion_mode="random",
+    torsion_kicks_per_conformer=6,
+    torsion_max_bonds=3,
+    torsion_dedup_rms=0.5,
+    dedup_atom_mode="heavy",
+    force_field="auto",
+    seed=1,
+    num_threads=0,
+    max_iterations=200,
+    charge=None,
+    multiplicity=1,
+    scftype="rhf",
+    qc_params=None,
+    root_directory=None,
+):
+    """Run a fresh conformer search; existing v1/v2 runs remain nonresumable."""
+    arguments = dict(locals())
+    from pyar.persistence import detect_version, RunLock
+    options = {key: value for key, value in arguments.items() if key not in {'input_spec', 'root_directory'}}
+    _build_conformer_request(input_spec, **options)
+    root = Path.cwd() if root_directory is None else Path(root_directory).resolve()
+    directory = root / 'conformers'
+    def legacy(path):
+        from pyar.persistence import read_json
+        state = read_json(path / 'state.json')
+        return state.get('workflow') == 'conformer' and state.get('version') in {1, 2, STATE_VERSION}
+    if detect_version(directory, 'conformer', validate_v1=legacy) == 1:
+        return _conformer_search(**arguments)
+    root.mkdir(parents=True, exist_ok=True)
+    with RunLock(directory):
+        detect_version(directory, 'conformer', validate_v1=legacy)
+        return _conformer_search(**arguments, _v2=True)

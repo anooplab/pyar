@@ -282,8 +282,9 @@ def _candidate_entries(summary_rows, run_directory, field):
     return entries
 
 
-def _selected_entries(summary_rows, selected_directory):
-    selected_paths = sorted(selected_directory.glob("*.xyz")) if selected_directory.is_dir() else []
+def _selected_entries(summary_rows, selected_directory, *, paths=None):
+    selected_paths = (paths if paths is not None else
+                      (sorted(selected_directory.glob("*.xyz")) if selected_directory.is_dir() else []))
     by_path = {}
     for row in summary_rows:
         selected_path = row.get("selected_path")
@@ -444,6 +445,13 @@ def diagnose_conformer_case(
     run_directory = Path(conformer_result.run_directory)
     state = _load_state(run_directory)
     summary_rows = _read_summary_rows(run_directory / "summary.csv")
+    if (run_directory / 'layout.json').exists():
+        from pyar.conformer.layout_v2 import selected_artifacts
+        artifacts = selected_artifacts(run_directory)
+        selected_entries = _selected_entries(summary_rows, run_directory / 'results',
+            paths=[run_directory / ref['path'] for ref in artifacts])
+    else:
+        selected_entries = _selected_entries(summary_rows, run_directory / "selected")
     reference_path = Path(case.reference_xyz) if case.reference_xyz else None
     backend_requested = bool(state.get("backend_requested"))
     if not state and getattr(conformer_result, "metadata", None):
@@ -462,7 +470,6 @@ def diagnose_conformer_case(
             reference_error = f"could not read reference geometry: {exc}"
 
     generated_entries = _candidate_entries(summary_rows, run_directory, "rdkit_path")
-    selected_entries = _selected_entries(summary_rows, run_directory / "selected")
     if reference is not None:
         nearest_generated = _nearest(reference, generated_entries)
         nearest_selected = _nearest(reference, selected_entries)

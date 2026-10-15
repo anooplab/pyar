@@ -212,6 +212,17 @@ only wraps persistence for copying after save; it does not change saved bytes.
   changes do not invalidate discovery; artifact tampering fails closed.
   Full suite: 1,336 passed, 1 skipped, 194 subtests passed. Strict Sphinx and
   isolated wheel/sdist builds pass; CI remains the merge gate.
-- PRs 7–8 wait for successful PR 6 merge; no overlapping milestones.
+- PR 6 merged as [PR #40](https://github.com/anooplab/pyar/pull/40) after all
+  checks passed; master verified at 13e583e.
+- PR 7: fresh conformers use inputs/generated/refinement/results with immutable
+  completion, generation identities and checked result manifests. RDKit native
+  force-field energies and physical backend energies have separate units and
+  provenance. Benchmarks dispatch on the marker and consume checked manifests.
+  Both v1 and v2 remain nonresumable. Real seeded RDKit v1/v2 selected bytes and
+  scientific metadata match; public signature, generation/selection/writer
+  function ASTs are unchanged. Native backend job names are preserved.
+  Full suite: 1,341 passed, 1 skipped, 194 subtests passed; strict Sphinx and
+  isolated package builds pass. CI remains the merge gate.
+- PR 8 waits for successful PR 7 merge; no overlapping milestones.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

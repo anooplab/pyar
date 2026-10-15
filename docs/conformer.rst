@@ -118,7 +118,7 @@ these comparisons do not replace a chemical identity analysis.
 Useful outputs
 --------------
 
-* ``conformers/state.json`` for restart/provenance-style metadata
+* ``conformers/state.json`` for inspection/provenance metadata (not a resume API)
 * ``conformers/summary.csv`` for the ranked conformer table, including the
   basin-retention reason, nonbonded contact count, and heavy-atom radius of
   gyration when available
@@ -126,9 +126,21 @@ Useful outputs
   threshold used before backend refinement as ``generation_dedup_rms``
 * the request records ``dedup_atom_mode`` and ``final_dedup_rms``; the
   ``comparison_policy`` section records the method, atom mode, uncertainty
-  policy, and comparison/fallback counts for each stage (state schema 3)
-* ``conformers/rdkit/`` for the embedded conformers before backend refinement
-* ``conformers/selected/`` for the final selected conformers
+  policy, and comparison/fallback counts for each stage (v2 state schema 4; legacy schema 3)
+* ``conformers/generated/`` for the embedded conformers before backend refinement
+  and immutable seed/torsion/source records with stable artifact IDs
+* ``conformers/refinement/execution/`` for native backend job directories
+* ``conformers/results/`` for final selected conformers and their manifest
+* ``conformers/completion.json`` for the immutable completion outcome, selected
+  identities and hashed artifact references
+
+Fresh runs use explicit layout v2 metadata. Original and converted inputs live
+under ``inputs``. RDKit force-field energies remain in kcal/mol, separately from
+physical backend energies in Hartree. Result filenames are display ranks, not
+conformer identities. Benchmark result discovery validates the completion record
+and manifest rather than globbing legacy directories. Existing v1 output trees
+retain ``input``, ``rdkit``, ``backend`` and ``selected``; neither format can be
+resumed or overwritten by another search.
 
 Developer API note
 ------------------
