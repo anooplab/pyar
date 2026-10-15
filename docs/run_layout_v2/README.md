@@ -166,7 +166,7 @@ only wraps persistence for copying after save; it does not change saved bytes.
   warning-free Sphinx and a fresh wheel/sdist. Real geometry-only v1/v2 runs
   produced byte-identical final structures. Live CI/merge status is on its PR.
 - PR 2 merged after all 48 checks passed; master verified at eee1d3e.
-- PR 3: fresh microsolvation uses immutable original inputs/surface, per-step
+- PR 3: [PR #37](https://github.com/anooplab/pyar/pull/37); fresh microsolvation uses immutable original inputs/surface, per-step
   selected-pool commits and coverage, native execution attempts and final
   result copies/manifest. Legacy microsolvation and deprecated solvate retain
   their existing owners and paths. Original-solute targeting, shell filtering
