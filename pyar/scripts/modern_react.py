@@ -88,8 +88,9 @@ def main(argv=None, *, prog=None):
                 raw_status = json.loads(reaction_state_path.read_text(encoding='utf-8')).get('status')
             except (OSError, ValueError):
                 raw_status = None
-            if raw_status in {'completed', 'completed_products_found', 'completed_no_products',
-                              'completed_no_candidates'}:
+            if ((reaction_state_path.parent / 'discovery/commit.json').exists() or
+                    raw_status in {'completed', 'completed_products_found', 'completed_no_products',
+                                   'completed_no_candidates'}):
                 from pyar.state.reaction import ReactionRunState
                 completed_state = ReactionRunState.read_completed(Path.cwd(), request.restart_request)
                 validate_characterization_restart(Path.cwd(), request, args.through,
@@ -133,7 +134,9 @@ def main(argv=None, *, prog=None):
                 workflow='reaction', status=completed_state.data['status'],
                 run_directory=str(Path.cwd() / 'reaction'),
                 state_path=str(reaction_state_path),
-                selected_paths=tuple(str(Path.cwd() / 'reaction' / item['path']) for item in products),
+                selected_paths=(completed_state.selected_paths()
+                    if completed_state.data.get('workflow_state_schema_version') == 3 else
+                    tuple(str(Path.cwd() / 'reaction' / item['path']) for item in products)),
                 metadata={'products': tuple(products), 'resumed_discovery': True})
         if args.through != 'react' and not result.status.startswith('failed'):
             characterization = characterize_reaction(

@@ -98,6 +98,9 @@ class ReactionRunState:
     def load(cls, root_directory, expected_request):
         """Load a current-format reaction state file and validate its request."""
         state_file = Path(root_directory).resolve() / "reaction" / STATE_FILENAME
+        if (state_file.parent / 'layout.json').exists():
+            from pyar.state.reaction_v2 import ReactionRunStateV2
+            return ReactionRunStateV2.load(root_directory, expected_request)
         if not state_file.is_file():
             return None
         try:
@@ -128,6 +131,9 @@ class ReactionRunState:
         a writable reaction restart.
         """
         state_file = Path(root_directory).resolve() / "reaction" / STATE_FILENAME
+        if (state_file.parent / 'layout.json').exists():
+            from pyar.state.reaction_v2 import ReactionRunStateV2
+            return ReactionRunStateV2.read_completed(root_directory, expected_request)
         if not state_file.is_file():
             return None
         try:

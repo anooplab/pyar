@@ -137,6 +137,48 @@ def _select_waypoint(candidate_dir, requested):
     raise ValueError("No usable reaction-trace TS guess; expected one of " + ", ".join(preferred))
 
 
+
+def _v2(root):
+    return (Path(root).resolve() / 'reaction/layout.json').exists()
+
+
+def _pathway_root(root):
+    return Path(root).resolve() / 'reaction' / ('characterization' if _v2(root) else 'pathways')
+
+
+def _dependency_key(root):
+    return 'discovery_commit_sha256' if _v2(root) else 'reaction_state_sha256'
+
+
+def _discovery_source(root):
+    return Path(root).resolve() / 'reaction' / ('discovery/commit.json' if _v2(root) else 'state.json')
+
+
+def _write_pathway_record(root, directory, provenance):
+    if not _v2(root):
+        _write_json_atomic(directory / 'pathway.json', provenance)
+        return
+    from pyar.persistence import read_json, write_json
+    identity = {key: value for key, value in provenance.items()
+                if key not in {'through', 'status', 'stage_status'}}
+    reaction = Path(root).resolve() / 'reaction'
+    def relative(value):
+        if isinstance(value, dict):
+            return {key: relative(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [relative(item) for item in value]
+        if isinstance(value, str) and value.startswith(str(reaction) + '/'):
+            return Path(value).relative_to(reaction).as_posix()
+        return value
+    identity = relative(identity)
+    path = directory / 'pathway.json'
+    if path.exists():
+        if read_json(path) != identity:
+            raise ValueError('Immutable characterization pathway identity changed')
+    else:
+        write_json(path, identity, overwrite=False)
+    write_json(directory / 'progress.json', provenance)
+
 def _alternative_routes(root, state, product):
     """Retain raw duplicate-product pathway provenance without characterizing it."""
     identity = (product.get("inchi"), product.get("smiles"))
@@ -188,9 +230,10 @@ def _prepare_route(root, product, product_number, options, qc_params, previous=N
     if start_elements != product_elements:
         raise ValueError("Reactant-side geometry does not have the accepted product's atom count/order")
 
-    pathway_id = "route_001"
-    route_dir = reaction_dir / "pathways" / f"product_{product_number:03d}" / pathway_id
-    start_out, end_out = route_dir / "reactant.xyz", route_dir / "product.xyz"
+    pathway_id = 'pathway_001' if _v2(root) else 'route_001'
+    route_dir = (_pathway_root(root) / 'products' if _v2(root) else _pathway_root(root)) / f"product_{product_number:03d}" / pathway_id
+    input_dir = route_dir / 'inputs' if _v2(root) else route_dir
+    start_out, end_out = input_dir / 'reactant.xyz', input_dir / 'product.xyz'
     # The path engine writes its NEB waypoint as route_dir/ts_guess.xyz.
     # Keep our immutable reaction-trace input elsewhere to avoid aliasing it.
     waypoint_out = route_dir / "inputs" / "ts_guess.xyz"
@@ -223,31 +266,39 @@ def _prepare_route(root, product, product_number, options, qc_params, previous=N
         "backend_settings": {key: value for key, value in qc_params.items()
                              if key in {"software", "xtb_model", "method", "basis", "charge", "multiplicity", "scftype", "nprocs"}},
         "through": options["through"], "path_options": expected_options, "inputs": source_hashes,
-        "pathway_input_files": {"reactant": "reactant.xyz", "product": "product.xyz",
+        "pathway_input_files": {"reactant": start_out.relative_to(route_dir).as_posix(),
+                                "product": end_out.relative_to(route_dir).as_posix(),
                                 "ts_guess": "inputs/ts_guess.xyz"},
         "prepared_geometry_sha256": {"reactant": _sha256(start_out), "product": _sha256(end_out),
                                      "ts_guess": _sha256(waypoint_out)},
         "status": "prepared",
     }
-    _write_json_atomic(route_dir / "pathway.json", provenance)
+    if _v2(root):
+        from uuid import uuid4
+        identity_file = route_dir / 'pathway.json'
+        provenance['pathway_uuid'] = (json.loads(identity_file.read_text())['pathway_uuid']
+                                      if identity_file.exists() else str(uuid4()))
+        provenance['discovery_product_id'] = product['product_id']
+        provenance['discovery_commit_sha256'] = _sha256(_discovery_source(root))
+    _write_pathway_record(root, route_dir, provenance)
     return {"product": f"product_{product_number:03d}", "pathway": pathway_id,
             "directory": str(route_dir), "provenance": provenance,
             "start": start_out, "end": end_out, "ts_guess": waypoint_out}
 
 
-def characterize_reaction(root, request, through, options):
+def _characterize_reaction(root, request, through, options):
     """Characterize one selected trace pathway for each accepted product."""
     if through == "react":
         return {"status": "not_requested", "pathways": []}
     state = ReactionRunState.read_completed(root, request.restart_request)
     if state is None:
         raise ValueError("Path continuation requires a completed reaction/state.json")
-    state_path = Path(root).resolve() / "reaction" / "pathways" / "pathways.json"
+    state_path = _pathway_root(root) / "pathways.json"
     if state_path.is_file():
         existing = json.loads(state_path.read_text(encoding="utf-8"))
         if existing.get("reaction_request") != state.data.get("request"):
             raise ValueError("Pathway state does not match the completed reaction request")
-        if existing.get("reaction_state_sha256") not in (None, _sha256(Path(root).resolve() / "reaction" / "state.json")):
+        if existing.get(_dependency_key(root)) not in (None, _sha256(_discovery_source(root))):
             raise ValueError("Completed reaction state changed since pathway characterization")
     else:
         existing = {}
@@ -265,7 +316,7 @@ def characterize_reaction(root, request, through, options):
     records = []
     failures = []
     summary = {"schema_version": 1, "reaction_request": state.data.get("request"),
-               "reaction_state_sha256": _sha256(Path(root).resolve() / "reaction" / "state.json"),
+               _dependency_key(root): _sha256(_discovery_source(root)),
                "through": through, "path_options": path_options, "selected_routes": records,
                "preparation_failures": failures,
                "alternatives": {f"product_{i:03d}": _alternative_routes(root, state, product)
@@ -285,16 +336,17 @@ def characterize_reaction(root, request, through, options):
         summary["routes"][route["product"]] = route["provenance"]
         _write_json_atomic(state_path, summary)
         run_options = {key: value for key, value in path_options.items() if key != "pathway_ts_source"}
+        extra = {'layout_dependency': _sha256(_discovery_source(root))} if _v2(root) else {}
         result = run_path_stages(start=route["start"], end=route["end"], ts_guess=route["ts_guess"],
                                  output=route["directory"], qc_params=request.qc_params,
-                                 through=through, options=run_options)
+                                 through=through, options=run_options, **extra)
         route_result = {"product": route["product"], "pathway": route["pathway"],
                         "directory": route["directory"], "through": through,
                         "status": result["status"], "failed_stage": result.get("failed_stage"),
                         "error": result.get("error"),
                         "reactant_product_connection_confirmed": result.get("reactant_product_connection_confirmed", False)}
         route["provenance"].update(status=result["status"], stage_status=result)
-        _write_json_atomic(Path(route["directory"]) / "pathway.json", route["provenance"])
+        _write_pathway_record(root, Path(route["directory"]), route["provenance"])
         summary["routes"][route["product"]] = route["provenance"]
         records.append(route_result)
         summary["selected_routes"] = records
@@ -310,7 +362,7 @@ def characterize_reaction(root, request, through, options):
 
 def validate_characterization_restart(root, request, through, options):
     """Validate pathway provenance without creating or modifying any files."""
-    state_path = Path(root).resolve() / "reaction" / "pathways" / "pathways.json"
+    state_path = _pathway_root(root) / "pathways.json"
     pathway_root = state_path.parent
     reaction_state = ReactionRunState.read_completed(root, request.restart_request)
     if reaction_state is None:
@@ -320,8 +372,8 @@ def validate_characterization_restart(root, request, through, options):
     existing = json.loads(state_path.read_text(encoding="utf-8")) if state_path.is_file() else None
     if existing is not None and existing.get("reaction_request") != reaction_state.data.get("request"):
         raise ValueError("Pathway restart state does not match completed reaction discovery")
-    if (existing is not None and existing.get("reaction_state_sha256") !=
-            _sha256(Path(root).resolve() / "reaction" / "state.json")):
+    if (existing is not None and existing.get(_dependency_key(root)) !=
+            _sha256(_discovery_source(root))):
         raise ValueError("Completed reaction state changed since pathway characterization; refusing stage reuse")
     path_options = {key: value for key, value in options.items() if key in {
         "pathway_ts_source", "images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
@@ -332,11 +384,19 @@ def validate_characterization_restart(root, request, through, options):
     for route in (existing or {}).get("routes", {}).values():
         if route.get("path_options") != path_options:
             raise ValueError("Pathway restart settings differ from this invocation")
-        directory = pathway_root / route.get("product_id", "") / route.get("pathway_id", "")
+        directory = (pathway_root / 'products' if _v2(root) else pathway_root) / route.get("product_id", "") / route.get("pathway_id", "")
         route_file = directory / "pathway.json"
         if not route_file.is_file():
             raise ValueError(f"Pathway restart metadata is missing: {route_file}")
         saved = json.loads(route_file.read_text(encoding="utf-8"))
+        if _v2(root):
+            from pyar.persistence import ArtifactRef, read_json
+            for commit in directory.glob('stages/*/attempts/attempt_*/commit.json'):
+                record = read_json(commit)
+                if record.get('status') != 'completed':
+                    raise ValueError('Invalid characterization stage commit')
+                for reference in record['artifacts']:
+                    ArtifactRef.from_dict(reference).verify(directory)
         if saved.get("path_options") != path_options:
             raise ValueError("Pathway stage settings differ from this invocation")
         input_files = saved.get("pathway_input_files", {
@@ -383,3 +443,12 @@ def validate_characterization_restart(root, request, through, options):
         if not (candidate_dir / "metadata.json").is_file():
             raise ValueError(f"Candidate waypoint metadata is missing: {candidate_dir / 'metadata.json'}")
     return existing
+
+
+def characterize_reaction(root, request, through, options):
+    """Serialize v2 characterization independently of completed discovery."""
+    if not _v2(root):
+        return _characterize_reaction(root, request, through, options)
+    from pyar.persistence import RunLock
+    with RunLock(Path(root).resolve() / 'reaction'):
+        return _characterize_reaction(root, request, through, options)

@@ -713,7 +713,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 ), \
                     mock.patch.object(reactor, "optimize_all", return_value=[]) as optimize_all, \
                     mock.patch.object(reactor.os, "chdir"):
-                    result = reactor.react(
+                    result = reactor._react(
                         object(),
                         object(),
                         0.1,
@@ -758,7 +758,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 ), \
                     mock.patch.object(reactor, "optimize_all", return_value=[]), \
                     mock.patch.object(reactor.os, "chdir"):
-                    result = reactor.react(object(), object(), 100.0, 100.0, 1, {"software": "xtb"}, None, 2.3)
+                    result = reactor._react(object(), object(), 100.0, 100.0, 1, {"software": "xtb"}, None, 2.3)
 
             run_state.complete_cycle.assert_called_once_with(100.0, [])
             run_state.finish.assert_called_once_with("completed_products_found")

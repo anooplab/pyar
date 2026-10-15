@@ -21,6 +21,7 @@ import logging
 import json
 import math
 import os
+from pathlib import Path
 import shutil
 import sys
 
@@ -77,7 +78,8 @@ def _build_reaction_result(
         status=status,
         run_directory=workflow_run_directory(workdir, "reaction"),
         state_path=workflow_state_path(workflow_run_directory(workdir, "reaction")),
-        selected_paths=tuple(product["path"] for product in run_state.data.get("products", [])),
+        selected_paths=(run_state.selected_paths() if run_state.data.get('workflow_state_schema_version') == 3
+                        else tuple(product["path"] for product in run_state.data.get("products", []))),
         metadata={
             "gamma_schedule": tuple(float(value) for value in gamma_list),
             "products": tuple(run_state.data.get("products", [])),
@@ -545,7 +547,7 @@ def _orientation_final_coordinate_path(gamma_directory, orientation_directory, j
 
 
 def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations,
-                            qc_params, site, proximity_factor):
+                            qc_params, site, proximity_factor, *, _v2=False):
     """Prepare a reaction run and return the mutable workflow state.
 
     This function owns the restart contract for the reaction workflow. It
@@ -601,7 +603,8 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
         orientations_to_optimize = run_state.pending_molecules()
         os.chdir('reaction')
         cwd = os.getcwd()
-        product_dir = f'{cwd}/products'
+        product_dir = (f'{cwd}/discovery/attempts/attempt_000/execution/products'
+                       if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/products')
         _restore_product_registry(run_state)
         return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
 
@@ -624,11 +627,14 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
 
     software = qc_params['software']
     print_header(gamma_max, gamma_min, hm_orientations, software)
-    product_dir = f'{cwd}/products'
+    product_dir = (f'{cwd}/discovery/attempts/attempt_000/execution/products'
+                   if _v2 else f'{cwd}/products')
     reactor_logger.debug(f'Product directory: {product_dir}')
     file_manager.make_directories(product_dir)
-    file_manager.make_directories('trial_geometries')
-    os.chdir('trial_geometries')
+    trials = ('discovery/initial/attempts/attempt_000/execution/trial_geometries'
+              if _v2 else 'trial_geometries')
+    file_manager.make_directories(trials)
+    os.chdir(trials)
     if site is None:
         all_orientations = trial_generation.create_trial_geometries(
             'geom',
@@ -652,7 +658,11 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
 
     gamma_list = requested_gamma_list
     orientations_to_optimize = all_orientations[:]
-    run_state = ReactionRunState.create(
+    state_class = ReactionRunState
+    if _v2:
+        from pyar.state.reaction_v2 import ReactionRunStateV2
+        state_class = ReactionRunStateV2
+    run_state = state_class.create(
         current_workdir,
         request,
         orientations_to_optimize,
@@ -664,8 +674,8 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
     return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
 
 
-def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
-          site, proximity_factor):
+def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
+          site, proximity_factor, *, _v2=False):
     """Run the reaction-search workflow for two reactants.
 
     The workflow iterates over the gamma schedule, optimizes each orientation,
@@ -685,6 +695,7 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         qc_params,
         site,
         proximity_factor,
+        **({"_v2": True} if _v2 else {}),
     )
 
     for gamma in gamma_list:
@@ -692,7 +703,8 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         gamma_id = "adaptive" if adaptive_mode else format_gamma_id(gamma)
         reactor_logger.info(f"Gamma cycle path: reaction/gamma_{gamma_id}")
         reactor_logger.info(f'Gamma cycle start: {gamma_id}')
-        gamma_home = f'{cwd}/gamma_{gamma_id}'
+        gamma_home = (str(run_state.cycle_execution(gamma_id, gamma))
+                      if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/gamma_{gamma_id}')
         if not os.path.exists(gamma_home):
             file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)
@@ -973,6 +985,33 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         sys.stdout.flush()
     return table_of_optimized_molecules
 
+
+
+def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
+          site, proximity_factor, *, recover_stale=False):
+    """Keep existing discovery formats and guard fresh v2 publication."""
+    from pyar.persistence import detect_version, RunLock
+    from pyar.persistence.json_store import read_json
+    root = Path.cwd().resolve()
+    directory = root / 'reaction'
+    def legacy(path):
+        data = read_json(path / 'state.json')
+        return data.get('version') == 2 and data.get('workflow') == 'reaction'
+    args = (reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor)
+    if ((root / 'jobs.pkl').exists() and not (directory / 'layout.json').exists()
+            and not (directory / 'state.json').exists()):
+        return _react(*args)
+    if detect_version(directory, 'reaction', validate_v1=legacy) == 1:
+        return _react(*args)
+    with RunLock(directory, recover_stale=recover_stale):
+        detect_version(directory, 'reaction', validate_v1=legacy)
+        try:
+            result = _react(*args, _v2=True)
+            from pyar.persistence import write_json
+            write_json(directory / 'summary.json', result.to_dict())
+            return result
+        finally:
+            os.chdir(root)
 
 def main():
     """Compatibility entry point retained for older imports and scripts."""

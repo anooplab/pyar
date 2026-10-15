@@ -79,7 +79,7 @@ def test_adaptive_reaction_runs_one_named_cycle(tmp_path, monkeypatch):
     monkeypatch.setattr(reaction, "optimize_all", optimize_all)
     monkeypatch.setattr(reaction.os, "chdir", lambda *args: None)
 
-    result = reaction.react(
+    result = reaction._react(
         object(), object(), None, 250.0, 1,
         {"software": "xtb", "bias_controller": "adaptive"}, None, 2.3,
     )
