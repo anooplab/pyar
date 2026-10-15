@@ -223,8 +223,8 @@ def _make_orientations(fragment_a, fragment_b, n, local_i, local_j):
     return orientations
 
 
-def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
-                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None):
+def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
+                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None, *, _layout=None):
     """Run a scan, optionally continuing through a named reaction-path stage.
 
     ``through=None`` preserves the original Python scan-plus-relaxation API.
@@ -295,12 +295,25 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                    reactant_identity=reactant_identity, reactant_identity_error=reactant_identity_error)
     signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
     request["request_signature"] = hashlib.sha256(signature_payload.encode("utf-8")).hexdigest()
-    validate_scan_restart(root, request)
+    if _layout is not None:
+        request.pop('request_signature')
+        request.update(request_schema_version=1, workflow='scan-bond', run_id=_layout.run_id)
+        signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
+        request['request_signature'] = hashlib.sha256(signature_payload.encode('utf-8')).hexdigest()
+    if _layout is None or (root.exists() and any(root.iterdir())):
+        validate_scan_restart(root, request)
     root.mkdir(parents=True, exist_ok=True)
     request_path = root / "request.json"
-    request_temp = root / "request.json.tmp"
-    request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
-    request_temp.replace(request_path)
+    if _layout is not None:
+        from pyar.persistence import write_json
+        if not request_path.exists():
+            write_json(request_path, request, overwrite=False)
+    else:
+        request_temp = root / "request.json.tmp"
+        request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
+        request_temp.replace(request_path)
+    if _layout is not None:
+        _layout.initialize((input_a, input_b))
     results = []
     def save_result(directory, result):
         if result.get("status") == "scan_success_relax_success":
@@ -308,13 +321,18 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
                 for path in completed_artifacts if path.is_file()
             }
+            if _layout is not None:
+                _layout.relaxed(result['orientation'], result, completed_artifacts)
         (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
 
     for index, orientation, generation_error in orientation_items:
         directory = root / f"orientation_{index:03d}"
-        scan_dir = directory / "scan"
-        relax_dir = directory / "relax"
+        execution = (directory if _layout is None else
+                     directory / 'attempts/attempt_000/execution')
+        scan_dir = execution / "scan"
+        relax_dir = execution / "relax"
         directory.mkdir(exist_ok=True)
+        execution.mkdir(parents=True, exist_ok=True)
         result_path = directory / "result.json"
         previous_result = None
         if result_path.is_file():
@@ -322,15 +340,18 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 previous_result = json.loads(result_path.read_text())
             except (OSError, json.JSONDecodeError):
                 previous_result = None
+        committed = _layout.restore(index, request) if _layout is not None else None
+        if committed is not None:
+            previous_result = _layout.relaxed(index) or previous_result or committed
         completed_artifacts = (
             directory / "start.xyz",
-            directory / "result_relaxed.xyz",
+            execution / "result_relaxed.xyz",
             scan_dir / "final_scan.xyz",
             scan_dir / "scan_trajectory.xyz",
             scan_dir / "scan_profile.csv",
             scan_dir / "scan_profile.json",
-            directory / "ts_candidates" / "metadata.json",
-            directory / "ts_candidates" / "highest_scan_energy.xyz",
+            execution / "ts_candidates" / "metadata.json",
+            execution / "ts_candidates" / "highest_scan_energy.xyz",
         )
         if (previous_result
                 and previous_result.get("status") == "scan_success_relax_success"
@@ -348,7 +369,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             save_result(directory, result)
             results.append(result)
             continue
-        write_xyz(orientation.atoms_list, orientation.coordinates, directory / "start.xyz", job_name=orientation.name, precision=12)
+        if committed is None:
+            write_xyz(orientation.atoms_list, orientation.coordinates, directory / "start.xyz", job_name=orientation.name, precision=12)
         start_distance = _distance(orientation.coordinates, absolute_i, absolute_j)
         end_distance = float(scan_end if scan_end is not None else default_scan_end)
         try:
@@ -363,6 +385,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         if previous_result and previous_result.get("scan_status") == "success":
             scan = (load_orca_bond_scan_result if software == "orca" else load_bond_scan_result)(
                 orientation, request_model, scan_dir)
+        if committed is not None and (scan is None or not scan.success):
+            raise ValueError('Committed scan no longer passes native scan validation')
         if scan is None or not scan.success:
             try:
                 scan = (run_orca_bond_scan if software == "orca" else run_bond_scan)(
@@ -392,9 +416,14 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                     f"scan returned {len(scan.frames or [])} geometries and "
                     f"{len(scan.profile or [])} energies; expected {n_points} points"
                 )
-            result.update(_write_scan_profile(
-                scan_dir, scan.frames, scan.profile,
-                "scan.relaxscanact.dat" if software == "orca" else "scan_summary.json"))
+            if committed is not None:
+                result.update(committed)
+            else:
+                result.update(_write_scan_profile(
+                    scan_dir, scan.frames, scan.profile,
+                    "scan.relaxscanact.dat" if software == "orca" else "scan_summary.json"))
+            if _layout is not None:
+                _layout.commit(index, request, result, directory, execution)
         except Exception as exc:
             result["status"] = "scan_success_analysis_failed"
             result["error"] = str(exc)
@@ -442,7 +471,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 results.append(result)
                 continue
             try:
-                shutil.copy(optimized_output, directory / "result_relaxed.xyz")
+                shutil.copy(optimized_output, execution / "result_relaxed.xyz")
             except OSError as exc:
                 result["status"] = "scan_success_relax_failed"
                 result["error"] = f"could not preserve relaxed geometry: {exc}"
@@ -450,7 +479,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 results.append(result)
                 continue
             result["status"] = "scan_success_relax_success"
-            result["relaxed_path"] = str(directory / "result_relaxed.xyz")
+            result["relaxed_path"] = str(execution / "result_relaxed.xyz")
             result["target_distance_relaxed_angstrom"] = _distance(relaxed.coordinates, absolute_i, absolute_j)
             result["target_contact_threshold_angstrom"] = TARGET_CONTACT_FACTOR * target_radii
             result["target_bond_present_after_relaxation"] = (
@@ -464,7 +493,7 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 result["identity_error"] = reactant_identity_error
             else:
                 try:
-                    relaxed_identity = molecule_identity_from_xyz(directory / "result_relaxed.xyz")
+                    relaxed_identity = molecule_identity_from_xyz(execution / "result_relaxed.xyz")
                     result["relaxed_identity"] = relaxed_identity
                     result["product_identity_changed"] = reaction_product_changed(
                         reactant_identity, relaxed_identity
@@ -479,6 +508,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         results.append(result)
     if through not in (None, "scan"):
         continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
+    if _layout is not None:
+        _layout.manifest(results)
     (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
     with (root / "summary.csv").open("w", newline="") as handle:
         fields = sorted({key for result in results for key in result})
@@ -492,3 +523,24 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         complete = all(row.get("continuation_status") == "complete" for row in results)
     return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
             "status": "complete" if complete else "failed", "requested_through": through}
+
+
+def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
+                  scan_end=None, scan_step=None, scan_points=None, through=None,
+                  reaction_options=None, *, recover_stale=False):
+    """Route existing v1 scans unchanged and guard fresh v2 scan publication."""
+    from pyar.persistence import detect_version, RunLock
+    from pyar.workflows.scan_layout import ScanLayout
+    root = Path(output_dir).resolve()
+    def legacy(path):
+        validate_scan_restart(path, {})
+        if 'request_schema_version' in json.loads((path / 'request.json').read_text()):
+            raise ValueError('Incomplete v2 scan publication; recover explicitly')
+        return True
+    arguments = (input_a, input_b, atoms, orientations, qc_params, output_dir,
+                 scan_end, scan_step, scan_points, through, reaction_options)
+    if detect_version(root, 'scan-bond', validate_v1=legacy) == 1:
+        return _run_scan_bond(*arguments)
+    with RunLock(root, recover_stale=recover_stale):
+        detect_version(root, 'scan-bond', validate_v1=legacy)
+        return _run_scan_bond(*arguments, _layout=ScanLayout(root))

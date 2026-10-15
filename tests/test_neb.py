@@ -1639,7 +1639,10 @@ def test_scan_workflow_continues_using_standardized_neb_handoff(tmp_path, fake_p
     assert ('frequency_irc_forward_relaxed' in calls) == (through == 'all')
     assert row.get('reactant_product_connection_confirmed', False) == (through == 'all')
     if through not in {'scan', 'neb'}:
-        _, optimized, _ = read_xyz(tmp_path / 'scan' / 'orientation_000' / 'reaction_path' / 'ts_optimized.xyz')
+        ts_artifacts = row['path_stage_results']['ts']['artifacts']
+        ts_geometry = next(Path(path) for path in ts_artifacts
+                           if Path(path).name == 'ts_optimized.xyz')
+        _, optimized, _ = read_xyz(ts_geometry)
         np.testing.assert_allclose(optimized, guess)
 
     if through == 'neb':

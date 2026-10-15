@@ -138,7 +138,8 @@ scan_bond/
       result_relaxed.xyz
     reaction_path/
       inputs/{reactant.xyz,product.xyz,ts_guess.xyz,metadata.json}
-      stages/<stage>/attempts/attempt_NNN/{commit.json,execution/<native stage output>}
+      attempts/attempt_NNN/execution/<native cumulative stage output>
+      stages/<stage>/attempts/attempt_NNN/commit.json
     result.json
   summary.{json,csv}
   results/manifest.json
@@ -151,6 +152,13 @@ the record supplies exact refs to consumers. Do not create another directory of
 copied candidates. Manifest role `scan-maximum-candidate` explicitly disclaims
 TS validation. The native directory spelling `ts_candidates` remains available
 to the native execution/recovery code.
+
+The cumulative `run_neb` executor consumes sibling stage summaries and native
+artifact paths. PR 5 therefore keeps each full continuation attempt together;
+per-stage immutable commits index that native execution instead of relocating
+its dependent files. Changed continuation settings create a different attempt.
+This follows the same executor-subtree rule as grow and avoids changing native
+stage hashes/reuse. Standalone stage CLIs remain unchanged.
 
 `scan_commit.json` commits scan identity, artifacts/profile and validation.
 `through` and downstream convergence options are separate continuation controls;

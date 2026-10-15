@@ -67,7 +67,7 @@ def validate_continuation(through, options):
             raise ValueError(f"{name} must be positive and finite")
 
 
-def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options):
+def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options, layout_dependency=None):
     """Run the canonical cumulative path stages for one mapped endpoint pair.
 
     Both scan-bond and reaction characterization use this adapter; all
@@ -78,6 +78,12 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
 
     if through not in _LAST_STAGE:
         raise ValueError(f"Unknown path continuation stage: {through}")
+    layout = None
+    if layout_dependency is not None:
+        from pyar.workflows.path_layout import PathLayout
+        layout = PathLayout(output, start, end, ts_guess, qc_params, options, layout_dependency)
+        start, end, ts_guess = layout.inputs
+        output = layout.execution
     base = {key: qc_params.get(key) for key in
             ("software", "method", "basis", "charge", "multiplicity", "nprocs", "xtb_model")}
     base["nprocs"] = base["nprocs"] or 1
@@ -90,6 +96,8 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
     results = {"status": "running", "completed_stages": []}
     for stage in _CONTINUATION[:last + 1]:
         try:
+            if layout is not None:
+                layout.verify(stage)
             result = run_neb(start=start, end=end,
                              ts_guess=ts_guess if stage == "neb" else None,
                              stage=stage, **base)
@@ -97,6 +105,8 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
             if not _stage_gate_passed(result, stage):
                 results.update(status="scientific_gate_failed", failed_stage=stage)
                 return results
+            if layout is not None:
+                layout.commit(stage, result)
             results["completed_stages"].append(stage)
         except Exception as exc:
             results.update(status="failed", failed_stage=stage, error=str(exc))
@@ -145,9 +155,13 @@ def continue_scan_paths(root, results, qc_params, through, options):
                           reactant_product_connection_confirmed=False)
             for stale in ("failed_stage", "continuation_error"):
                 result.pop(stale, None)
+            extra = {}
+            if (root / 'layout.json').exists():
+                from pyar.persistence import sha256_file
+                extra['layout_dependency'] = sha256_file(directory / 'scan_commit.json')
             path_result = run_path_stages(start=directory / "start.xyz", end=result["final_scan_path"],
                                           ts_guess=waypoint_path, output=path_dir,
-                                          qc_params=path_qc, through=through, options=options)
+                                          qc_params=path_qc, through=through, options=options, **extra)
             result["path_stage_results"] = {key: value for key, value in path_result.items()
                                             if key not in {"status", "completed_stages"}}
             result["continuation_status"] = path_result["status"]
