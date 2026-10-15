@@ -1,0 +1,84 @@
+{
+  "completed_pathways": [
+    {
+      "index": 0,
+      "label": "ab",
+      "selected_results": [],
+      "status": "completed"
+    }
+  ],
+  "final_selected_results": [],
+  "package_version": "1.5.1",
+  "pathways": [
+    "ab",
+    "ba"
+  ],
+  "request": {
+    "aggregate_sizes": [
+      1,
+      1
+    ],
+    "backend_parameters": {
+      "software": null
+    },
+    "connectivity_policy": "auto",
+    "first_pathway": 0,
+    "fragments": [
+      {
+        "atoms": [
+          "H"
+        ],
+        "charge": 0,
+        "coordinates": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "fragment_definition": [
+          0
+        ],
+        "multiplicity": 1,
+        "scftype": "rhf"
+      },
+      {
+        "atoms": [
+          "H"
+        ],
+        "charge": 0,
+        "coordinates": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ]
+        ],
+        "fragment_definition": [
+          0
+        ],
+        "multiplicity": 1,
+        "scftype": "rhf"
+      }
+    ],
+    "maximum_number_of_seeds": 2,
+    "number_of_pathways": 2,
+    "orientations": 2,
+    "selection_algorithm": "auto",
+    "selection_distance": "euclidean",
+    "selection_feature": "auto",
+    "selection_policy_version": 3,
+    "selection_system_type": "auto",
+    "site": null
+  },
+  "sampling": {
+    "direction_method": "fibonacci",
+    "number_of_orientations": 2,
+    "oversample_factor": 8,
+    "rotation_method": "halton",
+    "sequence_offset": 0
+  },
+  "status": "running",
+  "version": 1,
+  "workflow": "aggregate"
+}

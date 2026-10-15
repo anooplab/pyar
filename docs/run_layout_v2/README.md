@@ -175,6 +175,18 @@ only wraps persistence for copying after save; it does not change saved bytes.
   Two review passes and 1,319 full-suite tests passed, plus warning-free Sphinx,
   package builds and byte-identical real geometry-only v1/v2 results/coverage.
   Live CI/merge status is on the PR.
-- PRs 4–8 wait for successful PR 3 merge; no overlapping milestones.
+- PR 3 merged after all 48 checks passed; master verified at 5068801.
+- PR 4: fresh aggregation uses explicit pathway identities, immutable addition
+  selections and native-source snapshots, with final cross-path selection and
+  flat results indexed by provenance. Existing v1 runs retain their original
+  implementation (source AST verified unchanged). A durable v1 restart fixture
+  is retained from snapshot 023.
+  Review fixes preserve the aggregation exception contract and compare real
+  v1/v2 geometries under an identical pathway plan: the legacy selector returns
+  identity-hashed sets, whose iteration order differs between input allocations.
+  Production pathway sampling is unchanged. Full suite: 1,324 passed, 1 skipped,
+  194 subtests passed; 64 focused checks, warning-free Sphinx and package builds
+  passed. GitHub CI remains the merge gate.
+- PRs 5–8 wait for successful PR 4 merge; no overlapping milestones.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

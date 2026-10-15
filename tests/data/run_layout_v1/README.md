@@ -14,3 +14,8 @@ step 1 in the methane/water geometry-only interruption test (count 2, three
 orientations, maximum two survivors, 32 surface points per atom). All raw
 request/state/surface/coverage and XYZ bytes are retained with relative refs.
 Hashes and test/event identity are in the same baseline inventory.
+
+`aggregate_interrupted/` preserves raw PR 0 snapshot 023: the mocked two-pathway
+aggregate fixture with `ab` committed and `ba` pending. It intentionally has
+empty survivor pools, exercising pathway progress and legacy ownership rather
+than a geometry benchmark. Original bytes and relative references are retained.

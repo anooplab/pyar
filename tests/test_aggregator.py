@@ -618,7 +618,7 @@ class AggregatorTests(unittest.TestCase):
                         with mock.patch.object(aggregate_workflow, "select_pathways", return_value=[[]]) as new_paths:
                             with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
                                 with self.assertLogs("pyar.workflows.aggregate", level="INFO") as captured:
-                                    aggregate_workflow.aggregate(
+                                    aggregate_workflow._aggregate_v1(
                                         molecules=molecules,
                                         aggregate_sizes=[1, 1],
                                         hm_orientations=2,
@@ -648,7 +648,7 @@ class AggregatorTests(unittest.TestCase):
                 with mock.patch.object(aggregate_workflow, "select_pathways", return_value=[[molecules[0], molecules[1]]]):
                     with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
                         with self.assertLogs("pyar.workflows.aggregate", level="INFO") as captured:
-                            aggregate_workflow.aggregate(
+                            aggregate_workflow._aggregate_v1(
                                 molecules=molecules,
                                 aggregate_sizes=[1, 1],
                                 hm_orientations=2,
@@ -675,7 +675,7 @@ class AggregatorTests(unittest.TestCase):
                     with mock.patch.object(aggregate_workflow, "select_pathways") as new_paths:
                         with mock.patch.object(aggregate_workflow, "add_one", return_value=[]):
                             with self.assertLogs("pyar.workflows.aggregate", level="WARNING"):
-                                aggregate_workflow.aggregate(
+                                aggregate_workflow._aggregate_v1(
                                     molecules=molecules,
                                     aggregate_sizes=[1, 1],
                                     hm_orientations=2,
@@ -705,7 +705,7 @@ class AggregatorTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                result = aggregate_workflow.aggregate(
+                result = aggregate_workflow._aggregate_v1(
                     molecules=[molecule],
                     aggregate_sizes=[1],
                     hm_orientations=2,
@@ -744,7 +744,7 @@ class AggregatorTests(unittest.TestCase):
                     "from_options",
                     wraps=aggregate_workflow.AggregateRequest.from_options,
                 ) as build_request:
-                    aggregate_workflow.aggregate(
+                    aggregate_workflow._aggregate_v1(
                         molecules=[molecule],
                         aggregate_sizes=[1],
                         hm_orientations=2,
@@ -784,7 +784,7 @@ class AggregatorTests(unittest.TestCase):
                                 "resolve_connectivity_policy_for_aggregate",
                                 return_value="prefer",
                             ) as resolver:
-                                aggregate_workflow.aggregate(
+                                aggregate_workflow._aggregate_v1(
                                     molecules=[molecule_a, molecule_b],
                                     aggregate_sizes=[1, 1],
                                     hm_orientations=1,
@@ -820,7 +820,7 @@ class AggregatorTests(unittest.TestCase):
                 Path("aggregates", "archived_output").mkdir(parents=True)
                 with mock.patch.object(aggregate_workflow, "read_old_path", return_value=None):
                     with self.assertRaisesRegex(AggregateStateError, "has no resumable state"):
-                        aggregate_workflow.aggregate(
+                        aggregate_workflow._aggregate_v1(
                             molecules=[molecule],
                             aggregate_sizes=[1],
                             hm_orientations=2,
@@ -855,7 +855,7 @@ class AggregatorTests(unittest.TestCase):
                 ):
                     with mock.patch.object(aggregate_workflow, "add_one", side_effect=stop_on_second_path):
                         with self.assertRaisesRegex(RuntimeError, "interrupted second pathway"):
-                            aggregate_workflow.aggregate(
+                            aggregate_workflow._aggregate_v1(
                                 molecules=[molecule_a, molecule_b],
                                 aggregate_sizes=[1, 1],
                                 hm_orientations=2,
@@ -870,7 +870,7 @@ class AggregatorTests(unittest.TestCase):
 
                 with mock.patch.object(aggregate_workflow, "select_pathways") as selected_paths:
                     with mock.patch.object(aggregate_workflow, "add_one", return_value=[]) as resumed_add:
-                        aggregate_workflow.aggregate(
+                        aggregate_workflow._aggregate_v1(
                             molecules=[molecule_a, molecule_b],
                             aggregate_sizes=[1, 1],
                             hm_orientations=2,
