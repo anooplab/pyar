@@ -223,6 +223,17 @@ only wraps persistence for copying after save; it does not change saved bytes.
   function ASTs are unchanged. Native backend job names are preserved.
   Full suite: 1,341 passed, 1 skipped, 194 subtests passed; strict Sphinx and
   isolated package builds pass. CI remains the merge gate.
-- PR 8 waits for successful PR 7 merge; no overlapping milestones.
+- PR 7 merged as [PR #41](https://github.com/anooplab/pyar/pull/41) after all
+  checks passed; master verified at ded1e6a.
+- PR 8: public output/compatibility guide, corrected path references, explicit
+  scan/react stale-lock recovery, installed workflow smokes and archive module
+  checks. Live ORCA reuse exposed a normalized-file rewrite; committed v2 scans
+  now load read-only, while v1 behavior and scientific parameters stay unchanged.
+  Full suite: 1,345 passed, 1 skipped, 194 subtests passed; strict Sphinx, archives,
+  clean wheel/sdist imports and installed geometry/conformer smokes pass.
+  Real GFN2-xTB and ORCA BP86 scans and immutable reuse pass. All 787 original
+  inventoried v1 artifacts remain unchanged. See [release validation](release_validation.md)
+  for exact scope and the observed pre-existing ORCA HF/RI limitation.
+  CI remains the merge gate; this milestone does not publish a release.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

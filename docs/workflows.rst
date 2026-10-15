@@ -241,8 +241,8 @@ For collaborator-facing debugging, inspect:
 
 * ``conformers/state.json`` for the recorded request and selected pool
 * ``conformers/summary.csv`` for the ranked conformer table
-* ``conformers/rdkit/`` for the embedded conformers before refinement
-* ``conformers/backend/`` for backend-specific job outputs
+* ``conformers/generated/`` (legacy: ``rdkit/``) for the embedded conformers before refinement
+* ``conformers/refinement/execution/`` (legacy: ``backend/``) for backend-specific job outputs
 
 Bond-scan internals
 -------------------

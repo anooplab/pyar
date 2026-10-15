@@ -445,10 +445,10 @@ def validate_characterization_restart(root, request, through, options):
     return existing
 
 
-def characterize_reaction(root, request, through, options):
+def characterize_reaction(root, request, through, options, *, recover_stale=False):
     """Serialize v2 characterization independently of completed discovery."""
     if not _v2(root):
         return _characterize_reaction(root, request, through, options)
     from pyar.persistence import RunLock
-    with RunLock(Path(root).resolve() / 'reaction'):
+    with RunLock(Path(root).resolve() / 'reaction', recover_stale=recover_stale):
         return _characterize_reaction(root, request, through, options)

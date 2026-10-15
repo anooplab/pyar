@@ -245,3 +245,18 @@ def test_check_validates_saved_scan_request_without_sampling(inputs):
         sampling.assert_not_called()
         engine.assert_not_called()
     assert (root / 'request.json').read_bytes() == before
+
+
+def test_stale_lock_recovery_is_explicit(inputs, dependencies):
+    with mock.patch.object(scan_bond, 'run_scan_bond', return_value={}) as run:
+        modern_cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
+    assert run.call_args.kwargs == {'recover_stale': True}
+
+
+def test_active_writer_error_is_actionable(inputs, dependencies, capsys):
+    from pyar.persistence import LockError
+    with mock.patch.object(scan_bond, 'run_scan_bond', side_effect=LockError('active writer')):
+        with pytest.raises(SystemExit) as error:
+            modern_cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
+    assert error.value.code == 2
+    assert 'active writer' in capsys.readouterr().err

@@ -128,7 +128,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [core, aggregate, reaction, aimnet2, neb, ml, analysis, microsolvate]
+        mode: [core, aggregate, conformer, reaction, aimnet2, neb, ml, analysis, microsolvate]
         python: ["3.10", "3.13"]
     steps:
       - uses: actions/checkout@v4
