@@ -365,9 +365,11 @@ def _finalize_selected_geometries(
     distance_metric="euclidean",
     system_type="auto",
     energy_ranked=True,
+    source_records=None,
 ):
     """Cluster pathway-level selected results into the final stoichiometry groups."""
-    result_files = _discover_selected_result_files(aggregate_root)
+    result_files = (_discover_selected_result_files(aggregate_root) if source_records is None
+                    else sorted(source_records, key=lambda path: Path(source_records[path])))
     if not result_files:
         aggregator_logger.info("No pathway-level selected results were found for final clustering.")
         return []
@@ -377,7 +379,8 @@ def _finalize_selected_geometries(
         molecule = Molecule.from_xyz(str(each_file))
         molecule.energy = (selection_reports.read_energy_from_xyz_file(str(each_file))
                            if energy_ranked else None)
-        molecule.name = _selection_name_from_path(each_file, aggregate_root)
+        molecule.name = (_selection_name_from_path(each_file, aggregate_root) if source_records is None
+                         else _selection_name_from_path(source_records[each_file], "."))
         grouped[_stoichiometry_label(molecule)].append(molecule)
 
     final_selected = []

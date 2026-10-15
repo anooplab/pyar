@@ -1,4 +1,5 @@
 """Modern composition search; no input is a permanently privileged seed."""
+from pyar.persistence import LockError
 import argparse
 from pathlib import Path
 
@@ -24,6 +25,7 @@ def build_parser(prog=None):
     add_fragment_arguments(parser)
     add_selection_arguments(parser, maximum_seeds=values['maximum_number_of_seeds'])
     parser.add_argument('--number-of-pathways', type=int, default=values['number_of_pathways'])
+    parser.add_argument('--recover-stale-lock', action='store_true', help='Explicit stale v2 writer recovery; never breaks an active lock')
     parser.add_argument('--first-pathway', type=int, default=values['first_pathway'])
     return parser
 
@@ -91,8 +93,9 @@ def main(argv=None, *, prog=None):
                            qc, request.maximum_number_of_seeds, request.first_pathway,
                            request.number_of_pathways, request.site, request.connectivity_policy,
                            request.selection_feature, request.selection_algorithm,
-                           request.selection_distance, request.selection_system_type)
-    except (ValueError, OSError, ImportError, AggregateStateError, BackendExecutionError) as exc:
+                           request.selection_distance, request.selection_system_type,
+                           **({"recover_stale": True} if args.recover_stale_lock else {}))
+    except (ValueError, OSError, ImportError, AggregateStateError, LockError, BackendExecutionError) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Aggregation {result.status}.\nSelected structures: {len(result.selected_paths)}\nRun directory: {result.run_directory}')

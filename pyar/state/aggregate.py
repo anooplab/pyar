@@ -68,6 +68,10 @@ class AggregateRunState:
     def load(cls, root_directory, expected_request):
         """Load a running aggregation state file and validate its request."""
         state_file = Path(root_directory).resolve() / "aggregates" / STATE_FILENAME
+        marker = state_file.parent / "layout.json"
+        if marker.exists() or marker.is_symlink():
+            from pyar.aggregation.layout_v2 import AggregateRunStateV2
+            return AggregateRunStateV2.load(root_directory, expected_request)
         if not state_file.is_file():
             return None
         try:

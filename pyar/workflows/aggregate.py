@@ -84,7 +84,7 @@ def _selected_result_paths(pattern):
     return sorted(str(path) for path in Path(".").glob(pattern))
 
 
-def aggregate(
+def _aggregate_v1(
     molecules,
     aggregate_sizes,
     hm_orientations,
@@ -413,3 +413,116 @@ def aggregate_from_formulas(
         selection_distance=selection_distance,
         selection_system_type=selection_system_type,
     )
+
+
+def aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
+              first_pathway, number_of_pathways, site, connectivity_policy="auto",
+              selection_feature="auto", selection_algorithm="auto", selection_distance="euclidean",
+              selection_system_type="auto", *, recover_stale=False):
+    """Use explicit v2 records for fresh runs, retaining v1 and legacy imports."""
+    from pyar.persistence import detect_version, RunLock
+    if check_stop_signal():
+        return stopped_workflow_result('aggregate', os.getcwd())
+    root = Path.cwd().resolve()
+    args = (molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
+            first_pathway, number_of_pathways, site, connectivity_policy, selection_feature,
+            selection_algorithm, selection_distance, selection_system_type)
+    request = AggregateRequest.from_options(*args)
+    payload = request.to_state_dict()
+    directory = root / 'aggregates'
+    def legacy(path):
+        return AggregateRunState.load(root, payload) is not None
+    # Established pyar.log imports belong exclusively to the v1 implementation.
+    if not (directory / 'layout.json').exists() and directory.is_dir() and read_old_path():
+        return _aggregate_v1(*args)
+    version = detect_version(directory, 'aggregate', validate_v1=legacy)
+    if version == 1:
+        return _aggregate_v1(*args)
+    with RunLock(directory, recover_stale=recover_stale):
+        version = detect_version(directory, 'aggregate', validate_v1=legacy)
+        if version == 1:
+            return _aggregate_v1(*args)
+        return _aggregate_v2(root, request, hm_orientations)
+
+
+def _aggregate_v2(root, request, hm_orientations):
+    from pyar.aggregation.layout_v2 import AggregateRunStateV2, verify_refs
+    from pyar.persistence import RunLayout, write_json
+    directory = root / 'aggregates'
+    layout = RunLayout(directory, 'aggregate')
+    payload = request.to_state_dict()
+    state = AggregateRunStateV2.load(root, payload) if layout.marker.exists() else None
+    molecules = list(request.molecules)
+    number_of_orientations = _resolve_orientation_count(hm_orientations)
+    sampling = sampling_configuration(number_of_orientations=number_of_orientations, use_angles=None)
+    qc_params = dict(request.backend_parameters)
+    site = None if request.site is None else list(request.site)
+    final_connectivity_policy = (resolve_connectivity_policy_for_aggregate(molecules)
+                                 if request.connectivity_policy == 'auto' else request.connectivity_policy)
+    monomers_to_be_added = []
+    initial_id = 'ag'
+    for molecule, label, size in zip(molecules, string.ascii_lowercase, request.aggregate_sizes):
+        molecule.name = label
+        monomers_to_be_added.extend(molecule for _ in range(size))
+        initial_id += f'_{label}_000'
+    if state is None:
+        pathways = ([monomers_to_be_added] if len(molecules) == 1 else
+                    select_pathways(monomers_to_be_added, request.number_of_pathways))
+        state = AggregateRunStateV2.create(root, payload, molecules,
+                                          [_format_path(path) for path in pathways], sampling)
+    for index in range(len(state.data['completed_pathways']), len(state.data['pathways'])):
+        label = state.data['pathways'][index]
+        pathway = _pathway_from_label(monomers_to_be_added, label)
+        ag_id = initial_id
+        seeds = None
+        for step, monomer in enumerate(pathway):
+            ag_id = update_id(ag_id, monomer.name)
+            if state.selection_path(index, step).exists():
+                if str(step) not in state.data['steps'].get(str(index), {}):
+                    seeds = state.adopt_step(index, step)
+                else:
+                    seeds = verify_refs(state.selection(index, step)['selected'], directory)
+                if not seeds:
+                    break
+                continue
+            if step == 0:
+                seeds = [monomer]
+                state.commit_step(index, step, seeds, None, None)
+                continue
+            legacy_home = '{}_{:03d}'.format(ag_id, request.first_pathway + index)
+            native = layout.path(f'pathways/pathway_{index:03d}/steps/step_{step:03d}/attempts/attempt_000/execution/{legacy_home}')
+            native.mkdir(parents=True, exist_ok=True)
+            with _working_directory(native):
+                selected = add_one(ag_id, seeds, monomer, number_of_orientations,
+                    qc_params, request.maximum_number_of_seeds, site,
+                    connectivity_policy=final_connectivity_policy,
+                    selection_feature=request.selection_feature, selection_algorithm=request.selection_algorithm,
+                    selection_distance=request.selection_distance, selection_system_type=request.selection_system_type)
+            state.commit_step(index, step, selected, native, legacy_home)
+            seeds = selected
+            if not seeds:
+                break
+        state.complete_pathway(index, label)
+    if layout.path('final_selection.json').exists():
+        state.adopt_final()
+    else:
+        execution = layout.path('selection/attempts/attempt_000/execution')
+        execution.mkdir(parents=True, exist_ok=True)
+        with _working_directory(execution):
+            selected = _finalize_selected_geometries(aggregate_root=str(execution),
+                maximum_number_of_seeds=request.maximum_number_of_seeds,
+                algorithm=request.selection_algorithm, feature=request.selection_feature,
+                distance_metric=request.selection_distance, system_type=request.selection_system_type,
+                connectivity_policy=final_connectivity_policy,
+                energy_ranked=bool(request.backend_parameters.get('software')),
+                source_records=state.native_sources())
+        state.finish(selected)
+    result = AggregateResult(workflow='aggregate', status=state.data['status'],
+        run_directory=str(directory), state_path=str(state.state_file),
+        selected_paths=tuple(state.data['final_selected_results']),
+        metadata=dict(pathways=tuple(state.data['pathways']),
+                      completed_pathways=tuple(item['label'] for item in state.data['completed_pathways']),
+                      legacy_import=None, sampling=state.data['sampling'],
+                      connectivity_policy=final_connectivity_policy, layout_version=2))
+    write_json(layout.path('summary.json'), result.to_dict())
+    return result

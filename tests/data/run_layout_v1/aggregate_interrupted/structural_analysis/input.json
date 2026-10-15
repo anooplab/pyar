@@ -1,0 +1,59 @@
+{
+  "stage": "workflow-input",
+  "workflow": "aggregate",
+  "method": "coordinate-only-adjacency",
+  "structures": [
+    {
+      "name": "input_a",
+      "method": "coordinate-only-adjacency",
+      "model": "covalent-radii",
+      "scale": 1.15,
+      "cutoff_angstrom": null,
+      "natoms": 1,
+      "composition": {
+        "H": 1
+      },
+      "edges": [],
+      "degrees": [
+        0
+      ],
+      "components": [
+        [
+          0
+        ]
+      ],
+      "component_count": 1,
+      "geometric_component_pattern": "single-connected-component",
+      "declared_fragment_count": 1,
+      "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment"
+    },
+    {
+      "name": "input_b",
+      "method": "coordinate-only-adjacency",
+      "model": "covalent-radii",
+      "scale": 1.15,
+      "cutoff_angstrom": null,
+      "natoms": 1,
+      "composition": {
+        "H": 1
+      },
+      "edges": [],
+      "degrees": [
+        0
+      ],
+      "components": [
+        [
+          0
+        ]
+      ],
+      "component_count": 1,
+      "geometric_component_pattern": "single-connected-component",
+      "declared_fragment_count": 1,
+      "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment"
+    }
+  ],
+  "limitations": [
+    "XYZ coordinates do not provide bond orders, charge, spin, or fragment intent.",
+    "Adjacency is geometric and should not be interpreted as definitive chemical identity."
+  ]
+}
