@@ -188,7 +188,8 @@ reaction/
     products/product_NNN/pathway_NNN/
       pathway.json
       inputs/{reactant.xyz,product.xyz,ts_guess.xyz,metadata.json}
-      stages/<stage>/attempts/attempt_NNN/{commit.json,execution/<native stage output>}
+      attempts/attempt_NNN/execution/<native cumulative stage output>
+      stages/<stage>/attempts/attempt_NNN/commit.json
   summary.json
   results/{product_NNN.xyz,manifest.json,<validated path structures when available>}
 ```
@@ -198,6 +199,12 @@ old restart geometry snapshots correspond to `checkpoints/geometries`. Old
 `products/` correspond to committed discovery-product records; old
 `pathways/product_NNN/route_001` correspond to characterization path records.
 No existing bytes or downstream hashes are rebased.
+
+PR 6 uses the same cumulative path-executor amendment as PR 5. Accepted product
+records also retain bounded immutable source snapshots (trace/candidates/release
+files, not full calculator scratch) so per-job progress recovery cannot overwrite
+the evidence chosen for characterization. The original native discovery tree
+remains inside its execution attempt for cache compatibility.
 
 Cycle metadata records actual gamma/controller decisions; directory numbers do
 not encode their floating-point values. Products have stable IDs independent of

@@ -1664,3 +1664,88 @@ def test_stage_reuse_respects_new_explicit_input(tmp_path, fake_path_backend):
     result = run_neb(software='xtb', output=tmp_path, stage='ts', ts_geometry=replacement, reuse=True)
     assert calls == ['ts']
     assert str(replacement.resolve()) in result['inputs']
+
+
+@pytest.mark.parametrize('fail_frequency', [False, True])
+def test_reaction_v2_discovery_to_validated_characterization(tmp_path, fake_path_backend, monkeypatch, fail_frequency):
+    """Exercise discovery decisions and all path gates with numerical boundaries replaced."""
+    import importlib
+    from types import SimpleNamespace
+    from pyar.core.molecule import Molecule
+    from pyar.reaction_trace import ReactionTraceRecorder
+    from pyar.persistence import read_json, write_json, sha256_file
+    from pyar.workflows.reaction_characterization import characterize_reaction, validate_characterization_restart
+    workflow = importlib.import_module('pyar.workflows.reaction')
+    symbols, hcn, _ = read_xyz(DATA / 'hcn.xyz')
+    _, hnc, _ = read_xyz(DATA / 'hnc.xyz')
+    _, guess, _ = read_xyz(DATA / 'guess.xyz')
+    reactants = [Molecule(symbols[:1], hcn[:1], name='a'), Molecule(symbols[1:], hcn[1:], name='b')]
+    oriented = Molecule(symbols, hcn, name='geom_00000000', fragments=[[0], [1, 2]])
+    monkeypatch.setattr(workflow.trial_generation, 'create_trial_geometries', lambda *args: [oriented.copy()])
+    original = dict(inchi='reactants', smiles='[H].CN')
+    product = dict(inchi='product', smiles='NC')
+    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: original)
+    monkeypatch.setattr(workflow, 'molecule_identity_from_xyz',
+                        lambda path: product if Path(path).name == 'result_relax.xyz' else original)
+    def optimize(molecule, parameters):
+        directory = Path(f'job_{molecule.name}')
+        directory.mkdir(exist_ok=True)
+        if parameters.get('gamma', 0):
+            recorder = ReactionTraceRecorder(directory)
+            for xyz, energy in zip((hcn, guess, hnc, hnc), (-1., 0., -1., -1.)):
+                forces = np.zeros_like(xyz)
+                recorder.record(symbols=symbols, coordinates_angstrom=xyz,
+                    backend_energy_hartree=energy, bias_energy_hartree=0., total_energy_hartree=energy,
+                    backend_forces_hartree_per_bohr=forces, bias_forces_hartree_per_bohr=forces,
+                    total_forces_hartree_per_bohr=forces, backend_force_norm=0., bias_force_norm=0.,
+                    total_force_norm=0., max_force=0.)
+        molecule.coordinates = np.array(hnc)
+        molecule.energy = -1.
+        molecule.mol_to_xyz(str(directory / f'result_{molecule.name}.xyz'))
+        return True
+    monkeypatch.setattr(workflow, 'optimise', optimize)
+    monkeypatch.chdir(tmp_path)
+    settings = dict(software='xtb', xtb_model='gfn2', geometry_optimizer='geometric',
+                    charge=0, multiplicity=1, scftype='rhf', nprocs=1)
+    request_data = workflow.build_reaction_request(*reactants, [100.], 1, settings, None, 2.3)
+    result = workflow.react(*reactants, 100., 100., 1, settings, None, 2.3)
+    assert len(result.selected_paths) == 1
+    root = tmp_path / 'reaction'
+    commit = root / 'discovery/commit.json'
+    digest = sha256_file(commit)
+    request = SimpleNamespace(restart_request=request_data, qc_params=settings)
+    first = characterize_reaction(tmp_path, request, 'neb', {})
+    assert first['status'] == 'complete', first
+    route_dir = Path(first['selected_routes'][0]['directory'])
+    identity = route_dir / 'pathway.json'
+    identity_hash = sha256_file(identity)
+    previous_calls = len(fake_path_backend[0])
+    if fail_frequency:
+        fake_path_backend[1].add('frequency_ts')
+    characterized = characterize_reaction(tmp_path, request, 'all', {})
+    assert 'neb' not in fake_path_backend[0][previous_calls:]
+    assert 'reactant' not in fake_path_backend[0][previous_calls:]
+    assert sha256_file(identity) == identity_hash
+    if fail_frequency:
+        assert characterized['status'] == 'failed'
+        assert characterized['selected_routes'][0]['failed_stage'] == 'frequency'
+        assert not characterized['selected_routes'][0]['reactant_product_connection_confirmed']
+        assert sha256_file(commit) == digest
+        return
+    assert characterized['status'] == 'complete', characterized
+    assert characterized['selected_routes'][0]['reactant_product_connection_confirmed']
+    validate_characterization_restart(tmp_path, request, 'all', {})
+    # Characterization depends on the discovery commit, not progress/report bytes.
+    state = read_json(root / 'state.json')
+    state['report_note'] = 'regenerated'
+    write_json(root / 'state.json', state)
+    validate_characterization_restart(tmp_path, request, 'all', {})
+    assert sha256_file(commit) == digest
+    selected = root / result.selected_paths[0]
+    np.testing.assert_allclose(read_xyz(selected)[1], hnc, atol=1e-5)
+    legacy = tmp_path / 'legacy'
+    legacy.mkdir()
+    monkeypatch.chdir(legacy)
+    old = workflow._react(*reactants, 100., 100., 1, settings, None, 2.3)
+    assert (legacy / 'reaction' / old.selected_paths[0]).read_bytes() == selected.read_bytes()
+    assert not (legacy / 'reaction/layout.json').exists()

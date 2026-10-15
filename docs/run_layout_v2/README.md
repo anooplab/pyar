@@ -198,6 +198,20 @@ only wraps persistence for copying after save; it does not change saved bytes.
   Full validation: 1,330 passed, 1 skipped, 194 subtests passed; strict Sphinx
   and source/wheel builds pass. Local /tmp quota failures were resolved with
   a command-scoped TMPDIR on a filesystem with capacity. CI is the merge gate.
-- PRs 6–8 wait for successful PR 5 merge; no overlapping milestones.
+- PR 5 merged as [PR #39](https://github.com/anooplab/pyar/pull/39) after all
+  checks passed; master verified at 407212d.
+- PR 6: reaction discovery owns hashed checkpoint snapshots, explicit cycle
+  records, accepted-product IDs/source snapshots and a terminal immutable
+  discovery commit. Characterization depends on that commit, with separate
+  pathway identity, inputs, native cumulative attempts and per-stage commits.
+  Existing v1 state/characterization remains with its old owner. Discovery's
+  optimization, bias/release and gamma helpers are unchanged (AST checked).
+  Integrated tests exercise discovery through endpoint confirmation, extension
+  without repeating completed stages, a failed frequency gate, and byte-identical
+  v1/v2 products under controlled numerical/identity boundaries. Progress-report
+  changes do not invalidate discovery; artifact tampering fails closed.
+  Full suite: 1,336 passed, 1 skipped, 194 subtests passed. Strict Sphinx and
+  isolated wheel/sdist builds pass; CI remains the merge gate.
+- PRs 7–8 wait for successful PR 6 merge; no overlapping milestones.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

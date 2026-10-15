@@ -127,3 +127,34 @@ See also
 * :doc:`quickstart`
 * :doc:`reaction_optimization`
 * :doc:`workflows`
+
+Discovery and characterization layout v2
+----------------------------------------
+
+Fresh runs publish explicit ``reaction/layout.json`` and immutable reactant
+snapshots under ``inputs``. Progress geometry snapshots live in
+``checkpoints/geometries``. Discovery cycles have stable sequential directories
+with the actual gamma and physical settings recorded as metadata; native gamma,
+orientation, job and cache names remain inside each cycle's execution attempt.
+Completed cycles publish immutable records before progress is advanced, allowing
+recovery if progress publication is interrupted.
+
+Accepted products have stable UUIDs, immutable structures and bounded snapshots
+of their trace, candidate and release evidence under ``discovery/products``.
+These snapshots preserve the scientific inputs if a native job is retried after
+an interrupted progress write. The terminal ``discovery/commit.json`` records
+the accepted products, evidence hashes and completed scientific state. Final
+product copies are indexed in ``results/manifest.json`` with their source IDs.
+
+Characterization consumes that discovery commit rather than the mutable
+``state.json``. One selected route per product is prepared under
+``characterization/products/product_NNN/pathway_001`` with immutable pathway
+identity and input files. Native cumulative stages share an execution attempt;
+per-stage commits retain their artifact references and validation gates.
+Progress and inspection reports can change without invalidating discovery.
+Scientific input or evidence changes fail closed. A trace candidate remains an
+initializer until the existing TS/frequency/IRC/endpoint gates pass.
+
+Existing v1 runs keep their original state, native directories and continuation
+paths. This layout adds no alternative-route search and changes no force,
+release, product-identity, clustering or path-validation decisions.
