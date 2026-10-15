@@ -231,7 +231,7 @@ def test_real_workflow_persists_policy_and_effective_thresholds(tmp_path, atom_m
         dedup_atom_mode=atom_mode, num_threads=1, root_directory=tmp_path,
     )
     state = json.loads((tmp_path / "conformers/state.json").read_text())
-    assert state["version"] == 3
+    assert state["workflow_state_schema_version"] == 4
     assert state["request"]["dedup_atom_mode"] == atom_mode
     assert state["request"]["generation_dedup_rms"] == .5
     assert state["request"]["final_dedup_rms"] == .5

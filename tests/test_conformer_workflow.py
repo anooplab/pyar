@@ -56,9 +56,9 @@ class ConformerWorkflowTests(unittest.TestCase):
             run_directory = Path(result.run_directory)
             state = json.loads((run_directory / "state.json").read_text())
             summary_rows = list(csv.DictReader((run_directory / "summary.csv").open()))
-            rdkit_file_exists = (run_directory / "rdkit" / "seed_000001_conf_0002.xyz").is_file()
-            second_rdkit_file_exists = (run_directory / "rdkit" / "seed_000001_conf_0001.xyz").is_file()
-            selected_file_exists = (run_directory / "selected" / "conf_0000.xyz").is_file()
+            rdkit_file_exists = (run_directory / "generated" / "seed_000001_conf_0002.xyz").is_file()
+            second_rdkit_file_exists = (run_directory / "generated" / "seed_000001_conf_0001.xyz").is_file()
+            selected_file_exists = (run_directory / "results" / "conf_0000.xyz").is_file()
 
         self.assertEqual(result.status, "completed")
         self.assertEqual(len(result.selected_paths), 2)
@@ -242,7 +242,7 @@ class ConformerWorkflowTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(len(result.selected_paths), 2)
         self.assertEqual(state["records"][1]["backend_energy"], 5.0)
-        self.assertTrue(result.selected_paths[0].endswith("selected/conf_0000.xyz"))
+        self.assertTrue(result.selected_paths[0].endswith("results/conf_0000.xyz"))
 
     def test_refinement_selection_adds_geometric_diversity(self):
         def make_record(name, source_conf_id, energy, coordinates):
