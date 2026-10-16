@@ -258,6 +258,7 @@ def config(argv=None, *, prog="pyar config"):
             effective={k: v for k, v in source.get("effective", {}).items() if k != "check"},
             metadata={"created_from": str(Path(args.source).resolve()), "created_utc": _now(),
                       "profile_values": source.get("metadata", {}).get("profile_values", {})},
+            overwrite=args.force,
         )
     except (ValueError, OSError, KeyError) as exc:
         parser.error(str(exc))
@@ -316,6 +317,7 @@ def profile(argv=None, *, prog="pyar profile"):
             profile_path(args.name), kind=PROFILE_KIND, workflow=workflow, arguments=profile_args,
             effective=profile_values,
             metadata={"created_from": str(Path(args.source).resolve()), "created_utc": _now()},
+            overwrite=args.force,
         )
     except (ValueError, OSError, ImportError, TypeError) as exc:
         parser.error(str(exc))

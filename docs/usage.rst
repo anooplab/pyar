@@ -1,22 +1,28 @@
 Usage
 =====
 
-The main command-line entry point is ``pyar-cli``.
+Use the task-oriented ``pyar COMMAND`` interface for new calculations.
+``pyar-cli`` remains available for legacy command syntax and workflows.
 
 Examples:
 
 .. code-block:: bash
 
-   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
 
-   pyar-cli -a C H -as 1 4 -N 8
+   pyar aggregate C H --size 1 4 --backend xtb
 
-   pyar-cli --aggregate --formula C5H4 -N 8
+   pyar grow seed.xyz monomer.xyz --count 10 --backend xtb
 
-   pyar-conformer input.sdf --software xtb --num-seeds 3 --backend-top-n 50
+   pyar microsolvate solute.xyz solvent.xyz --count 10 --backend xtb
 
-The repository README contains additional examples for clustering,
-aggregation, solvation, and reaction searches.
+   pyar conformer input.sdf --backend xtb
+
+   pyar install status
+
+Use ``pyar COMMAND --help`` for task-specific options and ``--check`` for
+read-only request validation. ``--dry-run`` also shows the planned workflow
+stages. The repository README contains additional modern and legacy examples.
 
 Energy tables
 -------------

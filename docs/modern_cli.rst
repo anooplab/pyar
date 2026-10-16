@@ -5,6 +5,12 @@ The ``pyar`` executable is the task-oriented entry point. Legacy commands such
 as ``pyar-cli`` and the ``pyar-*`` executables remain available during the
 migration.
 
+Start with ``pyar --help``. Common task commands include ``pyar grow`` and
+``pyar microsolvate``; ``pyar install status`` reports installed workflow
+dependencies and backend discovery. ``pyar solvate`` is a compatibility alias
+for modern microsolvation, while ``pyar-cli solvate`` retains its legacy
+algorithm and restart state.
+
 Environment and run inspection
 ------------------------------
 
@@ -116,3 +122,13 @@ Compatibility spelling
 ``pyar solvate`` is a compatibility alias for the canonical modern
 ``pyar microsolvate`` command. The legacy ``pyar-cli solvate`` syntax and old
 restart-state format remain on their compatibility path.
+
+Run-layout compatibility and release boundary
+----------------------------------------------
+
+Newly created supported workflows use run-layout v2. Recognized v1 runs
+continue under their existing owner and are not automatically converted.
+The ``v1.5.1`` tag predates run-layout-v2 changes merged on ``master``. At the
+2026-10-16 release check, ``master`` still declared ``1.5.1`` without a new
+release tag; check the installed version and release notes before assuming a
+tag contains current ``master`` behavior.

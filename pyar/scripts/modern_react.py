@@ -120,8 +120,7 @@ def main(argv=None, *, prog=None):
         if args.through != 'react':
             print(f"Continuation: through {args.through}\n"
                   f"Pathway policy: one selected route per unique product\n"
-                  f"TS waypoint: {args.pathway_ts_source} (initializer only)\n"
-                  "Planned stages: discovery, endpoint relaxation, NEB, TS, frequency, IRC, endpoint validation")
+                  f"TS waypoint: {args.pathway_ts_source} (initializer only)")
         print('Requirements: ' + ', '.join(requirements))
         print('Ready to run.\n--check specified; no calculations were performed.')
         return

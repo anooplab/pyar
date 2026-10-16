@@ -20,7 +20,7 @@ Check the CLI
 
 .. code-block:: bash
 
-   pyar-cli --help
+   pyar --help
 
 Choose a chemistry task
 -----------------------
@@ -29,29 +29,30 @@ Aggregate two fragments or start from a formula:
 
 .. code-block:: bash
 
-   pyar-cli -a C H -as 1 4 -N 8
-   pyar-cli --aggregate --formula C5H4 -N 8
+   pyar aggregate C H --size 1 4 --backend xtb
+   pyar aggregate --formula C5H4 --backend xtb --check
 
 Run a reaction search between two reactants:
 
 .. code-block:: bash
 
-   pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
-   pyar-cli -r A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
 
 Run a solvation search:
 
 .. code-block:: bash
 
-   pyar-cli solvate solute.xyz solvent.xyz --software xtb -ss 10 -N 16
-   pyar-cli -s solute.xyz solvent.xyz --software xtb -ss 10 -N 16
+   pyar microsolvate solute.xyz solvent.xyz --count 10 --backend xtb
 
 Run a conformer search:
 
 .. code-block:: bash
 
-   pyar-conformer input.sdf --software xtb
-   pyar-cli conformer input.sdf --software xtb
+   pyar conformer input.sdf --backend xtb
+
+``pyar-cli`` and ``pyar-*`` entry points remain available for existing scripts
+and legacy workflows. In particular, ``pyar-cli solvate`` retains its legacy
+algorithm and restart state; modern ``pyar solvate`` aliases microsolvation.
 
 For aggregate and solvation workflows, ``--connectivity-policy`` controls
 whether PyAR prefers covalent connectivity when choosing survivors. Use
