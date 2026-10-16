@@ -235,5 +235,12 @@ only wraps persistence for copying after save; it does not change saved bytes.
   inventoried v1 artifacts remain unchanged. See [release validation](release_validation.md)
   for exact scope and the observed pre-existing ORCA HF/RI limitation.
   CI remains the merge gate; this milestone does not publish a release.
+- Follow-up review fixes: validate v2 scan output paths before creating native
+  execution directories, recover committed scans from immutable records when
+  per-orientation reports are damaged, and support new nested output roots.
+  Flush scan, relaxation, path-stage and reaction-cycle evidence plus parent
+  directories before publishing completion records. Focused regression tests
+  cover these boundaries; full suite: 1,349 passed, 1 skipped, 194 subtests.
+  Strict Sphinx, source/wheel build and `git diff --check` pass.
 - Keep architecture decisions here or in a linked issue. A passing local
   baseline does not imply passing PR CI.

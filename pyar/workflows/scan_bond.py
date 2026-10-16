@@ -326,11 +326,14 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
 
     for index, orientation, generation_error in orientation_items:
-        directory = root / f"orientation_{index:03d}"
+        directory = (root / f"orientation_{index:03d}" if _layout is None else
+                     _layout.layout.path(f"orientation_{index:03d}"))
         execution = (directory if _layout is None else
-                     directory / 'attempts/attempt_000/execution')
-        scan_dir = execution / "scan"
-        relax_dir = execution / "relax"
+                     _layout.layout.path(f"orientation_{index:03d}/attempts/attempt_000/execution"))
+        scan_dir = execution / "scan" if _layout is None else _layout.layout.path(
+            f"orientation_{index:03d}/attempts/attempt_000/execution/scan")
+        relax_dir = execution / "relax" if _layout is None else _layout.layout.path(
+            f"orientation_{index:03d}/attempts/attempt_000/execution/relax")
         directory.mkdir(exist_ok=True)
         execution.mkdir(parents=True, exist_ok=True)
         result_path = directory / "result.json"
@@ -342,7 +345,9 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 previous_result = None
         committed = _layout.restore(index, request) if _layout is not None else None
         if committed is not None:
-            previous_result = _layout.relaxed(index) or previous_result or committed
+            # Immutable records, not the derived per-orientation report, are
+            # the recovery authority for a committed scan.
+            previous_result = _layout.relaxed(index) or committed
         completed_artifacts = (
             directory / "start.xyz",
             execution / "result_relaxed.xyz",
@@ -360,6 +365,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                     str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
                     for path in completed_artifacts
                 }):
+            save_result(directory, previous_result)
             results.append(previous_result)
             continue
         if orientation is None:
@@ -542,6 +548,9 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                  scan_end, scan_step, scan_points, through, reaction_options)
     if detect_version(root, 'scan-bond', validate_v1=legacy) == 1:
         return _run_scan_bond(*arguments)
+    # The sibling lock must be creatable before the run root; support nested
+    # output paths while still taking the lock before inspecting/creating root.
+    root.parent.mkdir(parents=True, exist_ok=True)
     with RunLock(root, recover_stale=recover_stale):
         detect_version(root, 'scan-bond', validate_v1=legacy)
         return _run_scan_bond(*arguments, _layout=ScanLayout(root))

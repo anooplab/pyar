@@ -1,8 +1,10 @@
 """Stable artifact references; hashes describe published bytes, never rank."""
 from dataclasses import dataclass
 import hashlib
+import os
 from pathlib import Path
 import re
+import stat
 from uuid import UUID, uuid4
 
 from .layout import relative_path
@@ -29,6 +31,52 @@ def sha256_file(path):
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def fsync_artifacts(paths, run_root):
+    """Flush published regular files and their directories before committing refs.
+
+    Refuse symlinked files and directory components so the durability boundary
+    cannot accidentally bless evidence outside the owning run.
+    """
+    root = Path(run_root).resolve()
+    directories = {root}
+    for value in paths:
+        path = Path(value)
+        if not path.is_absolute():
+            path = root / path
+        try:
+            relative = path.relative_to(root)
+        except ValueError as exc:
+            raise ArtifactError(f"Artifact is outside run root: {path}") from exc
+        if any(part in {".", ".."} for part in relative.parts):
+            raise ArtifactError(f"Artifact path is not canonical: {path}")
+        current = root
+        for part in relative.parts[:-1]:
+            current = current / part
+            if current.is_symlink():
+                raise ArtifactError(f"Artifact path contains a symlink: {current}")
+        if path.is_symlink():
+            raise ArtifactError(f"Artifact must not be a symlink: {path}")
+        try:
+            descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        except OSError as exc:
+            raise ArtifactError(f"Cannot open artifact for durable publication {path}: {exc}") from exc
+        try:
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                raise ArtifactError(f"Artifact must be a regular file: {path}")
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        parent = path.parent
+        while parent.is_relative_to(root):
+            directories.add(parent)
+            if parent == root:
+                break
+            parent = parent.parent
+    from .json_store import fsync_directory
+    for directory in sorted(directories, key=lambda item: len(item.parts), reverse=True):
+        fsync_directory(directory)
 
 
 @dataclass(frozen=True)

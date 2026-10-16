@@ -2,7 +2,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from pyar.persistence import ArtifactRef, RunLayout, read_json, write_json, sha256_file
+from pyar.persistence import ArtifactRef, RunLayout, read_json, write_json, sha256_file, fsync_artifacts
 from pyar.growth.layout_v2 import copy_result
 
 
@@ -68,6 +68,7 @@ class PathLayout:
             paths.update(Path(value) for value in result.get(key, {}))
         for name in result.get('dependencies', []):
             paths.add(self.execution / f'{name}_summary.json')
+        fsync_artifacts(paths, self.root)
         refs = [ArtifactRef.capture(self.root, file.relative_to(self.root).as_posix(), 'path-stage-evidence').to_dict()
                 for file in sorted(paths)]
         from pyar.neb import _STAGE_GATES

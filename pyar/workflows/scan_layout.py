@@ -2,7 +2,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from pyar.persistence import ArtifactRef, RunLayout, read_json, write_json, sha256_file
+from pyar.persistence import ArtifactRef, RunLayout, read_json, write_json, sha256_file, fsync_artifacts
 from pyar.persistence.artifacts import validate_uuid
 
 
@@ -62,6 +62,7 @@ class ScanLayout:
         paths = [directory / 'start.xyz']
         paths.extend(path for subtree in ('scan', 'ts_candidates')
                      for path in sorted((execution / subtree).rglob('*')) if path.is_file())
+        fsync_artifacts(paths, self.root)
         refs = [ArtifactRef.capture(self.root, path.relative_to(self.root).as_posix(),
                 'scan-maximum-candidate' if 'ts_candidates' in path.parts else 'scan-evidence').to_dict()
                 for path in paths]
@@ -83,6 +84,7 @@ class ScanLayout:
                 ArtifactRef.from_dict(ref).verify(self.root)
             return self._paths(record['result'], restore=True)
         if result is not None:
+            fsync_artifacts(paths, self.root)
             refs = [ArtifactRef.capture(self.root, file.relative_to(self.root).as_posix(),
                                        'free-relaxation-evidence').to_dict() for file in paths]
             write_json(path, dict(stage_result_schema_version=1, record_id=str(uuid4()),
