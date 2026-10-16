@@ -4,7 +4,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from pyar import __version__
-from pyar.persistence import ArtifactRef, RunLayout, detect_version, read_json, write_json, sha256_file
+from pyar.persistence import (ArtifactRef, RunLayout, detect_version, read_json,
+                              write_json, sha256_file, fsync_artifacts)
 from pyar.growth.layout_v2 import copy_result
 from pyar.persistence.artifacts import validate_uuid
 from pyar.persistence.json_store import fsync_directory
@@ -175,9 +176,11 @@ class ReactionRunStateV2(ReactionRunState):
         self._replace_pending_orientations(next_orientations)
         self.data['current_survivors'] = []
         cycle = self.cycle_path(index).parent
+        evidence_paths = [path for path in sorted(cycle.rglob('*'))
+                          if path.is_file() and path != self.cycle_path(index)]
+        fsync_artifacts(evidence_paths, self.reaction_directory)
         refs = [ArtifactRef.capture(self.reaction_directory, path.relative_to(self.reaction_directory).as_posix(),
-                'discovery-cycle-evidence').to_dict() for path in sorted(cycle.rglob('*'))
-                if path.is_file() and path != self.cycle_path(index)]
+                'discovery-cycle-evidence').to_dict() for path in evidence_paths]
         refs.extend(self.data['pending_orientations'])
         write_json(self.cycle_path(index), dict(stage_result_schema_version=1, record_id=str(uuid4()),
             run_id=self.data['run_id'], cycle=index, gamma=float(gamma), artifacts=refs,
@@ -253,7 +256,10 @@ class ReactionRunStateV2(ReactionRunState):
             return
         self.data.update(status=status, pending_orientations=[])
         refs = []
-        for native in sorted(self.layout.path('discovery').rglob('*')):
+        discovery_files = [native for native in sorted(self.layout.path('discovery').rglob('*'))
+                           if native.is_file() and native != path]
+        fsync_artifacts(discovery_files, self.reaction_directory)
+        for native in discovery_files:
             if native.is_file():
                 refs.append(ArtifactRef.capture(self.reaction_directory,
                     native.relative_to(self.reaction_directory).as_posix(), 'discovery-evidence').to_dict())

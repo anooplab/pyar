@@ -81,6 +81,7 @@ def test_changed_scan_request_rejected_before_jobs(scan_run):
 
 
 def test_v2_stage_commits_index_cumulative_native_executor(tmp_path, monkeypatch):
+    import os
     import pyar.neb as neb
     from pyar.workflows.scan_path import run_path_stages
     inputs = []
@@ -100,6 +101,12 @@ def test_v2_stage_commits_index_cumulative_native_executor(tmp_path, monkeypatch
         write_json(output / f"{kwargs['stage']}_summary.json", result)
         return result
     monkeypatch.setattr(neb, 'run_neb', native)
+    flushed = []
+    original_fsync = os.fsync
+    def record_fsync(descriptor):
+        flushed.append(os.readlink(f'/proc/self/fd/{descriptor}'))
+        original_fsync(descriptor)
+    monkeypatch.setattr(os, 'fsync', record_fsync)
     result = run_path_stages(start=inputs[0], end=inputs[1], ts_guess=inputs[2],
         output=tmp_path / 'path', qc_params={'software':'xtb'}, through='neb', options={},
         layout_dependency='a' * 64)
@@ -109,6 +116,11 @@ def test_v2_stage_commits_index_cumulative_native_executor(tmp_path, monkeypatch
         record = read_json(tmp_path / f'path/stages/{stage}/attempts/attempt_000/commit.json')
         assert record['scientific_validation']
         assert all(not Path(ref['path']).is_absolute() for ref in record['artifacts'])
+        summary_index = next(index for index, path in enumerate(flushed)
+                             if f'/execution/{stage}_summary.json' in path)
+        commit_index = next(index for index, path in enumerate(flushed)
+                            if f'/stages/{stage}/attempts/attempt_000/.pyar-json-' in path)
+        assert summary_index < commit_index
 
 
 def test_native_scan_outputs_match_legacy_and_legacy_routing_is_preserved(scan_run):
@@ -148,3 +160,64 @@ def test_free_relaxation_commit_survives_progress_loss(scan_run, monkeypatch):
     assert run(None)['status'] == 'complete'
     assert len(calls) == len(optimizations) == 1
     assert sha256_file(record) == digest
+
+
+def test_scan_commit_recovers_and_rebuilds_a_damaged_result_report(scan_run):
+    root, run, calls = scan_run
+    assert run()['status'] == 'complete'
+    commit = root / 'orientation_000/scan_commit.json'
+    digest = sha256_file(commit)
+    report = root / 'orientation_000/result.json'
+    report.write_text('{"status": "running"}\n')
+    assert run()['status'] == 'complete'
+    assert len(calls) == 1
+    assert sha256_file(commit) == digest
+    rebuilt = read_json(report)
+    assert rebuilt['scan_status'] == 'success'
+
+
+def test_scan_rejects_symlinked_execution_before_backend_writes(scan_run, monkeypatch):
+    root, run, calls = scan_run
+    monkeypatch.setattr(workflow, 'run_orca_bond_scan',
+                        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError('backend stopped')))
+    assert run()['status'] == 'failed'
+    execution = root / 'orientation_000/attempts/attempt_000/execution'
+    execution.rename(execution.with_name('failed_execution'))
+    outside = root.parent / 'outside_execution'
+    outside.mkdir()
+    execution.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match='escapes'):
+        run()
+    assert list(outside.iterdir()) == []
+    assert not calls
+
+
+def test_scan_creates_nested_output_parent(scan_run):
+    root, run, calls = scan_run
+    nested = root.parent / 'new_parent' / 'scan'
+    result = workflow.run_scan_bond(
+        root.parent / 'a.xyz', root.parent / 'b.xyz', (0, 0), 1,
+        {'software':'orca', 'method':'BP86', 'basis':'def2-SVP'}, nested,
+        scan_end=1., scan_points=2, through='scan')
+    assert result['status'] == 'complete'
+    assert nested.is_dir()
+    assert len(calls) == 1
+
+
+def test_scan_native_evidence_is_fsynced_before_its_commit(scan_run, monkeypatch):
+    import os
+    root, run, _calls = scan_run
+    targets = []
+    original = os.fsync
+    def capture(descriptor):
+        targets.append(os.readlink(f'/proc/self/fd/{descriptor}'))
+        original(descriptor)
+    monkeypatch.setattr(os, 'fsync', capture)
+    assert run()['status'] == 'complete'
+    assert any('/orientation_000/attempts/attempt_000/execution/scan/scan.allxyz' in path
+               for path in targets)
+    evidence_index = next(index for index, path in enumerate(targets)
+                          if '/orientation_000/attempts/attempt_000/execution/scan/scan.allxyz' in path)
+    commit_index = next(index for index, path in enumerate(targets)
+                        if '/orientation_000/.pyar-json-' in path)
+    assert evidence_index < commit_index
