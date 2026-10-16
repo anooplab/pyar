@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fixed
+
+- Report per-input optimization outcomes and preserve scientific status when
+  invocation provenance cannot be written; keep stale-lock recovery permission
+  out of reusable configurations and profiles.
+- Publish configs and profiles atomically without clobbering an existing file
+  unless the caller explicitly requests ``--force``.
+- Show the validated cumulative stages for reaction and bond-scan dry runs,
+  including the requested ``--through`` limit.
+
+### Changed
+
+- Present ``pyar`` as the modern task interface while documenting legacy
+  command behavior, v1/v2 continuation and the current tag-versus-master
+  release boundary.
+
 ## 1.5.1 - 2026-10-11
 
 ### Fixed
