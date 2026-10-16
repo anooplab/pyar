@@ -369,7 +369,11 @@ class OrcaEnergyGradientProvider:
 
     def _build_keyword(self, molecule):
         """Build an ORCA input keyword block for a gradient evaluation."""
-        from pyar.backends.orca_methods import orca_method, orca_method_keywords
+        from pyar.backends.orca_methods import (
+            orca_method,
+            orca_method_keywords,
+            orca_ri_keyword,
+        )
 
         method, is_xtb = orca_method(self.qc_params.get("method", "BP86"))
         if method == "g-xTB":
@@ -382,7 +386,7 @@ class OrcaEnergyGradientProvider:
             keyword = f"! {method} {basis}"
             if any(x >= 21 for x in _atomic_numbers(molecule)):
                 keyword += " def2-ECP"
-            keyword += " RI def2/J D3BJ KDIIS ENGRAD"
+            keyword += f" {orca_ri_keyword(method)} def2/J D3BJ KDIIS ENGRAD"
         if not is_xtb and (int(self.qc_params.get("multiplicity", 1) or 1) != 1
                            or str(self.qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}):
             keyword += " UKS"

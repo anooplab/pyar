@@ -195,6 +195,15 @@ def test_orca_open_shell_singlet_keeps_unrestricted_gradient_method():
     assert ' UKS' in provider._build_keyword(Atoms('H2'))
 
 
+def test_orca_hf_gradient_keyword_handles_exchange():
+    from ase import Atoms
+    from pyar.energy_gradient_providers import OrcaEnergyGradientProvider
+    provider = OrcaEnergyGradientProvider({'method': 'HF', 'basis': 'STO-3G'})
+    keyword = provider._build_keyword(Atoms('H2'))
+    assert ' RIJONX ' in keyword
+    assert ' RI ' not in keyword
+
+
 def test_cli_reports_scientific_failure_with_nonzero_exit(tmp_path, monkeypatch, capsys):
     from pyar.scripts import scan_bond
     path = tmp_path / 'H.xyz'
