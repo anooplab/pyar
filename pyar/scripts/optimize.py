@@ -1,6 +1,7 @@
 """Modern bulk minimum optimization; computational execution stays in optimiser."""
 
 import argparse
+import sys
 
 from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar import optimiser
@@ -54,14 +55,46 @@ def main(argv=None, *, prog=None):
     if args.check:
         print('Ready to run. --check specified; no calculations were performed.')
         return
-    try:
-        started_run()
-        results = optimiser.bulk_optimize(molecules, settings)
-    except (BackendExecutionError, FileNotFoundError) as exc:
-        parser.exit(1, f'Optimization failed: {exc}\n')
-    finished_run({'workflow': 'optimize', 'status': 'completed',
-                  'input_count': len(molecules), 'optimized_count': len(results)})
-    print(f'Optimized {len(results)} of {len(molecules)} structures.')
+    started_run()
+    results = []
+    failures = []
+    for molecule in molecules:
+        molecule_settings = settings
+        if settings.get('_electronic_state_from_molecule'):
+            molecule_settings = {
+                **settings,
+                'charge': molecule.charge,
+                'multiplicity': molecule.multiplicity,
+                'scftype': molecule.scftype,
+                'xtb_unpaired_electrons': molecule.multiplicity - 1,
+            }
+        try:
+            status = optimiser.optimise(molecule, molecule_settings)
+        except (BackendExecutionError, FileNotFoundError) as exc:
+            failures.append({'input': molecule.name, 'error': str(exc)})
+            continue
+        if optimiser.is_usable(status):
+            results.append(molecule)
+        else:
+            failures.append({'input': molecule.name, 'error': f'Optimization returned unusable status: {status!r}'})
+
+    if len(results) == len(molecules):
+        status = 'completed'
+    elif results:
+        status = 'partial_failed'
+    else:
+        status = 'failed'
+    report = {
+        'workflow': 'optimize', 'status': status,
+        'input_count': len(molecules), 'optimized_count': len(results),
+        'failed_count': len(failures), 'failures': failures,
+    }
+    finished_run(report)
+    print(f'Optimized {len(results)} of {len(molecules)} structures ({status}).')
+    if failures:
+        for failure in failures:
+            print(f"Failed {failure['input']}: {failure['error']}", file=sys.stderr)
+        parser.exit(1, f'Optimization {status}: {len(failures)} input(s) failed.\n')
 
 
 if __name__ == '__main__':

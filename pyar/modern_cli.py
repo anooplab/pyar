@@ -236,10 +236,15 @@ def _write_execution_record(command, request, resolved, observation, *, failure=
     path = directory / 'pyar-run.toml'
     if path.exists():
         path = directory / f'pyar-run-{uuid.uuid4().hex}.toml'
-    status = result.get('status', 'completed') if isinstance(result, dict) else 'completed'
+    status = (
+        result.get('status') if isinstance(result, dict) and result.get('status') else
+        'failed' if failure is not None else 'completed'
+    )
     metadata = {
         'pyar_version': __version__, 'created_utc': datetime.now(timezone.utc).isoformat(),
-        'status': 'failed' if failure is not None else status, 'record_id': str(uuid.uuid4()),
+        'status': status, 'scientific_status': status,
+        'invocation_status': 'failed' if failure is not None else 'completed',
+        'record_id': str(uuid.uuid4()),
         'record_directory': str(directory), 'profile': request.profile,
         'value_sources': resolved.value_sources, 'resolved_request': resolved.scientific,
         'config_file': config_file, 'result': result,
@@ -360,7 +365,8 @@ def invoke(command, arguments, *, config_file=None, profile_values=None, source_
         entry = getattr(module, 'modern_' + command)
     else:
         entry = getattr(module, 'modern_main', None) or module.main
-    result, failure = None, None
+    result, failure, record_failure = None, None, None
+    provenance_only_failure = False
     with observe_run(prepared) as observation, _logging(verbosity, quiet), ExitStack() as stack:
         if as_json or (quiet and command in _CHECK_COMMANDS):
             stack.enter_context(redirect_stdout(io.StringIO() if checking or quiet else sys.stderr))
@@ -376,18 +382,38 @@ def invoke(command, arguments, *, config_file=None, profile_values=None, source_
                 try:
                     _write_execution_record(command, request, resolved, observation, failure=failure, config_file=config_file)
                 except (OSError, ValueError) as exc:
-                    print(f'pyar {command}: could not write run record: {exc}', file=sys.stderr)
+                    record_failure = exc
+                    message = (
+                        f'pyar {command}: calculation outputs were retained, but run provenance '
+                        f'could not be written: {exc}. Check directory permissions and free space.'
+                    )
+                    print(message, file=sys.stderr)
+                    if failure is None:
+                        provenance_only_failure = True
+                        failure = OSError(message)
     plan = build_execution_plan(command, resolved) if dry_run and failure is None else None
     if as_json:
+        scientific_status = (
+            observation.result.get('status', 'completed')
+            if isinstance(observation.result, dict) else
+            'ready' if checking and failure is None else
+            'failed' if failure else 'completed'
+        )
+        invocation_status = (
+            'provenance_write_failed' if provenance_only_failure else
+            'failed' if failure else 'ready' if checking else 'completed'
+        )
         payload = {'schema_version': 1, 'workflow': command,
-                   'status': 'failed' if failure else 'ready' if checking else
-                   observation.result.get('status', 'completed') if isinstance(observation.result, dict) else 'completed',
+                   'status': scientific_status, 'scientific_status': scientific_status,
+                   'invocation_status': invocation_status,
                    'mode': 'dry-run' if dry_run else 'check' if checking else 'run',
                    'resolved': resolved.to_dict(), 'result': observation.result}
         if plan:
             payload['plan'] = plan.to_dict()
         if failure:
             payload['error'] = str(failure)
+        if record_failure is not None:
+            payload['provenance_error'] = str(record_failure)
         print(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False, default=str))
     elif plan and not quiet:
         _print_execution_plan(plan, resolved.scientific)

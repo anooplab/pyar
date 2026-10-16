@@ -1,5 +1,6 @@
 """Fail-fast modern bulk optimization and legacy isolation."""
 
+import json
 from pathlib import Path
 from unittest import mock
 
@@ -8,6 +9,7 @@ import pytest
 from pyar import modern_cli, optimiser
 from pyar.scripts import optimize
 from pyar import optimization_request as request
+from pyar.backend_errors import BackendExecutionError
 
 
 @pytest.fixture
@@ -39,16 +41,16 @@ def test_help(capsys):
 
 
 def test_minimal_and_inferred_spin(inputs, dependencies):
-    with mock.patch.object(optimiser, 'bulk_optimize', side_effect=lambda mols, qc: mols) as bulk:
+    with mock.patch.object(optimiser, 'optimise', return_value=True) as optimize_one:
         modern_cli.main(['optimize', *inputs, 'radical.xyz', '--backend', 'xtb'])
-    molecules, settings = bulk.call_args.args
-    assert [mol.name for mol in molecules] == ['a', 'b', 'radical']
-    assert [mol.charge for mol in molecules] == [0, 0, 0]
-    assert [mol.multiplicity for mol in molecules] == [1, 1, 2]
-    assert settings['software'] == 'xtb'
-    assert settings['xtb_model'] == 'gfn2'
-    assert settings['method'] is None and settings['basis'] is None
-    assert settings['nprocs'] == 1
+    calls = optimize_one.call_args_list
+    assert [call.args[0].name for call in calls] == ['a', 'b', 'radical']
+    assert [call.args[1]['charge'] for call in calls] == [0, 0, 0]
+    assert [call.args[1]['multiplicity'] for call in calls] == [1, 1, 2]
+    assert all(call.args[1]['software'] == 'xtb' for call in calls)
+    assert all(call.args[1]['xtb_model'] == 'gfn2' for call in calls)
+    assert all(call.args[1]['method'] is None and call.args[1]['basis'] is None for call in calls)
+    assert all(call.args[1]['nprocs'] == 1 for call in calls)
 
 
 def test_overrides_and_engine_electronic_state(inputs, dependencies):
@@ -134,13 +136,68 @@ def test_import_broken_dependency(inputs, dependencies):
 
 def test_orca_composite_and_overrides(inputs, dependencies):
     from pyar.backends.orca_methods import orca_method_keywords
-    with mock.patch.object(optimiser, 'bulk_optimize', side_effect=lambda mols, qc: mols) as bulk:
+    with mock.patch.object(optimiser, 'optimise', return_value=True) as optimize_one:
         modern_cli.main(['optimize', *inputs, '--backend', 'orca', '--method', 'r2scan-3c',
                          '--nprocs', '8', '--opt-cycles', '200'])
-    settings = bulk.call_args.args[1]
+    settings = optimize_one.call_args.args[1]
     assert settings['basis'] is None
     assert orca_method_keywords(settings, 'Opt')[0] == '! r2scan-3c Opt'
     assert settings['opt_cycles'] == 200 and settings['nprocs'] == 8
+
+
+@pytest.mark.parametrize(('outcomes', 'status', 'optimized', 'failed'), [
+    ([True, 'converged'], 'completed', 2, 0),
+    ([True, BackendExecutionError('backend failed')], 'partial_failed', 1, 1),
+    ([BackendExecutionError('first failed'), BackendExecutionError('second failed')], 'failed', 0, 2),
+])
+def test_optimization_status_and_provenance_are_truthful(
+        inputs, dependencies, outcomes, status, optimized, failed, capsys):
+    from pyar.run_config import load_toml_document
+
+    def run_one(molecule, _settings):
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    with mock.patch.object(optimiser, 'optimise', side_effect=run_one):
+        if failed:
+            with pytest.raises(SystemExit) as exc:
+                modern_cli.main(['optimize', *inputs, '--backend', 'xtb', '--json'])
+            assert exc.value.code == 1
+        else:
+            modern_cli.main(['optimize', *inputs, '--backend', 'xtb', '--json'])
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert payload['status'] == status
+    assert payload['scientific_status'] == status
+    assert payload['invocation_status'] == ('failed' if failed else 'completed')
+    assert payload['result']['input_count'] == 2
+    assert payload['result']['optimized_count'] == optimized
+    assert payload['result']['failed_count'] == failed
+    records = list(Path('.pyar/runs').glob('*/pyar-run.toml'))
+    record = load_toml_document(records[0], 'pyar-run-record')
+    assert record['metadata']['scientific_status'] == status
+    assert record['metadata']['invocation_status'] == ('failed' if failed else 'completed')
+
+
+def test_optimizer_failure_preserves_successful_result_artifact(inputs, dependencies):
+    calls = iter([True, BackendExecutionError('second failed')])
+
+    def run_one(molecule, _settings):
+        outcome = next(calls)
+        if isinstance(outcome, Exception):
+            raise outcome
+        result_path = Path(f'job_{molecule.name}/result_{molecule.name}.xyz')
+        result_path.parent.mkdir(exist_ok=True)
+        result_path.write_text('optimized geometry retained\n')
+        return outcome
+
+    with mock.patch.object(optimiser, 'optimise', side_effect=run_one):
+        with pytest.raises(SystemExit):
+            modern_cli.main(['optimize', *inputs, '--backend', 'xtb'])
+    assert Path('job_a/result_a.xyz').read_text() == 'optimized geometry retained\n'
 
 
 def test_legacy_bulk_parameters_unchanged():
@@ -177,11 +234,12 @@ def test_per_molecule_inference_reaches_engine(inputs, dependencies):
 
 
 def test_backend_alias(inputs, dependencies):
-    with mock.patch.object(optimiser, 'bulk_optimize', side_effect=lambda mols, qc: mols) as bulk:
+    with mock.patch.object(optimiser, 'optimise', return_value=True) as single:
         modern_cli.main(['optimize', *inputs, '--backend', 'g16'])
-    assert bulk.call_args.args[1]['software'] == 'gaussian'
-    assert bulk.call_args.args[1]['method'] == 'BP86'
-    assert bulk.call_args.args[1]['geometry_optimizer'] == 'geometric'
+    settings = single.call_args.args[1]
+    assert settings['software'] == 'gaussian'
+    assert settings['method'] == 'BP86'
+    assert settings['geometry_optimizer'] == 'geometric'
 
 
 def test_duplicate_names_fail(inputs, dependencies, tmp_path):

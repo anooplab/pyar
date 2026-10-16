@@ -127,6 +127,32 @@ def test_profile_list_is_read_only_and_creation_refuses_overwrite(fragments, mon
     assert target.read_bytes() == before
 
 
+def test_recovery_permission_is_never_saved_or_replayed(tmp_path):
+    from pyar.run_config import (
+        EXECUTION_CONTROL_DESTS, PROFILE_EXCLUDED_DESTS, without_execution_controls,
+    )
+
+    assert 'recover_stale_lock' in EXECUTION_CONTROL_DESTS
+    assert 'recover_stale_lock' in PROFILE_EXCLUDED_DESTS
+    assert without_execution_controls([
+        'seed.xyz', '--recover-stale-lock', '--count', '2', '--', '--recover-stale-lock'
+    ]) == ['seed.xyz', '--count', '2', '--', '--recover-stale-lock']
+
+    path = tmp_path / 'legacy-config.toml'
+    write_toml_document(path, kind=RUN_CONFIG_KIND, workflow='grow',
+                        arguments=['seed.xyz', '--recover-stale-lock'],
+                        effective={'seed': 'seed.xyz', 'recover_stale_lock': True})
+    with pytest.warns(UserWarning, match='recovery must be explicitly requested'):
+        saved = load_toml_document(path, RUN_CONFIG_KIND)
+    assert saved['effective']['recover_stale_lock'] is True
+    # Replay serializers omit the execution-control value even for old documents.
+    from pyar.run_config import arguments_from_values
+    parser = argparse.ArgumentParser()
+    parser.add_argument('seed')
+    parser.add_argument('--recover-stale-lock', action='store_true')
+    assert arguments_from_values(saved['effective'], parser) == ['--', 'seed.xyz']
+
+
 def test_no_abbreviation_can_override_profile_by_accident():
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument('--orientations', type=int, default=8)

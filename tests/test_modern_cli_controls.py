@@ -163,6 +163,50 @@ def test_run_records_include_value_sources_and_failed_status(tmp_path, monkeypat
     assert sources["output"] == "default"
 
 
+def test_run_record_failure_is_nonzero_and_json_distinguishes_scientific_success(
+        tmp_path, monkeypatch, capsys):
+    import argparse
+    from types import SimpleNamespace
+    from pyar.cli_runtime import finished_run, started_run
+    from pyar.run_config import RUN_RECORD_KIND
+
+    def build_parser(prog=None):
+        parser = argparse.ArgumentParser(prog=prog)
+        parser.add_argument('input')
+        parser.add_argument('--check', action='store_true')
+        return parser
+
+    def complete(argv=None, *, prog=None):
+        started_run()
+        finished_run({'workflow': 'optimize', 'status': 'completed', 'input_count': 1})
+
+    fake_module = SimpleNamespace(build_parser=build_parser, modern_main=complete)
+    monkeypatch.setitem(modern_cli._COMMANDS, 'optimize', ('fake.optimize', 'fake'))
+    monkeypatch.setattr(modern_cli, 'import_module', lambda _name: fake_module)
+    monkeypatch.chdir(tmp_path)
+
+    def fail_record(*args, **kwargs):
+        if kwargs.get('kind') == RUN_RECORD_KIND:
+            raise OSError('disk full')
+        raise AssertionError('unexpected document write')
+
+    monkeypatch.setattr('pyar.run_config.write_toml_document', fail_record)
+    try:
+        modern_cli.main(['optimize', 'input.xyz', '--json'])
+    except OSError as exc:
+        assert 'run provenance could not be written' in str(exc)
+    else:
+        raise AssertionError('provenance write failure returned success')
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload['scientific_status'] == 'completed'
+    assert payload['status'] == 'completed'
+    assert payload['invocation_status'] == 'provenance_write_failed'
+    assert payload['provenance_error'] == 'disk full'
+    assert 'outputs were retained' in captured.err
+
+
 def test_all_remaining_workflow_commands_are_registered_lazily():
     for command in ("solvate", "neb", "ts", "irc", "run", "config", "profile", "info",
                     "backends", "doctor", "inspect"):

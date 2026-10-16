@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import warnings
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10, supported by pyar-chem.
@@ -30,10 +31,13 @@ PROFILE_EXCLUDED_DESTS = {
     "run", "first", "second", "path", "formula",
     "output", "output_dir", "labels_output", "report_output", "structure_report",
     "plot_directory", "check", "dry_run", "write_config", "profile",
-    "verbosity", "verbose", "quiet", "no_color",
+    "verbosity", "verbose", "quiet", "no_color", "recover_stale_lock",
 }
 
-EXECUTION_CONTROL_DESTS = {"check", "dry_run", "write_config", "profile", "verbosity", "verbose", "quiet", "no_color"}
+EXECUTION_CONTROL_DESTS = {
+    "check", "dry_run", "write_config", "profile", "verbosity", "verbose",
+    "quiet", "no_color", "recover_stale_lock",
+}
 
 
 def without_execution_controls(arguments):
@@ -43,7 +47,7 @@ def without_execution_controls(arguments):
         if token == "--":
             result.extend(arguments[index:])
             break
-        if token not in {"--check", "--dry-run"}:
+        if token not in {"--check", "--dry-run", "--recover-stale-lock"}:
             result.append(token)
     return result
 
@@ -299,6 +303,14 @@ def load_toml_document(path, expected_kind):
             raise ValueError(f"Invalid {key} in {path}") from exc
     if not isinstance(value.get("effective", {}), dict) or not isinstance(value.get("metadata", {}), dict):
         raise ValueError(f"Invalid settings or metadata object in {path}")
+    if (value.get("effective", {}).get("recover_stale_lock") is True or
+            "--recover-stale-lock" in value["arguments"]):
+        warnings.warn(
+            f"Ignoring saved stale-lock recovery permission in {path}; "
+            "recovery must be explicitly requested for each invocation.",
+            UserWarning,
+            stacklevel=2,
+        )
     if 'settings' in value:
         unset = value.get('unset_settings', [])
         if (not isinstance(value['settings'], dict) or not isinstance(unset, list)
