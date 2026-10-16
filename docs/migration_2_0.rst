@@ -1,16 +1,18 @@
 PyAR 2.0 API Migration
 ======================
 
-PyAR 2.0 narrows the supported Python API to documented package entrypoints.
-Legacy compatibility modules from the 1.x transition remain as thin shims
-while the migration is completed. Command-line workflows continue to use
-``pyar-cli``.
+Use the documented package entrypoints for new Python code. Compatibility
+modules and the legacy ``pyar-cli`` command remain available during the 1.x
+transition; this guide does not announce their removal. New calculations should
+use the task-oriented ``pyar COMMAND`` interface.
 
 Supported Public Imports
 ------------------------
 
 * ``from pyar import Molecule, __version__``
-* ``from pyar.workflows import aggregate, react, solvate``
+* ``from pyar.workflows import aggregate, grow, conformer_search, react``
+* ``from pyar.workflows import solvate, microsolvate, run_scan_bond``
+* ``from pyar.workflows import WorkflowResult, AggregateResult, GrowResult``
 * ``from pyar.sampling import generate_trial_vectors``
 * ``from pyar.selection import choose_geometries``
 * ``from pyar.backends import get_backend_capabilities``
@@ -71,8 +73,27 @@ Import Path Changes
 Console Scripts
 ---------------
 
-``pyar-cli`` remains the primary command-line entry point. Auxiliary commands
-that point to maintained script modules remain available, including
+``pyar`` is the task-oriented command-line entry point for new workflows.
+Examples include ``pyar grow``, ``pyar microsolvate``, ``pyar react`` and
+``pyar scan-bond``. ``pyar solvate`` is a compatibility alias for modern
+microsolvation. The legacy ``pyar-cli solvate`` command retains its historical
+algorithm and restart state. ``pyar-cli`` and auxiliary commands remain
+available, including
 ``pyar-reaction-trace``, ``pyar-benchmark-orientations``,
 ``pyar-benchmark-clustering``, ``pyar-descriptor``, ``pyar-mlopt``, and
 ``pyar-aimnet2-ase-opt``.
+
+Use ``pyar install status`` to inspect installed workflow dependencies and
+``pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all`` to request
+the full validated reaction path. ``--check`` and ``--dry-run`` validate the
+requested stages without starting calculations.
+
+Release boundary
+----------------
+
+The ``v1.5.1`` tag does not include the run-layout-v2 changes on the current
+``master`` branch. At the 2026-10-16 release check, ``master`` still declared
+version ``1.5.1`` and had no corresponding release tag. Check the
+installed package version and release notes before assuming that a tagged
+release contains current ``master`` behavior. Existing recognized v1 runs
+continue on their legacy path; they are not silently converted to v2.

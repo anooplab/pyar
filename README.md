@@ -19,24 +19,35 @@ configuration, external programs, and developer dependency groups.
 ## Quick Start
 
 ```bash
-pyar-cli --help
-pyar-cli -a C H -as 1 4 -N 8
-pyar-cli react A.xyz B.xyz -N 8 -gmin 100 -gmax 1000 --software xtb
+pyar --help
+pyar aggregate C H --size 1 4 --backend xtb
+pyar react A.xyz B.xyz --backend xtb --bias-max 100
 pyar microsolvate solute.xyz solvent.xyz --count 10 --backend xtb
 ```
 
 ## Supported Workflows
 
-The task-oriented CLI pilot supports clustering:
+Use ``pyar COMMAND`` for modern task-oriented workflows. For example:
 
 ```bash
-pyar clustering *.xyz
-pyar clustering --help
+pyar aggregate molecule.xyz --size 2 --backend xtb
+pyar grow seed.xyz monomer.xyz --count 10 --backend xtb
+pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all
+pyar scan-bond A.xyz B.xyz --atoms 0 0 --backend xtb --through all
+pyar microsolvate solute.xyz solvent.xyz --count 10 --backend xtb
+pyar conformer CCO
+pyar install status
 ```
 
-`pyar-clustering *.xyz` continues to work with the same options, defaults,
-and implementation. The shell expands `*.xyz` into input paths. Other
-workflows continue to use their existing commands.
+The command-specific `--help` lists options. `--check` validates a request
+without starting a calculation; `--dry-run` also reports its planned stages.
+The legacy `pyar-cli` and `pyar-*` commands remain available. In
+particular, `pyar solvate` aliases modern microsolvation, while
+`pyar-cli solvate` retains its distinct legacy algorithm and restart state.
+
+The `v1.5.1` tag does not contain run-layout-v2 changes merged on `master`.
+Check the installed version before relying on newer layout behavior; existing
+v1 runs continue through their legacy path.
 
 Optimize every supplied XYZ independently with the same computational settings:
 
@@ -91,7 +102,7 @@ ORCA default, and required `-N` argument.
 - `grow` repeatedly adds one species to a specific seed and retains every selected stage
 - `react` for AFIR-style reaction searches between two reactants
 - `microsolvate` for original-solute-centred first-shell sampling
-- legacy `solvate` for backward-compatible solvation restarts
+- `pyar solvate` aliases modern microsolvation; `pyar-cli solvate` retains legacy restarts
 - `scan-bond` for a simple bond-distance probe
 - `pyar-reaction-trace` for reaction-trace analysis
 

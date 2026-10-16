@@ -23,7 +23,15 @@ The CLI exposes this choice as ``--connectivity-policy {auto,off,prefer,strict}`
 Use ``auto`` for the workflow default, ``off`` for noncovalent complexes and
 solvation, and ``prefer`` or ``strict`` for atomic/formula growth.
 
-Examples:
+Use ``pyar COMMAND`` for new calculations:
+
+.. code-block:: bash
+
+   pyar aggregate C H --size 1 4 --backend xtb
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100
+   pyar microsolvate solute.xyz solvent.xyz --count 10 --backend xtb
+
+The compatibility examples below use the legacy ``pyar-cli`` syntax:
 
 .. code-block:: bash
 

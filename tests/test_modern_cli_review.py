@@ -113,6 +113,8 @@ def test_option_values_after_delimiter_are_preserved(fragments, capsys):
 
 
 def test_profile_list_is_read_only_and_creation_refuses_overwrite(fragments, monkeypatch):
+    from pyar.run_config import RUN_RECORD_KIND
+
     monkeypatch.setenv('XDG_CONFIG_HOME', str(Path('settings').resolve()))
     modern_cli.main(['profile', 'list'])
     assert not Path('settings').exists()
@@ -125,6 +127,28 @@ def test_profile_list_is_read_only_and_creation_refuses_overwrite(fragments, mon
     with pytest.raises(SystemExit):
         modern_cli.main(['profile', 'create', 'careful', '--from', record])
     assert target.read_bytes() == before
+    source = load_toml_document(record, RUN_RECORD_KIND)
+    write_toml_document(record, kind=RUN_RECORD_KIND, workflow='grow', arguments=[],
+                        effective={**source['effective'], 'count': 3}, overwrite=True)
+    modern_cli.main(['profile', 'create', 'careful', '--from', record, '--force'])
+    assert load_toml_document(target, PROFILE_KIND)['effective']['count'] == 3
+
+
+def test_config_force_is_the_only_overwrite_path(tmp_path):
+    from pyar.run_config import RUN_RECORD_KIND
+
+    record = tmp_path / 'source.toml'
+    target = tmp_path / 'saved.toml'
+    write_toml_document(record, kind=RUN_RECORD_KIND, workflow='grow', arguments=[],
+                        effective={'count': 2})
+    modern_cli.main(['config', 'create', '--from', str(record), '--output', str(target)])
+    with pytest.raises(SystemExit):
+        modern_cli.main(['config', 'create', '--from', str(record), '--output', str(target)])
+    source = load_toml_document(record, RUN_RECORD_KIND)
+    write_toml_document(record, kind=RUN_RECORD_KIND, workflow='grow', arguments=[],
+                        effective={**source['effective'], 'count': 3}, overwrite=True)
+    modern_cli.main(['config', 'create', '--from', str(record), '--output', str(target), '--force'])
+    assert load_toml_document(target, RUN_CONFIG_KIND)['effective']['count'] == 3
 
 
 def test_recovery_permission_is_never_saved_or_replayed(tmp_path):

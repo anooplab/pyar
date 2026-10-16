@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from unittest import mock
+import json
 
 import pytest
 
@@ -132,6 +133,21 @@ def test_check_no_calculation_or_mutations(inputs, dependencies, through, capsys
     run.assert_not_called()
     assert set(Path('.').iterdir()) == before
     assert 'Ready to run' in capsys.readouterr().out
+
+
+def test_dry_run_plan_lists_the_cumulative_scan_path_stages(inputs, dependencies, capsys):
+    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+        modern_cli.main([*inputs, '--backend', 'xtb', '--through', 'all', '--dry-run', '--json'])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload['plan']['stages'] == [
+        'Generate orientations', 'Run relaxed bond scans', 'Identify relaxed scan products',
+        'Relax mapped reactant and product endpoints', 'Optimize the reaction path with NEB',
+        'Optimize a transition-state candidate',
+        'Check the transition state with a frequency calculation',
+        'Run both IRC branches', 'Relax the IRC endpoint structures',
+        'Check the IRC endpoints with frequency calculations',
+    ]
+    run.assert_not_called()
 
 
 def test_stage_optional_dependencies(inputs, dependencies):

@@ -152,6 +152,28 @@ def test_through_all_preflights_full_chain_without_mutations(tmp_path, monkeypat
     assert not (tmp_path / 'reaction').exists()
 
 
+def test_react_dry_run_reports_only_the_requested_cumulative_stages(
+        tmp_path, monkeypatch, workflow, capsys):
+    files = inputs(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb']), patch(
+            'pyar.scripts.modern_react.preflight_path_request', return_value=['geometric']) as path_check:
+        main(['react', *files, '--backend', 'xtb', '--bias-max', '100',
+              '--through', 'neb', '--dry-run', '--json'])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload['status'] == 'ready'
+    assert payload['invocation_status'] == 'ready'
+    assert payload['plan']['stages'] == [
+        'Generate reactant orientations', 'Run biased reaction search',
+        'Relax and identify candidate products',
+        'Relax mapped reactant and product endpoints',
+        'Optimize the reaction path with NEB',
+    ]
+    assert path_check.call_args.args[1] == 'neb'
+    assert not workflow.called
+    assert not (tmp_path / 'reaction').exists()
+
+
 def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, workflow):
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)

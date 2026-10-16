@@ -1,6 +1,8 @@
 """Tests for shared modern CLI controls and reporting commands."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+import pytest
 
 try:
     import tomllib
@@ -77,6 +79,71 @@ def test_execution_plan_contains_resolved_inputs_settings_and_stages():
         "Retain every growth stage",
     )
     assert plan.settings["count"] == 4
+
+
+def test_execution_plan_stages_follow_requested_path_stage():
+    from pyar.run_config import ResolvedRunSpec, build_execution_plan
+
+    expected = {
+        'react': 3,
+        'neb': 5,
+        'ts': 6,
+        'frequency': 7,
+        'irc': 8,
+        'endpoints': 9,
+        'endpoint-frequency': 10,
+        'all': 10,
+    }
+    for through, stage_count in expected.items():
+        resolved = ResolvedRunSpec('react', {'through': through}, {}, ())
+        plan = build_execution_plan('react', resolved)
+        assert len(plan.stages) == stage_count
+    assert build_execution_plan(
+        'react', ResolvedRunSpec('react', {'through': 'react'}, {}, ())
+    ).stages == (
+        'Generate reactant orientations', 'Run biased reaction search',
+        'Relax and identify candidate products',
+    )
+    assert build_execution_plan(
+        'neb', ResolvedRunSpec('neb', {}, {}, ())
+    ).stages == (
+        'Relax and validate the endpoint structures',
+        'Optimize the reaction path with NEB',
+    )
+    assert build_execution_plan(
+        'irc', ResolvedRunSpec('irc', {}, {}, ())
+    ).stages == ('Run both IRC branches from the frequency-validated transition state',)
+
+
+def test_toml_create_is_atomic_no_clobber_and_force_is_explicit(tmp_path):
+    from pyar.run_config import RUN_CONFIG_KIND, load_toml_document
+
+    path = tmp_path / 'shared.toml'
+
+    def create(value):
+        return write_toml_document(
+            path, kind=RUN_CONFIG_KIND, workflow='grow', arguments=[],
+            effective={'count': value},
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(create, value) for value in range(8)]
+    outcomes = []
+    for future in futures:
+        try:
+            outcomes.append(future.result())
+        except FileExistsError:
+            pass
+    assert len(outcomes) == 1
+    saved = load_toml_document(path, RUN_CONFIG_KIND)
+    assert saved['effective']['count'] in range(8)
+    before = path.read_bytes()
+    with pytest.raises(FileExistsError):
+        create(20)
+    assert path.read_bytes() == before
+    write_toml_document(path, kind=RUN_CONFIG_KIND, workflow='grow', arguments=[],
+                        effective={'count': 20}, overwrite=True)
+    assert load_toml_document(path, RUN_CONFIG_KIND)['effective']['count'] == 20
 
 
 def test_profile_precedence_and_profile_omits_run_specific_paths(tmp_path, monkeypatch, capsys):

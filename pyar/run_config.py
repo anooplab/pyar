@@ -120,6 +120,55 @@ _INPUT_DESTINATIONS = (
     "solute", "solvent", "start", "end", "ts_guess", "geometry", "run", "run_directory",
 )
 
+_REACT_DISCOVERY_STAGES = (
+    "Generate reactant orientations", "Run biased reaction search",
+    "Relax and identify candidate products",
+)
+_PATH_STAGE_LABELS = {
+    "relax": "Relax mapped reactant and product endpoints",
+    "neb": "Optimize the reaction path with NEB",
+    "ts": "Optimize a transition-state candidate",
+    "frequency": "Check the transition state with a frequency calculation",
+    "irc": "Run both IRC branches",
+    "endpoint-relax": "Relax the IRC endpoint structures",
+    "endpoint-frequency": "Check the IRC endpoints with frequency calculations",
+}
+_SCAN_THROUGH_LAST_STAGE = {
+    "neb": "neb", "ts": "ts", "frequency": "frequency", "irc": "irc",
+    "endpoints": "endpoint-relax", "endpoint-frequency": "endpoint-frequency",
+    "all": "endpoint-frequency",
+}
+
+
+def _planned_stages(workflow, values):
+    if workflow == "react":
+        through = values.get("through", "react")
+        if through == "react":
+            return _REACT_DISCOVERY_STAGES
+        path_last = _SCAN_THROUGH_LAST_STAGE.get(through)
+        if path_last is None:
+            return ("Run reaction discovery", "Continue through the requested path stages")
+        labels = tuple(_PATH_STAGE_LABELS[name] for name in ("relax", "neb", "ts", "frequency", "irc", "endpoint-relax", "endpoint-frequency"))
+        count = tuple(_PATH_STAGE_LABELS).index(path_last) + 1
+        return _REACT_DISCOVERY_STAGES + labels[:count]
+    if workflow == "scan-bond":
+        through = values.get("through", "scan")
+        discovery = ("Generate orientations", "Run relaxed bond scans", "Identify relaxed scan products")
+        if through == "scan":
+            return discovery
+        path_last = _SCAN_THROUGH_LAST_STAGE.get(through)
+        if path_last is None:
+            return discovery + ("Continue through the requested path stages",)
+        continuation = ("relax", "neb", "ts", "frequency", "irc", "endpoint-relax", "endpoint-frequency")
+        return discovery + tuple(_PATH_STAGE_LABELS[name] for name in continuation[:continuation.index(path_last) + 1])
+    if workflow == "neb":
+        return ("Relax and validate the endpoint structures", "Optimize the reaction path with NEB")
+    if workflow == "ts":
+        return ("Optimize the transition-state geometry", "Check the optimized structure with a frequency calculation")
+    if workflow == "irc":
+        return ("Run both IRC branches from the frequency-validated transition state",)
+    return _PLAN_STAGES.get(workflow, ("Run validated workflow",))
+
 
 def build_execution_plan(workflow, resolved):
     """Build a generic plan envelope from shared parser resolution.
@@ -169,7 +218,7 @@ def build_execution_plan(workflow, resolved):
         workflow=workflow,
         inputs=tuple(inputs),
         backend=backend,
-        stages=_PLAN_STAGES.get(workflow, ("Run validated workflow",)),
+        stages=_planned_stages(workflow, values),
         outputs=outputs,
         settings=settings,
         value_sources=dict(resolved.value_sources),
@@ -236,8 +285,9 @@ def resolve_run_spec(workflow, parser, arguments, *, profile_values=None, profil
     return request, ResolvedRunSpec(workflow, namespace, sources, request.arguments)
 
 
-def write_toml_document(path, *, kind, workflow, arguments, effective=None, metadata=None):
-    """Atomically write the stable, deliberately small TOML envelope."""
+def write_toml_document(path, *, kind, workflow, arguments, effective=None, metadata=None,
+                        overwrite=False):
+    """Atomically publish a TOML envelope without clobbering by default."""
     path = Path(path).expanduser().resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     document = {
@@ -266,7 +316,17 @@ def write_toml_document(path, *, kind, workflow, arguments, effective=None, meta
             stream.write("\n".join(lines) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        if overwrite:
+            os.replace(temporary, path)
+        else:
+            # A hard link publishes the fully fsynced same-directory temporary
+            # file atomically and fails if another process already owns path.
+            os.link(temporary, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)

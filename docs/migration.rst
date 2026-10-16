@@ -109,3 +109,21 @@ New workflow extras are ``aggregate``, ``grow``, ``reaction``, ``microsolvate``,
 Development groups are ``test``, ``docs``, ``release`` and their combined ``dev``
 group. Dependency groups require pip 25.1+ and a checkout containing
 ``pyproject.toml``. The package version is unchanged by this development branch.
+
+Task-oriented command interface
+--------------------------------
+
+Use ``pyar COMMAND`` for new workflows, including ``aggregate``, ``grow``,
+``react``, ``scan-bond``, ``microsolvate``, ``conformer`` and ``optimize``.
+``pyar install status`` reports installed workflow capabilities. The legacy
+``pyar-cli`` and ``pyar-*`` entry points remain available during the 1.x
+transition; this guide does not announce their removal. ``pyar solvate`` is a
+modern microsolvation alias, whereas ``pyar-cli solvate`` retains its historic
+algorithm and restart state. Use ``--check`` for read-only validation and
+``--dry-run`` to include the requested execution stages.
+
+The ``v1.5.1`` tag predates the run-layout-v2 changes on ``master``. At the
+2026-10-16 release check, ``master`` still declared ``1.5.1`` without a new
+release tag. Check the installed version and release notes before assuming a
+tag contains current ``master`` behavior. Recognized v1 runs remain on their
+legacy continuation path and are not silently converted.

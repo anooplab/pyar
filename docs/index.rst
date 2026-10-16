@@ -154,6 +154,7 @@ The fastest way to verify a local install is:
 
 .. code-block:: bash
 
+   pyar --help
    pyar-cli --help
 
 .. toctree::
