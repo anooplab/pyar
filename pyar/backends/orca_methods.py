@@ -26,11 +26,25 @@ def orca_method(method):
     return (canonical, True) if canonical else (supplied, False)
 
 
+def orca_ri_keyword(method):
+    """Return an RI keyword compatible with the requested ORCA method.
+
+    ORCA's plain ``RI`` keyword handles Coulomb integrals only. Hartree-Fock
+    also needs an explicit treatment of exchange; ``RIJONX`` retains exact
+    exchange while fitting the Coulomb term.
+    """
+    key = "".join(
+        character for character in str(method).strip().lower()
+        if character.isalnum()
+    )
+    return "RIJONX" if key in {"hf", "rhf", "uhf"} else "RI"
+
+
 def orca_method_keywords(qc_params, optimization_keyword=None):
     """Build the method part of an ORCA keyword line.
 
-    ORCA's xTB methods do not take a Gaussian basis or the DFT-only RI,
-    dispersion, and SCF accelerator keywords used by PyAR's DFT defaults.
+    ORCA's xTB methods do not take a Gaussian basis or the RI, dispersion,
+    and SCF accelerator keywords used by PyAR's electronic-structure defaults.
     """
     method, is_xtb = orca_method(qc_params.get("method", "BP86"))
     if method == "g-xTB":
@@ -43,7 +57,7 @@ def orca_method_keywords(qc_params, optimization_keyword=None):
         basis = qc_params.get("basis")
         if not basis:
             raise ValueError("ORCA DFT calculations require a basis set")
-        pieces.extend([str(basis), "RI", "def2/J", "D3BJ", "KDIIS"])
+        pieces.extend([str(basis), orca_ri_keyword(method), "def2/J", "D3BJ", "KDIIS"])
     if optimization_keyword:
         pieces.append(optimization_keyword)
     return " ".join(pieces), is_xtb

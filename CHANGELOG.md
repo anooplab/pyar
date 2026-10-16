@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Use ORCA's RIJONX treatment for Hartree-Fock Coulomb fitting so HF inputs
+  also specify how exchange integrals are handled.
+
 - Report per-input optimization outcomes and preserve scientific status when
   invocation provenance cannot be written; keep stale-lock recovery permission
   out of reusable configurations and profiles.

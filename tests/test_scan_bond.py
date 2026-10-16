@@ -27,6 +27,22 @@ def test_fragment_local_indices_are_merged_asymmetric():
     assert absolute_target_indices(fragment_a, 0, 0) == (0, 5)
 
 
+@pytest.mark.parametrize("method", ["HF", "RHF", "UHF"])
+def test_orca_hartree_fock_keywords_handle_exchange(method):
+    keywords, is_xtb = orca_method_keywords({"method": method, "basis": "STO-3G"}, "Opt")
+    assert "RIJONX" in keywords
+    assert " RI " not in keywords
+    assert not is_xtb
+
+
+def test_orca_dft_keeps_ri_j_keyword():
+    keywords, is_xtb = orca_method_keywords(
+        {"method": "BP86", "basis": "def2-SVP"}, "Opt")
+    assert " RI " in keywords
+    assert "RIJONX" not in keywords
+    assert not is_xtb
+
+
 @pytest.mark.parametrize("bad", [-1, 5])
 def test_fragment_a_index_is_validated(bad):
     fragment_a = Molecule(["C"] * 5, np.zeros((5, 3)))
