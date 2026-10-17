@@ -27,6 +27,10 @@ def build_parser(prog=None):
     parser.add_argument("--maximum-number-of-seeds", type=int, default=12)
     parser.add_argument("--site", nargs="+", type=int, metavar="ATOM",
                         help="0-based original-solute atom(s) whose accessible surface is targeted")
+    parser.add_argument("--site-group", action="append", default=[], metavar="NAME=ATOM[,ATOM...]",
+                        help="Opt-in post-optimization contact group, e.g. donor=2,5 (repeatable)")
+    parser.add_argument("--contact-distance", type=float,
+                        help="Explicit atom-pair contact cutoff in Angstrom; required with --site-group")
     parser.add_argument("--surface-points-per-atom", type=int, default=96,
                         help="Deterministic Fibonacci samples per solute atom")
     parser.add_argument("--probe-radius", type=float, default=1.4,
@@ -48,11 +52,24 @@ def resolve_request(args):
     molecules = resolve_states(
         load_fragments([args.solute, args.solvent]), args.charge, args.multiplicity, args.scftype,
     )
+    site_groups = []
+    for value in args.site_group:
+        if "=" not in value:
+            raise ValueError(f"Invalid --site-group {value!r}; expected NAME=ATOM[,ATOM...]")
+        name, raw_indices = value.split("=", 1)
+        try:
+            indices = tuple(int(item) for item in raw_indices.split(","))
+        except ValueError as exc:
+            raise ValueError(f"Invalid atom index in --site-group {value!r}") from exc
+        if not name.strip() or not indices or any(not item.strip() for item in raw_indices.split(",")):
+            raise ValueError(f"Invalid --site-group {value!r}; expected NAME=ATOM[,ATOM...]")
+        site_groups.append((name.strip(), indices))
     request = MicrosolvationRequest(
         molecules[0], molecules[1], args.count, args.orientations, optional_backend(args),
         args.maximum_number_of_seeds, None if args.site is None else tuple(args.site),
         args.surface_points_per_atom, args.probe_radius, args.shell_tolerance,
         args.objective, args.placement_score,
+        tuple(site_groups), args.contact_distance,
     )
     return request
 
@@ -89,6 +106,10 @@ def main(argv=None, *, prog=None):
             print(f"Surface: Fibonacci, {request.surface_points_per_atom} points/atom, probe {request.probe_radius:g} Å")
             print(f"Maximum survivors: {request.maximum_number_of_seeds}")
             print(f"Objective: {request.objective}; placement score: {request.placement_score}")
+            if request.site_groups:
+                print(f"Contact model: explicit {request.contact_distance:g} Å atom-pair cutoff; "
+                      f"{len(request.site_groups)} named site group(s)")
+                print("Site contacts and first/second-shell labels are geometric evidence, not chemical bonds or thermodynamic shells.")
             if request.objective == "cluster":
                 print("Cluster mode permits solvent-centred growth; shell validity is reported but not filtered.")
             else:

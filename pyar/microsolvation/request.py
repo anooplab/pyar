@@ -30,6 +30,8 @@ class MicrosolvationRequest:
     shell_tolerance: float = 3.5
     objective: str = "shell"
     placement_score: str = "geometric"
+    site_groups: tuple[tuple[str, tuple[int, ...]], ...] = ()
+    contact_distance: float | None = None
 
     def __post_init__(self):
         for label, value in (
@@ -84,6 +86,22 @@ class MicrosolvationRequest:
                         f"Solute site index {index} is out of range (valid range: 0..{len(self.solute) - 1})"
                     )
             object.__setattr__(self, "site", site)
+        groups = tuple((str(name).strip(), tuple(int(index) for index in indices))
+                       for name, indices in self.site_groups)
+        if groups:
+            names = [name for name, _ in groups]
+            if (any(not name.strip() for name in names) or len(names) != len(set(names))
+                    or any(not indices or len(indices) != len(set(indices)) for _, indices in groups)):
+                raise MicrosolvationRequestError("site groups require unique names and distinct non-empty atom indices")
+            for name, indices in groups:
+                if any(index < 0 or index >= len(self.solute) for index in indices):
+                    raise MicrosolvationRequestError(f"Site group {name!r} contains an out-of-range solute atom index")
+            if (isinstance(self.contact_distance, bool) or self.contact_distance is None
+                    or not np.isfinite(float(self.contact_distance)) or float(self.contact_distance) <= 0):
+                raise MicrosolvationRequestError("site contact reporting requires a positive --contact-distance in Angstrom")
+        elif self.contact_distance is not None:
+            raise MicrosolvationRequestError("--contact-distance requires at least one --site-group")
+        object.__setattr__(self, "site_groups", groups)
         from pyar.molecule_merge import combine_multiplicity
         electrons = sum(self.solute.atomic_number)
         charge = int(self.solute.charge)
@@ -153,4 +171,12 @@ class MicrosolvationRequest:
             if self.objective == "cluster":
                 result["shell_policy"] = "reported-not-filtered-cluster-growth-v1"
                 result["confinement"] = {"mode": "none; finite-cluster objective"}
+        if self.site_groups:
+            result["site_contact_policy"] = {
+                "name": "explicit-atom-distance-v1",
+                "groups": [{"name": name, "solute_atom_indices": list(indices)}
+                           for name, indices in self.site_groups],
+                "distance_angstrom": float(self.contact_distance),
+                "shell_assignment": "direct-solute-contact; then solvent-contact-to-first-shell-v1",
+            }
         return result

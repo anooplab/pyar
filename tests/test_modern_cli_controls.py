@@ -40,6 +40,7 @@ def test_write_config_and_run_check_are_read_only(tmp_path, monkeypatch, capsys)
     output = tmp_path / "microsolvation"
     config_path = tmp_path / "micro.toml"
     modern_cli.main(["microsolvate", str(solute), str(solvent), "--count", "1",
+                     "--site-group", "hydrogen=0", "--contact-distance", "3.2",
                      "--output", str(output), "--write-config", str(config_path), "--dry-run"])
     assert not output.exists()
     dry_run_output = capsys.readouterr().out
@@ -51,10 +52,12 @@ def test_write_config_and_run_check_are_read_only(tmp_path, monkeypatch, capsys)
     assert config["schema_version"] == 1
     assert config["workflow"] == "microsolvate"
     assert "--count" in config["arguments"]
+    assert config["arguments"][config["arguments"].index("--site-group") + 1] == "hydrogen=0"
 
     modern_cli.main(["run", str(config_path), "--check"])
     output_text = capsys.readouterr().out
     assert "Preflight: microsolvate" in output_text
+    assert "Contact model: explicit 3.2 Å atom-pair cutoff" in output_text
     assert not output.exists()
     assert not (tmp_path / ".pyar").exists()
 

@@ -208,7 +208,7 @@ def assess_shell(molecule, request):
     validity = shell_postfilter(molecule, target_surface, tolerance=request.shell_tolerance)
     if request.objective == "cluster":
         validity["confinement_mode"] = "reported-not-filtered-cluster-objective"
-    return {
+    result = {
         key: value for key, value in coverage.items() if key != "covered_mask"
     } | {
         "whole_solute_coverage_fraction": full_coverage["coverage_fraction"],
@@ -217,3 +217,7 @@ def assess_shell(molecule, request):
         **validity,
         "site_atoms": None if request.site is None else list(request.site),
     }
+    if request.site_groups:
+        from pyar.microsolvation.contacts import assess_contacts
+        result["contact_analysis"] = assess_contacts(molecule, request)
+    return result
