@@ -52,6 +52,17 @@ def validate_inputs(args):
     try:
         _validate_backend_spin_inputs(molecules)
         merged = molecules[0].merged_with(molecules[1])
+        if args.total_multiplicity is not None:
+            low = abs(molecules[0].multiplicity - molecules[1].multiplicity) + 1
+            high = molecules[0].multiplicity + molecules[1].multiplicity - 1
+            allowed = list(range(low, high + 1, 2))
+            if args.total_multiplicity not in allowed:
+                raise ValueError(
+                    f'total multiplicity {args.total_multiplicity} is incompatible with '
+                    f'fragment multiplicities {molecules[0].multiplicity} and '
+                    f'{molecules[1].multiplicity}; allowed total multiplicities are {allowed}'
+                )
+            merged.multiplicity = args.total_multiplicity
         _validate_backend_spin_inputs([merged])
     except SystemExit as exc:
         raise ValueError(f'Invalid charge/multiplicity: {exc}') from exc

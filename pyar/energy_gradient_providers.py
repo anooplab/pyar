@@ -372,27 +372,23 @@ class OrcaEnergyGradientProvider:
         from pyar.backends.orca_methods import (
             orca_method,
             orca_method_keywords,
-            orca_ri_keyword,
         )
 
         method, is_xtb = orca_method(self.qc_params.get("method", "BP86"))
         if method == "g-xTB":
             raise ValueError("ORCA external g-xTB does not have a supported energy/gradient provider; "
                              "use software='xtb', xtb_model='gxtb'")
-        if is_xtb:
-            keyword, _ = orca_method_keywords(self.qc_params, "ENGRAD")
-        else:
-            basis = self.qc_params["basis"]
-            keyword = f"! {method} {basis}"
-            if any(x >= 21 for x in _atomic_numbers(molecule)):
-                keyword += " def2-ECP"
-            keyword += f" {orca_ri_keyword(method)} def2/J D3BJ KDIIS ENGRAD"
+        keyword, _ = orca_method_keywords(self.qc_params, "ENGRAD")
+        if not is_xtb and not self.qc_params.get("orca_builtin_method") and any(
+            x >= 21 for x in _atomic_numbers(molecule)
+        ):
+            keyword += " def2-ECP"
         if not is_xtb and (int(self.qc_params.get("multiplicity", 1) or 1) != 1
                            or str(self.qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}):
             keyword += " UKS"
         keyword += f"\n%pal nprocs {int(self.qc_params.get('nprocs', 1) or 1)} end\n"
         if not is_xtb:
-            keyword += f"%scf maxiter {int(self.qc_params.get('scf_cycles', 350) or 350)} end\n"
+            keyword += f"%scf maxiter {int(self.qc_params.get('scf_cycles', 1000) or 1000)} end\n"
         if self.qc_params.get("bias_controller") == "adaptive":
             keyword += "%output\n Print[P_Mayer] 1\nend\n"
         return keyword

@@ -24,6 +24,27 @@ from pyar.energy_gradient_providers import (
 
 
 class EnergyGradientProviderTests(unittest.TestCase):
+    def test_orca_gradient_keywords_match_native_method_routes(self):
+        provider = get_energy_gradient_provider("orca", {"method": "GFN2-xTB", "charge": 0})
+        keyword = provider._build_keyword(Atoms("H", positions=[[0.0, 0.0, 0.0]]))
+        self.assertIn("! GFN2-xTB ENGRAD", keyword)
+        self.assertNotIn("def2", keyword)
+        self.assertNotIn("D3BJ", keyword)
+        self.assertNotIn("KDIIS", keyword)
+
+        provider = get_energy_gradient_provider(
+            "orca", {"method": "BP86", "basis": "def2-SVP", "charge": 0}
+        )
+        keyword = provider._build_keyword(Atoms("H", positions=[[0.0, 0.0, 0.0]]))
+        self.assertIn("! BP86 def2-SVP RI def2/J D3BJ KDIIS ENGRAD", keyword)
+
+    def test_orca_gradient_provider_rejects_external_gxtb(self):
+        provider = get_energy_gradient_provider(
+            "orca", {"method": "g-xTB", "gxtb_wrapper": "/tmp/oet_gxtb"}
+        )
+        with self.assertRaisesRegex(ValueError, "does not have a supported energy/gradient provider"):
+            provider._build_keyword(Atoms("H", positions=[[0.0, 0.0, 0.0]]))
+
     def test_xtb_roundtrip_preserves_small_displacement_energy_derivatives(self):
         from pyar.data.units import angstrom2bohr
 

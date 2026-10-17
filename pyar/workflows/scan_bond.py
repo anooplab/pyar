@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import os
+import warnings
 import shutil
 from pathlib import Path
 
@@ -72,6 +73,12 @@ def scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms, orienta
                         qc_params, scan_end=None, scan_step=None, scan_points=None):
     """Scientific request fields that can be validated without sampling or jobs."""
     local_i, local_j = map(int, atoms)
+    total_multiplicity, spin_source = _resolve_total_multiplicity(
+        fragment_a, fragment_b, qc_params.get("total_multiplicity"), warn=False
+    )
+    spin_source = qc_params.get("total_multiplicity_source", spin_source)
+    request_qc_params = dict(qc_params, total_multiplicity=total_multiplicity,
+                             total_multiplicity_source=spin_source)
     absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
     target_radii = fragment_a.covalent_radius[local_i] + fragment_b.covalent_radius[local_j]
     return {
@@ -80,7 +87,7 @@ def scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms, orienta
         "fragments": [_fragment_signature(fragment_a), _fragment_signature(fragment_b)],
         "atoms_local": [local_i, local_j], "atoms_absolute": [absolute_i, absolute_j],
         "target_symbols": [fragment_a.atoms_list[local_i], fragment_b.atoms_list[local_j]],
-        "qc_params": dict(qc_params), "orientations": int(orientations),
+        "qc_params": request_qc_params, "orientations": int(orientations),
         "scan_end": scan_end, "scan_step": scan_step, "scan_points": scan_points,
         "default_scan_end_factor": DEFAULT_SCAN_END_FACTOR,
         "default_scan_end_angstrom": DEFAULT_SCAN_END_FACTOR * target_radii,
@@ -110,7 +117,30 @@ def validate_scan_restart(output_dir, request):
             raise ValueError("request signature is missing or does not match its contents")
     except (OSError, ValueError) as exc:
         raise FileExistsError(f"scan-bond request state is unreadable or modified: {request_path}") from exc
-    if any(previous.get(key) != value for key, value in request.items()):
+    comparison_request = dict(request)
+    old_qc = previous.get("qc_params", {})
+    new_qc = comparison_request.get("qc_params", {})
+    if (isinstance(old_qc, dict) and isinstance(new_qc, dict)
+            and "total_multiplicity" not in old_qc
+            and new_qc.get("total_multiplicity_source") == "historical_heuristic"):
+        # v1 requests predate explicit total-spin provenance. Preserve their
+        # old heuristic continuation contract, but do not ignore an explicit
+        # total-spin choice made by the caller.
+        compatible_qc = dict(new_qc)
+        compatible_qc.pop("total_multiplicity", None)
+        compatible_qc.pop("total_multiplicity_source", None)
+        comparison_request["qc_params"] = compatible_qc
+        old_orientations = previous.get("orientation_definitions", [])
+        new_orientations = comparison_request.get("orientation_definitions", [])
+        if len(old_orientations) == len(new_orientations):
+            compatible_orientations = []
+            for old, new in zip(old_orientations, new_orientations):
+                item = dict(new)
+                item.pop("total_multiplicity", None)
+                item.pop("total_multiplicity_source", None)
+                compatible_orientations.append(item)
+            comparison_request["orientation_definitions"] = compatible_orientations
+    if any(previous.get(key) != value for key, value in comparison_request.items()):
         raise FileExistsError(f"scan-bond output directory belongs to a different request: {root}")
 
 
@@ -223,6 +253,31 @@ def _make_orientations(fragment_a, fragment_b, n, local_i, local_j):
     return orientations
 
 
+def _resolve_total_multiplicity(fragment_a, fragment_b, requested, *, warn=True):
+    """Validate a coupled total spin, preserving the legacy heuristic by default."""
+    heuristic = fragment_a.merged_with(fragment_b).multiplicity
+    if requested is None:
+        if warn and (fragment_a.multiplicity != 1 or fragment_b.multiplicity != 1):
+            warnings.warn(
+                "Open-shell fragment coupling is ambiguous; using the historical "
+                f"combined multiplicity heuristic ({heuristic}). Pass --total-multiplicity "
+                "to select the total spin explicitly.", RuntimeWarning, stacklevel=2,
+            )
+        return heuristic, "historical_heuristic"
+    if isinstance(requested, bool) or int(requested) != requested or requested < 1:
+        raise ValueError("total_multiplicity must be a positive integer")
+    low = abs(int(fragment_a.multiplicity) - int(fragment_b.multiplicity)) + 1
+    high = int(fragment_a.multiplicity) + int(fragment_b.multiplicity) - 1
+    allowed = list(range(low, high + 1, 2))
+    if int(requested) not in allowed:
+        raise ValueError(
+            f"total multiplicity {requested} is incompatible with fragment "
+            f"multiplicities {fragment_a.multiplicity} and {fragment_b.multiplicity}; "
+            f"allowed total multiplicities are {allowed}"
+        )
+    return int(requested), "user_explicit"
+
+
 def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                   scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None, *, _layout=None):
     """Run a scan, optionally continuing through a named reaction-path stage.
@@ -271,6 +326,19 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     if local_j >= fragment_b.number_of_atoms:
         raise ValueError(f"Atom index {local_j} is out of range for fragment B containing {fragment_b.number_of_atoms} atoms (valid 0..{fragment_b.number_of_atoms - 1}).")
     merged = fragment_a.merged_with(fragment_b)
+    requested_total = qc_params.get("total_multiplicity")
+    recorded_spin_source = qc_params.get("total_multiplicity_source")
+    heuristic_total = merged.multiplicity
+    if recorded_spin_source == "historical_heuristic":
+        if requested_total is not None and int(requested_total) != heuristic_total:
+            raise ValueError("recorded historical total multiplicity does not match the fragment heuristic")
+        total_multiplicity, spin_source = heuristic_total, "historical_heuristic"
+    else:
+        total_multiplicity, spin_source = _resolve_total_multiplicity(
+            fragment_a, fragment_b, requested_total
+        )
+    qc_params["total_multiplicity"] = total_multiplicity
+    qc_params["total_multiplicity_source"] = spin_source
     target_radii = merged.covalent_radius[absolute_i] + merged.covalent_radius[absolute_j]
     default_scan_end = DEFAULT_SCAN_END_FACTOR * target_radii
     try:
@@ -282,9 +350,14 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     orientation_items = _make_orientations(
         fragment_a, fragment_b, int(orientations), local_i, local_j
     )
+    for _, orientation, _ in orientation_items:
+        if orientation is not None:
+            orientation.multiplicity = total_multiplicity
     orientation_definitions = [
         {"orientation": index,
          "molecule": None if orientation is None else _fragment_signature(orientation),
+         "total_multiplicity": total_multiplicity,
+         "total_multiplicity_source": spin_source,
          "generation_error": generation_error}
         for index, orientation, generation_error in orientation_items
     ]
@@ -316,6 +389,8 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         _layout.initialize((input_a, input_b))
     results = []
     def save_result(directory, result):
+        result.setdefault("total_multiplicity", qc_params["total_multiplicity"])
+        result.setdefault("total_multiplicity_source", qc_params["total_multiplicity_source"])
         if result.get("status") == "scan_success_relax_success":
             result["completed_artifact_hashes"] = {
                 str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()

@@ -50,7 +50,7 @@ class Orca(SF):
         keyword, is_xtb = orca_method_keywords(qc_params, optimization_keyword)
         if not is_xtb and not qc_params.get('orca_builtin_method') and any(x >= 21 for x in molecule.atomic_number):
             keyword += ' def2-ECP'
-        if not is_xtb and self.scftype in {'uks', 'uhf'}:
+        if not is_xtb and (self.multiplicity != 1 or self.scftype in {'uks', 'uhf'}):
             keyword += ' UKS'
         nprocs = qc_params['nprocs']
         keyword += f"\n%pal nprocs {nprocs} end\n"
