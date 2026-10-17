@@ -64,20 +64,23 @@ def parse_orca_scan_profile(path):
     return profile
 
 
-def _orca_keyword(qc_params, scftype=None):
+def _orca_keyword(qc_params, scftype=None, multiplicity=None):
     threshold = {"loose": "LooseOpt", "tight": "TightOpt"}.get(
         qc_params.get("opt_threshold"), "Opt"
     )
     keyword, is_xtb = orca_method_keywords(qc_params, threshold)
     # ``merged_with`` represents unrestricted molecules as ``uhf`` even when
     # the requested ORCA calculation is DFT, where ORCA's keyword is ``UKS``.
-    if not is_xtb and str(scftype or qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}:
-        keyword += " UKS"
+    if not is_xtb:
+        total_multiplicity = qc_params.get("multiplicity", 1) if multiplicity is None else multiplicity
+        if (int(total_multiplicity or 1) != 1
+                or str(scftype or qc_params.get("scftype", "rhf")).lower() in {"uhf", "uks"}):
+            keyword += " UKS"
     return keyword
 
 
 def _write_input(path, atoms, coordinates, charge, multiplicity, scftype, qc_params, scan=None):
-    keyword = _orca_keyword(qc_params, scftype)
+    keyword = _orca_keyword(qc_params, scftype, multiplicity)
     _, is_xtb = orca_method_keywords(qc_params)
     if (not is_xtb and not qc_params.get("orca_builtin_method")
             and any(atomic_number.get(atom, 0) >= 21 for atom in atoms)):

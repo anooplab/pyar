@@ -243,6 +243,7 @@ def test_scan_profile_writes_relative_energies_and_internal_maximum(tmp_path):
 
 def test_orca_keyword_maps_merged_uhf_to_unrestricted_dft():
     assert "UKS" in _orca_keyword({"method": "BP86", "basis": "def2-SVP"}, "uhf")
+    assert "UKS" in _orca_keyword({"method": "BP86", "basis": "def2-SVP"}, "rhf", 2)
 
 
 def test_orca_native_scan_adds_ecp_only_for_nonbuiltin_heavy_element_methods(tmp_path):
@@ -255,6 +256,25 @@ def test_orca_native_scan_adds_ecp_only_for_nonbuiltin_heavy_element_methods(tmp
     _write_input(path, ["Fe"], np.asarray([[0., 0., 0.]]), 0, 1, "rhf",
                  {"method": "GFN2-xTB"})
     assert "def2-ECP" not in path.read_text()
+
+
+def test_orca_scan_uses_unrestricted_dft_for_open_shell_total_spin(tmp_path):
+    from pyar.backends.orca_scan import _write_input
+
+    path = tmp_path / "doublet.inp"
+    _write_input(path, ["H"], np.asarray([[0., 0., 0.]]), 0, 2, "rhf",
+                 {"method": "BP86", "basis": "def2-SVP"})
+    assert "UKS" in path.read_text().splitlines()[0]
+
+
+def test_orca_free_optimization_uses_unrestricted_dft_for_open_shell_total_spin(monkeypatch):
+    from pyar.backends.orca import Orca
+
+    monkeypatch.setattr("pyar.backends.orca.require_executable", lambda *args: "orca")
+    molecule = Molecule(["H"], np.asarray([[0., 0., 0.]]), multiplicity=2, scftype="rhf")
+    backend = Orca(molecule, {"method": "BP86", "basis": "def2-SVP",
+                             "nprocs": 1, "scf_cycles": 1000})
+    assert "UKS" in backend.keyword.splitlines()[0]
 
 
 def test_orca_gxtb_method_uses_external_optimizer_configuration(tmp_path):
