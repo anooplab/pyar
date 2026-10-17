@@ -117,39 +117,51 @@ for all reported growth results.
 ## External perturbation feasibility pilot
 
 `ms4_perturbation_pilot.py` is a scratch driver outside production search code.
-For each case it used the same best starting structure(s) for two arms:
+For each case it used the same two best starting structures for two arms:
 unperturbed reoptimization and one-water rigid rotation plus 1–2 Å translation,
 followed by collision screening (1.3 Å cutoff) and unbiased GFN2-xTB
-reoptimization. Each arm had a hard budget of exactly 40 actual `xtb --grad`
-calls, one thread, and 250 optimizer cycles. Selection is simply the lowest
-energy seen, with no Monte Carlo acceptance. Basin/RMSD thresholds match the
-growth comparison.
+reoptimization. It used one thread, a target of 160 xTB gradient calls per arm,
+and a 250-cycle optimizer limit. A started optimization now runs to completion;
+the driver records its call interval and never counts a partial optimization
+as a basin. Since complete optimizations can cross the target, the analysis
+uses the largest common call ceiling at which both arms have completed results
+and excludes later candidates and their calls. Counts below distinguish that
+matched prefix from total calls spent. Selection is the lowest energy seen,
+with no Monte Carlo acceptance. Basin/RMSD thresholds match the growth
+comparison.
 
-| Case | Arm | Calls | Attempts | Collisions rejected | Failed/incomplete optimizations | New basins beyond starts |
-|---|---|---:|---:|---:|---:|---:|
-| Methane | Baseline | 40 | 20 | 0 | 0 | 0 |
-| Methane | Perturb | 40 | 4 | 2 | 1 | 0 |
-| Ammonia | Baseline | 40 | 20 | 0 | 0 | 0 |
-| Ammonia | Perturb | 40 | 2 | 0 | 1 | 0 |
-| Acetate | Baseline | 40 | 16 | 0 | 0 | 0 |
-| Acetate | Perturb | 40 | 2 | 1 | 1 | 0 |
+| Case | Common call ceiling | Baseline calls spent / optimizations retained | Perturb calls spent / optimizations retained | Baseline new basins | Perturb new basins |
+|---|---:|---:|---:|---:|---:|
+| Methane | 140 | 160 / 70 | 173 / 3 | 0 | 0 |
+| Ammonia | 99 | 160 / 49 | 176 / 2 | 0 | 1 |
+| Acetate | 123 | 160 / 49 | 224 / 2 | 2 | 2 |
 
-In each perturb arm, the 40-call cap stopped a geomeTRIC optimization before
-completion (one attempted backend call beyond the budget was blocked and
-logged). Consequently, perturbation arms yielded fewer completed relaxations;
-the comparison is matched in actual backend calls but not in completed
-optimization count. It shows the need for resumable/budget-aware optimizer
-steps and a principled proposal/acceptance design, not that rigid moves are
-ineffective or effective. This one-water pilot does not test whole-cluster,
-multi-solvent, exchange, exact restart, or global basin recovery.
+Collision-rejected proposals: methane 4, ammonia 0, acetate 1. No backend
+optimization failed within the matched prefixes. The ammonia perturb arm
+found one additional basin at -24.759756519776 Eh, about 0.28 kcal/mol above
+the lowest observed ammonia structure. This is a single deterministic
+trajectory and does not establish that the move policy improves recovery.
+The large discarded tails, especially acetate's 101 calls beyond the matched
+prefix, show that candidate optimization costs vary substantially. This pilot
+does not test whole-cluster, multi-solvent, exchange, exact restart, or global
+basin recovery, and it provides no uncertainty estimate.
+
+The initial 40-call experiment (raw results under
+`/home/anoop/tmp/ms4-perturb-pilot*`) hard-stopped inside geomeTRIC and was
+invalid as an optimization comparison; its failed attempts are retained as
+development evidence but excluded from the table. The corrected boundary-aware
+run is under `/home/anoop/tmp/ms4-perturb-pilot-boundary`.
 
 ## Remaining MS4 blockers and acceptance gates
 
 Before production implementation, specify and test:
 
-1. A budget-aware proposal/optimizer contract that can stop cleanly without
-   losing partial work, distinguish rejected collisions from backend failures,
-   and charge every backend evaluation to the declared budget.
+1. A strict production budget/restart contract. The external pilot now avoids
+   interrupted candidate optimizations and records call intervals, but its
+   analysis can still waste calls after the common completed-result ceiling.
+   Production work needs resumable/budget-aware optimization or a documented
+   whole-optimization budget unit, with exact accounting for collisions and
+   backend failures.
 2. Solvent identity and fragment mapping through translation, rotation,
    exchange, atom permutation, reordering, optimization, serialization, and
    restart. Verify that the original solute's identity/connectivity is

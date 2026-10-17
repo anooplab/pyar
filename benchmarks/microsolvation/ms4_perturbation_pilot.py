@@ -82,6 +82,26 @@ def count_lines(path: Path) -> int:
     return sum(1 for _ in path.open()) if path.exists() else 0
 
 
+def matched_completed_prefix(attempts, call_budget: int):
+    """Keep complete optimization results whose full call ranges fit the shared budget."""
+    return [attempt for attempt in attempts
+            if attempt.get("status") == "completed"
+            and attempt.get("backend_calls_after", call_budget + 1) <= call_budget]
+
+
+def common_completed_budget(arms, target_budget: int) -> int:
+    """Largest common call ceiling reached by a completed optimization in every arm."""
+    boundaries = []
+    for arm in arms.values():
+        completed = [attempt["backend_calls_after"] for attempt in arm["attempts"]
+                     if attempt.get("status") == "completed"
+                     and attempt.get("backend_calls_after", target_budget + 1) <= target_budget]
+        if not completed:
+            return 0
+        boundaries.append(max(completed))
+    return min(boundaries)
+
+
 def archive_metrics(molecules, threshold=0.5, near_minimum_kcal=1.0):
     molecules = sorted(molecules, key=lambda item: (float(item.energy), item.name))
     comparator = GraphRMSDComparator(threshold=threshold, atom_mode="heavy")
@@ -157,7 +177,9 @@ def run_arm(mode: str, starts, workdir: Path, xtb_wrapper: Path, budget: int,
     calls.touch(); blocked.touch()
     os.environ["XTB_CALL_LOG"] = str(calls)
     os.environ["XTB_BLOCKED_LOG"] = str(blocked)
-    os.environ["XTB_CALL_BUDGET"] = str(budget)
+    # Never interrupt geomeTRIC in the middle of an optimization. Finish each
+    # started optimization and stop before starting another after the target.
+    os.environ.pop("XTB_CALL_BUDGET", None)
     os.environ["PATH"] = str(xtb_wrapper.parent) + os.pathsep + os.environ["PATH"]
     candidates = []
     attempts = []
@@ -192,37 +214,70 @@ def run_arm(mode: str, starts, workdir: Path, xtb_wrapper: Path, budget: int,
         attempt_dir = workdir / f"attempt_{attempt_index:04d}"
         attempt_dir.mkdir()
         previous = Path.cwd()
+        calls_before = count_lines(calls)
         try:
             os.chdir(attempt_dir)
             status = optimise(molecule, qc)
-        except Exception as exc:  # Record experimental backend failures and continue only within the call cap.
+        except Exception as exc:  # Record experimental backend failures and continue within the proposal cap.
             status = False
             error = str(exc)
         else:
             error = None
         finally:
             os.chdir(previous)
+        calls_after = count_lines(calls)
         usable = is_usable(status) and molecule.coordinates is not None and molecule.energy is not None
         attempt = {"attempt": attempt_index, "status": "completed" if usable else "failed_optimization",
                    "source_trial": source_trial, "source_energy_hartree": source_energy,
                    "energy_hartree": None if not usable else float(molecule.energy),
-                   "backend_calls_total": count_lines(calls), "proposal": proposal,
+                   "backend_calls_before": calls_before, "backend_calls_after": calls_after,
+                   "backend_calls_used": calls_after - calls_before, "proposal": proposal,
                    "minimum_interfragment_distance_angstrom": min_distance, "error": error}
         attempts.append(attempt)
         if usable:
-            molecule.mol_to_xyz(str(attempt_dir / "final.xyz"))
+            final_path = attempt_dir / "final.xyz"
+            molecule.mol_to_xyz(str(final_path))
+            attempt["final_structure"] = str(final_path)
             candidates.append(molecule.copy())
         attempt_index += 1
     initial_basins, novel_basins = count_novel_basins(candidates, start_molecules)
-    result = {"mode": mode, "budget": budget, "backend_calls": count_lines(calls),
+    result = {"mode": mode, "target_budget": budget, "backend_calls": count_lines(calls),
+              "budget_overshoot_calls": max(0, count_lines(calls) - budget),
               "blocked_backend_calls": count_lines(blocked), "attempt_count": len(attempts),
               "collision_rejections": sum(attempt["status"] == "rejected_collision" for attempt in attempts),
               "failed_optimizations": sum(attempt["status"] == "failed_optimization" for attempt in attempts),
               "initial_basin_count": initial_basins, "novel_basin_count": novel_basins,
               "attempts": attempts, "metrics": archive_metrics([*start_molecules, *candidates]),
-              "status": "budget_reached" if count_lines(calls) == budget else "budget_underfilled"}
+              "status": ("target_reached_at_complete_attempt_boundary"
+                         if count_lines(calls) >= budget else "target_underfilled")}
     (workdir / "arm.json").write_text(json.dumps(result, indent=2) + "\n")
     return result
+
+
+def apply_matched_budget(arms, starts, target_budget):
+    """Compare only whole optimization results inside a common actual-call prefix."""
+    matched_budget = common_completed_budget(arms, target_budget)
+    for arm in arms.values():
+        eligible = matched_completed_prefix(arm["attempts"], matched_budget)
+        included = [attempt for attempt in arm["attempts"]
+                    if attempt.get("backend_calls_after", matched_budget + 1) <= matched_budget]
+        candidates = []
+        for attempt in eligible:
+            molecule = Molecule.from_xyz(attempt["final_structure"])
+            molecule.energy = float(attempt["energy_hartree"])
+            candidates.append(molecule)
+        arm["requested_target_budget"] = target_budget
+        arm["matched_evaluation_budget"] = matched_budget
+        arm["matched_completed_attempts"] = len(eligible)
+        arm["matched_calls_used"] = max(
+            (attempt["backend_calls_after"] for attempt in included), default=0)
+        arm["matched_overshoot_excluded_calls"] = arm["backend_calls"] - arm["matched_calls_used"]
+        arm["matched_failed_attempts"] = sum(
+            item["status"] == "failed_optimization"
+            and item.get("backend_calls_after", matched_budget + 1) <= matched_budget
+            for item in arm["attempts"])
+        arm["matched_metrics"] = archive_metrics([*starts, *candidates])
+        _start_basins, arm["matched_novel_basins"] = count_novel_basins(candidates, starts)
 
 
 def main(argv=None):
@@ -263,20 +318,26 @@ def main(argv=None):
         for mode in ("baseline", "perturb"):
             arms[mode] = run_arm(mode, starts, case / mode, wrapper, args.budget,
                                  args.minimum_interfragment_distance, args.opt_cycles)
+        start_molecules = [molecule_from_start(path, metadata, f"start_trial_{trial:02d}")
+                           for path, metadata, trial, _energy in starts]
+        apply_matched_budget(arms, start_molecules, args.budget)
         all_results[solute] = arms
-        print(f"{solute}: baseline={arms['baseline']['backend_calls']} calls, "
-              f"perturb={arms['perturb']['backend_calls']} calls, "
-              f"distinct basins={arms['baseline']['metrics']['distinct_basins']} -> "
-              f"{arms['perturb']['metrics']['distinct_basins']}", flush=True)
+        print(f"{solute}: matched_budget={arms['baseline']['matched_evaluation_budget']} calls, "
+              f"completed_basins={arms['baseline']['matched_metrics']['distinct_basins']} -> "
+              f"{arms['perturb']['matched_metrics']['distinct_basins']}", flush=True)
     output = {"protocol": "ms4-external-rigid-fragment-perturbation-v1",
-              "budget_per_arm_per_case": args.budget,
+              "target_budget_per_arm_per_case": args.budget,
+              "comparison": ("common call ceiling at the last completed optimization boundary "
+                             "within target; only complete optimizations included"),
               "collision_cutoff_angstrom": args.minimum_interfragment_distance,
               "optimization_cycles": args.opt_cycles,
               "selection": "lowest energy output per arm; no Monte Carlo acceptance",
               "cases": all_results}
     (root / "ms4_perturbation_summary.json").write_text(json.dumps(output, indent=2) + "\n")
-    return 1 if any(arm["backend_calls"] != args.budget
-                    for case in all_results.values() for arm in case.values()) else 0
+    incomplete = any(
+        arm["backend_calls"] < args.budget or arm["matched_evaluation_budget"] == 0
+        for case in all_results.values() for arm in case.values())
+    return 1 if incomplete else 0
 
 
 if __name__ == "__main__":
