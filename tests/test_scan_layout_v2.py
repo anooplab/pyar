@@ -110,7 +110,7 @@ def test_v2_stage_commits_index_cumulative_native_executor(tmp_path, monkeypatch
     result = run_path_stages(start=inputs[0], end=inputs[1], ts_guess=inputs[2],
         output=tmp_path / 'path', qc_params={'software':'xtb'}, through='neb', options={},
         layout_dependency='a' * 64)
-    assert result['status'] == 'complete'
+    assert result['status'] == 'complete', result
     assert calls == ['relax', 'neb']
     for stage in calls:
         record = read_json(tmp_path / f'path/stages/{stage}/attempts/attempt_000/commit.json')
@@ -121,6 +121,39 @@ def test_v2_stage_commits_index_cumulative_native_executor(tmp_path, monkeypatch
         commit_index = next(index for index, path in enumerate(flushed)
                             if f'/stages/{stage}/attempts/attempt_000/.pyar-json-' in path)
         assert summary_index < commit_index
+
+
+def test_scan_path_seed_is_forwarded_only_to_neb_stage(tmp_path, monkeypatch):
+    import pyar.neb as neb
+    from pyar.workflows.scan_path import run_path_stages
+    endpoints = []
+    for name in ('start', 'end', 'seed'):
+        path = tmp_path / f'{name}.xyz'
+        path.write_text('2\nframe\nH 0 0 0\nH 1 0 0\n')
+        endpoints.append(path)
+    calls = []
+    def native(**kwargs):
+        calls.append(kwargs)
+        result = dict(stage=kwargs['stage'], status='complete', inputs={}, artifacts={}, dependencies=[],
+                      **{key: True for key in neb._STAGE_GATES[kwargs['stage']]})
+        result['interior_maximum'] = True
+        from pyar.persistence import write_json
+        output = Path(kwargs['output'])
+        output.mkdir(parents=True, exist_ok=True)
+        write_json(output / f"{kwargs['stage']}_summary.json", result)
+        return result
+    monkeypatch.setattr(neb, 'run_neb', native)
+    result = run_path_stages(start=endpoints[0], end=endpoints[1], path_seed=endpoints[2],
+        output=tmp_path / 'path', qc_params={'software':'xtb'}, through='neb',
+        options={'path_refinement':'none', 'path_seed_maximum_frame_index':1},
+        layout_dependency='b' * 64)
+    assert result['status'] == 'complete'
+    assert [call['stage'] for call in calls] == ['relax', 'neb']
+    assert calls[0].get('path_seed') is None
+    assert 'path_seed_maximum_frame_index' not in calls[0]
+    assert calls[1]['path_seed'].name == 'path_seed.xyz'
+    assert calls[1]['path_seed_maximum_frame_index'] == 1
+    assert (tmp_path / 'path/inputs/path_seed.xyz').is_file()
 
 
 def test_native_scan_outputs_match_legacy_and_legacy_routing_is_preserved(scan_run):
@@ -335,9 +368,106 @@ def test_v2_scan_products_are_grouped_deterministically_without_path_execution(t
     assert len(scan_calls) == 5  # Resume reuses every committed scan.
     assert sha256_file(root / 'products/index.json') == digest
 
+    path_calls = []
+    def characterize(**kwargs):
+        path_calls.append(kwargs)
+        from pyar.workflows.path_layout import PathLayout
+        PathLayout(kwargs['output'], kwargs['start'], kwargs['end'], None,
+                   kwargs['qc_params'], kwargs['options'], kwargs['layout_dependency'],
+                   path_seed=kwargs['path_seed'])
+        if len(path_calls) == 1:
+            return {'status': 'scientific_gate_failed', 'failed_stage': 'neb',
+                    'completed_stages': ['relax']}
+        return {'status': 'complete', 'completed_stages': ['relax', 'neb'],
+                'reactant_product_connection_confirmed': True}
+    monkeypatch.setattr(path_module, 'run_path_stages', characterize)
+    characterized = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 5, params, root,
+        scan_end=1.0, scan_points=3, through='all', characterize_unique_products=True)
+    assert characterized['status'] == 'failed'
+    assert len(path_calls) == 2  # One representative for each unique product, not five routes.
+    assert len(scan_calls) == 5
+    assert all(call['path_seed'].is_file() for call in path_calls)
+    product_statuses = {row['characterization_status'] for row in
+                        read_json(root / 'products/index.json')['products']}
+    assert product_statuses == {'path_scientific_gate_failed', 'reaction_connected'}
+
     record_path = root / product_one['product_record_path']
     record = read_json(record_path)
     record['orientation_ids'] = [1]
     write_json(record_path, record)
     with pytest.raises(ValueError, match='Immutable scan product record changed'):
         layout.product_registry(result['results'], request)
+
+
+def test_unique_product_characterization_uses_one_scan_seeded_path_and_reuses_scan(scan_run, monkeypatch):
+    from pyar.backends import write_xyz
+    root, run, scan_calls = scan_run
+    relax_calls = []
+    def optimize(molecule, parameters):
+        relax_calls.append(1)
+        destination = Path('job_relaxed/result_relaxed.xyz')
+        destination.parent.mkdir()
+        write_xyz(molecule.atoms_list, molecule.coordinates, destination)
+        return True
+    monkeypatch.setattr(workflow, 'optimise', optimize)
+    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: {'inchi': 'reactants'})
+    monkeypatch.setattr(workflow, 'molecule_identity_from_xyz', lambda *args: {'inchi': 'product'})
+    monkeypatch.setattr(workflow, 'reaction_product_changed', lambda *args: True)
+    calls = []
+    def path_stages(**kwargs):
+        calls.append(kwargs)
+        assert kwargs['path_seed'].is_file()
+        assert kwargs.get('ts_guess') is None
+        from pyar.workflows.path_layout import PathLayout
+        PathLayout(kwargs['output'], kwargs['start'], kwargs['end'], None,
+                   kwargs['qc_params'], kwargs['options'], kwargs['layout_dependency'],
+                   path_seed=kwargs['path_seed'])
+        if len(calls) == 1:
+            return {'status': 'complete', 'completed_stages': ['relax', 'neb'],
+                    'reactant_product_connection_confirmed': True}
+        return {'status': 'scientific_gate_failed', 'failed_stage': 'neb',
+                'completed_stages': ['relax']}
+    monkeypatch.setattr('pyar.workflows.scan_path.run_path_stages', path_stages)
+
+    result = run('all', characterize_unique_products=True)
+    assert result['status'] == 'complete'
+    assert len(scan_calls) == len(relax_calls) == len(calls) == 1
+    assert calls[0]['through'] == 'all'
+    index = read_json(root / 'products/index.json')
+    assert len(index['products']) == 1
+    product = index['products'][0]
+    assert product['characterization_status'] == 'reaction_connected'
+    assert (root / product['characterization_path']).is_file()
+    path_output = calls[0]['output']
+
+    changed = dict(images=5)
+    resumed = run('all', characterize_unique_products=True, reaction_options=changed)
+    assert resumed['status'] == 'failed'
+    assert len(scan_calls) == len(relax_calls) == 1
+    assert len(calls) == 2
+    assert calls[1]['output'] == path_output
+    updated_index = read_json(root / 'products/index.json')
+    assert updated_index['products'][0]['characterization_status'] == 'path_scientific_gate_failed'
+    assert (root / product['product_record_path']).is_file()  # Product survives a path gate failure.
+    assert (root / 'products' / product['product_id'] / 'characterization' /
+            'attempts' / 'attempt_001' / 'request.json').is_file()
+
+
+def test_unique_product_mode_with_no_product_skips_path_service(scan_run, monkeypatch):
+    from pyar.backends import write_xyz
+    root, run, scan_calls = scan_run
+    def optimize(molecule, parameters):
+        destination = Path('job_relaxed/result_relaxed.xyz')
+        destination.parent.mkdir()
+        write_xyz(molecule.atoms_list, molecule.coordinates, destination)
+        return True
+    monkeypatch.setattr(workflow, 'optimise', optimize)
+    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: {'inchi': 'same'})
+    monkeypatch.setattr(workflow, 'molecule_identity_from_xyz', lambda *args: {'inchi': 'same'})
+    monkeypatch.setattr(workflow, 'reaction_product_changed', lambda *args: False)
+    monkeypatch.setattr('pyar.workflows.scan_path.run_path_stages',
+                        lambda **kwargs: pytest.fail('no products means no path work'))
+    result = run('all', characterize_unique_products=True)
+    assert result['status'] == 'complete'
+    assert len(scan_calls) == 1
+    assert read_json(root / 'products/index.json')['products'] == []

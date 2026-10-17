@@ -50,6 +50,8 @@ def build_parser(*, modern=False, prog=None):
                         help="Explicit stale v2 writer recovery; never breaks an active lock")
     parser.add_argument("--through", choices=THROUGH_STAGES, default="scan",
                         help="last stage to execute; all includes endpoint frequencies (default: scan)")
+    parser.add_argument("--characterize-unique-products", action="store_true",
+                        help="after scan and free relaxation, run one scan-seeded path per unique product")
     parser.add_argument("--images", type=int, default=11)
     parser.add_argument("--neb-max-cycles", type=int, default=100, dest="max_cycles")
     parser.add_argument("--max-gradient", type=float, default=0.05)
@@ -128,6 +130,10 @@ def main(argv=None, *, modern=False, prog=None):
         validate_continuation(args.through, reaction_options)
     except ValueError as exc:
         parser.error(str(exc))
+    if args.characterize_unique_products and args.through == "scan":
+        parser.error("--characterize-unique-products requires --through neb or a later stage")
+    if args.characterize_unique_products and args.interpolation == "geodesic":
+        parser.error("--characterize-unique-products currently supports linear or idpp path-seed refinement")
     if not all(Path(path).is_file() for path in args.inputs):
         parser.error("both input XYZ files must exist")
     if modern:
@@ -178,6 +184,7 @@ def main(argv=None, *, modern=False, prog=None):
         result = run_scan_bond(args.inputs[0], args.inputs[1], args.atoms, args.orientations,
                              params, args.output, args.scan_end, args.scan_step, args.scan_points,
                              args.through, reaction_options,
+                             **({"characterize_unique_products": True} if args.characterize_unique_products else {}),
                              **({"recover_stale": True} if args.recover_stale_lock else {}))
     except LockError as exc:
         parser.error(str(exc))

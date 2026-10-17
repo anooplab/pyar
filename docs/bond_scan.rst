@@ -87,6 +87,25 @@ Explicitly request continuation using ``--through``. The Python API preserves
 its historical scan-plus-free-relaxation behavior when ``through`` is omitted;
 pass ``through="scan"`` for a scan without free relaxation.
 
+For one reaction-path characterization per unique relaxed product, opt in with
+``--characterize-unique-products`` and select the last path stage with
+``--through``. This mode completes the scan and free product relaxation first,
+groups equivalent products, then seeds one representative path from that
+orientation's complete scan trajectory. Duplicate orientations remain recorded
+as alternative routes. For example:
+
+.. code-block:: bash
+
+   pyar scan-bond A.xyz B.xyz --atoms 0 0 --backend xtb --orientations 5 \
+     --through all --characterize-unique-products --output scan_bond
+
+Without this flag, ``--through`` keeps its existing per-orientation behavior.
+The opt-in requires a fresh or v2 output directory and a stage beyond ``scan``.
+Changing path-stage settings reuses verified scan and relaxation work while
+creating a distinct path attempt. A scan-derived relaxed product identity does
+not itself confirm a reaction; only validated endpoint/IRC evidence sets the
+``reaction_connected`` product status.
+
 Results are written to ``scan_bond/`` by default. The directory contains the
 request and summary JSON/CSV files, per-orientation starting structures, ORCA
 input/output, the complete scan trajectory, and the final scan frame.

@@ -67,7 +67,8 @@ def validate_continuation(through, options):
             raise ValueError(f"{name} must be positive and finite")
 
 
-def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options, layout_dependency=None):
+def run_path_stages(*, start, end, ts_guess=None, path_seed=None, output, qc_params,
+                    through, options, layout_dependency=None):
     """Run the canonical cumulative path stages for one mapped endpoint pair.
 
     Both scan-bond and reaction characterization use this adapter; all
@@ -78,11 +79,18 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
 
     if through not in _LAST_STAGE:
         raise ValueError(f"Unknown path continuation stage: {through}")
+    if (ts_guess is None) == (path_seed is None):
+        raise ValueError("Path continuation requires exactly one of ts_guess or path_seed")
     layout = None
     if layout_dependency is not None:
         from pyar.workflows.path_layout import PathLayout
-        layout = PathLayout(output, start, end, ts_guess, qc_params, options, layout_dependency)
-        start, end, ts_guess = layout.inputs
+        layout = PathLayout(output, start, end, ts_guess, qc_params, options,
+                            layout_dependency, path_seed=path_seed)
+        start, end, route_seed = layout.inputs
+        if path_seed is None:
+            ts_guess = route_seed
+        else:
+            path_seed = route_seed
         output = layout.execution
     base = {key: qc_params.get(key) for key in
             ("software", "method", "basis", "charge", "multiplicity", "nprocs", "xtb_model")}
@@ -92,7 +100,13 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
                                 ("scf_cycles", "scftype", "total_multiplicity_source") if key in qc_params}
     base["output"] = output
     base["reuse"] = True
-    base.update(options)
+    stage_options = dict(options)
+    seed_options = {}
+    if path_seed is not None:
+        for key in ("path_refinement", "path_seed_maximum_frame_index"):
+            if key in stage_options:
+                seed_options[key] = stage_options.pop(key)
+    base.update(stage_options)
     last = _CONTINUATION.index(_LAST_STAGE[through])
     results = {"status": "running", "completed_stages": []}
     for stage in _CONTINUATION[:last + 1]:
@@ -100,8 +114,9 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
             if layout is not None:
                 layout.verify(stage)
             result = run_neb(start=start, end=end,
-                             ts_guess=ts_guess if stage == "neb" else None,
-                             stage=stage, **base)
+                             ts_guess=ts_guess if stage == "neb" and path_seed is None else None,
+                             path_seed=path_seed if stage == "neb" else None,
+                             stage=stage, **(seed_options if stage == "neb" else {}), **base)
             results[stage] = result
             if not _stage_gate_passed(result, stage):
                 results.update(status="scientific_gate_failed", failed_stage=stage)
@@ -181,3 +196,105 @@ def continue_scan_paths(root, results, qc_params, through, options):
             result.update(continuation_status="failed", failed_stage="initialization",
                           continuation_error=str(exc), reactant_product_connection_confirmed=False)
         (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True))
+
+
+def characterize_scan_products(root, request, qc_params, through, options, layout):
+    """Characterize one scan-derived full trajectory per unique product.
+
+    Product discovery and its immutable scan/relaxation commits are complete
+    before this function is called. Each product is isolated so one failed
+    route cannot erase or block its siblings.
+    """
+    import hashlib
+    from pyar.persistence import read_json, write_json
+
+    root = Path(root).resolve()
+    if through == "scan":
+        raise ValueError("unique-product characterization requires --through neb or later")
+    if qc_params.get("software") == "orca" and orca_method(qc_params.get("method", "BP86"))[0] == "g-xTB":
+        raise ValueError("ORCA external g-xTB supports native scanning only; use standalone xTB for path characterization")
+    definition_rows = {int(item["orientation"]): item
+                       for item in request.get("orientation_definitions", [])}
+    summary = {}
+    index_path = root / "products/index.json"
+    index = read_json(index_path)
+    for product in index.get("products", []):
+        product_id = product["product_id"]
+        representative = int(product["representative_orientation"])
+        orientation = root / f"orientation_{representative:03d}"
+        execution = orientation / "attempts/attempt_000/execution"
+        start = orientation / "start.xyz"
+        end = execution / "result_relaxed.xyz"
+        seed = execution / "scan/scan_trajectory.xyz"
+        profile_path = execution / "scan/scan_profile.json"
+        state_path = root / "products" / product_id / "characterization.json"
+        state = {"product_id": product_id, "representative_orientation": representative,
+                 "status": "product_identified", "product_record_sha256": product["product_record_sha256"],
+                 "status_history": ["scan_finished", "product_identified"], "through": through}
+        try:
+            product_record_path = root / product["product_record_path"]
+            read_json(product_record_path)
+            if hashlib.sha256(product_record_path.read_bytes()).hexdigest() != product["product_record_sha256"]:
+                raise ValueError(f"Product record checksum mismatch for {product_id}")
+            if not all(path.is_file() for path in (start, end, seed, profile_path)):
+                raise ValueError("representative scan trajectory or relaxed product artifact is missing")
+            scan_commit = read_json(layout.commit_path(representative))
+            relax_commit = read_json(layout.layout.path(f"orientation_{representative:03d}/relax_commit.json"))
+            for record in (scan_commit, relax_commit):
+                for ref in record["artifacts"]:
+                    from pyar.persistence import ArtifactRef
+                    ArtifactRef.from_dict(ref).verify(root)
+            definition_row = definition_rows.get(representative)
+            definition = None if definition_row is None else definition_row.get("molecule")
+            if definition is None:
+                raise ValueError("representative orientation is absent from the scan request")
+            path_qc = dict(qc_params, charge=definition.get("charge", 0),
+                           multiplicity=definition.get("multiplicity", 1),
+                           scftype=definition.get("scftype", "rhf"),
+                           total_multiplicity=definition_row.get("total_multiplicity", qc_params.get("total_multiplicity")),
+                           total_multiplicity_source=definition_row.get(
+                               "total_multiplicity_source", "historical_heuristic"))
+            path_options = dict(options)
+            requested_interpolation = path_options.get("interpolation", "linear")
+            if requested_interpolation == "geodesic":
+                raise ValueError("geodesic interpolation is not supported with scan path-seed characterization")
+            path_options["interpolation"] = "linear"
+            path_options["path_refinement"] = ("idpp" if requested_interpolation == "idpp" else "none")
+            profile = json.loads(profile_path.read_text()).get("points", [])
+            maximum_index = max(range(len(profile)), key=lambda i: profile[i]["energy_hartree"])
+            path_options["path_seed_maximum_frame_index"] = maximum_index
+            state["status"] = "path_attempted"
+            state["status_history"].append("path_attempted")
+            state["scan_commit_sha256"] = hashlib.sha256(layout.commit_path(representative).read_bytes()).hexdigest()
+            state["relax_commit_sha256"] = hashlib.sha256(
+                layout.layout.path(f"orientation_{representative:03d}/relax_commit.json").read_bytes()).hexdigest()
+            state["physical_method"] = path_qc
+            state["path_options"] = path_options
+            state["scan_path_seed_sha256"] = hashlib.sha256(seed.read_bytes()).hexdigest()
+            write_json(state_path, state)
+            result = run_path_stages(
+                start=start, end=end, path_seed=seed,
+                output=root / "products" / product_id / "characterization",
+                qc_params=path_qc, through=through, options=path_options,
+                layout_dependency=product["product_record_sha256"],
+            )
+            state["path_result"] = result
+            if result.get("status") == "scientific_gate_failed":
+                state["status"] = "path_scientific_gate_failed"
+            elif result.get("status") == "complete" and result.get("reactant_product_connection_confirmed"):
+                state["status"] = "reaction_connected"
+            elif result.get("status") == "complete":
+                state["status"] = "path_complete_connection_unconfirmed"
+            else:
+                state["status"] = "path_failed"
+        except Exception as exc:
+            state.update(status="path_failed", error=str(exc))
+        if not state["status_history"] or state["status_history"][-1] != state["status"]:
+            state["status_history"].append(state["status"])
+        write_json(state_path, state)
+        product["characterization_status"] = state["status"]
+        product["characterization_path"] = state_path.relative_to(root).as_posix()
+        product["characterization_sha256"] = hashlib.sha256(state_path.read_bytes()).hexdigest()
+        summary[product_id] = state
+        write_json(index_path, index)
+    return summary

@@ -7,11 +7,13 @@ from pyar.growth.layout_v2 import copy_result
 
 
 class PathLayout:
-    def __init__(self, root, start, end, guess, qc_params, options, dependency):
+    def __init__(self, root, start, end, guess, qc_params, options, dependency, *, path_seed=None):
         self.root = Path(root).resolve()
         self.layout = RunLayout(self.root, 'scan-bond')
         inputs = []
-        for name, source in zip(('reactant', 'product', 'ts_guess'), (start, end, guess)):
+        path_kind = 'path_seed' if path_seed is not None else 'ts_guess'
+        path_source = path_seed if path_seed is not None else guess
+        for name, source in (('reactant', start), ('product', end), (path_kind, path_source)):
             relative = f'inputs/{name}.xyz'
             target = self.layout.path(relative)
             digest = sha256_file(source)
