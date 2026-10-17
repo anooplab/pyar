@@ -47,6 +47,13 @@ def build_parser(prog=None):
                         help="harmonic wall strength in hartree/Angstrom^2; required with --wall outer-sphere (not auto)")
     parser.add_argument("--placement-score", choices=("geometric", "energy"), default="geometric",
                         help="Candidate selection basis; energy requires backend optimization (Hartree)")
+    parser.add_argument("--resampling-moves", type=int, default=0,
+                        help="Opt in to bounded whole-cluster perturbation after growth (0 disables MS4)")
+    parser.add_argument("--resampling-evaluation-budget", type=int, default=0,
+                        help="Maximum physical backend energy/gradient evaluations for MS4")
+    parser.add_argument("--resampling-time-limit", type=float, default=0.0,
+                        help="Maximum MS4 wall time in seconds")
+    parser.add_argument("--resampling-seed", type=int, default=0, help="Reproducible MS4 proposal seed")
     parser.add_argument("--output", default="microsolvation")
     parser.add_argument("--recover-stale-lock", action="store_true",
                         help="Explicit stale v2 writer recovery; cannot break an active lock")
@@ -76,6 +83,7 @@ def resolve_request(args):
         args.surface_points_per_atom, args.probe_radius, args.shell_tolerance,
         args.objective, args.placement_score,
         tuple(site_groups), args.contact_distance, args.wall, args.wall_radius, args.wall_force_constant,
+        args.resampling_moves, args.resampling_evaluation_budget, args.resampling_time_limit, args.resampling_seed,
     )
     return request
 
@@ -112,6 +120,10 @@ def main(argv=None, *, prog=None):
             print(f"Surface: Fibonacci, {request.surface_points_per_atom} points/atom, probe {request.probe_radius:g} Å")
             print(f"Maximum survivors: {request.maximum_number_of_seeds}")
             print(f"Objective: {request.objective}; placement score: {request.placement_score}")
+            if request.resampling_moves:
+                print(f"Whole-cluster resampling: {request.resampling_moves} moves; "
+                      f"{request.resampling_evaluation_budget} backend evaluations; "
+                      f"{request.resampling_time_limit:g} s; seed {request.resampling_seed}")
             if request.site_groups:
                 print(f"Contact model: explicit {request.contact_distance:g} Å atom-pair cutoff; "
                       f"{len(request.site_groups)} named site group(s)")

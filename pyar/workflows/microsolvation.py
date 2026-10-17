@@ -6,6 +6,7 @@ import math
 import json
 import os
 from pathlib import Path
+from uuid import uuid4
 
 from pyar.microsolvation.placement import assess_shell, generate_microsolvation_candidates
 from pyar.microsolvation.request import MicrosolvationRequest
@@ -145,7 +146,7 @@ def _energy_prescreen(candidates, request):
     return chosen, records
 
 
-def _optimize_candidates(candidates, request, candidate_directory):
+def _optimize_candidates(candidates, request, candidate_directory, *, evaluation_budget_path=None):
     """Optimize the selected prescreen pool and apply objective-specific validity."""
     if not request.backend_parameters.get("software"):
         return list(candidates), 0, 0, []
@@ -158,6 +159,8 @@ def _optimize_candidates(candidates, request, candidate_directory):
         qc = dict(request.backend_parameters)
         qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
                   scftype=candidate.scftype, opt_target="minimum", gamma=None)
+        if evaluation_budget_path is not None:
+            qc["microsolvation_evaluation_budget_path"] = str(evaluation_budget_path)
         try:
             from pyar.optimiser import is_usable, optimise
             def run_optimization(directory, parameters):
@@ -410,11 +413,15 @@ def microsolvate(request: MicrosolvationRequest, *, output="microsolvation", rec
         return MicrosolvationRunState.load(root, payload) is not None
     version = detect_version(directory, 'microsolvation', validate_v1=legacy)
     if version == 1:
+        if request.resampling_moves:
+            raise ValueError("whole-cluster resampling requires a fresh v2 microsolvation run")
         return _microsolvate_v1(request, output=output)
     directory.parent.mkdir(parents=True, exist_ok=True)
     with RunLock(directory, recover_stale=recover_stale):
         version = detect_version(directory, 'microsolvation', validate_v1=legacy)
         if version == 1:
+            if request.resampling_moves:
+                raise ValueError("whole-cluster resampling requires a fresh v2 microsolvation run")
             return _microsolvate_v1(request, output=output)
         return _microsolvate_v2(request, output=output)
 
@@ -436,10 +443,11 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
             "coverage_fraction": 0.0, "whole_solute_coverage_fraction": 0.0,
         }
         state = MicrosolvationRunStateV2.create(directory, payload, initial, request.solvent)
-    if state.data["status"] == "completed":
+    if state.data["status"] == "completed" and (
+            not request.resampling_moves or state.data.get("final_seeds")):
         state.report_results()
         return _result(state)
-    if state.data["status"] not in {"running", "stopped"}:
+    if state.data["status"] not in {"running", "stopped", "completed"}:
         raise RuntimeError(f"Cannot resume microsolvation state in status {state.data['status']!r}")
     from pyar.microsolvation.surface import build_solute_surface
     initial_surface = build_solute_surface(
@@ -550,9 +558,181 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
         seeds = selected
     else:
         state.data["status"] = "completed"
+    if state.data["status"] == "completed" and request.resampling_moves:
+        _resample_cluster_pool(state, request)
     if state.data["status"] == "completed":
         state.finish_results()
         state.report_results()
     else:
         state.save()
     return _result(state)
+
+
+def _resample_cluster_pool(state, request):
+    """Apply a bounded, restartable sequence of rigid-cluster perturbations."""
+    from pyar.evaluation_budget import EvaluationBudgetExhausted
+    from pyar.microsolvation.perturbation import (
+        propose_rigid_move, has_interfragment_clash, preserves_cluster_identity,
+    )
+    from pyar.persistence import write_json
+    from pyar.persistence.json_store import read_json
+    import numpy as np
+    import time
+
+    root = state.directory / "resampling"
+    root.mkdir(parents=True, exist_ok=True)
+    record = state.data.get("resampling")
+    if record is None:
+        rng = np.random.Generator(np.random.PCG64(request.resampling_seed))
+        started = time.time()
+        record = {"schema_version": 1, "status": "running", "seed": request.resampling_seed,
+                  "record_id": str(uuid4()),
+                  "rng_algorithm": "PCG64", "rng_state": rng.bit_generator.state,
+                  "numpy_version": np.__version__,
+                  "started_at_epoch": started, "evaluation_budget": request.resampling_evaluation_budget,
+                  "time_limit_seconds": request.resampling_time_limit, "attempts": [],
+                  "current_references": state.data["current_seeds"]}
+        state.data["resampling"] = record
+        state.save()
+    else:
+        if record.get("numpy_version") != np.__version__:
+            raise RuntimeError("Cannot resume MS4 proposals with a different NumPy version")
+        rng = np.random.Generator(np.random.PCG64())
+        rng.bit_generator.state = record["rng_state"]
+        if record["attempts"] and record["attempts"][-1]["status"] == "running":
+            pending = record["attempts"][-1]
+            pending["status"] = "interrupted"
+            pending["recovery"] = "proposal was committed before optimizer; it will not be replayed"
+            attempt_dir = root / "attempts" / f"attempt_{pending['attempt']:05d}"
+            recovered_result = None
+            if not (attempt_dir / "result.json").exists():
+                recovered_result = {"attempt": pending["attempt"], "status": "interrupted",
+                                    "recovery": pending["recovery"]}
+            state.save()
+            if recovered_result is not None:
+                write_json(attempt_dir / "result.json", recovered_result, overwrite=False)
+        for completed_attempt in record["attempts"]:
+            completed_dir = root / "attempts" / f"attempt_{completed_attempt['attempt']:05d}"
+            if completed_attempt["status"] != "running" and not (completed_dir / "result.json").exists():
+                write_json(completed_dir / "result.json", {"attempt": completed_attempt["attempt"],
+                    "status": completed_attempt["status"],
+                    "evaluations_used": completed_attempt.get("evaluations_used", 0),
+                    "pool_artifact_ids": [ref["artifact_id"]
+                                          for ref in completed_attempt.get("pool_references", [])],
+                    "failures": completed_attempt.get("failures", [])}, overwrite=False)
+
+    counter_path = root / "evaluation_counter.json"
+    expected_deadline = float(record["started_at_epoch"]) + float(record["time_limit_seconds"])
+    if not counter_path.exists():
+        write_json(counter_path, {"used": 0, "limit": int(record["evaluation_budget"]),
+                   "deadline_epoch": expected_deadline}, overwrite=False)
+    counter = read_json(counter_path)
+    if (counter.get("limit") != int(record["evaluation_budget"])
+            or float(counter.get("deadline_epoch", -1)) != expected_deadline
+            or type(counter.get("used")) is not int or not 0 <= counter["used"] <= int(record["evaluation_budget"])
+            or counter["used"] < int(record.get("evaluations_used", 0))):
+        raise RuntimeError("MS4 physical-evaluation counter is inconsistent with its immutable request/state")
+    current_refs = record["current_references"]
+    saved_current = state.data["current_seeds"]
+    state.data["current_seeds"] = current_refs
+    seeds = state.restore_pool()
+    state.data["current_seeds"] = saved_current
+    candidates = list(seeds)
+    stop_reason = "moves_exhausted"
+    while len(record["attempts"]) < request.resampling_moves:
+        try:
+            source_index = int(rng.integers(0, len(seeds)))
+            source = seeds[source_index]
+            candidate, move = propose_rigid_move(source, rng)
+            candidate.microsolvation_coverage = assess_shell(candidate, request)
+            pre_state = record["rng_state"]
+            record["rng_state"] = rng.bit_generator.state
+            attempt_index = len(record["attempts"])
+            attempt_dir = root / "attempts" / f"attempt_{attempt_index:05d}"
+            attempt_dir.mkdir(parents=True, exist_ok=True)
+            attempt = {"attempt": attempt_index, "status": "running", "move": move,
+                       "rng_state_before": pre_state, "rng_state_after": record["rng_state"]}
+            record["attempts"].append(attempt)
+            state.save()
+            proposal_refs = state.snapshot_pool([candidate], attempt_dir / "proposal")
+            proposal_refs[0]["role"] = "resampling-proposal"
+            write_json(attempt_dir / "proposal.json", {"attempt": attempt_index,
+                "source_artifact_id": current_refs[source_index]["artifact_id"],
+                "move": move, "rng_state_before": pre_state, "rng_state_after": record["rng_state"]}, overwrite=False)
+            attempt["proposal"] = proposal_refs[0]
+            state.save()
+            if has_interfragment_clash(candidate):
+                attempt["status"] = "rejected_clash"
+                state.save()
+                write_json(attempt_dir / "result.json", {"attempt": attempt_index, "status": attempt["status"]}, overwrite=False)
+                continue
+            candidate.name = f"ms4_{attempt_index:05d}"
+            expected_multiplicity = candidate.multiplicity
+            evaluations_before = int(read_json(counter_path)["used"])
+            optimized, _, _, failures = _optimize_candidates([candidate], request, attempt_dir / "execution",
+                                                               evaluation_budget_path=counter_path)
+            used = int(read_json(counter_path)["used"])
+            attempt["evaluations_used"] = used - evaluations_before
+            record["evaluations_used"] = used
+            if optimized:
+                accepted = optimized[0]
+                # The fixed-composition topology is defined by immutable atom order and fragment partition.
+                if not preserves_cluster_identity(accepted, request, expected_multiplicity):
+                    attempt["status"] = "rejected_identity"
+                else:
+                    accepted.microsolvation_coverage = assess_shell(accepted, request)
+                    candidate_pool, diagnostics = _deduplicate_and_select(candidates + [accepted],
+                                                        request.maximum_number_of_seeds, request)
+                    pool_refs = state.snapshot_pool(candidate_pool, root / "pools" / f"pool_{attempt_index:05d}")
+                    record["current_references"] = pool_refs
+                    current_refs = pool_refs
+                    state.data["current_seeds"] = pool_refs
+                    candidates = candidate_pool
+                    seeds = candidate_pool
+                    attempt.update(status="completed", pool_references=pool_refs, selection=diagnostics)
+            elif failures and any("budget" in str(item).lower() or "time limit" in str(item).lower() for item in failures):
+                attempt["status"] = "budget_exhausted"
+                stop_reason = "evaluation_or_time_budget_exhausted"
+            else:
+                attempt["status"] = "backend_failure"
+                attempt["failures"] = failures
+            state.save()
+            write_json(attempt_dir / "result.json", {"attempt": attempt_index, "status": attempt["status"],
+                "evaluations_used": attempt.get("evaluations_used", 0),
+                "pool_artifact_ids": [ref["artifact_id"] for ref in attempt.get("pool_references", [])],
+                "failures": attempt.get("failures", [])}, overwrite=False)
+            if attempt["status"] == "budget_exhausted":
+                break
+        except EvaluationBudgetExhausted as exc:
+            stop_reason = "evaluation_or_time_budget_exhausted"
+            if record["attempts"] and record["attempts"][-1]["status"] == "running":
+                pending = record["attempts"][-1]
+                pending.update(status="budget_exhausted", error=str(exc), evaluations_used=0)
+                attempt_dir = root / "attempts" / f"attempt_{pending['attempt']:05d}"
+                record["evaluations_used"] = int(read_json(counter_path)["used"])
+            state.save()
+            if record["attempts"] and record["attempts"][-1]["status"] == "budget_exhausted":
+                write_json(attempt_dir / "result.json", {"attempt": pending["attempt"],
+                    "status": "budget_exhausted", "error": str(exc)}, overwrite=False)
+            break
+    record["status"] = stop_reason
+    record["evaluations_used"] = int(read_json(counter_path)["used"])
+    record["selected_references"] = record["current_references"]
+    outcomes = {}
+    for attempt in record["attempts"]:
+        outcomes[attempt["status"]] = outcomes.get(attempt["status"], 0) + 1
+    record["attempt_outcomes"] = outcomes
+    if not (root / "summary.json").exists():
+        write_json(root / "summary.json", {
+            "schema_version": 1,
+            "record_id": record["record_id"],
+            "status": record["status"],
+            "seed": record["seed"],
+            "moves_requested": request.resampling_moves,
+            "attempts": len(record["attempts"]),
+            "attempt_outcomes": outcomes,
+            "evaluations_used": record["evaluations_used"],
+            "evaluation_budget": record["evaluation_budget"],
+            "selected_artifact_ids": [ref["artifact_id"] for ref in record["selected_references"]],
+        }, overwrite=False)
+    state.save()
