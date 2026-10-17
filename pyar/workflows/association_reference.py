@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import tempfile
 
 import numpy as np
 
@@ -207,3 +208,45 @@ def classify_association_endpoints(symbols, endpoint_geometries, product_path,
             'branch_results': branch_details,
             'reactant_product_assignment': list(mapping) if mapping is not None else None,
             'reactant_product_connection_confirmed': mapping is not None}
+
+
+def classify_reactant_relaxation_failure(stage_result, execution_directory, product_path):
+    """Diagnose a failed association reactant relaxation without guessing minima."""
+    error = str(stage_result.get("error") or "")
+    lowered = error.lower()
+    if "did not converge" in lowered:
+        return {"status": "reactant_relaxation_nonconverged",
+                "classification": "nonconverged", "error": error,
+                "reactant_product_connection_confirmed": False}
+    if "connectivity changed" not in lowered:
+        return {"status": "reactant_relaxation_failed", "classification": "unclassified_failure",
+                "error": error, "reactant_product_connection_confirmed": False}
+    from pyar.backends import write_xyz
+    from pyar.neb import read_xyz
+    from pyar.reaction_identity import molecule_identity_from_xyz, same_molecular_identity
+    from pyar.xyz_trajectory import parse_xyz_trajectory
+    trajectory = Path(execution_directory) / "relax_reactant_path.xyz"
+    try:
+        frames = parse_xyz_trajectory(trajectory)
+        symbols, coordinates = frames[-1][0], frames[-1][1]
+        product_symbols, _product_coordinates, _ = read_xyz(product_path)
+        if list(symbols) != list(product_symbols):
+            return {"status": "reactant_topology_changed_unclassified",
+                    "classification": "topology_changed", "trajectory": str(trajectory),
+                    "reactant_product_connection_confirmed": False}
+        with tempfile.TemporaryDirectory(prefix="pyar_relax_identity_") as directory:
+            final_path = Path(directory) / "relaxed_reactant.xyz"
+            write_xyz(symbols, coordinates, final_path)
+            product_identity = molecule_identity_from_xyz(product_path)
+            final_identity = molecule_identity_from_xyz(final_path)
+        is_product = same_molecular_identity(product_identity, final_identity)
+        return {"status": ("product_formed_during_reactant_relaxation" if is_product
+                           else "reactant_topology_changed_unclassified"),
+                "classification": ("product" if is_product else "topology_changed"),
+                "trajectory": str(trajectory), "product_identity_match": bool(is_product),
+                "error": error, "reactant_product_connection_confirmed": False}
+    except Exception as exc:
+        return {"status": "reactant_relaxation_outcome_unresolved",
+                "classification": "unknown", "trajectory": str(trajectory),
+                "error": f"{type(exc).__name__}: {exc}",
+                "reactant_product_connection_confirmed": False}

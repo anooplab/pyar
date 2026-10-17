@@ -301,6 +301,44 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
                 state["status"] = "path_complete_connection_unconfirmed"
             else:
                 state["status"] = "path_failed"
+            from pyar.neb import read_xyz
+            from pyar.workflows.reaction_report import (
+                build_reaction_characterization_report, write_reaction_characterization_report,
+            )
+            report = build_reaction_characterization_report(
+                route_root=root / "products" / product_id / "characterization",
+                product={"product_id": product_id, "symbols": read_xyz(end)[0]},
+                provenance={"product_id": product_id,
+                            "representative_orientation": representative,
+                            "discovery_product_id": product_id,
+                            "product_record_sha256": product["product_record_sha256"],
+                            "physical_method": path_qc, "path_options": path_options,
+                            "scan_commit_sha256": state["scan_commit_sha256"],
+                            "relax_commit_sha256": state["relax_commit_sha256"]},
+                path_result=result,
+                route_result={"status": state["status"], "through": through,
+                              "reactant_product_connection_confirmed": bool(
+                                  result.get("reactant_product_connection_confirmed"))},
+                alternatives=[{"orientation": int(value)} for value in
+                              product.get("member_orientations", []) if int(value) != representative],
+                reference_mode="minima",
+                discovery={"product_record": product,
+                           "representative_orientation": representative,
+                           "member_orientations": product.get("member_orientations", [])},
+                scan_evidence={"trajectory": str(seed), "trajectory_sha256": state["scan_path_seed_sha256"],
+                               "profile": str(profile_path),
+                               "profile_sha256": hashlib.sha256(profile_path.read_bytes()).hexdigest(),
+                               "scan_commit": str(layout.commit_path(representative)),
+                               "scan_commit_sha256": state["scan_commit_sha256"],
+                               "relax_commit": str(layout.layout.path(
+                                   f"orientation_{representative:03d}/relax_commit.json")),
+                               "relax_commit_sha256": state["relax_commit_sha256"]},
+            )
+            report_path = root / "products" / product_id / "reaction_characterization.json"
+            write_reaction_characterization_report(report_path, report)
+            state["reaction_characterization_report"] = report_path.relative_to(root).as_posix()
+            state["reaction_characterization_report_sha256"] = hashlib.sha256(
+                report_path.read_bytes()).hexdigest()
         except Exception as exc:
             state.update(status="path_failed", error=str(exc))
         if not state["status_history"] or state["status_history"][-1] != state["status"]:

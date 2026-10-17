@@ -350,6 +350,15 @@ def _characterize_reaction(root, request, through, options):
                                    previous=previous_routes.get(product_key))
         except (OSError, ValueError, KeyError) as exc:
             failures.append({"product": product.get("job_name"), "status": "preparation_failed", "error": str(exc)})
+            from pyar.workflows.reaction_report import write_reaction_characterization_report
+            report_root = (_pathway_root(root) / "products" if _v2(root) else _pathway_root(root)) / f"product_{number:03d}"
+            write_reaction_characterization_report(report_root / "reaction_characterization.json", {
+                "schema_version": 1, "product_id": f"product_{number:03d}",
+                "status": "preparation_failed", "error": f"{type(exc).__name__}: {exc}",
+                "through": through, "connection_confirmed": False,
+                "discovery_product": product, "electronic_energetics": {"validated": False},
+                "validated_reaction_path": None,
+            })
             _write_json_atomic(state_path, summary)
             continue
         summary["routes"][route["product"]] = route["provenance"]
@@ -364,6 +373,17 @@ def _characterize_reaction(root, request, through, options):
             records.append(route_result)
             failures.append({"product": route["product"], "status": "reactant_reference_failed",
                              "error": reactant_reference.get("error")})
+            from pyar.workflows.reaction_report import write_reaction_characterization_report
+            report_root = (_pathway_root(root) / "products" if _v2(root) else _pathway_root(root)) / route["product"]
+            write_reaction_characterization_report(report_root / "reaction_characterization.json", {
+                "schema_version": 1, "product_id": route["product"],
+                "pathway_id": route["pathway"], "status": "reactant_reference_failed",
+                "through": through, "connection_confirmed": False,
+                "discovery_product": product, "representative": route["provenance"],
+                "reactant_reference": reactant_reference,
+                "electronic_energetics": {"validated": False},
+                "validated_reaction_path": None,
+            })
             summary["selected_routes"] = records
             summary["preparation_failures"] = failures
             _write_json_atomic(state_path, summary)
@@ -379,7 +399,15 @@ def _characterize_reaction(root, request, through, options):
         association = None
         association_status = None
         if reference_mode == "separated-reactants":
-            if result.get("status") == "scientific_gate_failed" and result.get("failed_stage") == "frequency":
+            if result.get("failed_stage") == "relax":
+                from pyar.workflows.association_reference import classify_reactant_relaxation_failure
+                association = classify_reactant_relaxation_failure(
+                    result, result.get("execution_directory", route["directory"]), route["end"],
+                )
+                association_status = association["status"]
+                result["association_endpoint_validation"] = association
+                _write_json_atomic(Path(route["directory"]) / "association_endpoint_validation.json", association)
+            elif result.get("status") == "scientific_gate_failed" and result.get("failed_stage") == "frequency":
                 association_status = "no_confirmed_saddle"
             elif "endpoint-frequency" in result.get("completed_stages", []):
                 from pyar.neb import read_xyz
@@ -428,6 +456,27 @@ def _characterize_reaction(root, request, through, options):
                         "failed_stage": result.get("failed_stage"),
                         "error": result.get("error"),
                         "reactant_product_connection_confirmed": result.get("reactant_product_connection_confirmed", False)}
+        report_product = dict(product)
+        try:
+            from pyar.neb import read_xyz
+            report_product["symbols"] = read_xyz(route["end"])[0]
+        except Exception:
+            report_product["symbols"] = []
+        from pyar.workflows.reaction_report import (
+            build_reaction_characterization_report, write_reaction_characterization_report,
+        )
+        discovery_jobs = state.data.get("completed_jobs", [])
+        report = build_reaction_characterization_report(
+            route_root=route["directory"], product=report_product,
+            provenance=route["provenance"], path_result=result,
+            route_result=route_result, alternatives=summary["alternatives"].get(route["product"], []),
+            reference_mode=reference_mode, reactant_reference=reactant_reference,
+            discovery={"reaction_request": state.data.get("request"),
+                       "completed_jobs": discovery_jobs, "accepted_product": product},
+        )
+        report_root = (_pathway_root(root) / "products" if _v2(root) else _pathway_root(root)) / route["product"]
+        report["report_pathway_directory"] = str(route["directory"])
+        write_reaction_characterization_report(report_root / "reaction_characterization.json", report)
         route["provenance"].update(status=result["status"], stage_status=result)
         _write_pathway_record(root, Path(route["directory"]), route["provenance"])
         summary["routes"][route["product"]] = route["provenance"]

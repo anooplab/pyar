@@ -221,3 +221,8 @@ def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_pa
     selected = result['selected_routes'][0]
     assert selected['association_status'] == 'reaction_connected'
     assert selected['reactant_product_connection_confirmed']
+    report_path = reaction / 'pathways' / 'product_001' / 'reaction_characterization.json'
+    report = json.loads(report_path.read_text())
+    assert report['connection_confirmed']
+    assert report['electronic_energetics']['validated'] is False  # mock omits physical-stage energies
+    assert report['validated_reaction_path'] is None
