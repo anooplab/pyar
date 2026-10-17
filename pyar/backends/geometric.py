@@ -660,6 +660,8 @@ class Geometric(SF):
                 check=False,
             )
 
+        from pyar.recovery.observations import record_process
+        record_process(command, proc.returncode)
         output_text = Path("geometric.out").read_text()
         iteration_limit = (
             proc.returncode != 0

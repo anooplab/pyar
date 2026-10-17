@@ -340,3 +340,17 @@ def unsupported_qc_options(software, provided_options):
     """Return explicitly provided QC options that are not supported by a backend."""
     profile = get_backend_capabilities(software)
     return sorted(provided_options - set(profile.supported_options))
+
+
+def optimization_diagnostic_capabilities(software, optimizer='native'):
+    """Verified observational pilot routes, not permission to retry/restart.
+
+    Output version, freshness and accepted-frame evidence are checked per result.
+    No compatible electronic checkpoint or automatic recovery support is claimed.
+    """
+    software = normalize_backend_name(software)
+    profile = get_backend_capabilities(software)
+    if ((optimizer == 'native' and software in {'orca', 'xtb'})
+            or (optimizer == 'geometric' and software == 'xtb' and profile.energy_gradient)):
+        return frozenset({'parsed_convergence', 'frame_validation'})
+    return frozenset()

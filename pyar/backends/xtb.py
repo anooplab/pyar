@@ -67,9 +67,13 @@ class Xtb(SF):
                     stderr=output_file_pointer,
                 )
             except Exception as e:
+                from pyar.recovery.observations import record_process
+                record_process(self.cmd, getattr(e, "returncode", None), exception=e)
                 xtb_logger.info('    Optimization failed')
                 xtb_logger.error(f'      {e}')
                 return False
+        from pyar.recovery.observations import record_process
+        record_process(self.cmd, out)
 
         try:
             with open('xtb.out') as output_file_pointer:
