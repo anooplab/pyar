@@ -18,10 +18,13 @@ fails that check. Its radius is
 Its harmonic constant makes a 0.5 Å overrun cost 3 kBT at a 298.15 K
 reference, or approximately 0.02266044 Eh/Å². The reference sets a soft search
 stiffness scale; it is not an implicit simulation temperature or a solvent
-free-energy model. A wall search is followed by an unbiased relaxation, and
-only the latter physical energy is used for candidate ranking. Cluster
-objective runs disable this policy because a finite aggregate is not a shell
-confinement target.
+free-energy model. A wall search is followed by an unbiased relaxation. Shell
+survivors still use the historical selection policy: surface coverage, final
+physical energy as a tie-breaker, then structural diversity. A candidate that
+does not use the wall is not ranked differently merely because auto
+confinement was requested. The confinement and selection policies have
+separate versioned request fields. Cluster objective runs disable this wall
+policy because a finite aggregate is not a shell confinement target.
 
 ## Live probe
 

@@ -176,6 +176,30 @@ def test_outer_wall_applies_translation_force_to_solvent_fragment_com():
     assert np.isfinite(energy)
 
 
+def test_outer_wall_gradient_matches_central_differences_for_solute_and_solvent_atoms():
+    from pyar.microsolvation.wall import outer_sphere_energy_gradient
+
+    xyz = np.array([
+        [0.0, 0.0, 0.0], [1.1, 0.1, 0.0], [-0.4, 0.9, 0.2],
+        [4.0, 0.2, 0.1], [4.4, 0.8, -0.1], [3.8, -0.7, 0.2],
+        [-3.6, 0.1, 0.3], [-4.1, 0.7, 0.1], [-3.2, -0.5, -0.2],
+    ])
+    masses = np.array([12.0, 1.0, 1.0, 16.0, 1.0, 1.0, 16.0, 1.0, 1.0])
+    kwargs = dict(radius_angstrom=2.2, force_constant_hartree_per_angstrom2=0.37,
+                  solvent_fragments=[[3, 4, 5], [6, 7, 8]])
+    _, analytic = outer_sphere_energy_gradient(xyz, masses, [0, 1, 2], **kwargs)
+    numerical = np.zeros_like(xyz)
+    delta = 1e-6
+    for atom in range(len(xyz)):
+        for axis in range(3):
+            plus = xyz.copy(); plus[atom, axis] += delta
+            minus = xyz.copy(); minus[atom, axis] -= delta
+            e_plus = outer_sphere_energy_gradient(plus, masses, [0, 1, 2], **kwargs)[0]
+            e_minus = outer_sphere_energy_gradient(minus, masses, [0, 1, 2], **kwargs)[0]
+            numerical[atom, axis] = (e_plus - e_minus) / (2 * delta)
+    np.testing.assert_allclose(analytic, numerical, rtol=2e-6, atol=2e-8)
+
+
 def test_outer_wall_rejects_nonfinite_coordinates_and_bad_fragment_partition():
     from pyar.microsolvation.wall import outer_sphere_energy_gradient
 
