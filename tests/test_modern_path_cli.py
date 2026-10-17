@@ -22,6 +22,7 @@ def test_neb_runs_relax_and_neb_only(endpoints):
     with patch.object(cli, 'preflight', return_value=['xtb', 'geometric']), patch.object(cli, 'run_neb', side_effect=[relaxed, {'converged': True, 'interior_maximum': True}]) as engine:
         modern_cli.main(endpoints)
     assert [call.kwargs['stage'] for call in engine.call_args_list] == ['relax', 'neb']
+    assert all(call.kwargs['reuse'] is True for call in engine.call_args_list)
     assert engine.call_args.kwargs['method'] is None
     assert engine.call_args.kwargs['xtb_model'] == 'gfn2'
 
@@ -32,6 +33,29 @@ def test_neb_stops_on_failed_endpoint_gate(endpoints):
     assert exc.value.code == 1
     assert engine.call_count == 1
     assert engine.call_args.kwargs['stage'] == 'relax'
+
+
+def test_neb_path_seed_is_an_alternative_initializer_for_check(endpoints, capsys):
+    seed = Path('seed.xyz')
+    seed.write_text(''.join(
+        f'2\nframe={index}\nH 0 0 0\nH 0 0 {distance}\n'
+        for index, distance in enumerate((0.74, 0.75, 0.76))
+    ))
+    arguments = ['neb', 'a.xyz', 'b.xyz', '--path-seed', str(seed), '--backend', 'xtb', '--check']
+    with patch.object(cli, 'preflight', return_value=['xtb', 'geometric']), \
+            patch.object(cli, 'run_neb') as engine:
+        modern_cli.main(arguments)
+    assert 'Ready to run' in capsys.readouterr().out
+    engine.assert_not_called()
+
+
+def test_neb_initializer_options_are_validated_before_execution(endpoints):
+    with patch.object(cli, 'preflight', return_value=[]), patch.object(cli, 'run_neb') as engine:
+        with pytest.raises(SystemExit):
+            modern_cli.main(['neb', 'a.xyz', 'b.xyz', '--backend', 'xtb', '--check'])
+        with pytest.raises(SystemExit):
+            modern_cli.main(endpoints + ['--path-seed', 'guess.xyz', '--check'])
+        engine.assert_not_called()
 
 
 @pytest.mark.parametrize('options', [['--images', '4'], ['--max-cycles', '0'], ['--spring', 'nan'], ['--multiplicity', '2']])

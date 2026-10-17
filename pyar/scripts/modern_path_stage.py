@@ -24,7 +24,9 @@ def build_parser(command, prog=None):
     if command == "neb":
         parser.add_argument("start")
         parser.add_argument("end")
-        parser.add_argument("--ts-guess", required=True, help="Initial waypoint geometry for the path")
+        initializer = parser.add_mutually_exclusive_group(required=True)
+        initializer.add_argument("--ts-guess", help="Initial waypoint geometry for the path")
+        initializer.add_argument("--path-seed", help="Multi-frame XYZ seed for NEB initialization")
     elif command == "ts":
         parser.add_argument("geometry", help="Initial TS guess geometry")
     else:
@@ -42,6 +44,10 @@ def build_parser(command, prog=None):
     if command == "neb":
         advanced.add_argument("--images", type=int, default=11)
         advanced.add_argument("--interpolation", choices=("linear", "idpp", "geodesic"), default="linear")
+        advanced.add_argument("--path-refinement", choices=("none", "idpp", "geodesic"),
+                              help="Whole-path refinement used with --path-seed")
+        advanced.add_argument("--path-seed-maximum-frame-index", type=int,
+                              help="Optional constrained-scan maximum frame index for provenance")
         advanced.add_argument("--max-cycles", type=int, default=100)
         advanced.add_argument("--max-gradient", type=float, default=0.05)
         advanced.add_argument("--average-gradient", type=float, default=0.025)
@@ -97,11 +103,31 @@ def _resolve_settings(args):
 
 def _validate_inputs(command, args):
     if command == "neb":
-        paths = [args.start, args.end, args.ts_guess]
         from pyar.neb import read_xyz
-        frames = [read_xyz(path) for path in paths]
+        frames = [read_xyz(path) for path in (args.start, args.end)]
+        if args.ts_guess is not None:
+            frames.append(read_xyz(args.ts_guess))
+        else:
+            if args.interpolation != "linear":
+                raise ValueError("--interpolation applies to --ts-guess; use --path-refinement")
+            from pyar.xyz_trajectory import parse_xyz_trajectory
+            seed_frames = parse_xyz_trajectory(args.path_seed)
+            if len(seed_frames) < 3:
+                raise ValueError("NEB path seed must contain at least three frames")
+            maximum_index = args.path_seed_maximum_frame_index
+            if maximum_index is not None and not 0 <= maximum_index < len(seed_frames):
+                raise ValueError("--path-seed-maximum-frame-index must refer to a seed frame")
+            if any(frame[0] != frames[0][0] for frame in seed_frames):
+                raise ValueError("NEB path seed must have identical ordered elements in every frame")
+            if seed_frames[0][0] != frames[0][0]:
+                raise ValueError("NEB path seed atom count and order must match endpoints")
+            if args.path_refinement is not None and args.path_refinement not in {"none", "idpp", "geodesic"}:
+                raise ValueError("Invalid path refinement")
+        if args.ts_guess is not None and (args.path_refinement is not None
+                                          or args.path_seed_maximum_frame_index is not None):
+            raise ValueError("Path-seed refinement/provenance options require --path-seed")
         if any(frame[0] != frames[0][0] for frame in frames[1:]):
-            raise ValueError("NEB start, end, and TS guess must have identical ordered elements")
+            raise ValueError("NEB endpoints and initializer must have identical ordered elements")
         return [_load_for_state(args.start, args.charge, args.multiplicity)]
     if command == "ts":
         return [_load_for_state(args.geometry, args.charge, args.multiplicity)]
@@ -130,12 +156,14 @@ def main(command, argv=None, *, prog=None):
         molecules = _validate_inputs(command, args)
         settings = _resolve_settings(args)
         requirements = preflight(settings, molecules, check_example=f"pyar {command} INPUT --backend {args.backend} --check")
-        if command == "neb" and args.interpolation == "geodesic":
+        if command == "neb" and (args.interpolation == "geodesic"
+                                  or args.path_refinement == "geodesic"):
             from pyar.neb import _geodesic_api, _ase_idpp_api
             _geodesic_api()
             _ase_idpp_api()
             requirements.append("geodesic-interpolate")
-        if command == "neb" and args.interpolation == "idpp":
+        if command == "neb" and (args.interpolation == "idpp"
+                                  or args.path_refinement in {"idpp", "geodesic"}):
             from pyar.neb import _ase_idpp_api
             _ase_idpp_api()
             requirements.append("ASE IDPP")
@@ -168,6 +196,7 @@ def main(command, argv=None, *, prog=None):
                 validate_stage_input_paths(output, stage, start=getattr(args, "start", None),
                                            end=getattr(args, "end", None),
                                            ts_guess=getattr(args, "ts_guess", None),
+                                           path_seed=getattr(args, "path_seed", None),
                                            ts_geometry=getattr(args, "geometry", None))
     except (ValueError, OSError, ImportError, RuntimeError, KeyError) as exc:
         parser.error(f"Preflight failed for {command}: {exc}\nNo calculations were started.")
@@ -182,6 +211,9 @@ def main(command, argv=None, *, prog=None):
         started_run()
         if command == "neb":
             common = dict(start=args.start, end=args.end, ts_guess=args.ts_guess, output=output,
+                             path_seed=args.path_seed,
+                             path_refinement=args.path_refinement,
+                             path_seed_maximum_frame_index=args.path_seed_maximum_frame_index,
                              software=settings["software"], method=settings.get("method"), basis=settings.get("basis"),
                              charge=args.charge, multiplicity=molecules[0].multiplicity, nprocs=args.nprocs,
                              xtb_model=settings.get("xtb_model", "gfn2"), images=args.images,
@@ -189,11 +221,13 @@ def main(command, argv=None, *, prog=None):
                              max_gradient=args.max_gradient, average_gradient=args.average_gradient,
                              spring=args.spring, climb=args.climb, align=args.align)
             # The engine defaults to stage=all. Keep this public task at NEB.
-            relaxed = run_neb(stage="relax", **common)
+            relax_common = {key: value for key, value in common.items()
+                            if key not in {"path_seed", "path_refinement", "path_seed_maximum_frame_index"}}
+            relaxed = run_neb(stage="relax", reuse=True, **relax_common)
             if not _stage_gate_passed(relaxed, "relax"):
                 result = {"status": "scientific_gate_failed", "failed_stage": "relax", "relax": relaxed}
             else:
-                result = run_neb(stage="neb", **common)
+                result = run_neb(stage="neb", reuse=True, **common)
         elif command == "ts":
             common = dict(software=settings["software"], method=settings.get("method"), basis=settings.get("basis"),
                           charge=args.charge, multiplicity=molecules[0].multiplicity, nprocs=args.nprocs,

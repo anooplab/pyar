@@ -38,44 +38,8 @@ class OrcaBondScanResult:
 
 def parse_xyz_trajectory(path, expected_atoms, expected_symbols=None):
     """Parse a concatenated XYZ trajectory and return all frames."""
-    lines = Path(path).read_text().splitlines()
-    frames = []
-    cursor = 0
-    while cursor < len(lines):
-        # ORCA's ``scan.allxyz`` separates frames with a standalone ``>``.
-        while cursor < len(lines) and lines[cursor].strip() in {"", ">"}:
-            cursor += 1
-        if cursor >= len(lines):
-            break
-        try:
-            count = int(lines[cursor].strip())
-        except ValueError as exc:
-            raise ValueError(f"Invalid XYZ atom count in {path} at line {cursor + 1}") from exc
-        if count != expected_atoms:
-            raise ValueError(f"XYZ frame has {count} atoms; expected {expected_atoms}")
-        if cursor + count + 2 > len(lines):
-            raise ValueError(f"Truncated XYZ frame in {path}")
-        symbols = []
-        coordinates = []
-        for line in lines[cursor + 2:cursor + count + 2]:
-            fields = line.split()
-            if len(fields) < 4:
-                raise ValueError(f"Malformed XYZ coordinate line in {path}")
-            symbols.append(fields[0].capitalize())
-            try:
-                coordinate = [float(value) for value in fields[1:4]]
-            except ValueError as exc:
-                raise ValueError(f"Malformed XYZ coordinates in {path}") from exc
-            if not all(math.isfinite(value) for value in coordinate):
-                raise ValueError(f"Non-finite XYZ coordinates in {path}")
-            coordinates.append(coordinate)
-        if expected_symbols is not None and symbols != list(expected_symbols):
-            raise ValueError("XYZ trajectory atom symbols do not match the scan input")
-        frames.append((symbols, np.asarray(coordinates, dtype=float), lines[cursor + 1]))
-        cursor += count + 2
-    if not frames:
-        raise ValueError(f"XYZ trajectory contains no frames: {path}")
-    return frames
+    from pyar.xyz_trajectory import parse_xyz_trajectory as parse
+    return parse(path, expected_atoms, expected_symbols)
 
 
 def parse_orca_scan_profile(path):

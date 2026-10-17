@@ -9,6 +9,7 @@ import json
 from numbers import Integral
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import time
 from importlib.metadata import PackageNotFoundError, version as package_version
@@ -24,7 +25,8 @@ _SPLIT_ENDPOINT_STAGES = ("endpoint-relax", "endpoint-frequency")
 _STAGE_OPTIONS = {
     "relax": ("product_relaxation_fmax", "product_relaxation_max_steps"),
     "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
-            "interpolation", "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter"),
+            "interpolation", "path_refinement", "path_seed_maximum_frame_index",
+            "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter"),
     "ts": ("ts_max_cycles", "ts_optimizer", "ts_fmax", "sella_fmax",
            "sella_internal_coordinates"),
     "endpoint-relax": ("endpoint_max_cycles",),
@@ -46,7 +48,8 @@ _GEODESIC_PARAMETERS = ("geodesic_tol", "geodesic_max_iter")
 _TS_SHARED_PARAMETERS = ("ts_max_cycles",)
 _TS_SELLA_PARAMETERS = ("sella_fmax", "sella_internal_coordinates")
 _NEB_PARAMETER_KEYS = frozenset(
-    (*_NEB_COMMON_PARAMETERS, "interpolation", *_IDPP_PARAMETERS, *_GEODESIC_PARAMETERS)
+    (*_NEB_COMMON_PARAMETERS, "interpolation", "path_refinement",
+     "path_seed_maximum_frame_index", *_IDPP_PARAMETERS, *_GEODESIC_PARAMETERS)
 )
 _STAGE_GATES = {
     "relax": ("reactant_relaxation_converged", "product_relaxation_converged",
@@ -321,16 +324,21 @@ def canonical_neb_parameters(parameters):
     interpolation = values.get("interpolation", "linear")
     canonical = {key: values[key] for key in _NEB_COMMON_PARAMETERS if key in values}
     canonical["interpolation"] = interpolation
-    if interpolation in {"idpp", "geodesic"}:
+    path_refinement = values.get("path_refinement")
+    if interpolation in {"idpp", "geodesic"} or path_refinement in {"idpp", "geodesic"}:
         canonical.update({
             "idpp_fmax": values.get("idpp_fmax", _LEGACY_NEB_INITIALIZATION_DEFAULTS["idpp_fmax"]),
             "idpp_steps": values.get("idpp_steps", _LEGACY_NEB_INITIALIZATION_DEFAULTS["idpp_steps"]),
         })
-    if interpolation == "geodesic":
+    if interpolation == "geodesic" or path_refinement == "geodesic":
         canonical.update({
             "geodesic_tol": values.get("geodesic_tol", 0.002),
             "geodesic_max_iter": values.get("geodesic_max_iter", 15),
         })
+    if values.get("path_refinement") is not None:
+        canonical["path_refinement"] = values["path_refinement"]
+    if values.get("path_seed_maximum_frame_index") is not None:
+        canonical["path_seed_maximum_frame_index"] = values["path_seed_maximum_frame_index"]
     return canonical
 
 
@@ -451,6 +459,113 @@ def build_neb_images(
     return symbols, images
 
 
+def build_neb_images_from_path_seed(
+    start, end, path_seed, image_count, *, path_refinement="none",
+    idpp_fmax=0.1, idpp_steps=100, geodesic_tol=0.002, geodesic_max_iter=15,
+    path_seed_maximum_frame_index=None,
+):
+    """Normalize, align and arc-length-resample a multi-frame NEB seed.
+
+    The caller supplies already relaxed endpoint geometries. Scan trajectory
+    endpoints are discarded; only its interior frames seed the path. Endpoint
+    joins that are more than five times the median scan step are rejected.
+    """
+    if image_count < 3 or image_count % 2 != 1:
+        raise ValueError("image_count must be an odd integer of at least 3")
+    path_refinement = str(path_refinement).lower()
+    if path_refinement not in {"none", "idpp", "geodesic"}:
+        raise ValueError("path_refinement must be 'none', 'idpp', or 'geodesic'")
+    if path_refinement in {"idpp", "geodesic"}:
+        _validate_idpp_options(idpp_fmax, idpp_steps)
+    geodesic_class = None
+    if path_refinement == "geodesic":
+        _validate_geodesic_options(geodesic_tol, geodesic_max_iter)
+        geodesic_class, _ = _geodesic_api()
+
+    from pyar.xyz_trajectory import parse_xyz_trajectory
+    symbols, start_coordinates, _ = read_xyz(start)
+    end_symbols, end_coordinates, _ = read_xyz(end)
+    if end_symbols != symbols:
+        raise ValueError("NEB endpoints must have identical ordered elements")
+    raw_frames = parse_xyz_trajectory(path_seed, len(symbols), symbols)
+    if len(raw_frames) < 3:
+        raise ValueError("A path seed must contain at least three complete frames")
+    if path_seed_maximum_frame_index is not None and (
+        isinstance(path_seed_maximum_frame_index, bool)
+        or not isinstance(path_seed_maximum_frame_index, Integral)
+        or not 0 <= path_seed_maximum_frame_index < len(raw_frames)
+    ):
+        raise ValueError("path_seed_maximum_frame_index must refer to a frame in the seed")
+
+    aligned = [_align_rigid_frame(raw_frames[0][1], start_coordinates)]
+    for _frame_symbols, coordinates, _comment in raw_frames[1:]:
+        aligned.append(_align_rigid_frame(coordinates, aligned[-1]))
+    internal_steps = [
+        float(np.sqrt(np.mean(np.sum((right - left) ** 2, axis=1))))
+        for left, right in zip(aligned, aligned[1:])
+    ]
+    positive_steps = [value for value in internal_steps if value > 1e-10]
+    if not positive_steps:
+        raise ValueError("Path seed contains no distinct geometries")
+    typical_step = float(np.median(positive_steps))
+    normalized_end = _align_rigid_frame(end_coordinates, aligned[-1])
+    start_join = float(np.sqrt(np.mean(np.sum((aligned[1] - start_coordinates) ** 2, axis=1))))
+    end_join = float(np.sqrt(np.mean(np.sum((normalized_end - aligned[-2]) ** 2, axis=1))))
+    if start_join > 5 * typical_step or end_join > 5 * typical_step:
+        raise ValueError(
+            "Relaxed endpoint discontinuity exceeds five times the median scan-path step "
+            f"(start={start_join:.6g}, end={end_join:.6g}, median={typical_step:.6g} angstrom)"
+        )
+
+    points = [start_coordinates.copy()]
+    points.extend(frame.copy() for frame in aligned[1:-1])
+    points.append(normalized_end.copy())
+    deduplicated = [points[0]]
+    for coordinates in points[1:]:
+        distance = float(np.sqrt(np.mean(np.sum((coordinates - deduplicated[-1]) ** 2, axis=1))))
+        if distance > 1e-10:
+            deduplicated.append(coordinates)
+    if len(deduplicated) < 2:
+        raise ValueError("Path seed and relaxed endpoints collapse to one geometry")
+    segment_lengths = [
+        float(np.sqrt(np.mean(np.sum((right - left) ** 2, axis=1))))
+        for left, right in zip(deduplicated, deduplicated[1:])
+    ]
+    cumulative = np.concatenate(([0.0], np.cumsum(segment_lengths)))
+    targets = np.linspace(0.0, cumulative[-1], image_count)
+    images = []
+    for target in targets:
+        segment = min(int(np.searchsorted(cumulative, target, side="right") - 1), len(segment_lengths) - 1)
+        fraction = (target - cumulative[segment]) / segment_lengths[segment]
+        images.append((1.0 - fraction) * deduplicated[segment]
+                      + fraction * deduplicated[segment + 1])
+    images[0] = start_coordinates.copy()
+    images[-1] = normalized_end.copy()
+
+    if path_refinement in {"idpp", "geodesic"}:
+        images = _idpp_refine_segment(
+            symbols, images, label="path-seed whole path", fmax=idpp_fmax, steps=idpp_steps,
+        )
+    if path_refinement == "geodesic":
+        images = _geodesic_refine_segment(
+            symbols, images, tol=geodesic_tol, max_iter=geodesic_max_iter,
+            geodesic_class=geodesic_class,
+        )
+    images[0] = start_coordinates.copy()
+    images[-1] = normalized_end.copy()
+    if len(images) != image_count or any(not np.all(np.isfinite(frame)) for frame in images):
+        raise ValueError("Path-seed interpolation produced invalid NEB images")
+    metadata = {
+        "initialization_source": "path_seed",
+        "path_seed_sha256": _hash(Path(path_seed)),
+        "path_seed_frame_count": len(raw_frames),
+        "path_seed_maximum_frame_index": path_seed_maximum_frame_index,
+        "resampled_image_count": image_count,
+        "path_refinement": path_refinement,
+    }
+    return symbols, images, metadata
+
+
 def _validate_idpp_options(fmax, steps):
     if not np.isfinite(fmax) or fmax <= 0:
         raise ValueError("idpp_fmax must be positive and finite")
@@ -499,6 +614,20 @@ def _write_xyz_trajectory(path, symbols, frames, energies):
                     or not np.all(np.isfinite(coordinates)) or not np.isfinite(energy)):
                 raise ValueError("Cannot write non-finite or malformed trajectory data")
             stream.write(f"{len(symbols)}\nimage={index} energy_hartree={energy:.14f}\n")
+            for symbol, xyz in zip(symbols, coordinates):
+                stream.write(f"{symbol:<2s} {xyz[0]: .14f} {xyz[1]: .14f} {xyz[2]: .14f}\n")
+
+
+def _write_xyz_frames(path, symbols, frames):
+    """Write geometry-only frames without inventing energy values."""
+    if not frames:
+        raise ValueError("Cannot write an empty geometry trajectory")
+    with Path(path).open("w") as stream:
+        for index, coordinates in enumerate(frames):
+            coordinates = np.asarray(coordinates, dtype=float)
+            if coordinates.shape != (len(symbols), 3) or not np.all(np.isfinite(coordinates)):
+                raise ValueError("Cannot write malformed or non-finite trajectory coordinates")
+            stream.write(f"{len(symbols)}\npath_seed_image={index}\n")
             for symbol, xyz in zip(symbols, coordinates):
                 stream.write(f"{symbol:<2s} {xyz[0]: .14f} {xyz[1]: .14f} {xyz[2]: .14f}\n")
 
@@ -637,7 +766,8 @@ def _load_stage(output, stage, calculator, visited=None, *,
         parameters_match = recorded_parameters == expected_parameters
         if not parameters_match:
             raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
-        if (stage == "neb" and expected_parameters.get("interpolation") == "geodesic"):
+        if (stage == "neb" and (expected_parameters.get("interpolation") == "geodesic"
+                                 or expected_parameters.get("path_refinement") == "geodesic")):
             recorded_version = result.get("geodesic_interpolate_version")
             if (recorded_version is not None and expected_geodesic_version is not None
                     and recorded_version != expected_geodesic_version):
@@ -888,6 +1018,15 @@ def _execute_stage(stage, output, calculator, options):
     }
     expected_by_stage["neb"] = canonical_neb_parameters(expected_by_stage["neb"])
     expected_by_stage["ts"] = canonical_ts_parameters(expected_by_stage["ts"])
+    if stage not in {"all", "relax", "neb"}:
+        neb_summary_path = output / "neb_summary.json"
+        if neb_summary_path.is_file():
+            recorded_neb = json.loads(neb_summary_path.read_text(encoding="utf-8"))
+            recorded_parameters = recorded_neb.get("parameters") or {}
+            for key in ("path_refinement", "path_seed_maximum_frame_index"):
+                if key in recorded_parameters:
+                    expected_by_stage["neb"][key] = recorded_parameters[key]
+            expected_by_stage["neb"] = canonical_neb_parameters(expected_by_stage["neb"])
     # Optimizer choices describe how a TS was produced. Once the TS summary
     # and its hashes are validated, downstream scientific stages consume the
     # artifact independently of the optimizer currently selected or installed.
@@ -916,7 +1055,8 @@ def _execute_stage(stage, output, calculator, options):
             else optimizer_steps_end - optimizer_steps_start,
         )
         result.setdefault("wall_seconds", float(time.perf_counter() - stage_started))
-        if stage == "neb" and options["interpolation"] == "geodesic":
+        if stage == "neb" and (options["interpolation"] == "geodesic"
+                                or options["path_refinement"] == "geodesic"):
             result["geodesic_interpolate_version"] = options["geodesic_interpolate_version"]
         parameters = (
             canonical_neb_parameters({key: options[key] for key in _STAGE_OPTIONS["neb"]})
@@ -956,14 +1096,30 @@ def _execute_stage(stage, output, calculator, options):
 
         load("relax")
         guess = options["ts_guess"]
-        symbols, frames = build_neb_images(
-            start_path, end_path, guess, options["images"],
-            interpolation=options["interpolation"],
-            idpp_fmax=options["idpp_fmax"],
-            idpp_steps=options["idpp_steps"],
-            geodesic_tol=options["geodesic_tol"],
-            geodesic_max_iter=options["geodesic_max_iter"],
-        )
+        path_seed = options["path_seed"]
+        seed_artifacts = []
+        initialization = {"initialization_source": "ts_guess"}
+        if path_seed is None:
+            symbols, frames = build_neb_images(
+                start_path, end_path, guess, options["images"],
+                interpolation=options["interpolation"],
+                idpp_fmax=options["idpp_fmax"],
+                idpp_steps=options["idpp_steps"],
+                geodesic_tol=options["geodesic_tol"],
+                geodesic_max_iter=options["geodesic_max_iter"],
+            )
+        else:
+            symbols, frames, initialization = build_neb_images_from_path_seed(
+                start_path, end_path, path_seed, options["images"],
+                path_refinement=options["path_refinement"] or "none",
+                idpp_fmax=options["idpp_fmax"], idpp_steps=options["idpp_steps"],
+                geodesic_tol=options["geodesic_tol"],
+                geodesic_max_iter=options["geodesic_max_iter"],
+                path_seed_maximum_frame_index=options["path_seed_maximum_frame_index"],
+            )
+            shutil.copyfile(path_seed, output / "path_seed_raw.xyz")
+            _write_xyz_frames(output / "path_seed_resampled.xyz", symbols, frames)
+            seed_artifacts.extend(["path_seed_raw.xyz", "path_seed_resampled.xyz"])
         molecule = Molecule()
         molecule.elem, molecule.xyzs = symbols, frames
         engine = EngineASE(molecule, calculator)
@@ -999,10 +1155,11 @@ def _execute_stage(stage, output, calculator, options):
             "highest_energy_image_index": highest,
             "ts_guess_image_index": selected,
             "ts_guess_source": candidate["ts_guess_source"],
+            **initialization,
             "highest_energy_hartree": energies[highest],
             "average_rms_gradient_ev_per_angstrom": float(chain.avgg),
             "maximum_rms_gradient_ev_per_angstrom": float(chain.maxg),
-        }, [start_path, end_path, guess], artifacts, ["relax"])
+        }, [start_path, end_path, path_seed or guess], seed_artifacts + artifacts, ["relax"])
 
     if stage == "ts":
         guess = options["ts_geometry"] or options["ts_guess"]
@@ -1172,23 +1329,25 @@ def _execute_stage(stage, output, calculator, options):
     raise ValueError(f"Unknown stage: {stage}")
 
 
-def validate_stage_input_paths(output, stage, *, start=None, end=None, ts_guess=None, ts_geometry=None):
+def validate_stage_input_paths(output, stage, *, start=None, end=None, ts_guess=None,
+                               path_seed=None, ts_geometry=None):
     """Reject input/output aliasing without creating the run directory."""
     output = Path(output).resolve()
     overwritten = {
         "relax": {"reactant_relaxed.xyz", "product_relaxed.xyz"},
-        "neb": {"neb_path.xyz", "ts_guess.xyz"},
+        "neb": {"neb_path.xyz", "ts_guess.xyz", "path_seed_raw.xyz", "path_seed_resampled.xyz"},
         "ts": {"ts_optimized.xyz", "ts_path.xyz"},
         "frequency": {"frequency_geometry.xyz"},
         "irc": set(), "endpoints": set(), "endpoint-relax": set(), "endpoint-frequency": set(),
     }
     reserved = set().union(*overwritten.values()) if stage == "all" else overwritten[stage]
-    for path in (start, end, ts_guess, ts_geometry):
+    for path in (start, end, ts_guess, path_seed, ts_geometry):
         if path is not None and Path(path).resolve() in {output / name for name in reserved}:
             raise ValueError("An input would be overwritten by this stage; use a new output directory")
 
 
 def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
+                          path_seed=None, path_refinement=None, path_seed_maximum_frame_index=None,
                           max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
                           nprocs=1, xtb_model="gfn2", max_gradient=0.05, average_gradient=0.025, spring=1.0,
                           climb=0.5, align=False, product_relaxation_fmax=0.05,
@@ -1210,13 +1369,45 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     if stage in {"all", "relax"} and (start is None or end is None):
         raise ValueError("This stage requires --start and --end")
     if stage in {"all", "neb"}:
-        if ts_guess is None:
-            raise ValueError("The NEB stage requires --ts-guess")
+        if (ts_guess is None) == (path_seed is None):
+            raise ValueError("The NEB stage requires exactly one of --ts-guess or --path-seed")
         if images < 3 or images % 2 != 1:
             raise ValueError("images must be an odd integer of at least 3")
+    if path_seed is not None and stage not in {"all", "neb"}:
+        raise ValueError("--path-seed is supported only for all and neb stages")
+    if path_seed is not None and interpolation != "linear":
+        raise ValueError("--interpolation applies to ts_guess; use path_refinement with --path-seed")
+    if path_refinement is not None and path_seed is None:
+        raise ValueError("path_refinement requires path_seed")
+    if path_seed_maximum_frame_index is not None and path_seed is None:
+        raise ValueError("path_seed_maximum_frame_index requires path_seed")
+    if path_refinement not in {None, "none", "idpp", "geodesic"}:
+        raise ValueError("path_refinement must be 'none', 'idpp', or 'geodesic'")
+    if path_seed is not None and path_refinement is None:
+        path_refinement = "none"
+        options["path_refinement"] = path_refinement
+    if path_seed is not None and path_refinement == "geodesic":
+        _, options["geodesic_interpolate_version"] = _geodesic_api()
+    if path_seed is not None:
+        from pyar.xyz_trajectory import parse_xyz_trajectory
+        seed_frames = parse_xyz_trajectory(path_seed)
+        if len(seed_frames) < 3:
+            raise ValueError("A path seed must contain at least three complete frames")
+        if path_seed_maximum_frame_index is not None and (
+            isinstance(path_seed_maximum_frame_index, bool)
+            or not isinstance(path_seed_maximum_frame_index, Integral)
+            or not 0 <= path_seed_maximum_frame_index < len(seed_frames)
+        ):
+            raise ValueError("path_seed_maximum_frame_index must refer to a frame in the seed")
+        if start is not None and end is not None:
+            start_symbols = read_xyz(start)[0]
+            end_symbols = read_xyz(end)[0]
+            if start_symbols != end_symbols or seed_frames[0][0] != start_symbols:
+                raise ValueError("NEB endpoints and path seed must have identical ordered elements")
     if ts_geometry is not None and stage not in {"ts", "frequency"}:
         raise ValueError("--ts-geometry is supported only for ts and frequency stages")
-    validate_stage_input_paths(output, stage, start=start, end=end, ts_guess=ts_guess, ts_geometry=ts_geometry)
+    validate_stage_input_paths(output, stage, start=start, end=end, ts_guess=ts_guess,
+                               path_seed=path_seed, ts_geometry=ts_geometry)
     for key in ("max_cycles", "product_relaxation_max_steps", "ts_max_cycles", "irc_max_cycles", "endpoint_max_cycles", "nprocs", "multiplicity"):
         if not isinstance(options[key], int) or options[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
@@ -1227,6 +1418,12 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
         raise ValueError("interpolation must be 'linear', 'idpp', or 'geodesic'")
     if interpolation in {"idpp", "geodesic"}:
         _validate_idpp_options(idpp_fmax, idpp_steps)
+    if path_seed is not None and path_refinement in {"idpp", "geodesic"}:
+        _validate_idpp_options(idpp_fmax, idpp_steps)
+        _ase_idpp_api()
+    if path_seed is not None and path_refinement == "geodesic":
+        _validate_geodesic_options(geodesic_tol, geodesic_max_iter)
+        _geodesic_api()
     if interpolation == "geodesic":
         _validate_geodesic_options(geodesic_tol, geodesic_max_iter)
         if stage in {"all", "neb"}:
@@ -1272,6 +1469,15 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             expected = {name: {key: options[key] for key in keys}
                         for name, keys in _STAGE_OPTIONS.items()}
             expected["neb"] = canonical_neb_parameters(expected["neb"])
+            if stage not in {"all", "relax", "neb"}:
+                neb_summary_path = output / "neb_summary.json"
+                if neb_summary_path.is_file():
+                    recorded_neb = json.loads(neb_summary_path.read_text(encoding="utf-8"))
+                    recorded_parameters = recorded_neb.get("parameters") or {}
+                    for key in ("path_refinement", "path_seed_maximum_frame_index"):
+                        if key in recorded_parameters:
+                            expected["neb"][key] = recorded_parameters[key]
+                    expected["neb"] = canonical_neb_parameters(expected["neb"])
             expected["ts"] = canonical_ts_parameters(expected["ts"])
             if stage in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
                 expected["ts"] = None
@@ -1284,7 +1490,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             if cached is not None:
                 requested_inputs = (
                     [start, end] if current == "relax"
-                    else [ts_guess] if current == "neb"
+                    else [path_seed or ts_guess] if current == "neb"
                     else [ts_geometry or ts_guess] if current == "ts" and stage != "all"
                     else [ts_geometry] if current == "frequency"
                     else []
@@ -1343,8 +1549,14 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
 
 def run_neb(start=None, end=None, ts_guess=None, **kwargs):
     """Isolate backend artifacts in output and restore cwd even on failure."""
+    stage = kwargs.get("stage", "all")
+    path_seed = kwargs.get("path_seed")
+    if stage in {"all", "neb"} and (ts_guess is None) == (path_seed is None):
+        raise ValueError("The NEB stage requires exactly one of ts_guess or path_seed")
     output = Path(kwargs.pop("output", "neb_run")).resolve()
     paths = [Path(path).resolve() if path is not None else None for path in (start, end, ts_guess)]
+    if kwargs.get("path_seed") is not None:
+        kwargs["path_seed"] = Path(kwargs["path_seed"]).resolve()
     if kwargs.get("ts_geometry") is not None:
         kwargs["ts_geometry"] = Path(kwargs["ts_geometry"]).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -1366,6 +1578,11 @@ def _build_parser():
     parser.add_argument("--start", help="Reactant XYZ for all/relax")
     parser.add_argument("--end", help="Product XYZ for all/relax")
     parser.add_argument("--ts-guess", help="NEB waypoint for all/neb, or explicit guess for ts")
+    parser.add_argument("--path-seed", help="Multi-frame XYZ seed for NEB/all initialization")
+    parser.add_argument("--path-refinement", choices=("none", "idpp", "geodesic"),
+                        help="Whole-path refinement used with --path-seed")
+    parser.add_argument("--path-seed-maximum-frame-index", type=int,
+                        help="Optional constrained-scan maximum frame index for seed provenance")
     parser.add_argument("--ts-geometry", help="Explicit geometry for ts or frequency")
     parser.add_argument("--software", required=True, help="PyAR energy-gradient backend")
     parser.add_argument(

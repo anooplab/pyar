@@ -18,6 +18,7 @@ from pyar.neb import (
     canonical_ts_parameters,
     _relax_endpoint,
     build_neb_images,
+    build_neb_images_from_path_seed,
     read_xyz,
     _build_parser,
     _frequency,
@@ -148,6 +149,84 @@ def _write_xyz(path, symbols, coordinates):
             for symbol, (x, y, z) in zip(symbols, coordinates)
         )
     )
+
+
+def test_path_seed_alignment_resampling_and_rigid_transform_invariance(tmp_path):
+    symbols = ["H", "H", "H"]
+    start = np.asarray([[0., 0., 0.], [0.74, 0., 0.], [0., 0.74, 0.]])
+    frame1 = start + np.asarray([[0., 0., 0.], [0., 0., 0.04], [0.02, 0., 0.]])
+    frame2 = start + np.asarray([[0., 0., 0.], [0., 0., 0.08], [0.04, 0., 0.]])
+    end = frame2.copy()
+    endpoints = [tmp_path / "start.xyz", tmp_path / "end.xyz"]
+    _write_xyz(endpoints[0], symbols, start)
+    _write_xyz(endpoints[1], symbols, end)
+
+    def write_seed(path, frames):
+        path.write_text("".join(
+            f"3\nframe={index}\n" + "".join(
+                f"{symbol} {x:.12f} {y:.12f} {z:.12f}\n"
+                for symbol, (x, y, z) in zip(symbols, coordinates)
+            ) for index, coordinates in enumerate(frames)
+        ))
+
+    seed = tmp_path / "seed.xyz"
+    write_seed(seed, [start, frame1, frame1.copy(), frame2, end])
+    returned_symbols, images, metadata = build_neb_images_from_path_seed(
+        *endpoints, seed, 5, path_seed_maximum_frame_index=3,
+    )
+    assert returned_symbols == symbols
+    assert len(images) == 5
+    np.testing.assert_array_equal(images[0], start)
+    # The endpoint's rigid body frame is normalized to the aligned path while
+    # its exact internal geometry is retained.
+    aligned1 = _align_rigid_frame(frame1, start)
+    aligned2 = _align_rigid_frame(frame1.copy(), aligned1)
+    aligned3 = _align_rigid_frame(frame2, aligned2)
+    aligned4 = _align_rigid_frame(end, aligned3)
+    np.testing.assert_allclose(images[-1], _align_rigid_frame(end, aligned4), atol=1e-12)
+    assert metadata["initialization_source"] == "path_seed"
+    assert metadata["path_seed_frame_count"] == 5
+    assert metadata["resampled_image_count"] == 5
+    assert metadata["path_seed_maximum_frame_index"] == 3
+    assert metadata["path_seed_sha256"]
+    _, refined_images, refined_metadata = build_neb_images_from_path_seed(
+        *endpoints, seed, 5, path_refinement="idpp",
+    )
+    np.testing.assert_array_equal(refined_images[0], start)
+    np.testing.assert_allclose(refined_images[-1], images[-1], atol=1e-12)
+    assert refined_metadata["path_refinement"] == "idpp"
+
+    rotation = np.asarray([[0., -1., 0.], [1., 0., 0.], [0., 0., 1.]])
+    translation = np.asarray([4., -2., 1.])
+    transformed = tmp_path / "seed_rigid.xyz"
+    write_seed(transformed, [frame @ rotation.T + translation
+                             for frame in [start, frame1, frame1.copy(), frame2, end]])
+    _, transformed_images, _ = build_neb_images_from_path_seed(*endpoints, transformed, 5)
+    for original, aligned in zip(images, transformed_images):
+        np.testing.assert_allclose(aligned, original, atol=1e-10)
+
+
+def test_path_seed_rejects_incomplete_atom_mapping_and_large_endpoint_gap(tmp_path):
+    symbols = ["H", "H"]
+    start = np.asarray([[0., 0., 0.], [0.7, 0., 0.]])
+    end = np.asarray([[0., 0., 0.], [1.54, 0., 0.]])
+    start_path, end_path, seed = [tmp_path / name for name in ("start.xyz", "end.xyz", "seed.xyz")]
+    _write_xyz(start_path, symbols, start)
+    _write_xyz(end_path, symbols, end)
+    seed.write_text("2\nfirst\nH 0 0 0\nH 0.7 0 0\n2\nsecond\nH 0 0 0\nH 0.8 0 0\n")
+    with pytest.raises(ValueError, match="at least three complete frames"):
+        build_neb_images_from_path_seed(start_path, end_path, seed, 5)
+
+    seed.write_text("".join(
+        f"2\nframe={index}\nH 0 0 0\nH {distance} 0 0\n"
+        for index, distance in enumerate((0.7, 1.5, 1.51, 1.52, 1.53, 1.54))
+    ))
+    with pytest.raises(ValueError, match="endpoint discontinuity"):
+        build_neb_images_from_path_seed(start_path, end_path, seed, 5)
+
+    seed.write_text("2\nfirst\nH 0 0 0\nH 0.7 0 0\n2\nwrong order\nH 0 0 0\nC 0 0 1\n")
+    with pytest.raises(ValueError, match="symbols or order"):
+        build_neb_images_from_path_seed(start_path, end_path, seed, 5)
 
 
 def test_idpp_initialization_preserves_waypoints_and_regularizes_fixture(tmp_path):
@@ -1040,6 +1119,50 @@ def test_complete_workflow_includes_final_endpoint_optimization_and_frequencies(
     assert result["reactant_product_connection_confirmed"]
     assert result["endpoints"]["endpoints_are_minima"]
     assert json.loads((tmp_path / "workflow_summary.json").read_text())["status"] == "complete"
+
+
+def test_path_seed_stage_records_provenance_and_seed_hash_invalidates_neb(
+    tmp_path, fake_path_backend,
+):
+    start, waypoint, end = [read_xyz(DATA / name)[1] for name in ("hcn.xyz", "guess.xyz", "hnc.xyz")]
+    seed = tmp_path / "scan_trajectory.xyz"
+    symbols = ["H", "C", "N"]
+    _write_xyz(seed, symbols, start)
+    with seed.open("a") as stream:
+        for index, coordinates in enumerate((waypoint, end), start=1):
+            stream.write(f"3\nframe={index}\n")
+            for symbol, (x, y, z) in zip(symbols, coordinates):
+                stream.write(f"{symbol} {x:.12f} {y:.12f} {z:.12f}\n")
+
+    run_neb(DATA / "hcn.xyz", DATA / "hnc.xyz", software="xtb", stage="relax", output=tmp_path)
+    first = run_neb(path_seed=seed, software="xtb", stage="neb", output=tmp_path,
+                    path_seed_maximum_frame_index=1)
+    calls, _ = fake_path_backend
+    assert calls.count("neb") == 1
+    assert first["initialization_source"] == "path_seed"
+    assert first["path_seed_frame_count"] == 3
+    assert first["path_seed_maximum_frame_index"] == 1
+    assert (tmp_path / "path_seed_raw.xyz").read_bytes() == seed.read_bytes()
+    assert (tmp_path / "path_seed_resampled.xyz").is_file()
+    assert str(seed.resolve()) in first["inputs"]
+    run_neb(software="xtb", stage="ts", output=tmp_path)
+    assert calls.count("ts") == 1
+    run_neb(software="xtb", stage="ts", output=tmp_path, reuse=True)
+    assert calls.count("ts") == 1
+
+    seed.write_text(seed.read_text().replace("frame=1", "frame=changed"))
+    run_neb(path_seed=seed, software="xtb", stage="neb", output=tmp_path, reuse=True,
+            path_seed_maximum_frame_index=1)
+    assert calls.count("neb") == 2
+    run_neb(software="xtb", stage="ts", output=tmp_path, reuse=True)
+    assert calls.count("ts") == 2
+
+
+def test_neb_requires_exactly_one_initializer_before_creating_output(tmp_path):
+    output = tmp_path / "invalid"
+    with pytest.raises(ValueError, match="exactly one"):
+        run_neb(software="xtb", output=output)
+    assert not output.exists()
 
 
 @pytest.mark.parametrize("failure", ["irc_forward", "same_endpoint", "irc_backward_relaxed", "frequency_irc_forward_relaxed"])
