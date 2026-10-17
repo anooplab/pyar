@@ -355,6 +355,10 @@ class PyarGeometricCalculator(Calculator):
             self._restart_checkpoint = None
 
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
+        budget_path = self.qc_params.get("microsolvation_evaluation_budget_path")
+        if budget_path:
+            from pyar.evaluation_budget import reserve_backend_evaluation
+            reserve_backend_evaluation(budget_path)
         self.backend_energy_gradient_evaluations += 1
         backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
         self._last_backend_result = backend_result

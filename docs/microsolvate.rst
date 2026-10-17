@@ -134,6 +134,26 @@ This objective is intended for finite-cluster minima, not uniform shell
 coverage or bulk hydration. It does not add an optimization wall or a physical
 restraint.
 
+Whole-cluster basin exploration is available as a separate opt-in v2 stage::
+
+   pyar microsolvate methane.xyz water.xyz --count 4 --objective cluster \
+     --placement-score energy --backend xtb --geometry-optimizer geometric \
+     --resampling-moves 40 --resampling-evaluation-budget 2000 \
+     --resampling-time-limit 7200 --resampling-seed 17
+
+Moves rigidly translate and rotate one solvent fragment or a small group of
+fragments, and occasionally exchange the local rigid geometries at two solvent
+sites; each proposal then reoptimizes the complete fixed-composition cluster. The
+original solute atom order and solvent-fragment partition are checked before a
+candidate can enter the survivor pool. A van der Waals overlap screen rejects
+severe interfragment clashes before optimization. Proposals, PCG64 state,
+physical backend evaluation reservations, and survivor snapshots are persisted
+under ``resampling/``. The evaluation cap is strict; the time limit is checked
+before each backend energy/gradient call, so one already-running call can finish
+after the deadline. Use a fresh v2 run: MS4 does not change legacy continuation.
+These stochastic trials are bounded basin exploration and do not establish
+global-minimum recovery.
+
 Both new options are opt-in and fingerprinted into fresh run requests. Existing
 default request serialization remains unchanged for v1/v2 continuation.
 Coverage is recorded at each solvent count. A finite gas-phase cluster is not

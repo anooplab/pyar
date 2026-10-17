@@ -35,6 +35,10 @@ class MicrosolvationRequest:
     wall: str = "none"
     wall_radius: float | None = None
     wall_force_constant: float | None = None
+    resampling_moves: int = 0
+    resampling_evaluation_budget: int = 0
+    resampling_time_limit: float = 0.0
+    resampling_seed: int = 0
 
     def __post_init__(self):
         for label, value in (
@@ -114,6 +118,22 @@ class MicrosolvationRequest:
                 )
         if self.objective == "cluster" and self.placement_score != "energy":
             raise MicrosolvationRequestError("cluster objective requires --placement-score energy")
+        if (isinstance(self.resampling_moves, bool) or not isinstance(self.resampling_moves, int)
+                or self.resampling_moves < 0):
+            raise MicrosolvationRequestError("resampling moves must be a non-negative integer")
+        if self.resampling_moves:
+            if self.objective != "cluster":
+                raise MicrosolvationRequestError("whole-cluster resampling requires --objective cluster")
+            if not self.backend_parameters.get("software") or self.backend_parameters.get("geometry_optimizer") != "geometric":
+                raise MicrosolvationRequestError("whole-cluster resampling requires an energy-gradient backend and geometric optimizer")
+            if (isinstance(self.resampling_evaluation_budget, bool)
+                    or not isinstance(self.resampling_evaluation_budget, int) or self.resampling_evaluation_budget < 1
+                    or isinstance(self.resampling_time_limit, bool)
+                    or not np.isfinite(float(self.resampling_time_limit)) or self.resampling_time_limit <= 0
+                    or isinstance(self.resampling_seed, bool) or not isinstance(self.resampling_seed, int)):
+                raise MicrosolvationRequestError("resampling requires positive evaluation/time budgets and an integer seed")
+        elif (self.resampling_evaluation_budget or self.resampling_time_limit or self.resampling_seed != 0):
+            raise MicrosolvationRequestError("resampling budgets require --resampling-moves")
         if self.site is not None:
             site = tuple(int(index) for index in self.site)
             if not site or len(set(site)) != len(site):
@@ -245,6 +265,13 @@ class MicrosolvationRequest:
                            for name, indices in self.site_groups],
                 "distance_angstrom": float(self.contact_distance),
                 "shell_assignment": "direct-solute-contact; then solvent-contact-to-first-shell-v1",
+            }
+        if self.resampling_moves:
+            result["resampling_policy"] = {
+                "name": "whole-cluster-perturbation-v1", "moves": int(self.resampling_moves),
+                "evaluation_budget": int(self.resampling_evaluation_budget),
+                "time_limit_seconds": float(self.resampling_time_limit), "seed": int(self.resampling_seed),
+                "rng": "numpy-PCG64", "collision_scale": 0.85,
             }
         if self.wall != "none":
             if self.wall == "outer-sphere":

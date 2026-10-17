@@ -81,7 +81,12 @@ class MicrosolvationRunStateV2:
             if data['request'] != request or identity['scientific_request'] != request:
                 raise MicrosolvationStateError('Microsolvation request differs from saved state')
             state = cls(directory, data)
+            resampled_current = data.get('current_seeds')
+            if data.get('resampling') is not None and data.get('completed_steps'):
+                growth_current = state.selection(len(data['completed_steps']))['selected']
+                data['current_seeds'] = growth_current
             state.validate_progress()
+            data['current_seeds'] = resampled_current
             state.verify_refs(identity['inputs'])
             state.verify_refs(data['initial_seeds'])
             if len(data['initial_seeds']) != 1 or data['initial_seeds'][0]['sha256'] != identity['inputs'][0]['sha256']:
@@ -107,25 +112,55 @@ class MicrosolvationRunStateV2:
             if (data['solute_atom_indices'] != list(range(len(request['solute']['atoms'])))
                     or (expected and data['solvent_fragments'] != expected[0]['solvent_fragments'])):
                 raise MicrosolvationStateError('Original solute/solvent identity differs from committed pool')
-            if data['current_seeds'] != expected:
+            resampling = data.get('resampling')
+            if resampling is None and data['current_seeds'] != expected:
                 raise MicrosolvationStateError('Current pool differs from immutable selection')
+            if resampling is not None:
+                if 'resampling_policy' not in request:
+                    raise MicrosolvationStateError('Unexpected MS4 state for a request without resampling')
+                if resampling.get('schema_version') != 1 or resampling.get('current_references') != data['current_seeds']:
+                    raise MicrosolvationStateError('Invalid resampling current-pool references')
+                state.verify_refs(data['current_seeds'])
+                attempts = resampling.get('attempts')
+                if not isinstance(attempts, list) or len(attempts) > request.get('resampling_policy', {}).get('moves', 0):
+                    raise MicrosolvationStateError('Invalid resampling attempt inventory')
+                for attempt_index, attempt in enumerate(attempts):
+                    if (attempt.get('attempt') != attempt_index
+                            or attempt.get('status') not in {'running', 'interrupted', 'rejected_clash',
+                                                              'rejected_identity', 'completed',
+                                                              'backend_failure', 'budget_exhausted'}):
+                        raise MicrosolvationStateError('Invalid resampling attempt sequence/status')
+                    if attempt.get('proposal') is not None:
+                        state.verify_refs([attempt['proposal']])
+                    if attempt.get('optimized_candidate') is not None:
+                        state.verify_refs([attempt['optimized_candidate']])
+                    result_path = state.layout.path(
+                        f"resampling/attempts/attempt_{attempt['attempt']:05d}/result.json")
+                    if result_path.exists() and read_json(result_path).get('status') != attempt.get('status'):
+                        raise MicrosolvationStateError('Resampling attempt result differs from saved state')
             if data['coverage_history'] != [item['coverage'] for item in steps]:
                 raise MicrosolvationStateError('Coverage history differs from committed steps')
             if data.get('surface_sha256') is not None:
                 if sha256_file(state.layout.path('surface/initial_surface.json')) != data['surface_sha256']:
                     raise MicrosolvationStateError('Original solute surface was modified')
             if data['status'] == 'completed':
-                if len(steps) != request['count'] or len(data['final_seeds']) != len(data['current_seeds']):
+                if len(steps) != request['count']:
                     raise MicrosolvationStateError('Completed microsolvation results are incomplete')
-                state.verify_refs(data['final_seeds'])
-                for index, (ref, source) in enumerate(zip(data['final_seeds'], data['current_seeds'])):
-                    if (ref['sha256'] != source['sha256'] or ref['source_artifact_id'] != source['artifact_id']
-                            or ref['path'] != f'results/structure_{index:03d}.xyz'
-                            or ref['role'] != 'final-cluster' or type(ref['rank']) is not int or ref['rank'] != index
-                            or any(ref[key] != source[key] for key in
-                                   ('energy', 'energy_record', 'coverage', 'solute_atom_indices', 'solvent_fragments'))
-                            or ref['source_record_id'] != state.selection(len(steps))['record_id']):
-                        raise MicrosolvationStateError('Final result differs from committed survivor')
+                if not data['final_seeds'] and 'resampling_policy' not in request:
+                    raise MicrosolvationStateError('Completed microsolvation results are incomplete')
+                if data['final_seeds']:
+                    if len(data['final_seeds']) != len(data['current_seeds']):
+                        raise MicrosolvationStateError('Completed microsolvation results are incomplete')
+                    state.verify_refs(data['final_seeds'])
+                    for index, (ref, source) in enumerate(zip(data['final_seeds'], data['current_seeds'])):
+                        if (ref['sha256'] != source['sha256'] or ref['source_artifact_id'] != source['artifact_id']
+                                or ref['path'] != f'results/structure_{index:03d}.xyz'
+                                or ref['role'] != 'final-cluster' or type(ref['rank']) is not int or ref['rank'] != index
+                                or any(ref[key] != source[key] for key in
+                                       ('energy', 'energy_record', 'coverage', 'solute_atom_indices', 'solvent_fragments'))
+                                or ref['source_record_id'] != (data.get('resampling', {}).get('record_id')
+                                                               or state.selection(len(steps))['record_id'])):
+                            raise MicrosolvationStateError('Final result differs from committed survivor')
             return state
         except (OSError, ValueError, KeyError, TypeError) as exc:
             raise MicrosolvationStateError(f'Invalid v2 microsolvation state: {exc}') from exc
@@ -215,7 +250,8 @@ class MicrosolvationRunStateV2:
                 ref = dict(source, **ArtifactRef.capture(self.directory,
                            target.relative_to(self.directory).as_posix(), 'final-cluster').to_dict(),
                            source_artifact_id=source['artifact_id'],
-                           source_record_id=self.selection(len(self.data['completed_steps']))['record_id'], rank=index)
+                           source_record_id=(self.data.get('resampling', {}).get('record_id')
+                                             or self.selection(len(self.data['completed_steps']))['record_id']), rank=index)
                 refs.append(ref)
             self.data['final_seeds'] = refs
         self.data['status'] = 'completed'
