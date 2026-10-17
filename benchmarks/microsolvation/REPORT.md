@@ -84,3 +84,35 @@ rescoring does not erase those constraints. The external candidate pools are
 too small for method ranking, RMSD-diversity claims, or statistical uncertainty
 estimates, and no bulk thermodynamics are inferred. MS0 changes no production
 defaults or ranking. MS1 requires separate scientific approval.
+
+## MS1 opt-in policy pilot (2026-10-17)
+
+A follow-up implementation pilot exercised `--objective shell` against
+`--objective cluster --placement-score energy` on the same methane + 4 water
+composition with xTB GFN2. Both used one seed, 8 orientations, 32 sampled
+surface points per atom, and one thread. The cluster policy used four solute
+surface proposals plus four solvent-centred proposals after the first water;
+its single-point energy prescreen retained the four lowest-energy candidates
+for full optimization. Shell mode optimized all eight generated candidates.
+The reported final energies below are fresh common-vacuum xTB GFN2 single
+points on the selected final XYZ files.
+
+| Objective | Final energy (Eh) | Solute-surface coverage | C–O range (Å) | Water O–O contacts < 3.5 Å | Per-step generated / prescreened / optimized |
+|---|---:|---:|---:|---:|---:|
+| shell (legacy ranking) | -24.503842105476 | 0.209 | 3.43–3.97 | 4 | 8 / 0 / 8 |
+| cluster (energy-guided) | -24.503210864499 | 0.136 | 3.46–4.76 | 4 | 8 / 8 / 4 |
+
+The cluster result is 0.000631 Eh (0.40 kcal/mol) above this shell result,
+inside the configured 0.005 Eh (3.14 kcal/mol) cluster survivor frontier.
+Both final structures have a compact water–water contact network; neither is a
+uniform shell. No geometry optimization failed in these pilot runs. Cluster
+mode also retained a deliberately non-shell structure in a mocked v2 restart
+test, with its shell status reported and the filter explicitly disabled.
+
+This is a one-seed, four-water pilot. It shows the new route can explore
+solvent-centred proposals and retain a near-shell-quality candidate with fewer
+full optimizations, while adding one single-point energy/gradient evaluation
+for each generated candidate. Because total backend work is not an equal-cost
+comparison and the sample is small, it does not show that cluster mode is more
+efficient, generally lower in energy, or more accurate. It does not justify a
+default change; both new options remain explicit and opt-in.

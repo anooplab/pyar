@@ -16,7 +16,7 @@ class MicrosolvationRequestError(ValueError):
 
 @dataclass(frozen=True)
 class MicrosolvationRequest:
-    """Resolved settings for a finite solvent shell around one fixed solute."""
+    """Resolved settings for explicit shell or finite-cluster sampling."""
 
     solute: Any
     solvent: Any
@@ -28,6 +28,8 @@ class MicrosolvationRequest:
     surface_points_per_atom: int = 96
     probe_radius: float = 1.4
     shell_tolerance: float = 3.5
+    objective: str = "shell"
+    placement_score: str = "geometric"
 
     def __post_init__(self):
         for label, value in (
@@ -56,6 +58,22 @@ class MicrosolvationRequest:
             raise MicrosolvationRequestError("probe radius must be finite and non-negative")
         if not np.isfinite(float(self.shell_tolerance)) or self.shell_tolerance <= 0:
             raise MicrosolvationRequestError("shell tolerance must be finite and positive")
+        object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
+        if self.objective not in {"shell", "cluster"}:
+            raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
+        if self.placement_score not in {"geometric", "energy"}:
+            raise MicrosolvationRequestError("placement score must be 'geometric' or 'energy'")
+        if self.placement_score == "energy" and not self.backend_parameters.get("software"):
+            raise MicrosolvationRequestError("energy placement scoring requires --backend")
+        if self.placement_score == "energy":
+            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
+            backend = normalize_backend_name(self.backend_parameters["software"])
+            if not backend_supports_geometry_optimization(backend):
+                raise MicrosolvationRequestError(
+                    f"energy placement scoring requires a registered energy-gradient provider; {backend!r} has none"
+                )
+        if self.objective == "cluster" and self.placement_score != "energy":
+            raise MicrosolvationRequestError("cluster objective requires --placement-score energy")
         if self.site is not None:
             site = tuple(int(index) for index in self.site)
             if not site or len(set(site)) != len(site):
@@ -66,7 +84,6 @@ class MicrosolvationRequest:
                         f"Solute site index {index} is out of range (valid range: 0..{len(self.solute) - 1})"
                     )
             object.__setattr__(self, "site", site)
-        object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
         from pyar.molecule_merge import combine_multiplicity
         electrons = sum(self.solute.atomic_number)
         charge = int(self.solute.charge)
@@ -96,7 +113,7 @@ class MicrosolvationRequest:
                 multiplicity = combine_multiplicity(multiplicity, int(self.solvent.multiplicity))
 
     def to_state_dict(self):
-        return {
+        result = {
             "solute": _molecule_signature(self.solute),
             "solvent": _molecule_signature(self.solvent),
             "count": self.count,
@@ -119,3 +136,21 @@ class MicrosolvationRequest:
             },
             "confinement": {"mode": "placement-and-post-optimization-shell-filter"},
         }
+        # Keep the historical default request byte-for-byte compatible so
+        # existing v1/v2 runs retain their established continuation owner.
+        if self.objective != "shell" or self.placement_score != "geometric":
+            result["selection_policy"] = {
+                "name": "objective-aware-v1",
+                "objective": self.objective,
+                "placement_score": self.placement_score,
+                "energy_unit": "hartree",
+                "cluster_energy_frontier_hartree": 0.005 if self.objective == "cluster" else None,
+                "prescreen_pool_multiplier": 4,
+            }
+            result["placement_policy"] = {
+                "name": "solvent-cluster-growth-v1" if self.objective == "cluster" else "solute-surface-v1",
+            }
+            if self.objective == "cluster":
+                result["shell_policy"] = "reported-not-filtered-cluster-growth-v1"
+                result["confinement"] = {"mode": "none; finite-cluster objective"}
+        return result

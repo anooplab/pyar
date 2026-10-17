@@ -166,7 +166,9 @@ class MicrosolvationRunStateV2:
             raise MicrosolvationStateError('Invalid microsolvation selection')
         for ref in record['selected']:
             if (ref['solute_atom_indices'] != list(range(len(self.data['request']['solute']['atoms'])))
-                    or len(ref['solvent_fragments']) != step or not ref['coverage']['shell_valid']):
+                    or len(ref['solvent_fragments']) != step
+                    or (self.data['request'].get('selection_policy', {}).get('objective', 'shell') == 'shell'
+                        and not ref['coverage']['shell_valid'])):
                 raise MicrosolvationStateError('Invalid original-solute shell survivor metadata')
         self.verify_refs(record['selected'])
         return record
@@ -185,7 +187,8 @@ class MicrosolvationRunStateV2:
             run_id=self.data['run_id'], step=step, status='completed', stage='microsolvation-selection',
             scientific_request=self.data['request'], physical_method=self.data['request']['backend_parameters'],
             scientific_settings=self.data['request'], surface_sha256=self.data['surface_sha256'],
-            validation=dict(shell_filtered=True, survivor_budget=True), selected=refs, step_record=step_record,
+            validation=dict(shell_filtered=self.data['request'].get('selection_policy', {}).get(
+                'objective', 'shell') == 'shell', survivor_budget=True), selected=refs, step_record=step_record,
             upstream_sha256=sha256_file(self.selection_path(step - 1)) if step > 1 else None), overwrite=False)
         self.accept_step(step)
 

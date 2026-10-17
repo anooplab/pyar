@@ -1,18 +1,21 @@
 Microsolvate
 ============
 
-``microsolvate`` builds an explicit solvent-shell ensemble around one fixed
-solute. During construction, placement targets are sampled from the accessible
-surface of the original solute. Previously added solvent molecules block
-occupied regions and participate in clash checks and backend energy
-calculations, but they do not become new first-shell target surfaces.
+``microsolvate`` builds explicit solvent ensembles around one fixed solute.
+Its default ``shell`` objective samples targets from the accessible surface of
+the original solute. The opt-in ``cluster`` objective also proposes new
+molecules around already placed solvent, allowing finite water networks to
+grow beyond a uniform solute shell. In both modes the full current cluster is
+used for clash checks and backend calculations.
 
 This is different from generic ``grow``:
 
 * ``grow`` places each addend against the complete current structure; adding
   water to existing water can therefore be a legitimate generic growth step.
-* ``microsolvate`` keeps targeting the original solute surface while building
-  the first shell, reducing one-sided solvent-island growth.
+* ``microsolvate --objective shell`` keeps targeting the original solute
+  surface while building the first shell, reducing solvent-island growth.
+* ``microsolvate --objective cluster`` mixes surface and solvent-centred
+  proposals, then selects by fixed-composition backend energy.
 
 For example:
 
@@ -26,7 +29,7 @@ For example:
 restricts targets to accessible surface samples associated with those atoms.
 Without it, the entire discretized solute surface is eligible.
 
-The surface is generated deterministically using Fibonacci points on
+The shell surface is generated deterministically using Fibonacci points on
 atom-centred van der Waals spheres expanded by a spherical probe (1.4 Å by
 default). This is a sampled placement surface, not an exact analytical SASA.
 Placement checks clashes against the full current cluster. After backend
@@ -34,12 +37,38 @@ optimization, a shell-validity post-filter rejects solvent centres that have
 moved too far from the targeted surface. PyAR does not claim to apply an
 optimization wall or permanent site tether.
 
-Geometry-only mode generates and selects bounded, unoptimized candidates. It
-does not assign artificial energies. Backend mode uses energies only after
-shell-validity filtering; coverage and structural diversity remain part of
-survivor selection. Coverage is recorded at each solvent count. A finite
-gas-phase cluster is not by itself a bulk-solution model, and no implicit
-continuum model is inferred from the solvent XYZ.
+The default ``--objective shell --placement-score geometric`` preserves the
+coverage-first behavior. Geometry-only mode generates bounded, unoptimized
+candidates and does not assign artificial energies. With a backend, candidates
+are optimized and shell-invalid structures are rejected before survivor
+selection.
+
+The explicit ``--placement-score energy`` option requires a backend with a
+registered energy-gradient provider. It computes a full-system single-point
+energy for each generated candidate at the current solvent count, retains a
+bounded union of low-energy and high-coverage candidates, and optimizes those
+survivors. Energies are only compared within one fixed composition and one
+backend/electronic-state setup. The prescreen values and survivor decisions are
+saved in each step's ``energy_prescreen.json``. Final ranking uses the
+post-optimization energy for energy-aware selection.
+
+``--objective cluster --placement-score energy --backend xtb`` explicitly
+searches finite clusters rather than requiring every solvent molecule to stay
+in the original solute's first shell. The first solvent is placed on the
+solute surface; later placements can grow around existing solvent molecules.
+After optimization, the shell post-filter is disabled, coverage remains a
+reported diagnostic, and candidates are ranked by unbiased full-system energy
+with a 0.005 Hartree survivor frontier and structural diversity. Geometry-only
+cluster ranking is rejected because it cannot identify low-energy clusters.
+This objective is intended for finite-cluster minima, not uniform shell
+coverage or bulk hydration. It does not add an optimization wall or a physical
+restraint.
+
+Both new options are opt-in and fingerprinted into fresh run requests. Existing
+default request serialization remains unchanged for v1/v2 continuation.
+Coverage is recorded at each solvent count. A finite gas-phase cluster is not
+by itself a bulk-solution model, and no implicit continuum model is inferred
+from the solvent XYZ.
 
 This workflow is motivated by solute-centred accessible-surface and
 first-shell sampling concepts used in methods such as systematic microsolvation,
