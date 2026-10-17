@@ -363,5 +363,5 @@ def optimization_recovery_capabilities(software, optimizer='native'):
     of compatible electronic state. Native incomplete frames are not certified.
     """
     if normalize_backend_name(software) == 'xtb' and optimizer == 'geometric':
-        return frozenset({'accepted_cycle_continuation'})
+        return frozenset({'accepted_cycle_continuation', 'guided_trust_hessian_restart'})
     return frozenset()

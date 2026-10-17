@@ -21,6 +21,7 @@ class Outcome(str, Enum):
 
 class FailureCode(str, Enum):
     OPT_MAX_STEPS = 'OPT_MAX_STEPS'
+    OPT_STAGNATED = 'OPT_STAGNATED'
     CALC_SCF_MAX_STEPS = 'CALC_SCF_MAX_STEPS'
     CALC_INVALID_GRADIENT = 'CALC_INVALID_GRADIENT'
     CONSTRAINT_VIOLATION = 'CONSTRAINT_VIOLATION'
@@ -128,7 +129,8 @@ class OptimizationRequest:
         # Only execution budgets/parallelism vary independently of requested science.
         # Requested tolerances and unknown options stay in the scientific identity.
         if scientific:
-            for key in ('nprocs', 'opt_cycles', 'scf_cycles', '_ore_evaluation_limit', '_ore_safe'):
+            for key in ('nprocs', 'opt_cycles', 'scf_cycles', '_ore_evaluation_limit', '_ore_safe',
+                        '_ore_initial_trust', '_ore_recovery_action'):
                 values.pop(key, None)
         # Known file-backed models/wrappers use content identity, not host paths.
         for key in ('model', 'gxtb_wrapper'):
@@ -234,6 +236,7 @@ class StepObservation:
     gradient_max_hartree_per_bohr: float | None = None
     accepted: bool | None = None
     gradient_norm_hartree_per_bohr: float | None = None
+    trust_radius_bohr: float | None = None
 
     def __post_init__(self):
         if type(self.index) is not int or self.index < 0:
@@ -243,9 +246,9 @@ class StepObservation:
         if not math.isfinite(self.effective_energy_hartree):
             raise ValueError('Step energy must be finite')
         for value in (self.gradient_rms_hartree_per_bohr, self.gradient_max_hartree_per_bohr,
-                      self.gradient_norm_hartree_per_bohr):
+                      self.gradient_norm_hartree_per_bohr, self.trust_radius_bohr):
             if value is not None and (not math.isfinite(value) or value < 0):
-                raise ValueError('Gradient residuals must be finite and nonnegative')
+                raise ValueError('Gradient residuals and trust radius must be finite and nonnegative')
 
 
 @dataclass(frozen=True)

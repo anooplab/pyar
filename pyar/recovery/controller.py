@@ -21,7 +21,7 @@ from pyar.optimization_service import inspect_optimization
 from .models import (ExecutionObservation, FailureCode, FailureDiagnostic, OptimizationRequest,
                      OptimizationAttempt, OptimizationResult, Outcome, ProcessRecord, RecordedExecutionError)
 from .observations import safe_path, snapshot_artifacts
-from .policy import RecoveryPolicy, improving, validate_settings
+from .policy import RecoveryPolicy, flat_pes_evidence, improving, validate_settings
 
 
 @dataclass(frozen=True)
@@ -100,6 +100,9 @@ def _preflight_records(root, original, policy):
                 or intent.get('original_scientific_fingerprint') != original.scientific_fingerprint
                 or current.objective_fingerprint != original.objective_fingerprint):
             raise ValueError('Incompatible attempt intent')
+        if (intent.get('action') == 'trust_hessian_restart'
+                and intent.get('recovery_action_policy_version') != 2):
+            raise ValueError('Unsupported or missing advanced recovery action policy version')
         result = safe_path(directory, 'result.json')
         commit = safe_path(directory, 'commit.json')
         if result.exists():
@@ -204,10 +207,16 @@ def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, r
                 reason = 'duplicate_action_suppressed'
                 break
             signatures.add(signature)
+            action = current.settings.get('_ore_recovery_action',
+                'cycle_extension' if number > 1 else 'initial')
+            rationale = ('Accepted energy and force residual improved' if action == 'cycle_extension'
+                         else 'Rollback one accepted step, rebuild the geomeTRIC Hessian and reduce initial trust radius after a measured plateau'
+                         if action == 'trust_hessian_restart' else 'Original request')
             intent = dict(schema_version=1, number=number, parent=number-1 if number>1 else None,
-                action='cycle_extension' if number>1 else 'initial',
-                rationale='Accepted energy and force residual improved' if number>1 else 'Original request',
+                action=action, rationale=rationale,
                 original_scientific_fingerprint=request.scientific_fingerprint, request=_encode(current))
+            if policy.mode == 'guided':
+                intent['recovery_action_policy_version'] = 2
             intent_path = safe_path(directory, 'input.json')
             if directory.exists():
                 if not resume or read_json(intent_path) != intent:
@@ -278,15 +287,39 @@ def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, r
                 reason = 'evaluation_budget_exhausted' if counter.exists() else 'unverified_evaluation_cost'
                 break
             if (last.status is not Outcome.INCOMPLETE_USABLE or last.accepted_frame is None
-                    or {d.code for d in last.diagnostics} - {FailureCode.OPT_MAX_STEPS}
-                    or not improving(attempt.steps)):
+                    or {d.code for d in last.diagnostics} - {FailureCode.OPT_MAX_STEPS}):
                 reason = 'no_verified_safe_action'
+                break
+            made_progress = improving(attempt.steps)
+            plateau = flat_pes_evidence(attempt.steps, {'loose': 1.7e-3, 'normal': 3e-4,
+                                                        'tight': 1e-5}[current.settings['opt_threshold']])
+            if not made_progress and not (policy.mode == 'guided' and plateau):
+                reason = 'no_verified_safe_action'
+                if plateau:
+                    last = replace(last, diagnostics=last.diagnostics + (FailureDiagnostic(
+                        FailureCode.OPT_STAGNATED, 'optimizer',
+                        'Accepted energies and gradient residuals show a flat-PES plateau; requested threshold remains unmet'),))
                 break
             start = last.accepted_frame.coordinates_angstrom
             if start == current.coordinates_angstrom:
                 reason = 'unchanged_accepted_geometry'
                 break
-            settings_next = dict(current.settings, opt_cycles=cycles*2)
+            if made_progress:
+                settings_next = dict(current.settings, opt_cycles=cycles*2)
+                settings_next.pop('_ore_initial_trust', None)
+                settings_next.pop('_ore_recovery_action', None)
+            else:
+                accepted_paths = [ref.path for ref in attempt.artifacts
+                                  if ref.path.startswith('ore_accepted_') and ref.path.endswith('.json')]
+                accepted_frames = [read_json(safe_path(backend, path)) for path in accepted_paths]
+                accepted_frames.sort(key=lambda frame: frame['step'])
+                if len(accepted_frames) < 2:
+                    reason = 'insufficient_accepted_history_for_stabilization'
+                    break
+                start = tuple(tuple(float(x) for x in row)
+                              for row in accepted_frames[-2]['coordinates_angstrom'])
+                settings_next = dict(current.settings, opt_cycles=cycles*2,
+                    _ore_initial_trust=.05, _ore_recovery_action='trust_hessian_restart')
         if not last.converged:
             last = replace(last, diagnostics=last.diagnostics+(FailureDiagnostic(
                 FailureCode.RECOVERY_STOPPED, 'recovery', reason),))
