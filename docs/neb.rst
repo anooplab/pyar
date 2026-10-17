@@ -4,8 +4,9 @@ geomeTRIC reaction-path validation
 ``pyar-neb`` runs an unbiased reaction-path workflow using a registered PyAR
 energy/gradient backend. Endpoint and NEB optimizations use geomeTRIC; the TS
 stage also uses geomeTRIC by default and can optionally use Sella. Atom count,
-element order, and atom mapping must agree between reactant, product, and TS
-waypoint files. Supply one finite XYZ frame per file.
+element order, and atom mapping must agree between reactant, product, and any
+TS waypoint or path-seed frames. Endpoint and waypoint files contain one finite
+XYZ frame; a path seed is a complete multi-frame XYZ trajectory.
 
 The complete sequence is:
 
@@ -145,6 +146,27 @@ not verify it, and smoothing does not establish a minimum-energy path,
 transition state, converged reaction path, or barrier. The installed package
 version is recorded for provenance. See the
 `geodesic-interpolate project <https://github.com/virtualzx-nad/geodesic-interpolate>`_.
+
+For a scan-derived route, supply the full multi-frame trajectory instead of a
+single waypoint::
+
+   pyar neb hcn.xyz hnc.xyz --path-seed scan_trajectory.xyz --backend xtb \
+     --path-refinement none --output hcn_hnc
+
+The path-seed workflow replaces the constrained scan's first and last frames
+with the independently relaxed endpoint geometries, aligns consecutive frames
+with proper-rotation Kabsch fits using the supplied atom order, removes
+consecutive duplicates, and resamples the resulting mapped Cartesian path by
+arc length to the requested odd image count. Endpoint joins more than five
+times the median scan step are rejected. A rigid-body normalization may rotate
+or translate the final endpoint coordinates, but preserves its exact molecular
+geometry. ``--path-refinement idpp`` refines the whole resampled band with fixed
+endpoints; ``geodesic`` performs IDPP followed by fixed-endpoint geodesic
+smoothing. No scan maximum is pinned during NEB optimization. The raw seed is
+copied to ``path_seed_raw.xyz`` and its hash, frame count, optional constrained
+maximum frame index, refinement mode, and resampled path are recorded in
+``neb_summary.json``. Changing the seed invalidates NEB and its dependent
+stages while leaving validated endpoint relaxation reusable.
 
 TS optimization
 ---------------
