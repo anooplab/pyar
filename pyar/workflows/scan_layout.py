@@ -160,14 +160,90 @@ class ScanLayout:
             "scan_peak_delta_kcal_mol": peak_delta if math.isfinite(peak_delta) else None,
         }
 
-    def _write_immutable_product(self, product_id, record):
+    def _product_record(self, product_id, inchi, members, request):
+        """Derive one immutable membership snapshot from verified sources."""
+        scored = []
+        for index, result, source in members:
+            score = self._trace_selection(index, request, source)
+            scored.append(((-int(score['complete_validated_trace']),
+                            -int(score['usable_internal_scan_maximum']),
+                            (score['scan_peak_delta_kcal_mol'] if score['scan_peak_delta_kcal_mol'] is not None else math.inf),
+                            index), index, result, source, score))
+        _sort_key, representative, _result, _source, representative_score = min(scored)
+        orientation_ids = [item[0] for item in members]
+        target_statuses = sorted({
+            "target" if result.get('target_bond_present_after_relaxation') is True else
+            "off_target" if result.get('target_bond_present_after_relaxation') is False else "unknown"
+            for _index, result, _source in members
+        })
+        target_status = target_statuses[0] if len(target_statuses) == 1 else "mixed"
+        smiles_variants = sorted({item[1].get('relaxed_identity', {}).get('smiles', '')
+                                  for item in members
+                                  if item[1].get('relaxed_identity', {}).get('smiles')})
+        source_records = []
+        for index, _result, source in members:
+            source_records.append({
+                "orientation": index,
+                "scan_commit_record_id": source['scan_commit']['record_id'],
+                "scan_commit_sha256": source['scan_commit_sha256'],
+                "relax_commit_record_id": source['relax_commit']['record_id'],
+                "relax_commit_sha256": source['relax_commit_sha256'],
+                "scan_artifacts": source['scan_artifacts'],
+                "relaxation_artifacts": source['relaxation_artifacts'],
+            })
+        return {
+            "product_schema_version": 1,
+            "run_id": self.run_id,
+            "product_id": product_id,
+            "identity": {"inchi": inchi,
+                         "smiles": smiles_variants[0] if smiles_variants else None,
+                         "smiles_variants": smiles_variants},
+            "orientation_ids": orientation_ids,
+            "representative_orientation": representative,
+            "alternative_orientations": [value for value in orientation_ids if value != representative],
+            "target_status": target_status,
+            "target_status_by_orientation": {
+                str(index): ("target" if result.get('target_bond_present_after_relaxation') is True else
+                             "off_target" if result.get('target_bond_present_after_relaxation') is False else "unknown")
+                for index, result, _source in members
+            },
+            "representative_selection": representative_score,
+            "sources": source_records,
+        }
+
+    def _write_immutable_product(self, product_id, record, *, record_for_members=None):
         path = self.layout.path(f"products/{product_id}/product.json")
-        if path.exists():
-            if read_json(path) != record:
-                raise ValueError(f"Immutable scan product record changed: {product_id}")
-        else:
+        if not path.exists():
+            if (path.parent / 'revisions').exists():
+                raise ValueError(f"Missing initial scan product record: {product_id}")
             write_json(path, record, overwrite=False)
-        return path
+            return path
+        saved = read_json(path)
+        if record_for_members is None:
+            if saved != record:
+                raise ValueError(f"Immutable scan product record changed: {product_id}")
+            return path
+        # A retry may add successful orientations to an existing identity.
+        # Keep every old selection intact and verify it against the immutable
+        # native sources before publishing an additional membership snapshot.
+        from pyar.persistence.json_store import canonical_json_bytes
+        revisions = path.parent / 'revisions'
+        for previous_path in [path, *sorted(revisions.glob('*.json'))]:
+            previous = read_json(previous_path)
+            if previous != record_for_members(previous.get('orientation_ids', [])):
+                raise ValueError(f"Immutable scan product record changed: {product_id}")
+            if previous_path != path and previous_path.stem != sha256_file(previous_path):
+                raise ValueError(f"Immutable scan product revision changed: {product_id}")
+        if saved == record:
+            return path
+        digest = hashlib.sha256(canonical_json_bytes(record)).hexdigest()
+        revision = self.layout.path(f"products/{product_id}/revisions/{digest}.json")
+        if revision.exists():
+            if read_json(revision) != record:
+                raise ValueError(f"Immutable scan product revision changed: {product_id}")
+        else:
+            write_json(revision, record, overwrite=False)
+        return revision
 
     def product_registry(self, results, request):
         """Group successful relaxed scan products and rebuild the v2 registry.
@@ -222,55 +298,21 @@ class ScanLayout:
                 raise ValueError(f"InChI-derived product ID collision: {product_id}")
             seen_ids[product_id] = inchi
             members = sorted(group['members'], key=lambda item: item[0])
-            scored = []
-            for index, result, source in members:
-                score = self._trace_selection(index, request, source)
-                scored.append(((-int(score['complete_validated_trace']),
-                                -int(score['usable_internal_scan_maximum']),
-                                (score['scan_peak_delta_kcal_mol'] if score['scan_peak_delta_kcal_mol'] is not None else math.inf),
-                                index), index, result, source, score))
-            _sort_key, representative, _result, _source, representative_score = min(scored)
-            orientation_ids = [item[0] for item in members]
-            target_statuses = sorted({
-                "target" if result.get('target_bond_present_after_relaxation') is True else
-                "off_target" if result.get('target_bond_present_after_relaxation') is False else "unknown"
-                for _index, result, _source in members
-            })
-            target_status = target_statuses[0] if len(target_statuses) == 1 else "mixed"
-            smiles_variants = sorted({item[1].get('relaxed_identity', {}).get('smiles', '')
-                                      for item in members
-                                      if item[1].get('relaxed_identity', {}).get('smiles')})
-            source_records = []
-            for index, _result, source in members:
-                source_records.append({
-                    "orientation": index,
-                    "scan_commit_record_id": source['scan_commit']['record_id'],
-                    "scan_commit_sha256": source['scan_commit_sha256'],
-                    "relax_commit_record_id": source['relax_commit']['record_id'],
-                    "relax_commit_sha256": source['relax_commit_sha256'],
-                    "scan_artifacts": source['scan_artifacts'],
-                    "relaxation_artifacts": source['relaxation_artifacts'],
-                })
-            product_record = {
-                "product_schema_version": 1,
-                "run_id": self.run_id,
-                "product_id": product_id,
-                "identity": {"inchi": inchi,
-                             "smiles": smiles_variants[0] if smiles_variants else None,
-                             "smiles_variants": smiles_variants},
-                "orientation_ids": orientation_ids,
-                "representative_orientation": representative,
-                "alternative_orientations": [value for value in orientation_ids if value != representative],
-                "target_status": target_status,
-                "target_status_by_orientation": {
-                    str(index): ("target" if result.get('target_bond_present_after_relaxation') is True else
-                                 "off_target" if result.get('target_bond_present_after_relaxation') is False else "unknown")
-                    for index, result, _source in members
-                },
-                "representative_selection": representative_score,
-                "sources": source_records,
-            }
-            product_path = self._write_immutable_product(product_id, product_record)
+            product_record = self._product_record(product_id, inchi, members, request)
+            representative = product_record['representative_orientation']
+            orientation_ids = product_record['orientation_ids']
+            target_status = product_record['target_status']
+            by_orientation = {item[0]: item for item in members}
+
+            def record_for_members(orientation_ids):
+                if (not orientation_ids or orientation_ids != sorted(set(orientation_ids))
+                        or any(index not in by_orientation for index in orientation_ids)):
+                    raise ValueError(f"Immutable scan product record changed: {product_id}")
+                return self._product_record(product_id, inchi,
+                    [by_orientation[index] for index in orientation_ids], request)
+
+            product_path = self._write_immutable_product(
+                product_id, product_record, record_for_members=record_for_members)
             product_entries.append({
                 "product_id": product_id,
                 "identity": product_record['identity'],

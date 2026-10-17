@@ -166,7 +166,8 @@ def classify_association_endpoints(symbols, endpoint_geometries, product_path,
             full_path = Path(directory) / 'endpoint.xyz'
             _write_xyz(symbols, coordinates, full_path)
             whole_identity = molecule_identity_from_xyz(full_path)
-            product_match = (same_molecular_identity(product_identity, whole_identity)
+            product_identity_match = same_molecular_identity(product_identity, whole_identity)
+            product_match = (product_identity_match
                              and _aligned_rmsd(coordinates, product_coordinates) <= tolerance)
             fragment_matches, fragment_rmsds = [], []
             for index, molecule in enumerate(reactants):
@@ -180,9 +181,9 @@ def classify_association_endpoints(symbols, endpoint_geometries, product_path,
             # A stable encounter complex may acquire an interfragment bond
             # under XYZ bond perception. Reactant-side assignment therefore
             # rests on the separately mapped fragment identities and their
-            # internal geometries; the product identity remains an explicit
-            # exclusion above.
-            reactant_match = (all(fragment_matches)
+            # internal geometries. Every conformer of the product is excluded,
+            # even when its geometry falls outside the product RMSD tolerance.
+            reactant_match = (not product_identity_match and all(fragment_matches)
                               and all(value <= tolerance for value in fragment_rmsds))
         if product_match and not same_molecular_identity(product_identity, reactant_identity):
             label = 'product'
@@ -225,7 +226,7 @@ def classify_reactant_relaxation_failure(stage_result, execution_directory, prod
     from pyar.neb import read_xyz
     from pyar.reaction_identity import molecule_identity_from_xyz, same_molecular_identity
     from pyar.xyz_trajectory import parse_xyz_trajectory
-    trajectory = Path(execution_directory) / "relax_reactant_path.xyz"
+    trajectory = Path(execution_directory) / "reactant_path.xyz"
     try:
         frames = parse_xyz_trajectory(trajectory)
         symbols, coordinates = frames[-1][0], frames[-1][1]

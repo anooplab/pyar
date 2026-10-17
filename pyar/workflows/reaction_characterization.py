@@ -399,6 +399,9 @@ def _characterize_reaction(root, request, through, options):
         association = None
         association_status = None
         if reference_mode == "separated-reactants":
+            # The native endpoint gate uses a different reference policy.
+            # Only successful fragment-aware validation can confirm this route.
+            result["reactant_product_connection_confirmed"] = False
             if result.get("failed_stage") == "relax":
                 from pyar.workflows.association_reference import classify_reactant_relaxation_failure
                 association = classify_reactant_relaxation_failure(
@@ -441,9 +444,15 @@ def _characterize_reaction(root, request, through, options):
                                        "error": f"{type(exc).__name__}: {exc}",
                                        "reactant_product_connection_confirmed": False}
                         association_status = "association_endpoint_gate_failed"
+                    result["association_endpoint_validation"] = association
                     association_path = Path(route["directory"]) / "association_endpoint_validation.json"
                     _write_json_atomic(association_path, association)
                 else:
+                    result["association_endpoint_validation"] = {
+                        "status": "association_validation_failed",
+                        "error": "IRC endpoint frequency coordinates are missing",
+                        "reactant_product_connection_confirmed": False,
+                    }
                     association_status = "association_endpoint_gate_failed"
             else:
                 association_status = "pending_validation"

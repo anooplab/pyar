@@ -1,4 +1,5 @@
 import json
+import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -156,7 +157,8 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
         assert run.call_args.kwargs["output"] == run.call_args_list[0].kwargs["output"]
 
 
-def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_path):
+@pytest.mark.parametrize("validation", ["matched", "exception", "missing-coordinates"])
+def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_path, validation):
     import numpy as np
     from pyar.backends import write_xyz
     from pyar.core.molecule import Molecule
@@ -200,7 +202,9 @@ def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_pa
                           'backward_frequency': {'evaluated_coordinates_angstrom': reactant_geometry.tolist()}}
     path_result = {'status': 'complete', 'completed_stages': ['endpoint-frequency'],
                    'execution_directory': str(execution), 'irc': {'irc_converged': True},
-                   'endpoint-frequency': endpoint_frequency}
+                   'endpoint-frequency': endpoint_frequency, 'reactant_product_connection_confirmed': True}
+    if validation == 'missing-coordinates':
+        endpoint_frequency['forward_frequency'].pop('evaluated_coordinates_angstrom')
     reference = {'status': 'complete', 'reference_energy_hartree': -1.25, 'fragments': []}
     options = {'pathway_ts_source': 'highest-backend-energy', 'images': 5,
                'reactant_reference_mode': 'separated-reactants'}
@@ -210,8 +214,19 @@ def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_pa
             patch('pyar.workflows.reaction_characterization.run_path_stages', return_value=path_result) as run, \
             patch('pyar.workflows.association_reference.classify_association_endpoints',
                   return_value={'status': 'matched', 'reactant_product_connection_confirmed': True,
-                                'reactant_product_assignment': [1, 0]}) as classify:
+                                'reactant_product_assignment': [1, 0]},
+                  side_effect=ValueError('Fragment mapping failed') if validation == 'exception' else None) as classify:
         result = characterize_reaction(tmp_path, request, 'all', options)
+    if validation != 'matched':
+        assert result['status'] == 'failed'
+        selected = result['selected_routes'][0]
+        assert selected['association_status'] == 'association_endpoint_gate_failed'
+        assert not selected['reactant_product_connection_confirmed']
+        report = json.loads((reaction / 'pathways/product_001/reaction_characterization.json').read_text())
+        assert not report['connection_confirmed']
+        assert not report['electronic_energetics']['validated']
+        assert report['validated_reaction_path'] is None
+        return
     assert result['status'] == 'complete'
     assert result['reactant_reference']['reference_energy_hartree'] == -1.25
     prepare.assert_called_once()

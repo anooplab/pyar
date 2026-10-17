@@ -194,7 +194,17 @@ def build_reaction_characterization_report(*, route_root, product, provenance,
     association = path_result.get("association_endpoint_validation", {})
     scan_evidence_verified = _verify_scan_evidence(scan_evidence)
     connected = bool(route_result.get("reactant_product_connection_confirmed"))
-    assignment = association.get("reactant_product_assignment") or endpoint_stage.get("endpoint_assignment")
+    if reference_mode == "separated-reactants" or association:
+        # Association validation owns its assignment; never fall back to the
+        # native finite-encounter assignment after a missing or failed check.
+        assignment = association.get("reactant_product_assignment")
+        connected = (connected and route_result.get("status") == "complete"
+                     and association.get("status") == "matched"
+                     and association.get("reactant_product_connection_confirmed") is True
+                     and isinstance(assignment, (list, tuple)) and len(assignment) == 2
+                     and sorted(assignment) == [0, 1])
+    else:
+        assignment = endpoint_stage.get("endpoint_assignment")
     physical = [stage.get("qc_params") for stage in stage_results.values() if stage.get("qc_params")]
     physical_compatible = bool(physical) and all(item == physical[0] for item in physical[1:])
     if reference_mode == "separated-reactants" and reactant_reference:
