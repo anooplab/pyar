@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "purpose": "MS0 comparative benchmark; no production ranking or default changes",
+  "cases": [
+    {"solute": "methane", "solvent": "water", "water_counts": [1, 2, 4, 8]},
+    {"solute": "ammonia", "solvent": "water", "water_counts": [1, 2, 4, 6]},
+    {"solute": "formamide", "solvent": "water", "charge": 0, "multiplicity": 1, "water_counts": [1, 2, 4]},
+    {"solute": "acetate", "solvent": "water", "charge": -1, "multiplicity": 1, "counterion": "absent; isolated finite anion", "water_counts": [1, 2, 4]}
+  ],
+  "primary_comparison_count": 4,
+  "minimum_primary_cluster_atoms": {"methane": 17, "ammonia": 16, "formamide": 18, "acetate": 19},
+  "resource_budget": {"repeats_per_method_and_case": 1, "threads_per_external_process": 1, "walltime_seconds_per_job": 3600},
+  "pyar": {"orientations_per_growth_step": 8, "maximum_seeds": 4, "surface_points_per_atom": 32, "modes": ["geometry-only", "xtb"]},
+  "external": {"threads": 1, "crest_qcg_grow": "-gfn2 -nsolv N -grow -nofix -samerand", "crest_qcg_ensemble": "-gfn2 -nsolv N -ensemble -md -mdlen 0.2 -mddump 100 -nofix -samerand", "crest_post_qcg_conformers": "-gfn2 -T 1 (default iMTD-GC length)", "orca": "GFN2-XTB SOLVATOR; NSOLV N; FIXSOLUTE FALSE; VACUUMSEARCH TRUE"},
+  "common_rescore": {"program": "xtb", "method": "GFN2-xTB", "environment": "vacuum", "task": "single-point", "charge": "case charge", "uhf": "multiplicity minus one"},
+  "comparison_rules": [
+    "Compare energies only among candidates with the same water count.",
+    "Use the lowest common-rescore energy in each candidate pool and report pool size.",
+    "Keep geometry-only and xTB-optimized PyAR candidate pools separate.",
+    "Report method-specific search constraints and failed or unavailable tools.",
+    "Do not interpret these finite-cluster energies as bulk solvation free energies."
+  ]
+}
