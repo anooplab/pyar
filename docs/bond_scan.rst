@@ -38,6 +38,28 @@ PyAR model. Standalone xTB selects its Hamiltonian using ``--xtb-model``:
 ``gfn2`` is the standalone xTB default. Both models use the normal
 ``xtb`` executable; no equivalence with a different implementation is claimed.
 
+Set fragment charges, multiplicities, and SCF types with ``--charge``,
+``--multiplicity``, and ``--scftype`` (one value applies to both fragments or
+provide one value per fragment). The combined A+B spin normally follows PyAR's
+historical multiplicity heuristic. For open-shell fragments this coupling is
+ambiguous, so select the total spin explicitly with ``--total-multiplicity``;
+the value is checked against the allowed angular-momentum couplings, recorded
+in the request and orientation provenance, and carried through free relaxation
+and reaction-path stages:
+
+.. code-block:: bash
+
+   pyar-cli scan-bond radical_a.xyz radical_b.xyz --atoms 0 0 --software orca \
+     --method BP86 --basis def2-SVP --multiplicity 2 --scftype uhf \
+     --total-multiplicity 1 --through all
+
+Omitting ``--total-multiplicity`` preserves the legacy heuristic and emits a
+warning for open-shell fragment coupling. ORCA DFT and built-in xTB gradient
+inputs use method-specific keywords; DFT basis/RI/dispersion/SCF settings are
+not applied to built-in xTB routes. ORCA external g-xTB remains native-scan-only
+because its current wrapper route does not provide PyAR with a supported
+energy/gradient interface for continuation.
+
 ORCA's g-xTB support uses its external-method wrapper rather than a built-in
 method keyword. Supply the executable ``oet_gxtb`` wrapper path with
 ``--gxtb-wrapper`` (the wrapper and g-xTB parameter files must be installed):

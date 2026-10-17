@@ -18,13 +18,76 @@ from pyar.backends.orca_scan import (
 )
 from pyar.backends.orca_methods import orca_external_method_block, orca_method, orca_method_keywords
 from pyar.core.molecule import Molecule
-from pyar.workflows.scan_bond import absolute_target_indices, _run_scan_bond as run_scan_bond, scan_point_count
+from pyar.workflows.scan_bond import (
+    absolute_target_indices, _resolve_total_multiplicity,
+    _run_scan_bond as run_scan_bond, scan_point_count,
+)
 
 
 def test_fragment_local_indices_are_merged_asymmetric():
     fragment_a = Molecule(["C"] * 5, np.zeros((5, 3)))
     assert absolute_target_indices(fragment_a, 3, 1) == (3, 6)
     assert absolute_target_indices(fragment_a, 0, 0) == (0, 5)
+
+
+def test_total_multiplicity_explicit_coupling_validation_and_legacy_warning():
+    doublet_a = Molecule(["H"], np.zeros((1, 3)), multiplicity=2, scftype="uhf")
+    doublet_b = Molecule(["H"], np.ones((1, 3)), multiplicity=2, scftype="uhf")
+    assert _resolve_total_multiplicity(doublet_a, doublet_b, 1) == (1, "user_explicit")
+    assert _resolve_total_multiplicity(doublet_a, doublet_b, 3) == (3, "user_explicit")
+    with pytest.raises(ValueError, match=r"allowed total multiplicities are \[1, 3\]"):
+        _resolve_total_multiplicity(doublet_a, doublet_b, 2)
+    with pytest.warns(RuntimeWarning, match="Open-shell fragment coupling is ambiguous"):
+        value, source = _resolve_total_multiplicity(doublet_a, doublet_b, None)
+    assert value == doublet_a.merged_with(doublet_b).multiplicity
+    assert source == "historical_heuristic"
+
+
+def test_scan_preflight_spin_request_matches_execution_request(tmp_path):
+    from pyar.workflows.scan_bond import scan_request_fields
+
+    a = tmp_path / "a.xyz"
+    b = tmp_path / "b.xyz"
+    write_xyz(["H"], [[0., 0., 0.]], a)
+    write_xyz(["H"], [[1., 0., 0.]], b)
+    fragment_a = Molecule.from_xyz(a)
+    fragment_b = Molecule.from_xyz(b)
+    fragment_a.multiplicity = 2
+    fragment_b.multiplicity = 2
+    preflight = scan_request_fields(
+        a, b, fragment_a, fragment_b, (0, 0), 1,
+        {"software": "orca", "total_multiplicity": None},
+    )
+    execution = scan_request_fields(
+        a, b, fragment_a, fragment_b, (0, 0), 1,
+        {"software": "orca", "total_multiplicity": 1,
+          "total_multiplicity_source": "historical_heuristic"},
+    )
+    assert preflight == execution
+
+
+def test_scan_path_stage_settings_retain_total_spin_and_source(tmp_path, monkeypatch):
+    from pyar.workflows import scan_path
+
+    captured = []
+    def fake_run_neb(**kwargs):
+        captured.append(kwargs)
+        return {"status": "complete"}
+
+    monkeypatch.setattr("pyar.neb.run_neb", fake_run_neb)
+    monkeypatch.setattr("pyar.neb._stage_gate_passed", lambda result, stage: True)
+    result = scan_path.run_path_stages(
+        start=tmp_path / "start.xyz", end=tmp_path / "end.xyz",
+        ts_guess=tmp_path / "guess.xyz", output=tmp_path / "path",
+        qc_params={"software": "xtb", "charge": 0, "multiplicity": 1,
+                   "total_multiplicity_source": "user_explicit"},
+        through="neb", options={},
+    )
+    assert result["status"] == "complete"
+    assert [item["stage"] for item in captured] == ["relax", "neb"]
+    assert all(item["multiplicity"] == 1 for item in captured)
+    assert all(item["backend_options"]["total_multiplicity_source"] == "user_explicit"
+               for item in captured)
 
 
 @pytest.mark.parametrize("method", ["HF", "RHF", "UHF"])
@@ -182,6 +245,18 @@ def test_orca_keyword_maps_merged_uhf_to_unrestricted_dft():
     assert "UKS" in _orca_keyword({"method": "BP86", "basis": "def2-SVP"}, "uhf")
 
 
+def test_orca_native_scan_adds_ecp_only_for_nonbuiltin_heavy_element_methods(tmp_path):
+    from pyar.backends.orca_scan import _write_input
+
+    path = tmp_path / "heavy.inp"
+    _write_input(path, ["Fe"], np.asarray([[0., 0., 0.]]), 0, 1, "rhf",
+                 {"method": "BP86", "basis": "def2-SVP"})
+    assert "def2-ECP" in path.read_text()
+    _write_input(path, ["Fe"], np.asarray([[0., 0., 0.]]), 0, 1, "rhf",
+                 {"method": "GFN2-xTB"})
+    assert "def2-ECP" not in path.read_text()
+
+
 def test_orca_gxtb_method_uses_external_optimizer_configuration(tmp_path):
     wrapper = tmp_path / "oet_gxtb"
     wrapper.write_text("#!/bin/sh\n")
@@ -277,10 +352,12 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     write_xyz(["H"], [[1.8, 0., 0.]], b)
     scan_frame = np.asarray([[0., 0., 0.], [1.0, 0., 0.]])
     reactant_identity = {"inchi": "reactants", "smiles": "H.H"}
+    observed_multiplicities = []
 
     def fake_scan(molecule, request, directory, qc_params):
         nonlocal scan_calls
         scan_calls += 1
+        observed_multiplicities.append(("scan", molecule.multiplicity))
         directory.mkdir(parents=True, exist_ok=True)
         input_path = directory / "scan.inp"
         output_path = directory / "scan.out"
@@ -307,6 +384,7 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     scan_calls = 0
 
     def fake_optimise(molecule, qc_params):
+        observed_multiplicities.append(("relax", molecule.multiplicity))
         molecule.coordinates = np.asarray([[0., 0., 0.], [target_distance, 0., 0.]])
         Path("job_relaxed").mkdir()
         write_xyz(molecule.atoms_list, molecule.coordinates,
@@ -331,10 +409,17 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     result = run_scan_bond(
         a, b, (0, 0), 1,
         {"software": "orca", "method": "BP86", "basis": "def2-SVP",
-         "nprocs": 1, "scf_cycles": 1000},
+         "nprocs": 1, "scf_cycles": 1000,
+         "multiplicity_a": 2, "multiplicity_b": 2, "total_multiplicity": 1},
         tmp_path / "scan_bond", scan_end=0.5, scan_points=2,
     )
     assert result["results"][0]["status"] == "scan_success_relax_success", result
+    assert observed_multiplicities[:2] == [("scan", 1), ("relax", 1)]
+    request_record = json.loads((tmp_path / "scan_bond" / "request.json").read_text())
+    assert request_record["qc_params"]["total_multiplicity_source"] == "user_explicit"
+    assert request_record["orientation_definitions"][0]["total_multiplicity_source"] == "user_explicit"
+    assert result["results"][0]["total_multiplicity"] == 1
+    assert result["results"][0]["total_multiplicity_source"] == "user_explicit"
     orientation_result = result["results"][0]
     assert orientation_result["target_bond_present_after_relaxation"] is target_contact
     assert orientation_result["identity_status"] == identity_status
@@ -353,7 +438,8 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     rerun = run_scan_bond(
         a, b, (0, 0), 1,
         {"software": "orca", "method": "BP86", "basis": "def2-SVP",
-         "nprocs": 1, "scf_cycles": 1000},
+         "nprocs": 1, "scf_cycles": 1000,
+         "multiplicity_a": 2, "multiplicity_b": 2, "total_multiplicity": 1},
         tmp_path / "scan_bond", scan_end=0.5, scan_points=2,
     )
     assert scan_calls == 1
@@ -363,7 +449,8 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     repaired = run_scan_bond(
         a, b, (0, 0), 1,
         {"software": "orca", "method": "BP86", "basis": "def2-SVP",
-         "nprocs": 1, "scf_cycles": 1000},
+         "nprocs": 1, "scf_cycles": 1000,
+         "multiplicity_a": 2, "multiplicity_b": 2, "total_multiplicity": 1},
         tmp_path / "scan_bond", scan_end=0.5, scan_points=2,
     )
     assert repaired["results"][0]["status"] == "scan_success_relax_success"

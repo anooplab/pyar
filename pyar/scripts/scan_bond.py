@@ -42,6 +42,8 @@ def build_parser(*, modern=False, prog=None):
     group.add_argument("--scan-points", type=int)
     parser.add_argument("-c", "--charge", type=int, nargs="+", default=[0])
     parser.add_argument("-m", "--multiplicity", type=int, nargs="+", default=None if modern else [1])
+    parser.add_argument("--total-multiplicity", type=int,
+                        help="total multiplicity of the combined A+B system (defaults to the historical coupling heuristic)")
     parser.add_argument("--scftype", nargs="+", default=None if modern else ["rhf"])
     parser.add_argument("--output", default="scan_bond")
     parser.add_argument("--recover-stale-lock", action="store_true",
@@ -146,6 +148,7 @@ def main(argv=None, *, modern=False, prog=None):
               "charge_b": pair_value(args.charge, "charge", 1),
               "multiplicity_a": pair_value(args.multiplicity, "multiplicity", 0),
               "multiplicity_b": pair_value(args.multiplicity, "multiplicity", 1),
+              "total_multiplicity": args.total_multiplicity,
               "scftype_a": pair_value(args.scftype, "scftype", 0),
               "scftype_b": pair_value(args.scftype, "scftype", 1)}
     if args.software == "xtb":

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+from ase.data import atomic_numbers
 
 from pyar.backends import require_executable, write_xyz
 from pyar.backends.orca_methods import orca_external_method_block, orca_method_keywords
@@ -76,7 +77,12 @@ def _orca_keyword(qc_params, scftype=None):
 
 
 def _write_input(path, atoms, coordinates, charge, multiplicity, scftype, qc_params, scan=None):
-    lines = [_orca_keyword(qc_params, scftype)]
+    keyword = _orca_keyword(qc_params, scftype)
+    _, is_xtb = orca_method_keywords(qc_params)
+    if (not is_xtb and not qc_params.get("orca_builtin_method")
+            and any(atomic_numbers.get(atom, 0) >= 21 for atom in atoms)):
+        keyword += " def2-ECP"
+    lines = [keyword]
     lines.append(f"%pal nprocs {int(qc_params.get('nprocs') or 1)} end")
     if not orca_method_keywords(qc_params)[1]:
         lines.append(f"%scf maxiter {int(qc_params.get('scf_cycles') or 1000)} end")

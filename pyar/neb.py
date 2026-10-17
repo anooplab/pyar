@@ -1457,9 +1457,12 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     if str(software).lower() == "xtb":
         qc_params["xtb_model"] = canonical_xtb_model(xtb_model)
     if backend_options:
-        allowed = {"scf_cycles", "scftype"}
+        allowed = {"scf_cycles", "scftype", "total_multiplicity_source"}
         if set(backend_options) - allowed:
-            raise ValueError("Unsupported backend_options; supported keys: scf_cycles, scftype")
+            raise ValueError(
+                "Unsupported backend_options; supported keys: scf_cycles, scftype, "
+                "total_multiplicity_source"
+            )
         qc_params.update(backend_options)
     calculator = PyarGeometricCalculator(qc_params=qc_params)
     stages = STAGES if stage == "all" else (stage,)

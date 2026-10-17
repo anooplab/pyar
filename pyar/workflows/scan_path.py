@@ -88,7 +88,8 @@ def run_path_stages(*, start, end, ts_guess, output, qc_params, through, options
             ("software", "method", "basis", "charge", "multiplicity", "nprocs", "xtb_model")}
     base["nprocs"] = base["nprocs"] or 1
     base["xtb_model"] = base["xtb_model"] or "gfn2"
-    base["backend_options"] = {key: qc_params[key] for key in ("scf_cycles", "scftype") if key in qc_params}
+    base["backend_options"] = {key: qc_params[key] for key in
+                                ("scf_cycles", "scftype", "total_multiplicity_source") if key in qc_params}
     base["output"] = output
     base["reuse"] = True
     base.update(options)
@@ -137,7 +138,12 @@ def continue_scan_paths(root, results, qc_params, through, options):
                             if item["orientation"] == result["orientation"])
             path_qc = dict(qc_params, charge=metadata["charge"],
                            multiplicity=metadata["multiplicity"],
-                           scftype=metadata.get("scftype", "rhf"))
+                           scftype=metadata.get("scftype", "rhf"),
+                           total_multiplicity_source=next(
+                               item.get("total_multiplicity_source", "historical_heuristic")
+                               for item in request["orientation_definitions"]
+                               if item["orientation"] == result["orientation"]
+                           ))
             frames = parse_xyz_trajectory(result["trajectory_path"], len(metadata["atoms"]), metadata["atoms"])
             profile = json.loads(Path(result["scan_profile_json"]).read_text())["points"]
             if len(frames) > 2:
