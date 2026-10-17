@@ -161,6 +161,10 @@ def test_v2_resampling_stage_persists_proposals_and_is_idempotent(tmp_path, monk
     assert len(state["resampling"]["attempts"]) == 2
     proposal_files = sorted((root / "resampling/attempts").glob("attempt_*/proposal.json"))
     assert len(proposal_files) == 2
+    for attempt in state["resampling"]["attempts"]:
+        if "optimized_candidate" in attempt:
+            assert attempt["optimized_candidate"]["role"] == "resampling-candidate"
+            assert (root / attempt["optimized_candidate"]["path"]).is_file()
     before = {path: path.read_bytes() for path in (root / "resampling").rglob("*") if path.is_file()}
     workflow.microsolvate(request, output=root)
     assert before == {path: path.read_bytes() for path in before}

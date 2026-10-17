@@ -132,6 +132,8 @@ class MicrosolvationRunStateV2:
                         raise MicrosolvationStateError('Invalid resampling attempt sequence/status')
                     if attempt.get('proposal') is not None:
                         state.verify_refs([attempt['proposal']])
+                    if attempt.get('optimized_candidate') is not None:
+                        state.verify_refs([attempt['optimized_candidate']])
                     result_path = state.layout.path(
                         f"resampling/attempts/attempt_{attempt['attempt']:05d}/result.json")
                     if result_path.exists() and read_json(result_path).get('status') != attempt.get('status'):

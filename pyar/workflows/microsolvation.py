@@ -617,6 +617,7 @@ def _resample_cluster_pool(state, request):
                 write_json(completed_dir / "result.json", {"attempt": completed_attempt["attempt"],
                     "status": completed_attempt["status"],
                     "evaluations_used": completed_attempt.get("evaluations_used", 0),
+                    "optimized_candidate_artifact_id": completed_attempt.get("optimized_candidate", {}).get("artifact_id"),
                     "pool_artifact_ids": [ref["artifact_id"]
                                           for ref in completed_attempt.get("pool_references", [])],
                     "failures": completed_attempt.get("failures", [])}, overwrite=False)
@@ -676,11 +677,14 @@ def _resample_cluster_pool(state, request):
             record["evaluations_used"] = used
             if optimized:
                 accepted = optimized[0]
+                accepted.microsolvation_coverage = assess_shell(accepted, request)
+                candidate_refs = state.snapshot_pool([accepted], attempt_dir / "optimized")
+                candidate_refs[0]["role"] = "resampling-candidate"
+                attempt["optimized_candidate"] = candidate_refs[0]
                 # The fixed-composition topology is defined by immutable atom order and fragment partition.
                 if not preserves_cluster_identity(accepted, request, expected_multiplicity):
                     attempt["status"] = "rejected_identity"
                 else:
-                    accepted.microsolvation_coverage = assess_shell(accepted, request)
                     candidate_pool, diagnostics = _deduplicate_and_select(candidates + [accepted],
                                                         request.maximum_number_of_seeds, request)
                     pool_refs = state.snapshot_pool(candidate_pool, root / "pools" / f"pool_{attempt_index:05d}")
@@ -699,6 +703,7 @@ def _resample_cluster_pool(state, request):
             state.save()
             write_json(attempt_dir / "result.json", {"attempt": attempt_index, "status": attempt["status"],
                 "evaluations_used": attempt.get("evaluations_used", 0),
+                "optimized_candidate_artifact_id": attempt.get("optimized_candidate", {}).get("artifact_id"),
                 "pool_artifact_ids": [ref["artifact_id"] for ref in attempt.get("pool_references", [])],
                 "failures": attempt.get("failures", [])}, overwrite=False)
             if attempt["status"] == "budget_exhausted":
