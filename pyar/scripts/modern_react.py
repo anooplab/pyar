@@ -28,6 +28,8 @@ def build_parser(prog=None):
     parser.add_argument('--through', choices=('react', 'neb', 'ts', 'frequency', 'irc', 'endpoints',
                                                'endpoint-frequency', 'all'), default='react',
                         help='Continue each unique product through unbiased path validation (default: react only)')
+    parser.add_argument('--reactant-reference-mode', choices=('minima', 'separated-reactants'),
+                        default='minima', help='Reactant-side energy and IRC reference policy')
     parser.add_argument('--bias-potential', choices=('afir', 'softmin'), help='Default: afir')
     parser.add_argument('--bias-controller', choices=('adaptive', 'fixed', 'scheduled'), help='Default: adaptive')
     parser.add_argument('--recover-stale-lock', action='store_true',
@@ -82,6 +84,8 @@ def main(argv=None, *, prog=None):
         request = resolve_reaction_request(args.input_files, vars(args))
         path_options = {key: value for key, value in vars(args).items()
                         if key in REACTION_OPTION_NAMES and value is not None}
+        if args.reactant_reference_mode != 'minima':
+            path_options['reactant_reference_mode'] = args.reactant_reference_mode
         requirements = sorted(set(preflight_reaction(request) +
                                   preflight_path_request(request, args.through, path_options)))
         reaction_state_path = Path.cwd() / 'reaction' / 'state.json'
@@ -109,7 +113,8 @@ def main(argv=None, *, prog=None):
                  molecules=request.reactants, requirements=requirements, outputs=['reaction'],
                  options={'orientations': request.orientations, 'bias_min': request.bias_min,
                           'bias_max': request.bias_max, 'proximity_factor': request.proximity_factor,
-                          'through': args.through, 'pathway_ts_source': args.pathway_ts_source})
+                          'through': args.through, 'pathway_ts_source': args.pathway_ts_source,
+                          'reactant_reference_mode': args.reactant_reference_mode})
     if args.check:
         print('Preflight: react')
         for path, molecule in zip(args.input_files, request.reactants):
@@ -120,7 +125,8 @@ def main(argv=None, *, prog=None):
         if args.through != 'react':
             print(f"Continuation: through {args.through}\n"
                   f"Pathway policy: one selected route per unique product\n"
-                  f"TS waypoint: {args.pathway_ts_source} (initializer only)")
+                  f"TS waypoint: {args.pathway_ts_source} (initializer only)\n"
+                  f"Reactant reference: {args.reactant_reference_mode}")
         print('Requirements: ' + ', '.join(requirements))
         print('Ready to run.\n--check specified; no calculations were performed.')
         return

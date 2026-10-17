@@ -101,6 +101,7 @@ def run_path_stages(*, start, end, ts_guess=None, path_seed=None, output, qc_par
     base["output"] = output
     base["reuse"] = True
     stage_options = dict(options)
+    association_endpoint_mode = bool(stage_options.pop("association_endpoint_mode", False))
     seed_options = {}
     if path_seed is not None:
         for key in ("path_refinement", "path_seed_maximum_frame_index"):
@@ -108,7 +109,10 @@ def run_path_stages(*, start, end, ts_guess=None, path_seed=None, output, qc_par
                 seed_options[key] = stage_options.pop(key)
     base.update(stage_options)
     last = _CONTINUATION.index(_LAST_STAGE[through])
-    results = {"status": "running", "completed_stages": []}
+    results = {"status": "running", "completed_stages": [],
+               "execution_directory": str(Path(output).resolve())}
+    if layout is not None:
+        results["path_layout_root"] = str(layout.root)
     for stage in _CONTINUATION[:last + 1]:
         try:
             if layout is not None:
@@ -118,7 +122,17 @@ def run_path_stages(*, start, end, ts_guess=None, path_seed=None, output, qc_par
                              path_seed=path_seed if stage == "neb" else None,
                              stage=stage, **(seed_options if stage == "neb" else {}), **base)
             results[stage] = result
-            if not _stage_gate_passed(result, stage):
+            gate_passed = _stage_gate_passed(result, stage)
+            if association_endpoint_mode and stage == "endpoint-frequency":
+                # Keep the IRC, endpoint optimization/frequency, and distinct
+                # endpoint gates. Fragment-aware chemical assignment is done
+                # by reaction_characterization after this stage is committed.
+                gate_passed = all(result.get(key) is True for key in (
+                    "irc_converged", "endpoints_are_minima", "reference_endpoints_distinct",
+                    "observed_endpoints_distinct",
+                ))
+                result["association_endpoint_prerequisites_passed"] = gate_passed
+            if not gate_passed:
                 results.update(status="scientific_gate_failed", failed_stage=stage)
                 return results
             if layout is not None:

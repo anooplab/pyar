@@ -1316,6 +1316,7 @@ def _execute_stage(stage, output, calculator, options):
             result[f"{direction}_optimization_converged"] and result[f"{direction}_frequency"]["minimum_confirmed"]
             for direction in ("forward", "backward")
         )
+        result["irc_converged"] = irc["irc_converged"]
         distinct = (_bond_set(symbols, reactant) != _bond_set(symbols, product)
                     or _aligned_rmsd(reactant, product) > options["irc_endpoint_rmsd_tolerance"])
         result["reference_endpoints_distinct"] = distinct
