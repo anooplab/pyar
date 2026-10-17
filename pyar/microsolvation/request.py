@@ -66,11 +66,13 @@ class MicrosolvationRequest:
         object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
         if self.objective not in {"shell", "cluster"}:
             raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
-        if self.wall not in {"none", "outer-sphere"}:
-            raise MicrosolvationRequestError("wall must be 'none' or 'outer-sphere'")
+        if self.wall not in {"none", "outer-sphere", "auto"}:
+            raise MicrosolvationRequestError("wall must be 'none', 'outer-sphere', or 'auto'")
         if self.wall == "none" and (self.wall_radius is not None or self.wall_force_constant is not None):
             raise MicrosolvationRequestError("--wall-radius and --wall-force-constant require --wall outer-sphere")
-        if self.wall != "none":
+        if self.wall == "auto" and (self.wall_radius is not None or self.wall_force_constant is not None):
+            raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
+        if self.wall == "outer-sphere":
             if self.objective != "shell":
                 raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
             if (isinstance(self.wall_radius, bool) or self.wall_radius is None
@@ -89,6 +91,16 @@ class MicrosolvationRequest:
                 raise MicrosolvationRequestError(f"outer-sphere wall requires a registered energy-gradient provider; {backend!r} has none")
             if self.backend_parameters.get("geometry_optimizer") != "geometric":
                 raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
+        if self.wall == "auto" and self.objective == "shell":
+            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
+            software = self.backend_parameters.get("software")
+            if not software:
+                raise MicrosolvationRequestError("automatic wall policy requires an energy-gradient backend")
+            backend = normalize_backend_name(software)
+            if not backend_supports_geometry_optimization(backend):
+                raise MicrosolvationRequestError(f"automatic wall policy requires a registered energy-gradient provider; {backend!r} has none")
+            if self.backend_parameters.get("geometry_optimizer") != "geometric":
+                raise MicrosolvationRequestError("automatic wall policy requires --geometry-optimizer geometric")
         if self.placement_score not in {"geometric", "energy"}:
             raise MicrosolvationRequestError("placement score must be 'geometric' or 'energy'")
         if self.placement_score == "energy" and not self.backend_parameters.get("software"):
@@ -208,12 +220,28 @@ class MicrosolvationRequest:
                 "shell_assignment": "direct-solute-contact; then solvent-contact-to-first-shell-v1",
             }
         if self.wall != "none":
-            result["confinement"] = {
-                "mode": "opt-in-outer-sphere-harmonic-v1",
-                "objective": "shell-search-only",
-                "center": "instantaneous-solute-center-of-mass",
-                "radius_angstrom": float(self.wall_radius),
-                "force_constant_hartree_per_angstrom2": float(self.wall_force_constant),
-                "final_stage": "unbiased-relaxation-and-physical-energy-ranking",
-            }
+            if self.wall == "outer-sphere":
+                result["confinement"] = {
+                    "mode": "opt-in-outer-sphere-harmonic-v1",
+                    "objective": "shell-search-only",
+                    "center": "instantaneous-solute-center-of-mass",
+                    "radius_angstrom": float(self.wall_radius),
+                    "force_constant_hartree_per_angstrom2": float(self.wall_force_constant),
+                    "final_stage": "unbiased-relaxation-and-physical-energy-ranking",
+                }
+            elif self.objective == "cluster":
+                result["confinement"] = {
+                    "mode": "none; finite-cluster objective",
+                    "requested_policy": "auto-disabled-for-cluster-objective",
+                }
+            else:
+                from pyar.microsolvation.wall_policy import derive_outer_sphere_parameters
+                result["confinement"] = {
+                    "mode": "case-dependent-outer-sphere-v1",
+                    "trigger": "apply-only-after-unbiased-optimization-fails-shell-validity",
+                    "objective": "shell-search-only",
+                    "center": "instantaneous-solute-center-of-mass",
+                    **derive_outer_sphere_parameters(self),
+                    "final_stage": "unbiased-relaxation-and-physical-energy-ranking",
+                }
         return result

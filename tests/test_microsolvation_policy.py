@@ -10,7 +10,9 @@ from pyar.microsolvation.placement import generate_microsolvation_candidates
 from pyar.microsolvation.request import MicrosolvationRequest
 from pyar.persistence import read_json
 from pyar.state.microsolvation import MicrosolvationRunState
-from pyar.workflows.microsolvation import _deduplicate_and_select, _energy_prescreen, microsolvate
+from pyar.workflows.microsolvation import (
+    _deduplicate_and_select, _energy_prescreen, _optimize_candidates, microsolvate,
+)
 
 
 def methane():
@@ -109,6 +111,93 @@ def test_wall_shell_ranking_uses_unbiased_energy_after_shell_filter():
     assert selected[0].name == "lower-energy"
     assert diagnostics["selection_mode"] == "unbiased-post-relaxation-energy-then-diversity"
     assert diagnostics["energy_unit"] == "hartree"
+
+
+def test_auto_wall_policy_derives_case_specific_radius_and_thermal_scale_strength():
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    req = MicrosolvationRequest(methane(), water(), 1, 4, qc, 2, None, 32, 1.4, 3.5,
+                                "shell", "geometric", (), None, "auto")
+    confinement = req.to_state_dict()["confinement"]
+    assert confinement["mode"] == "case-dependent-outer-sphere-v1"
+    expected_radius = (
+        confinement["radius_derivation"]["solute_surface_radius_angstrom"]
+        + confinement["radius_derivation"]["solvent_fragment_com_extent_angstrom"]
+        + 0.5
+    )
+    assert confinement["radius_angstrom"] == pytest.approx(expected_radius)
+    strength = confinement["force_constant_hartree_per_angstrom2"]
+    assert 0.01 < strength < 0.04
+    energy_at_half_angstrom = 0.5 * strength * 0.5**2
+    assert energy_at_half_angstrom == pytest.approx(confinement["strength_derivation"]["target_penalty_hartree"])
+    assert confinement["trigger"] == "apply-only-after-unbiased-optimization-fails-shell-validity"
+
+
+def test_auto_wall_radius_expands_with_solvent_fragment_extent():
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    ordinary = MicrosolvationRequest(methane(), water(), 1, 4, qc, 2, None, 32, 1.4, 3.5,
+                                    "shell", "geometric", (), None, "auto")
+    extended_water = water()
+    extended_water.coordinates[1:] *= 1.5
+    larger_case = MicrosolvationRequest(methane(), extended_water, 1, 4, qc, 2, None, 32, 1.4, 3.5,
+                                        "shell", "geometric", (), None, "auto")
+    ordinary_policy = ordinary.to_state_dict()["confinement"]
+    larger_policy = larger_case.to_state_dict()["confinement"]
+    assert (larger_policy["radius_angstrom"] > ordinary_policy["radius_angstrom"])
+    assert (larger_policy["force_constant_hartree_per_angstrom2"]
+            == ordinary_policy["force_constant_hartree_per_angstrom2"])
+
+
+@pytest.mark.parametrize("escaped,expected_calls", [(False, 1), (True, 3)])
+def test_auto_wall_optimizes_unbiased_first_and_only_rescues_escaped_candidate(
+        tmp_path, monkeypatch, escaped, expected_calls):
+    from pathlib import Path
+    from pyar.microsolvation.placement import generate_microsolvation_candidates
+
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    req = MicrosolvationRequest(methane(), water(), 1, 3, qc, 1, None, 32, 1.4, 3.5,
+                                "shell", "geometric", (), None, "auto")
+    candidate = generate_microsolvation_candidates(
+        req.solute, req, step=10000, solute_atom_count=len(req.solute))[0]
+    candidate.name = "auto-escape" if escaped else "auto-contained"
+    calls = []
+
+    def fake_optimize(molecule, parameters):
+        calls.append((Path.cwd().name, "microsolvation_wall" in parameters))
+        if len(calls) == 1 and escaped:
+            molecule.coordinates[5:] += [20.0, 0.0, 0.0]
+        elif "microsolvation_wall" in parameters:
+            assert calls[0][1] is False
+            molecule.coordinates[5:] -= [20.0, 0.0, 0.0]
+            state_dir = Path.cwd() / f"job_{molecule.name}"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            wall = parameters["microsolvation_wall"]
+            (state_dir / "pyar_geometric_state.json").write_text(
+                '{"total_energy_hartree": -9.0, "wall_energy_hartree": 0.0, '
+                '"wall_energy_max_hartree": 0.1}')
+            assert wall["radius_angstrom"] == pytest.approx(
+                req.to_state_dict()["confinement"]["radius_angstrom"])
+        molecule.energy = -10.0 + len(calls) * 1e-4
+        return "converged"
+
+    monkeypatch.setattr("pyar.optimiser.optimise", fake_optimize)
+    retained, rejected, optimized, failures = _optimize_candidates(
+        [candidate], req, tmp_path / "candidates")
+    assert not failures and rejected == 0 and optimized == 1
+    assert len(retained) == 1 and retained[0].microsolvation_coverage["shell_valid"]
+    assert len(calls) == expected_calls
+    assert retained[0].microsolvation_wall_applied is escaped
+    assert retained[0].microsolvation_wall_decision == (
+        "applied-after-shell-escape" if escaped else "not-applied-unbiased-geometry-shell-valid")
+
+
+def test_auto_wall_policy_is_inactive_for_cluster_objective():
+    qc = {"software": "xtb"}
+    req = MicrosolvationRequest(methane(), water(), 1, 4, qc, 1, None, 32, 1.4, 3.5,
+                                "cluster", "energy", (), None, "auto")
+    assert req.to_state_dict()["confinement"] == {
+        "mode": "none; finite-cluster objective",
+        "requested_policy": "auto-disabled-for-cluster-objective",
+    }
 
 
 def test_energy_prescreen_keeps_low_energy_pool_and_prescreen_failures(monkeypatch):
