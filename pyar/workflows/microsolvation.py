@@ -18,11 +18,11 @@ def _quality_key(molecule, request):
     coverage = molecule.microsolvation_coverage["coverage_fraction"]
     energy = molecule.energy
     energy_key = float(energy) if energy is not None and math.isfinite(float(energy)) else math.inf
-    if request.objective == "cluster" or request.wall != "none":
+    if request.objective == "cluster" or request.wall == "outer-sphere":
         return (energy_key, -coverage, molecule.name)
-    if request.placement_score == "energy":
-        return (-coverage, energy_key, molecule.name)
-    return (-coverage, molecule.name)
+    # Auto confinement controls candidate optimization, not survivor ranking.
+    # Keep explicit-wall selection on its separately fingerprinted MS3 policy.
+    return (-coverage, energy_key, molecule.name)
 
 
 def _deduplicate_and_select(candidates, maximum_seeds, request):
@@ -54,7 +54,7 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
         # Keep the best objective stratum and maximize structural separation
         # within it; coverage must not erase a low-energy clustered candidate.
         best_quality = min(item[1] for item in scored)
-        if request.objective == "cluster" or request.wall != "none":
+        if request.objective == "cluster" or request.wall == "outer-sphere":
             quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.005]
         else:
             quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.03]
@@ -63,11 +63,12 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
         remaining.remove(chosen)
     return selected, {
         "selection_mode": ("fixed-composition-energy-then-diversity" if request.objective == "cluster"
-                           else "unbiased-post-relaxation-energy-then-diversity" if request.wall != "none"
+                           else "unbiased-post-relaxation-energy-then-diversity"
+                           if request.wall == "outer-sphere"
                            else "solute-surface-coverage-then-energy-and-structural-diversity"),
         "objective": request.objective,
         "placement_score": request.placement_score,
-        "energy_unit": "hartree" if request.placement_score == "energy" or request.wall != "none" else None,
+        "energy_unit": "hartree" if any(m.energy is not None for m in selected) else None,
         "energy_ranked": any(m.energy is not None for m in selected),
         "input_count": len(candidates),
         "unique_count": len(unique),
@@ -75,9 +76,10 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
         "maximum_number_of_seeds": maximum_seeds,
         "adaptive_rmsd_threshold_angstrom": result["rmsd_threshold"],
         "comparison_diagnostics": result["diagnostics"],
-        "coverage_frontier_fraction_tolerance": 0.03 if request.objective == "shell" and request.wall == "none" else None,
+        "coverage_frontier_fraction_tolerance": (
+            0.03 if request.objective == "shell" and request.wall != "outer-sphere" else None),
         "cluster_energy_frontier_hartree": 0.005 if request.objective == "cluster" else None,
-        "unbiased_energy_frontier_hartree": 0.005 if request.wall != "none" else None,
+        "unbiased_energy_frontier_hartree": 0.005 if request.wall == "outer-sphere" else None,
     }
 
 
@@ -340,7 +342,7 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
         selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
         diagnostics.update({
             "selection_basis": ("fixed-composition-energy" if request.objective == "cluster" else
-                                "unbiased-post-relaxation-energy" if request.wall != "none" else
+                                "unbiased-post-relaxation-energy" if request.wall == "outer-sphere" else
                                 "geometry-only" if not request.backend_parameters.get("software") else
                                 "surface-quality-then-energy"),
             "surface_saturated_at_placement": any(
@@ -508,7 +510,7 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
         selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
         diagnostics.update({
             "selection_basis": ("fixed-composition-energy" if request.objective == "cluster" else
-                                "unbiased-post-relaxation-energy" if request.wall != "none" else
+                                "unbiased-post-relaxation-energy" if request.wall == "outer-sphere" else
                                 "geometry-only" if not request.backend_parameters.get("software") else
                                 "surface-quality-then-energy"),
             "surface_saturated_at_placement": any(

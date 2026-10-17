@@ -195,16 +195,43 @@ class MicrosolvationRequest:
         # Keep the historical default request byte-for-byte compatible so
         # existing v1/v2 runs retain their established continuation owner.
         if self.objective != "shell" or self.placement_score != "geometric" or self.wall != "none":
-            result["selection_policy"] = {
-                "name": "objective-aware-v1",
-                "objective": self.objective,
-                "placement_score": self.placement_score,
-                "energy_unit": "hartree",
-                "ranking": "unbiased-post-relaxation-energy" if self.wall != "none" else None,
-                "cluster_energy_frontier_hartree": 0.005 if self.objective == "cluster" else None,
-                "unbiased_energy_frontier_hartree": 0.005 if self.wall != "none" else None,
-                "prescreen_pool_multiplier": 4,
-            }
+            if self.wall == "auto":
+                result["selection_policy"] = {
+                    "name": "objective-aware-v2",
+                    "objective": self.objective,
+                    "placement_score": self.placement_score,
+                    "energy_unit": "hartree",
+                    "ranking": ("fixed-composition-energy" if self.objective == "cluster"
+                                else "solute-surface-coverage-then-physical-energy"),
+                    "coverage_frontier_fraction_tolerance": 0.03 if self.objective == "shell" else None,
+                    "cluster_energy_frontier_hartree": 0.005 if self.objective == "cluster" else None,
+                    "unbiased_energy_frontier_hartree": None,
+                    "prescreen_pool_multiplier": 4,
+                }
+            elif self.wall == "outer-sphere":
+                # Preserve the opt-in MS3 selector and fingerprint so interrupted
+                # explicit-wall runs retain their existing continuation contract.
+                result["selection_policy"] = {
+                    "name": "objective-aware-v1",
+                    "objective": self.objective,
+                    "placement_score": self.placement_score,
+                    "energy_unit": "hartree",
+                    "ranking": "unbiased-post-relaxation-energy",
+                    "cluster_energy_frontier_hartree": None,
+                    "unbiased_energy_frontier_hartree": 0.005,
+                    "prescreen_pool_multiplier": 4,
+                }
+            else:
+                result["selection_policy"] = {
+                    "name": "objective-aware-v1",
+                    "objective": self.objective,
+                    "placement_score": self.placement_score,
+                    "energy_unit": "hartree",
+                    "ranking": None,
+                    "cluster_energy_frontier_hartree": 0.005 if self.objective == "cluster" else None,
+                    "unbiased_energy_frontier_hartree": None,
+                    "prescreen_pool_multiplier": 4,
+                }
             result["placement_policy"] = {
                 "name": "solvent-cluster-growth-v1" if self.objective == "cluster" else "solute-surface-v1",
             }

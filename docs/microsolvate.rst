@@ -74,7 +74,9 @@ Use ``--wall auto`` to apply the wall conditionally during a shell search. PyAR
 first performs an unbiased optimization and checks shell coverage. If that
 geometry is shell-valid, no wall optimization is run. If it escaped, the
 candidate is retried with a derived wall and then relaxed again without the
-wall; only the final physical energy is used for ranking. The radius is the
+wall. Survivor ranking still follows the shell objective: surface coverage,
+then final physical energy as a tie-breaker, then structural diversity. The
+confinement trigger does not change selection policy. The radius is the
 farthest sampled accessible solute-surface point from the mass-weighted solute
 center plus the solvent fragment's mass-weighted COM-to-atom extent and a
 0.5 Å margin. The harmonic constant is calibrated so a 0.5 Å overrun costs

@@ -11,7 +11,7 @@ from pyar.microsolvation.request import MicrosolvationRequest
 from pyar.persistence import read_json
 from pyar.state.microsolvation import MicrosolvationRunState
 from pyar.workflows.microsolvation import (
-    _deduplicate_and_select, _energy_prescreen, _optimize_candidates, microsolvate,
+    _deduplicate_and_select, _energy_prescreen, _optimize_candidates, _quality_key, microsolvate,
 )
 
 
@@ -41,6 +41,76 @@ def test_historical_default_request_serialization_is_unchanged():
     assert "objective" not in payload["selection_policy"]
     assert "placement_policy" not in payload
     assert "site_contact_policy" not in payload
+
+
+def test_default_shell_quality_key_retains_historical_energy_tiebreaker():
+    req = request()
+    tied = [
+        SimpleNamespace(name="higher-energy", energy=-10.0,
+                        microsolvation_coverage={"coverage_fraction": 0.5}),
+        SimpleNamespace(name="lower-energy", energy=-10.01,
+                        microsolvation_coverage={"coverage_fraction": 0.5}),
+    ]
+    assert [molecule.name for molecule in sorted(tied, key=lambda item: _quality_key(item, req))] == [
+        "lower-energy", "higher-energy",
+    ]
+
+
+def test_auto_wall_selection_policy_is_separate_from_confinement():
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    auto = MicrosolvationRequest(methane(), water(), 1, 4, qc, 2, None, 32, 1.4, 3.5,
+                                 "shell", "geometric", (), None, "auto")
+    explicit = MicrosolvationRequest(methane(), water(), 1, 4, qc, 2, None, 32, 1.4, 3.5,
+                                     "shell", "geometric", (), None, "outer-sphere", 4.0, 0.5)
+    auto_state = auto.to_state_dict()
+    explicit_state = explicit.to_state_dict()
+    assert auto_state["selection_policy"]["name"] == "objective-aware-v2"
+    assert auto_state["selection_policy"]["ranking"] == "solute-surface-coverage-then-physical-energy"
+    assert auto_state["confinement"]["mode"] == "case-dependent-outer-sphere-v1"
+    # The legacy explicit-wall policy remains byte-compatible for restarts.
+    assert explicit_state["selection_policy"] == {
+        "name": "objective-aware-v1", "objective": "shell", "placement_score": "geometric",
+        "energy_unit": "hartree", "ranking": "unbiased-post-relaxation-energy",
+        "cluster_energy_frontier_hartree": None, "unbiased_energy_frontier_hartree": 0.005,
+        "prescreen_pool_multiplier": 4,
+    }
+    tied_candidates = [
+        SimpleNamespace(name="higher-energy", energy=-10.0,
+                        microsolvation_coverage={"coverage_fraction": 0.5}),
+        SimpleNamespace(name="lower-energy", energy=-10.01,
+                        microsolvation_coverage={"coverage_fraction": 0.5}),
+    ]
+    assert [_quality_key(candidate, request()) for candidate in tied_candidates] == [
+        _quality_key(candidate, auto) for candidate in tied_candidates
+    ]
+
+
+def test_auto_wall_without_candidate_wall_use_keeps_shell_selection_order():
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    auto = MicrosolvationRequest(methane(), water(), 1, 4, qc, 1, None, 32, 1.4, 3.5,
+                                 "shell", "geometric", (), None, "auto")
+    selected_names = []
+    for req in (request(), auto):
+        candidates = []
+        for name, energy, coverage, shift in (
+            ("high-coverage", -10.0, 0.9, [3.0, 0.0, 0.0]),
+            ("low-energy", -10.03, 0.2, [-3.0, 0.0, 0.0]),
+        ):
+            molecule = req.solute.merged_with(req.solvent)
+            molecule.name = name
+            molecule.solute_atom_indices = tuple(range(5))
+            molecule.solvent_fragments = (tuple(range(5, 8)),)
+            molecule.fragments = [list(molecule.solute_atom_indices), list(molecule.solvent_fragments[0])]
+            molecule.fragments_coordinates = molecule.split_coordinates()
+            molecule.fragments_atoms_list = molecule.split_atoms_lists()
+            molecule.coordinates[5:] += np.asarray(shift)
+            molecule.energy = energy
+            molecule.microsolvation_coverage = {"coverage_fraction": coverage, "shell_valid": True}
+            candidates.append(molecule)
+        selected, diagnostics = _deduplicate_and_select(candidates, 1, req)
+        selected_names.append(selected[0].name)
+        assert diagnostics["selection_mode"] == "solute-surface-coverage-then-energy-and-structural-diversity"
+    assert selected_names == ["high-coverage", "high-coverage"]
 
 
 def test_energy_and_cluster_policy_require_a_real_energy_provider():
@@ -198,6 +268,7 @@ def test_auto_wall_policy_is_inactive_for_cluster_objective():
         "mode": "none; finite-cluster objective",
         "requested_policy": "auto-disabled-for-cluster-objective",
     }
+    assert req.to_state_dict()["selection_policy"]["ranking"] == "fixed-composition-energy"
 
 
 def test_energy_prescreen_keeps_low_energy_pool_and_prescreen_failures(monkeypatch):
