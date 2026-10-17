@@ -576,7 +576,7 @@ class Geometric(SF):
             "opt_target": self.opt_target,
         }
         if self.qc_params.get('_ore_safe'):
-            return [sys.executable, '-m', 'pyar.recovery.geometric_driver',
+            return [sys.executable, '-m', 'pyar.backends.safe_geometric',
                     self.start_xyz_file, json.dumps(ase_kwargs)]
         if self.gamma != 0.0 and str(self.qc_params.get("bias_controller") or "fixed").lower() == "adaptive":
             return [sys.executable, "-m", "pyar.backends.adaptive_geometric",
