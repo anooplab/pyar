@@ -2,6 +2,7 @@ import json
 import hashlib
 
 import numpy as np
+import pytest
 
 from pyar.backends import write_xyz
 from pyar.workflows.reaction_report import (
@@ -56,7 +57,8 @@ def test_validated_path_is_assembled_in_assigned_chemical_direction(tmp_path):
     assert np.allclose(swapped_frames[-1][1], reactant)
 
 
-def test_report_validates_electronic_energy_arithmetic_and_separated_reference(tmp_path):
+@pytest.mark.parametrize("association_state", ["matched", "failed", "missing", "missing-assignment", "failed-route"])
+def test_report_validates_electronic_energy_arithmetic_and_separated_reference(tmp_path, association_state):
     symbols = ["H", "H"]
     reactant = [[0., 0., 0.], [1., 0., 0.]]
     ts = [[0., 0., 0.], [1.2, 0., 0.]]
@@ -95,6 +97,15 @@ def test_report_validates_electronic_energy_arithmetic_and_separated_reference(t
         "endpoint-frequency": {**stage_records["endpoint-frequency"], **_endpoint_stage(reactant, product)},
     }
     route = {"status": "complete", "through": "all", "reactant_product_connection_confirmed": True}
+    if association_state != "missing":
+        path_result["association_endpoint_validation"] = {
+            "status": "matched", "reactant_product_connection_confirmed": association_state != "failed",
+            "reactant_product_assignment": [0, 1],
+        }
+        if association_state == "missing-assignment":
+            path_result["association_endpoint_validation"].pop("reactant_product_assignment")
+    if association_state == "failed-route":
+        route.update(status="failed", association_status="association_endpoint_gate_failed")
     provenance = {"product_id": "product_001", "pathway_id": "pathway_001"}
     report = build_reaction_characterization_report(
         route_root=tmp_path, product={"symbols": symbols}, provenance=provenance,
@@ -104,6 +115,13 @@ def test_report_validates_electronic_energy_arithmetic_and_separated_reference(t
                             "request": {"physical_method": {"software": "xtb", "xtb_model": "gfn2"}}},
     )
     energies = report["electronic_energetics"]
+    if association_state != "matched":
+        assert not report["connection_confirmed"]
+        assert not energies["validated"]
+        assert energies["delta_E_forward_activation"] is None
+        assert report["validated_reaction_path"] is None
+        assert not (tmp_path / "validated_reaction_path.xyz").exists()
+        return
     assert energies["validated"]
     assert energies["E_R"] == -1.2
     assert energies["delta_E_rxn"] == .5

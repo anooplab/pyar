@@ -635,3 +635,36 @@ def test_workflow_default_scan_end_is_0_8_times_covalent_radii(tmp_path, monkeyp
     request = json.loads((tmp_path / "scan_bond" / "request.json").read_text())
     assert request["default_scan_end_factor"] == pytest.approx(0.8)
     assert request["default_scan_end_angstrom"] == pytest.approx(0.8 * radii_sum)
+
+
+@pytest.mark.parametrize('changed', [None, 'method', 'multiplicity'])
+def test_signed_legacy_spin_request_matches_preflight_and_execution(tmp_path, changed):
+    import copy
+    import hashlib
+    from pyar.workflows.scan_bond import validate_scan_restart
+
+    def signed(value):
+        return dict(value, request_signature=hashlib.sha256(json.dumps(
+            value, sort_keys=True, separators=(',', ':'), default=str).encode()).hexdigest())
+
+    previous = {'qc_params': {'software': 'xtb', 'xtb_model': 'gfn2'},
+                'orientation_definitions': [{'orientation': 0, 'molecule': {'multiplicity': 1}}]}
+    saved = signed(previous)
+    request_path = tmp_path / 'request.json'
+    request_path.write_text(json.dumps(saved))
+    before = request_path.read_bytes()
+    current = copy.deepcopy(previous)
+    current['qc_params'].update(total_multiplicity=1, total_multiplicity_source='historical_heuristic')
+    current['orientation_definitions'][0].update(total_multiplicity=1,
+                                              total_multiplicity_source='historical_heuristic')
+    if changed == 'method':
+        current['qc_params']['xtb_model'] = 'gxtb'
+    elif changed == 'multiplicity':
+        current['qc_params'].update(total_multiplicity=3, total_multiplicity_source='user_explicit')
+    for request in ({'qc_params': current['qc_params']}, signed(current)):
+        if changed:
+            with pytest.raises(FileExistsError, match='different request'):
+                validate_scan_restart(tmp_path, request)
+        else:
+            validate_scan_restart(tmp_path, request)
+    assert request_path.read_bytes() == before

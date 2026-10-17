@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from pyar.core.molecule import Molecule
 from pyar.workflows import association_reference as association
@@ -160,7 +161,8 @@ def test_association_endpoint_accepts_stable_pre_reactive_complex(tmp_path, monk
     assert result['reactant_product_connection_confirmed']
 
 
-def test_two_irc_branches_to_one_product_do_not_confirm_association(tmp_path, monkeypatch):
+@pytest.mark.parametrize("second_distance", [0.1, 1.2])
+def test_two_irc_branches_to_one_product_do_not_confirm_association(tmp_path, monkeypatch, second_distance):
     from pyar.backends import write_xyz
     symbols = ['H', 'He']
     reactants = [Molecule(['H'], [[0, 0, 0]]), Molecule(['He'], [[0, 0, 0]])]
@@ -182,9 +184,12 @@ def test_two_irc_branches_to_one_product_do_not_confirm_association(tmp_path, mo
     monkeypatch.setattr('pyar.reaction_identity.same_molecular_identity',
                         lambda first, second: first.get('inchi') == second.get('inchi'))
     result = association.classify_association_endpoints(
-        symbols, [np.array([[0., 0, 0], [.1, 0, 0]])] * 2,
+        symbols, [np.array([[0., 0, 0], [.1, 0, 0]]),
+                  np.array([[0., 0, 0], [second_distance, 0, 0]])],
         product_path, reference, reactants, .5, reference_directory=reference_dir)
     assert result['status'] == 'unmatched'
+    assert result['branch_results'][1]['classification'] not in {
+        'stable_pre_reactive_minimum', 'separated_fragments_minima'}
     assert not result['reactant_product_connection_confirmed']
 
 
@@ -196,14 +201,25 @@ def test_reactant_relaxation_failure_is_classified_without_claiming_a_connection
     write_xyz(symbols, [[0, 0, 0], [0.8, 0, 0]], product)
     execution = tmp_path / 'execution'
     execution.mkdir()
-    path = execution / 'relax_reactant_path.xyz'
-    write_xyz(symbols, [[0, 0, 0], [0.8, 0, 0]], path)
-    failed = {'failed_stage': 'relax', 'error': 'Reactant endpoint did not survive unbiased relaxation: connectivity changed'}
+    from pyar.neb import _relax_endpoint, _write_xyz_trajectory
+
+    def optimize(symbols, coordinates, calculator, output, label, *args, **kwargs):
+        frames = [np.asarray(coordinates), np.array([[0., 0, 0], [.8, 0, 0]])]
+        energies = [-.5, -1.]
+        _write_xyz_trajectory(output / f'{label}_path.xyz', symbols, frames, energies)
+        return frames, energies, True
+
+    monkeypatch.setattr('pyar.neb._optimize_geometry', optimize)
+    with pytest.raises(RuntimeError, match='connectivity changed') as failure:
+        _relax_endpoint(symbols, np.array([[0., 0, 0], [3., 0, 0]]), object(),
+                        execution, 'reactant', .05, 20)
+    failed = {'failed_stage': 'relax', 'error': str(failure.value)}
     monkeypatch.setattr('pyar.reaction_identity.molecule_identity_from_xyz', lambda _: {'inchi': 'product'})
     monkeypatch.setattr('pyar.reaction_identity.same_molecular_identity', lambda first, second: True)
     result = classify_reactant_relaxation_failure(failed, execution, product)
     assert result['status'] == 'product_formed_during_reactant_relaxation'
     assert result['classification'] == 'product'
+    assert Path(result['trajectory']) == execution / 'reactant_path.xyz'
     assert not result['reactant_product_connection_confirmed']
     nonconverged = classify_reactant_relaxation_failure(
         {'error': 'Reactant endpoint did not converge during unbiased relaxation'}, execution, product)

@@ -220,7 +220,7 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
     route cannot erase or block its siblings.
     """
     import hashlib
-    from pyar.persistence import read_json, write_json
+    from pyar.persistence import ArtifactRef, read_json, write_json
 
     root = Path(root).resolve()
     if through == "scan":
@@ -256,7 +256,6 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
             relax_commit = read_json(layout.layout.path(f"orientation_{representative:03d}/relax_commit.json"))
             for record in (scan_commit, relax_commit):
                 for ref in record["artifacts"]:
-                    from pyar.persistence import ArtifactRef
                     ArtifactRef.from_dict(ref).verify(root)
             definition_row = definition_rows.get(representative)
             definition = None if definition_row is None else definition_row.get("molecule")
@@ -285,10 +284,25 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
             state["physical_method"] = path_qc
             state["path_options"] = path_options
             state["scan_path_seed_sha256"] = hashlib.sha256(seed.read_bytes()).hexdigest()
+            path_root = root / "products" / product_id / "characterization"
+            metadata_path = path_root / "inputs/metadata.json"
+            if metadata_path.is_file():
+                expected = {"inputs/reactant.xyz": hashlib.sha256(start.read_bytes()).hexdigest(),
+                            "inputs/product.xyz": hashlib.sha256(end.read_bytes()).hexdigest(),
+                            "inputs/path_seed.xyz": state["scan_path_seed_sha256"]}
+                saved_refs = read_json(metadata_path)["inputs"]
+                for ref in saved_refs:
+                    ArtifactRef.from_dict(ref).verify(path_root)
+                saved = {ref["path"]: ref["sha256"] for ref in saved_refs}
+                if saved != expected:
+                    # A newly recovered orientation may become representative.
+                    # Preserve the earlier representative's immutable inputs.
+                    path_root = path_root / "representatives" / f"orientation_{representative:03d}"
+            state["path_directory"] = path_root.relative_to(root).as_posix()
             write_json(state_path, state)
             result = run_path_stages(
                 start=start, end=end, path_seed=seed,
-                output=root / "products" / product_id / "characterization",
+                output=path_root,
                 qc_params=path_qc, through=through, options=path_options,
                 layout_dependency=product["product_record_sha256"],
             )
@@ -306,7 +320,7 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
                 build_reaction_characterization_report, write_reaction_characterization_report,
             )
             report = build_reaction_characterization_report(
-                route_root=root / "products" / product_id / "characterization",
+                route_root=path_root,
                 product={"product_id": product_id, "symbols": read_xyz(end)[0]},
                 provenance={"product_id": product_id,
                             "representative_orientation": representative,
@@ -320,11 +334,11 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
                               "reactant_product_connection_confirmed": bool(
                                   result.get("reactant_product_connection_confirmed"))},
                 alternatives=[{"orientation": int(value)} for value in
-                              product.get("member_orientations", []) if int(value) != representative],
+                              product.get("alternative_orientations", []) if int(value) != representative],
                 reference_mode="minima",
                 discovery={"product_record": product,
                            "representative_orientation": representative,
-                           "member_orientations": product.get("member_orientations", [])},
+                           "member_orientations": product.get("orientation_ids", [])},
                 scan_evidence={"trajectory": str(seed), "trajectory_sha256": state["scan_path_seed_sha256"],
                                "profile": str(profile_path),
                                "profile_sha256": hashlib.sha256(profile_path.read_bytes()).hexdigest(),
@@ -335,6 +349,7 @@ def characterize_scan_products(root, request, qc_params, through, options, layou
                                "relax_commit_sha256": state["relax_commit_sha256"]},
             )
             report_path = root / "products" / product_id / "reaction_characterization.json"
+            report["report_pathway_directory"] = str(path_root)
             write_reaction_characterization_report(report_path, report)
             state["reaction_characterization_report"] = report_path.relative_to(root).as_posix()
             state["reaction_characterization_report_sha256"] = hashlib.sha256(

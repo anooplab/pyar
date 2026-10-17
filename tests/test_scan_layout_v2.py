@@ -471,3 +471,158 @@ def test_unique_product_mode_with_no_product_skips_path_service(scan_run, monkey
     assert result['status'] == 'complete'
     assert len(scan_calls) == 1
     assert read_json(root / 'products/index.json')['products'] == []
+
+
+@pytest.mark.parametrize('interrupted', [False, True])
+def test_recovered_orientation_adds_immutable_membership_and_preserves_old_path(tmp_path, monkeypatch, interrupted):
+    from pyar.backends import write_xyz
+    from pyar.backends.orca_scan import OrcaBondScanResult
+    from pyar.workflows.path_layout import PathLayout
+    import pyar.workflows.scan_layout as registry_module
+
+    inputs = [tmp_path / 'a.xyz', tmp_path / 'b.xyz']
+    for path in inputs:
+        write_xyz(['H'], [[0., 0., 0.]], path)
+    orientations = []
+    for index in range(2):
+        molecule = Molecule(['H', 'H'], [[index, 0., 0.], [index + 1.4, 0., 0.]],
+                            name=f'orientation_{index:03d}')
+        molecule.fragments = [[0], [1]]
+        orientations.append((index, molecule, None))
+    monkeypatch.setattr(workflow, '_make_orientations', lambda *args: orientations)
+    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: {'inchi': 'reactants'})
+    monkeypatch.setattr(workflow, 'molecule_identity_from_xyz', lambda *args: {'inchi': 'product', 'smiles': '[H][H]'})
+    scan_calls, relax_calls, cached, path_calls = [], [], {}, []
+
+    def scan(molecule, request, directory, params):
+        index = int(molecule.name.rsplit('_', 1)[1])
+        scan_calls.append(index)
+        directory.mkdir(parents=True, exist_ok=True)
+        frames = [(['H', 'H'], np.array([[index, 0., 0.], [index + d, 0., 0.]]), '')
+                  for d in (1.4, 1.2, 1.0)]
+        trajectory, final = directory / 'scan_trajectory.xyz', directory / 'final_scan.xyz'
+        trajectory.write_text(''.join(f'2\nframe\nH {index} 0 0\nH {index + d} 0 0\n'
+                                     for d in (1.4, 1.2, 1.0)))
+        write_xyz(['H', 'H'], frames[-1][1], final)
+        inp, out = directory / 'scan.inp', directory / 'scan.out'
+        inp.write_text('request'); out.write_text('completed')
+        profile = [{'target_distance_angstrom': d, 'energy_hartree': e}
+                   for d, e in zip((1.4, 1.2, 1.0), (-1., -.5 if index == 0 else -.8, -.9))]
+        cached[index] = OrcaBondScanResult(True, trajectory, final, frames[-1][1], inp, out,
+                                          'success', frames=frames, profile=profile)
+        return cached[index]
+
+    def relax(molecule, params):
+        index = next(int(part.rsplit('_', 1)[1]) for part in Path.cwd().parts
+                     if part.startswith('orientation_'))
+        relax_calls.append(index)
+        if index == 1 and relax_calls.count(1) == 1:
+            return False
+        target = Path('job_relaxed/result_relaxed.xyz')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        write_xyz(molecule.atoms_list, molecule.coordinates, target)
+        return True
+
+    def characterize(**kwargs):
+        path_calls.append(kwargs)
+        PathLayout(kwargs['output'], kwargs['start'], kwargs['end'], None, kwargs['qc_params'],
+                   kwargs['options'], kwargs['layout_dependency'], path_seed=kwargs['path_seed'])
+        return {'status': 'complete', 'completed_stages': ['relax', 'neb']}
+
+    monkeypatch.setattr(workflow, 'run_orca_bond_scan', scan)
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result',
+                        lambda molecule, *args, **kwargs: cached[int(molecule.name.rsplit('_', 1)[1])])
+    monkeypatch.setattr(workflow, 'optimise', relax)
+    monkeypatch.setattr('pyar.workflows.scan_path.run_path_stages', characterize)
+    root = tmp_path / 'run'
+
+    def run():
+        return workflow.run_scan_bond(*inputs, (0, 0), 2,
+            {'software': 'orca', 'method': 'BP86', 'basis': 'def2-SVP'}, root,
+            scan_end=1., scan_points=3, through='neb', characterize_unique_products=True)
+
+    assert run()['status'] == 'failed'
+    first = read_json(root / 'products/index.json')['products'][0]
+    initial_record = root / first['product_record_path']
+    initial_bytes = initial_record.read_bytes()
+    initial_path = root / 'products' / first['product_id'] / 'characterization'
+    old_path_bytes = {p: p.read_bytes() for p in initial_path.rglob('*') if p.is_file()}
+    if interrupted:
+        publish = registry_module.write_json
+        def fail_index(path, *args, **kwargs):
+            if Path(path) == root / 'products/index.json':
+                raise OSError('interrupted after membership snapshot')
+            return publish(path, *args, **kwargs)
+        with monkeypatch.context() as temporary:
+            temporary.setattr(registry_module, 'write_json', fail_index)
+            with pytest.raises(OSError, match='interrupted'):
+                run()
+        assert read_json(root / 'products/index.json')['products'][0] == first
+    assert run()['status'] == 'complete'
+    recovered = read_json(root / 'products/index.json')['products'][0]
+    assert recovered['product_id'] == first['product_id']
+    assert recovered['orientation_ids'] == [0, 1]
+    assert recovered['representative_orientation'] == 1
+    assert recovered['alternative_orientations'] == [0]
+    assert initial_record.read_bytes() == initial_bytes
+    assert '/revisions/' in recovered['product_record_path']
+    assert sha256_file(root / recovered['product_record_path']) == recovered['product_record_sha256']
+    assert all(path.read_bytes() == data for path, data in old_path_bytes.items())
+    assert scan_calls == [0, 1]
+    assert relax_calls == [0, 1, 1]
+    assert len(path_calls) == 2
+    assert path_calls[1]['output'] != path_calls[0]['output']
+    report = read_json(root / 'products' / first['product_id'] / 'reaction_characterization.json')
+    assert report['alternative_routes'] == [{'orientation': 0}]
+    assert report['discovery']['member_orientations'] == [0, 1]
+    assert report['report_pathway_directory'] == str(path_calls[1]['output'])
+    before = (root / recovered['product_record_path']).read_bytes()
+    assert run()['status'] == 'complete'
+    assert (root / recovered['product_record_path']).read_bytes() == before
+    # Choosing a new representative must still check the old input snapshot.
+    old_input = initial_path / 'inputs/reactant.xyz'
+    old_input_bytes = old_input.read_bytes()
+    count = len(path_calls)
+    old_input.write_text('tampered')
+    assert run()['status'] == 'failed'
+    assert len(path_calls) == count
+    old_input.write_bytes(old_input_bytes)
+    revision = root / recovered['product_record_path']
+    changed = read_json(revision)
+    changed['representative_orientation'] = 0
+    write_json(revision, changed)
+    with pytest.raises(ValueError, match='Immutable scan product record changed'):
+        run()
+
+
+@pytest.mark.parametrize('legacy', [True, False])
+def test_scan_restart_retains_historical_signed_request_and_commits(scan_run, legacy):
+    import hashlib
+    import json
+    root, run, calls = scan_run
+    assert run(legacy=legacy)['status'] == 'complete'
+    if legacy:
+        root = root.with_name('legacy')
+    request_path = root / 'request.json'
+    historical = read_json(request_path)
+    for key in ('total_multiplicity', 'total_multiplicity_source'):
+        historical['qc_params'].pop(key)
+        for item in historical['orientation_definitions']:
+            item.pop(key)
+    historical.pop('request_signature')
+    historical['request_signature'] = hashlib.sha256(json.dumps(
+        historical, sort_keys=True, separators=(',', ':'), default=str).encode()).hexdigest()
+    # Freeze a pre-spin-provenance fixture, including its original commit signature.
+    write_json(request_path, historical)
+    commit_path = root / 'orientation_000/scan_commit.json'
+    if not legacy:
+        commit = read_json(commit_path)
+        commit['request_signature'] = historical['request_signature']
+        write_json(commit_path, commit)
+    before = request_path.read_bytes()
+    commit_before = commit_path.read_bytes() if not legacy else None
+    assert run(legacy=legacy)['status'] == 'complete'
+    assert len(calls) == 1
+    assert request_path.read_bytes() == before
+    if not legacy:
+        assert commit_path.read_bytes() == commit_before

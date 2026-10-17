@@ -140,6 +140,14 @@ def validate_scan_restart(output_dir, request):
                 item.pop("total_multiplicity_source", None)
                 compatible_orientations.append(item)
             comparison_request["orientation_definitions"] = compatible_orientations
+        if "request_signature" in comparison_request:
+            # Execution supplies a full signed request, unlike preflight.
+            # Compare the signature of the same legacy-compatible payload.
+            payload = {key: value for key, value in comparison_request.items()
+                       if key != "request_signature"}
+            comparison_request["request_signature"] = hashlib.sha256(
+                json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+            ).hexdigest()
     if any(previous.get(key) != value for key, value in comparison_request.items()):
         raise FileExistsError(f"scan-bond output directory belongs to a different request: {root}")
 
@@ -382,10 +390,13 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         validate_scan_restart(root, request)
     root.mkdir(parents=True, exist_ok=True)
     request_path = root / "request.json"
-    if _layout is not None:
+    if request_path.exists():
+        # Validation above established compatibility. Keep the original
+        # request/signature as the authority for existing native/v2 commits.
+        request = json.loads(request_path.read_text())
+    elif _layout is not None:
         from pyar.persistence import write_json
-        if not request_path.exists():
-            write_json(request_path, request, overwrite=False)
+        write_json(request_path, request, overwrite=False)
     else:
         request_temp = root / "request.json.tmp"
         request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))

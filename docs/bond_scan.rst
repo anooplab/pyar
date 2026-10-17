@@ -238,6 +238,14 @@ retaining alternative orientations. An identity failure remains an individual
 unknown entry; an unchanged reactant is listed as a non-product. Target-bond
 status is recorded per route, so an off-target product remains visible.
 
+If a failed orientation succeeds on restart, its route can join an existing
+product without changing that product's ID. Earlier ``product.json`` records
+remain intact; additional membership snapshots live under the product's
+``revisions`` directory, and the index names and hashes the current snapshot.
+If the selected representative changes, its characterization uses a separate
+directory beneath ``characterization/representatives/orientation_NNN`` so the
+previous representative's inputs and path evidence remain intact.
+
 Representative ranking uses a complete validated scan trace, an available
 internal scan maximum, the constrained scan peak relative to its first point,
 and finally orientation number. That peak is only a route-selection heuristic;
