@@ -411,6 +411,18 @@ def _option_arguments(action, value):
         if not isinstance(value, int) or value < 0:
             raise ValueError(f"{option} must be a nonnegative integer")
         return [option] * value
+    if isinstance(action, argparse._AppendAction):
+        if not isinstance(value, (list, tuple)):
+            raise ValueError(f"{option} requires a list in saved settings")
+        arguments = []
+        for item in value:
+            if action.nargs is None:
+                arguments.append(f"{option}={item}")
+            else:
+                arguments.append(option)
+                arguments.extend(str(part) for part in
+                                 (item if isinstance(item, (list, tuple)) else [item]))
+        return arguments
     if action.nargs in ('+', '*') or isinstance(action.nargs, int):
         if not isinstance(value, (list, tuple)):
             raise ValueError(f"{option} requires a list in saved settings")

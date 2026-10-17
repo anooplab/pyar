@@ -24,10 +24,29 @@ For example:
    pyar microsolvate methane.xyz water.xyz --count 8
    pyar microsolvate methane.xyz water.xyz --count 8 --backend xtb
    pyar microsolvate solute.xyz water.xyz --count 3 --site 7 --backend xtb
+   pyar microsolvate solute.xyz water.xyz --count 3 --backend xtb \
+       --site-group donor=4 --site-group acceptor=8,9 --contact-distance 3.4
 
 ``--site`` accepts one or more 0-based atom indices in the original solute and
 restricts targets to accessible surface samples associated with those atoms.
 Without it, the entire discretized solute surface is eligible.
+
+``--site`` continues to control initial placement targeting. For separate
+post-placement or post-optimization evidence, repeat ``--site-group
+NAME=ATOM[,ATOM...]`` and supply an explicit ``--contact-distance`` in
+Angstrom. Atom indices refer to the original 0-based solute prefix. Each
+reported pair is an atom-distance contact only; PyAR does not infer donor,
+acceptor, bond, or metal-coordination chemistry. A solvent molecule may
+occupy more than one overlapping group, and each group counts that molecule
+once. The report also labels molecules as first shell when they contact the
+original solute, second shell when they contact any first-shell solvent, or
+outer otherwise, using the same explicit cutoff. These are operational
+geometric labels, not thermodynamic shell assignments. Without the opt-in
+groups, existing coverage and ``--site`` behavior is unchanged.
+With contacts enabled, the report also compares the original-solute prefix
+with its starting geometry using a covalent-radii distance heuristic. It flags
+a changed proximity graph or reports ``unknown`` if atom identity mapping is
+unavailable; this is not a bond-order or reaction analysis.
 
 The shell surface is generated deterministically using Fibonacci points on
 atom-centred van der Waals spheres expanded by a spherical probe (1.4 Å by

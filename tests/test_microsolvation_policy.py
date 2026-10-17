@@ -38,6 +38,7 @@ def test_historical_default_request_serialization_is_unchanged():
     assert payload["selection_policy"]["name"] == "surface-coverage-energy-diversity-v1"
     assert "objective" not in payload["selection_policy"]
     assert "placement_policy" not in payload
+    assert "site_contact_policy" not in payload
 
 
 def test_energy_and_cluster_policy_require_a_real_energy_provider():
