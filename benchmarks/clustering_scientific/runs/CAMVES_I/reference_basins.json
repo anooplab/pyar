@@ -71,8 +71,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.574165018645,
       "final_gradient_norm_eh_per_alpha": 4.9499126e-05,
-      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0000/xtb.log"
+      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz"
     },
     {
       "name": "frame_0001",
@@ -82,8 +81,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.574032345779,
       "final_gradient_norm_eh_per_alpha": 0.000100231098,
-      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0001/xtb.log"
+      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz"
     },
     {
       "name": "frame_0002",
@@ -93,8 +91,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.573902471546,
       "final_gradient_norm_eh_per_alpha": 8.3145574e-05,
-      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0002/xtb.log"
+      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz"
     },
     {
       "name": "frame_0003",
@@ -104,8 +101,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.573623163758,
       "final_gradient_norm_eh_per_alpha": 2.9312628e-05,
-      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0003/xtb.log"
+      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz"
     },
     {
       "name": "frame_0004",
@@ -115,8 +111,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.573606897572,
       "final_gradient_norm_eh_per_alpha": 7.9499124e-05,
-      "optimized_xyz": "optimizations/frame_0004/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0004/xtb.log"
+      "optimized_xyz": "optimizations/frame_0004/xtbopt.xyz"
     },
     {
       "name": "frame_0005",
@@ -126,8 +121,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.573603852458,
       "final_gradient_norm_eh_per_alpha": 8.5407249e-05,
-      "optimized_xyz": "optimizations/frame_0005/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0005/xtb.log"
+      "optimized_xyz": "optimizations/frame_0005/xtbopt.xyz"
     },
     {
       "name": "frame_0006",
@@ -137,8 +131,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.573044842596,
       "final_gradient_norm_eh_per_alpha": 5.8612273e-05,
-      "optimized_xyz": "optimizations/frame_0006/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0006/xtb.log"
+      "optimized_xyz": "optimizations/frame_0006/xtbopt.xyz"
     },
     {
       "name": "frame_0007",
@@ -148,8 +141,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.572647959715,
       "final_gradient_norm_eh_per_alpha": 0.000106008941,
-      "optimized_xyz": "optimizations/frame_0007/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0007/xtb.log"
+      "optimized_xyz": "optimizations/frame_0007/xtbopt.xyz"
     },
     {
       "name": "frame_0008",
@@ -159,8 +151,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.565665037037,
       "final_gradient_norm_eh_per_alpha": 0.000138207809,
-      "optimized_xyz": "optimizations/frame_0008/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0008/xtb.log"
+      "optimized_xyz": "optimizations/frame_0008/xtbopt.xyz"
     },
     {
       "name": "frame_0009",
@@ -170,8 +161,7 @@
       "inferred_topology_hash": "205c7db141dbb1ad32660ac2e829fbb4",
       "xtb_energy_hartree": -106.565298578589,
       "final_gradient_norm_eh_per_alpha": 8.6460342e-05,
-      "optimized_xyz": "optimizations/frame_0009/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0009/xtb.log"
+      "optimized_xyz": "optimizations/frame_0009/xtbopt.xyz"
     }
   ]
 }

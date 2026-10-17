@@ -367,8 +367,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.484053647579,
       "final_gradient_norm_eh_per_alpha": 4.3974417e-05,
-      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0000/xtb.log"
+      "optimized_xyz": "optimizations/frame_0000/xtbopt.xyz"
     },
     {
       "name": "frame_0001",
@@ -378,8 +377,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.484039632813,
       "final_gradient_norm_eh_per_alpha": 3.0742242e-05,
-      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0001/xtb.log"
+      "optimized_xyz": "optimizations/frame_0001/xtbopt.xyz"
     },
     {
       "name": "frame_0002",
@@ -389,8 +387,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.48340543045,
       "final_gradient_norm_eh_per_alpha": 0.000157471191,
-      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0002/xtb.log"
+      "optimized_xyz": "optimizations/frame_0002/xtbopt.xyz"
     },
     {
       "name": "frame_0003",
@@ -400,8 +397,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.483402848961,
       "final_gradient_norm_eh_per_alpha": 0.000316453726,
-      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0003/xtb.log"
+      "optimized_xyz": "optimizations/frame_0003/xtbopt.xyz"
     },
     {
       "name": "frame_0004",
@@ -411,8 +407,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.483171563172,
       "final_gradient_norm_eh_per_alpha": 0.00022599738,
-      "optimized_xyz": "optimizations/frame_0004/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0004/xtb.log"
+      "optimized_xyz": "optimizations/frame_0004/xtbopt.xyz"
     },
     {
       "name": "frame_0005",
@@ -422,8 +417,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.481510035646,
       "final_gradient_norm_eh_per_alpha": 0.000150986724,
-      "optimized_xyz": "optimizations/frame_0005/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0005/xtb.log"
+      "optimized_xyz": "optimizations/frame_0005/xtbopt.xyz"
     },
     {
       "name": "frame_0006",
@@ -433,8 +427,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.481339571537,
       "final_gradient_norm_eh_per_alpha": 0.000199676658,
-      "optimized_xyz": "optimizations/frame_0006/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0006/xtb.log"
+      "optimized_xyz": "optimizations/frame_0006/xtbopt.xyz"
     },
     {
       "name": "frame_0007",
@@ -444,8 +437,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.481338518172,
       "final_gradient_norm_eh_per_alpha": 0.000122557365,
-      "optimized_xyz": "optimizations/frame_0007/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0007/xtb.log"
+      "optimized_xyz": "optimizations/frame_0007/xtbopt.xyz"
     },
     {
       "name": "frame_0008",
@@ -455,8 +447,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.481077811372,
       "final_gradient_norm_eh_per_alpha": 0.000208708545,
-      "optimized_xyz": "optimizations/frame_0008/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0008/xtb.log"
+      "optimized_xyz": "optimizations/frame_0008/xtbopt.xyz"
     },
     {
       "name": "frame_0009",
@@ -466,8 +457,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480938283639,
       "final_gradient_norm_eh_per_alpha": 0.000113674313,
-      "optimized_xyz": "optimizations/frame_0009/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0009/xtb.log"
+      "optimized_xyz": "optimizations/frame_0009/xtbopt.xyz"
     },
     {
       "name": "frame_0010",
@@ -477,8 +467,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480937267585,
       "final_gradient_norm_eh_per_alpha": 9.6514864e-05,
-      "optimized_xyz": "optimizations/frame_0010/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0010/xtb.log"
+      "optimized_xyz": "optimizations/frame_0010/xtbopt.xyz"
     },
     {
       "name": "frame_0011",
@@ -488,8 +477,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480926865279,
       "final_gradient_norm_eh_per_alpha": 0.00013458474,
-      "optimized_xyz": "optimizations/frame_0011/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0011/xtb.log"
+      "optimized_xyz": "optimizations/frame_0011/xtbopt.xyz"
     },
     {
       "name": "frame_0012",
@@ -499,8 +487,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480917081352,
       "final_gradient_norm_eh_per_alpha": 0.000180874888,
-      "optimized_xyz": "optimizations/frame_0012/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0012/xtb.log"
+      "optimized_xyz": "optimizations/frame_0012/xtbopt.xyz"
     },
     {
       "name": "frame_0013",
@@ -510,8 +497,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480910951092,
       "final_gradient_norm_eh_per_alpha": 0.000195303027,
-      "optimized_xyz": "optimizations/frame_0013/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0013/xtb.log"
+      "optimized_xyz": "optimizations/frame_0013/xtbopt.xyz"
     },
     {
       "name": "frame_0014",
@@ -521,8 +507,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480783427142,
       "final_gradient_norm_eh_per_alpha": 9.4509608e-05,
-      "optimized_xyz": "optimizations/frame_0014/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0014/xtb.log"
+      "optimized_xyz": "optimizations/frame_0014/xtbopt.xyz"
     },
     {
       "name": "frame_0015",
@@ -532,8 +517,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480728449346,
       "final_gradient_norm_eh_per_alpha": 6.215186e-05,
-      "optimized_xyz": "optimizations/frame_0015/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0015/xtb.log"
+      "optimized_xyz": "optimizations/frame_0015/xtbopt.xyz"
     },
     {
       "name": "frame_0016",
@@ -543,8 +527,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480685790552,
       "final_gradient_norm_eh_per_alpha": 0.000130249631,
-      "optimized_xyz": "optimizations/frame_0016/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0016/xtb.log"
+      "optimized_xyz": "optimizations/frame_0016/xtbopt.xyz"
     },
     {
       "name": "frame_0017",
@@ -554,8 +537,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480515050404,
       "final_gradient_norm_eh_per_alpha": 8.1494031e-05,
-      "optimized_xyz": "optimizations/frame_0017/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0017/xtb.log"
+      "optimized_xyz": "optimizations/frame_0017/xtbopt.xyz"
     },
     {
       "name": "frame_0018",
@@ -565,8 +547,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480407582127,
       "final_gradient_norm_eh_per_alpha": 0.000190606062,
-      "optimized_xyz": "optimizations/frame_0018/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0018/xtb.log"
+      "optimized_xyz": "optimizations/frame_0018/xtbopt.xyz"
     },
     {
       "name": "frame_0019",
@@ -576,8 +557,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480064644712,
       "final_gradient_norm_eh_per_alpha": 0.000140279428,
-      "optimized_xyz": "optimizations/frame_0019/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0019/xtb.log"
+      "optimized_xyz": "optimizations/frame_0019/xtbopt.xyz"
     },
     {
       "name": "frame_0020",
@@ -587,8 +567,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.480038545826,
       "final_gradient_norm_eh_per_alpha": 7.7640726e-05,
-      "optimized_xyz": "optimizations/frame_0020/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0020/xtb.log"
+      "optimized_xyz": "optimizations/frame_0020/xtbopt.xyz"
     },
     {
       "name": "frame_0021",
@@ -598,8 +577,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.479862073436,
       "final_gradient_norm_eh_per_alpha": 6.5331092e-05,
-      "optimized_xyz": "optimizations/frame_0021/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0021/xtb.log"
+      "optimized_xyz": "optimizations/frame_0021/xtbopt.xyz"
     },
     {
       "name": "frame_0022",
@@ -609,8 +587,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.479638925973,
       "final_gradient_norm_eh_per_alpha": 9.2303516e-05,
-      "optimized_xyz": "optimizations/frame_0022/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0022/xtb.log"
+      "optimized_xyz": "optimizations/frame_0022/xtbopt.xyz"
     },
     {
       "name": "frame_0023",
@@ -620,8 +597,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.479531457938,
       "final_gradient_norm_eh_per_alpha": 5.4570279e-05,
-      "optimized_xyz": "optimizations/frame_0023/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0023/xtb.log"
+      "optimized_xyz": "optimizations/frame_0023/xtbopt.xyz"
     },
     {
       "name": "frame_0024",
@@ -631,8 +607,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.47952574788,
       "final_gradient_norm_eh_per_alpha": 0.00010226568,
-      "optimized_xyz": "optimizations/frame_0024/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0024/xtb.log"
+      "optimized_xyz": "optimizations/frame_0024/xtbopt.xyz"
     },
     {
       "name": "frame_0025",
@@ -642,8 +617,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.479352681584,
       "final_gradient_norm_eh_per_alpha": 6.4561868e-05,
-      "optimized_xyz": "optimizations/frame_0025/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0025/xtb.log"
+      "optimized_xyz": "optimizations/frame_0025/xtbopt.xyz"
     },
     {
       "name": "frame_0026",
@@ -653,8 +627,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.479320216042,
       "final_gradient_norm_eh_per_alpha": 5.4489346e-05,
-      "optimized_xyz": "optimizations/frame_0026/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0026/xtb.log"
+      "optimized_xyz": "optimizations/frame_0026/xtbopt.xyz"
     },
     {
       "name": "frame_0027",
@@ -664,8 +637,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.47913010515,
       "final_gradient_norm_eh_per_alpha": 5.089267e-05,
-      "optimized_xyz": "optimizations/frame_0027/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0027/xtb.log"
+      "optimized_xyz": "optimizations/frame_0027/xtbopt.xyz"
     },
     {
       "name": "frame_0028",
@@ -675,8 +647,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.479053744502,
       "final_gradient_norm_eh_per_alpha": 3.9990095e-05,
-      "optimized_xyz": "optimizations/frame_0028/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0028/xtb.log"
+      "optimized_xyz": "optimizations/frame_0028/xtbopt.xyz"
     },
     {
       "name": "frame_0029",
@@ -686,8 +657,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478965994082,
       "final_gradient_norm_eh_per_alpha": 0.00012774445,
-      "optimized_xyz": "optimizations/frame_0029/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0029/xtb.log"
+      "optimized_xyz": "optimizations/frame_0029/xtbopt.xyz"
     },
     {
       "name": "frame_0030",
@@ -697,8 +667,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478957025742,
       "final_gradient_norm_eh_per_alpha": 4.2302212e-05,
-      "optimized_xyz": "optimizations/frame_0030/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0030/xtb.log"
+      "optimized_xyz": "optimizations/frame_0030/xtbopt.xyz"
     },
     {
       "name": "frame_0031",
@@ -708,8 +677,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.47895273433,
       "final_gradient_norm_eh_per_alpha": 8.614637e-05,
-      "optimized_xyz": "optimizations/frame_0031/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0031/xtb.log"
+      "optimized_xyz": "optimizations/frame_0031/xtbopt.xyz"
     },
     {
       "name": "frame_0032",
@@ -719,8 +687,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478925288036,
       "final_gradient_norm_eh_per_alpha": 6.5767521e-05,
-      "optimized_xyz": "optimizations/frame_0032/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0032/xtb.log"
+      "optimized_xyz": "optimizations/frame_0032/xtbopt.xyz"
     },
     {
       "name": "frame_0033",
@@ -730,8 +697,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478808610432,
       "final_gradient_norm_eh_per_alpha": 0.000132589216,
-      "optimized_xyz": "optimizations/frame_0033/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0033/xtb.log"
+      "optimized_xyz": "optimizations/frame_0033/xtbopt.xyz"
     },
     {
       "name": "frame_0034",
@@ -741,8 +707,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478734146724,
       "final_gradient_norm_eh_per_alpha": 0.000141038151,
-      "optimized_xyz": "optimizations/frame_0034/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0034/xtb.log"
+      "optimized_xyz": "optimizations/frame_0034/xtbopt.xyz"
     },
     {
       "name": "frame_0035",
@@ -752,8 +717,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478560583302,
       "final_gradient_norm_eh_per_alpha": 7.1931217e-05,
-      "optimized_xyz": "optimizations/frame_0035/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0035/xtb.log"
+      "optimized_xyz": "optimizations/frame_0035/xtbopt.xyz"
     },
     {
       "name": "frame_0036",
@@ -763,8 +727,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478550201993,
       "final_gradient_norm_eh_per_alpha": 0.000124787133,
-      "optimized_xyz": "optimizations/frame_0036/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0036/xtb.log"
+      "optimized_xyz": "optimizations/frame_0036/xtbopt.xyz"
     },
     {
       "name": "frame_0037",
@@ -774,8 +737,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478268060342,
       "final_gradient_norm_eh_per_alpha": 0.000197704364,
-      "optimized_xyz": "optimizations/frame_0037/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0037/xtb.log"
+      "optimized_xyz": "optimizations/frame_0037/xtbopt.xyz"
     },
     {
       "name": "frame_0038",
@@ -785,8 +747,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478249526851,
       "final_gradient_norm_eh_per_alpha": 0.000100450201,
-      "optimized_xyz": "optimizations/frame_0038/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0038/xtb.log"
+      "optimized_xyz": "optimizations/frame_0038/xtbopt.xyz"
     },
     {
       "name": "frame_0039",
@@ -796,8 +757,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.478143985949,
       "final_gradient_norm_eh_per_alpha": 0.00010181788,
-      "optimized_xyz": "optimizations/frame_0039/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0039/xtb.log"
+      "optimized_xyz": "optimizations/frame_0039/xtbopt.xyz"
     },
     {
       "name": "frame_0040",
@@ -807,8 +767,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477969230212,
       "final_gradient_norm_eh_per_alpha": 0.00017726848,
-      "optimized_xyz": "optimizations/frame_0040/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0040/xtb.log"
+      "optimized_xyz": "optimizations/frame_0040/xtbopt.xyz"
     },
     {
       "name": "frame_0041",
@@ -818,8 +777,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477968098232,
       "final_gradient_norm_eh_per_alpha": 0.000237040749,
-      "optimized_xyz": "optimizations/frame_0041/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0041/xtb.log"
+      "optimized_xyz": "optimizations/frame_0041/xtbopt.xyz"
     },
     {
       "name": "frame_0042",
@@ -829,8 +787,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477938121186,
       "final_gradient_norm_eh_per_alpha": 0.000108679113,
-      "optimized_xyz": "optimizations/frame_0042/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0042/xtb.log"
+      "optimized_xyz": "optimizations/frame_0042/xtbopt.xyz"
     },
     {
       "name": "frame_0043",
@@ -840,8 +797,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477920249507,
       "final_gradient_norm_eh_per_alpha": 4.3565789e-05,
-      "optimized_xyz": "optimizations/frame_0043/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0043/xtb.log"
+      "optimized_xyz": "optimizations/frame_0043/xtbopt.xyz"
     },
     {
       "name": "frame_0044",
@@ -851,8 +807,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477912883249,
       "final_gradient_norm_eh_per_alpha": 0.000144568339,
-      "optimized_xyz": "optimizations/frame_0044/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0044/xtb.log"
+      "optimized_xyz": "optimizations/frame_0044/xtbopt.xyz"
     },
     {
       "name": "frame_0045",
@@ -862,8 +817,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477802440129,
       "final_gradient_norm_eh_per_alpha": 9.5912686e-05,
-      "optimized_xyz": "optimizations/frame_0045/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0045/xtb.log"
+      "optimized_xyz": "optimizations/frame_0045/xtbopt.xyz"
     },
     {
       "name": "frame_0046",
@@ -873,8 +827,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477720929465,
       "final_gradient_norm_eh_per_alpha": 0.00015312826,
-      "optimized_xyz": "optimizations/frame_0046/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0046/xtb.log"
+      "optimized_xyz": "optimizations/frame_0046/xtbopt.xyz"
     },
     {
       "name": "frame_0047",
@@ -884,8 +837,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477696928946,
       "final_gradient_norm_eh_per_alpha": 7.7367684e-05,
-      "optimized_xyz": "optimizations/frame_0047/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0047/xtb.log"
+      "optimized_xyz": "optimizations/frame_0047/xtbopt.xyz"
     },
     {
       "name": "frame_0048",
@@ -895,8 +847,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477636419224,
       "final_gradient_norm_eh_per_alpha": 9.7467638e-05,
-      "optimized_xyz": "optimizations/frame_0048/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0048/xtb.log"
+      "optimized_xyz": "optimizations/frame_0048/xtbopt.xyz"
     },
     {
       "name": "frame_0049",
@@ -906,8 +857,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477626143774,
       "final_gradient_norm_eh_per_alpha": 0.000106653587,
-      "optimized_xyz": "optimizations/frame_0049/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0049/xtb.log"
+      "optimized_xyz": "optimizations/frame_0049/xtbopt.xyz"
     },
     {
       "name": "frame_0050",
@@ -917,8 +867,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477579656554,
       "final_gradient_norm_eh_per_alpha": 0.000100878249,
-      "optimized_xyz": "optimizations/frame_0050/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0050/xtb.log"
+      "optimized_xyz": "optimizations/frame_0050/xtbopt.xyz"
     },
     {
       "name": "frame_0051",
@@ -928,8 +877,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.477548602826,
       "final_gradient_norm_eh_per_alpha": 2.9558837e-05,
-      "optimized_xyz": "optimizations/frame_0051/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0051/xtb.log"
+      "optimized_xyz": "optimizations/frame_0051/xtbopt.xyz"
     },
     {
       "name": "frame_0052",
@@ -939,8 +887,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476994511939,
       "final_gradient_norm_eh_per_alpha": 0.000248890251,
-      "optimized_xyz": "optimizations/frame_0052/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0052/xtb.log"
+      "optimized_xyz": "optimizations/frame_0052/xtbopt.xyz"
     },
     {
       "name": "frame_0053",
@@ -950,8 +897,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476742881063,
       "final_gradient_norm_eh_per_alpha": 8.5907858e-05,
-      "optimized_xyz": "optimizations/frame_0053/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0053/xtb.log"
+      "optimized_xyz": "optimizations/frame_0053/xtbopt.xyz"
     },
     {
       "name": "frame_0054",
@@ -961,8 +907,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476331922148,
       "final_gradient_norm_eh_per_alpha": 0.00013279947,
-      "optimized_xyz": "optimizations/frame_0054/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0054/xtb.log"
+      "optimized_xyz": "optimizations/frame_0054/xtbopt.xyz"
     },
     {
       "name": "frame_0055",
@@ -972,8 +917,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476209461562,
       "final_gradient_norm_eh_per_alpha": 0.000122434213,
-      "optimized_xyz": "optimizations/frame_0055/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0055/xtb.log"
+      "optimized_xyz": "optimizations/frame_0055/xtbopt.xyz"
     },
     {
       "name": "frame_0056",
@@ -983,8 +927,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476189214005,
       "final_gradient_norm_eh_per_alpha": 4.5979191e-05,
-      "optimized_xyz": "optimizations/frame_0056/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0056/xtb.log"
+      "optimized_xyz": "optimizations/frame_0056/xtbopt.xyz"
     },
     {
       "name": "frame_0057",
@@ -994,8 +937,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476153472818,
       "final_gradient_norm_eh_per_alpha": 7.5111471e-05,
-      "optimized_xyz": "optimizations/frame_0057/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0057/xtb.log"
+      "optimized_xyz": "optimizations/frame_0057/xtbopt.xyz"
     },
     {
       "name": "frame_0058",
@@ -1005,8 +947,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476117777457,
       "final_gradient_norm_eh_per_alpha": 0.000107940817,
-      "optimized_xyz": "optimizations/frame_0058/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0058/xtb.log"
+      "optimized_xyz": "optimizations/frame_0058/xtbopt.xyz"
     },
     {
       "name": "frame_0059",
@@ -1016,8 +957,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.476075836758,
       "final_gradient_norm_eh_per_alpha": 0.000104349792,
-      "optimized_xyz": "optimizations/frame_0059/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0059/xtb.log"
+      "optimized_xyz": "optimizations/frame_0059/xtbopt.xyz"
     },
     {
       "name": "frame_0060",
@@ -1027,8 +967,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.475965875186,
       "final_gradient_norm_eh_per_alpha": 0.000232042067,
-      "optimized_xyz": "optimizations/frame_0060/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0060/xtb.log"
+      "optimized_xyz": "optimizations/frame_0060/xtbopt.xyz"
     },
     {
       "name": "frame_0061",
@@ -1038,8 +977,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.475840872424,
       "final_gradient_norm_eh_per_alpha": 0.000134433679,
-      "optimized_xyz": "optimizations/frame_0061/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0061/xtb.log"
+      "optimized_xyz": "optimizations/frame_0061/xtbopt.xyz"
     },
     {
       "name": "frame_0062",
@@ -1049,8 +987,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.475620012728,
       "final_gradient_norm_eh_per_alpha": 0.000173358325,
-      "optimized_xyz": "optimizations/frame_0062/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0062/xtb.log"
+      "optimized_xyz": "optimizations/frame_0062/xtbopt.xyz"
     },
     {
       "name": "frame_0063",
@@ -1060,8 +997,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.475425209397,
       "final_gradient_norm_eh_per_alpha": 0.000123889676,
-      "optimized_xyz": "optimizations/frame_0063/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0063/xtb.log"
+      "optimized_xyz": "optimizations/frame_0063/xtbopt.xyz"
     },
     {
       "name": "frame_0064",
@@ -1071,8 +1007,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.475111244761,
       "final_gradient_norm_eh_per_alpha": 0.000138037825,
-      "optimized_xyz": "optimizations/frame_0064/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0064/xtb.log"
+      "optimized_xyz": "optimizations/frame_0064/xtbopt.xyz"
     },
     {
       "name": "frame_0065",
@@ -1082,8 +1017,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.475082330645,
       "final_gradient_norm_eh_per_alpha": 6.3428545e-05,
-      "optimized_xyz": "optimizations/frame_0065/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0065/xtb.log"
+      "optimized_xyz": "optimizations/frame_0065/xtbopt.xyz"
     },
     {
       "name": "frame_0066",
@@ -1093,8 +1027,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.474953481855,
       "final_gradient_norm_eh_per_alpha": 7.6618205e-05,
-      "optimized_xyz": "optimizations/frame_0066/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0066/xtb.log"
+      "optimized_xyz": "optimizations/frame_0066/xtbopt.xyz"
     },
     {
       "name": "frame_0067",
@@ -1104,8 +1037,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.474855498486,
       "final_gradient_norm_eh_per_alpha": 0.000100517418,
-      "optimized_xyz": "optimizations/frame_0067/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0067/xtb.log"
+      "optimized_xyz": "optimizations/frame_0067/xtbopt.xyz"
     },
     {
       "name": "frame_0068",
@@ -1115,8 +1047,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.47469407672,
       "final_gradient_norm_eh_per_alpha": 0.000158666201,
-      "optimized_xyz": "optimizations/frame_0068/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0068/xtb.log"
+      "optimized_xyz": "optimizations/frame_0068/xtbopt.xyz"
     },
     {
       "name": "frame_0069",
@@ -1126,8 +1057,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.474637436989,
       "final_gradient_norm_eh_per_alpha": 0.00018504852,
-      "optimized_xyz": "optimizations/frame_0069/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0069/xtb.log"
+      "optimized_xyz": "optimizations/frame_0069/xtbopt.xyz"
     },
     {
       "name": "frame_0070",
@@ -1137,8 +1067,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.474539971146,
       "final_gradient_norm_eh_per_alpha": 0.000109074391,
-      "optimized_xyz": "optimizations/frame_0070/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0070/xtb.log"
+      "optimized_xyz": "optimizations/frame_0070/xtbopt.xyz"
     },
     {
       "name": "frame_0071",
@@ -1148,8 +1077,7 @@
       "inferred_topology_hash": "352ac9d4f169384bc2bbab0ec74c8af0",
       "xtb_energy_hartree": -56.474538196424,
       "final_gradient_norm_eh_per_alpha": 0.000118258972,
-      "optimized_xyz": "optimizations/frame_0071/xtbopt.xyz",
-      "optimization_log": "optimizations/frame_0071/xtb.log"
+      "optimized_xyz": "optimizations/frame_0071/xtbopt.xyz"
     }
   ]
 }
