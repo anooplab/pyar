@@ -78,9 +78,11 @@ From the repository root, with the PyAR environment active and `xtb` on PATH:
 bash benchmarks/clustering_scientific/run_benchmark.sh
 ```
 
-This stores optimization inputs, outputs, and logs, reference labels, per-
-condition JSON/CSV, manifests, and the aggregate analysis under
-`benchmarks/clustering_scientific/runs/`. No run data is written to `/tmp`.
+This stores optimization inputs and outputs, reference labels, per-condition
+JSON/CSV, manifests, and the aggregate analysis under
+`benchmarks/clustering_scientific/runs/`. xTB logs are generated locally for
+validation and resumable caching, but are excluded from the public repository.
+No run data is written to `/tmp`.
 Use the Python module directly for a smaller diagnostic run:
 
 ```bash

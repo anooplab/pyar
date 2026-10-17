@@ -1,6 +1,6 @@
 # Run-layout v2 release validation
 
-PR 8 closes the implementation series in `source_plan.md`; it does not change
+PR 8 closes the run-layout v2 implementation series; it does not change
 PyAR's version, publish a package, retire v1 continuation or distribute new model
 weights. Public behavior and compatibility are described in `../run_layout.rst`.
 Live CI and final merge status are authoritative on the linked GitHub PR.

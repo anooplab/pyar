@@ -5,11 +5,9 @@ Audited on 2026-10-14 at `8ab5bcca43d43fbcf69a76644fad79e1c233b37e`
 (PyAR 1.5.1). No package, workflow, scientific algorithm, test or public CLI
 implementation is changed in PR 0.
 
-Source: [Dropbox architecture plan](https://www.dropbox.com/scl/fi/ygqdm8mdp1tllw5xt0rcs),
-`/PyAR-2.0/doc/pyar-run-layout-v2-plan.md`, revision
-`65dbc5cbfb1d00234831b`, modified 2026-10-13 17:44:11 UTC. A content
-[source snapshot](source_plan.md) is included so review does not depend on a
-changing Dropbox document.
+The original staged plan and private Dropbox link are intentionally omitted
+from this public repository. The public design record is limited to the
+reviewed path matrix, artifact contract, and baseline evidence linked below.
 
 Review these together:
 

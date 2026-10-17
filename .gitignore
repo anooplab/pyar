@@ -5,9 +5,13 @@ docs/_build/
 test/
 aggregates/
 .venv/
+.idea/
+.idea-backup/
 __pycache__/
 **/__pycache__/
 *.py[cod]
+*.log
+/pyar_geometric_state.json
 pyar.log
 pyar-optimiser.log
 pyar-react.log
