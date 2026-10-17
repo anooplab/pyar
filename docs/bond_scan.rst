@@ -187,3 +187,19 @@ unchanged. Existing v1 runs continue with their original paths.
 
 ``results/manifest.json`` indexes scan-maximum candidates in their native
 locations. These candidates are explicitly **not validated transition states**.
+
+When free relaxation has completed, layout v2 also writes
+``products/index.json``. It groups only orientations whose relaxed molecular
+identity was successfully established and differs from the separated
+reactants. The product record points to the hashed scan and relaxation
+artifacts for every route, and marks one deterministic representative while
+retaining alternative orientations. An identity failure remains an individual
+unknown entry; an unchanged reactant is listed as a non-product. Target-bond
+status is recorded per route, so an off-target product remains visible.
+
+Representative ranking uses a complete validated scan trace, an available
+internal scan maximum, the constrained scan peak relative to its first point,
+and finally orientation number. That peak is only a route-selection heuristic;
+it is not an activation barrier or transition-state energy. Registry creation
+does not start NEB or other reaction-path stages. Existing v1 output and the
+default ``--through`` behavior are unchanged.
