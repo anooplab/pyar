@@ -69,6 +69,29 @@ small methane-water xTB pilot verified execution and energy separation, but
 did not demonstrate improved minimum recovery; do not infer a recommended
 radius or strength from that pilot. The wall is rejected for ``cluster`` mode
 and is not passed to native geometry optimizers.
+
+Use ``--wall auto`` to apply the wall conditionally during a shell search. PyAR
+first performs an unbiased optimization and checks shell coverage. If that
+geometry is shell-valid, no wall optimization is run. If it escaped, the
+candidate is retried with a derived wall and then relaxed again without the
+wall; only the final physical energy is used for ranking. The radius is the
+farthest sampled accessible solute-surface point from the mass-weighted solute
+center plus the solvent fragment's mass-weighted COM-to-atom extent and a
+0.5 Å margin. The harmonic constant is calibrated so a 0.5 Å overrun costs
+3 kBT at a 298.15 K reference, yielding about 0.02266 Eh/Å². This is a soft
+search-stiffness convention, not a temperature-dependent sampling model or a
+claim about solvation thermodynamics. The policy and per-candidate decision
+are recorded in request and candidate diagnostics. Auto mode requires an
+energy-gradient backend and geomeTRIC for shell searches; for the finite
+``cluster`` objective it is recorded as disabled. Explicit wall values remain
+available for controlled experiments.
+
+The geometry-derived envelope follows the general sizing principle used by
+solvent-placement methods such as `ORCA SOLVATOR
+<https://www.faccts.de/docs/orca/6.1/manual/contents/structurereactivity/solvator.html>`_
+and `CREST QCG <https://crest-lab.github.io/crest-docs/page/documentation/qcg.html>`_.
+The trigger, margin and 3 kBT calibration above are PyAR's policy choices and
+have not been validated as universally optimal.
 With contacts enabled, the report also compares the original-solute prefix
 with its starting geometry using a covalent-radii distance heuristic. It flags
 a changed proximity graph or reports ``unknown`` if atom identity mapping is

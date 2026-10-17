@@ -39,12 +39,12 @@ def build_parser(prog=None):
                         help="Maximum solvent-centre distance from the target surface after relaxation (Angstrom)")
     parser.add_argument("--objective", choices=("shell", "cluster"), default="shell",
                         help="shell preserves surface coverage; cluster searches fixed-composition low-energy aggregates")
-    parser.add_argument("--wall", choices=("none", "outer-sphere"), default="none",
-                        help="optional smooth outer sphere during shell candidate optimization")
+    parser.add_argument("--wall", choices=("none", "outer-sphere", "auto"), default="none",
+                        help="wall mode: none, explicit outer-sphere, or auto after an unbiased shell escape")
     parser.add_argument("--wall-radius", type=float,
-                        help="outer-sphere radius in Angstrom; required with --wall outer-sphere")
+                        help="outer-sphere radius in Angstrom; required with --wall outer-sphere (not auto)")
     parser.add_argument("--wall-force-constant", type=float,
-                        help="harmonic wall strength in hartree/Angstrom^2; required with --wall outer-sphere")
+                        help="harmonic wall strength in hartree/Angstrom^2; required with --wall outer-sphere (not auto)")
     parser.add_argument("--placement-score", choices=("geometric", "energy"), default="geometric",
                         help="Candidate selection basis; energy requires backend optimization (Hartree)")
     parser.add_argument("--output", default="microsolvation")
@@ -121,6 +121,15 @@ def main(argv=None, *, prog=None):
             else:
                 if request.wall == "none":
                     print(f"Shell filter: {request.shell_tolerance:g} Å post-optimization; no restraint potential applied")
+                elif request.wall == "auto":
+                    if request.objective == "cluster":
+                        print("Wall policy: auto; disabled for finite-cluster objective")
+                    else:
+                        policy = request.to_state_dict()["confinement"]
+                        print("Wall policy: auto; first optimize without a wall, then activate only if the candidate escapes the shell")
+                        print(f"Derived outer radius: {policy['radius_angstrom']:.3f} Å; derived k: "
+                              f"{policy['force_constant_hartree_per_angstrom2']:.5f} Eh/Å²")
+                        print("A final unbiased relaxation and physical-energy ranking follow any wall-guided search.")
                 else:
                     print(f"Outer wall: radius {request.wall_radius:g} Å, k={request.wall_force_constant:g} Eh/Å²; search-only, then unbiased relaxation")
             print(f"Backend: {qc.get('software', 'none (geometry-only)')}")

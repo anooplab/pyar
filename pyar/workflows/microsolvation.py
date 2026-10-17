@@ -150,18 +150,46 @@ def _optimize_candidates(candidates, request, candidate_directory):
     selected = []
     shell_rejected = 0
     failures = []
+    auto_shell_policy = request.wall == "auto" and request.objective == "shell"
+    wall_policy = request.to_state_dict().get("confinement", {}) if request.wall != "none" else {}
     for candidate in candidates:
         qc = dict(request.backend_parameters)
         qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
                   scftype=candidate.scftype, opt_target="minimum", gamma=None)
         try:
             from pyar.optimiser import is_usable, optimise
-            if request.wall != "none":
+            def run_optimization(directory, parameters):
+                with _working_directory(directory):
+                    return optimise(candidate, parameters)
+
+            wall_applied = request.wall == "outer-sphere"
+            candidate.microsolvation_wall_decision = (
+                "applied-explicitly" if wall_applied else
+                "not-applicable-cluster-objective" if request.wall == "auto" and request.objective == "cluster" else
+                "not-requested" if request.wall == "none" else "awaiting-unbiased-shell-check")
+            if auto_shell_policy:
+                status = run_optimization(candidate_directory, qc)
+                if not is_usable(status) or candidate.coordinates is None:
+                    failures.append({"name": candidate.name, "stage": "unbiased_screen",
+                                     "status": str(status or "no coordinates")})
+                    continue
+                initial_coverage = assess_shell(candidate, request)
+                from pyar.microsolvation.wall_policy import should_apply_automatic_wall
+                wall_applied = should_apply_automatic_wall(request, initial_coverage)
+                candidate.microsolvation_wall_decision = (
+                    "applied-after-shell-escape" if wall_applied else
+                    "not-applied-unbiased-geometry-shell-valid")
+            elif not wall_applied:
+                status = run_optimization(candidate_directory, qc)
+            if wall_applied:
                 qc["microsolvation_wall"] = {
                     "solute_atom_count": len(request.solute),
                     "solvent_fragments": [list(fragment) for fragment in candidate.solvent_fragments],
-                    "radius_angstrom": float(request.wall_radius),
-                    "force_constant_hartree_per_angstrom2": float(request.wall_force_constant),
+                    "radius_angstrom": float(wall_policy["radius_angstrom"] if request.wall == "auto"
+                                              else request.wall_radius),
+                    "force_constant_hartree_per_angstrom2": float(
+                        wall_policy["force_constant_hartree_per_angstrom2"]
+                        if request.wall == "auto" else request.wall_force_constant),
                 }
                 with _working_directory(candidate_directory / "wall_search"):
                     status = optimise(candidate, qc)
@@ -175,13 +203,13 @@ def _optimize_candidates(candidates, request, candidate_directory):
                     candidate.microsolvation_wall_objective_energy = float(wall_state["total_energy_hartree"])
                     candidate.microsolvation_wall_energy = float(wall_state["wall_energy_hartree"])
                     candidate.microsolvation_wall_energy_max = float(wall_state["wall_energy_max_hartree"])
+                    candidate.microsolvation_wall_radius_angstrom = qc["microsolvation_wall"]["radius_angstrom"]
+                    candidate.microsolvation_wall_force_constant = qc["microsolvation_wall"][
+                        "force_constant_hartree_per_angstrom2"]
                 except (OSError, ValueError, KeyError, TypeError) as exc:
                     raise RuntimeError(f"missing valid wall-search energy provenance for {candidate.name}: {exc}") from exc
                 qc.pop("microsolvation_wall")
                 with _working_directory(candidate_directory / "unbiased_relaxation"):
-                    status = optimise(candidate, qc)
-            else:
-                with _working_directory(candidate_directory):
                     status = optimise(candidate, qc)
             if not is_usable(status) or candidate.coordinates is None:
                 failures.append({"name": candidate.name, "status": str(status or "no coordinates")})
@@ -194,7 +222,9 @@ def _optimize_candidates(candidates, request, candidate_directory):
         coverage = assess_shell(candidate, request)
         candidate.microsolvation_coverage = coverage
         if request.wall != "none":
-            candidate.microsolvation_wall_survived_unbiased_relaxation = bool(coverage["shell_valid"])
+            candidate.microsolvation_wall_applied = wall_applied
+            candidate.microsolvation_wall_survived_unbiased_relaxation = (
+                bool(coverage["shell_valid"]) if wall_applied else None)
             candidate.microsolvation_physical_energy = float(candidate.energy)
         if request.objective == "shell" and not coverage["shell_valid"]:
             shell_rejected += 1
@@ -327,9 +357,14 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
             diagnostics["wall_candidate_outcomes"] = [
                 {
                     "name": candidate.name,
+                    "wall_decision": getattr(candidate, "microsolvation_wall_decision", "not-run"),
+                    "wall_applied": getattr(candidate, "microsolvation_wall_applied", False),
                     "wall_objective_energy_hartree": getattr(candidate, "microsolvation_wall_objective_energy", None),
                     "wall_energy_hartree": getattr(candidate, "microsolvation_wall_energy", None),
                     "wall_energy_max_hartree": getattr(candidate, "microsolvation_wall_energy_max", None),
+                    "wall_radius_angstrom": getattr(candidate, "microsolvation_wall_radius_angstrom", None),
+                    "wall_force_constant_hartree_per_angstrom2": getattr(
+                        candidate, "microsolvation_wall_force_constant", None),
                     "unbiased_physical_energy_hartree": (
                         None if candidate.energy is None else float(candidate.energy)),
                     "shell_survived_unbiased_relaxation": bool(
@@ -489,9 +524,14 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
         if request.wall != "none":
             diagnostics["wall_candidate_outcomes"] = [
                 {"name": candidate.name,
+                 "wall_decision": getattr(candidate, "microsolvation_wall_decision", "not-run"),
+                 "wall_applied": getattr(candidate, "microsolvation_wall_applied", False),
                  "wall_objective_energy_hartree": getattr(candidate, "microsolvation_wall_objective_energy", None),
                  "wall_energy_hartree": getattr(candidate, "microsolvation_wall_energy", None),
                  "wall_energy_max_hartree": getattr(candidate, "microsolvation_wall_energy_max", None),
+                 "wall_radius_angstrom": getattr(candidate, "microsolvation_wall_radius_angstrom", None),
+                 "wall_force_constant_hartree_per_angstrom2": getattr(
+                     candidate, "microsolvation_wall_force_constant", None),
                  "unbiased_physical_energy_hartree": None if candidate.energy is None else float(candidate.energy),
                  "shell_survived_unbiased_relaxation": bool(candidate.microsolvation_coverage.get("shell_valid", False))}
                 for candidate in candidates
