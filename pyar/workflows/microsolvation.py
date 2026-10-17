@@ -6,7 +6,6 @@ import math
 import os
 from pathlib import Path
 
-from pyar.backend_errors import BackendExecutionError
 from pyar.microsolvation.placement import assess_shell, generate_microsolvation_candidates
 from pyar.microsolvation.request import MicrosolvationRequest
 from pyar.state.microsolvation import MicrosolvationRunState
@@ -14,16 +13,20 @@ from pyar.state.grow import write_json
 from pyar.workflow_results import MicrosolvationResult
 
 
-def _quality_key(molecule):
+def _quality_key(molecule, request):
     coverage = molecule.microsolvation_coverage["coverage_fraction"]
     energy = molecule.energy
     energy_key = float(energy) if energy is not None and math.isfinite(float(energy)) else math.inf
-    return (-coverage, energy_key, molecule.name)
+    if request.objective == "cluster":
+        return (energy_key, -coverage, molecule.name)
+    if request.placement_score == "energy":
+        return (-coverage, energy_key, molecule.name)
+    return (-coverage, molecule.name)
 
 
-def _deduplicate_and_select(candidates, maximum_seeds):
+def _deduplicate_and_select(candidates, maximum_seeds, request):
     from pyar.selection.deduplication import deduplicate_structures
-    candidates = sorted(candidates, key=_quality_key)
+    candidates = sorted(candidates, key=lambda molecule: _quality_key(molecule, request))
     result = deduplicate_structures(candidates, ordering="input")
     unique = result["kept"]
     preselected = unique[: max(maximum_seeds, maximum_seeds * 4)]
@@ -46,16 +49,23 @@ def _deduplicate_and_select(candidates, maximum_seeds):
                     distances.append(float("inf"))
                 else:
                     distances.append(0.0)
-            scored.append((min(distances), _quality_key(candidate), candidate))
-        # Quality ranks the eligible pool first; max-min structural separation
-        # selects among the best-coverage/energy candidates.
+            scored.append((min(distances), _quality_key(candidate, request), candidate))
+        # Keep the best objective stratum and maximize structural separation
+        # within it; coverage must not erase a low-energy clustered candidate.
         best_quality = min(item[1] for item in scored)
-        quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.03]
+        if request.objective == "cluster":
+            quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.005]
+        else:
+            quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.03]
         chosen = max(quality_frontier, key=lambda item: (item[0], tuple(-ord(c) for c in item[2].name)))[2]
         selected.append(chosen)
         remaining.remove(chosen)
     return selected, {
-        "selection_mode": "solute-surface-coverage-then-energy-and-structural-diversity",
+        "selection_mode": ("fixed-composition-energy-then-diversity" if request.objective == "cluster"
+                           else "solute-surface-coverage-then-energy-and-structural-diversity"),
+        "objective": request.objective,
+        "placement_score": request.placement_score,
+        "energy_unit": "hartree" if request.placement_score == "energy" else None,
         "energy_ranked": any(m.energy is not None for m in selected),
         "input_count": len(candidates),
         "unique_count": len(unique),
@@ -63,7 +73,8 @@ def _deduplicate_and_select(candidates, maximum_seeds):
         "maximum_number_of_seeds": maximum_seeds,
         "adaptive_rmsd_threshold_angstrom": result["rmsd_threshold"],
         "comparison_diagnostics": result["diagnostics"],
-        "coverage_frontier_fraction_tolerance": 0.03,
+        "coverage_frontier_fraction_tolerance": 0.03 if request.objective == "shell" else None,
+        "cluster_energy_frontier_hartree": 0.005 if request.objective == "cluster" else None,
     }
 
 
@@ -76,6 +87,89 @@ def _working_directory(path):
         def __exit__(self, *_):
             os.chdir(self.old)
     return WorkingDirectory()
+
+
+def _energy_prescreen(candidates, request):
+    """Score complete, fixed-composition candidates before expensive relaxations."""
+    if request.placement_score != "energy":
+        return list(candidates), []
+    if not candidates:
+        return [], []
+    from pyar.data.units import angstrom2bohr
+    from pyar.energy_gradient_providers import get_energy_gradient_provider
+    from ase import Atoms
+
+    first = candidates[0]
+    qc = dict(request.backend_parameters)
+    qc.update(charge=first.charge, multiplicity=first.multiplicity,
+              scftype=first.scftype, gamma=None)
+    provider = get_energy_gradient_provider(qc["software"], qc)
+    records = []
+    for candidate in candidates:
+        candidate_qc = dict(qc, charge=candidate.charge, multiplicity=candidate.multiplicity,
+                            scftype=candidate.scftype)
+        try:
+            candidate_provider = provider if candidate_qc == qc else get_energy_gradient_provider(
+                candidate_qc["software"], candidate_qc)
+            backend_molecule = Atoms(symbols=candidate.atoms_list, positions=candidate.coordinates)
+            result = candidate_provider.evaluate(backend_molecule, angstrom2bohr(candidate.coordinates))
+            energy = float(result.energy_hartree)
+            if not math.isfinite(energy):
+                raise ValueError("backend returned a non-finite prescreen energy")
+            candidate.microsolvation_prescreen_energy = energy
+            records.append({"name": candidate.name, "energy_hartree": energy, "status": "ok"})
+        except Exception as exc:
+            records.append({"name": candidate.name, "energy_hartree": None, "status": "failed",
+                            "error": str(exc)[:500]})
+    policy = request.to_state_dict()["selection_policy"]
+    budget = request.maximum_number_of_seeds * policy["prescreen_pool_multiplier"]
+    scored = [item for item in candidates if hasattr(item, "microsolvation_prescreen_energy")]
+    unscored = [item for item in candidates if not hasattr(item, "microsolvation_prescreen_energy")]
+    if request.objective == "cluster":
+        ranked = sorted(scored, key=lambda item: (item.microsolvation_prescreen_energy, item.name))
+        chosen = ranked[:budget] + unscored
+    else:
+        by_energy = sorted(scored, key=lambda item: (item.microsolvation_prescreen_energy, item.name))[:budget]
+        by_coverage = sorted(candidates, key=lambda item: (
+            -item.microsolvation_coverage["coverage_fraction"], item.name))[:budget]
+        chosen = list({item.name: item for item in by_energy + by_coverage + unscored}.values())
+    keep = {item.name for item in chosen}
+    for record in records:
+        record["selected_for_optimization"] = record["name"] in keep
+    return chosen, records
+
+
+def _optimize_candidates(candidates, request, candidate_directory):
+    """Optimize the selected prescreen pool and apply objective-specific validity."""
+    if not request.backend_parameters.get("software"):
+        return list(candidates), 0, 0, []
+    selected = []
+    shell_rejected = 0
+    failures = []
+    for candidate in candidates:
+        qc = dict(request.backend_parameters)
+        qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
+                  scftype=candidate.scftype, opt_target="minimum", gamma=None)
+        try:
+            with _working_directory(candidate_directory):
+                from pyar.optimiser import is_usable, optimise
+                status = optimise(candidate, qc)
+            if not is_usable(status) or candidate.coordinates is None:
+                failures.append({"name": candidate.name, "status": str(status or "no coordinates")})
+                continue
+        except Exception as exc:
+            failures.append({"name": candidate.name, "status": "error", "error": str(exc)[:500]})
+            continue
+        if candidate.coordinates is None or not candidate.solvent_fragments:
+            continue
+        coverage = assess_shell(candidate, request)
+        candidate.microsolvation_coverage = coverage
+        if request.objective == "shell" and not coverage["shell_valid"]:
+            shell_rejected += 1
+            continue
+        candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}_optimized.xyz"))
+        selected.append(candidate)
+    return selected, shell_rejected, len(candidates), failures
 
 
 def _result(state):
@@ -92,22 +186,17 @@ def _result(state):
             "solute_atom_indices": state.data["solute_atom_indices"],
             "solvent_fragments": state.data.get("solvent_fragments", []),
             "coverage_history": state.data.get("coverage_history", []),
-            "selection_policy": "coverage, then backend energy when present, then structural diversity",
+            "selection_policy": request.get("selection_policy", {"name": "legacy-shell-v1"}),
             "sampling": request["sampling"],
             "backend": request["backend_parameters"].get("software"),
+            "objective": request.get("selection_policy", {}).get("objective", "shell"),
             "confinement": request["confinement"],
         },
     )
 
 
 def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation"):
-    """Generate a bounded ensemble by targeting original-solute surface sites.
-
-    The solute atom prefix and its surface define placement targets at every
-    step. The full cluster is used for steric rejection and backend energy.
-    Optimized candidates are screened by a documented shell-validity
-    post-filter; no optimization restraint is claimed or applied.
-    """
+    """Generate a bounded ensemble under the request's explicit objective."""
     directory = Path(output).resolve()
     payload = request.to_state_dict()
     state = MicrosolvationRunState.load(directory, payload)
@@ -163,41 +252,40 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
                 candidate.microsolvation_coverage = coverage
                 (candidate_directory / f"{candidate.name}.xyz").parent.mkdir(parents=True, exist_ok=True)
                 candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}.xyz"))
-                if request.backend_parameters.get("software"):
-                    qc = dict(request.backend_parameters)
-                    qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
-                              scftype=candidate.scftype, opt_target="minimum", gamma=None)
-                    try:
-                        with _working_directory(candidate_directory):
-                            from pyar.optimiser import is_usable, optimise
-                            status = optimise(candidate, qc)
-                        if not is_usable(status) or candidate.coordinates is None:
-                            continue
-                    except BackendExecutionError:
-                        raise
-                    except Exception as exc:
-                        raise BackendExecutionError(f"Microsolvation optimization failed for {candidate.name}: {exc}") from exc
-                    if candidate.coordinates is None or not candidate.solvent_fragments:
-                        continue
-                    # Reject remote solvent-droplet collapse after relaxation.
-                    coverage = assess_shell(candidate, request)
-                    candidate.microsolvation_coverage = coverage
-                    if not coverage["shell_valid"]:
-                        shell_rejected += 1
-                        continue
-                    candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}_optimized.xyz"))
-                else:
-                    if not coverage["shell_valid"]:
-                        shell_rejected += 1
-                        continue
                 candidates.append(candidate)
-        selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds)
+        prescreen_records = []
+        if request.placement_score == "energy":
+            candidates, prescreen_records = _energy_prescreen(candidates, request)
+            write_json(stage / "energy_prescreen.json", {
+                "method": request.backend_parameters,
+                "energy_unit": "hartree",
+                "fixed_composition_per_step": True,
+                "candidates": prescreen_records,
+            })
+        if request.backend_parameters.get("software"):
+            candidates, shell_rejected, optimized_count, optimization_failures = _optimize_candidates(
+                candidates, request, candidate_directory)
+        elif request.objective == "shell":
+            retained = [candidate for candidate in candidates
+                        if candidate.microsolvation_coverage["shell_valid"]]
+            shell_rejected = len(candidates) - len(retained)
+            candidates = retained
+            optimized_count = 0
+            optimization_failures = []
+        else:
+            optimized_count = 0
+            optimization_failures = []
+        selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
         diagnostics.update({
-            "selection_basis": "geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy",
+            "selection_basis": "fixed-composition-energy" if request.objective == "cluster" else
+                               ("geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy"),
             "surface_saturated_at_placement": any(
                 getattr(candidate, "surface_saturated_at_placement", False) for candidate in candidates
             ),
             "generated_count": generated_count,
+            "prescreened_count": len(prescreen_records),
+            "optimized_count": optimized_count,
+            "optimization_failures": optimization_failures,
             "rejected_outside_shell": shell_rejected,
             "seeds_without_accessible_target_surface": target_rejected,
         })
@@ -222,7 +310,7 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
             "requested_solvents": request.count,
             "selected_count": len(references),
             "coverage": [reference["coverage"] for reference in references],
-            "selection_policy": "surface validity and coverage precede energy and structural diversity",
+            "selection_policy": request.to_state_dict().get("selection_policy", {"name": "legacy-shell-v1"}),
         })
     state.save()
     return _result(state)
@@ -247,13 +335,7 @@ def microsolvate(request: MicrosolvationRequest, *, output="microsolvation", rec
 
 
 def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation"):
-    """Generate a bounded ensemble by targeting original-solute surface sites.
-
-    The solute atom prefix and its surface define placement targets at every
-    step. The full cluster is used for steric rejection and backend energy.
-    Optimized candidates are screened by a documented shell-validity
-    post-filter; no optimization restraint is claimed or applied.
-    """
+    """Generate a bounded ensemble under the request's explicit objective."""
     from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2
     from pyar.persistence import RunLayout
     directory = Path(output).resolve()
@@ -317,41 +399,40 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
                 candidate.microsolvation_coverage = coverage
                 (candidate_directory / f"{candidate.name}.xyz").parent.mkdir(parents=True, exist_ok=True)
                 candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}.xyz"))
-                if request.backend_parameters.get("software"):
-                    qc = dict(request.backend_parameters)
-                    qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
-                              scftype=candidate.scftype, opt_target="minimum", gamma=None)
-                    try:
-                        with _working_directory(candidate_directory):
-                            from pyar.optimiser import is_usable, optimise
-                            status = optimise(candidate, qc)
-                        if not is_usable(status) or candidate.coordinates is None:
-                            continue
-                    except BackendExecutionError:
-                        raise
-                    except Exception as exc:
-                        raise BackendExecutionError(f"Microsolvation optimization failed for {candidate.name}: {exc}") from exc
-                    if candidate.coordinates is None or not candidate.solvent_fragments:
-                        continue
-                    # Reject remote solvent-droplet collapse after relaxation.
-                    coverage = assess_shell(candidate, request)
-                    candidate.microsolvation_coverage = coverage
-                    if not coverage["shell_valid"]:
-                        shell_rejected += 1
-                        continue
-                    candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}_optimized.xyz"))
-                else:
-                    if not coverage["shell_valid"]:
-                        shell_rejected += 1
-                        continue
                 candidates.append(candidate)
-        selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds)
+        prescreen_records = []
+        if request.placement_score == "energy":
+            candidates, prescreen_records = _energy_prescreen(candidates, request)
+            write_json(layout.path(f"steps/step_{step:03d}/energy_prescreen.json"), {
+                "method": request.backend_parameters,
+                "energy_unit": "hartree",
+                "fixed_composition_per_step": True,
+                "candidates": prescreen_records,
+            })
+        if request.backend_parameters.get("software"):
+            candidates, shell_rejected, optimized_count, optimization_failures = _optimize_candidates(
+                candidates, request, candidate_directory)
+        elif request.objective == "shell":
+            retained = [candidate for candidate in candidates
+                        if candidate.microsolvation_coverage["shell_valid"]]
+            shell_rejected = len(candidates) - len(retained)
+            candidates = retained
+            optimized_count = 0
+            optimization_failures = []
+        else:
+            optimized_count = 0
+            optimization_failures = []
+        selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
         diagnostics.update({
-            "selection_basis": "geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy",
+            "selection_basis": "fixed-composition-energy" if request.objective == "cluster" else
+                               ("geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy"),
             "surface_saturated_at_placement": any(
                 getattr(candidate, "surface_saturated_at_placement", False) for candidate in candidates
             ),
             "generated_count": generated_count,
+            "prescreened_count": len(prescreen_records),
+            "optimized_count": optimized_count,
+            "optimization_failures": optimization_failures,
             "rejected_outside_shell": shell_rejected,
             "seeds_without_accessible_target_surface": target_rejected,
         })

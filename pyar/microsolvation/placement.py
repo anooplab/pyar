@@ -8,6 +8,7 @@ from pyar.core.molecule import Molecule
 from pyar.sampling.rotation import halton_quaternions, quaternions_to_euler_zxz
 from pyar.microsolvation.surface import build_solute_surface, surface_coverage
 from pyar.microsolvation.confinement import shell_postfilter
+from pyar.sampling.sphere import fibonacci_sphere
 
 
 def _surface_for_seed(seed, solute_atom_count, request):
@@ -93,6 +94,43 @@ def _place_at_target(solvent, target, normal, collision_environment, *, maximum_
     return candidate
 
 
+def _cluster_targets(seed, request, step):
+    """Make solvent-centred proposals for finite-cluster growth.
+
+    The first molecule is attached to the solute as in shell mode. Later
+    molecules target a deterministic sphere around existing solvent
+    fragments, allowing water-water growth away from the solute surface.
+    """
+    fragments = getattr(seed, "solvent_fragments", ())
+    if not fragments:
+        surface = _surface_for_seed(seed, len(seed.solute_atom_indices), request)
+        indices, saturated = _target_indices(surface, seed, request.number_of_orientations)
+        return [(surface.points[index], surface.normals[index], "solute", None, index)
+                for index in indices], saturated
+    surface = _surface_for_seed(seed, len(seed.solute_atom_indices), request)
+    surface_count = (request.number_of_orientations + 1) // 2
+    solvent_count = request.number_of_orientations - surface_count
+    surface_indices, saturated = _target_indices(surface, seed, surface_count)
+    targets = [(surface.points[index], surface.normals[index], "solute", None, index)
+               for index in surface_indices]
+    if solvent_count == 0:
+        return targets, saturated
+    solvent_radii = np.asarray(request.solvent.vdw_radius, dtype=float)
+    solvent_radii = np.where(np.isfinite(solvent_radii), solvent_radii,
+                              np.asarray(request.solvent.covalent_radius, dtype=float))
+    radius = 2.0 * float(np.max(solvent_radii))
+    directions = fibonacci_sphere(max(solvent_count, len(fragments)))
+    # Interleave fragment centres and directions deterministically so the
+    # bounded orientation budget samples different edges of the solvent pool.
+    for index in range(solvent_count):
+        fragment_index = index % len(fragments)
+        fragment = np.asarray(fragments[fragment_index], dtype=int)
+        center = np.mean(seed.coordinates[fragment], axis=0)
+        direction = directions[(index + step) % len(directions)]
+        targets.append((center + radius * direction, direction, "solvent", fragment_index, index))
+    return targets, saturated
+
+
 def _combine(seed, solvent, request, name):
     combined = seed.merged_with(solvent)
     combined.name = name
@@ -113,35 +151,38 @@ def _combine(seed, solvent, request, name):
 
 
 def generate_microsolvation_candidates(seed, request, *, step, solute_atom_count):
-    """Generate a bounded set targeting only original-solute surface samples.
-
-    Previously accepted solvent molecules are used by ``_place_at_target`` as
-    collision geometry and by the coverage model. They never generate target
-    points; all targets come from a surface built from the fixed solute atom
-    prefix of the current seed.
-    """
+    """Generate bounded shell or cluster proposals with full-cluster clashes."""
     if not hasattr(seed, "solute_atom_indices"):
         seed.solute_atom_indices = tuple(range(solute_atom_count))
         seed.solvent_fragments = ()
-    surface = _surface_for_seed(seed, solute_atom_count, request)
-    target_ids, saturated = _target_indices(surface, seed, request.number_of_orientations)
+    if request.objective == "cluster":
+        targets, saturated = _cluster_targets(seed, request, step)
+        surface = _surface_for_seed(seed, solute_atom_count, request)
+    else:
+        surface = _surface_for_seed(seed, solute_atom_count, request)
+        target_ids, saturated = _target_indices(surface, seed, request.number_of_orientations)
+        targets = [(surface.points[index], surface.normals[index], "solute", None, index)
+                   for index in target_ids]
     quaternions = halton_quaternions(request.number_of_orientations, seed=step)
     angles = quaternions_to_euler_zxz(quaternions)
     candidates = []
-    for orientation_index in range(request.number_of_orientations):
-        target_index = target_ids[orientation_index % len(target_ids)]
+    for orientation_index, (target, normal, target_kind, target_fragment, target_index) in enumerate(targets):
         solvent = request.solvent.copy()
         solvent.move_to_origin()
         if len(solvent) > 1:
             solvent.rotate_3d(angles[orientation_index])
         placed = _place_at_target(
-            solvent, surface.points[target_index], surface.normals[target_index], seed,
+            solvent, target, normal, seed,
         )
         if placed is None:
             continue
         molecule = _combine(seed, placed, request, f"micro_{step:03d}_{len(candidates):03d}")
-        molecule.microsolvation_target_atom = int(surface.parent_atoms[target_index])
-        molecule.microsolvation_target_point = tuple(float(x) for x in surface.points[target_index])
+        molecule.microsolvation_target_atom = (
+            int(surface.parent_atoms[target_index]) if target_kind == "solute" else None
+        )
+        molecule.microsolvation_target_fragment = target_fragment
+        molecule.microsolvation_target_kind = target_kind
+        molecule.microsolvation_target_point = tuple(float(x) for x in target)
         molecule.surface_saturated_at_placement = saturated
         molecule.microsolvation_surface = surface
         candidates.append(molecule)
@@ -164,12 +205,15 @@ def assess_shell(molecule, request):
     solvent_atoms = molecule.atoms_list[solute_count:]
     coverage = surface_coverage(target_surface, solvent_atoms, solvent_coordinates)
     full_coverage = surface_coverage(full_surface, solvent_atoms, solvent_coordinates)
+    validity = shell_postfilter(molecule, target_surface, tolerance=request.shell_tolerance)
+    if request.objective == "cluster":
+        validity["confinement_mode"] = "reported-not-filtered-cluster-objective"
     return {
         key: value for key, value in coverage.items() if key != "covered_mask"
     } | {
         "whole_solute_coverage_fraction": full_coverage["coverage_fraction"],
         "whole_solute_surface_points": full_coverage["surface_points"],
         "whole_solute_covered_points": full_coverage["covered_points"],
-        **shell_postfilter(molecule, target_surface, tolerance=request.shell_tolerance),
+        **validity,
         "site_atoms": None if request.site is None else list(request.site),
     }

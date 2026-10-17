@@ -33,6 +33,10 @@ def build_parser(prog=None):
                         help="Probe expansion in Angstrom for the discretized vdW placement surface")
     parser.add_argument("--shell-tolerance", type=float, default=3.5,
                         help="Maximum solvent-centre distance from the target surface after relaxation (Angstrom)")
+    parser.add_argument("--objective", choices=("shell", "cluster"), default="shell",
+                        help="shell preserves surface coverage; cluster searches fixed-composition low-energy aggregates")
+    parser.add_argument("--placement-score", choices=("geometric", "energy"), default="geometric",
+                        help="Candidate selection basis; energy requires backend optimization (Hartree)")
     parser.add_argument("--output", default="microsolvation")
     parser.add_argument("--recover-stale-lock", action="store_true",
                         help="Explicit stale v2 writer recovery; cannot break an active lock")
@@ -48,6 +52,7 @@ def resolve_request(args):
         molecules[0], molecules[1], args.count, args.orientations, optional_backend(args),
         args.maximum_number_of_seeds, None if args.site is None else tuple(args.site),
         args.surface_points_per_atom, args.probe_radius, args.shell_tolerance,
+        args.objective, args.placement_score,
     )
     return request
 
@@ -83,7 +88,11 @@ def main(argv=None, *, prog=None):
             print(f"Count: {request.count}; orientations: {request.number_of_orientations}")
             print(f"Surface: Fibonacci, {request.surface_points_per_atom} points/atom, probe {request.probe_radius:g} Å")
             print(f"Maximum survivors: {request.maximum_number_of_seeds}")
-            print(f"Shell filter: {request.shell_tolerance:g} Å post-optimization; no restraint potential applied")
+            print(f"Objective: {request.objective}; placement score: {request.placement_score}")
+            if request.objective == "cluster":
+                print("Cluster mode permits solvent-centred growth; shell validity is reported but not filtered.")
+            else:
+                print(f"Shell filter: {request.shell_tolerance:g} Å post-optimization; no restraint potential applied")
             print(f"Backend: {qc.get('software', 'none (geometry-only)')}")
             print("Requirements: " + (", ".join(requirements) if requirements else "none"))
             print("Ready to run.\n--check specified; no calculations were performed.")

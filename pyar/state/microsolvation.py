@@ -128,6 +128,8 @@ class MicrosolvationRunState:
                 "solvent_fragments": [list(part) for part in molecule.solvent_fragments],
                 "coverage": dict(getattr(molecule, "microsolvation_coverage", {})),
                 "target_atom": getattr(molecule, "microsolvation_target_atom", None),
+                "target_kind": getattr(molecule, "microsolvation_target_kind", "solute"),
+                "target_fragment": getattr(molecule, "microsolvation_target_fragment", None),
             })
         return references
 
@@ -151,6 +153,8 @@ class MicrosolvationRunState:
             molecule.fragments_atoms_list = molecule.split_atoms_lists()
             molecule.microsolvation_coverage = dict(reference.get("coverage", {}))
             molecule.microsolvation_target_atom = reference.get("target_atom")
+            molecule.microsolvation_target_kind = reference.get("target_kind", "solute")
+            molecule.microsolvation_target_fragment = reference.get("target_fragment")
             result.append(molecule)
         return result
 
