@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import json
 import os
 from pathlib import Path
 
@@ -17,7 +18,7 @@ def _quality_key(molecule, request):
     coverage = molecule.microsolvation_coverage["coverage_fraction"]
     energy = molecule.energy
     energy_key = float(energy) if energy is not None and math.isfinite(float(energy)) else math.inf
-    if request.objective == "cluster":
+    if request.objective == "cluster" or request.wall != "none":
         return (energy_key, -coverage, molecule.name)
     if request.placement_score == "energy":
         return (-coverage, energy_key, molecule.name)
@@ -53,7 +54,7 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
         # Keep the best objective stratum and maximize structural separation
         # within it; coverage must not erase a low-energy clustered candidate.
         best_quality = min(item[1] for item in scored)
-        if request.objective == "cluster":
+        if request.objective == "cluster" or request.wall != "none":
             quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.005]
         else:
             quality_frontier = [item for item in scored if item[1][0] <= best_quality[0] + 0.03]
@@ -62,10 +63,11 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
         remaining.remove(chosen)
     return selected, {
         "selection_mode": ("fixed-composition-energy-then-diversity" if request.objective == "cluster"
+                           else "unbiased-post-relaxation-energy-then-diversity" if request.wall != "none"
                            else "solute-surface-coverage-then-energy-and-structural-diversity"),
         "objective": request.objective,
         "placement_score": request.placement_score,
-        "energy_unit": "hartree" if request.placement_score == "energy" else None,
+        "energy_unit": "hartree" if request.placement_score == "energy" or request.wall != "none" else None,
         "energy_ranked": any(m.energy is not None for m in selected),
         "input_count": len(candidates),
         "unique_count": len(unique),
@@ -73,14 +75,16 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
         "maximum_number_of_seeds": maximum_seeds,
         "adaptive_rmsd_threshold_angstrom": result["rmsd_threshold"],
         "comparison_diagnostics": result["diagnostics"],
-        "coverage_frontier_fraction_tolerance": 0.03 if request.objective == "shell" else None,
+        "coverage_frontier_fraction_tolerance": 0.03 if request.objective == "shell" and request.wall == "none" else None,
         "cluster_energy_frontier_hartree": 0.005 if request.objective == "cluster" else None,
+        "unbiased_energy_frontier_hartree": 0.005 if request.wall != "none" else None,
     }
 
 
 def _working_directory(path):
     class WorkingDirectory:
         def __enter__(self):
+            Path(path).mkdir(parents=True, exist_ok=True)
             self.old = os.getcwd()
             os.chdir(path)
 
@@ -151,9 +155,34 @@ def _optimize_candidates(candidates, request, candidate_directory):
         qc.update(charge=candidate.charge, multiplicity=candidate.multiplicity,
                   scftype=candidate.scftype, opt_target="minimum", gamma=None)
         try:
-            with _working_directory(candidate_directory):
-                from pyar.optimiser import is_usable, optimise
-                status = optimise(candidate, qc)
+            from pyar.optimiser import is_usable, optimise
+            if request.wall != "none":
+                qc["microsolvation_wall"] = {
+                    "solute_atom_count": len(request.solute),
+                    "solvent_fragments": [list(fragment) for fragment in candidate.solvent_fragments],
+                    "radius_angstrom": float(request.wall_radius),
+                    "force_constant_hartree_per_angstrom2": float(request.wall_force_constant),
+                }
+                with _working_directory(candidate_directory / "wall_search"):
+                    status = optimise(candidate, qc)
+                if not is_usable(status) or candidate.coordinates is None:
+                    failures.append({"name": candidate.name, "stage": "wall_search",
+                                     "status": str(status or "no coordinates")})
+                    continue
+                try:
+                    wall_state = json.loads((candidate_directory / "wall_search" / f"job_{candidate.name}" /
+                                             "pyar_geometric_state.json").read_text())
+                    candidate.microsolvation_wall_objective_energy = float(wall_state["total_energy_hartree"])
+                    candidate.microsolvation_wall_energy = float(wall_state["wall_energy_hartree"])
+                    candidate.microsolvation_wall_energy_max = float(wall_state["wall_energy_max_hartree"])
+                except (OSError, ValueError, KeyError, TypeError) as exc:
+                    raise RuntimeError(f"missing valid wall-search energy provenance for {candidate.name}: {exc}") from exc
+                qc.pop("microsolvation_wall")
+                with _working_directory(candidate_directory / "unbiased_relaxation"):
+                    status = optimise(candidate, qc)
+            else:
+                with _working_directory(candidate_directory):
+                    status = optimise(candidate, qc)
             if not is_usable(status) or candidate.coordinates is None:
                 failures.append({"name": candidate.name, "status": str(status or "no coordinates")})
                 continue
@@ -164,6 +193,9 @@ def _optimize_candidates(candidates, request, candidate_directory):
             continue
         coverage = assess_shell(candidate, request)
         candidate.microsolvation_coverage = coverage
+        if request.wall != "none":
+            candidate.microsolvation_wall_survived_unbiased_relaxation = bool(coverage["shell_valid"])
+            candidate.microsolvation_physical_energy = float(candidate.energy)
         if request.objective == "shell" and not coverage["shell_valid"]:
             shell_rejected += 1
             continue
@@ -277,8 +309,10 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
             optimization_failures = []
         selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
         diagnostics.update({
-            "selection_basis": "fixed-composition-energy" if request.objective == "cluster" else
-                               ("geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy"),
+            "selection_basis": ("fixed-composition-energy" if request.objective == "cluster" else
+                                "unbiased-post-relaxation-energy" if request.wall != "none" else
+                                "geometry-only" if not request.backend_parameters.get("software") else
+                                "surface-quality-then-energy"),
             "surface_saturated_at_placement": any(
                 getattr(candidate, "surface_saturated_at_placement", False) for candidate in candidates
             ),
@@ -289,6 +323,20 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
             "rejected_outside_shell": shell_rejected,
             "seeds_without_accessible_target_surface": target_rejected,
         })
+        if request.wall != "none":
+            diagnostics["wall_candidate_outcomes"] = [
+                {
+                    "name": candidate.name,
+                    "wall_objective_energy_hartree": getattr(candidate, "microsolvation_wall_objective_energy", None),
+                    "wall_energy_hartree": getattr(candidate, "microsolvation_wall_energy", None),
+                    "wall_energy_max_hartree": getattr(candidate, "microsolvation_wall_energy_max", None),
+                    "unbiased_physical_energy_hartree": (
+                        None if candidate.energy is None else float(candidate.energy)),
+                    "shell_survived_unbiased_relaxation": bool(
+                        candidate.microsolvation_coverage.get("shell_valid", False)),
+                }
+                for candidate in candidates
+            ]
         write_json(stage / "selection_diagnostics.json", diagnostics)
         if not selected:
             state.data["status"] = "no_candidates"
@@ -424,8 +472,10 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
             optimization_failures = []
         selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
         diagnostics.update({
-            "selection_basis": "fixed-composition-energy" if request.objective == "cluster" else
-                               ("geometry-only" if not request.backend_parameters.get("software") else "surface-quality-then-energy"),
+            "selection_basis": ("fixed-composition-energy" if request.objective == "cluster" else
+                                "unbiased-post-relaxation-energy" if request.wall != "none" else
+                                "geometry-only" if not request.backend_parameters.get("software") else
+                                "surface-quality-then-energy"),
             "surface_saturated_at_placement": any(
                 getattr(candidate, "surface_saturated_at_placement", False) for candidate in candidates
             ),
@@ -436,6 +486,16 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
             "rejected_outside_shell": shell_rejected,
             "seeds_without_accessible_target_surface": target_rejected,
         })
+        if request.wall != "none":
+            diagnostics["wall_candidate_outcomes"] = [
+                {"name": candidate.name,
+                 "wall_objective_energy_hartree": getattr(candidate, "microsolvation_wall_objective_energy", None),
+                 "wall_energy_hartree": getattr(candidate, "microsolvation_wall_energy", None),
+                 "wall_energy_max_hartree": getattr(candidate, "microsolvation_wall_energy_max", None),
+                 "unbiased_physical_energy_hartree": None if candidate.energy is None else float(candidate.energy),
+                 "shell_survived_unbiased_relaxation": bool(candidate.microsolvation_coverage.get("shell_valid", False))}
+                for candidate in candidates
+            ]
         write_json(stage / "selection_diagnostics.json", diagnostics)
         if not selected:
             state.data["status"] = "no_candidates"

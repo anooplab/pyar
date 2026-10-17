@@ -39,6 +39,12 @@ def build_parser(prog=None):
                         help="Maximum solvent-centre distance from the target surface after relaxation (Angstrom)")
     parser.add_argument("--objective", choices=("shell", "cluster"), default="shell",
                         help="shell preserves surface coverage; cluster searches fixed-composition low-energy aggregates")
+    parser.add_argument("--wall", choices=("none", "outer-sphere"), default="none",
+                        help="optional smooth outer sphere during shell candidate optimization")
+    parser.add_argument("--wall-radius", type=float,
+                        help="outer-sphere radius in Angstrom; required with --wall outer-sphere")
+    parser.add_argument("--wall-force-constant", type=float,
+                        help="harmonic wall strength in hartree/Angstrom^2; required with --wall outer-sphere")
     parser.add_argument("--placement-score", choices=("geometric", "energy"), default="geometric",
                         help="Candidate selection basis; energy requires backend optimization (Hartree)")
     parser.add_argument("--output", default="microsolvation")
@@ -69,7 +75,7 @@ def resolve_request(args):
         args.maximum_number_of_seeds, None if args.site is None else tuple(args.site),
         args.surface_points_per_atom, args.probe_radius, args.shell_tolerance,
         args.objective, args.placement_score,
-        tuple(site_groups), args.contact_distance,
+        tuple(site_groups), args.contact_distance, args.wall, args.wall_radius, args.wall_force_constant,
     )
     return request
 
@@ -113,7 +119,10 @@ def main(argv=None, *, prog=None):
             if request.objective == "cluster":
                 print("Cluster mode permits solvent-centred growth; shell validity is reported but not filtered.")
             else:
-                print(f"Shell filter: {request.shell_tolerance:g} Å post-optimization; no restraint potential applied")
+                if request.wall == "none":
+                    print(f"Shell filter: {request.shell_tolerance:g} Å post-optimization; no restraint potential applied")
+                else:
+                    print(f"Outer wall: radius {request.wall_radius:g} Å, k={request.wall_force_constant:g} Eh/Å²; search-only, then unbiased relaxation")
             print(f"Backend: {qc.get('software', 'none (geometry-only)')}")
             print("Requirements: " + (", ".join(requirements) if requirements else "none"))
             print("Ready to run.\n--check specified; no calculations were performed.")

@@ -92,6 +92,122 @@ def test_site_validation_happens_in_request():
         request(site=(5,))
 
 
+def test_outer_sphere_wall_requires_geometric_backend_and_changes_fingerprint():
+    base = request(count=1)
+    assert "wall" not in base.to_state_dict()["confinement"]
+    backend = {"software": "xtb", "geometry_optimizer": "geometric"}
+    walled = MicrosolvationRequest(
+        methane(), water(), 1, 4, backend, 2, None, 32, 1.4, 3.5,
+        "shell", "geometric", (), None, "outer-sphere", 8.0, 0.5,
+    )
+    assert walled.to_state_dict()["confinement"]["radius_angstrom"] == 8.0
+    with pytest.raises(ValueError, match="geometry-optimizer geometric"):
+        MicrosolvationRequest(
+            methane(), water(), 1, backend_parameters={"software": "xtb"},
+            wall="outer-sphere", wall_radius=8.0, wall_force_constant=0.5,
+        )
+    with pytest.raises(ValueError, match="only supported for shell"):
+        MicrosolvationRequest(
+            methane(), water(), 1, backend_parameters=backend, objective="cluster",
+            wall="outer-sphere", wall_radius=8.0, wall_force_constant=0.5,
+        )
+
+
+def test_outer_sphere_wall_force_is_analytic_and_translation_invariant():
+    from pyar.microsolvation.wall import outer_sphere_energy_gradient
+
+    xyz = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [4.0, 0.0, 0.0]])
+    masses = np.array([12.0, 1.0, 16.0])
+    kwargs = dict(radius_angstrom=2.0, force_constant_hartree_per_angstrom2=0.5,
+                  solvent_fragments=[[2]])
+    energy, gradient = outer_sphere_energy_gradient(xyz, masses, [0, 1], **kwargs)
+    assert energy > 0
+    np.testing.assert_allclose(gradient.sum(axis=0), 0.0, atol=1e-14)
+    delta = 1e-6
+    shifted = xyz.copy()
+    shifted[2, 0] += delta
+    plus = outer_sphere_energy_gradient(shifted, masses, [0, 1], **kwargs)[0]
+    shifted[2, 0] -= 2 * delta
+    minus = outer_sphere_energy_gradient(shifted, masses, [0, 1], **kwargs)[0]
+    assert gradient[2, 0] == pytest.approx((plus - minus) / (2 * delta), rel=1e-6)
+    translated = xyz + [12.3, -4.0, 9.1]
+    moved_energy, moved_gradient = outer_sphere_energy_gradient(translated, masses, [0, 1], **kwargs)
+    assert moved_energy == pytest.approx(energy)
+    np.testing.assert_allclose(moved_gradient, gradient, atol=1e-14)
+    angle = 0.73
+    rotation = np.array([[np.cos(angle), -np.sin(angle), 0],
+                         [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+    rotated_energy, rotated_gradient = outer_sphere_energy_gradient(xyz @ rotation.T, masses, [0, 1], **kwargs)
+    assert rotated_energy == pytest.approx(energy)
+    np.testing.assert_allclose(rotated_gradient, gradient @ rotation.T, atol=1e-14)
+    zero_energy, zero_gradient = outer_sphere_energy_gradient(
+        xyz, masses, [0, 1], radius_angstrom=2.0, force_constant_hartree_per_angstrom2=0.0)
+    assert zero_energy == 0.0
+    np.testing.assert_array_equal(zero_gradient, np.zeros_like(xyz))
+    boundary_x = 2.0 + masses[1] / masses[:2].sum()
+    inside = xyz.copy(); inside[2, 0] = boundary_x - 0.01
+    boundary = xyz.copy(); boundary[2, 0] = boundary_x
+    outside = xyz.copy(); outside[2, 0] = boundary_x + 0.01
+    e_inside, g_inside = outer_sphere_energy_gradient(inside, masses, [0, 1], **kwargs)
+    e_boundary, g_boundary = outer_sphere_energy_gradient(boundary, masses, [0, 1], **kwargs)
+    e_outside, g_outside = outer_sphere_energy_gradient(outside, masses, [0, 1], **kwargs)
+    assert e_inside == e_boundary == 0.0
+    assert np.linalg.norm(g_inside) == np.linalg.norm(g_boundary) == 0.0
+    assert e_outside < 3e-5 and np.linalg.norm(g_outside) < 0.01
+
+
+def test_outer_wall_applies_translation_force_to_solvent_fragment_com():
+    from pyar.microsolvation.wall import outer_sphere_energy_gradient
+
+    xyz = np.array([[0., 0., 0.], [1., 0., 0.], [4., 0., 0.], [4.5, 0.8, 0.]])
+    masses = np.array([12., 1., 16., 1.])
+    kwargs = dict(radius_angstrom=2.0, force_constant_hartree_per_angstrom2=0.5,
+                  solvent_fragments=[[2, 3]])
+    energy, gradient = outer_sphere_energy_gradient(xyz, masses, [0, 1], **kwargs)
+    delta = 1e-6
+    moved = xyz.copy(); moved[3, 1] += delta
+    plus = outer_sphere_energy_gradient(moved, masses, [0, 1], **kwargs)[0]
+    moved[3, 1] -= 2 * delta
+    minus = outer_sphere_energy_gradient(moved, masses, [0, 1], **kwargs)[0]
+    assert gradient[3, 1] == pytest.approx((plus - minus) / (2 * delta), rel=1e-6)
+    # The wall translates the entire solvent fragment without applying torque.
+    assert gradient[2, 0] / masses[2] == pytest.approx(gradient[3, 0] / masses[3])
+    assert gradient[2, 1] / masses[2] == pytest.approx(gradient[3, 1] / masses[3])
+    assert np.isfinite(energy)
+
+
+def test_outer_wall_rejects_nonfinite_coordinates_and_bad_fragment_partition():
+    from pyar.microsolvation.wall import outer_sphere_energy_gradient
+
+    xyz = np.array([[0., 0., 0.], [2., 0., 0.]])
+    masses = np.array([12., 16.])
+    with pytest.raises(ValueError, match="finite"):
+        outer_sphere_energy_gradient([[0., 0., 0.], [float("nan"), 0., 0.]], masses, [0],
+                                     radius_angstrom=1., force_constant_hartree_per_angstrom2=1.)
+    with pytest.raises(ValueError, match="partition"):
+        outer_sphere_energy_gradient(xyz, masses, [0], radius_angstrom=1.,
+                                     force_constant_hartree_per_angstrom2=1., solvent_fragments=[[0]])
+
+
+def test_wall_request_fingerprint_rejects_changed_parameters(tmp_path):
+    from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2
+    from pyar.state.microsolvation import MicrosolvationStateError
+
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    first = MicrosolvationRequest(methane(), water(), 1, backend_parameters=qc,
+                                  wall="outer-sphere", wall_radius=4.0, wall_force_constant=0.5)
+    changed = MicrosolvationRequest(methane(), water(), 1, backend_parameters=qc,
+                                    wall="outer-sphere", wall_radius=3.0, wall_force_constant=0.5)
+    root = tmp_path / "wall-run"
+    initial = first.solute.copy()
+    initial.solute_atom_indices = tuple(range(len(initial)))
+    initial.solvent_fragments = ()
+    initial.microsolvation_coverage = {}
+    MicrosolvationRunStateV2.create(root, first.to_state_dict(), initial, first.solvent)
+    with pytest.raises(MicrosolvationStateError, match="differs"):
+        MicrosolvationRunStateV2.load(root, changed.to_state_dict())
+
+
 def test_geometry_only_workflow_is_bounded_and_records_coverage_and_identity(tmp_path):
     req = request(count=2, orientations=3, maximum=2)
     result = microsolvate(req, output=tmp_path / "microsolvation")

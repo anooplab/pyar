@@ -83,6 +83,34 @@ def test_cluster_energy_ranking_keeps_low_energy_low_coverage_candidate():
     assert diagnostics["selection_mode"] == "fixed-composition-energy-then-diversity"
 
 
+def test_wall_shell_ranking_uses_unbiased_energy_after_shell_filter():
+    qc = {"software": "xtb", "geometry_optimizer": "geometric"}
+    req = MicrosolvationRequest(methane(), water(), 1, 4, qc, 2, None, 32, 1.4, 3.5,
+                                "shell", "geometric", (), None, "outer-sphere", 4.0, 0.5)
+    candidates = []
+    for name, energy, oxygen, valid in (
+        ("covered-higher-energy", -10.0, [3.0, 0.0, 0.0], True),
+        ("lower-energy", -10.01, [-3.0, 0.0, 0.0], True),
+    ):
+        molecule = req.solute.merged_with(req.solvent)
+        molecule.name = name
+        molecule.solute_atom_indices = tuple(range(5))
+        molecule.solvent_fragments = (tuple(range(5, 8)),)
+        molecule.fragments = [list(molecule.solute_atom_indices), list(molecule.solvent_fragments[0])]
+        molecule.fragments_coordinates = molecule.split_coordinates()
+        molecule.fragments_atoms_list = molecule.split_atoms_lists()
+        molecule.coordinates[5:] += np.asarray(oxygen)
+        molecule.energy = energy
+        molecule.microsolvation_coverage = {"coverage_fraction": 0.5 if valid else 0.0,
+                                            "shell_valid": valid}
+        if valid:
+            candidates.append(molecule)
+    selected, diagnostics = _deduplicate_and_select(candidates, 1, req)
+    assert selected[0].name == "lower-energy"
+    assert diagnostics["selection_mode"] == "unbiased-post-relaxation-energy-then-diversity"
+    assert diagnostics["energy_unit"] == "hartree"
+
+
 def test_energy_prescreen_keeps_low_energy_pool_and_prescreen_failures(monkeypatch):
     req = request(objective="cluster", score="energy", backend="xtb", maximum=1)
     candidates = []

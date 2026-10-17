@@ -43,6 +43,32 @@ original solute, second shell when they contact any first-shell solvent, or
 outer otherwise, using the same explicit cutoff. These are operational
 geometric labels, not thermodynamic shell assignments. Without the opt-in
 groups, existing coverage and ``--site`` behavior is unchanged.
+
+An additional experimental, opt-in outer-sphere wall is available only for
+the ``shell`` objective with an energy-gradient backend and geomeTRIC:
+
+.. code-block:: console
+
+   pyar microsolvate solute.xyz water.xyz --count 3 --backend xtb \
+       --geometry-optimizer geometric --wall outer-sphere \
+       --wall-radius 8.0 --wall-force-constant 0.5
+
+The flat-bottom harmonic penalty acts on solvent-fragment centers of mass
+outside a sphere centered on the instantaneous solute center of mass. Its
+force translates each solvent fragment without distorting its internal
+geometry. The radius is in
+Angstrom and the force constant is in hartree/Angstrom squared. Both values
+are required. The wall is absent by default. A wall-guided optimization is
+followed by a separate unbiased geomeTRIC relaxation; shell validity and final
+selection use that relaxed geometry and its physical backend energy. The
+search objective and wall-energy contribution are retained in candidate
+diagnostics. A changed wall request cannot resume an existing run.
+
+This is an experimental search bias, not a solvation free-energy model. A
+small methane-water xTB pilot verified execution and energy separation, but
+did not demonstrate improved minimum recovery; do not infer a recommended
+radius or strength from that pilot. The wall is rejected for ``cluster`` mode
+and is not passed to native geometry optimizers.
 With contacts enabled, the report also compares the original-solute prefix
 with its starting geometry using a covalent-radii distance heuristic. It flags
 a changed proximity graph or reports ``unknown`` if atom identity mapping is

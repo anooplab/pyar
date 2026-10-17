@@ -32,6 +32,9 @@ class MicrosolvationRequest:
     placement_score: str = "geometric"
     site_groups: tuple[tuple[str, tuple[int, ...]], ...] = ()
     contact_distance: float | None = None
+    wall: str = "none"
+    wall_radius: float | None = None
+    wall_force_constant: float | None = None
 
     def __post_init__(self):
         for label, value in (
@@ -63,6 +66,29 @@ class MicrosolvationRequest:
         object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
         if self.objective not in {"shell", "cluster"}:
             raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
+        if self.wall not in {"none", "outer-sphere"}:
+            raise MicrosolvationRequestError("wall must be 'none' or 'outer-sphere'")
+        if self.wall == "none" and (self.wall_radius is not None or self.wall_force_constant is not None):
+            raise MicrosolvationRequestError("--wall-radius and --wall-force-constant require --wall outer-sphere")
+        if self.wall != "none":
+            if self.objective != "shell":
+                raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
+            if (isinstance(self.wall_radius, bool) or self.wall_radius is None
+                    or not np.isfinite(float(self.wall_radius)) or float(self.wall_radius) <= 0):
+                raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-radius in Angstrom")
+            if (isinstance(self.wall_force_constant, bool) or self.wall_force_constant is None
+                    or not np.isfinite(float(self.wall_force_constant))
+                    or float(self.wall_force_constant) <= 0):
+                raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-force-constant in hartree/angstrom^2")
+            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
+            software = self.backend_parameters.get("software")
+            if not software:
+                raise MicrosolvationRequestError("outer-sphere wall requires an energy-gradient backend")
+            backend = normalize_backend_name(software)
+            if not backend_supports_geometry_optimization(backend):
+                raise MicrosolvationRequestError(f"outer-sphere wall requires a registered energy-gradient provider; {backend!r} has none")
+            if self.backend_parameters.get("geometry_optimizer") != "geometric":
+                raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
         if self.placement_score not in {"geometric", "energy"}:
             raise MicrosolvationRequestError("placement score must be 'geometric' or 'energy'")
         if self.placement_score == "energy" and not self.backend_parameters.get("software"):
@@ -156,13 +182,15 @@ class MicrosolvationRequest:
         }
         # Keep the historical default request byte-for-byte compatible so
         # existing v1/v2 runs retain their established continuation owner.
-        if self.objective != "shell" or self.placement_score != "geometric":
+        if self.objective != "shell" or self.placement_score != "geometric" or self.wall != "none":
             result["selection_policy"] = {
                 "name": "objective-aware-v1",
                 "objective": self.objective,
                 "placement_score": self.placement_score,
                 "energy_unit": "hartree",
+                "ranking": "unbiased-post-relaxation-energy" if self.wall != "none" else None,
                 "cluster_energy_frontier_hartree": 0.005 if self.objective == "cluster" else None,
+                "unbiased_energy_frontier_hartree": 0.005 if self.wall != "none" else None,
                 "prescreen_pool_multiplier": 4,
             }
             result["placement_policy"] = {
@@ -178,5 +206,14 @@ class MicrosolvationRequest:
                            for name, indices in self.site_groups],
                 "distance_angstrom": float(self.contact_distance),
                 "shell_assignment": "direct-solute-contact; then solvent-contact-to-first-shell-v1",
+            }
+        if self.wall != "none":
+            result["confinement"] = {
+                "mode": "opt-in-outer-sphere-harmonic-v1",
+                "objective": "shell-search-only",
+                "center": "instantaneous-solute-center-of-mass",
+                "radius_angstrom": float(self.wall_radius),
+                "force_constant_hartree_per_angstrom2": float(self.wall_force_constant),
+                "final_stage": "unbiased-relaxation-and-physical-energy-ranking",
             }
         return result
