@@ -196,6 +196,16 @@ reaction from a missing saddle.
    pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all \
      --reactant-reference-mode separated-reactants
 
+Each discovered product also receives a ``reaction_characterization.json``
+report with its representative route, alternatives, stage settings and
+convergence, verified artifact hashes, IRC branch assignment and evaluation
+costs. ``validated_reaction_path.xyz`` is written only after the scientific
+gates confirm a reactant-to-product connection. Its frames follow chemical
+direction and use angstrom coordinates. Electronic reaction and activation
+energies are reported in Hartree only when the contributing physical settings
+are compatible and the required gates pass; no ZPE, Gibbs, or standard-state
+corrections are inferred.
+
 Trace analysis
 --------------
 

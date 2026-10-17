@@ -110,6 +110,18 @@ def test_association_endpoint_matching_ignores_relative_fragment_pose(tmp_path, 
     assert result['branch_results'][1]['classification'] == 'separated_fragments_minima'
     assert result['reactant_product_connection_confirmed']
 
+    def wrong_fragment_identity(path):
+        if Path(path).name == 'fragment_2.xyz':
+            return {'inchi': 'wrong-fragment'}
+        return identity(path)
+
+    monkeypatch.setattr('pyar.reaction_identity.molecule_identity_from_xyz', wrong_fragment_identity)
+    wrong = association.classify_association_endpoints(
+        symbols, [product, reactant_branch], product_path, reference, reactants, 0.01,
+        reference_directory=reference_dir)
+    assert wrong['status'] == 'unmatched'
+    assert wrong['branch_results'][1]['fragment_identity_matches'] == [True, False]
+
 
 def test_association_endpoint_accepts_stable_pre_reactive_complex(tmp_path, monkeypatch):
     from pyar.backends import write_xyz
@@ -174,3 +186,25 @@ def test_two_irc_branches_to_one_product_do_not_confirm_association(tmp_path, mo
         product_path, reference, reactants, .5, reference_directory=reference_dir)
     assert result['status'] == 'unmatched'
     assert not result['reactant_product_connection_confirmed']
+
+
+def test_reactant_relaxation_failure_is_classified_without_claiming_a_connection(tmp_path, monkeypatch):
+    from pyar.backends import write_xyz
+    from pyar.workflows.association_reference import classify_reactant_relaxation_failure
+    symbols = ['H', 'H']
+    product = tmp_path / 'product.xyz'
+    write_xyz(symbols, [[0, 0, 0], [0.8, 0, 0]], product)
+    execution = tmp_path / 'execution'
+    execution.mkdir()
+    path = execution / 'relax_reactant_path.xyz'
+    write_xyz(symbols, [[0, 0, 0], [0.8, 0, 0]], path)
+    failed = {'failed_stage': 'relax', 'error': 'Reactant endpoint did not survive unbiased relaxation: connectivity changed'}
+    monkeypatch.setattr('pyar.reaction_identity.molecule_identity_from_xyz', lambda _: {'inchi': 'product'})
+    monkeypatch.setattr('pyar.reaction_identity.same_molecular_identity', lambda first, second: True)
+    result = classify_reactant_relaxation_failure(failed, execution, product)
+    assert result['status'] == 'product_formed_during_reactant_relaxation'
+    assert result['classification'] == 'product'
+    assert not result['reactant_product_connection_confirmed']
+    nonconverged = classify_reactant_relaxation_failure(
+        {'error': 'Reactant endpoint did not converge during unbiased relaxation'}, execution, product)
+    assert nonconverged['status'] == 'reactant_relaxation_nonconverged'
