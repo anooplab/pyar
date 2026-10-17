@@ -1,0 +1,155 @@
+"""Opt-in, single-execution diagnosis; existing workflows/CLIs keep legacy APIs.
+
+Inspection is read-only. optimize_once runs the legacy adapter exactly once on
+an independent molecule in a fresh job directory, then validates native evidence.
+No recovery, cache adoption, workflow migration or chemistry change occurs here.
+"""
+from copy import deepcopy
+from pathlib import Path
+from time import perf_counter
+
+from pyar.persistence import RunLock, LockError
+from pyar.backend_capabilities import optimization_diagnostic_capabilities
+from pyar.recovery.models import (
+    ExecutionObservation, FailureCode, FailureDiagnostic, GateEvidence, GateState,
+    OptimizationAttempt, OptimizationRequest, OptimizationResult, Outcome, legacy_diagnostic,
+)
+from pyar.recovery.observations import capture_processes, safe_path, snapshot_artifacts
+from pyar.recovery.parsers import parse_observation
+from pyar.recovery.validation import verify_start
+
+
+def _invalid(code, message, *, execution=None, exception=None, request=None, artifacts=()):
+    return OptimizationResult(Outcome.INVALID_RESULT,
+        (FailureDiagnostic(code, 'validator', message),),
+        tuple(GateEvidence(axis, GateState.UNKNOWN, 'Not established by available evidence')
+              for axis in ('backend', 'scf', 'optimizer', 'stationarity', 'objective', 'constraints', 'workflow')),
+        (OptimizationAttempt(1, execution, request=request, artifacts=artifacts),), exception=exception)
+
+
+def _unsupported_request(request):
+    settings = request.settings
+    try:
+        supported = bool(optimization_diagnostic_capabilities(request.backend, request.optimizer))
+    except ValueError:
+        supported = False
+    return (not supported or request.target != 'minimum' or bool(settings.get('constraints'))
+            or (request.optimizer == 'native' and bool(settings.get('gamma') or settings.get('microsolvation_wall'))))
+
+
+def inspect_optimization(request, directory, *, execution=None, exception=None):
+    """Independently inspect pilot outputs; a receipt binds them to one execution.
+
+    Missing provenance, unknown formats and unsupported workflow constraints fail
+    closed. Returned ArtifactRefs describe observations, not committed restart
+    authority. The original exception object and its chain remain accessible.
+    """
+    root = Path(directory).absolute()
+    artifacts = ()
+    try:
+        artifacts = snapshot_artifacts(root)
+        trusted = (execution is not None and execution.fresh_directory
+                   and execution.request_fingerprint == request.request_fingerprint
+                   and execution.artifacts == artifacts)
+        if _unsupported_request(request):
+            return _invalid(FailureCode.BACKEND_UNSUPPORTED, 'R1 pilot does not validate selected route, target or physical controls',
+                            execution=execution, exception=exception, request=request)
+        known = {ref.path for ref in artifacts}
+        def path(relative):
+            result = safe_path(root, relative)
+            if result.exists() and relative not in known:
+                raise ValueError('Unobserved artifact: ' + relative)
+            return result
+        if trusted:
+            verify_start(request, root, path)
+        observed = parse_observation(request, path)
+        if snapshot_artifacts(root) != artifacts:
+            raise ValueError('Artifacts changed during observational inspection')
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return _invalid(FailureCode.INVALID_RESULT, str(exc), execution=execution,
+                        exception=exception or exc, request=request, artifacts=artifacts)
+    processes = execution.processes if trusted else ()
+    returncode = processes[-1].returncode if processes else None
+    terminated = observed.terminated and returncode == 0
+    diagnostics = list(observed.diagnostics)
+    if trusted and execution.legacy_status is not None and execution.legacy_status is not True and execution.legacy_status != 'converged':
+        diagnostics.append(legacy_diagnostic(execution.legacy_status))
+    if not trusted:
+        diagnostics.append(FailureDiagnostic(FailureCode.CHECKPOINT_INCOMPATIBLE, 'validator',
+            'Historical/unbound evidence: missing or mismatched fresh execution receipt', certainty='unverified_context'))
+    if returncode not in (None, 0) and not observed.limited:
+        diagnostics.append(FailureDiagnostic(FailureCode.EXEC_FAILED, 'environment', f'Process exited with {returncode}'))
+    if observed.limited and not any(d.code is FailureCode.OPT_MAX_STEPS for d in diagnostics):
+        diagnostics.append(FailureDiagnostic(FailureCode.OPT_MAX_STEPS, 'optimizer', 'Optimizer iteration limit reached'))
+    if observed.frame is None or not observed.accepted:
+        diagnostics.append(FailureDiagnostic(FailureCode.ARTIFACT_INCOMPLETE, 'validator', 'No independently verified accepted frame'))
+    if not observed.converged and not diagnostics:
+        diagnostics.append(FailureDiagnostic(FailureCode.UNKNOWN, 'optimizer', 'No genuine optimizer convergence evidence'))
+    if exception is not None:
+        diagnostics.append(FailureDiagnostic(FailureCode.EXEC_FAILED, 'legacy_adapter', str(exception)))
+    scf_failed = any(d.code is FailureCode.CALC_SCF_MAX_STEPS for d in diagnostics)
+    gates = (
+        GateEvidence('backend', GateState.PASSED if terminated else GateState.UNKNOWN if returncode is None else GateState.FAILED, 'Native termination and observed process return code'),
+        GateEvidence('scf', GateState.FAILED if scf_failed else GateState.UNKNOWN, 'SCF errors parsed; electronic root identity is not independently proven'),
+        GateEvidence('optimizer', GateState.PASSED if observed.converged else GateState.FAILED, 'Native optimizer convergence evidence'),
+        GateEvidence('stationarity', GateState.PASSED if observed.stationary else GateState.FAILED, 'Measured gradients must meet original requested thresholds'),
+        GateEvidence('objective', GateState.PASSED if trusted and observed.frame is not None else GateState.UNKNOWN, 'Frame-associated physical and effective energies validated separately'),
+        GateEvidence('constraints', GateState.NOT_APPLICABLE, 'No physical constraints requested'),
+        GateEvidence('workflow', GateState.UNKNOWN, 'Workflow-specific identity, Hessian and pathway gates remain owner-controlled'),
+    )
+    if not trusted:
+        status = Outcome.INVALID_RESULT
+    elif observed.converged and observed.stationary and observed.accepted and terminated and not diagnostics:
+        status = Outcome.CONVERGED
+    elif scf_failed or any(d.code is FailureCode.USER_INPUT_INVALID for d in diagnostics) or (returncode not in (None, 0) and not observed.limited):
+        status = Outcome.FAILED_FINAL
+    elif observed.limited and observed.accepted and exception is None:
+        status = Outcome.INCOMPLETE_USABLE
+    elif observed.limited:
+        status = Outcome.FAILED_RECOVERABLE
+    else:
+        status = Outcome.INVALID_RESULT
+    if status is not Outcome.CONVERGED and not diagnostics:
+        diagnostics.append(FailureDiagnostic(FailureCode.INVALID_RESULT, 'validator', 'Independent convergence validation failed'))
+    attempt = OptimizationAttempt(1, execution, ((request.optimizer if request.optimizer == 'geometric' else request.backend, observed.version),), observed.steps, request, artifacts)
+    return OptimizationResult(status, tuple(diagnostics), gates, (attempt,),
+                              observed.frame if observed.accepted and trusted else None, observed.frame, exception)
+
+
+def optimize_once(molecule, qc_params):
+    """Execute one opt-in minimum optimization in the caller's current directory.
+
+    Uses the existing optimizer's cwd behavior, never adds a new chdir layer.
+    Refuses all existing job directories and obtains the existing RunLock. The
+    caller molecule/settings remain untouched. No files are created on inspection.
+    """
+    from pyar import optimiser
+    request = OptimizationRequest.from_molecule(molecule, qc_params)
+    if _unsupported_request(request):
+        return _invalid(FailureCode.BACKEND_UNSUPPORTED, 'R1 pilot does not validate selected route, target or physical controls', request=request)
+    root = Path.cwd() / ('job_' + request.name)
+    if root.exists() or root.is_symlink():
+        return _invalid(FailureCode.CHECKPOINT_INCOMPATIBLE, 'Existing job directory cannot be adopted by R1', request=request)
+    original = None
+    try:
+        with RunLock(root):
+            if root.exists() or root.is_symlink():
+                return _invalid(FailureCode.CHECKPOINT_INCOMPATIBLE, 'Job directory appeared before execution', request=request)
+            candidate = deepcopy(molecule)
+            params = request.settings
+            params.pop('fragments', None)
+            status, original = None, None
+            with capture_processes() as processes:
+                started = perf_counter()
+                try:
+                    status = optimiser.optimise(candidate, params)
+                except (Exception, SystemExit) as exc:
+                    original = exc
+            try:
+                execution = ExecutionObservation(request.request_fingerprint, snapshot_artifacts(root),
+                                                 tuple(processes), True, status, elapsed_seconds=perf_counter()-started)
+            except (OSError, ValueError) as exc:
+                return _invalid(FailureCode.INVALID_RESULT, str(exc), exception=original or exc, request=request)
+            return inspect_optimization(request, root, execution=execution, exception=original)
+    except (OSError, LockError) as exc:
+        return _invalid(FailureCode.EXEC_FAILED, str(exc), exception=original or exc, request=request)

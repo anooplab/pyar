@@ -209,6 +209,7 @@ The fastest way to verify a local install is:
 
    workflows
    reaction_optimization
+   optimization_diagnostics
    api
    reference
    generated_api

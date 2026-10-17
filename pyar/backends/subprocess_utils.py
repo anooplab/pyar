@@ -45,6 +45,8 @@ def run_command(command, stdout_path=None, stderr_path=None, stdin_path=None):
         stdin = _open_shared(stack, files, stdin_path, "r")
         proc = subp.Popen(command, stdout=stdout, stderr=stderr, stdin=stdin)
         proc.communicate()
+        from pyar.recovery.observations import record_process
+        record_process(command, proc.returncode)
         if proc.returncode != 0:
             logger.error(
                 "command failed command=%s returncode=%s cwd=%s stdout=%s stderr=%s stdin=%s",
