@@ -11,6 +11,13 @@ from pyar.backend_capabilities import normalize_backend_name, supported_geometry
 from pyar.workflows.scan_path import THROUGH_STAGES, validate_continuation
 from pyar.workflows.scan_bond import run_scan_bond
 from pyar.persistence import LockError
+from pyar.neb import (
+    DEFAULT_ENDPOINT_MAX_CYCLES,
+    DEFAULT_IRC_MAX_CYCLES,
+    DEFAULT_NEB_MAX_CYCLES,
+    DEFAULT_PRODUCT_RELAXATION_MAX_STEPS,
+    DEFAULT_TS_MAX_CYCLES,
+)
 
 
 def build_parser(*, modern=False, prog=None):
@@ -34,7 +41,7 @@ def build_parser(*, modern=False, prog=None):
     parser.add_argument("--gxtb-wrapper", help="executable ORCA external-method wrapper (oet_gxtb) for --method g-xTB")
     parser.add_argument("--nprocs", type=int, default=1)
     parser.add_argument("--scf-cycles", type=int, default=1000)
-    parser.add_argument("--opt-cycles", type=int, default=100)
+    parser.add_argument("--opt-cycles", type=int, default=1000)
     parser.add_argument("--opt-threshold", choices=["loose", "normal", "tight"], default="normal")
     parser.add_argument("--scan-end", type=float)
     group = parser.add_mutually_exclusive_group()
@@ -53,7 +60,7 @@ def build_parser(*, modern=False, prog=None):
     parser.add_argument("--characterize-unique-products", action="store_true",
                         help="after scan and free relaxation, run one scan-seeded path per unique product")
     parser.add_argument("--images", type=int, default=11)
-    parser.add_argument("--neb-max-cycles", type=int, default=100, dest="max_cycles")
+    parser.add_argument("--neb-max-cycles", type=int, default=DEFAULT_NEB_MAX_CYCLES, dest="max_cycles")
     parser.add_argument("--max-gradient", type=float, default=0.05)
     parser.add_argument("--average-gradient", type=float, default=0.025)
     parser.add_argument("--spring", type=float, default=1.0)
@@ -65,14 +72,15 @@ def build_parser(*, modern=False, prog=None):
     parser.add_argument("--geodesic-tol", type=float, default=0.002)
     parser.add_argument("--geodesic-max-iter", type=int, default=15)
     parser.add_argument("--product-relaxation-fmax", type=float, default=0.05)
-    parser.add_argument("--product-relaxation-max-steps", type=int, default=200)
+    parser.add_argument("--product-relaxation-max-steps", type=int,
+                        default=DEFAULT_PRODUCT_RELAXATION_MAX_STEPS)
     parser.add_argument("--ts-optimizer", choices=("geometric", "sella"), default="geometric")
-    parser.add_argument("--ts-max-cycles", type=int, default=200)
+    parser.add_argument("--ts-max-cycles", type=int, default=DEFAULT_TS_MAX_CYCLES)
     parser.add_argument("--ts-fmax", type=float)
     parser.add_argument("--sella-fmax", type=float, default=0.05)
     parser.add_argument("--sella-internal-coordinates", action="store_true")
-    parser.add_argument("--irc-max-cycles", type=int, default=200)
-    parser.add_argument("--endpoint-max-cycles", type=int, default=300)
+    parser.add_argument("--irc-max-cycles", type=int, default=DEFAULT_IRC_MAX_CYCLES)
+    parser.add_argument("--endpoint-max-cycles", type=int, default=DEFAULT_ENDPOINT_MAX_CYCLES)
     parser.add_argument("--imaginary-frequency-threshold", type=float, default=20.0)
     parser.add_argument("--irc-endpoint-rmsd-tolerance", type=float, default=0.5)
     return parser

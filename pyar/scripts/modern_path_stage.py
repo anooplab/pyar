@@ -10,7 +10,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from pyar.backend_capabilities import get_backend_capabilities, normalize_backend_name
-from pyar.neb import run_neb
+from pyar.neb import (
+    DEFAULT_IRC_MAX_CYCLES,
+    DEFAULT_NEB_MAX_CYCLES,
+    DEFAULT_TS_MAX_CYCLES,
+    run_neb,
+)
 from pyar.optimization_request import preflight, resolve_settings
 
 
@@ -48,7 +53,7 @@ def build_parser(command, prog=None):
                               help="Whole-path refinement used with --path-seed")
         advanced.add_argument("--path-seed-maximum-frame-index", type=int,
                               help="Optional constrained-scan maximum frame index for provenance")
-        advanced.add_argument("--max-cycles", type=int, default=100)
+        advanced.add_argument("--max-cycles", type=int, default=DEFAULT_NEB_MAX_CYCLES)
         advanced.add_argument("--max-gradient", type=float, default=0.05)
         advanced.add_argument("--average-gradient", type=float, default=0.025)
         advanced.add_argument("--spring", type=float, default=1.0)
@@ -56,12 +61,12 @@ def build_parser(command, prog=None):
         advanced.add_argument("--align", action="store_true")
     if command == "ts":
         advanced.add_argument("--ts-optimizer", choices=("geometric", "sella"), default="geometric")
-        advanced.add_argument("--ts-max-cycles", type=int, default=200)
+        advanced.add_argument("--ts-max-cycles", type=int, default=DEFAULT_TS_MAX_CYCLES)
         advanced.add_argument("--ts-fmax", type=float)
         advanced.add_argument("--sella-fmax", type=float, default=0.05)
         advanced.add_argument("--sella-internal-coordinates", action="store_true")
     if command == "irc":
-        advanced.add_argument("--irc-max-cycles", type=int, default=200)
+        advanced.add_argument("--irc-max-cycles", type=int, default=DEFAULT_IRC_MAX_CYCLES)
     return parser
 
 

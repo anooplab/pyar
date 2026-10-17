@@ -45,6 +45,11 @@ def test_cli_exposes_individual_workflow_stages():
     assert defaults["idpp_steps"] == 100
     assert defaults["geodesic_tol"] == 0.002
     assert defaults["geodesic_max_iter"] == 15
+    assert defaults["max_cycles"] == 1000
+    assert defaults["product_relaxation_max_steps"] == 1000
+    assert defaults["ts_max_cycles"] == 1000
+    assert defaults["irc_max_cycles"] == 10000
+    assert defaults["endpoint_max_cycles"] == 1000
     for stage in ("relax", "neb", "ts", "frequency", "irc", "endpoints"):
         args = vars(parser.parse_args(["--stage", stage, "--software", "xtb"]))
         assert args["stage"] == stage
@@ -719,7 +724,7 @@ def test_shared_ts_fmax_is_passed_to_selected_optimizer_and_recorded(
 def test_ts_fmax_is_part_of_restart_identity(tmp_path, fake_path_backend):
     run_neb(
         ts_geometry=DATA / "guess.xyz", software="xtb", stage="ts", output=tmp_path,
-        ts_fmax=0.02,
+        ts_fmax=0.02, ts_max_cycles=200,
     )
     summary = json.loads((tmp_path / "ts_summary.json").read_text())
     calculator = SimpleNamespace(qc_params=summary["qc_params"])
@@ -748,11 +753,11 @@ def test_inactive_sella_controls_do_not_validate_or_affect_geometric_ts(
     assert result["ts_optimization_converged"]
     assert result["optimizer_steps"] is None
     assert result["effective_ts_convergence"] == {
-        "max_steps": 200, "fmax_ev_per_angstrom": None,
+        "max_steps": 1000, "fmax_ev_per_angstrom": None,
         "geometric_convergence_set": "GAU_TIGHT",
     }
     assert result["parameters"] == {
-        "ts_max_cycles": 200, "ts_optimizer": "geometric", "ts_fmax": None,
+        "ts_max_cycles": 1000, "ts_optimizer": "geometric", "ts_fmax": None,
     }
 
     with pytest.raises(ValueError, match="sella_fmax must be positive and finite"):

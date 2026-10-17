@@ -22,6 +22,13 @@ from pyar.backends.xtb_utils import canonical_xtb_model
 
 STAGES = ("relax", "neb", "ts", "frequency", "irc", "endpoints")
 _SPLIT_ENDPOINT_STAGES = ("endpoint-relax", "endpoint-frequency")
+# Reaction paths need enough iterations for real backends to converge. Keep
+# these defaults shared by the legacy API and all task-oriented entry points.
+DEFAULT_NEB_MAX_CYCLES = 1000
+DEFAULT_PRODUCT_RELAXATION_MAX_STEPS = 1000
+DEFAULT_TS_MAX_CYCLES = 1000
+DEFAULT_IRC_MAX_CYCLES = 10000
+DEFAULT_ENDPOINT_MAX_CYCLES = 1000
 _STAGE_OPTIONS = {
     "relax": ("product_relaxation_fmax", "product_relaxation_max_steps"),
     "neb": ("images", "max_cycles", "max_gradient", "average_gradient", "spring", "climb", "align",
@@ -1349,13 +1356,14 @@ def validate_stage_input_paths(output, stage, *, start=None, end=None, ts_guess=
 
 def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
                           path_seed=None, path_refinement=None, path_seed_maximum_frame_index=None,
-                          max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
+                          max_cycles=DEFAULT_NEB_MAX_CYCLES, method=None, basis=None, charge=0, multiplicity=1,
                           nprocs=1, xtb_model="gfn2", max_gradient=0.05, average_gradient=0.025, spring=1.0,
                           climb=0.5, align=False, product_relaxation_fmax=0.05,
-                          product_relaxation_max_steps=200, ts_max_cycles=200,
-                          irc_max_cycles=200, imaginary_frequency_threshold=20.0,
+                          product_relaxation_max_steps=DEFAULT_PRODUCT_RELAXATION_MAX_STEPS,
+                          ts_max_cycles=DEFAULT_TS_MAX_CYCLES,
+                          irc_max_cycles=DEFAULT_IRC_MAX_CYCLES, imaginary_frequency_threshold=20.0,
                           irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
-                          endpoint_max_cycles=300, reuse_legacy_summaries=False,
+                          endpoint_max_cycles=DEFAULT_ENDPOINT_MAX_CYCLES, reuse_legacy_summaries=False,
                           interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
                           geodesic_tol=0.002, geodesic_max_iter=15,
                           ts_optimizer="geometric", ts_fmax=None, sella_fmax=0.05,
@@ -1607,7 +1615,7 @@ def _build_parser():
                         help="geodesic smoothing tolerance for geodesic initialization")
     parser.add_argument("--geodesic-max-iter", type=int, default=15,
                         help="maximum geodesic smoothing iterations per path half")
-    parser.add_argument("--max-cycles", type=int, default=100)
+    parser.add_argument("--max-cycles", type=int, default=DEFAULT_NEB_MAX_CYCLES)
     parser.add_argument("--method", default=defualt_parameters.values["method"])
     parser.add_argument("--basis", default=defualt_parameters.values["basis"])
     parser.add_argument("--charge", type=int, default=0)
@@ -1619,8 +1627,9 @@ def _build_parser():
     parser.add_argument("--climb", type=float, default=0.5)
     parser.add_argument("--align", action="store_true")
     parser.add_argument("--product-relaxation-fmax", type=float, default=0.05)
-    parser.add_argument("--product-relaxation-max-steps", type=int, default=200)
-    parser.add_argument("--ts-max-cycles", type=int, default=200)
+    parser.add_argument("--product-relaxation-max-steps", type=int,
+                        default=DEFAULT_PRODUCT_RELAXATION_MAX_STEPS)
+    parser.add_argument("--ts-max-cycles", type=int, default=DEFAULT_TS_MAX_CYCLES)
     parser.add_argument("--ts-optimizer", choices=("geometric", "sella"), default="geometric",
                         help="TS optimizer (geometric is the default; sella is optional)")
     parser.add_argument("--ts-fmax", type=float, default=None,
@@ -1629,8 +1638,8 @@ def _build_parser():
                         help="Sella force convergence in eV/angstrom (used only with --ts-optimizer sella)")
     parser.add_argument("--sella-internal-coordinates", action="store_true",
                         help="use internal coordinates for Sella TS optimization")
-    parser.add_argument("--irc-max-cycles", type=int, default=200)
-    parser.add_argument("--endpoint-max-cycles", type=int, default=300)
+    parser.add_argument("--irc-max-cycles", type=int, default=DEFAULT_IRC_MAX_CYCLES)
+    parser.add_argument("--endpoint-max-cycles", type=int, default=DEFAULT_ENDPOINT_MAX_CYCLES)
     parser.add_argument("--imaginary-frequency-threshold", type=float, default=20.0)
     parser.add_argument("--irc-endpoint-rmsd-tolerance", type=float, default=0.5)
     return parser

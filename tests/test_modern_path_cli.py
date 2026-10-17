@@ -7,6 +7,7 @@ import pytest
 
 from pyar import modern_cli, neb
 from pyar.scripts import modern_path_stage as cli
+from pyar.scripts import scan_bond
 
 
 @pytest.fixture
@@ -25,6 +26,26 @@ def test_neb_runs_relax_and_neb_only(endpoints):
     assert all(call.kwargs['reuse'] is True for call in engine.call_args_list)
     assert engine.call_args.kwargs['method'] is None
     assert engine.call_args.kwargs['xtb_model'] == 'gfn2'
+
+
+def test_cycle_defaults_are_raised_across_path_entry_points():
+    neb_args = cli.build_parser('neb').parse_args([
+        'a.xyz', 'b.xyz', '--ts-guess', 'guess.xyz', '--backend', 'xtb',
+    ])
+    ts_args = cli.build_parser('ts').parse_args(['guess.xyz', '--backend', 'xtb'])
+    irc_args = cli.build_parser('irc').parse_args(['run', '--backend', 'xtb'])
+    scan_args = scan_bond.build_parser(modern=True).parse_args([
+        'a.xyz', 'b.xyz', '--atoms', '0', '0', '--backend', 'xtb',
+    ])
+    assert neb_args.max_cycles == 1000
+    assert ts_args.ts_max_cycles == 1000
+    assert irc_args.irc_max_cycles == 10000
+    assert scan_args.opt_cycles == 1000
+    assert scan_args.max_cycles == 1000
+    assert scan_args.product_relaxation_max_steps == 1000
+    assert scan_args.ts_max_cycles == 1000
+    assert scan_args.irc_max_cycles == 10000
+    assert scan_args.endpoint_max_cycles == 1000
 
 
 def test_neb_stops_on_failed_endpoint_gate(endpoints):

@@ -53,7 +53,7 @@ Complete and separate runs
 For the bundled HCN/HNC isomerization example::
 
    pyar-neb --start tests/data/neb/hcn.xyz --end tests/data/neb/hnc.xyz \
-     --ts-guess tests/data/neb/guess.xyz --software xtb --max-cycles 200 \
+     --ts-guess tests/data/neb/guess.xyz --software xtb --max-cycles 1000 \
      --output hcn_hnc
 
 ``--stage all`` is the default. PyAR's ``xtb`` gradient provider defaults to
@@ -113,9 +113,10 @@ the full workflow. Current summaries use version 2.
 Process count may change between stages. Separate stages leave the historical
 ``workflow_summary.json`` unchanged; consult the current stage summary.
 
-``--images`` must be odd and at least three. ``--max-cycles``, ``--ts-max-cycles``,
-``--irc-max-cycles`` (per branch), and ``--endpoint-max-cycles`` control the
-respective iteration limits. The default imaginary-frequency threshold is
+``--images`` must be odd and at least three. Path optimization defaults allow
+1000 steps for endpoint relaxation, 1000 NEB cycles, 1000 TS cycles, 10000 IRC
+cycles per branch, and 1000 endpoint cycles; the individual options can
+override those limits. The default imaginary-frequency threshold is
 20 cm⁻¹; smaller negative frequencies remain in the output but do not count
 toward the Hessian index. Frequency validation also requires maximum and RMS
 atomic gradient norms below 4.5e-4 and 3.0e-4 Hartree/Bohr, respectively.
