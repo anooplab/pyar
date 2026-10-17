@@ -354,3 +354,14 @@ def optimization_diagnostic_capabilities(software, optimizer='native'):
             or (optimizer == 'geometric' and software == 'xtb' and profile.energy_gradient)):
         return frozenset({'parsed_convergence', 'frame_validation'})
     return frozenset()
+
+
+def optimization_recovery_capabilities(software, optimizer='native'):
+    """Candidate SAFE route; policy and per-execution versions must also pass.
+
+    Electronic restart is deliberately absent: an orbital file is not evidence
+    of compatible electronic state. Native incomplete frames are not certified.
+    """
+    if normalize_backend_name(software) == 'xtb' and optimizer == 'geometric':
+        return frozenset({'accepted_cycle_continuation'})
+    return frozenset()

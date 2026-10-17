@@ -186,6 +186,22 @@ class XtbEnergyGradientProvider:
                 text=True,
                 check=False,
             )
+            if self.qc_params.get('_ore_safe'):
+                # The SAFE pilot verifies every physical evaluation, not just
+                # the version found on PATH during preflight.
+                import re
+                output = '\n'.join((proc.stdout or '', proc.stderr or ''))
+                index = getattr(self, '_ore_evaluations', 0) + 1
+                self._ore_evaluations = index
+                evidence = Path(f'ore_backend_{index:06d}.out')
+                with evidence.open('x') as stream:
+                    stream.write(f'# ORE subprocess returncode: {proc.returncode}\n' + output)
+                if (proc.returncode != 0
+                        or not re.search(r'xtb version\s+6\.7\.1\b', output, re.I)
+                        or not re.search(r'Hamiltonian\s+GFN2-xTB\b', output, re.I)
+                        or re.search(r'SCC (?:failed|not converged)', output, re.I)
+                        or 'normal termination of xtb' not in output.lower()):
+                    raise RuntimeError('ORE xTB version/model/electronic evaluation could not be verified')
             if proc.returncode != 0:
                 raise RuntimeError(
                     "xTB energy/gradient evaluation failed: "

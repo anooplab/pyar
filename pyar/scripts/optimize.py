@@ -16,6 +16,15 @@ def build_parser(prog=None):
     parser.add_argument('input_files', nargs='+', metavar='XYZ')
     parser.add_argument('--backend', help='Explicit computational backend, e.g. xtb or orca')
     parser.add_argument('--check', action='store_true', help='Validate the entire request without calculation')
+    parser.add_argument('--recovery', choices=['off', 'safe'], default='off',
+                        help='Opt-in bounded recovery pilot (default: off)')
+    parser.add_argument('--recovery-max-attempts', type=int, default=3)
+    parser.add_argument('--recovery-max-cycles', type=int, default=700)
+    parser.add_argument('--recovery-max-evaluations', type=int, default=1000)
+    parser.add_argument('--recovery-wall-seconds', type=float, default=3600.)
+    parser.add_argument('--recovery-resume', action='store_true')
+    parser.add_argument('--recovery-recover-lock', action='store_true',
+                        help='Explicitly recover stale lock metadata after obtaining OS lock')
     parser.add_argument('-c', '--charge', type=int, default=0)
     parser.add_argument('-m', '--multiplicity', type=int, help='Default: infer singlet/doublet from electron parity')
     parser.add_argument('--scftype', choices=['rhf', 'uhf'])
@@ -39,7 +48,15 @@ def main(argv=None, *, prog=None):
         settings = resolve_settings(args)
         molecules = load_inputs(args)
         requirements = preflight(settings, molecules)
-    except (ValueError, FileNotFoundError, ImportError) as exc:
+        if args.recovery == 'safe':
+            from pyar.recovery.policy import RecoveryPolicy
+            from pyar.recovery.controller import preflight_recovery
+            policy = RecoveryPolicy('safe', args.recovery_max_attempts, args.recovery_max_cycles,
+                                    args.recovery_max_evaluations, args.recovery_wall_seconds)
+            preflight_recovery(molecules, settings, policy, resume=args.recovery_resume)
+        elif args.recovery_resume or args.recovery_recover_lock:
+            raise ValueError('Recovery resume/lock recovery requires --recovery safe')
+    except (ValueError, OSError, ImportError) as exc:
         parser.error(f'Preflight failed for: optimize\n{exc}\nNo calculations were started.')
     prepared_run(args, request={'inputs': args.input_files}, backend=settings,
                  molecules=molecules, requirements=requirements, state_lists=False,
@@ -58,6 +75,7 @@ def main(argv=None, *, prog=None):
     started_run()
     results = []
     failures = []
+    recoveries = []
     for molecule in molecules:
         molecule_settings = settings
         if settings.get('_electronic_state_from_molecule'):
@@ -69,7 +87,24 @@ def main(argv=None, *, prog=None):
                 'xtb_unpaired_electrons': molecule.multiplicity - 1,
             }
         try:
-            status = optimiser.optimise(molecule, molecule_settings)
+            if args.recovery == 'safe':
+                from pyar.recovery.controller import run_recovery
+                from pyar.persistence import LockError
+                try:
+                    recovery = run_recovery(molecule, molecule_settings, policy,
+                        resume=args.recovery_resume, recover_lock=args.recovery_recover_lock)
+                except (ValueError, OSError, LockError) as exc:
+                    raise BackendExecutionError(str(exc)) from exc
+                recoveries.append({'input': molecule.name, **recovery.to_dict()})
+                if not recovery.result.converged:
+                    raise BackendExecutionError('SAFE recovery stopped: ' + recovery.stop_reason)
+                import numpy as np
+                frame = recovery.result.accepted_frame
+                molecule.coordinates = np.array(frame.coordinates_angstrom)
+                molecule.energy = frame.physical_energy_hartree
+                status = True
+            else:
+                status = optimiser.optimise(molecule, molecule_settings)
         except (BackendExecutionError, FileNotFoundError) as exc:
             failures.append({'input': molecule.name, 'error': str(exc)})
             continue
@@ -89,6 +124,8 @@ def main(argv=None, *, prog=None):
         'input_count': len(molecules), 'optimized_count': len(results),
         'failed_count': len(failures), 'failures': failures,
     }
+    if args.recovery == 'safe':
+        report['recovery'] = recoveries
     finished_run(report)
     print(f'Optimized {len(results)} of {len(molecules)} structures ({status}).')
     if failures:

@@ -139,6 +139,10 @@ def _geometric(request, path):
     failed = _error(text, 'geometric.out', (r'\bSCC failed', r'SCF NOT CONVERGED'), FailureCode.CALC_SCF_MAX_STEPS)
     if failed:
         return NativeObservation(version, False, False, False, False, None, False, diagnostics=(failed,))
+    if request.settings.get('_ore_safe') and 'Maximum iterations reached' in text:
+        from .checkpoints import accepted_checkpoint
+        frame, steps = accepted_checkpoint(request, path)
+        return NativeObservation(version, False, False, True, False, frame, True, steps)
     state = read_json(path('pyar_geometric_state.json'))
     if state.get('schema_version', 1) != 1:
         raise ValueError('Unknown geomeTRIC state schema version')
@@ -212,6 +216,13 @@ def _geometric(request, path):
         accepted = True
     if accepted:
         steps[-1] = replace(steps[-1], accepted=True)
+    if request.settings.get('_ore_safe'):
+        from .checkpoints import accepted_checkpoint
+        checkpoint_frame, accepted_steps = accepted_checkpoint(request, path)
+        if (not close_matrix(checkpoint_frame.coordinates_angstrom, frame.coordinates_angstrom)
+                or abs(checkpoint_frame.physical_energy_hartree-energy) > 1e-9):
+            raise ValueError('Converged frame and accepted checkpoint disagree')
+        steps = accepted_steps
     return NativeObservation(version, converged, converged, limited, stationary, frame, accepted, tuple(steps))
 
 
