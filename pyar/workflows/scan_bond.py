@@ -279,7 +279,8 @@ def _resolve_total_multiplicity(fragment_a, fragment_b, requested, *, warn=True)
 
 
 def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
-                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None, *, _layout=None):
+                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
+                  *, characterize_unique_products=False, _layout=None):
     """Run a scan, optionally continuing through a named reaction-path stage.
 
     ``through=None`` preserves the original Python scan-plus-relaxation API.
@@ -296,6 +297,10 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     if software == "xtb":
         from pyar.backends.xtb_utils import canonical_xtb_model
         qc_params["xtb_model"] = canonical_xtb_model(qc_params.get("xtb_model"))
+    if characterize_unique_products and through in (None, "scan"):
+        raise ValueError("unique-product characterization requires through='neb' or a later stage")
+    if characterize_unique_products and (reaction_options or {}).get("interpolation") == "geodesic":
+        raise ValueError("unique-product path-seed characterization does not support geodesic interpolation")
     if through is not None:
         validate_continuation(through, reaction_options or {})
         if software == "orca" and through != "scan":
@@ -512,7 +517,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             save_result(directory, result)
             results.append(result)
             continue
-        if through is not None:
+        if through is not None and not characterize_unique_products:
             result["status"] = "scan_success"
             result["requested_through"] = through
             save_result(directory, result)
@@ -588,29 +593,52 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             result["status"] = "scan_success_relax_failed"
         save_result(directory, result)
         results.append(result)
-    if through not in (None, "scan"):
+    if through not in (None, "scan") and not characterize_unique_products:
         continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
     if _layout is not None:
-        _layout.product_registry(results, request)
+        registry = _layout.product_registry(results, request)
+        if characterize_unique_products:
+            if through in (None, "scan"):
+                raise ValueError("--characterize-unique-products requires --through neb or a later stage")
+            from pyar.workflows.scan_path import characterize_scan_products
+            characterization = characterize_scan_products(
+                root.resolve(), request, qc_params, through,
+                reaction_options or {}, _layout,
+            )
+            for result in results:
+                if result.get("product_role") == "representative":
+                    result["continuation_status"] = characterization.get(
+                        result["product_id"], {}).get("status", "not_started")
+                    (root / f"orientation_{int(result['orientation']):03d}" / "result.json").write_text(
+                        json.dumps(result, indent=2, sort_keys=True, default=str))
         _layout.manifest(results)
     (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
     with (root / "summary.csv").open("w", newline="") as handle:
         fields = sorted({key for result in results for key in result})
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader(); writer.writerows(results)
-    if through is None:
+    if characterize_unique_products:
+        complete = all(row.get("status") in {"scan_success_relax_success", "scan_success"}
+                       for row in results)
+        index = json.loads((root / "products/index.json").read_text())
+        complete = complete and all(item.get("characterization_status") in {
+                                        "reaction_connected", "path_complete_connection_unconfirmed"}
+                                    for item in index.get("products", []))
+    elif through is None:
         complete = all(row.get("status") == "scan_success_relax_success" for row in results)
     elif through == "scan":
         complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"} for row in results)
     else:
         complete = all(row.get("continuation_status") == "complete" for row in results)
     return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
-            "status": "complete" if complete else "failed", "requested_through": through}
+            "status": "complete" if complete else "failed", "requested_through": through,
+            "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)
+                            else "scan_incomplete")}
 
 
 def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                   scan_end=None, scan_step=None, scan_points=None, through=None,
-                  reaction_options=None, *, recover_stale=False):
+                  reaction_options=None, *, characterize_unique_products=False, recover_stale=False):
     """Route existing v1 scans unchanged and guard fresh v2 scan publication."""
     from pyar.persistence import detect_version, RunLock
     from pyar.workflows.scan_layout import ScanLayout
@@ -622,11 +650,15 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         return True
     arguments = (input_a, input_b, atoms, orientations, qc_params, output_dir,
                  scan_end, scan_step, scan_points, through, reaction_options)
-    if detect_version(root, 'scan-bond', validate_v1=legacy) == 1:
+    version = detect_version(root, 'scan-bond', validate_v1=legacy)
+    if characterize_unique_products and version == 1:
+        raise ValueError('--characterize-unique-products requires a fresh or v2 scan-bond output directory')
+    if version == 1:
         return _run_scan_bond(*arguments)
     # The sibling lock must be creatable before the run root; support nested
     # output paths while still taking the lock before inspecting/creating root.
     root.parent.mkdir(parents=True, exist_ok=True)
     with RunLock(root, recover_stale=recover_stale):
         detect_version(root, 'scan-bond', validate_v1=legacy)
-        return _run_scan_bond(*arguments, _layout=ScanLayout(root))
+        return _run_scan_bond(*arguments, characterize_unique_products=characterize_unique_products,
+                              _layout=ScanLayout(root))
