@@ -356,10 +356,16 @@ class PyarGeometricCalculator(Calculator):
 
         coordinates_bohr = angstrom2bohr(np.asarray(self.atoms.get_positions(), dtype=float))
         budget_path = self.qc_params.get("microsolvation_evaluation_budget_path")
+        if self.qc_params.get('_ore_safe'):
+            if self.backend_energy_gradient_evaluations >= self.qc_params['_ore_evaluation_limit']:
+                raise RuntimeError('ORE backend evaluation budget exhausted')
         if budget_path:
             from pyar.evaluation_budget import reserve_backend_evaluation
             reserve_backend_evaluation(budget_path)
         self.backend_energy_gradient_evaluations += 1
+        if self.qc_params.get('_ore_safe'):
+            from pyar.persistence import write_json
+            write_json('ore_evaluations.json', {'used': self.backend_energy_gradient_evaluations})
         backend_result = self._backend_evaluator.evaluate(self.atoms, coordinates_bohr)
         self._last_backend_result = backend_result
         backend_energy, backend_forces = self._result_to_ase_units(backend_result)
@@ -569,6 +575,9 @@ class Geometric(SF):
             "fragment_indices": self.fragment_indices,
             "opt_target": self.opt_target,
         }
+        if self.qc_params.get('_ore_safe'):
+            return [sys.executable, '-m', 'pyar.recovery.geometric_driver',
+                    self.start_xyz_file, json.dumps(ase_kwargs)]
         if self.gamma != 0.0 and str(self.qc_params.get("bias_controller") or "fixed").lower() == "adaptive":
             return [sys.executable, "-m", "pyar.backends.adaptive_geometric",
                     self.start_xyz_file, json.dumps(ase_kwargs)]

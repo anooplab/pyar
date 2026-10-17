@@ -12,7 +12,7 @@ from pyar.persistence import ArtifactRef, canonical_json_bytes
 
 class Outcome(str, Enum):
     CONVERGED = 'CONVERGED'
-    RECOVERED_CONVERGED = 'RECOVERED_CONVERGED'  # Reserved; R1 never emits it.
+    RECOVERED_CONVERGED = 'RECOVERED_CONVERGED'
     INCOMPLETE_USABLE = 'INCOMPLETE_USABLE'
     FAILED_RECOVERABLE = 'FAILED_RECOVERABLE'
     FAILED_FINAL = 'FAILED_FINAL'
@@ -31,6 +31,8 @@ class FailureCode(str, Enum):
     EXEC_FAILED = 'EXEC_FAILED'
     USER_INPUT_INVALID = 'USER_INPUT_INVALID'
     UNKNOWN = 'UNKNOWN'
+    RECOVERY_UNSUPPORTED = 'RECOVERY_UNSUPPORTED'
+    RECOVERY_STOPPED = 'RECOVERY_STOPPED'
 
 
 class GateState(str, Enum):
@@ -126,7 +128,7 @@ class OptimizationRequest:
         # Only execution budgets/parallelism vary independently of requested science.
         # Requested tolerances and unknown options stay in the scientific identity.
         if scientific:
-            for key in ('nprocs', 'opt_cycles', 'scf_cycles'):
+            for key in ('nprocs', 'opt_cycles', 'scf_cycles', '_ore_evaluation_limit', '_ore_safe'):
                 values.pop(key, None)
         # Known file-backed models/wrappers use content identity, not host paths.
         for key in ('model', 'gxtb_wrapper'):
@@ -142,6 +144,13 @@ class OptimizationRequest:
     @property
     def request_fingerprint(self):
         return fingerprint(self._identity())
+
+    @property
+    def objective_fingerprint(self):
+        """Science independent of the explicitly recorded starting geometry."""
+        identity = self._identity(scientific=True)
+        identity.pop('coordinates_angstrom')
+        return fingerprint(identity)
 
 
 @dataclass(frozen=True)
@@ -247,15 +256,28 @@ class OptimizationAttempt:
     steps: tuple[StepObservation, ...] = ()
     request: OptimizationRequest | None = None
     artifacts: tuple[ArtifactRef, ...] = ()
+    action: str = 'initial'
+    parent_number: int | None = None
+    original_scientific_fingerprint: str | None = None
+    worker_returncode: int | None = None
 
 
 def _exception_chain(exception):
+    if isinstance(exception, RecordedExecutionError):
+        return list(exception.recorded_chain)
     chain, seen, exc = [], set(), exception
     while exc is not None and id(exc) not in seen:
         seen.add(id(exc))
         chain.append({'type': type(exc).__name__, 'message': str(exc)})
         exc = exc.__cause__ or (None if exc.__suppress_context__ else exc.__context__)
     return chain
+
+
+class RecordedExecutionError(RuntimeError):
+    """Persisted evidence; does not pretend to recreate a live exception type."""
+    def __init__(self, chain):
+        self.recorded_chain = tuple(dict(item) for item in chain)
+        super().__init__(self.recorded_chain[0]['message'] if chain else 'Recorded execution failure')
 
 
 def _serializable(value):
