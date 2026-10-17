@@ -126,6 +126,16 @@ class PyarGeometricCalculator(Calculator):
             if self.release_tracker is not None and self._restart_checkpoint.get("release_tracker"):
                 self.release_tracker.load_state_dict(self._restart_checkpoint["release_tracker"])
         self._backend_evaluator = _resolve_backend_evaluator(self.software, self.qc_params)
+        self.wall_configuration = self.qc_params.get("microsolvation_wall")
+        if self.wall_configuration is not None:
+            if not isinstance(self.wall_configuration, dict):
+                raise ValueError("microsolvation_wall must be a JSON-ready mapping")
+            required = {"solute_atom_count", "solvent_fragments", "radius_angstrom",
+                        "force_constant_hartree_per_angstrom2"}
+            if required - self.wall_configuration.keys():
+                raise ValueError("microsolvation_wall is missing required configuration values")
+        self._wall_energy_hartree = 0.0
+        self._wall_energy_max_hartree = 0.0
         # Count calls to the physical provider, independently of optimizer
         # trajectory length or ASE cache hits.
         self.backend_energy_gradient_evaluations = 0
@@ -312,12 +322,19 @@ class PyarGeometricCalculator(Calculator):
             "energy_hartree": float(energy / Hartree),
             "backend_energy_hartree": float(self._last_backend_result.energy_hartree),
             "total_energy_hartree": float(energy / Hartree),
-            "bias_energy_hartree": float(energy / Hartree - self._last_backend_result.energy_hartree),
+            "bias_energy_hartree": float(
+                self._active_bias_energy_hartree if self.wall_configuration is not None
+                else energy / Hartree - self._last_backend_result.energy_hartree
+            ),
             "positions_angstrom": np.asarray(self.atoms.get_positions(), dtype=float).tolist(),
             "forces_ev_per_angstrom": np.asarray(forces, dtype=float).tolist(),
             "bias_controller": self.bias_controller.state_dict() if self.gamma != 0.0 else None,
             "release": None if self.release_tracker is None else self.release_tracker.evidence.as_dict(),
         }
+        if self.wall_configuration is not None:
+            state["wall_energy_hartree"] = float(self._wall_energy_hartree)
+            state["wall_energy_max_hartree"] = float(self._wall_energy_max_hartree)
+            state["wall_configuration"] = self.wall_configuration
         if collective_coordinate_bohr is not None:
             state["collective_coordinate_bohr"] = float(collective_coordinate_bohr)
         if contact_diagnostics is not None:
@@ -373,10 +390,31 @@ class PyarGeometricCalculator(Calculator):
             bias_energy,
             bias_forces,
         ) = self._bias_contribution(scale=bias_scale)
+        self._active_bias_energy_hartree = bias_energy_hartree
         total_energy = backend_energy + bias_energy
         total_forces = np.asarray(backend_forces, dtype=float) + np.asarray(bias_forces, dtype=float)
         total_energy_hartree = backend_energy_hartree + bias_energy_hartree
         total_forces_hartree_per_bohr = backend_forces_hartree_per_bohr + bias_forces_hartree_per_bohr
+        wall_energy_hartree = 0.0
+        wall_forces_hartree_per_bohr = np.zeros_like(total_forces_hartree_per_bohr)
+        if self.wall_configuration is not None:
+            from pyar.microsolvation.wall import outer_sphere_energy_gradient
+            wall_energy_hartree, wall_gradient_hartree_per_angstrom = outer_sphere_energy_gradient(
+                self.atoms.get_positions(), self.atoms.get_masses(),
+                np.arange(int(self.wall_configuration["solute_atom_count"])),
+                radius_angstrom=self.wall_configuration["radius_angstrom"],
+                force_constant_hartree_per_angstrom2=self.wall_configuration[
+                    "force_constant_hartree_per_angstrom2"],
+                solvent_fragments=self.wall_configuration["solvent_fragments"],
+            )
+            wall_gradient_hartree_per_bohr = wall_gradient_hartree_per_angstrom * Bohr
+            wall_forces_hartree_per_bohr = -wall_gradient_hartree_per_bohr
+            total_energy += wall_energy_hartree * Hartree
+            total_forces += wall_forces_hartree_per_bohr * Hartree / Bohr
+            total_energy_hartree += wall_energy_hartree
+            total_forces_hartree_per_bohr += wall_forces_hartree_per_bohr
+        self._wall_energy_hartree = wall_energy_hartree
+        self._wall_energy_max_hartree = max(self._wall_energy_max_hartree, wall_energy_hartree)
         bias_force_norm = float(np.linalg.norm(bias_forces_hartree_per_bohr))
         total_force_norm = float(np.linalg.norm(total_forces_hartree_per_bohr))
         max_force = float(np.max(np.linalg.norm(total_forces_hartree_per_bohr, axis=1)))

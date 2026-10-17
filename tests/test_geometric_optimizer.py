@@ -98,6 +98,39 @@ class GeometricOptimizerTests(unittest.TestCase):
         np.testing.assert_allclose(calculator.results["forces"], backend_forces)
         self.assertEqual(calculator.backend_energy_gradient_evaluations, 1)
 
+    def test_geometric_calculator_records_and_adds_outer_sphere_wall(self):
+        from pyar.backends.geometric import PyarGeometricCalculator
+
+        atoms = Atoms(symbols=["C", "H", "O"], positions=[[0, 0, 0], [1, 0, 0], [5, 0, 0]])
+        backend = EnergyGradientResult(1.0, np.zeros((3, 3)))
+
+        class DummyProvider:
+            def evaluate(self, molecule, coordinates_bohr):
+                return backend
+
+        params = {"software": "xtb", "gamma": 0.0, "charge": 0,
+                  "microsolvation_wall": {"solute_atom_count": 2, "solvent_fragments": [[2]], "radius_angstrom": 2.0,
+                                          "force_constant_hartree_per_angstrom2": 0.5}}
+        with mock.patch("pyar.backends.geometric._resolve_backend_evaluator", return_value=DummyProvider()):
+            calculator = PyarGeometricCalculator(params)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                calculator.calculate(atoms=atoms, properties=["energy", "forces"])
+                state = json.loads(Path("pyar_geometric_state.json").read_text())
+            finally:
+                os.chdir(cwd)
+        masses = atoms.get_masses()
+        center = masses[1] / masses[:2].sum()
+        excess = 5.0 - center - 2.0
+        expected = 0.5 * 0.5 * excess ** 2
+        self.assertAlmostEqual(calculator.results["energy"] / Hartree, 1.0 + expected)
+        self.assertAlmostEqual(state["backend_energy_hartree"], 1.0)
+        self.assertAlmostEqual(state["wall_energy_hartree"], expected)
+        self.assertAlmostEqual(state["wall_energy_max_hartree"], expected)
+        self.assertEqual(state["wall_configuration"], params["microsolvation_wall"])
+
     def test_geometric_calculator_combines_backend_and_afir(self):
         from pyar.backends.geometric import PyarGeometricCalculator
 
