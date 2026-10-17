@@ -516,6 +516,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     if through not in (None, "scan"):
         continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
     if _layout is not None:
+        _layout.product_registry(results, request)
         _layout.manifest(results)
     (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
     with (root / "summary.csv").open("w", newline="") as handle:

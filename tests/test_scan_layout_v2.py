@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from pyar.core.molecule import Molecule
-from pyar.persistence import read_json, sha256_file
+from pyar.persistence import read_json, sha256_file, write_json
 
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
@@ -221,3 +221,123 @@ def test_scan_native_evidence_is_fsynced_before_its_commit(scan_run, monkeypatch
     commit_index = next(index for index, path in enumerate(targets)
                         if '/orientation_000/.pyar-json-' in path)
     assert evidence_index < commit_index
+
+
+def test_v2_scan_products_are_grouped_deterministically_without_path_execution(tmp_path, monkeypatch):
+    from pyar.backends import write_xyz
+    from pyar.backends.orca_scan import OrcaBondScanResult
+
+    fragment_a = tmp_path / 'a.xyz'
+    fragment_b = tmp_path / 'b.xyz'
+    write_xyz(['H'], [[0., 0., 0.]], fragment_a)
+    write_xyz(['H'], [[1.4, 0., 0.]], fragment_b)
+    workflow_module = importlib.import_module('pyar.workflows.scan_bond')
+    orientations = []
+    for index in range(5):
+        molecule = Molecule(['H', 'H'], [[0., 0., 0.], [1.4, 0., 0.]], name=f'orientation_{index:03d}')
+        molecule.fragments = [[0], [1]]
+        orientations.append((index, molecule, None))
+    monkeypatch.setattr(workflow_module, '_make_orientations', lambda *args: orientations)
+    monkeypatch.setattr(workflow_module, 'separated_reactant_identity',
+                        lambda *args: {'inchi': 'reactants', 'smiles': '[H].[H]'})
+    scan_calls = []
+
+    def fake_scan(molecule, request, directory, qc_params):
+        scan_calls.append(molecule.name)
+        directory.mkdir(parents=True, exist_ok=True)
+        index = int(molecule.name.rsplit('_', 1)[1])
+        distances = [1.4, 1.2, 1.0]
+        frames = [(molecule.atoms_list, np.array([[0., 0., 0.], [distance, 0., 0.]]), f'frame {i}')
+                  for i, distance in enumerate(distances)]
+        energies = {
+            0: [-1.0, -0.5, -0.8],
+            1: [-1.0, -0.8, -0.95],
+            2: [-1.0, -0.7, -0.9],
+            3: [-1.0, -0.6, -0.9],
+            4: [-1.0, -0.4, -0.9],
+        }[index]
+        trajectory = directory / 'scan_trajectory.xyz'
+        final = directory / 'final_scan.xyz'
+        scan_input = directory / 'scan.inp'
+        scan_output = directory / 'scan.out'
+        trajectory.write_text(''.join(
+            f'2\nframe {i}\nH 0 0 0\nH {distance} 0 0\n'
+            for i, distance in enumerate(distances)
+        ))
+        write_xyz(molecule.atoms_list, frames[-1][1], final)
+        scan_input.write_text('scan request\n')
+        scan_output.write_text('scan completed\n')
+        profile = [{'target_distance_angstrom': distance, 'energy_hartree': energy}
+                   for distance, energy in zip(distances, energies)]
+        return OrcaBondScanResult(True, trajectory, final, frames[-1][1], scan_input,
+                                  scan_output, 'success', frames=frames, profile=profile)
+
+    def fake_optimize(molecule, qc_params):
+        orientation = next(int(part.rsplit('_', 1)[1]) for part in Path.cwd().parts
+                           if part.startswith('orientation_'))
+        if orientation == 2:
+            molecule.coordinates[1, 0] = 2.0  # A changed but off-target product.
+        output = Path('job_relaxed/result_relaxed.xyz')
+        output.parent.mkdir(parents=True)
+        write_xyz(molecule.atoms_list, molecule.coordinates, output)
+        return True
+
+    def fake_identity(path):
+        orientation = next(int(part.rsplit('_', 1)[1]) for part in Path(path).parts
+                            if part.startswith('orientation_'))
+        identities = {
+            0: {'inchi': 'InChI=product-one', 'smiles': 'C1'},
+            1: {'inchi': 'InChI=product-one', 'smiles': 'C1 alternate'},
+            2: {'inchi': 'InChI=product-two', 'smiles': 'C2'},
+            4: {'inchi': 'reactants', 'smiles': '[H].[H]'},
+        }
+        if orientation == 3:
+            raise ValueError('identity provider failed')
+        return identities[orientation]
+
+    monkeypatch.setattr(workflow_module, 'run_orca_bond_scan', fake_scan)
+    monkeypatch.setattr(workflow_module, 'optimise', fake_optimize)
+    monkeypatch.setattr(workflow_module, 'molecule_identity_from_xyz', fake_identity)
+    path_module = importlib.import_module('pyar.workflows.scan_path')
+    monkeypatch.setattr(path_module, 'continue_scan_paths',
+                        lambda *args: pytest.fail('M5 must not start NEB/path stages'))
+    root = tmp_path / 'scan_bond'
+    params = {'software': 'orca', 'method': 'BP86', 'basis': 'def2-SVP'}
+    result = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 5, params, root,
+                                    scan_end=1.0, scan_points=3, through=None)
+    assert result['status'] == 'complete'
+    index = read_json(root / 'products/index.json')
+    assert len(index['products']) == 2
+    product_one = next(row for row in index['products'] if row['identity']['inchi'] == 'InChI=product-one')
+    assert product_one['orientation_ids'] == [0, 1]
+    assert product_one['representative_orientation'] == 1
+    assert product_one['alternative_orientations'] == [0]
+    assert product_one['identity']['smiles_variants'] == ['C1', 'C1 alternate']
+    product_two = next(row for row in index['products'] if row['identity']['inchi'] == 'InChI=product-two')
+    assert product_two['target_status'] == 'off_target'
+    assert index['identity_unknown'][0]['orientation'] == 3
+    assert index['non_products'] == [{'orientation': 4, 'reason': 'identity_unchanged'}]
+    assert [row['product_role'] for row in result['results'][:2]] == ['duplicate_route', 'representative']
+    assert result['results'][3]['product_id'] is None
+    assert result['results'][3]['product_role'] == 'identity_unknown'
+    assert not list(root.glob('orientation_*/reaction_path'))
+
+    digest = sha256_file(root / 'products/index.json')
+    request = read_json(root / 'request.json')
+    from pyar.workflows.scan_layout import ScanLayout
+    layout = ScanLayout(root)
+    layout.product_registry(list(reversed(result['results'])), request)
+    assert sha256_file(root / 'products/index.json') == digest
+
+    resumed = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 5, params, root,
+                                      scan_end=1.0, scan_points=3, through=None)
+    assert resumed['status'] == 'complete'
+    assert len(scan_calls) == 5  # Resume reuses every committed scan.
+    assert sha256_file(root / 'products/index.json') == digest
+
+    record_path = root / product_one['product_record_path']
+    record = read_json(record_path)
+    record['orientation_ids'] = [1]
+    write_json(record_path, record)
+    with pytest.raises(ValueError, match='Immutable scan product record changed'):
+        layout.product_registry(result['results'], request)
