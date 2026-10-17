@@ -16,8 +16,8 @@ def build_parser(prog=None):
     parser.add_argument('input_files', nargs='+', metavar='XYZ')
     parser.add_argument('--backend', help='Explicit computational backend, e.g. xtb or orca')
     parser.add_argument('--check', action='store_true', help='Validate the entire request without calculation')
-    parser.add_argument('--recovery', choices=['off', 'safe'], default='off',
-                        help='Opt-in bounded recovery pilot (default: off)')
+    parser.add_argument('--recovery', choices=['off', 'safe', 'guided'], default='off',
+                        help='Opt-in bounded recovery; guided may reset the geomeTRIC trust model (default: off)')
     parser.add_argument('--recovery-max-attempts', type=int, default=3)
     parser.add_argument('--recovery-max-cycles', type=int, default=700)
     parser.add_argument('--recovery-max-evaluations', type=int, default=1000)
@@ -48,14 +48,14 @@ def main(argv=None, *, prog=None):
         settings = resolve_settings(args)
         molecules = load_inputs(args)
         requirements = preflight(settings, molecules)
-        if args.recovery == 'safe':
+        if args.recovery in {'safe', 'guided'}:
             from pyar.recovery.policy import RecoveryPolicy
             from pyar.recovery.controller import preflight_recovery
-            policy = RecoveryPolicy('safe', args.recovery_max_attempts, args.recovery_max_cycles,
+            policy = RecoveryPolicy(args.recovery, args.recovery_max_attempts, args.recovery_max_cycles,
                                     args.recovery_max_evaluations, args.recovery_wall_seconds)
             preflight_recovery(molecules, settings, policy, resume=args.recovery_resume)
         elif args.recovery_resume or args.recovery_recover_lock:
-            raise ValueError('Recovery resume/lock recovery requires --recovery safe')
+            raise ValueError('Recovery resume/lock recovery requires --recovery safe or guided')
     except (ValueError, OSError, ImportError) as exc:
         parser.error(f'Preflight failed for: optimize\n{exc}\nNo calculations were started.')
     prepared_run(args, request={'inputs': args.input_files}, backend=settings,
@@ -87,7 +87,7 @@ def main(argv=None, *, prog=None):
                 'xtb_unpaired_electrons': molecule.multiplicity - 1,
             }
         try:
-            if args.recovery == 'safe':
+            if args.recovery in {'safe', 'guided'}:
                 from pyar.recovery.controller import run_recovery
                 from pyar.persistence import LockError
                 try:
@@ -124,7 +124,7 @@ def main(argv=None, *, prog=None):
         'input_count': len(molecules), 'optimized_count': len(results),
         'failed_count': len(failures), 'failures': failures,
     }
-    if args.recovery == 'safe':
+    if args.recovery in {'safe', 'guided'}:
         report['recovery'] = recoveries
     finished_run(report)
     print(f'Optimized {len(results)} of {len(molecules)} structures ({status}).')

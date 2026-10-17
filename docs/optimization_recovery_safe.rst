@@ -1,7 +1,8 @@
-Standalone SAFE recovery pilot
-==============================
+Standalone optimization recovery pilot
+========================================
 
-R2 adds explicit, bounded cycle continuation to ``pyar optimize``. Recovery is
+R2 adds explicit, bounded cycle continuation to ``pyar optimize``. R3 adds an
+opt-in guided optimizer restart for one evidence-backed geomeTRIC plateau. Recovery is
 **off by default**: existing callers, workflows and legacy continuation keep
 their existing behavior. This pilot neither enables recovery in other workflows
 nor establishes Hessian, chemical identity, TS, IRC or pathway acceptance.
@@ -33,8 +34,8 @@ will pass the runtime checks. Each input has its own bounds, rather than sharing
 a hidden batch budget. Unsupported recovery requests fail preflight with
 ``recovery_unsupported``.
 
-Policy and scientific limits
-----------------------------
+SAFE and GUIDED policy
+----------------------
 
 The first attempt uses the requested cycle count. A cycle limit permits a new
 attempt only when at least two explicitly accepted observations show both an
@@ -46,13 +47,33 @@ Hamiltonian, charge, spin, objective, atom ordering and thresholds remain fixed.
 A limited final trial is never adopted: geomeTRIC checks its iteration limit
 before deciding whether that trial was accepted.
 
-The policy stops on unknown errors, SCF failure, unavailable accepted evidence,
-stagnation, unchanged geometry, exhausted budgets or invalid artifacts. It never
-perturbs coordinates, changes the method, lowers a threshold, adds restraints,
-switches optimizer or repeats an interrupted process blindly. An incomplete
-usable result remains provisional and makes the command fail; only independent
+``--recovery safe`` retains the R2 cycle-extension rule and stops on stagnation.
+``--recovery guided`` adds one optimizer action after four accepted frames show
+an energy span no greater than 1e-7 Hartree while the RMS gradient remains above
+the requested threshold and varies by no more than five percent. It rolls back
+one accepted step, starts a fresh geomeTRIC 1.1.1 process (therefore rebuilding
+the approximate Hessian), and sets a smaller 0.05 Bohr initial trust radius with
+a 0.15 Bohr maximum. The action is versioned in its immutable attempt intent.
+The next attempt keeps the original GFN2 Hamiltonian, charge, spin, objective,
+atom ordering and convergence thresholds. This is an optimizer restart, not a
+claim that the plateau is a minimum.
+
+Neither policy changes coordinates through collision repair, changes methods,
+lowers thresholds, adds restraints, switches optimizer families or repeats an
+interrupted process. SCF failure remains a stop condition: current evidence
+does not prove electronic-root continuity for an automatic solver change.
+Guided collision repair and preoptimization remain disabled because this pilot
+has no workflow-owned chemical-identity authorization. An incomplete usable
+result remains provisional and makes the command fail; only independent
 numerical convergence publishes ``result_<name>.xyz`` and counts as optimized.
-A successful continuation is labeled ``RECOVERED_CONVERGED``.
+A successful retry is labeled ``RECOVERED_CONVERGED``.
+
+The ``pyar.recovery.advanced.finite_difference_gradient`` helper provides a
+bounded central-difference comparison for callers with an energy evaluator and
+an analytic Cartesian gradient. It charges two energy evaluations per Cartesian
+component, rejects nonfinite data and refuses work above its explicit cap. It
+reports consistency evidence only; it never changes a threshold or authorizes
+convergence. The helper is not invoked automatically by the standalone pilot.
 
 Bounds are explicit and persisted:
 
@@ -139,9 +160,11 @@ A real local neutral singlet H2 smoke used xTB 6.7.1 / geomeTRIC 1.1.1 with GFN2
 normal requested thresholds and an initial three-cycle allowance. The first
 attempt reached its cycle limit. Continuation from the accepted checkpoint
 converged independently. This is a small protocol check, not a measured recovery
-rate. R3 remains a separate scientific and cost review gate.
+rate. R3 adds deterministic synthetic evidence for a guided plateau restart,
+unchanged objective identity, a new initial trust radius and noisy-gradient
+rejection. No real chemistry run has exercised the guided action.
 
-Final validation used 48 focused SAFE cases and the full suite:
+R2 validation used 48 focused SAFE cases and the full suite:
 **1591 passed, 1 skipped, 17 expected legacy failures, 694 warnings and 194
 subtests passed**. The skip requires a wheel in the checkout's ``dist/``;
 built distributions were instead inspected separately in a temporary directory.
@@ -152,4 +175,15 @@ cycles and nine physical calls, with energy -0.982686174565 Hartree. The ordinar
 run at the same requested objective gave -0.982686171118 Hartree. The difference
 is about 3.45e-9 Hartree. A two-call hard-cap run stopped without a completed XYZ.
 These observations establish a small smoke protocol, not broader chemistry
-coverage or performance statistics.
+coverage or performance statistics. R3 currently enables only the xTB 6.7.1 /
+geomeTRIC 1.1.1 minimum route. It does not add an ORCA SCF ladder because the
+available output contract cannot establish electronic-root continuity; it also
+does not add optimizer-family switching or collision repair. Those actions
+remain blocked on verified backend controls and workflow-owned identity gates.
+
+R3 branch validation ran 57 focused recovery cases and the complete suite:
+**1598 passed, 3 skipped, 17 expected xfails, 694 warnings and 194 subtests
+passed**. The suite used a temporary editable install so the installed-entry-point
+test read this checkout's metadata. Strict Sphinx and source/wheel builds passed.
+These are software and synthetic-fixture checks; the new guided action has not
+been exercised with a real chemistry run.
