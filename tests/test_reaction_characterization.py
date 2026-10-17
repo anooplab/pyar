@@ -50,6 +50,28 @@ def test_run_path_stages_all_uses_existing_cumulative_stage_sequence(tmp_path):
     assert result["status"] == "complete"
 
 
+def test_separated_association_uses_fragment_gate_after_endpoint_frequency(tmp_path):
+    calls = []
+
+    def run_neb(**kwargs):
+        calls.append(kwargs)
+        if kwargs["stage"] == "endpoint-frequency":
+            return {"reactant_product_connection_confirmed": False, "irc_converged": True,
+                    "endpoints_are_minima": True, "reference_endpoints_distinct": True,
+                    "observed_endpoints_distinct": True}
+        return {"stage": kwargs["stage"]}
+
+    with patch("pyar.neb.run_neb", side_effect=run_neb), patch(
+            "pyar.neb._stage_gate_passed",
+            side_effect=lambda result, stage: stage != "endpoint-frequency"):
+        result = run_path_stages(start="r.xyz", end="p.xyz", ts_guess="guess.xyz", output=tmp_path,
+                                 qc_params={"software": "xtb", "charge": 0, "multiplicity": 1},
+                                 through="all", options={"association_endpoint_mode": True})
+    assert result["status"] == "complete"
+    assert result["endpoint-frequency"]["association_endpoint_prerequisites_passed"]
+    assert "association_endpoint_mode" not in calls[-1]
+
+
 def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path):
     reaction = tmp_path / "reaction"
     job = reaction / "gamma_0100" / "orientation_x" / "job_gamma_0100_x"
@@ -132,3 +154,70 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
         assert resumed_route["pathway_input_files"]["ts_guess"] == "inputs/ts_guess.xyz"
         assert run.call_args.kwargs["ts_guess"] == new_waypoint
         assert run.call_args.kwargs["output"] == run.call_args_list[0].kwargs["output"]
+
+
+def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_path):
+    import numpy as np
+    from pyar.backends import write_xyz
+    from pyar.core.molecule import Molecule
+
+    reaction = tmp_path / 'reaction'
+    job = reaction / 'gamma_0100' / 'orientation_x' / 'job_gamma_0100_x'
+    candidates = job / 'candidate_ts'
+    candidates.mkdir(parents=True)
+    symbols = ['H', 'H', 'He']
+    product_geometry = np.array([[0., 0., 0.], [1.2, 0., 0.], [1.5, 0., 0.]])
+    reactant_geometry = np.array([[10., 4., 0.], [11., 4., 0.], [100., -40., 2.]])
+    product_path = reaction / 'products' / 'accepted.xyz'
+    product_path.parent.mkdir(parents=True)
+    write_xyz(symbols, product_geometry, product_path)
+    write_xyz(symbols, reactant_geometry, job.parent / 'trial_gamma_0100_x.xyz')
+    write_xyz(symbols, product_geometry, candidates / 'highest_backend_energy.xyz')
+    (candidates / 'metadata.json').write_text('{}\n')
+    (job / 'reaction_trace').mkdir(parents=True)
+    (job / 'reaction_trace' / 'trace.jsonl').write_text('fixture\n')
+    product = {'job_name': 'gamma_0100_x', 'gamma': 100., 'path': 'products/accepted.xyz',
+               'inchi': 'product', 'smiles': 'product',
+               'trace_summary': {'candidate_ts_directory': str(candidates)}}
+    request_data = {'backend_parameters': {'software': 'xtb'}, 'gamma_schedule': [100.]}
+    (reaction / 'state.json').write_text(json.dumps({
+        'version': 2, 'workflow': 'reaction', 'status': 'completed_products_found',
+        'request': request_data, 'products': [product], 'completed_jobs': [],
+    }))
+    fragments = [Molecule(['H', 'H'], [[0., 0., 0.], [1., 0., 0.]]),
+                 Molecule(['He'], [[0., 0., 0.]])]
+    for molecule in fragments:
+        molecule.charge, molecule.multiplicity = 0, 1
+    request = SimpleNamespace(restart_request=request_data, reactants=fragments,
+                              qc_params={'software': 'xtb', 'xtb_model': 'gfn2', 'charge': 0,
+                                         'multiplicity': 1, 'scftype': 'rhf', 'nprocs': 1})
+    execution = tmp_path / 'path-execution'
+    execution.mkdir()
+    write_xyz(symbols, reactant_geometry, execution / 'reactant_relaxed.xyz')
+    write_xyz(symbols, product_geometry, execution / 'product_relaxed.xyz')
+    endpoint_frequency = {'endpoints_are_minima': True,
+                          'forward_frequency': {'evaluated_coordinates_angstrom': product_geometry.tolist()},
+                          'backward_frequency': {'evaluated_coordinates_angstrom': reactant_geometry.tolist()}}
+    path_result = {'status': 'complete', 'completed_stages': ['endpoint-frequency'],
+                   'execution_directory': str(execution), 'irc': {'irc_converged': True},
+                   'endpoint-frequency': endpoint_frequency}
+    reference = {'status': 'complete', 'reference_energy_hartree': -1.25, 'fragments': []}
+    options = {'pathway_ts_source': 'highest-backend-energy', 'images': 5,
+               'reactant_reference_mode': 'separated-reactants'}
+    with patch('pyar.workflows.reaction_characterization.load_trace_records', return_value=[]), \
+            patch('pyar.workflows.association_reference.prepare_separated_reactant_reference',
+                  return_value=reference) as prepare, \
+            patch('pyar.workflows.reaction_characterization.run_path_stages', return_value=path_result) as run, \
+            patch('pyar.workflows.association_reference.classify_association_endpoints',
+                  return_value={'status': 'matched', 'reactant_product_connection_confirmed': True,
+                                'reactant_product_assignment': [1, 0]}) as classify:
+        result = characterize_reaction(tmp_path, request, 'all', options)
+    assert result['status'] == 'complete'
+    assert result['reactant_reference']['reference_energy_hartree'] == -1.25
+    prepare.assert_called_once()
+    classify.assert_called_once()
+    assert run.call_args.kwargs['through'] == 'all'
+    assert 'reactant_reference_mode' not in run.call_args.kwargs['options']
+    selected = result['selected_routes'][0]
+    assert selected['association_status'] == 'reaction_connected'
+    assert selected['reactant_product_connection_confirmed']

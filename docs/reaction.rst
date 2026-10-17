@@ -177,6 +177,25 @@ endpoint-validation gates. Pathways and stage summaries are stored under
 ``reaction/characterization/`` in fresh v2 runs (``reaction/pathways/`` for v1);
 the immutable discovery commit is retained if a downstream scientific gate fails.
 
+The default ``--reactant-reference-mode minima`` keeps the existing full-system
+minimum endpoint interpretation. For bimolecular association, select
+``--reactant-reference-mode separated-reactants`` to independently optimize
+both input fragments, verify their identities and minimum frequencies, and use
+``E_R = E_A + E_B`` as the reactant energy reference. IRC endpoint matching
+then checks each fragment's identity and aligned internal geometry separately,
+so arbitrary relative translation or rotation does not change the match. A
+finite-distance A+B geometry remains a path initializer; it is not used as the
+thermochemical reactant energy. If the fragment or endpoint gates fail, or the
+two IRC branches do not map uniquely to reactants and product, the result stays
+unconfirmed. A frequency result without a confirmed first-order saddle is
+reported as ``no_confirmed_saddle``; this mode does not infer a barrierless
+reaction from a missing saddle.
+
+.. code-block:: bash
+
+   pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all \
+     --reactant-reference-mode separated-reactants
+
 Trace analysis
 --------------
 

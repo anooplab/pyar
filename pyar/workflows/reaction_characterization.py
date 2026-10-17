@@ -34,7 +34,10 @@ def validate_path_request(through, options):
     if through not in REACTION_THROUGH_STAGES:
         raise ValueError(f"Unknown --through value {through!r}; choose {', '.join(REACTION_THROUGH_STAGES)}")
     if through != "react":
-        validate_continuation(through, options)
+        validate_continuation(through, {key: value for key, value in options.items()
+                                        if key != "reactant_reference_mode"})
+    if options.get("reactant_reference_mode", "minima") not in {"minima", "separated-reactants"}:
+        raise ValueError("reactant_reference_mode must be minima or separated-reactants")
     source = options.get("pathway_ts_source", "highest-backend-energy")
     if source not in WAYPOINT_FILES:
         raise ValueError(f"Unknown pathway TS source {source!r}; choose {', '.join(WAYPOINT_FILES)}")
@@ -307,7 +310,9 @@ def _characterize_reaction(root, request, through, options):
         "interpolation", "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter",
         "product_relaxation_fmax", "product_relaxation_max_steps", "ts_max_cycles", "ts_optimizer",
         "ts_fmax", "sella_fmax", "sella_internal_coordinates", "irc_max_cycles", "endpoint_max_cycles",
-        "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"}}
+        "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance", "reactant_reference_mode"}}
+    if path_options.get("reactant_reference_mode", "minima") == "minima":
+        path_options.pop("reactant_reference_mode", None)
     if existing is not None and existing.get("path_options") not in (None, path_options):
         raise ValueError("Pathway continuation settings differ from this invocation")
     if existing.get("path_options") not in (None, path_options):
@@ -323,6 +328,20 @@ def _characterize_reaction(root, request, through, options):
                                 for i, product in enumerate(state.data.get("products", []), start=1)},
                "routes": previous_routes,
                "status": "running"}
+    reference_mode = path_options.get("reactant_reference_mode", "minima")
+    reactant_reference = None
+    if reference_mode == "separated-reactants" and state.data.get("products"):
+        from pyar.workflows.association_reference import prepare_separated_reactant_reference
+        reference_directory = _pathway_root(root) / "reactant_references"
+        try:
+            reactant_reference = prepare_separated_reactant_reference(
+                request.reactants, request.qc_params, reference_directory, options,
+            )
+        except Exception as exc:
+            reactant_reference = {"status": "failed", "error": f"{type(exc).__name__}: {exc}",
+                                  "reference_energy_hartree": None, "fragments": []}
+        summary["reactant_reference"] = reactant_reference
+        _write_json_atomic(state_path, summary)
     _write_json_atomic(state_path, summary)
     for number, product in enumerate(state.data.get("products", []), start=1):
         try:
@@ -335,14 +354,78 @@ def _characterize_reaction(root, request, through, options):
             continue
         summary["routes"][route["product"]] = route["provenance"]
         _write_json_atomic(state_path, summary)
-        run_options = {key: value for key, value in path_options.items() if key != "pathway_ts_source"}
+        if reference_mode == "separated-reactants" and reactant_reference.get("status") != "complete":
+            route_result = {"product": route["product"], "pathway": route["pathway"],
+                            "directory": route["directory"], "through": through,
+                            "status": "failed", "failed_stage": "reactant-reference",
+                            "error": reactant_reference.get("error"),
+                            "association_status": "reactant_reference_failed",
+                            "reactant_product_connection_confirmed": False}
+            records.append(route_result)
+            failures.append({"product": route["product"], "status": "reactant_reference_failed",
+                             "error": reactant_reference.get("error")})
+            summary["selected_routes"] = records
+            summary["preparation_failures"] = failures
+            _write_json_atomic(state_path, summary)
+            continue
+        run_options = {key: value for key, value in path_options.items()
+                       if key not in {"pathway_ts_source", "reactant_reference_mode"}}
+        if reference_mode == "separated-reactants":
+            run_options["association_endpoint_mode"] = True
         extra = {'layout_dependency': _sha256(_discovery_source(root))} if _v2(root) else {}
         result = run_path_stages(start=route["start"], end=route["end"], ts_guess=route["ts_guess"],
                                  output=route["directory"], qc_params=request.qc_params,
                                  through=through, options=run_options, **extra)
+        association = None
+        association_status = None
+        if reference_mode == "separated-reactants":
+            if result.get("status") == "scientific_gate_failed" and result.get("failed_stage") == "frequency":
+                association_status = "no_confirmed_saddle"
+            elif "endpoint-frequency" in result.get("completed_stages", []):
+                from pyar.neb import read_xyz
+                from pyar.workflows.association_reference import classify_association_endpoints
+                execution = Path(result["execution_directory"])
+                symbols = read_xyz(execution / "reactant_relaxed.xyz")[0]
+                endpoint_frequency = result.get("endpoint-frequency", {})
+                endpoint_geometries = [endpoint_frequency.get(f"{direction}_frequency", {}).get(
+                    "evaluated_coordinates_angstrom") for direction in ("forward", "backward")]
+                if all(value is not None for value in endpoint_geometries):
+                    try:
+                        association = classify_association_endpoints(
+                            symbols, endpoint_geometries, execution / "product_relaxed.xyz",
+                            reactant_reference, request.reactants,
+                            options.get("irc_endpoint_rmsd_tolerance", 0.5),
+                            reference_directory=reference_directory,
+                        )
+                        irc_passed = result.get("irc", {}).get("irc_converged", False)
+                        endpoint_minima = endpoint_frequency.get("endpoints_are_minima", False)
+                        confirmed = bool(irc_passed and endpoint_minima
+                                         and association.get("reactant_product_connection_confirmed"))
+                        association["reactant_product_connection_confirmed"] = confirmed
+                        association["reactant_reference_mode"] = reference_mode
+                        association["reactant_energy_hartree"] = reactant_reference["reference_energy_hartree"]
+                        association["reactant_reference_fragments"] = reactant_reference["fragments"]
+                        result["association_endpoint_validation"] = association
+                        result["reactant_product_connection_confirmed"] = confirmed
+                        association_status = "reaction_connected" if confirmed else "association_endpoint_gate_failed"
+                    except Exception as exc:
+                        association = {"status": "association_validation_failed",
+                                       "error": f"{type(exc).__name__}: {exc}",
+                                       "reactant_product_connection_confirmed": False}
+                        association_status = "association_endpoint_gate_failed"
+                    association_path = Path(route["directory"]) / "association_endpoint_validation.json"
+                    _write_json_atomic(association_path, association)
+                else:
+                    association_status = "association_endpoint_gate_failed"
+            else:
+                association_status = "pending_validation"
         route_result = {"product": route["product"], "pathway": route["pathway"],
                         "directory": route["directory"], "through": through,
-                        "status": result["status"], "failed_stage": result.get("failed_stage"),
+                        "status": ("complete" if association_status == "reaction_connected" else
+                                   "failed" if association_status in {"no_confirmed_saddle", "association_endpoint_gate_failed"}
+                                   else result["status"]),
+                        "association_status": association_status,
+                        "failed_stage": result.get("failed_stage"),
                         "error": result.get("error"),
                         "reactant_product_connection_confirmed": result.get("reactant_product_connection_confirmed", False)}
         route["provenance"].update(status=result["status"], stage_status=result)
@@ -380,7 +463,9 @@ def validate_characterization_restart(root, request, through, options):
         "interpolation", "idpp_fmax", "idpp_steps", "geodesic_tol", "geodesic_max_iter",
         "product_relaxation_fmax", "product_relaxation_max_steps", "ts_max_cycles", "ts_optimizer",
         "ts_fmax", "sella_fmax", "sella_internal_coordinates", "irc_max_cycles", "endpoint_max_cycles",
-        "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance"}}
+        "imaginary_frequency_threshold", "irc_endpoint_rmsd_tolerance", "reactant_reference_mode"}}
+    if path_options.get("reactant_reference_mode", "minima") == "minima":
+        path_options.pop("reactant_reference_mode", None)
     for route in (existing or {}).get("routes", {}).values():
         if route.get("path_options") != path_options:
             raise ValueError("Pathway restart settings differ from this invocation")
