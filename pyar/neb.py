@@ -1044,6 +1044,16 @@ def _execute_stage(stage, output, calculator, options):
 
     def save(result, inputs=(), artifacts=(), dependencies=()):
         result = dict(result)
+        gate_passed = _stage_gate_passed(result, stage) if stage in _STAGE_GATES else None
+        result["optimization_diagnostics"] = {
+            "schema_version": 1,
+            "workflow_role": f"neb_{stage}",
+            "stage_gate": "passed" if gate_passed is True else
+                          "failed" if gate_passed is False else "not_assessed",
+            "gate_owner": "pyar.neb",
+            "automatic_recovery_attempted": False,
+            "scope": "workflow stage gate snapshot; no independent TS or pathway diagnosis",
+        }
         result.setdefault(
             "backend_energy_gradient_evaluations",
             getattr(calculator, "backend_energy_gradient_evaluations", 0) - evaluation_count_start,
