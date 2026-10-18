@@ -1,7 +1,9 @@
-PyAR 2.0 API Migration
-======================
+PyAR API Migration Guide
+========================
 
-Use the documented package entrypoints for new Python code. Compatibility
+This guide describes the development-source API and migration paths. The
+checkout declares package version |package_version|; this page does not announce
+a release. Use the documented package entrypoints for new Python code. Compatibility
 modules and the legacy ``pyar-cli`` command remain available during the 1.x
 transition; this guide does not announce their removal. New calculations should
 use the task-oriented ``pyar COMMAND`` interface.
@@ -91,9 +93,8 @@ requested stages without starting calculations.
 Release boundary
 ----------------
 
-The ``v1.5.1`` tag does not include the run-layout-v2 changes on the current
-``master`` branch. At the 2026-10-16 release check, ``master`` still declared
-version ``1.5.1`` and had no corresponding release tag. Check the
-installed package version and release notes before assuming that a tagged
-release contains current ``master`` behavior. Existing recognized v1 runs
-continue on their legacy path; they are not silently converted to v2.
+This checkout declares package version |package_version|. Development-source
+behavior can differ from an installed distribution. Check ``pyar --version``
+and the matching release notes before relying on a feature from an unreleased
+branch. Existing recognized v1 runs continue on their legacy path; they are not
+silently converted to v2.

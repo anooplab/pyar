@@ -26,6 +26,10 @@ For most chemistry users, start with the task that matches your problem:
 * :doc:`solvate` for the legacy compatibility workflow
 * :doc:`conformer` for RDKit-based conformer generation and refinement
 
+.. rubric:: Command-line reference
+
+See :doc:`cli_reference` for the installed command list.
+
 .. rubric:: Cite this work
 
 If you use PyAR in a project, start with :doc:`publications` and cite the
@@ -93,6 +97,7 @@ Start here
 * :doc:`neb`
 * :doc:`solvate`
 * :doc:`conformer`
+* :doc:`cli_reference`
 * :doc:`usage`
 * :doc:`publications`
 * :doc:`installation`
@@ -180,6 +185,7 @@ The fastest way to verify a local install is:
    solvate
    microsolvate
    conformer
+   cli_reference
 
 .. toctree::
    :maxdepth: 2

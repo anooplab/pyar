@@ -4,8 +4,9 @@ Installation
 What do you want to do?
 -----------------------
 
-PyAR is distributed as ``pyar-chem`` and imported as ``pyar``. Use Python
-3.10 or newer. Install the workflow you need:
+PyAR is distributed as ``pyar-chem`` and imported as ``pyar``. Package metadata
+declares Python 3.10 or newer; the tested CI matrix and current classifiers cover
+Python 3.10–3.13. Install the workflow you need:
 
 .. code-block:: bash
 
@@ -54,6 +55,13 @@ metadata and discovery; workflow ``--check`` validates the selected route.
 Python capabilities
 -------------------
 
+The available capability and compatibility extras are ``aggregate``, ``grow``,
+``conformer``, ``reaction``, ``microsolvate``, ``solvate``, ``neb``,
+``geometric``, ``aimnet2``, ``sella``, ``geodesic``,
+``structure-comparison``, ``identity``, ``analysis``, ``ml``, ``xtb``,
+``selection`` and ``all``. Their dependency compositions are defined by the
+package metadata; consult ``pyproject.toml`` when composing less common sets.
+
 Extras compose normally: ``[conformer,aimnet2]`` or ``[neb,sella,geodesic]``.
 ``geometric`` installs ASE and geomeTRIC; ``sella`` selects Sella support;
 ``geodesic`` supplies geodesic interpolation; ``structure-comparison`` supplies
@@ -70,9 +78,8 @@ AIMNet2 model configuration
 ``aimnet2`` installs ASE and Torch. Large model files remain external. Set
 ``PYAR_AIMNET2_MODEL`` before starting PyAR to the legacy
 ``aimnet2_wb97m-d3_0.jpt`` file from https://github.com/isayevlab/AIMNet2.
-The upstream ``aimnet`` distribution currently requires Python 3.11+ and uses
-a different model/calculator interface; PyAR retains its working adapter to
-preserve Python 3.10 and scientific behavior. See :doc:`aimnet2_backend`.
+PyAR uses its documented AIMNet2 adapter and model asset contract. See
+:doc:`aimnet2_backend` for the required model file and supported invocation.
 
 External backends
 -----------------
@@ -94,8 +101,10 @@ In a checkout, use pip 25.1+ for standardized dependency groups:
    python -m pytest
    python -m build
 
-The old ``test`` and ``docs`` extras move to ``--group test`` and
-``--group docs``; release tools use ``--group release``. ``selection`` remains
+The dependency groups are ``dev``, ``test``, ``docs``, ``release``, and
+``quality``; CI uses ``quality`` for pinned Ruff checks. The old ``test`` and
+``docs`` extras move to ``--group test`` and ``--group docs``; release tools use
+``--group release``. ``selection`` remains
 a compatibility alias for aggregate plus analysis. ``xtb`` remains an alias
 for Python optimizer support (``geometric``), and does not install xTB.
 The unreliable ``openbabel`` source-build extra is removed: use the official

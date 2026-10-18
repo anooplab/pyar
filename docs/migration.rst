@@ -104,11 +104,10 @@ Existing CLI commands remain available. The packaging migration is:
    * - ``all``
      - End-user Python capabilities only; developer tools use dependency groups
 
-New workflow extras are ``aggregate``, ``grow``, ``reaction``, ``microsolvate``,
-``solvate`` and ``neb``. New capability extras are ``geometric`` and ``analysis``.
-Development groups are ``test``, ``docs``, ``release`` and their combined ``dev``
-group. Dependency groups require pip 25.1+ and a checkout containing
-``pyproject.toml``. The package version is unchanged by this development branch.
+Workflow extras and dependency groups change as capabilities evolve. The
+installation guide and ``pyproject.toml`` are authoritative for the current
+lists and compositions. Dependency groups require pip 25.1+ and a checkout
+containing ``pyproject.toml``.
 
 Task-oriented command interface
 --------------------------------
@@ -122,8 +121,8 @@ modern microsolvation alias, whereas ``pyar-cli solvate`` retains its historic
 algorithm and restart state. Use ``--check`` for read-only validation and
 ``--dry-run`` to include the requested execution stages.
 
-The ``v1.5.1`` tag predates the run-layout-v2 changes on ``master``. At the
-2026-10-16 release check, ``master`` still declared ``1.5.1`` without a new
-release tag. Check the installed version and release notes before assuming a
-tag contains current ``master`` behavior. Recognized v1 runs remain on their
-legacy continuation path and are not silently converted.
+This checkout declares package version |package_version|. Development-source
+behavior can differ from an installed distribution. Check ``pyar --version``
+and the matching release notes before relying on a feature from an unreleased
+branch. Recognized v1 runs remain on their legacy continuation path and are not
+silently converted.

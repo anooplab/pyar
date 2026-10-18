@@ -70,6 +70,7 @@ from pyar import __version__  # noqa: E402
 
 version = __version__
 release = __version__
+rst_prolog = f".. |package_version| replace:: {release}\n"
 
 
 def _module_name_from_path(path):

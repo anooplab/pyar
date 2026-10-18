@@ -11,9 +11,11 @@ python -m pip install "pyar-chem[reaction]"          # reaction exploration
 pyar doctor
 ```
 
-The base install supplies shared molecule and CLI dependencies. Workflow extras
-install their Python stacks; computational executables such as xTB and ORCA
-are installed separately. See [installation](docs/installation.rst) for model
+The package metadata declares Python 3.10 or newer; the current classifiers and
+CI matrix cover Python 3.10–3.13. Other Python versions are not validated by
+that matrix. The base install supplies shared molecule and CLI dependencies.
+Workflow extras install their Python stacks; computational executables such as
+xTB and ORCA are installed separately. See [installation](docs/installation.rst) for model
 configuration, external programs, and developer dependency groups.
 
 ## Quick Start
@@ -45,9 +47,10 @@ The legacy `pyar-cli` and `pyar-*` commands remain available. In
 particular, `pyar solvate` aliases modern microsolvation, while
 `pyar-cli solvate` retains its distinct legacy algorithm and restart state.
 
-The `v1.5.1` tag does not contain run-layout-v2 changes merged on `master`.
-Check the installed version before relying on newer layout behavior; existing
-v1 runs continue through their legacy path.
+Development-source behavior can differ from the installed distribution. Check
+`pyar --version` and the release notes before relying on a feature from an
+unreleased branch. Recognized v1 runs continue on their existing compatibility
+path; PyAR does not silently convert them to the v2 layout.
 
 Optimize every supplied XYZ independently with the same computational settings:
 
