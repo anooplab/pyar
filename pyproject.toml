@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,6 +9,7 @@ description = "PyAR: Python program for Aggregation and Reaction"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "THIRD_PARTY_LICENSES/*"]
 authors = [
   {name = "Anakuthil Anoop", email = "anoop@chem.iitkgp.ac.in"},
 ]
@@ -90,10 +91,12 @@ all = ["pyar-chem[aggregate,conformer,reaction,microsolvate,neb,aimnet2,sella,ge
 test = ["pytest", "pytest-cov", "rdkit", "autograd>=1.3"]
 docs = ["sphinx", "sphinx-rtd-theme"]
 release = ["build", "twine"]
+quality = ["ruff==0.14.1"]
 dev = [
   {include-group = "test"},
   {include-group = "docs"},
   {include-group = "release"},
+  {include-group = "quality"},
 ]
 
 [tool.setuptools]
@@ -119,3 +122,20 @@ omit = [
 fail_under = 50
 show_missing = true
 skip_covered = true
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config"
+markers = [
+  "unit: isolated logic or mocked boundary tests",
+  "regression: guards for previously identified behavior and defects",
+  "integration: composed workflows, subprocesses or optional Python integrations",
+  "scientific: numerical benchmark against approved scientific references",
+  "external_backend: requires a real external chemistry executable",
+  "slow: expensive tests excluded from the fast lane only",
+]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

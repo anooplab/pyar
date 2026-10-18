@@ -14,8 +14,8 @@ Avoid editing generated artifacts such as `build/`, `pyar_chem.egg-info/`,
 
 ## Build, Test, and Development Commands
 
-- `python -m pip install -e ".[test,docs]"`: install the package in editable
-  mode with test and documentation tools.
+- `python -m pip install -e ".[selection,xtb]" --group dev`: install the CI
+  test capabilities and developer tools using pip with dependency-group support.
 - `python -m build`: build source and wheel distributions from `pyproject.toml`.
 - `pytest`: run the pytest suite.
 - `python -m unittest discover -s tests -v`: alternate full test discovery used
@@ -31,7 +31,7 @@ Use Python 3.10+ syntax and 4-space indentation. Prefer small, explicit
 functions over broad side effects, especially in CLI and backend code. Keep
 module names lowercase with underscores. Classes use `CamelCase`; functions,
 variables, and tests use `snake_case`. `pyproject.toml` is the authoritative
-packaging surface; keep `setup.py` as a compatibility shim only.
+packaging surface; do not reintroduce a second metadata source in `setup.py`.
 
 ## Testing Guidelines
 
@@ -55,3 +55,27 @@ Do not commit machine-specific paths, credentials, generated logs, or large new
 runtime assets without provenance and license notes. Backend executables such as
 `orca`, `g16`, `psi4`, `mopac`, `xtb`, `define`, and OpenBabel tools are external
 system dependencies; document assumptions instead of hard-coding local paths.
+
+## Permanent Engineering Policies
+
+- Prevent regressions with focused tests and the applicable full suite. Preserve
+  legacy APIs and continuation contracts; report skips and expected failures.
+- Preserve the approved scientific scope, units, objectives and acceptance
+  criteria. Check raw backend and workflow evidence; process exit alone cannot
+  establish scientific success. Scientific changes need explicit owner approval.
+- Synchronize user-facing behavior, CLI examples, compatibility/version notes
+  and changelog entries with implementation. Validate documentation commands
+  and strict Sphinx output for the affected scope.
+- Keep optional dependencies optional. Test supported backend/extra combinations
+  and actionable missing-dependency failures; distinguish discovery/import tests
+  from calculations using real executables and model assets.
+- For packaging changes and release qualification, verify fresh wheel and sdist
+  artifacts in clean, non-editable installations outside the checkout. Check
+  dependency consistency, imports, entry points, required files and
+  excluded/private/generated assets.
+- Release preparation follows [.agents/skills/prepare-release/SKILL.md](.agents/skills/prepare-release/SKILL.md)
+  and the [release gates](docs/release_engineering/gates.md). Record executed
+  evidence against the exact candidate and artifact hashes. Missing mandatory
+  evidence blocks readiness. Passing checks never grants permission to tag,
+  dispatch publishing or upload packages; obtain explicit owner approval of the
+  version, commit and artifacts before those actions.
