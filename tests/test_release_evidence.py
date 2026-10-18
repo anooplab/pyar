@@ -43,3 +43,23 @@ def test_candidate_evidence_rejects_invalid_results(tmp_path, mutation):
     else:
         with pytest.raises(ValueError):
             evidence.validate(record, "candidate", "1.5.1", tmp_path, ["tests"])
+
+
+@pytest.mark.parametrize("outcome", ["xfail", "skip", "empty"])
+def test_omission_gate_rejects_unreviewed_outcomes(tmp_path, outcome):
+    spec = importlib.util.spec_from_file_location(
+        "outcomes", Path(__file__).parents[1] / "tools/check_test_outcomes.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    inventory = tmp_path / "inventory.json"
+    inventory.write_text("{}")
+    report = tmp_path / "report.xml"
+    case = (
+        ""
+        if outcome == "empty"
+        else f'<testcase classname="tests.test_unreviewed.Example" name="case"><skipped type="pytest.{outcome}" message="new omission"/></testcase>'
+    )
+    report.write_text(f"<testsuite>{case}</testsuite>")
+    with pytest.raises(ValueError):
+        module.check(report, inventory)

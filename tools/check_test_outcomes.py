@@ -23,7 +23,7 @@ def check(report, inventory):
         else:
             # Optional tests are allowed only at reviewed locations. Reasons and
             # counts remain visible in the retained JUnit report.
-            module = case.attrib["classname"].split(".")[-1]
+            module = case.attrib["classname"].split(".")[1]
             allowed = json.loads(Path("tests/optional_test_modules.json").read_text())
             if module not in allowed:
                 raise ValueError(f"Unreviewed skip: {key}: {reason}")

@@ -216,6 +216,11 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install --upgrade pip
+      - name: Install Open Babel for regression preflights
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes openbabel
+          obabel -V
       - run: python -m pip install -e ".[selection,xtb]" --group test --group quality
       - run: python -m ruff check tests tools
       - run: python -m ruff format --check tools/check_test_outcomes.py tools/release_evidence.py tests/conftest.py tests/test_release_evidence.py

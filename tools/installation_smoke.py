@@ -4,7 +4,7 @@ import argparse
 import importlib
 import importlib.util
 import importlib.metadata
-import shutil
+import sysconfig
 import json
 from pathlib import Path
 import subprocess
@@ -29,13 +29,13 @@ def main():
     assert 'site-packages' in pyar.__file__, pyar.__file__
     assert pyar.__version__ == importlib.metadata.version('pyar-chem')
     for command in ('pyar', 'pyar-cli', 'pyar-react'):
-        executable = shutil.which(command)
-        assert executable, command
-        run(executable, '--help')
+        executable = Path(sysconfig.get_path('scripts')) / command
+        assert executable.is_file(), command
+        run(str(executable), '--help')
     distribution = importlib.metadata.distribution('pyar-chem')
     for entry in distribution.entry_points:
         if entry.group == 'console_scripts':
-            assert shutil.which(entry.name), entry.name
+            assert (Path(sysconfig.get_path('scripts')) / entry.name).is_file(), entry.name
     for name in ('pyar.persistence', 'pyar.growth.layout_v2', 'pyar.microsolvation.layout_v2',
                  'pyar.aggregation.layout_v2', 'pyar.state.reaction_v2',
                  'pyar.workflows.scan_layout', 'pyar.workflows.path_layout', 'pyar.conformer.layout_v2'):
