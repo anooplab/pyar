@@ -258,6 +258,14 @@ def test_auto_wall_optimizes_unbiased_first_and_only_rescues_escaped_candidate(
     assert retained[0].microsolvation_wall_applied is escaped
     assert retained[0].microsolvation_wall_decision == (
         "applied-after-shell-escape" if escaped else "not-applied-unbiased-geometry-shell-valid")
+    reports = retained[0].microsolvation_optimization_diagnostics
+    assert len(reports) == expected_calls
+    assert all(item["status"] == "INVALID_RESULT" for item in reports)
+    assert all(not Path(item["diagnostic_path"]).is_absolute() for item in reports)
+    assert {item["stage"] for item in reports} == (
+        {"unbiased_screen", "wall_search", "unbiased_relaxation"} if escaped
+        else {"unbiased_screen"})
+    assert all((tmp_path / "candidates" / item["diagnostic_path"]).is_file() for item in reports)
 
 
 def test_auto_wall_policy_is_inactive_for_cluster_objective():

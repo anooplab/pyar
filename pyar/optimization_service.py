@@ -201,9 +201,7 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
             result = inspect_optimization(request, execution_root, execution=execution,
                                           exception=original)
     except BaseException as exc:
-        if original is None:
-            original = exc
-        result = _invalid(FailureCode.INVALID_RESULT, str(exc), exception=original,
+        result = _invalid(FailureCode.INVALID_RESULT, str(exc), exception=original or exc,
                           request=request)
     record = {
         'schema_version': 1,
@@ -221,5 +219,9 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
             raise original
         raise
     if original is not None:
+        try:
+            original.ore_diagnostic_path = str(report)
+        except Exception:
+            pass
         raise original
     return status, result, report

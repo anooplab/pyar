@@ -196,3 +196,19 @@ alias for this microsolvation command. New v2 execution has a local POSIX
 single-writer guard; after a process crash use ``--recover-stale-lock``
 explicitly. It cannot break an active writer. ``--check`` and ``--dry-run``
 only validate and do not acquire a writer lock or mutate calculation output.
+
+Optimization diagnostics
+------------------------
+
+Candidate optimizations in the screen, wall-search, unbiased-relaxation, and
+whole-cluster resampling stages write an independent ORE diagnostic under the
+candidate execution directory's ``.pyar_optimization_diagnostics/`` folder.
+Step selection diagnostics and resampling attempt records link to these files.
+Each record identifies the stage and preserves the legacy optimizer status.
+ORE's numerical convergence result does not replace the microsolvation owner
+gates: original-solute indices, solvent count and fragments, requested
+shell/site objective, wall provenance, unbiased energy, and post-relaxation
+coverage still determine acceptance. Existing provisional cycle-limit handling
+is unchanged. Automatic ORE retries are not enabled for microsolvation stages;
+in particular, the shell and wall objectives require workflow-specific
+recovery permissions and validation before such retries can be enabled.

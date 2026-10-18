@@ -149,7 +149,7 @@ def test_v2_resampling_stage_persists_proposals_and_is_idempotent(tmp_path, monk
         resampling_moves=2, resampling_evaluation_budget=20, resampling_time_limit=30, resampling_seed=12)
 
     monkeypatch.setattr(workflow, "_energy_prescreen", lambda candidates, req: (candidates, []))
-    def optimize(candidates, req, directory, *, evaluation_budget_path=None):
+    def optimize(candidates, req, directory, *, evaluation_budget_path=None, **kwargs):
         for candidate in candidates:
             candidate.energy = 0.0
         return list(candidates), 0, len(candidates), []
@@ -182,7 +182,7 @@ def test_interrupted_resampling_never_replays_committed_proposal(tmp_path, monke
         resampling_moves=1, resampling_evaluation_budget=20, resampling_time_limit=30, resampling_seed=12)
     monkeypatch.setattr(workflow, "_energy_prescreen", lambda candidates, req: (candidates, []))
     calls = []
-    def crash_during_resampling(candidates, req, directory, *, evaluation_budget_path=None):
+    def crash_during_resampling(candidates, req, directory, *, evaluation_budget_path=None, **kwargs):
         calls.append(directory)
         if evaluation_budget_path is not None:
             raise RuntimeError("simulated process interruption")
@@ -194,7 +194,7 @@ def test_interrupted_resampling_never_replays_committed_proposal(tmp_path, monke
     with pytest.raises(RuntimeError, match="interruption"):
         workflow.microsolvate(request, output=root)
     proposal = (root / "resampling/attempts/attempt_00000/proposal.json").read_bytes()
-    def optimize(candidates, req, directory, *, evaluation_budget_path=None):
+    def optimize(candidates, req, directory, *, evaluation_budget_path=None, **kwargs):
         for candidate in candidates:
             candidate.energy = 0.0
         return list(candidates), 0, len(candidates), []
