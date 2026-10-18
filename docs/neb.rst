@@ -47,6 +47,14 @@ confirms a transition state. PyAR records the climbing activation state,
 selected source and image index, and requested number of climbing images in
 ``neb_summary.json``. Independent frequency and IRC validation remain required.
 
+Each newly executed NEB, TS, frequency, IRC, and endpoint summary includes an
+``optimization_diagnostics`` record naming the workflow stage, recording that
+stage owner's gate result, and stating whether automatic recovery ran. The
+record is observational: TS saddle identity, frequency, IRC connectivity, and
+endpoint gates remain owned by this pathway workflow. It does not authorize a
+retry or substitute a minimum optimizer for TS optimization. Reused summaries
+created before this field was added remain readable and are not rewritten.
+
 Complete and separate runs
 --------------------------
 

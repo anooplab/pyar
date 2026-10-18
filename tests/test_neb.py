@@ -350,11 +350,16 @@ def test_standalone_geometry_stages_do_not_load_geodesic_dependency(
     if stage == "ts":
         assert result["ts_optimization_converged"]
         assert fake_path_backend[0] == ["ts"]
+        assert result["optimization_diagnostics"]["workflow_role"] == "neb_ts"
+        assert result["optimization_diagnostics"]["stage_gate"] == "passed"
     else:
         assert result["first_order_saddle_confirmed"]
         assert fake_path_backend[0] == ["frequency_ts"]
+        assert result["optimization_diagnostics"]["workflow_role"] == "neb_frequency"
+        assert result["optimization_diagnostics"]["stage_gate"] == "passed"
         assert result["backend_energy_gradient_evaluations"] == 2
         assert result["wall_seconds"] >= 0
+    assert result["optimization_diagnostics"]["automatic_recovery_attempted"] is False
 
 
 @pytest.mark.skipif(
