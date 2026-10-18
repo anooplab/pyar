@@ -223,7 +223,8 @@ jobs:
           obabel -V
       - run: python -m pip install -e ".[selection,xtb]" --group test --group quality
       - run: python -m ruff check tests tools
-      - run: python -m ruff format --check tools/check_test_outcomes.py tools/release_evidence.py tests/conftest.py tests/test_release_evidence.py
+      - run: python -m ruff format --check tools/check_documentation.py tools/check_test_outcomes.py tools/release_evidence.py tests/conftest.py tests/test_documentation_contract.py tests/test_release_evidence.py
+      - run: python tools/check_documentation.py
       - run: python -m pytest -m "(unit or regression) and not slow and not external_backend" --junitxml=reports/fast.xml
       - uses: actions/upload-artifact@v4
         if: always()

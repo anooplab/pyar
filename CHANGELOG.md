@@ -17,9 +17,10 @@
 
 ### Changed
 
+- Synchronize current installation, Python support, command-line and version
+  guidance with package metadata, and validate documented CLI examples in CI.
 - Present ``pyar`` as the modern task interface while documenting legacy
-  command behavior, v1/v2 continuation and the current tag-versus-master
-  release boundary.
+  command behavior, v1/v2 continuation and release-note guidance.
 
 ## 1.5.1 - 2026-10-11
 

@@ -132,7 +132,8 @@ Run-layout compatibility and release boundary
 
 Newly created supported workflows use run-layout v2. Recognized v1 runs
 continue under their existing owner and are not automatically converted.
-The ``v1.5.1`` tag predates run-layout-v2 changes merged on ``master``. At the
-2026-10-16 release check, ``master`` still declared ``1.5.1`` without a new
-release tag; check the installed version and release notes before assuming a
-tag contains current ``master`` behavior.
+This checkout declares package version |package_version|. Development-source
+behavior can differ from an installed distribution. Check ``pyar --version``
+and the matching release notes before relying on a feature from an unreleased
+branch. Recognized v1 runs remain on their legacy continuation path and are not
+silently converted.

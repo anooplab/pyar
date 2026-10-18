@@ -24,8 +24,9 @@ Design Goals
 Target Package Layout
 ---------------------
 
-The eventual package structure should separate domain data, scientific
-services, workflows, persistence, backend adapters, and user interfaces:
+The package structure target separates domain data, scientific services,
+workflows, persistence, backend adapters, and user interfaces. This section is
+a design map, not a promise that every listed target module exists:
 
 .. code-block:: text
 
@@ -110,11 +111,11 @@ services, workflows, persistence, backend adapters, and user interfaces:
      benchmark_sampling.py
      benchmark_selection.py
 
-``pyar.core``, ``pyar.io``, ``pyar.sampling``, ``pyar.state``,
-``pyar.backends``, ``pyar.aggregation``, ``pyar.solvation``, and
-``pyar.conformer`` now contain moved implementations for this layout. Legacy
-import paths remain as compatibility aliases while remaining physical moves
-are completed.
+The current package has canonical modules under ``pyar.core``, ``pyar.io``,
+``pyar.sampling``, ``pyar.state``, ``pyar.backends``, ``pyar.aggregation``,
+``pyar.solvation``, and ``pyar.conformer``. Use the generated API reference and
+module documentation for the current implementation; the target tree above is
+illustrative.
 
 Feature Package Boundaries
 --------------------------
@@ -147,10 +148,10 @@ The supported public API should be intentionally narrow:
 .. code-block:: python
 
    from pyar import Molecule
-   from pyar.sampling import generate_trials
-   from pyar.selection import select_geometries
+   from pyar.sampling import generate_trial_vectors
+   from pyar.selection import choose_geometries
    from pyar.workflows import aggregate, react
-   from pyar.backends import get_backend
+   from pyar.backends import get_backend_capabilities
 
 Workflows and backend calls should exchange typed request and result objects:
 
@@ -163,10 +164,11 @@ Workflows and backend calls should exchange typed request and result objects:
 Internal helper modules should remain internal rather than becoming accidental
 user-facing interfaces.
 
-Current Module Mapping
+Module Migration Map
 ----------------------
 
-PyAR 2.0 uses these canonical module boundaries:
+This migration map describes the intended paths; use the imports above and
+generated API reference for the current implementation:
 
 * ``pyar/Molecule.py`` becomes ``core/molecule.py``.
 * ``pyar/molecule_geometry.py`` becomes ``core/geometry.py``.
@@ -365,36 +367,20 @@ energies, algorithm, and thresholds.
 Command Line Interface
 ----------------------
 
-The long-term CLI should use subcommands:
-
-.. code-block:: bash
-
-   pyar aggregate ...
-   pyar react ...
-   pyar optimize ...
-   pyar cluster ...
-   pyar benchmark sampling ...
-
-The existing command entry points may remain as temporary wrappers during
-migration. The CLI should print a run plan before execution, validate backend
-compatibility early, report missing external programs clearly, and support
-``--dry-run``, ``--resume``, ``--output``, and ``--log-level``.
+The current command-line interfaces are ``pyar`` for task-oriented commands and
+``pyar-cli`` for legacy syntax. See :doc:`cli_reference` for the registered
+console scripts. Command-specific ``--help`` output is authoritative. The modern
+interface provides read-only ``--check`` and ``--dry-run`` preflight controls;
+not every legacy command supports every modern control.
 
 Packaging And Quality
 ---------------------
 
-The professional package baseline should include:
-
-* ``pyproject.toml`` as the authoritative metadata source
-* a later move to a ``src/pyar/`` layout in a major-version branch
-* optional dependency groups such as ``selection``, ``xtb``, ``aimnet2``,
-  ``docs``, and ``test``
-* typed public APIs
-* ``pytest`` for testing and ``ruff`` for formatting and linting
-* optional static type checking of public modules
-* Sphinx user guides and API references
-* executed examples in continuous integration
-* semantic versioning, a changelog, and a deprecation policy
+Current packaging metadata is maintained in ``pyproject.toml``. Runtime
+capabilities are declared as optional extras; checkout tools are declared as
+dependency groups. CI runs pytest, scoped Ruff checks, strict Sphinx, archive
+validation, and clean artifact installation. See :doc:`installation` for the
+commands and :doc:`cli_reference` for installed entry points.
 
 PyAR uses the optional external ``mlatom`` package for MLatom calculations.
 The ``pyar/mlatom/__init__.py`` adapter preserves older package-level imports
@@ -402,54 +388,14 @@ by forwarding them to the external package. The vendored source, binaries,
 and model assets have been removed; the adapter requires MLatom to be installed
 with ``python -m pip install "pyar-chem[ml]"``.
 
-Migration Plan
---------------
+Migration and implementation status
+------------------------------------
 
-The migration is incremental and behaviour-preserving. Items 1-9 are already
-complete and are kept here as history; item 10 is in progress.
-
-1. The validated baseline was frozen and committed.
-2. Structured request, result, capability, and exception types were defined
-   without moving existing modules.
-3. Energy/gradient provider, bias-potential, and optimizer interfaces were
-   introduced, with AFIR energy and gradients verified by unit and
-   finite-difference tests.
-4. An xTB energy/gradient provider independent of Turbomole was extracted,
-   and the TRIC optimizer was integrated for biased reaction jobs.
-5. The structured run-state approach was extended from reaction and
-   aggregation to solvation and other long workflows.
-6. The new optimizer was benchmarked against current reaction behaviour and
-   Cartesian baselines, and the Turbomole requirement was removed from the
-   xTB reaction path.
-
-7. The selection implementation was split into focused services while
-   preserving selected outputs.
-8. Workflows now return structured result objects.
-9. The CLI now accepts subcommand-style invocations while retaining the
-   current wrappers for one transition release.
-
-Open plan:
-
-10. Core, sampling, state, backend, workflow, and bias implementations have
-    moved to canonical package boundaries for the 2.0 API.
-11. MLatom has been externalized and its vendored tree removed; retain the
-    package-level compatibility adapter for downstream consumers.
-12. Publish migration documentation and reproducibility examples.
-
-Immediate Priority
-------------------
-
-The next architectural work consists of two coupled priorities:
-
-* continue expanding the versioned structured restart state implemented for
-  reaction, aggregation, and solvation runs to other long workflows
-* harden the reaction optimization channel that now uses geomeTRIC/TRIC for
-  ``xtb``, ``aimnet_2``, ``orca``, and ``gaussian`` by storing richer restart
-  metadata, benchmarking it against the current behavior, and extending it
-  toward a separate validated transition-state workflow
-
-Both remain coupled: the optimizer path must stay scientifically appropriate,
-and long calculations must remain safely restartable.
+This page began as an architecture roadmap. Its target designs are not a live
+implementation or release-status ledger. The current public API and compatibility
+paths are described in :doc:`migration`, :doc:`migration_2_0`, and the generated
+:doc:`api` reference. Release stages and remaining engineering gates are tracked
+in the repository's release-engineering plan.
 
 Shared single-addition service
 ------------------------------
@@ -464,9 +410,11 @@ geometry-only propagation. Aggregate and grow geometry-only pools
 are bounded using existing graph-first pruning and max-min diversity, without
 energy assignment.
 
-Run-layout v2 primitives
-------------------------
+Run-layout persistence
+----------------------
 
-The opt-in :doc:`persistence` module supplies paths, artifact references, JSON
-publication, version detection and local writer locking. PR 1 does not route
-existing workflows through it or alter any scientific state transitions.
+The :doc:`persistence` module provides version detection, artifact references,
+JSON publication, and local writer locking. Workflow owners adopt these helpers
+according to their documented continuation contracts. See :doc:`run_layout` for
+current behavior; the architecture target does not imply that every workflow
+uses the same state format.

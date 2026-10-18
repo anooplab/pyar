@@ -1,9 +1,10 @@
 # Staged release engineering plan
 
-Status: R0 policies established; R1 foundations implemented on the review branch,
-2026-10-18. See [R1 scope and execution record](r1.md); exact-head CI success
-is required before acceptance. R2–R5 remain **proposed, not implemented or
-authorized by this document**.
+Status: R0 policies established; R1 merged to master on 2026-10-18. R2
+documentation work is implemented on its review branch; see [R2 scope and
+execution record](r2.md). Exact-head CI success and review are required before
+acceptance. R3–R5 remain **proposed, not implemented or authorized by this
+document**.
 This is a release-engineering series, independent of the ORE milestone names.
 No scientific algorithm, public API, package version, tag or publication changes
 are part of R0. Use [gates.md](gates.md) as the sole release gate definition.
