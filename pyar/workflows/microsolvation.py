@@ -146,13 +146,15 @@ def _energy_prescreen(candidates, request):
     return chosen, records
 
 
-def _optimize_candidates(candidates, request, candidate_directory, *, evaluation_budget_path=None):
+def _optimize_candidates(candidates, request, candidate_directory, *, evaluation_budget_path=None,
+                        diagnostic_records=None):
     """Optimize the selected prescreen pool and apply objective-specific validity."""
     if not request.backend_parameters.get("software"):
         return list(candidates), 0, 0, []
     selected = []
     shell_rejected = 0
     failures = []
+    diagnostic_records = [] if diagnostic_records is None else diagnostic_records
     auto_shell_policy = request.wall == "auto" and request.objective == "shell"
     wall_policy = request.to_state_dict().get("confinement", {}) if request.wall != "none" else {}
     for candidate in candidates:
@@ -162,10 +164,39 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
         if evaluation_budget_path is not None:
             qc["microsolvation_evaluation_budget_path"] = str(evaluation_budget_path)
         try:
-            from pyar.optimiser import is_usable, optimise
-            def run_optimization(directory, parameters):
+            from pyar.optimiser import is_usable
+            from pyar.optimization_service import optimize_workflow_once
+            candidate_diagnostics = []
+            def relative_diagnostic(path):
+                if not path:
+                    return None
+                try:
+                    return Path(path).resolve().relative_to(Path(candidate_directory).resolve()).as_posix()
+                except (OSError, ValueError):
+                    return None
+            def run_optimization(directory, parameters, stage):
                 with _working_directory(directory):
-                    return optimise(candidate, parameters)
+                    try:
+                        status, result, report = optimize_workflow_once(
+                            candidate, parameters,
+                            workflow_role=f"microsolvation_{stage}")
+                    except Exception as exc:
+                        report = getattr(exc, 'ore_diagnostic_path', None)
+                        entry = {"name": candidate.name, "stage": stage,
+                                 "status": "exception", "diagnostic_path": relative_diagnostic(report),
+                                 "error": str(exc)[:500]}
+                        candidate_diagnostics.append(entry)
+                        diagnostic_records.append(entry)
+                        raise
+                    entry = {"name": candidate.name, "stage": stage,
+                             "status": result.status.value,
+                             "legacy_status": str(status),
+                             "converged": result.converged,
+                             "workflow_accepted": result.workflow_accepted,
+                             "diagnostic_path": relative_diagnostic(report)}
+                    candidate_diagnostics.append(entry)
+                    diagnostic_records.append(entry)
+                    return status
 
             wall_applied = request.wall == "outer-sphere"
             candidate.microsolvation_wall_decision = (
@@ -173,7 +204,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                 "not-applicable-cluster-objective" if request.wall == "auto" and request.objective == "cluster" else
                 "not-requested" if request.wall == "none" else "awaiting-unbiased-shell-check")
             if auto_shell_policy:
-                status = run_optimization(candidate_directory, qc)
+                status = run_optimization(candidate_directory, qc, "unbiased_screen")
                 if not is_usable(status) or candidate.coordinates is None:
                     failures.append({"name": candidate.name, "stage": "unbiased_screen",
                                      "status": str(status or "no coordinates")})
@@ -185,7 +216,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                     "applied-after-shell-escape" if wall_applied else
                     "not-applied-unbiased-geometry-shell-valid")
             elif not wall_applied:
-                status = run_optimization(candidate_directory, qc)
+                status = run_optimization(candidate_directory, qc, "unbiased_minimum")
             if wall_applied:
                 qc["microsolvation_wall"] = {
                     "solute_atom_count": len(request.solute),
@@ -196,8 +227,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                         wall_policy["force_constant_hartree_per_angstrom2"]
                         if request.wall == "auto" else request.wall_force_constant),
                 }
-                with _working_directory(candidate_directory / "wall_search"):
-                    status = optimise(candidate, qc)
+                status = run_optimization(candidate_directory / "wall_search", qc, "wall_search")
                 if not is_usable(status) or candidate.coordinates is None:
                     failures.append({"name": candidate.name, "stage": "wall_search",
                                      "status": str(status or "no coordinates")})
@@ -214,8 +244,8 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                 except (OSError, ValueError, KeyError, TypeError) as exc:
                     raise RuntimeError(f"missing valid wall-search energy provenance for {candidate.name}: {exc}") from exc
                 qc.pop("microsolvation_wall")
-                with _working_directory(candidate_directory / "unbiased_relaxation"):
-                    status = optimise(candidate, qc)
+                status = run_optimization(candidate_directory / "unbiased_relaxation", qc,
+                                          "unbiased_relaxation")
             if not is_usable(status) or candidate.coordinates is None:
                 failures.append({"name": candidate.name, "status": str(status or "no coordinates")})
                 continue
@@ -224,6 +254,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
             continue
         if candidate.coordinates is None or not candidate.solvent_fragments:
             continue
+        candidate.microsolvation_optimization_diagnostics = candidate_diagnostics
         coverage = assess_shell(candidate, request)
         candidate.microsolvation_coverage = coverage
         if request.wall != "none":
@@ -329,9 +360,11 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
                 "fixed_composition_per_step": True,
                 "candidates": prescreen_records,
             })
+        optimization_diagnostics = []
         if request.backend_parameters.get("software"):
             candidates, shell_rejected, optimized_count, optimization_failures = _optimize_candidates(
-                candidates, request, candidate_directory)
+                candidates, request, candidate_directory,
+                diagnostic_records=optimization_diagnostics)
         elif request.objective == "shell":
             retained = [candidate for candidate in candidates
                         if candidate.microsolvation_coverage["shell_valid"]]
@@ -355,6 +388,7 @@ def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation")
             "prescreened_count": len(prescreen_records),
             "optimized_count": optimized_count,
             "optimization_failures": optimization_failures,
+            "optimization_diagnostics": optimization_diagnostics,
             "rejected_outside_shell": shell_rejected,
             "seeds_without_accessible_target_surface": target_rejected,
         })
@@ -502,9 +536,11 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
                 "fixed_composition_per_step": True,
                 "candidates": prescreen_records,
             })
+        optimization_diagnostics = []
         if request.backend_parameters.get("software"):
             candidates, shell_rejected, optimized_count, optimization_failures = _optimize_candidates(
-                candidates, request, candidate_directory)
+                candidates, request, candidate_directory,
+                diagnostic_records=optimization_diagnostics)
         elif request.objective == "shell":
             retained = [candidate for candidate in candidates
                         if candidate.microsolvation_coverage["shell_valid"]]
@@ -528,6 +564,7 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
             "prescreened_count": len(prescreen_records),
             "optimized_count": optimized_count,
             "optimization_failures": optimization_failures,
+            "optimization_diagnostics": optimization_diagnostics,
             "rejected_outside_shell": shell_rejected,
             "seeds_without_accessible_target_surface": target_rejected,
         })
@@ -670,11 +707,15 @@ def _resample_cluster_pool(state, request):
             candidate.name = f"ms4_{attempt_index:05d}"
             expected_multiplicity = candidate.multiplicity
             evaluations_before = int(read_json(counter_path)["used"])
-            optimized, _, _, failures = _optimize_candidates([candidate], request, attempt_dir / "execution",
-                                                               evaluation_budget_path=counter_path)
+            optimization_diagnostics = []
+            optimized, _, _, failures = _optimize_candidates(
+                [candidate], request, attempt_dir / "execution",
+                evaluation_budget_path=counter_path,
+                diagnostic_records=optimization_diagnostics)
             used = int(read_json(counter_path)["used"])
             attempt["evaluations_used"] = used - evaluations_before
             record["evaluations_used"] = used
+            attempt["optimization_diagnostics"] = optimization_diagnostics
             if optimized:
                 accepted = optimized[0]
                 accepted.microsolvation_coverage = assess_shell(accepted, request)
