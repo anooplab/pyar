@@ -22,6 +22,7 @@ from pyar.backends.orca_scan import (
 )
 from pyar.core.molecule import Molecule
 from pyar.optimiser import optimise, is_success
+from pyar.optimization_service import optimize_workflow_once
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
     reaction_product_changed,
@@ -31,6 +32,14 @@ from pyar.sampling.trial_generator import generate_trial_vectors, merge_two_mole
 
 DEFAULT_SCAN_END_FACTOR = 0.8
 TARGET_CONTACT_FACTOR = 1.3
+
+
+def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
+    """Run one legacy scan optimization and persist observational ORE data."""
+    status, _diagnostic, _report = optimize_workflow_once(
+        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise
+    )
+    return status
 
 
 def scan_point_count(start, end, step=None, points=None):
@@ -548,8 +557,11 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         old_cwd = Path.cwd()
         try:
             os.chdir(relax_run_dir)
-            relax_status = optimise(relaxed, dict(
-                qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0))
+            relax_status = _optimize_with_diagnostics(
+                relaxed,
+                dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
+                "bond_scan_unbiased_relaxation",
+            )
         except BackendExecutionError:
             raise
         except Exception as exc:
