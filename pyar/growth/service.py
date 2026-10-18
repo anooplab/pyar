@@ -22,6 +22,7 @@ from pyar.selection import clustering
 from pyar.selection import reports as selection_reports
 from pyar.sampling import trial_generator as trial_generation
 from pyar.optimiser import is_cycle_exceeded, is_success, optimise
+from pyar.optimization_service import optimize_workflow_once
 from pyar.structure_comparison.coordinate_graph import analyze_growth_transition
 from pyar.workflow_results import AggregateResult, ReactionResult, SolvationResult
 
@@ -579,7 +580,8 @@ def add_one(
                             f"    Optimization round {i + 1:d}: pending={len(not_converged):d}"
                         )
                         status_list = [
-                            optimise(each_mol, preselection_qc_params)
+                            optimize_workflow_once(each_mol, preselection_qc_params,
+                                workflow_role="growth_preselection", optimizer=optimise)[0]
                             for each_mol in not_converged
                         ]
                         converged = [n for n, s in zip(not_converged, status_list) if is_success(s)]
@@ -687,7 +689,9 @@ def add_one(
             refined_seeds = []
             for each_file in selected_seeds:
                 not_refined = copy.deepcopy(each_file)
-                status = optimise(each_file, refinement_qc_params)
+                status, _diagnostic, _diagnostic_path = optimize_workflow_once(
+                    each_file, refinement_qc_params, workflow_role="growth_refinement",
+                    optimizer=optimise)
                 if is_success(status):
                     xyz_file = f"job_{each_file.name}/result_{each_file.name}.xyz"
                     shutil.copy(xyz_file, ".")

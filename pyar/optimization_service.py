@@ -7,6 +7,7 @@ No recovery, cache adoption, workflow migration or chemistry change occurs here.
 from copy import deepcopy
 from pathlib import Path
 from time import perf_counter
+from uuid import uuid4
 
 from pyar.persistence import RunLock, LockError
 from pyar.backend_capabilities import optimization_diagnostic_capabilities
@@ -17,6 +18,7 @@ from pyar.recovery.models import (
 from pyar.recovery.observations import capture_processes, safe_path, snapshot_artifacts
 from pyar.recovery.parsers import parse_observation
 from pyar.recovery.validation import verify_start
+from pyar.persistence import write_json
 
 
 def _invalid(code, message, *, execution=None, exception=None, request=None, artifacts=()):
@@ -153,3 +155,71 @@ def optimize_once(molecule, qc_params):
             return inspect_optimization(request, root, execution=execution, exception=original)
     except (OSError, LockError) as exc:
         return _invalid(FailureCode.EXEC_FAILED, str(exc), exception=original or exc, request=request)
+
+
+def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None):
+    """Run a workflow-owned optimization once and persist independent ORE evidence.
+
+    The owning workflow continues to decide whether a legacy incomplete status
+    is usable. This adapter records the independent result beside the workflow
+    execution and does not retry, select a geometry, or alter legacy status.
+    """
+    from pyar import optimiser
+
+    if not isinstance(workflow_role, str) or not workflow_role.strip():
+        raise ValueError('workflow_role must be a nonempty string')
+    request_error = None
+    try:
+        request = OptimizationRequest.from_molecule(molecule, qc_params)
+        from dataclasses import replace
+        request = replace(request, workflow_role=workflow_role)
+    except (ValueError, TypeError, KeyError, AttributeError) as exc:
+        # Preserve legacy workflow behavior for duck-typed compatibility objects;
+        # their incomplete request metadata cannot be treated as validated.
+        request, request_error = None, exc
+    request_name = request.name if request is not None else str(getattr(molecule, 'name', 'unnamed'))
+    execution_root = Path.cwd() / ('job_' + request_name)
+    fresh = not execution_root.exists() and not execution_root.is_symlink()
+    original = None
+    status = None
+    started = perf_counter()
+    try:
+        with capture_processes() as processes:
+            try:
+                status = (optimizer or optimiser.optimise)(molecule, qc_params)
+            except BaseException as exc:
+                original = exc
+        elapsed = max(0., perf_counter() - started)
+        if request is None:
+            result = _invalid(FailureCode.INVALID_RESULT,
+                'Workflow optimization request could not be normalized: ' + str(request_error),
+                exception=original or request_error)
+        else:
+            artifacts = snapshot_artifacts(execution_root)
+            execution = ExecutionObservation(request.request_fingerprint, artifacts,
+                tuple(processes), fresh, status, elapsed_seconds=elapsed)
+            result = inspect_optimization(request, execution_root, execution=execution,
+                                          exception=original)
+    except BaseException as exc:
+        if original is None:
+            original = exc
+        result = _invalid(FailureCode.INVALID_RESULT, str(exc), exception=original,
+                          request=request)
+    record = {
+        'schema_version': 1,
+        'workflow_role': workflow_role,
+        'molecule_name': request_name,
+        'request_error': None if request_error is None else str(request_error),
+        'legacy_status': optimiser._status_label(status),
+        'result': result.to_dict(),
+    }
+    report = Path.cwd() / '.pyar_optimization_diagnostics' / f'{uuid4().hex}.json'
+    try:
+        write_json(report, record, overwrite=False)
+    except BaseException:
+        if original is not None:
+            raise original
+        raise
+    if original is not None:
+        raise original
+    return status, result, report

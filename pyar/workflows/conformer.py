@@ -22,6 +22,7 @@ from pyar.conformer.request import ConformerRequest, ConformerRequestError
 from pyar.core.molecule import Molecule
 from pyar.optional_dependencies import optional_dependency_error
 from pyar.optimiser import _status_label, is_usable, optimise
+from pyar.optimization_service import optimize_workflow_once
 from pyar.workflow_results import ConformerResult
 from pyar.workflows._growth import _working_directory, workflow_run_directory, workflow_state_path
 
@@ -58,6 +59,8 @@ class ConformerRecord:
     contact_count: int | None = None
     radius_gyration: float | None = None
     backend_status: str | None = None
+    backend_validation_status: str | None = None
+    backend_diagnostic_path: str | None = None
     backend_energy: float | None = None
     backend_path: str | None = None
     selected_path: str | None = None
@@ -893,8 +896,12 @@ def _refine_with_backend(records, run_directory, qc_params, *, v2=False):
     with _working_directory(backend_directory):
         for record in records:
             molecule = record.molecule.copy()
-            status = optimise(molecule, qc_params)
+            status, diagnostic, diagnostic_path = optimize_workflow_once(
+                molecule, qc_params, workflow_role="conformer_refinement", optimizer=optimise
+            )
             record.backend_status = _status_label(status)
+            record.backend_validation_status = diagnostic.status.value
+            record.backend_diagnostic_path = Path(diagnostic_path).relative_to(run_directory).as_posix()
             backend_result = backend_directory / f"job_{molecule.name}" / f"result_{molecule.name}.xyz"
             if backend_result.is_file():
                 record.backend_path = str(backend_result)
@@ -945,6 +952,8 @@ def _write_summary(records, summary_path):
         "contact_count",
         "radius_gyration",
         "backend_status",
+        "backend_validation_status",
+        "backend_diagnostic_path",
         "backend_energy",
         "backend_path",
         "selected_path",
@@ -972,6 +981,8 @@ def _write_summary(records, summary_path):
                     "contact_count": record.contact_count,
                     "radius_gyration": record.radius_gyration,
                     "backend_status": record.backend_status,
+                    "backend_validation_status": record.backend_validation_status,
+                    "backend_diagnostic_path": record.backend_diagnostic_path,
                     "backend_energy": record.backend_energy,
                     "backend_path": record.backend_path,
                     "selected_path": record.selected_path,
@@ -1018,6 +1029,8 @@ def _build_state(
                 "contact_count": record.contact_count,
                 "radius_gyration": record.radius_gyration,
                 "backend_status": record.backend_status,
+                "backend_validation_status": record.backend_validation_status,
+                "backend_diagnostic_path": record.backend_diagnostic_path,
                 "backend_energy": record.backend_energy,
                 "backend_path": record.backend_path,
                 "selected_path": record.selected_path,
