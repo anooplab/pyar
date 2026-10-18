@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Continue independent reaction orientations, growth candidates, and standalone
+  optimizer inputs after a per-job backend failure while retaining failure
+  records and nonzero failure reporting where applicable.
 - Use ORCA's RIJONX treatment for Hartree-Fock Coulomb fitting so HF inputs
   also specify how exchange integrals are handled.
 

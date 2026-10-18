@@ -73,6 +73,11 @@ cycle-limited candidate handling, staged refinement where supported, clustering,
 structural comparison, and basin-memory policy. Method/model controls are
 backend-specific; xTB receives no DFT method or basis defaults.
 
+An individual backend failure is recorded in ``backend_failures.json`` within
+the affected seed or refinement directory. Other independent candidates
+continue through optimization and selection; inspect those records alongside
+the workflow log when fewer structures survive than requested.
+
 Without a backend, candidates undergo graph-first duplicate removal,
 connectivity filtering, and deterministic max-min diversity selection using
 existing pool descriptors and distance services. No energies are invented.

@@ -14,6 +14,7 @@ import sys
 from collections import defaultdict
 
 from pyar.core.molecule import Molecule
+from pyar.backend_errors import BackendExecutionError
 from pyar import optimiser as optimiser_mod
 from pyar.data import defualt_parameters
 
@@ -86,7 +87,7 @@ def main():
     }
     try:
         optimiser_mod.bulk_optimize(input_molecules, quantum_chemistry_parameters)
-    except FileNotFoundError as exc:
+    except (BackendExecutionError, FileNotFoundError) as exc:
         logger.critical(str(exc))
         sys.exit(str(exc))
 

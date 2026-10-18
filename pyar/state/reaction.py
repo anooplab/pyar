@@ -256,11 +256,13 @@ class ReactionRunState:
             for product in self.data.get("products", [])
         }
 
-    def record_job(self, job_name, gamma, status, remaining_orientations, current_survivors, identity=None):
+    def record_job(self, job_name, gamma, status, remaining_orientations, current_survivors, identity=None, failure=None):
         """Record processed work plus pending and retained current-cycle candidates."""
         record = {"job_name": job_name, "gamma": float(gamma), "status": str(status)}
         if identity:
             record["product_identity"] = _json_value(identity)
+        if failure:
+            record["failure"] = str(failure)
         self.data["completed_jobs"].append(record)
         self._replace_pending_orientations(remaining_orientations)
         self._replace_current_survivors(current_survivors)

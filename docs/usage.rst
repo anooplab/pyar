@@ -92,6 +92,9 @@ conformers, ``pyar-similarity`` reports near-duplicate structures,
 ``pyar-conformer-benchmark`` diagnoses why reference conformers are missed,
 ``pyar-trial-generation`` builds candidate orientations, and
 ``pyar-optimiser`` runs the standalone geometry optimizer.
+For multiple standalone optimizer inputs, PyAR attempts every file and then
+returns a nonzero exit status if any job failed. Successful job outputs remain
+available beside the failed-job details in the log.
 
 Standalone structure clustering
 -------------------------------
