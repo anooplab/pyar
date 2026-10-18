@@ -108,6 +108,10 @@ settings and artifact hashes before starting. It runs both IRC directions;
 endpoint optimization/validation remains a separate engine/scan continuation
 stage. Normal numerical and input/output-alias checks happen during preflight.
 The scan-bond ``--through`` workflow continues to use the same stage engine.
+With one XYZ input, ``pyar scan-bond molecule.xyz --atoms 0 1 --backend xtb``
+infers an intramolecular formation or breaking scan, then freely relaxes and
+identifies the product. ``--check`` displays the distance/grid plan;
+``--through all`` follows only identified changed products. See :doc:`bond_scan`.
 Reaction discovery also accepts ``--through``. The default is discovery only;
 ``pyar react A.xyz B.xyz --backend xtb --bias-max 100 --through all`` selects
 one route per unique accepted product and passes its accepted unbiased product,

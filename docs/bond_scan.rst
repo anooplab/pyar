@@ -1,10 +1,69 @@
 Bond Scan
 =========
 
-``scan-bond`` performs a relaxed surface scan along one distance between
-two molecular fragments. Atom indices are zero-based and local to each input
-fragment. The scan endpoint defaults to 0.8 times the sum of the selected
-atoms' PyAR covalent radii, and the default spacing is 0.10 Angstrom.
+``scan-bond`` performs a relaxed surface scan along one atom-pair distance.
+One input XYZ selects an intramolecular scan; two inputs select the existing
+fragment-placement workflow. Atom indices are zero-based. With two inputs they
+are local to each fragment, the endpoint defaults to 0.8 times the sum of the
+selected atoms' PyAR covalent radii, and the default spacing is 0.10 Angstrom.
+
+Intramolecular rearrangement and bond breaking
+----------------------------------------------
+
+Provide one molecule and two different indices in that molecule:
+
+.. code-block:: bash
+
+   pyar scan-bond molecule.xyz --atoms 0 3 --backend xtb --check
+   pyar scan-bond molecule.xyz --atoms 0 3 --backend xtb
+   pyar scan-bond molecule.xyz --atoms 0 3 --backend xtb --through all
+
+The first command displays the inferred direction, measured current distance,
+proposed endpoint and point count without calculations or output-directory
+creation. The second scans, removes the distance constraint, freely relaxes the
+last scan geometry and compares its canonical identity with the original input.
+The third additionally traces an identified new product through the existing
+scan-seeded NEB, TS, frequency, both IRC branches and endpoint validation.
+``--through neb|ts|frequency|irc|endpoints|all`` selects the final follow-up stage.
+Path following is opt-in and never runs for an unchanged or unidentified product.
+The scan-seeded route supports linear interpolation or IDPP refinement;
+geodesic interpolation is rejected during preflight for this route.
+
+The input geometry and atom ordering are preserved. There is one orientation
+and no fragment placement, separation or duplication of charge/spin. One charge,
+multiplicity and reference-state value describes the whole system. OpenBabel
+is required for input/product identity, alongside the selected backend.
+
+The automatic plan uses PyAR's existing geometric connectivity convention. For
+the covalent-radius sum ``r`` and measured distance ``d``:
+
+* If ``d < 1.3*r``, elongate toward ``max(2.5*r, d + 1.0 Angstrom)``.
+* Otherwise, shorten toward ``1.05*r``.
+* Use intervals no larger than 0.10 Angstrom by default, with both endpoints
+  included. ``--scan-step`` or ``--scan-points`` overrides the grid;
+  ``--scan-end`` overrides the endpoint in the inferred direction. Intramolecular
+  plans are capped at 10001 points and are recorded in ``request.json``.
+
+These distances are planning heuristics. Bond orders are not inferred from the
+threshold, and stretching a pair does not guarantee a stable rearranged product.
+After free relaxation, a breaking target is achieved only if the pair is no
+longer bonded under the same geometric rule and remains at least ``2.0*r``
+apart. A forming target requires the pair to be bonded. Target achievement,
+canonical product identity and reaction-path confirmation are separate fields.
+Reversion is reported as ``no_new_product`` and launches no path search.
+Unresolved identity or failed relaxation is reported as a failure; its evidence
+is retained. A disconnected product is a possible outcome of bond breaking,
+not an assumed rearrangement or a confirmed transition state.
+
+Fresh single-molecule runs use the same layout-v2 immutable scan/relaxation
+commits and product registry as two-fragment scans, with one preserved
+``inputs/molecule.xyz``. Repeating the same request reuses verified completed
+work; changing geometry, atom indices, electronic state or scan settings is
+rejected for that output directory. A later ``--through all`` can extend an
+earlier scan without rescanning or relaxing its product again.
+
+Two-fragment scans
+------------------
 
 .. code-block:: bash
 

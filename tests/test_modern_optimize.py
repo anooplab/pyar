@@ -148,6 +148,7 @@ def test_orca_composite_and_overrides(inputs, dependencies):
 @pytest.mark.parametrize(('outcomes', 'status', 'optimized', 'failed'), [
     ([True, 'converged'], 'completed', 2, 0),
     ([True, BackendExecutionError('backend failed')], 'partial_failed', 1, 1),
+    ([RuntimeError('first backend crashed'), True], 'partial_failed', 1, 1),
     ([BackendExecutionError('first failed'), BackendExecutionError('second failed')], 'failed', 0, 2),
 ])
 def test_optimization_status_and_provenance_are_truthful(

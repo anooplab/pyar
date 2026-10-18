@@ -111,6 +111,57 @@ def test_failure_then_success_and_replay(molecule, settings, monkeypatch):
     assert snapshot_artifacts(Path('job_h2/recovery/attempts')) == before
 
 
+@pytest.mark.parametrize('role', [
+    'conformer_refinement', 'growth_refinement', 'microsolvation_unbiased_minimum',
+    'reaction_unbiased_relaxation', 'bond_scan_unbiased_relaxation',
+])
+def test_owner_opt_in_recovery_preserves_objective_and_publishes_only_convergence(
+    molecule, settings, monkeypatch, role,
+):
+    from pyar.optimization_service import optimize_workflow_once
+    calls = fake_worker(monkeypatch)
+    values = dict(settings, workflow_recovery=dict(mode='safe', max_attempts=2,
+                                                   max_cycles=9, max_evaluations=4))
+    status, result, report = optimize_workflow_once(molecule, values, workflow_role=role,
+        optimizer=lambda *args: pytest.fail('Recovery must not also execute the legacy adapter'))
+    assert status is True and result.status is Outcome.RECOVERED_CONVERGED
+    assert len(calls) == 2
+    assert molecule.energy == result.accepted_frame.physical_energy_hartree
+    assert molecule.coordinates.tolist() == [list(row) for row in result.accepted_frame.coordinates_angstrom]
+    assert all(attempt.request.workflow_role == role for attempt in result.attempts)
+    assert result.attempts[0].request.objective_fingerprint == result.attempts[1].request.objective_fingerprint
+    assert read_json(report)['recovery']['backend_evaluations'] == 4
+    assert read_json(report)['owner_decision']['validated_converged']
+    assert values['workflow_recovery']['mode'] == 'safe'
+
+
+@pytest.mark.parametrize('role,extra', [
+    ('reaction_afir_orientation', {}), ('neb_ts', {}),
+    ('microsolvation_wall_search', {}), ('bond_scan_constrained', {}),
+    ('microsolvation_unbiased_minimum', {'microsolvation_evaluation_budget_path': 'shared.json'}),
+    ('conformer_refinement', {'constraints': [0, 1]}),
+])
+def test_workflow_recovery_permission_rejects_unsafe_routes_before_execution(
+    molecule, settings, monkeypatch, role, extra,
+):
+    from pyar.optimization_service import optimize_workflow_once
+    monkeypatch.setattr(controller, '_execute_attempt', lambda *args: pytest.fail('No worker permitted'))
+    with pytest.raises(ValueError, match='recovery_unsupported'):
+        optimize_workflow_once(molecule, dict(settings, **extra, workflow_recovery={'mode': 'safe'}),
+                               workflow_role=role)
+    assert not Path('job_h2').exists()
+
+
+def test_workflow_resume_cannot_adopt_another_owners_checkpoint(molecule, settings, monkeypatch):
+    calls = fake_worker(monkeypatch)
+    controller.run_recovery(molecule, dict(settings, workflow_role='conformer_refinement'),
+                            RecoveryPolicy('safe'))
+    with pytest.raises(ValueError, match='Incompatible recovery request'):
+        controller.preflight_recovery([molecule], dict(settings, workflow_role='growth_refinement'),
+                                      RecoveryPolicy('safe'), resume=True)
+    assert len(calls) == 2
+
+
 def test_ordinary_limit_never_completed(molecule, settings, monkeypatch):
     calls = fake_worker(monkeypatch, always_limit=True)
     report = controller.run_recovery(molecule, settings, RecoveryPolicy('safe', max_attempts=2))

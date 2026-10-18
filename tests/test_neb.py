@@ -362,6 +362,25 @@ def test_standalone_geometry_stages_do_not_load_geodesic_dependency(
     assert result["optimization_diagnostics"]["automatic_recovery_attempted"] is False
 
 
+@pytest.mark.parametrize('cancel', [False, True])
+def test_ts_failure_retains_observations_and_typed_exception(tmp_path, fake_path_backend, monkeypatch, cancel):
+    import pyar.neb as neb
+    symbols, geometry, _ = read_xyz(DATA / 'guess.xyz')
+    error = KeyboardInterrupt('cancelled') if cancel else RuntimeError('bad gradient')
+    error.ore_observed_path = (symbols, [geometry], [-1.])
+    def fail(*args, **kwargs):
+        raise error
+    monkeypatch.setattr(neb, '_optimize_geometry', fail)
+    with pytest.raises(type(error)) as caught:
+        run_neb(ts_geometry=DATA / 'guess.xyz', software='xtb', stage='ts', output=tmp_path)
+    assert caught.value is error
+    value = json.loads((tmp_path / 'ts_summary.json').read_text())['optimization_diagnostics']
+    assert value['reason'] == 'EXEC_FAILED'
+    assert value['exception_chain'][0]['type'] == type(error).__name__
+    assert not value['restart_authority']
+    assert (tmp_path / 'ts_failed_observed.xyz').is_file()
+
+
 @pytest.mark.skipif(
     find_spec("geodesic_interpolate") is None,
     reason="geodesic-interpolate is an optional dependency",
@@ -1742,13 +1761,19 @@ def test_scan_workflow_continues_using_standardized_neb_handoff(tmp_path, fake_p
     def scan(molecule, request, directory, qc_params):
         scan_calls.append(request)
         directory.mkdir(parents=True, exist_ok=True)
-        frames = [hcn, guess, hnc]
+        # This fixture replaces the numerical solver, but still fulfills its
+        # constrained-distance contract before exercising the path handoff.
+        frames = [frame.copy() for frame in (hcn, guess, hnc)]
+        for frame, target in zip(frames, np.linspace(request.start_distance_angstrom,
+                                                     request.end_distance_angstrom, 3)):
+            vector = frame[0] - frame[1]
+            frame[0] = frame[1] + vector * target / np.linalg.norm(vector)
         profile = [{'target_distance_angstrom': float(np.linalg.norm(frame[0] - frame[1])),
                     'energy_hartree': energy} for frame, energy in zip(frames, [-1., 0., -1.])]
         trajectory, final = directory / 'scan_trajectory.xyz', directory / 'final_scan.xyz'
         _write_xyz_trajectory(trajectory, symbols, frames, [-1., 0., -1.])
-        _write_xyz_trajectory(final, symbols, [hnc], [-1.])
-        recovered = OrcaBondScanResult(True, trajectory, final, hnc, directory / 'request.json',
+        _write_xyz_trajectory(final, symbols, [frames[-1]], [-1.])
+        recovered = OrcaBondScanResult(True, trajectory, final, frames[-1], directory / 'request.json',
                                   directory / 'summary.json', 'success',
                                   [(symbols, frame, '') for frame in frames], profile)
         scan_results.append(recovered)
@@ -1756,7 +1781,8 @@ def test_scan_workflow_continues_using_standardized_neb_handoff(tmp_path, fake_p
     monkeypatch.setattr('pyar.backends.bond_scan.run_bond_scan', scan)
     monkeypatch.setattr('pyar.backends.bond_scan.load_bond_scan_result', lambda *args: scan_results[-1])
     result = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 1, {'software': 'xtb'},
-                                    tmp_path / 'scan', scan_points=3, through=through)
+                                    tmp_path / 'scan', scan_points=3, through=through,
+                                    scan_end=float(np.linalg.norm(hnc[0] - hnc[1])))
     row = result['results'][0]
     assert len(scan_calls) == 1
     assert row['scan_status'] == 'success'
@@ -1776,11 +1802,76 @@ def test_scan_workflow_continues_using_standardized_neb_handoff(tmp_path, fake_p
     if through == 'neb':
         previous_calls = len(calls)
         extended = workflow.run_scan_bond(fragment_a, fragment_b, (0, 0), 1, {'software': 'xtb'},
-                                          tmp_path / 'scan', scan_points=3, through='all')
+                                          tmp_path / 'scan', scan_points=3, through='all',
+                                          scan_end=float(np.linalg.norm(hnc[0] - hnc[1])))
         assert len(scan_calls) == 1
         assert 'neb' not in calls[previous_calls:]
         assert 'reactant' not in calls[previous_calls:]
         assert extended['results'][0]['reactant_product_connection_confirmed']
+
+
+def test_intramolecular_product_traces_all_path_gates_and_reuses_scan(tmp_path, fake_path_backend, monkeypatch):
+    """Keep real product registry/path persistence; replace numerical solvers only."""
+    import importlib
+    from pyar.backends.orca_scan import OrcaBondScanResult
+    from pyar.backends import write_xyz
+    from pyar.persistence import read_json, sha256_file
+    workflow = importlib.import_module('pyar.workflows.scan_bond')
+    symbols, reactant, _ = read_xyz(DATA / 'hcn.xyz')
+    _, product, _ = read_xyz(DATA / 'hnc.xyz')
+    _, guess, _ = read_xyz(DATA / 'guess.xyz')
+    source = tmp_path / 'input.xyz'
+    write_xyz(symbols, reactant, source, precision=12)
+    numerical_calls = []
+    def scan(molecule, request, directory, parameters):
+        numerical_calls.append('scan')
+        directory.mkdir(parents=True, exist_ok=True)
+        frames = [frame.copy() for frame in (reactant, guess, product)]
+        for frame, target in zip(frames, np.linspace(request.start_distance_angstrom,
+                                                     request.end_distance_angstrom, 3)):
+            vector = frame[0] - frame[2]
+            frame[0] = frame[2] + vector * target / np.linalg.norm(vector)
+        energies = [-1., 0., -1.]
+        trajectory, final = directory / 'scan_trajectory.xyz', directory / 'final_scan.xyz'
+        _write_xyz_trajectory(trajectory, symbols, frames, energies)
+        _write_xyz_trajectory(final, symbols, frames[-1:], energies[-1:])
+        value = OrcaBondScanResult(True, trajectory, final, frames[-1], directory / 'request.json',
+            directory / 'summary.json', 'success', [(symbols, frame, '') for frame in frames],
+            [dict(target_distance_angstrom=float(d), energy_hartree=e)
+             for d, e in zip(np.linspace(request.start_distance_angstrom, request.end_distance_angstrom, 3), energies)])
+        numerical_calls.append(value)
+        return value
+    def relax(molecule, settings):
+        numerical_calls.append('relax')
+        molecule.coordinates = product.copy()
+        molecule.energy = -1.
+        directory = Path('job_relaxed')
+        directory.mkdir()
+        write_xyz(symbols, product, directory / 'result_relaxed.xyz', energy=-1., precision=12)
+        return True
+    monkeypatch.setattr('pyar.backends.bond_scan.run_bond_scan', scan)
+    monkeypatch.setattr('pyar.backends.bond_scan.load_bond_scan_result', lambda *args: numerical_calls[1])
+    monkeypatch.setattr(workflow, 'optimise', relax)
+    monkeypatch.setattr(workflow, 'molecule_identity_from_xyz', lambda path:
+        dict(inchi='reactant' if Path(path).resolve() == source.resolve() else 'product', smiles='fixture'))
+    root = tmp_path / 'scan'
+    def run(through):
+        return workflow.run_scan_bond(source, None, (0, 2), 1, {'software': 'xtb'}, root,
+            scan_end=float(np.linalg.norm(product[0] - product[2])), scan_points=3, through=through)
+    assert run('scan')['results'][0]['discovery_status'] == 'new_product'
+    commit_hash = sha256_file(root / 'orientation_000/scan_commit.json')
+    result = run('all')
+    assert result['status'] == 'complete'
+    assert result['results'][0]['reactant_product_connection_confirmed']
+    assert len(numerical_calls) == 3  # one scan result, one scan call, one free relaxation
+    assert sha256_file(root / 'orientation_000/scan_commit.json') == commit_hash
+    calls, _ = fake_path_backend
+    assert all(name in calls for name in ('neb', 'ts', 'frequency_ts', 'irc_forward',
+                                          'irc_backward', 'frequency_irc_forward_relaxed',
+                                          'frequency_irc_backward_relaxed'))
+    product_entry = read_json(root / 'products/index.json')['products'][0]
+    report = read_json(root / 'products' / product_entry['product_id'] / 'reaction_characterization.json')
+    assert report
 
 
 def test_stage_reuse_respects_new_explicit_input(tmp_path, fake_path_backend):

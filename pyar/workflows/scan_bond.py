@@ -32,6 +32,42 @@ from pyar.sampling.trial_generator import generate_trial_vectors, merge_two_mole
 
 DEFAULT_SCAN_END_FACTOR = 0.8
 TARGET_CONTACT_FACTOR = 1.3
+INTRAMOLECULAR_FORM_FACTOR = 1.05
+INTRAMOLECULAR_BREAK_FACTOR = 2.5
+INTRAMOLECULAR_SAFE_FACTOR = 2.0
+
+
+def intramolecular_scan_plan(molecule, atoms, scan_end=None, scan_step=None, scan_points=None):
+    """Plan a finite scan using the existing distance-based connectivity rule."""
+    if not np.isfinite(molecule.coordinates).all():
+        raise ValueError('Intramolecular scan coordinates must all be finite')
+    if (len(atoms) != 2 or any(isinstance(i, bool) or not isinstance(i, (int, np.integer))
+                              or not 0 <= i < molecule.number_of_atoms for i in atoms)
+            or atoms[0] == atoms[1]):
+        raise ValueError('Intramolecular scan requires two distinct 0-based atom indices within the molecule')
+    i, j = map(int, atoms)
+    start = _distance(molecule.coordinates, i, j)
+    if not math.isfinite(start) or start <= 0:
+        raise ValueError('Target atoms must have a finite nonzero separation')
+    radii = float(molecule.covalent_radius[i] + molecule.covalent_radius[j])
+    bonded = start < TARGET_CONTACT_FACTOR * radii
+    proposed = max(INTRAMOLECULAR_BREAK_FACTOR * radii, start + 1.0) if bonded else INTRAMOLECULAR_FORM_FACTOR * radii
+    end = float(proposed if scan_end is None else scan_end)
+    if (not math.isfinite(end) or end <= 0 or
+            (bonded and end <= start) or (not bonded and end >= start)):
+        raise ValueError('Intramolecular --scan-end must elongate a bonded pair or shorten an unbonded pair')
+    count = scan_point_count(start, end, scan_step, scan_points)
+    if count > 10001:
+        raise ValueError('Intramolecular scan exceeds 10001 points; choose a larger --scan-step or fewer --scan-points')
+    return dict(scan_mode='intramolecular', scan_direction='break' if bonded else 'form',
+                atoms=list(map(int, atoms)), initially_bonded=bool(bonded),
+                start_distance_angstrom=start, proposed_end_distance_angstrom=proposed,
+                end_distance_angstrom=end, n_points=count, intervals=count - 1,
+                step_angstrom=abs(end - start) / (count - 1),
+                bond_threshold_angstrom=TARGET_CONTACT_FACTOR * radii,
+                safe_separation_threshold_angstrom=INTRAMOLECULAR_SAFE_FACTOR * radii,
+                endpoint_source='automatic' if scan_end is None else 'user_explicit',
+                connectivity_rule='distance < 1.3 * sum of covalent radii')
 
 
 def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
@@ -81,6 +117,21 @@ def _fragment_signature(molecule):
 def scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms, orientations,
                         qc_params, scan_end=None, scan_step=None, scan_points=None):
     """Scientific request fields that can be validated without sampling or jobs."""
+    if fragment_b is None:
+        if orientations != 1:
+            raise ValueError('Intramolecular scans use the input geometry and require one orientation')
+        plan = intramolecular_scan_plan(fragment_a, atoms, scan_end, scan_step, scan_points)
+        total = qc_params.get('total_multiplicity')
+        if total is not None and total != fragment_a.multiplicity:
+            raise ValueError('Intramolecular total multiplicity must equal the input molecule multiplicity')
+        return dict(schema_version=3, scan_mode='intramolecular',
+                    inputs={'molecule': str(input_a)}, fragments=[_fragment_signature(fragment_a)],
+                    atoms_local=list(map(int, atoms)), atoms_absolute=list(map(int, atoms)),
+                    target_symbols=[fragment_a.atoms_list[int(i)] for i in atoms],
+                    qc_params=dict(qc_params, total_multiplicity=fragment_a.multiplicity,
+                                   total_multiplicity_source='input_molecule'), orientations=1,
+                    scan_end=scan_end, scan_step=scan_step, scan_points=scan_points,
+                    intramolecular_plan=plan)
     local_i, local_j = map(int, atoms)
     total_multiplicity, spin_source = _resolve_total_multiplicity(
         fragment_a, fragment_b, qc_params.get("total_multiplicity"), warn=False
@@ -301,7 +352,9 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     """Run a scan, optionally continuing through a named reaction-path stage.
 
     ``through=None`` preserves the original Python scan-plus-relaxation API.
-    Explicit ``through="scan"`` performs only the constrained scan.
+    Explicit ``through="scan"`` performs only the constrained scan for two
+    fragments. Single-molecule scans always release the constraint and identify
+    the relaxed product; later stages require an identified changed product.
     """
     from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
     from pyar.backends.bond_scan import run_bond_scan, load_bond_scan_result
@@ -335,46 +388,75 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         raise ValueError("scan points must be an integer >= 2")
     if scan_step is not None and scan_points is not None:
         raise ValueError("--scan-step and --scan-points cannot be used together")
-    fragment_a = Molecule.from_xyz(input_a)
-    fragment_b = Molecule.from_xyz(input_b)
-    for fragment, suffix in ((fragment_a, "a"), (fragment_b, "b")):
-        fragment.charge = int(qc_params.get(f"charge_{suffix}", fragment.charge))
-        fragment.multiplicity = int(qc_params.get(f"multiplicity_{suffix}", fragment.multiplicity))
-        fragment.scftype = qc_params.get(f"scftype_{suffix}", fragment.scftype)
-    if len(atoms) != 2 or any(isinstance(value, bool) or int(value) != value for value in atoms):
-        raise ValueError("exactly two integer fragment-local atom indices are required")
-    local_i, local_j = map(int, atoms)
-    absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
-    if local_j >= fragment_b.number_of_atoms:
-        raise ValueError(f"Atom index {local_j} is out of range for fragment B containing {fragment_b.number_of_atoms} atoms (valid 0..{fragment_b.number_of_atoms - 1}).")
-    merged = fragment_a.merged_with(fragment_b)
-    requested_total = qc_params.get("total_multiplicity")
-    recorded_spin_source = qc_params.get("total_multiplicity_source")
-    heuristic_total = merged.multiplicity
-    if recorded_spin_source == "historical_heuristic":
-        if requested_total is not None and int(requested_total) != heuristic_total:
-            raise ValueError("recorded historical total multiplicity does not match the fragment heuristic")
-        total_multiplicity, spin_source = heuristic_total, "historical_heuristic"
-    else:
-        total_multiplicity, spin_source = _resolve_total_multiplicity(
-            fragment_a, fragment_b, requested_total
-        )
-    qc_params["total_multiplicity"] = total_multiplicity
-    qc_params["total_multiplicity_source"] = spin_source
-    target_radii = merged.covalent_radius[absolute_i] + merged.covalent_radius[absolute_j]
-    default_scan_end = DEFAULT_SCAN_END_FACTOR * target_radii
-    try:
-        reactant_identity = separated_reactant_identity(fragment_a, fragment_b)
+    intramolecular = input_b is None
+    if intramolecular:
+        if int(orientations) != 1:
+            raise ValueError('Intramolecular scans require one orientation; no fragment placement is performed')
+        fragment_a = Molecule.from_xyz(input_a)
+        fragment_b = None
+        fragment_a.charge = int(qc_params.get('charge_a', qc_params.get('charge', fragment_a.charge)))
+        fragment_a.multiplicity = int(qc_params.get('multiplicity_a', qc_params.get('multiplicity', fragment_a.multiplicity)))
+        fragment_a.scftype = qc_params.get('scftype_a', qc_params.get('scftype', fragment_a.scftype))
+        fragment_a.fragments = [list(range(fragment_a.number_of_atoms))]
+        intra_plan = intramolecular_scan_plan(fragment_a, atoms, scan_end, scan_step, scan_points)
+        absolute_i, absolute_j = map(int, atoms)
+        local_i, local_j = absolute_i, absolute_j
+        total_multiplicity, spin_source = fragment_a.multiplicity, 'input_molecule'
+        if qc_params.get('total_multiplicity') not in (None, total_multiplicity):
+            raise ValueError('Intramolecular total multiplicity must equal the input molecule multiplicity')
+        qc_params.update(total_multiplicity=total_multiplicity, total_multiplicity_source=spin_source)
+        target_radii = fragment_a.covalent_radius[absolute_i] + fragment_a.covalent_radius[absolute_j]
+        default_scan_end = intra_plan['end_distance_angstrom']
+        # A product cannot be identified against an unknown input. Fail before
+        # allocating the run or starting an expensive constrained scan.
+        reactant_identity = molecule_identity_from_xyz(input_a)
+        if not reactant_identity or not reactant_identity.get('inchi'):
+            raise ValueError('Intramolecular input identity is unavailable; no scan was started')
         reactant_identity_error = None
-    except Exception as exc:
-        reactant_identity = None
-        reactant_identity_error = str(exc)
-    orientation_items = _make_orientations(
-        fragment_a, fragment_b, int(orientations), local_i, local_j
-    )
-    for _, orientation, _ in orientation_items:
-        if orientation is not None:
-            orientation.multiplicity = total_multiplicity
+        orientation = fragment_a.copy()
+        orientation.name = orientation.title = 'orientation_000'
+        orientation_items = [(0, orientation, None)]
+    else:
+        fragment_a = Molecule.from_xyz(input_a)
+        fragment_b = Molecule.from_xyz(input_b)
+        for fragment, suffix in ((fragment_a, "a"), (fragment_b, "b")):
+            fragment.charge = int(qc_params.get(f"charge_{suffix}", fragment.charge))
+            fragment.multiplicity = int(qc_params.get(f"multiplicity_{suffix}", fragment.multiplicity))
+            fragment.scftype = qc_params.get(f"scftype_{suffix}", fragment.scftype)
+        if len(atoms) != 2 or any(isinstance(value, bool) or int(value) != value for value in atoms):
+            raise ValueError("exactly two integer fragment-local atom indices are required")
+        local_i, local_j = map(int, atoms)
+        absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
+        if local_j >= fragment_b.number_of_atoms:
+            raise ValueError(f"Atom index {local_j} is out of range for fragment B containing {fragment_b.number_of_atoms} atoms (valid 0..{fragment_b.number_of_atoms - 1}).")
+        merged = fragment_a.merged_with(fragment_b)
+        requested_total = qc_params.get("total_multiplicity")
+        recorded_spin_source = qc_params.get("total_multiplicity_source")
+        heuristic_total = merged.multiplicity
+        if recorded_spin_source == "historical_heuristic":
+            if requested_total is not None and int(requested_total) != heuristic_total:
+                raise ValueError("recorded historical total multiplicity does not match the fragment heuristic")
+            total_multiplicity, spin_source = heuristic_total, "historical_heuristic"
+        else:
+            total_multiplicity, spin_source = _resolve_total_multiplicity(
+                fragment_a, fragment_b, requested_total
+            )
+        qc_params["total_multiplicity"] = total_multiplicity
+        qc_params["total_multiplicity_source"] = spin_source
+        target_radii = merged.covalent_radius[absolute_i] + merged.covalent_radius[absolute_j]
+        default_scan_end = DEFAULT_SCAN_END_FACTOR * target_radii
+        try:
+            reactant_identity = separated_reactant_identity(fragment_a, fragment_b)
+            reactant_identity_error = None
+        except Exception as exc:
+            reactant_identity = None
+            reactant_identity_error = str(exc)
+        orientation_items = _make_orientations(
+            fragment_a, fragment_b, int(orientations), local_i, local_j
+        )
+        for _, orientation, _ in orientation_items:
+            if orientation is not None:
+                orientation.multiplicity = total_multiplicity
     orientation_definitions = [
         {"orientation": index,
          "molecule": None if orientation is None else _fragment_signature(orientation),
@@ -411,11 +493,16 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
         request_temp.replace(request_path)
     if _layout is not None:
-        _layout.initialize((input_a, input_b))
+        _layout.initialize((input_a,) if intramolecular else (input_a, input_b))
     results = []
     def save_result(directory, result):
         result.setdefault("total_multiplicity", qc_params["total_multiplicity"])
         result.setdefault("total_multiplicity_source", qc_params["total_multiplicity_source"])
+        if intramolecular and result.get('status') == 'scan_success_relax_success':
+            result['discovery_status'] = ('new_product' if result.get('product_identity_changed') is True else
+                                          'no_new_product' if result.get('product_identity_changed') is False else
+                                          'identity_unresolved')
+            result.setdefault('reactant_product_connection_confirmed', False)
         if result.get("status") == "scan_success_relax_success":
             result["completed_artifact_hashes"] = {
                 str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -492,12 +579,18 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             scan = (load_orca_bond_scan_result if software == "orca" else load_bond_scan_result)(
                 orientation, request_model, scan_dir,
                 **({"publish": False} if committed is not None and software == "orca" else {}))
+        if scan is not None and scan.success:
+            from pyar.recovery.stages import scan_diagnostic
+            if scan_diagnostic(orientation, request_model, scan)['stage_gate'] != 'passed':
+                scan.success = False
+                scan.status = 'scan_validation_failed'
         if committed is not None and (scan is None or not scan.success):
             raise ValueError('Committed scan no longer passes native scan validation')
         if scan is None or not scan.success:
             try:
-                scan = (run_orca_bond_scan if software == "orca" else run_bond_scan)(
-                    orientation, request_model, scan_dir, qc_params)
+                from pyar.recovery.stages import run_scan_once
+                scan = run_scan_once(run_orca_bond_scan if software == "orca" else run_bond_scan,
+                                     orientation, request_model, scan_dir, qc_params)
             except BackendExecutionError:
                 raise
             except Exception as exc:
@@ -510,6 +603,11 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         result = {"orientation": index, "status": "scan_failed", "scan_status": scan.status,
                   "target_distance_start_angstrom": start_distance, "target_distance_scan_end_angstrom": end_distance,
                   "scan_points": n_points, "scan_input": str(scan.input_path), "scan_output": str(scan.output_path)}
+        from pyar.recovery.stages import scan_diagnostic
+        result['optimization_diagnostics'] = scan_diagnostic(orientation, request_model, scan)
+        if intramolecular:
+            result.update(intra_plan)
+            result['orientation'] = index
         if not scan.success:
             save_result(directory, result)
             results.append(result)
@@ -537,7 +635,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             save_result(directory, result)
             results.append(result)
             continue
-        if through is not None and not characterize_unique_products:
+        if through is not None and not characterize_unique_products and not intramolecular:
             result["status"] = "scan_success"
             result["requested_through"] = through
             save_result(directory, result)
@@ -596,6 +694,12 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                 result["target_distance_relaxed_angstrom"]
                 < result["target_contact_threshold_angstrom"]
             )
+            if intramolecular:
+                target_present = result['target_bond_present_after_relaxation']
+                result['target_change_achieved'] = bool(
+                    not target_present and result['target_distance_relaxed_angstrom'] >=
+                    intra_plan['safe_separation_threshold_angstrom']
+                    if intra_plan['scan_direction'] == 'break' else target_present)
             result["reactant_identity"] = reactant_identity
             result["product_identity_changed"] = None
             if reactant_identity is None:
@@ -630,10 +734,16 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             )
             for result in results:
                 if result.get("product_role") == "representative":
-                    result["continuation_status"] = characterization.get(
-                        result["product_id"], {}).get("status", "not_started")
+                    route = characterization.get(result['product_id'], {})
+                    result["continuation_status"] = route.get("status", "not_started")
+                    if intramolecular:
+                        result['reactant_product_connection_confirmed'] = bool(
+                            route.get('path_result', {}).get('reactant_product_connection_confirmed', False))
                     (root / f"orientation_{int(result['orientation']):03d}" / "result.json").write_text(
                         json.dumps(result, indent=2, sort_keys=True, default=str))
+                elif intramolecular:
+                    result['continuation_status'] = ('not_started_no_new_product'
+                        if result.get('product_identity_changed') is False else 'blocked_by_product_identity')
         _layout.manifest(results)
     (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
     with (root / "summary.csv").open("w", newline="") as handle:
@@ -644,6 +754,8 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         complete = all(row.get("status") in {"scan_success_relax_success", "scan_success"}
                        for row in results)
         index = json.loads((root / "products/index.json").read_text())
+        if intramolecular:
+            complete = complete and all(row.get('identity_status') == 'success' for row in results)
         complete = complete and all(item.get("characterization_status") in {
                                         "reaction_connected", "path_complete_connection_unconfirmed"}
                                     for item in index.get("products", []))
@@ -653,6 +765,8 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"} for row in results)
     else:
         complete = all(row.get("continuation_status") == "complete" for row in results)
+    if intramolecular:
+        complete = complete and all(row.get('identity_status') == 'success' for row in results)
     return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
             "status": "complete" if complete else "failed", "requested_through": through,
             "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)
@@ -665,6 +779,8 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     """Route existing v1 scans unchanged and guard fresh v2 scan publication."""
     from pyar.persistence import detect_version, RunLock
     from pyar.workflows.scan_layout import ScanLayout
+    if input_b is None and through not in (None, 'scan'):
+        characterize_unique_products = True
     root = Path(output_dir).resolve()
     def legacy(path):
         validate_scan_restart(path, {})

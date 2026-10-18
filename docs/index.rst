@@ -211,7 +211,7 @@ The fastest way to verify a local install is:
    reaction_optimization
    optimization_diagnostics
    optimization_recovery_safe
-   optimization_recovery_r5_plan
+   optimization_recovery_status
    api
    reference
    generated_api
@@ -228,3 +228,9 @@ The fastest way to verify a local install is:
    migration_2_0
    structure_identity_and_selection
    modern_cli
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Separate follow-up projects
+
+   optimization_recovery_r5_plan

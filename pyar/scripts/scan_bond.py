@@ -13,19 +13,30 @@ from pyar.workflows.scan_bond import run_scan_bond
 from pyar.persistence import LockError
 
 
+class ScanArgumentParser(argparse.ArgumentParser):
+    """Keep the legacy two-fragment -N requirement conditional on input count."""
+    def parse_args(self, args=None, namespace=None):
+        parsed = super().parse_args(args, namespace)
+        if len(parsed.inputs) not in (1, 2):
+            self.error('Provide one molecule or two fragment XYZ files')
+        if self.legacy and len(parsed.inputs) == 2 and parsed.orientations is None:
+            self.error('-N/--number-of-orientations is required for two fragments')
+        return parsed
+
+
 def build_parser(*, modern=False, prog=None):
-    parser = argparse.ArgumentParser(prog=prog, description="Relaxed bond scan with optional NEB, TS, frequency, IRC and endpoint validation.")
-    parser.add_argument("inputs", nargs=2, metavar="XYZ", help="fragment A and fragment B XYZ files")
+    parser = ScanArgumentParser(prog=prog, description="Relaxed bond scan with optional NEB, TS, frequency, IRC and endpoint validation.")
+    parser.legacy = not modern
+    parser.add_argument("inputs", nargs='+', metavar="XYZ", help="one molecule for an intramolecular scan, or fragment A and B XYZ files")
     parser.add_argument("--atoms", nargs=2, type=int, required=True, metavar=("I", "J"),
-                        help="0-based atom indices local to fragments A and B")
+                        help="0-based atom indices in the molecule, or local to fragments A and B")
     if modern:
-        from pyar.data.defualt_parameters import values
-        parser.add_argument("-N", "--orientations", type=int, default=values['how_many_orientations'])
+        parser.add_argument("-N", "--orientations", type=int, default=None)
         parser.add_argument("--backend", dest="software", type=lambda name: normalize_backend_name(name.lower()),
                             choices=supported_geometry_backends())
         parser.add_argument("--check", action="store_true", help="Validate the complete requested path without calculation")
     else:
-        parser.add_argument("-N", "--number-of-orientations", type=int, required=True, dest="orientations")
+        parser.add_argument("-N", "--number-of-orientations", type=int, default=None, dest="orientations")
         parser.add_argument("--software", type=str.lower, choices=supported_geometry_backends(), default="orca")
     parser.add_argument("--method", help="electronic-structure method (ORCA default: BP86)")
     parser.add_argument("--xtb-model", choices=("gxtb", "gfn2"), default=None if modern else "gfn2",
@@ -87,6 +98,19 @@ def modern_main(argv=None, *, prog=None):
 def main(argv=None, *, modern=False, prog=None):
     parser = build_parser(modern=modern, prog=prog)
     args = parser.parse_args(argv)
+    if len(args.inputs) not in (1, 2):
+        parser.error('Provide one molecule or two fragment XYZ files')
+    intramolecular = len(args.inputs) == 1
+    if args.orientations is None:
+        if intramolecular:
+            args.orientations = 1
+        elif modern:
+            from pyar.data.defualt_parameters import values
+            args.orientations = values['how_many_orientations']
+        else:
+            parser.error('-N/--number-of-orientations is required for two fragments')
+    if intramolecular and args.orientations != 1:
+        parser.error('Intramolecular scans preserve the input geometry; --orientations must be 1')
     if modern and args.software is None:
         parser.error("A backend is required.\nExample: pyar scan-bond A.xyz B.xyz --atoms 1 2 --backend xtb")
     if modern and args.xtb_model is not None and args.software != 'xtb':
@@ -132,11 +156,11 @@ def main(argv=None, *, modern=False, prog=None):
         parser.error(str(exc))
     if args.characterize_unique_products and args.through == "scan":
         parser.error("--characterize-unique-products requires --through neb or a later stage")
-    if args.characterize_unique_products and args.interpolation == "geodesic":
+    if (args.characterize_unique_products or intramolecular and args.through != 'scan') and args.interpolation == "geodesic":
         parser.error("--characterize-unique-products currently supports linear or idpp path-seed refinement")
     if not all(Path(path).is_file() for path in args.inputs):
-        parser.error("both input XYZ files must exist")
-    if modern:
+        parser.error("all input XYZ files must exist")
+    if modern or intramolecular:
         from pyar.scan_request import validate_inputs
         try:
             molecules = validate_inputs(args)
@@ -159,21 +183,32 @@ def main(argv=None, *, modern=False, prog=None):
               "scftype_b": pair_value(args.scftype, "scftype", 1)}
     if args.software == "xtb":
         params["xtb_model"] = args.xtb_model
+    if intramolecular:
+        for key in ('charge_b', 'multiplicity_b', 'scftype_b'):
+            params.pop(key)
     if modern:
         from pyar.scan_request import preflight_scan
         try:
             from pyar.workflows.scan_bond import scan_request_fields, validate_scan_restart
-            request_fields = scan_request_fields(*args.inputs, *molecules, args.atoms,
+            request_fields = scan_request_fields(args.inputs[0], None if intramolecular else args.inputs[1],
+                                                  molecules[0], None if intramolecular else molecules[1], args.atoms,
                                                   args.orientations, params, args.scan_end,
                                                   args.scan_step, args.scan_points)
             validate_scan_restart(args.output, request_fields)
             requirements = preflight_scan(args, params, molecules)
         except (ValueError, ImportError, OSError, RuntimeError) as exc:
             parser.error(f"Preflight failed for: scan-bond\n{exc}\nNo calculations were started.")
-        prepared_run(args, request={'scan': vars(args), 'continuation': reaction_options},
+        prepared_run(args, request={'scan': vars(args), 'continuation': reaction_options,
+                                    **({'scan_plan': request_fields['intramolecular_plan']} if intramolecular else {})},
                      backend=params, molecules=molecules, requirements=requirements, outputs=[args.output])
         print(f"Preflight: scan-bond; backend: {args.software}; orientations: {args.orientations}; through: {args.through}")
-        print(f"Inputs: {args.inputs[0]}, {args.inputs[1]}; bond: A[{args.atoms[0]}] -> B[{args.atoms[1]}]")
+        if intramolecular:
+            plan = request_fields['intramolecular_plan']
+            print(f"Intramolecular {plan['scan_direction']}: {args.inputs[0]}; atoms {args.atoms}")
+            print(f"Distance: {plan['start_distance_angstrom']:.4f} -> {plan['end_distance_angstrom']:.4f} A; "
+                  f"{plan['n_points']} points, {plan['step_angstrom']:.4f} A per interval; then free relaxation")
+        else:
+            print(f"Inputs: {args.inputs[0]}, {args.inputs[1]}; bond: A[{args.atoms[0]}] -> B[{args.atoms[1]}]")
         print("Requirements satisfied: " + ", ".join(requirements))
         if args.check:
             print("Ready to run. --check specified; no calculations were performed.")
@@ -181,7 +216,7 @@ def main(argv=None, *, modern=False, prog=None):
     if modern:
         started_run()
     try:
-        result = run_scan_bond(args.inputs[0], args.inputs[1], args.atoms, args.orientations,
+        result = run_scan_bond(args.inputs[0], None if intramolecular else args.inputs[1], args.atoms, args.orientations,
                              params, args.output, args.scan_end, args.scan_step, args.scan_points,
                              args.through, reaction_options,
                              **({"characterize_unique_products": True} if args.characterize_unique_products else {}),

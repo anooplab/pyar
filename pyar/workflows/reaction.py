@@ -61,7 +61,8 @@ saved_product_identities = {}
 def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
     """Run one legacy reaction optimization and persist observational ORE data."""
     status, _diagnostic, _report = optimize_workflow_once(
-        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise
+        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise,
+        allow_incomplete=workflow_role != 'reaction_unbiased_relaxation',
     )
     return status
 

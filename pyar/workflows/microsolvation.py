@@ -179,7 +179,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                     try:
                         status, result, report = optimize_workflow_once(
                             candidate, parameters,
-                            workflow_role=f"microsolvation_{stage}")
+                            workflow_role=f"microsolvation_{stage}", allow_incomplete=True)
                     except Exception as exc:
                         report = getattr(exc, 'ore_diagnostic_path', None)
                         entry = {"name": candidate.name, "stage": stage,
@@ -193,6 +193,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                              "legacy_status": str(status),
                              "converged": result.converged,
                              "workflow_accepted": result.workflow_accepted,
+                             "owner_decision": candidate.optimization_owner_decision,
                              "diagnostic_path": relative_diagnostic(report)}
                     candidate_diagnostics.append(entry)
                     diagnostic_records.append(entry)

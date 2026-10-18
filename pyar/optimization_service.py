@@ -8,6 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
+import logging
 
 from pyar.persistence import RunLock, LockError
 from pyar.backend_capabilities import optimization_diagnostic_capabilities
@@ -54,8 +55,8 @@ def inspect_optimization(request, directory, *, execution=None, exception=None):
                    and execution.request_fingerprint == request.request_fingerprint
                    and execution.artifacts == artifacts)
         if _unsupported_request(request):
-            return _invalid(FailureCode.BACKEND_UNSUPPORTED, 'R1 pilot does not validate selected route, target or physical controls',
-                            execution=execution, exception=exception, request=request)
+            from pyar.recovery.diagnose_only import diagnose_only
+            return diagnose_only(request, root, artifacts, execution=execution, exception=exception)
         known = {ref.path for ref in artifacts}
         def path(relative):
             result = safe_path(root, relative)
@@ -157,7 +158,8 @@ def optimize_once(molecule, qc_params):
         return _invalid(FailureCode.EXEC_FAILED, str(exc), exception=original or exc, request=request)
 
 
-def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None):
+def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None,
+                           allow_incomplete=False):
     """Run a workflow-owned optimization once and persist independent ORE evidence.
 
     The owning workflow continues to decide whether a legacy incomplete status
@@ -168,12 +170,16 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
 
     if not isinstance(workflow_role, str) or not workflow_role.strip():
         raise ValueError('workflow_role must be a nonempty string')
+    if type(allow_incomplete) is not bool:
+        raise ValueError('allow_incomplete must be an explicit Boolean')
+    qc_params = dict(qc_params)
+    workflow_recovery = qc_params.pop('workflow_recovery', None)
     request_error = None
     try:
         request = OptimizationRequest.from_molecule(molecule, qc_params)
         from dataclasses import replace
         request = replace(request, workflow_role=workflow_role)
-    except (ValueError, TypeError, KeyError, AttributeError) as exc:
+    except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
         # Preserve legacy workflow behavior for duck-typed compatibility objects;
         # their incomplete request metadata cannot be treated as validated.
         request, request_error = None, exc
@@ -182,15 +188,41 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
     fresh = not execution_root.exists() and not execution_root.is_symlink()
     original = None
     status = None
+    recovery_report = None
     started = perf_counter()
     try:
         with capture_processes() as processes:
             try:
-                status = (optimizer or optimiser.optimise)(molecule, qc_params)
-            except BaseException as exc:
+                if workflow_recovery is not None:
+                    from pyar.recovery.controller import run_recovery
+                    from pyar.recovery.policy import RecoveryPolicy
+                    if not isinstance(workflow_recovery, dict):
+                        raise ValueError('workflow_recovery must contain explicit bounded policy settings')
+                    controls = dict(workflow_recovery)
+                    resume = controls.pop('resume', False)
+                    if type(resume) is not bool:
+                        raise ValueError('workflow_recovery.resume must be Boolean')
+                    policy = RecoveryPolicy(**controls)
+                    if policy.mode == 'off':
+                        raise ValueError('Omit workflow_recovery to retain the legacy execution path')
+                    recovery_report = run_recovery(molecule, dict(qc_params, workflow_role=workflow_role),
+                                                   policy, resume=resume)
+                    recovered = recovery_report.result
+                    status = False
+                    if recovered.converged and recovered.accepted_frame is not None:
+                        import numpy as np
+                        frame = recovered.accepted_frame
+                        molecule.coordinates = np.array(frame.coordinates_angstrom)
+                        molecule.energy = frame.physical_energy_hartree
+                        status = True
+                else:
+                    status = (optimizer or optimiser.optimise)(molecule, qc_params)
+            except Exception as exc:
                 original = exc
         elapsed = max(0., perf_counter() - started)
-        if request is None:
+        if recovery_report is not None:
+            result = recovery_report.result
+        elif request is None:
             result = _invalid(FailureCode.INVALID_RESULT,
                 'Workflow optimization request could not be normalized: ' + str(request_error),
                 exception=original or request_error)
@@ -200,9 +232,11 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
                 tuple(processes), fresh, status, elapsed_seconds=elapsed)
             result = inspect_optimization(request, execution_root, execution=execution,
                                           exception=original)
-    except BaseException as exc:
+    except Exception as exc:
         result = _invalid(FailureCode.INVALID_RESULT, str(exc), exception=original or exc,
                           request=request)
+    from pyar.recovery.workflow import acceptance
+    result, decision = acceptance(result, status, allow_incomplete=allow_incomplete)
     record = {
         'schema_version': 1,
         'workflow_role': workflow_role,
@@ -210,18 +244,23 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
         'request_error': None if request_error is None else str(request_error),
         'legacy_status': optimiser._status_label(status),
         'result': result.to_dict(),
+        'owner_decision': decision,
+        'recovery': None if recovery_report is None else recovery_report.to_dict(),
     }
     report = Path.cwd() / '.pyar_optimization_diagnostics' / f'{uuid4().hex}.json'
     try:
         write_json(report, record, overwrite=False)
-    except BaseException:
-        if original is not None:
-            raise original
-        raise
+    except Exception as exc:
+        logging.getLogger(__name__).warning('Could not persist optimization diagnostics: %s', exc)
+        report = None
     if original is not None:
         try:
-            original.ore_diagnostic_path = str(report)
+            original.ore_diagnostic_path = str(report) if report is not None else None
         except Exception:
             pass
         raise original
+    try:
+        molecule.optimization_owner_decision = decision
+    except (AttributeError, TypeError):
+        pass
     return status, result, report

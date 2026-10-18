@@ -10,6 +10,25 @@ from pyar.core.molecule import Molecule
 from pyar.workflows import conformer
 
 
+def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch):
+    records = [conformer.ConformerRecord(1, i, float(i), 'converged', 'mmff',
+        name=f'candidate_{i}', molecule=Molecule(['H'], [[0., 0., 0.]], name=f'candidate_{i}'))
+        for i in range(2)]
+    calls = []
+    def run(molecule, settings):
+        calls.append(molecule.name)
+        if molecule.name == 'candidate_0':
+            raise RuntimeError('one candidate failed')
+        molecule.energy = -1.
+        return True
+    monkeypatch.setattr(conformer, 'optimise', run)
+    selected = conformer._refine_with_backend(records, tmp_path, {'software': 'xtb'})
+    assert calls == ['candidate_0', 'candidate_1']
+    assert selected == [records[1]]
+    assert records[0].backend_validation_status == 'FAILED_FINAL'
+    assert records[0].backend_diagnostic_path is not None
+
+
 class ConformerWorkflowTests(unittest.TestCase):
     def _molecule_factory(self):
         def build_molecule(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):

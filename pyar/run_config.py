@@ -154,6 +154,9 @@ def _planned_stages(workflow, values):
     if workflow == "scan-bond":
         through = values.get("through", "scan")
         discovery = ("Generate orientations", "Run relaxed bond scans", "Identify relaxed scan products")
+        if len(values.get('inputs', [])) == 1:
+            discovery = ('Plan intramolecular bond formation or breaking', 'Run the relaxed distance scan',
+                         'Relax the scanned endpoint without constraints', 'Identify the relaxed product')
         if through == "scan":
             return discovery
         path_last = _SCAN_THROUGH_LAST_STAGE.get(through)

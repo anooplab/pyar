@@ -385,20 +385,22 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
         final_path = directory / "final_scan.xyz"
         input_path.write_text("scan")
         output_path.write_text("normal")
+        scan_frame[1, 0] = request.end_distance_angstrom
+        first_distance = request.start_distance_angstrom
         write_xyz(molecule.atoms_list, scan_frame, final_path)
         trajectory.write_text(
-            "2\nframe 1\nH 0 0 0\nH 1.2 0 0\n"
-            "2\nframe 2\nH 0 0 0\nH 1.0 0 0\n"
+            f"2\nframe 1\nH 0 0 0\nH {first_distance} 0 0\n"
+            f"2\nframe 2\nH 0 0 0\nH {request.end_distance_angstrom} 0 0\n"
         )
         return OrcaBondScanResult(True, trajectory, final_path, scan_frame,
                                   input_path, output_path, "success",
                                   frames=[
-                                      (["H", "H"], np.asarray([[0., 0., 0.], [1.2, 0., 0.]]), "frame 1"),
+                                      (["H", "H"], np.asarray([[0., 0., 0.], [first_distance, 0., 0.]]), "frame 1"),
                                       (["H", "H"], scan_frame, "frame 2"),
                                   ],
                                   profile=[
-                                      {"target_distance_angstrom": 1.2, "energy_hartree": -1.0},
-                                      {"target_distance_angstrom": 1.0, "energy_hartree": -0.9},
+                                      {"target_distance_angstrom": first_distance, "energy_hartree": -1.0},
+                                      {"target_distance_angstrom": request.end_distance_angstrom, "energy_hartree": -0.9},
                                   ])
 
     scan_calls = 0
@@ -492,6 +494,7 @@ def test_restart_reuses_completed_scan_after_relaxation_failure(tmp_path, monkey
     scan_frame = np.asarray([[0., 0., 0.], [1.0, 0., 0.]])
     scan_calls = 0
     relax_calls = 0
+    saved_scan = []
 
     def fake_scan(molecule, request, directory, qc_params):
         nonlocal scan_calls
@@ -503,19 +506,23 @@ def test_restart_reuses_completed_scan_after_relaxation_failure(tmp_path, monkey
         final_path = directory / "final_scan.xyz"
         input_path.write_text("scan")
         output_path.write_text("normal")
+        scan_frame[1, 0] = request.end_distance_angstrom
+        first_distance = request.start_distance_angstrom
         write_xyz(molecule.atoms_list, scan_frame, final_path)
         trajectory.write_text("2\nframe\nH 0 0 0\nH 1 0 0\n")
         frames = [
-            (["H", "H"], np.asarray([[0., 0., 0.], [1.5, 0., 0.]]), "frame 1"),
+            (["H", "H"], np.asarray([[0., 0., 0.], [first_distance, 0., 0.]]), "frame 1"),
             (["H", "H"], scan_frame, "frame 2"),
         ]
         profile = [
-            {"target_distance_angstrom": 1.5, "energy_hartree": -1.1},
-            {"target_distance_angstrom": 1.0, "energy_hartree": -1.0},
+            {"target_distance_angstrom": first_distance, "energy_hartree": -1.1},
+            {"target_distance_angstrom": request.end_distance_angstrom, "energy_hartree": -1.0},
         ]
-        return OrcaBondScanResult(True, trajectory, final_path, scan_frame,
+        result = OrcaBondScanResult(True, trajectory, final_path, scan_frame,
                                   input_path, output_path, "success",
                                   frames=frames, profile=profile)
+        saved_scan.append(result)
+        return result
 
     def fake_optimise(molecule, qc_params):
         nonlocal relax_calls
@@ -539,20 +546,7 @@ def test_restart_reuses_completed_scan_after_relaxation_failure(tmp_path, monkey
     output = tmp_path / "scan_bond"
     first = run_scan_bond(a, b, (0, 0), 1, params, output, scan_points=2)
     assert first["results"][0]["status"] == "scan_success_relax_failed"
-    completed_scan = OrcaBondScanResult(
-        True, output / "orientation_000" / "scan" / "scan_trajectory.xyz",
-        output / "orientation_000" / "scan" / "final_scan.xyz", scan_frame,
-        output / "orientation_000" / "scan" / "scan.inp",
-        output / "orientation_000" / "scan" / "scan.out", "success",
-        frames=[
-            (["H", "H"], np.asarray([[0., 0., 0.], [1.5, 0., 0.]]), "frame 1"),
-            (["H", "H"], scan_frame, "frame 2"),
-        ],
-        profile=[
-            {"target_distance_angstrom": 1.5, "energy_hartree": -1.1},
-            {"target_distance_angstrom": 1.0, "energy_hartree": -1.0},
-        ],
-    )
+    completed_scan = saved_scan[0]
     monkeypatch.setattr(scan_workflow, "load_orca_bond_scan_result",
                         lambda *args: completed_scan)
     second = run_scan_bond(a, b, (0, 0), 1, params, output, scan_points=2)

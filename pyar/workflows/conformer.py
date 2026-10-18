@@ -896,12 +896,23 @@ def _refine_with_backend(records, run_directory, qc_params, *, v2=False):
     with _working_directory(backend_directory):
         for record in records:
             molecule = record.molecule.copy()
-            status, diagnostic, diagnostic_path = optimize_workflow_once(
-                molecule, qc_params, workflow_role="conformer_refinement", optimizer=optimise
-            )
+            try:
+                status, diagnostic, diagnostic_path = optimize_workflow_once(
+                    molecule, qc_params, workflow_role="conformer_refinement", optimizer=optimise,
+                    allow_incomplete=True,
+                )
+            except Exception as exc:
+                record.backend_status = 'failed'
+                record.backend_validation_status = 'FAILED_FINAL'
+                diagnostic_path = getattr(exc, 'ore_diagnostic_path', None)
+                record.backend_diagnostic_path = (
+                    Path(diagnostic_path).relative_to(run_directory).as_posix()
+                    if diagnostic_path is not None else None)
+                continue
             record.backend_status = _status_label(status)
             record.backend_validation_status = diagnostic.status.value
-            record.backend_diagnostic_path = Path(diagnostic_path).relative_to(run_directory).as_posix()
+            record.backend_diagnostic_path = (Path(diagnostic_path).relative_to(run_directory).as_posix()
+                                              if diagnostic_path is not None else None)
             backend_result = backend_directory / f"job_{molecule.name}" / f"result_{molecule.name}.xyz"
             if backend_result.is_file():
                 record.backend_path = str(backend_result)

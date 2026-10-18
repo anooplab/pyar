@@ -365,3 +365,17 @@ def optimization_recovery_capabilities(software, optimizer='native'):
     if normalize_backend_name(software) == 'xtb' and optimizer == 'geometric':
         return frozenset({'accepted_cycle_continuation', 'guided_trust_hessian_restart'})
     return frozenset()
+
+
+def optimization_diagnostic_mode(software, optimizer='native'):
+    """Distinguish full pilot parsing from negative-evidence-only diagnosis.
+
+    Diagnose-only never supplies an accepted frame or permission to recover.
+    This includes staged/composite methods whose intermediate stage success is
+    insufficient to certify the final objective.
+    """
+    if optimization_diagnostic_capabilities(software, optimizer):
+        return 'parsed'
+    if normalize_backend_name(software) in BACKEND_CAPABILITIES:
+        return 'diagnose_only'
+    return 'unsupported'

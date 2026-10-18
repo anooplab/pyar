@@ -24,7 +24,8 @@ class ScanLayout:
             return
         from pyar.growth.layout_v2 import copy_result
         refs = []
-        for name, source in zip(('fragment_a', 'fragment_b'), inputs):
+        names = ('molecule',) if len(inputs) == 1 else ('fragment_a', 'fragment_b')
+        for name, source in zip(names, inputs):
             relative = f'inputs/{name}.xyz'
             copy_result(Path(source), self.layout.path(relative))
             refs.append(ArtifactRef.capture(self.root, relative, 'input').to_dict())
@@ -172,8 +173,8 @@ class ScanLayout:
         _sort_key, representative, _result, _source, representative_score = min(scored)
         orientation_ids = [item[0] for item in members]
         target_statuses = sorted({
-            "target" if result.get('target_bond_present_after_relaxation') is True else
-            "off_target" if result.get('target_bond_present_after_relaxation') is False else "unknown"
+            "target" if result.get('target_change_achieved', result.get('target_bond_present_after_relaxation')) is True else
+            "off_target" if result.get('target_change_achieved', result.get('target_bond_present_after_relaxation')) is False else "unknown"
             for _index, result, _source in members
         })
         target_status = target_statuses[0] if len(target_statuses) == 1 else "mixed"
@@ -203,8 +204,8 @@ class ScanLayout:
             "alternative_orientations": [value for value in orientation_ids if value != representative],
             "target_status": target_status,
             "target_status_by_orientation": {
-                str(index): ("target" if result.get('target_bond_present_after_relaxation') is True else
-                             "off_target" if result.get('target_bond_present_after_relaxation') is False else "unknown")
+                str(index): ("target" if result.get('target_change_achieved', result.get('target_bond_present_after_relaxation')) is True else
+                             "off_target" if result.get('target_change_achieved', result.get('target_bond_present_after_relaxation')) is False else "unknown")
                 for index, result, _source in members
             },
             "representative_selection": representative_score,

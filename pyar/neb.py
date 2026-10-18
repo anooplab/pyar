@@ -830,6 +830,10 @@ def _optimize_geometry(symbols, coordinates, calculator, output, label, max_cycl
         progress = optimizer.optimizeGeometry()
     except GeomOptNotConvergedError:
         progress = optimizer.progress
+    except BaseException:
+        from pyar.recovery.stages import preserve_optimizer_observations
+        preserve_optimizer_observations(output, label, symbols, optimizer)
+        raise
     steps = getattr(optimizer, "Iteration", None)
     calculator._pyar_optimizer_steps = None if steps is None else int(steps)
     _record_optimizer_steps(calculator, calculator._pyar_optimizer_steps)
@@ -878,8 +882,15 @@ def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax, *, intern
         steps = getattr(optimizer, "nsteps", None)
         calculator._pyar_optimizer_steps = None if steps is None else int(steps)
         _record_optimizer_steps(calculator, calculator._pyar_optimizer_steps)
-    except Exception as exc:
-        raise RuntimeError(f"Sella TS optimization failed: {exc}") from exc
+    except BaseException as exc:
+        # The owner persists observations on failure; they are never restart
+        # authority or proof of a saddle point.
+        exc.ore_observed_path = (list(symbols), frames, energies)
+        if not isinstance(exc, Exception):
+            raise
+        failure = RuntimeError(f"Sella TS optimization failed: {exc}")
+        failure.ore_observed_path = (list(symbols), frames, energies)
+        raise failure from exc
 
     if not frames:
         raise RuntimeError("Sella returned an empty TS optimization trajectory")
@@ -887,7 +898,9 @@ def _optimize_sella(symbols, coordinates, calculator, max_steps, fmax, *, intern
         final_coordinates = np.asarray(atoms.get_positions(), dtype=float).copy()
         final_energy = float(atoms.get_potential_energy()) / Hartree
     except Exception as exc:
-        raise RuntimeError(f"Sella final-state evaluation failed: {exc}") from exc
+        failure = RuntimeError(f"Sella final-state evaluation failed: {exc}")
+        failure.ore_observed_path = (list(symbols), frames, energies)
+        raise failure from exc
     if (not np.array_equal(frames[-1], final_coordinates)
             or energies[-1] != final_energy):
         frames.append(final_coordinates)
@@ -1045,15 +1058,15 @@ def _execute_stage(stage, output, calculator, options):
     def save(result, inputs=(), artifacts=(), dependencies=()):
         result = dict(result)
         gate_passed = _stage_gate_passed(result, stage) if stage in _STAGE_GATES else None
-        result["optimization_diagnostics"] = {
-            "schema_version": 1,
-            "workflow_role": f"neb_{stage}",
-            "stage_gate": "passed" if gate_passed is True else
-                          "failed" if gate_passed is False else "not_assessed",
-            "gate_owner": "pyar.neb",
-            "automatic_recovery_attempted": False,
-            "scope": "workflow stage gate snapshot; no independent TS or pathway diagnosis",
-        }
+        from pyar.recovery.workflow import stage_diagnostic
+        gates = {key: result.get(key) for key in _STAGE_GATES.get(stage, ())}
+        gates['stage_requirements'] = gate_passed
+        if stage == 'ts':
+            gates.update(saddle_hessian=None, irc_connection=None)
+        result["optimization_diagnostics"] = stage_diagnostic(f'neb_{stage}', gates)
+        # Downstream chemistry gates can remain unknown after this stage passes.
+        result['optimization_diagnostics']['stage_gate'] = (
+            'passed' if gate_passed is True else 'failed' if gate_passed is False else 'not_assessed')
         result.setdefault(
             "backend_energy_gradient_evaluations",
             getattr(calculator, "backend_energy_gradient_evaluations", 0) - evaluation_count_start,
@@ -1138,7 +1151,13 @@ def _execute_stage(stage, output, calculator, options):
                            nebk=options["spring"], climb=options["climb"], align=options["align"],
                            ncimg=1)
         scratch = tempfile.mkdtemp(prefix="geometric_neb_", dir=output)
-        chain, cycles = OptimizeChain(ElasticBand(molecule, engine, scratch, params, plain=0), engine, params)
+        chain = ElasticBand(molecule, engine, scratch, params, plain=0)
+        try:
+            chain, cycles = OptimizeChain(chain, engine, params)
+        except BaseException:
+            from pyar.recovery.stages import preserve_band_observations
+            preserve_band_observations(output, symbols, chain)
+            raise
         frames = [structure.M.xyzs[0].copy() for structure in chain.Structures]
         energies = [float(structure.energy) for structure in chain.Structures]
         climbing_state_available, climbing_activated, climber_indices = _geometric_climbing_state(chain)
@@ -1531,7 +1550,13 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             if stage == "all" and current == "ts":
                 current_options["ts_guess"] = None
             result = _execute_stage(current, output, calculator, current_options)
-        except Exception as exc:
+        except BaseException as exc:
+            from pyar.recovery.workflow import stage_diagnostic
+            from pyar.recovery.stages import persist_stage_diagnostic
+            if hasattr(exc, 'ore_observed_path'):
+                from pyar.recovery.stages import preserve_path_observations
+                symbols, frames, energies = exc.ore_observed_path
+                preserve_path_observations(output, current, symbols, frames, energies)
             evaluation_count_end = getattr(calculator, "backend_energy_gradient_evaluations", 0)
             optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
             stage_evaluations = (
@@ -1539,17 +1564,21 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                 if isinstance(evaluation_count_start, int) and isinstance(evaluation_count_end, int)
                 else None
             )
-            _write_json(output / f"{current}_summary.json", {
+            persist_stage_diagnostic(output, {
                 "stage": current, "status": "failed", "error": str(exc),
+                "optimization_diagnostics": stage_diagnostic(
+                    f'neb_{current}', {key: None for key in _STAGE_GATES.get(current, ())},
+                    exception=exc),
                 "backend_energy_gradient_evaluations": stage_evaluations,
                 "optimizer_steps": (
                     None if optimizer_steps_start is None or optimizer_steps_end is None
                     else optimizer_steps_end - optimizer_steps_start
                 ),
                 "wall_seconds": float(time.perf_counter() - stage_started),
-            })
+            }, filename=f'{current}_summary.json')
             if stage == "all":
-                _write_json(output / "workflow_summary.json", dict(results, status="failed", failed_stage=current, error=str(exc)))
+                persist_stage_diagnostic(output, dict(results, status="failed", failed_stage=current,
+                                                     error=str(exc)), filename='workflow_summary.json')
             raise
         results[current] = result
         if stage != "all":

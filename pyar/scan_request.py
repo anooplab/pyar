@@ -8,19 +8,22 @@ from pyar.core.molecule import Molecule, parse_xyz
 from pyar.optimization_request import preflight
 
 
-def _pair(values, label):
+def _pair(values, label, count=2):
     if len(values) == 1:
-        return values * 2
-    if len(values) != 2:
-        raise ValueError(f'{label} accepts one value or one value per fragment')
+        return values * count
+    if len(values) != count:
+        raise ValueError(f'{label} accepts one value or one value per input molecule/fragment')
     return values
 
 
 def validate_inputs(args):
     from pyar.cli import _infer_default_multiplicities, _validate_backend_spin_inputs
-    charges = _pair(args.charge, 'charge')
-    spins = None if args.multiplicity is None else _pair(args.multiplicity, 'multiplicity')
-    scftypes = None if args.scftype is None else _pair(args.scftype, 'scftype')
+    count = len(args.inputs)
+    if count not in (1, 2):
+        raise ValueError('Provide one molecule or two fragment XYZ files')
+    charges = _pair(args.charge, 'charge', count)
+    spins = None if args.multiplicity is None else _pair(args.multiplicity, 'multiplicity', count)
+    scftypes = None if args.scftype is None else _pair(args.scftype, 'scftype', count)
     if spins is not None and any(value < 1 for value in spins):
         raise ValueError('multiplicities must be positive')
     if scftypes is not None and any(value not in {'rhf', 'uhf'} for value in scftypes):
@@ -38,6 +41,10 @@ def validate_inputs(args):
             if not 0 <= atom < mol.number_of_atoms:
                 raise ValueError(f'Atom index {atom} is out of range for fragment {"AB"[index]} '
                                  f'(valid 0..{mol.number_of_atoms - 1})')
+            if count == 1:
+                if args.atoms[0] == args.atoms[1] or not 0 <= args.atoms[1] < mol.number_of_atoms:
+                    raise ValueError('Intramolecular scan requires two distinct 0-based indices within the molecule')
+                mol.fragments = [list(range(mol.number_of_atoms))]
             molecules.append(mol)
         except (ValueError, KeyError) as exc:
             raise ValueError(f'{path}: {exc}') from exc
@@ -51,16 +58,16 @@ def validate_inputs(args):
         mol.scftype = scftypes[index] if scftypes else 'rhf'
     try:
         _validate_backend_spin_inputs(molecules)
-        merged = molecules[0].merged_with(molecules[1])
+        merged = molecules[0] if count == 1 else molecules[0].merged_with(molecules[1])
         if args.total_multiplicity is not None:
-            low = abs(molecules[0].multiplicity - molecules[1].multiplicity) + 1
-            high = molecules[0].multiplicity + molecules[1].multiplicity - 1
+            low = merged.multiplicity if count == 1 else abs(molecules[0].multiplicity - molecules[1].multiplicity) + 1
+            high = merged.multiplicity if count == 1 else molecules[0].multiplicity + molecules[1].multiplicity - 1
             allowed = list(range(low, high + 1, 2))
             if args.total_multiplicity not in allowed:
                 raise ValueError(
                     f'total multiplicity {args.total_multiplicity} is incompatible with '
-                    f'fragment multiplicities {molecules[0].multiplicity} and '
-                    f'{molecules[1].multiplicity}; allowed total multiplicities are {allowed}'
+                    f'input multiplicities {[m.multiplicity for m in molecules]}; '
+                    f'allowed total multiplicities are {allowed}'
                 )
             merged.multiplicity = args.total_multiplicity
         _validate_backend_spin_inputs([merged])
@@ -85,6 +92,10 @@ def preflight_scan(args, params, molecules):
     settings = dict(params, geometry_optimizer='native' if native_scan_only else 'geometric')
     requirements = preflight(settings, molecules, require_optimizer_executable=False,
                              check_example=f'pyar scan-bond A.xyz B.xyz --atoms 0 0 --backend {args.software} --check')
+    if len(molecules) == 1:
+        from pyar.backends import require_executable
+        require_executable('obabel', 'OpenBabel product identification')
+        requirements.append('obabel')
     if not native_scan_only:
         # These are the in-process APIs used by bond_scan and scan_path/neb.
         from geometric.optimize import Optimizer  # noqa: F401

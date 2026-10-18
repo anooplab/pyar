@@ -11,7 +11,8 @@ from pyar.core.molecule import Molecule
 from pyar.energy_gradient_providers import EnergyGradientResult
 
 
-def test_real_geometric_scan_constrains_distance_and_relaxes_other_bonds(tmp_path, monkeypatch):
+@pytest.mark.parametrize('single_molecule', [False, True])
+def test_real_geometric_scan_constrains_distance_and_relaxes_other_bonds(tmp_path, monkeypatch, single_molecule):
     """A nonzero constrained force must not be mistaken for nonconvergence."""
     from pyar import energy_gradient_providers as providers
     caller = tmp_path / "caller"
@@ -37,7 +38,7 @@ def test_real_geometric_scan_constrains_distance_and_relaxes_other_bonds(tmp_pat
 
     monkeypatch.setitem(providers.ENERGY_GRADIENT_PROVIDERS, "xtb", lambda params: PairPotential())
     molecule = Molecule(["H", "H", "H"], [[0., 0., 0.], [1.6, 0., 0.], [0.8, 1.1, 0.]])
-    molecule.fragments = [[0], [1, 2]]
+    molecule.fragments = [[0, 1, 2]] if single_molecule else [[0], [1, 2]]
     request = BondScanRequest(0, 1, 1.6, 1.3, 3)
     result = run_bond_scan(molecule, request, tmp_path, {"software": "xtb", "opt_cycles": 100})
     assert result.success, result.status

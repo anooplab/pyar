@@ -263,9 +263,10 @@ For collaborator-facing debugging, inspect:
 Bond-scan internals
 -------------------
 
-Bond scanning evaluates a distance scan between two fragments. It is a simple
-way to probe whether a bond-forming or bond-breaking coordinate behaves as
-expected before committing to a more expensive reaction search.
+Bond scanning evaluates an atom-pair distance within one molecule or between
+two fragments. Single-molecule scans infer formation or breaking, release the
+constraint, and identify the relaxed product. Optional follow-up uses the
+existing reaction-path gates. See :doc:`bond_scan` for planning and commands.
 
 .. code-block:: bash
 

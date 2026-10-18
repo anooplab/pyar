@@ -1,26 +1,23 @@
-ORE R5 benchmark and validation plan
-====================================
+ORE benchmark follow-up project
+===============================
 
 Status and boundary
 -------------------
 
-R5 benchmark execution and chemistry-level validation are deferred by project
-direction (2026-10-18). This document records the work required to resume that
-stage. No recovery-rate, false-success, diagnostic-accuracy, cost-saving, or
-chemistry-correctness result is claimed here.
+Benchmark execution, paired cost/outcome measurements and chemistry-performance
+assessment are a separate follow-up project, outside the ORE implementation
+scope by project direction (2026-10-18). They are not unfinished implementation
+milestones or prerequisites for closing the implementation work. This document
+preserves the protocol for a future campaign. Its filename retains the original
+R5 label for existing links.
 
-R4 added observational records to conformer/growth, microsolvation,
-reaction/AFIR, bond-scan, NEB/TS/frequency/IRC/endpoint, and standalone modern
-optimization routes. Workflow owners still decide whether results are usable.
-The only automatic recovery route currently available remains the explicitly
-opted-in SAFE/GUIDED xTB + geomeTRIC minimum route, with its existing policy
-gates. R4 diagnostics do not widen backend, optimizer, target, or workflow
-recovery permissions.
+Implementation and software-check status is tracked in
+:doc:`optimization_recovery_status`. No recovery-rate, false-success,
+diagnostic-accuracy, cost-saving, or chemistry-correctness result is claimed here.
 
-R4 software pull requests ran the focused tests and repository CI appropriate
-to each change, including the full test matrix, installation checks and
-documentation build. Those checks verify software behavior; they do not replace
-the R5 benchmark or validate chemistry outcomes.
+Recovery remains limited to the declared backend, optimizer, target and
+workflow permissions. Software checks establish implementation behavior; this
+follow-up campaign measures chemistry outcomes and performance separately.
 
 Benchmark corpus to freeze before execution
 -------------------------------------------
@@ -155,6 +152,6 @@ Resume sequence
    discrepancy before any recovery permission is expanded.
 #. Run full release validation and make a documented go/no-go decision.
 
-Until those steps are completed, R5 remains pending and R4 diagnostics must be
-read as observations rather than evidence that a general recovery action is
-chemically safe or cost-effective.
+This follow-up has not been executed and does not affect implementation
+completion status. Diagnostic observations alone do not establish general
+chemistry safety or cost effectiveness.

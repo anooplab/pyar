@@ -3,6 +3,16 @@ from dataclasses import dataclass
 import math
 
 
+# Each owner explicitly opts in through optimize_workflow_once. Bias, walls,
+# scan constraints and shared evaluation ledgers are independently forbidden.
+MINIMUM_WORKFLOW_ROLES = frozenset({
+    'standalone_minimum', 'standalone_optimize', 'conformer_refinement',
+    'growth_preselection', 'growth_refinement', 'microsolvation_unbiased_screen',
+    'microsolvation_unbiased_minimum', 'microsolvation_unbiased_relaxation',
+    'reaction_unbiased_relaxation', 'bond_scan_unbiased_relaxation',
+})
+
+
 @dataclass(frozen=True)
 class RecoveryPolicy:
     mode: str = 'off'
@@ -52,8 +62,8 @@ def validate_settings(settings):
         value = settings.get(key, 100 if key == 'opt_cycles' else 1)
         if type(value) is not int or value < 1:
             raise ValueError(key + ' must be a positive integer')
-    if settings.get('workflow_role', 'standalone_minimum') != 'standalone_minimum':
-        raise ValueError('recovery_unsupported: standalone minima only')
+    if settings.get('workflow_role', 'standalone_minimum') not in MINIMUM_WORKFLOW_ROLES:
+        raise ValueError('recovery_unsupported: workflow has no unbiased-minimum recovery permission')
 
 
 def improving(steps):

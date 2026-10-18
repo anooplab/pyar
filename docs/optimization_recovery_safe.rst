@@ -188,7 +188,9 @@ test read this checkout's metadata. Strict Sphinx and source/wheel builds passed
 These are software and synthetic-fixture checks; the new guided action has not
 been exercised with a real chemistry run.
 
-R4 workflow integrations were merged in separate pull requests. The R5
-benchmark corpus, paired outcome/cost measurements, chemistry review and final
-release validation are deferred. The exact work and acceptance evidence to
-collect are listed in :doc:`optimization_recovery_r5_plan`.
+R4 workflow integrations were merged in separate pull requests. The review and
+frozen version 1 scientific contract is recorded in
+:doc:`optimization_recovery_status`. Completion is assessed against that
+contract; wider original-plan recovery actions are separate future proposals.
+Benchmark campaigns and paired cost/outcome measurements belong to a separate
+follow-up project and are excluded from implementation completion criteria.

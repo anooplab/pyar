@@ -110,14 +110,21 @@ def main(argv=None, *, prog=None):
                 status, diagnostic, diagnostic_path = optimize_workflow_once(
                     molecule, molecule_settings, workflow_role='standalone_optimize',
                     optimizer=optimiser.optimise,
+                    allow_incomplete=True,
                 )
                 diagnostics.append({
                     'input': molecule.name,
                     'status': diagnostic.status.value,
-                    'report': Path(diagnostic_path).relative_to(Path.cwd()).as_posix(),
+                    'owner_decision': molecule.optimization_owner_decision,
+                    'report': (Path(diagnostic_path).relative_to(Path.cwd()).as_posix()
+                               if diagnostic_path is not None else None),
                 })
-        except (BackendExecutionError, FileNotFoundError) as exc:
-            failures.append({'input': molecule.name, 'error': str(exc)})
+        except Exception as exc:
+            # Inputs/settings were preflighted together. A per-structure runtime
+            # failure must not discard subsequent independent inputs. Process
+            # cancellation still propagates outside Exception.
+            failures.append({'input': molecule.name, 'error': str(exc),
+                             'exception_type': type(exc).__name__})
             diagnostic_path = getattr(exc, 'ore_diagnostic_path', None)
             if diagnostic_path:
                 diagnostics.append({
@@ -146,6 +153,10 @@ def main(argv=None, *, prog=None):
         report['recovery'] = recoveries
     else:
         report['optimization_diagnostics'] = diagnostics
+        decisions = [entry.get('owner_decision', {}) for entry in diagnostics]
+        report['validated_converged_count'] = sum(
+            decision.get('validated_converged', False) for decision in decisions)
+        report['provisional_count'] = sum(decision.get('provisional', False) for decision in decisions)
     finished_run(report)
     print(f'Optimized {len(results)} of {len(molecules)} structures ({status}).')
     if failures:
