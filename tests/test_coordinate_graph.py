@@ -9,11 +9,15 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import pytest
+
 from pyar.structure_comparison.coordinate_graph import (
     analyze_coordinate_structure,
     analyze_growth_transition,
     infer_coordinate_graph,
 )
+
+pytestmark = [pytest.mark.scientific, pytest.mark.tier1]
 
 
 def _molecule(symbols, coordinates, name="fixture"):

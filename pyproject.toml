@@ -129,7 +129,10 @@ markers = [
   "unit: isolated logic or mocked boundary tests",
   "regression: guards for previously identified behavior and defects",
   "integration: composed workflows, subprocesses or optional Python integrations",
-  "scientific: numerical benchmark against approved scientific references",
+  "scientific: analytical invariant or numerical reference validation",
+  "tier1: deterministic analytical or structural invariants for every pull request",
+  "tier2: inexpensive real-backend validation on scheduled or release runners",
+  "tier3: extended scientific validation for major releases or scientific changes",
   "external_backend: requires a real external chemistry executable",
   "slow: expensive tests excluded from the fast lane only",
 ]

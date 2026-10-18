@@ -3,9 +3,12 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from pyar.biases.softmin import softmin
 from pyar.data.units import angstrom2bohr
+
+pytestmark = [pytest.mark.scientific, pytest.mark.tier1]
 
 
 class SoftminBiasTests(unittest.TestCase):

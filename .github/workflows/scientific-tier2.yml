@@ -1,0 +1,50 @@
+name: Scientific Tier 2
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scientific-tier2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xtb-gfn2-scan:
+    name: Real xTB GFN2 scan smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: pyar-scientific
+          create-args: >-
+            python=3.11
+            pip
+            xtb=6.7.1
+          init-shell: bash
+      - name: Install PyAR test/runtime dependencies
+        run: python -m pip install -e ".[selection,xtb]" --group test
+      - name: Record candidate and backend versions
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/candidate-sha.txt
+          xtb --version > evidence/xtb-version.txt 2>&1
+          python -c 'import pyar; print(pyar.__version__)' > evidence/pyar-version.txt
+      - name: Run real-backend scan smoke
+        run: |
+          python benchmarks/scan_bond/validate_backend_scans.py \
+            --backend xtb-gfn2 --output "$RUNNER_TEMP/pyar-tier2" \
+            > evidence/xtb-gfn2-scan.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scientific-tier2-${{ github.sha }}
+          path: |
+            evidence/
+            ${{ runner.temp }}/pyar-tier2/
+          if-no-files-found: warn

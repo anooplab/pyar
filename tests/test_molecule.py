@@ -3,8 +3,11 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from pyar.core.molecule import Molecule, XYZParseError, parse_xyz, read_xyz
+
+pytestmark = [pytest.mark.scientific, pytest.mark.tier1]
 
 
 class MoleculeTests(unittest.TestCase):

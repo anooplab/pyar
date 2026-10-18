@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "source": "pyar.backend_capabilities.BACKEND_CAPABILITIES",
+  "entries": [
+    {
+      "backend": "gaussian",
+      "family": "dft_qc",
+      "aliases": [
+        "g16"
+      ],
+      "energy_gradient": true,
+      "native_optimization": true,
+      "biased_optimization": true,
+      "required_executables": [
+        "g16"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Provides Cartesian energy/gradient evaluation for geomeTRIC AFIR.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "orca",
+      "family": "dft_qc",
+      "aliases": [
+        "orca16"
+      ],
+      "energy_gradient": true,
+      "native_optimization": true,
+      "biased_optimization": true,
+      "required_executables": [
+        "orca"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Provides Cartesian energy/gradient evaluation for geomeTRIC AFIR.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "psi4",
+      "family": "dft_qc",
+      "aliases": [],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [
+        "psi4"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Native geometry optimisation only; no geomeTRIC energy/gradient provider.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "turbomole",
+      "family": "dft_qc",
+      "aliases": [],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": true,
+      "required_executables": [
+        "define",
+        "jobex",
+        "rdgrad",
+        "ridft",
+        "statpt"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Uses the internal Turbomole loop with optional AFIR coupling.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "mopac",
+      "family": "semiempirical",
+      "aliases": [],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [
+        "mopac",
+        "obabel"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "MOPAC input is generated through OpenBabel.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "xtb",
+      "family": "semiempirical",
+      "aliases": [],
+      "energy_gradient": true,
+      "native_optimization": true,
+      "biased_optimization": true,
+      "required_executables": [
+        "xtb"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "xTB can feed geomeTRIC through the Cartesian energy/gradient provider.",
+      "real_calculation": {
+        "status": "PASS",
+        "scope": "local Tier 2 backend integration smoke only; not release corpus qualification",
+        "candidate_sha": "39f412b48418840f02e6c1356c115f5d2262ad07",
+        "backend_version": "xTB 6.7.1-6.fc44.fc44",
+        "model": "GFN2-xTB",
+        "cases": [
+          "H2 energy/gradient finite-difference check",
+          "three-point constrained bond scan"
+        ],
+        "evidence_record": "docs/release_engineering/r3.md"
+      }
+    },
+    {
+      "backend": "xtb_turbo",
+      "family": "semiempirical",
+      "aliases": [
+        "xtbturbo"
+      ],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": true,
+      "required_executables": [
+        "define",
+        "statpt",
+        "xtb"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Internal Turbomole loop using xTB gradients.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "obabel",
+      "family": "semiempirical",
+      "aliases": [],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [
+        "obabel",
+        "obenergy",
+        "obminimize"
+      ],
+      "required_python_modules": [],
+      "optional_extra": null,
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "OpenBabel helper used for force-field minimisation and format conversion.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "ani",
+      "family": "mlip",
+      "aliases": [
+        "torchani"
+      ],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [],
+      "required_python_modules": [
+        "ase",
+        "pkg_resources",
+        "torch",
+        "torchani"
+      ],
+      "optional_extra": "ml",
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "TorchANI calculator/helper used outside the main workflow router.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "aimnet_2",
+      "family": "mlip",
+      "aliases": [],
+      "energy_gradient": true,
+      "native_optimization": true,
+      "biased_optimization": true,
+      "required_executables": [],
+      "required_python_modules": [
+        "ase",
+        "torch"
+      ],
+      "optional_extra": "aimnet2",
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Uses external AIMNet2 model assets and the Cartesian energy/gradient provider.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "aiqm1_mlatom",
+      "family": "mlip",
+      "aliases": [
+        "mlatom_aiqm1"
+      ],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [
+        "g16"
+      ],
+      "required_python_modules": [
+        "mlatom"
+      ],
+      "optional_extra": "ml",
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "MLatom-backed AIQM1 geometry optimisation.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "xtb-aimnet2",
+      "family": "hybrid",
+      "aliases": [
+        "xtb_aimnet2"
+      ],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [
+        "xtb"
+      ],
+      "required_python_modules": [
+        "ase",
+        "torch"
+      ],
+      "optional_extra": "aimnet2",
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Two-stage xTB then AIMNet2 refinement.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    },
+    {
+      "backend": "xtb-aiqm1",
+      "family": "hybrid",
+      "aliases": [
+        "xtb_aiqm1"
+      ],
+      "energy_gradient": false,
+      "native_optimization": true,
+      "biased_optimization": false,
+      "required_executables": [
+        "g16",
+        "xtb"
+      ],
+      "required_python_modules": [
+        "mlatom"
+      ],
+      "optional_extra": "ml",
+      "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
+      "real_calculation_status": "NOT_TESTED",
+      "notes": "Two-stage xTB then AIQM1 refinement.",
+      "real_calculation": {
+        "status": "NOT_TESTED"
+      }
+    }
+  ]
+}

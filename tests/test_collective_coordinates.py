@@ -2,6 +2,7 @@
 
 import unittest
 
+import pytest
 from autograd import grad
 import autograd.numpy as anp
 import numpy as np
@@ -9,6 +10,8 @@ import numpy as np
 from pyar.biases.afir import get_covalent_radius
 from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.data.units import angstrom2bohr
+
+pytestmark = [pytest.mark.scientific, pytest.mark.tier1]
 
 
 class CollectiveCoordinateTests(unittest.TestCase):
