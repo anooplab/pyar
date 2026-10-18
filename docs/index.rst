@@ -211,6 +211,7 @@ The fastest way to verify a local install is:
    reaction_optimization
    optimization_diagnostics
    optimization_recovery_safe
+   optimization_recovery_r5_plan
    api
    reference
    generated_api

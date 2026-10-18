@@ -187,3 +187,8 @@ passed**. The suite used a temporary editable install so the installed-entry-poi
 test read this checkout's metadata. Strict Sphinx and source/wheel builds passed.
 These are software and synthetic-fixture checks; the new guided action has not
 been exercised with a real chemistry run.
+
+R4 workflow integrations were merged in separate pull requests. The R5
+benchmark corpus, paired outcome/cost measurements, chemistry review and final
+release validation are deferred. The exact work and acceptance evidence to
+collect are listed in :doc:`optimization_recovery_r5_plan`.
