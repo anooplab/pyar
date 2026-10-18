@@ -1,0 +1,19 @@
+{
+  "tests.test_optimization_recovery_audit::test_orca_normal_termination_without_geometry_convergence_is_rejected": "R0-01: ORCA normal termination is not optimizer convergence",
+  "tests.test_optimization_recovery_audit::test_orca_missing_or_nonfinite_energy_is_rejected[]": "R0-02: missing energy becomes zero; nonfinite energy is accepted",
+  "tests.test_optimization_recovery_audit::test_orca_missing_or_nonfinite_energy_is_rejected[FINAL SINGLE POINT ENERGY nan\\n]": "R0-02: missing energy becomes zero; nonfinite energy is accepted",
+  "tests.test_optimization_recovery_audit::test_orca_does_not_reuse_old_wrong_symbol_xyz": "R0-03: ORCA geometry freshness and symbol mapping are not checked",
+  "tests.test_optimization_recovery_audit::test_orca_one_atom_has_matrix_coordinates": "R0-04: np.loadtxt flattens one-atom coordinates; writer fails",
+  "tests.test_optimization_recovery_audit::test_xtb_stale_success_cannot_authorize_current_run[False]": "R0-05: stale xTB success marker takes precedence over current SCC failure",
+  "tests.test_optimization_recovery_audit::test_xtb_stale_success_cannot_authorize_current_run[True]": "R0-05: stale xTB success marker takes precedence over current SCC failure",
+  "tests.test_optimization_recovery_audit::test_generic_cache_needs_valid_convergence_and_request_identity[missing]": "R0-06: generic XYZ cache has no request/convergence provenance",
+  "tests.test_optimization_recovery_audit::test_generic_cache_needs_valid_convergence_and_request_identity[wrong_method]": "R0-06: generic XYZ cache has no request/convergence provenance",
+  "tests.test_optimization_recovery_audit::test_generic_cache_needs_valid_convergence_and_request_identity[wrong_symbols]": "R0-06: generic XYZ cache has no request/convergence provenance",
+  "tests.test_optimization_recovery_audit::test_geometric_provisional_cache_is_not_promoted": "R0-07: provisional geomeTRIC cache is relabeled True on next invocation",
+  "tests.test_optimization_recovery_audit::test_geometric_invalid_result_is_not_success[nan_energy]": "R0-08: geomeTRIC output validation lacks finite/frame/freshness/convergence checks",
+  "tests.test_optimization_recovery_audit::test_geometric_invalid_result_is_not_success[frame_mismatch]": "R0-08: geomeTRIC output validation lacks finite/frame/freshness/convergence checks",
+  "tests.test_optimization_recovery_audit::test_geometric_invalid_result_is_not_success[no_convergence_evidence]": "R0-08: geomeTRIC output validation lacks finite/frame/freshness/convergence checks",
+  "tests.test_optimization_recovery_audit::test_geometric_invalid_result_is_not_success[fallback_xyz]": "R0-08: geomeTRIC output validation lacks finite/frame/freshness/convergence checks",
+  "tests.test_optimization_recovery_audit::test_backend_failure_does_not_destroy_original_input": "R0-09: generic failure clears the only in-memory input geometry",
+  "tests.test_optimization_recovery_audit::test_truncated_cache_raises_backend_error": "R0-10: truncated cached XYZ exits the process instead of a typed failure"
+}

@@ -1,0 +1,21 @@
+[
+  "test_adaptive_geometric",
+  "test_aimnet2_installation",
+  "test_backend_failures",
+  "test_chemical_identity",
+  "test_clustering_review",
+  "test_conformer_benchmark",
+  "test_conformer_comparison",
+  "test_conformer_layout_v2",
+  "test_conformer_workflow",
+  "test_deduplication_policy",
+  "test_modern_utilities",
+  "test_molecule",
+  "test_neb",
+  "test_packaging_metadata",
+  "test_persistence",
+  "test_safe_recovery",
+  "test_structural_distances",
+  "test_structure_comparison",
+  "test_structure_comparison_dataset"
+]

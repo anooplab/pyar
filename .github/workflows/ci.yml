@@ -45,7 +45,16 @@ jobs:
         run: python -m pip check
 
       - name: Run test suite
-        run: python -m pytest --cov=pyar --cov-report=term-missing
+        run: python -m pytest --cov=pyar --cov-report=term-missing --junitxml=reports/pytest.xml
+
+      - name: Review test omissions
+        run: python tools/check_test_outcomes.py reports/pytest.xml tests/expected_xfails.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tests-${{ matrix.python-version }}
+          path: reports/
 
       - name: Smoke-test CLI entry points
         run: |
@@ -91,7 +100,7 @@ jobs:
       - name: Install geodesic optional extra
         run: python -m pip install --upgrade pip && python -m pip install -e ".[xtb,geodesic]" --group test
 
-      - name: Exercise geodesic NEB initialization with the released package
+      - name: Exercise geodesic NEB initialization with the optional extra
         run: python -m pytest tests/test_neb.py -q
 
       - name: Check NEB CLI help
@@ -115,13 +124,14 @@ jobs:
       - name: Install Sella optional extra
         run: python -m pip install --upgrade pip && python -m pip install -e ".[xtb,sella]" --group test
 
-      - name: Exercise Sella TS optimization with the released package
+      - name: Exercise Sella TS optimization with the optional extra
         run: python -m pytest tests/test_neb.py -q
 
       - name: Check NEB CLI help without loading Sella
         run: pyar-neb --help
 
   installation:
+    needs: archives
     name: User installation (${{ matrix.mode }}, py${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -136,15 +146,20 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
       - name: Install as an end user
         shell: bash
         run: |
           python -m pip install --upgrade pip
+          WHEEL=$(realpath dist/*.whl)
           case "${{ matrix.mode }}" in
-            core) python -m pip install . ;;
-            ml) python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; python -m pip install ".[ml]" ;;
-            aimnet2) python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; python -m pip install ".[conformer,aimnet2]" ;;
-            *) python -m pip install ".[${{ matrix.mode }}]" ;;
+            core) python -m pip install "$WHEEL" ;;
+            ml) python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; python -m pip install "$WHEEL[ml]" ;;
+            aimnet2) python -m pip install torch --index-url https://download.pytorch.org/whl/cpu; python -m pip install "$WHEEL[conformer,aimnet2]" ;;
+            *) python -m pip install "$WHEEL[${{ matrix.mode }}]" ;;
           esac
           python -m pip check
       - name: Exercise installed package outside checkout
@@ -163,7 +178,13 @@ jobs:
       - run: python -m pip install --upgrade pip --group release
       - run: python -m build
       - name: Inspect archives
-        run: python tools/check_distributions.py dist
+        run: |
+          python tools/check_distributions.py dist
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
       - name: Install wheel into clean environment
         run: |
           WHEEL=$(realpath dist/*.whl)
@@ -184,3 +205,49 @@ jobs:
           /tmp/sdist-env/bin/python -m pip check
           cd /tmp
           /tmp/sdist-env/bin/python "$GITHUB_WORKSPACE/tools/installation_smoke.py" core
+
+  quality:
+    name: Lint, format and fast regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[selection,xtb]" --group test --group quality
+      - run: python -m ruff check tests tools
+      - run: python -m ruff format --check tools/check_test_outcomes.py tools/release_evidence.py tests/conftest.py tests/test_release_evidence.py
+      - run: python -m pytest -m "(unit or regression) and not slow and not external_backend" --junitxml=reports/fast.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fast-regressions
+          path: reports/
+
+  required:
+    name: R1 required checks
+    if: always()
+    needs: [test, docs, geodesic, sella, installation, archives, quality]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      - name: Validate candidate and all required jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          printf '%s' "$NEEDS_JSON" > results.json
+          VERSION=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          python tools/release_evidence.py dist --sha "$GITHUB_SHA" --version "$VERSION" --results results.json --required test docs geodesic sella installation archives quality --output r1-evidence.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r1-evidence
+          path: r1-evidence.json
