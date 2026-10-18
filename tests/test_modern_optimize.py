@@ -176,6 +176,21 @@ def test_optimization_status_and_provenance_are_truthful(
     assert payload['result']['input_count'] == 2
     assert payload['result']['optimized_count'] == optimized
     assert payload['result']['failed_count'] == failed
+    diagnostic_records = payload['result']['optimization_diagnostics']
+    assert len(diagnostic_records) == 2
+    for item in diagnostic_records:
+        report_path = Path(item['report'])
+        assert report_path.is_file()
+        record = json.loads(report_path.read_text())
+        assert record['workflow_role'] == 'standalone_optimize'
+    if failed == 0:
+        assert all(item['status'] == 'INVALID_RESULT' for item in diagnostic_records)
+    elif optimized:
+        assert {item['status'] for item in diagnostic_records} == {
+            'INVALID_RESULT', 'execution_exception'
+        }
+    else:
+        assert all(item['status'] == 'execution_exception' for item in diagnostic_records)
     records = list(Path('.pyar/runs').glob('*/pyar-run.toml'))
     record = load_toml_document(records[0], 'pyar-run-record')
     assert record['metadata']['scientific_status'] == status

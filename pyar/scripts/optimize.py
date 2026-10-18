@@ -2,10 +2,12 @@
 
 import argparse
 import sys
+from pathlib import Path
 
 from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar import optimiser
 from pyar.backend_errors import BackendExecutionError
+from pyar.optimization_service import optimize_workflow_once
 from pyar.optimization_request import load_inputs, preflight, resolve_settings
 
 
@@ -76,6 +78,7 @@ def main(argv=None, *, prog=None):
     results = []
     failures = []
     recoveries = []
+    diagnostics = []
     for molecule in molecules:
         molecule_settings = settings
         if settings.get('_electronic_state_from_molecule'):
@@ -104,9 +107,24 @@ def main(argv=None, *, prog=None):
                 molecule.energy = frame.physical_energy_hartree
                 status = True
             else:
-                status = optimiser.optimise(molecule, molecule_settings)
+                status, diagnostic, diagnostic_path = optimize_workflow_once(
+                    molecule, molecule_settings, workflow_role='standalone_optimize',
+                    optimizer=optimiser.optimise,
+                )
+                diagnostics.append({
+                    'input': molecule.name,
+                    'status': diagnostic.status.value,
+                    'report': Path(diagnostic_path).relative_to(Path.cwd()).as_posix(),
+                })
         except (BackendExecutionError, FileNotFoundError) as exc:
             failures.append({'input': molecule.name, 'error': str(exc)})
+            diagnostic_path = getattr(exc, 'ore_diagnostic_path', None)
+            if diagnostic_path:
+                diagnostics.append({
+                    'input': molecule.name,
+                    'status': 'execution_exception',
+                    'report': Path(diagnostic_path).relative_to(Path.cwd()).as_posix(),
+                })
             continue
         if optimiser.is_usable(status):
             results.append(molecule)
@@ -126,6 +144,8 @@ def main(argv=None, *, prog=None):
     }
     if args.recovery in {'safe', 'guided'}:
         report['recovery'] = recoveries
+    else:
+        report['optimization_diagnostics'] = diagnostics
     finished_run(report)
     print(f'Optimized {len(results)} of {len(molecules)} structures ({status}).')
     if failures:

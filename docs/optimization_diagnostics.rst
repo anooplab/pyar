@@ -2,9 +2,11 @@ Optimization diagnosis (ORE R1)
 ===============================
 
 The opt-in Python service diagnoses one minimum-optimization execution using
-independent native output checks. Existing CLI commands and workflow APIs keep
-their current behavior. This stage adds no retries, fallback methods, cache
-adoption, resume API, or change to scientific defaults.
+independent native output checks. The modern ``pyar optimize`` command records
+one observational report per input by default; its optimizer status and
+workflow-level outcome remain unchanged. Workflow APIs keep their existing
+acceptance rules. This stage adds no retries, fallback methods, cache adoption,
+resume API, or change to scientific defaults.
 
 R0 review
 ---------
@@ -66,6 +68,23 @@ on ``result.exception``; native caught exceptions are also accessible through
 ``attempt.execution.processes``. No diagnostic hook changes command arguments,
 exit status, file naming, or the legacy return value. When no observer is active,
 the process hooks perform no recording or I/O.
+
+Workflow integrations
+---------------------
+
+The modern ``pyar optimize`` command includes relative diagnostic report paths
+and each report's validation status in its run result. Reports live below
+``.pyar_optimization_diagnostics/``. For backend/version formats outside the
+verified parser matrix, the status is ``INVALID_RESULT`` or otherwise
+unvalidated; the legacy optimizer's success value is still passed to the
+existing workflow decision. The command does not treat an observational result
+as authority to retry.
+
+Reaction and microsolvation workflows persist the same observational records
+beside their existing attempt/selection records. NEB, TS, frequency, IRC, and
+endpoint stages snapshot their own gate state in the stage summary. These
+workflow-specific records preserve their existing chemistry gates and do not
+claim automatic recovery.
 
 Readonly inspection
 -------------------
