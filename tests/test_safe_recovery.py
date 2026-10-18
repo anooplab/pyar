@@ -119,10 +119,11 @@ def test_ordinary_limit_never_completed(molecule, settings, monkeypatch):
     assert not Path('job_h2/result_h2.xyz').exists()
 
 
+@pytest.mark.parametrize('mode', ['safe', 'guided'])
 @pytest.mark.parametrize('problem', ['no_progress', 'unknown'])
-def test_no_blind_retry(molecule, settings, monkeypatch, problem):
+def test_no_blind_retry(molecule, settings, monkeypatch, problem, mode):
     calls = fake_worker(monkeypatch, progress=problem!='no_progress', unknown=problem=='unknown')
-    report = controller.run_recovery(molecule, settings, RecoveryPolicy('safe'))
+    report = controller.run_recovery(molecule, settings, RecoveryPolicy(mode))
     assert not report.result.converged and len(calls) == 1
     assert report.stop_reason == 'no_verified_safe_action'
 

@@ -44,6 +44,12 @@ def accepted_checkpoint(request, path):
         energy = finite_number(value['energy_hartree'])
         forces = tuple(tuple(-x*27.211386245988/.529177210903 for x in row) for row in gradients)
         last_frame = GeometryFrame(request.symbols, positions, energy, energy, forces, (filename,))
-        steps.append(StepObservation(index, energy, rms, maximum, accepted=True))
+        trust = value.get('trust_radius_bohr')
+        if trust is not None:
+            trust = finite_number(trust)
+            if trust <= 0:
+                raise ValueError('Invalid checkpoint trust radius')
+        steps.append(StepObservation(index, energy, rms, maximum, accepted=True,
+                                     trust_radius_bohr=trust))
         previous = index
     return last_frame, tuple(steps)

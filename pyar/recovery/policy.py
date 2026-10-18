@@ -12,8 +12,8 @@ class RecoveryPolicy:
     wall_seconds: float = 3600.
 
     def __post_init__(self):
-        if self.mode not in {'off', 'safe'}:
-            raise ValueError('Recovery mode must be off or safe')
+        if self.mode not in {'off', 'safe', 'guided'}:
+            raise ValueError('Recovery mode must be off, safe or guided')
         for key, maximum in (('max_attempts', 8), ('max_cycles', 10000), ('max_evaluations', 10000)):
             value = getattr(self, key)
             if type(value) is not int or not 1 <= value <= maximum:
@@ -37,11 +37,17 @@ def validate_settings(settings):
     allowed = {'software', 'geometry_optimizer', 'xtb_model', 'opt_target', 'charge', 'multiplicity',
         'scftype', 'xtb_unpaired_electrons', 'fragments', 'nprocs', 'opt_threshold', 'opt_cycles',
         'scf_cycles', 'scf_threshold', 'method', 'basis', '_electronic_state_from_molecule',
-        '_ore_safe', '_ore_evaluation_limit', 'workflow_role', *forbidden}
+        '_ore_safe', '_ore_evaluation_limit', '_ore_initial_trust', '_ore_recovery_action',
+        'workflow_role', *forbidden}
     if set(settings) - allowed:
         raise ValueError('recovery_unsupported: unverified controls: ' + ', '.join(sorted(set(settings)-allowed)))
     if settings.get('method') is not None or settings.get('basis') is not None:
         raise ValueError('recovery_unsupported: xTB does not consume method/basis controls')
+    trust = settings.get('_ore_initial_trust')
+    if trust is not None and (type(trust) not in (int, float) or not math.isfinite(trust) or not .005 <= trust <= .1):
+        raise ValueError('recovery_unsupported: invalid bounded geomeTRIC trust radius')
+    if settings.get('_ore_recovery_action') not in (None, 'trust_hessian_restart'):
+        raise ValueError('recovery_unsupported: unrecognized internal recovery action')
     for key in ('opt_cycles', 'nprocs'):
         value = settings.get(key, 100 if key == 'opt_cycles' else 1)
         if type(value) is not int or value < 1:
@@ -60,3 +66,25 @@ def improving(steps):
         and last.gradient_rms_hartree_per_bohr is not None
         and first.gradient_rms_hartree_per_bohr is not None
         and last.gradient_rms_hartree_per_bohr < first.gradient_rms_hartree_per_bohr * .99)
+
+
+def flat_pes_evidence(steps, requested_rms_threshold, *, window=4,
+                      energy_noise_hartree=1e-7, gradient_relative_span=.05):
+    """Conservatively flag a plateau without relaxing requested tolerances."""
+    if (type(window) is not int or window < 2
+            or not math.isfinite(requested_rms_threshold) or requested_rms_threshold <= 0
+            or not math.isfinite(energy_noise_hartree) or energy_noise_hartree < 0
+            or not math.isfinite(gradient_relative_span) or gradient_relative_span < 0):
+        raise ValueError('Flat-PES evidence thresholds must be finite and valid')
+    accepted = [step for step in steps if step.accepted is True]
+    recent = accepted[-window:]
+    if (len(recent) < window or requested_rms_threshold <= 0
+            or any(step.gradient_rms_hartree_per_bohr is None for step in recent)):
+        return False
+    gradients = [step.gradient_rms_hartree_per_bohr for step in recent]
+    if min(gradients) <= requested_rms_threshold or min(gradients) <= 0:
+        return False
+    energy_span = max(step.effective_energy_hartree for step in recent) - min(
+        step.effective_energy_hartree for step in recent)
+    gradient_span = (max(gradients) - min(gradients)) / max(gradients)
+    return energy_span <= energy_noise_hartree and gradient_span <= gradient_relative_span

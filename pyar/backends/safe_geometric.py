@@ -31,6 +31,7 @@ class AcceptedOptimizer(Optimizer):
             coordinates_angstrom=(self.X.reshape((-1, 3)) * bohr2ang).tolist(),
             energy_hartree=float(self.E), gradient_hartree_per_bohr=gradient.tolist(),
             gradient_rms=float(np.sqrt(np.mean(norms**2))), gradient_max=float(max(norms)),
+            trust_radius_bohr=float(self.trust),
             step=int(self.Iteration))
         write_json(f'ore_accepted_{self.Iteration:06d}.json', value, overwrite=False)
         self._ore_files = getattr(self, '_ore_files', []) + [f'ore_accepted_{self.Iteration:06d}.json']
@@ -60,10 +61,17 @@ def main():
     # all coordinate setup, logging, thresholds and convergence checks.
     driver.Optimizer = AcceptedOptimizer
     try:
+        trust = settings.get('_ore_initial_trust')
+        optimizer_args = {}
+        if trust is not None:
+            # geomeTRIC 1.1.1 OptParams uses Bohr for trust/tmax. A new process
+            # constructs a fresh coordinate system and approximate Hessian.
+            optimizer_args.update(trust=float(trust), tmax=max(.15, 3 * float(trust)))
         driver.run_optimizer(input=sys.argv[1], engine='ase',
             ase_class='pyar.backends.geometric.PyarGeometricCalculator',
             ase_kwargs=json.dumps(arguments), coordsys='tric', maxiter=settings['opt_cycles'],
-            converge=['set', {'loose': 'GAU_LOOSE', 'normal': 'GAU', 'tight': 'GAU_TIGHT'}[settings['opt_threshold']]])
+            converge=['set', {'loose': 'GAU_LOOSE', 'normal': 'GAU', 'tight': 'GAU_TIGHT'}[settings['opt_threshold']]],
+            **optimizer_args)
     except GeomOptNotConvergedError:
         return 1
     return 0
