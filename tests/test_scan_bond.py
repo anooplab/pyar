@@ -455,6 +455,13 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
     assert (tmp_path / "scan_bond" / "orientation_000" / "result.json").exists()
     assert (tmp_path / "scan_bond" / "orientation_000" / "scan" / "scan_profile.csv").exists()
     assert (tmp_path / "scan_bond" / "orientation_000" / "ts_candidates" / "highest_scan_energy.xyz").exists()
+    diagnostic_reports = list((tmp_path / "scan_bond").rglob(
+        ".pyar_optimization_diagnostics/*.json"
+    ))
+    assert len(diagnostic_reports) == 1
+    diagnostic = json.loads(diagnostic_reports[0].read_text())
+    assert diagnostic["workflow_role"] == "bond_scan_unbiased_relaxation"
+    assert diagnostic["legacy_status"] == "success"
     rerun = run_scan_bond(
         a, b, (0, 0), 1,
         {"software": "orca", "method": "BP86", "basis": "def2-SVP",

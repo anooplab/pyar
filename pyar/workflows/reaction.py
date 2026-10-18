@@ -33,6 +33,7 @@ from pyar.backend_capabilities import backend_supports_native_optimization
 from pyar.backend_errors import BackendExecutionError
 from pyar.selection import clustering
 from pyar.optimiser import is_cycle_exceeded, is_success, is_usable, optimise
+from pyar.optimization_service import optimize_workflow_once
 from pyar.sampling import trial_generator as trial_generation
 from pyar.workflow_results import ReactionResult
 from pyar import reaction_analysis
@@ -55,6 +56,14 @@ from pyar.workflows._growth import (
 reactor_logger = logging.getLogger('pyar.workflows.reaction')
 
 saved_product_identities = {}
+
+
+def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
+    """Run one legacy reaction optimization and persist observational ORE data."""
+    status, _diagnostic, _report = optimize_workflow_once(
+        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise
+    )
+    return status
 
 
 def _build_reaction_result(
@@ -289,7 +298,9 @@ def relax_without_afir_bias(molecule, qc_params):
     # from the preceding attempt.
     molecule.name = 'relax' if release_attempt == 0 else f'relax_attempt_{release_attempt}'
     try:
-        status = optimise(molecule, without_afir_bias(qc_params))
+        status = _optimize_with_diagnostics(
+            molecule, without_afir_bias(qc_params), "reaction_unbiased_relaxation"
+        )
     finally:
         molecule.name = original_name
     if is_success(status):
@@ -508,7 +519,9 @@ def _adaptive_release_probe(pre_release, molecule, qc_params, evidence):
             new_margin,
         )
         retry_molecule = current_pre_release.copy()
-        retry_status = optimise(retry_molecule, retry_params)
+        retry_status = _optimize_with_diagnostics(
+            retry_molecule, retry_params, "reaction_adaptive_release_retry"
+        )
         if not is_usable(retry_status) or not retry_molecule.is_bonded():
             retry_evidence = _release_evidence(retry_params)
             _write_release_retry_outcome(
@@ -837,7 +850,9 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         start_identity = molecule_identity_from_xyz(reference_xyz_file_name)
         orientation_qc_param = dict(qc_param)
         orientation_qc_param["release_job_name"] = job_name
-        status = optimise(this_molecule, orientation_qc_param)
+        status = _optimize_with_diagnostics(
+            this_molecule, orientation_qc_param, "reaction_afir_orientation"
+        )
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
         if is_usable(status):

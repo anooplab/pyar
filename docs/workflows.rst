@@ -94,6 +94,14 @@ backend's native optimizer. A bonded reaction candidate is relaxed again with
 Reaction product validity is determined by molecular identity and bond-change
 logic, not by single-component covalent connectivity.
 
+Reaction AFIR orientations, adaptive release retries, and unbiased candidate
+relaxations also write observational optimization records under
+``.pyar_optimization_diagnostics/`` in the active orientation directory. Bond
+scan post-relaxations write the same records under their relaxation directory.
+These records do not change legacy optimizer statuses, AFIR parameters, release
+evidence, scan distances, product identity, or geometry selection. Reaction and
+scan owners continue to decide whether an outcome is usable.
+
 For a chemist, the reaction workflow is useful when you want to:
 
 * search for candidate products without hand-building every starting guess
