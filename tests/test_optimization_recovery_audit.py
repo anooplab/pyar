@@ -224,6 +224,32 @@ def test_xtb_cache_provenance_unknown_when_version_probe_fails(monkeypatch):
     assert optimiser._backend_cache_provenance({'software': 'xtb'}) is None
 
 
+@pytest.mark.parametrize('software', ['aimnet_2', 'xtb-aimnet2'])
+def test_aimnet2_cache_provenance_records_model_and_hybrid_xtb(monkeypatch, tmp_path, software):
+    from pyar.backends import aimnet2_assets
+    model = tmp_path / 'model.jpt'
+    model.write_bytes(b'fixture model bytes')
+    monkeypatch.setattr(aimnet2_assets, 'MODEL_PATH', str(model))
+    monkeypatch.setattr(
+        optimiser.importlib.metadata, 'version',
+        lambda package: {'torch': '2.9.0', 'geometric': '1.1.1'}[package],
+    )
+    if software == 'xtb-aimnet2':
+        executable = tmp_path / 'xtb'
+        monkeypatch.setattr(optimiser.shutil, 'which', lambda _name: str(executable))
+        monkeypatch.setattr(
+            optimiser.subprocess, 'run',
+            lambda *args, **kwargs: SimpleNamespace(
+                returncode=0, stdout='xTB 6.7.1', stderr='',
+            ),
+        )
+    provenance = optimiser._backend_cache_provenance({'software': software})
+    assert provenance['model_sha256'] == __import__('hashlib').sha256(model.read_bytes()).hexdigest()
+    assert provenance['torch_version'] == '2.9.0'
+    if software == 'xtb-aimnet2':
+        assert provenance['xtb']['version'] == 'xTB 6.7.1'
+
+
 def test_backend_version_change_invalidates_cache(tmp_path, monkeypatch, molecule, qc):
     monkeypatch.chdir(tmp_path)
     version = {'value': 'xTB 6.6.1'}

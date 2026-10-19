@@ -36,6 +36,23 @@ RELEASE_CANDIDATE_STATUSES = {'ReleaseCandidate', 'release_candidate'}
 _OPTIMIZATION_CACHE_SCHEMA = 1
 
 
+def _xtb_cache_provenance():
+    executable = shutil.which("xtb")
+    if not executable:
+        return None
+    try:
+        completed = subprocess.run(
+            [executable, "--version"], capture_output=True, text=True,
+            timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    version = (completed.stdout + "\n" + completed.stderr).strip()
+    if completed.returncode != 0 or not version:
+        return None
+    return {"executable": str(Path(executable).resolve()), "version": version}
+
+
 def _backend_cache_provenance(qc_params):
     """Return a stable backend identity, or ``None`` when it cannot be verified.
 
@@ -45,21 +62,11 @@ def _backend_cache_provenance(qc_params):
     software = normalize_backend_name(qc_params.get("software", ""))
     provenance = {"backend": software, "method": qc_params.get("method")}
     if software == "xtb":
-        executable = shutil.which("xtb")
-        if not executable:
+        xtb = _xtb_cache_provenance()
+        if xtb is None:
             return None
-        try:
-            completed = subprocess.run(
-                [executable, "--version"], capture_output=True, text=True,
-                timeout=5, check=False,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return None
-        version = (completed.stdout + "\n" + completed.stderr).strip()
-        if completed.returncode != 0 or not version:
-            return None
-        provenance.update(executable=str(Path(executable).resolve()), version=version)
-    elif software in {"aimnet2", "xtb-aimnet2"}:
+        provenance.update(xtb)
+    elif software in {"aimnet2", "aimnet_2", "xtb-aimnet2"}:
         try:
             from pyar.backends.aimnet2_assets import MODEL_PATH
             model = Path(MODEL_PATH)
@@ -70,6 +77,11 @@ def _backend_cache_provenance(qc_params):
         except (ImportError, OSError, importlib.metadata.PackageNotFoundError):
             return None
         provenance.update(model_sha256=digest, torch_version=torch_version)
+        if software == "xtb-aimnet2":
+            xtb = _xtb_cache_provenance()
+            if xtb is None:
+                return None
+            provenance["xtb"] = xtb
     else:
         # ORCA and other external engines have vendor-specific version probes;
         # do not guess or reuse caches until their version can be established.
