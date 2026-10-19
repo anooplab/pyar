@@ -28,16 +28,20 @@ jobs:
             xtb=6.7.1
           init-shell: bash
       - name: Install PyAR test/runtime dependencies
-        run: python -m pip install -e ".[selection,xtb]" --group test
+        run: >-
+          "$MAMBA_EXE" run -n pyar-scientific
+          python -m pip install -e ".[selection,xtb]" --group test
       - name: Record candidate and backend versions
         run: |
           mkdir -p evidence
           git rev-parse HEAD > evidence/candidate-sha.txt
-          xtb --version > evidence/xtb-version.txt 2>&1
-          python -c 'import pyar; print(pyar.__version__)' > evidence/pyar-version.txt
+          "$MAMBA_EXE" run -n pyar-scientific xtb --version > evidence/xtb-version.txt 2>&1
+          "$MAMBA_EXE" run -n pyar-scientific python --version > evidence/python-version.txt 2>&1
+          "$MAMBA_EXE" run -n pyar-scientific python -m pip --version > evidence/pip-version.txt 2>&1
+          "$MAMBA_EXE" run -n pyar-scientific python -c 'import pyar; print(pyar.__version__)' > evidence/pyar-version.txt
       - name: Run real-backend scan smoke
         run: |
-          python benchmarks/scan_bond/validate_backend_scans.py \
+          "$MAMBA_EXE" run -n pyar-scientific python benchmarks/scan_bond/validate_backend_scans.py \
             --backend xtb-gfn2 --output "$RUNNER_TEMP/pyar-tier2" \
             > evidence/xtb-gfn2-scan.json
       - uses: actions/upload-artifact@v4
