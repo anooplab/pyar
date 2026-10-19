@@ -25,8 +25,10 @@ Do not implement planned infrastructure merely because this skill was invoked.
    or create an authorized isolated environment; never mutate a user's shared
    environment implicitly. Use pip with dependency-group support and the current
    metadata/CI install commands, not nonexistent `[test,docs]` extras.
-3. Inspect the available candidate-manifest and gate validators. Where the plan
-   still lists a required validator/corpus as missing, mark that gate BLOCKED.
+3. Inspect the available candidate-manifest and gate validators. For scientific
+   evidence, use `tools/scientific_validation.py` against a frozen case
+   manifest and results file. Where the plan still lists a required corpus or
+   aggregate release validator as missing, mark that gate BLOCKED.
    Collect available evidence without replacing the missing check with an AI
    assessment. Never execute a guessed script path or record an unrun command as
    successful. Require a frozen case manifest, tolerances, assets and budget
@@ -68,11 +70,13 @@ sha256sum "$EVIDENCE"/dist/*
 - Scientific commands must come from the approved case manifest and existing
   benchmark interfaces. `benchmarks/scan_bond/validate_backend_scans.py` is an
   available small scan smoke, not a replacement for the scientific release
-  corpus. See the existing TS benchmark README and conformer/microsolvation
-  runners for their actual interfaces. Require the numerical comparator's exit
-  and structured verdict, raw backend outputs, versions, reference hashes,
-  objective/identity/pathway checks and complete cost accounting. An absent
-  comparator, unavailable backend/model or missing case is BLOCKED/NOT_RUN.
+  corpus. The weekly/manual `.github/workflows/scientific-tier2.yml` run is
+  candidate-bound evidence only when its `head_sha` matches the candidate.
+  See the existing TS benchmark README and conformer/microsolvation runners for
+  their actual interfaces. Require the scientific comparator's exit and
+  structured verdict, raw backend outputs, versions, reference hashes,
+  objective/identity/pathway checks and complete cost accounting. An unavailable
+  backend/model or missing required case is BLOCKED/NOT_RUN.
 
 Set `CANDIDATE_SHA` to the frozen checkout's `git rev-parse HEAD` output.
 Select `CI_RUN_ID` from the matching `ci.yml` run list, then verify its

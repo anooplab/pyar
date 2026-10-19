@@ -1,9 +1,12 @@
 """Independent energy/force consistency tests for the AFIR bias."""
 
 import numpy as np
+import pytest
 
 from pyar.biases.afir import isotropic
 from pyar.data.units import angstrom2bohr
+
+pytestmark = [pytest.mark.scientific, pytest.mark.tier1]
 
 
 def test_afir_bias_force_matches_central_energy_difference():

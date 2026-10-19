@@ -16,6 +16,7 @@ UNIT_FILES = {
     "test_conformer_request.py",
     "test_aggregation_request.py",
     "test_release_evidence.py",
+    "test_scientific_validation.py",
 }
 REGRESSION_FILES = {
     "test_reaction_review_regressions.py",

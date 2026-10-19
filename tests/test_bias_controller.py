@@ -3,12 +3,15 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from pyar.biases.controller import (
     BiasController,
     FixedBiasController,
     resolve_controller_policy,
 )
+
+pytestmark = [pytest.mark.scientific, pytest.mark.tier1]
 
 
 class BiasControllerTests(unittest.TestCase):

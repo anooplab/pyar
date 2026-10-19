@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "inventory; no release corpus approved",
+  "entries": [
+    {
+      "id": "structure-comparison-v0.2",
+      "path": "../structure_comparison",
+      "domain": "molecular and cluster structural comparison",
+      "reference_kind": "constructed labels and geometry invariants",
+      "independent_evidence": "known atom correspondence, proper rigid transforms, SMILES connectivity, and pair-distance spectra",
+      "known_limitations": ["not an energy or basin benchmark", "90 of 189 pairs are explicitly diagnostic or ambiguous", "correlated isomer fixtures are not independent chemical systems"],
+      "release_eligible": false
+    },
+    {
+      "id": "mpconf196gen-clustering-pilot",
+      "path": "../clustering_scientific",
+      "domain": "conformer-cluster seed selection",
+      "reference_kind": "independently optimized conformer ensembles",
+      "independent_evidence": "upstream MPCONF196GEN dataset and its bundled attribution/license files",
+      "known_limitations": ["pilot covers three molecular systems", "does not validate universal aggregation policy"],
+      "release_eligible": false
+    },
+    {
+      "id": "rgd1-tsopt-gfn2",
+      "path": "../ts_optimizers",
+      "domain": "transition-state optimization",
+      "reference_kind": "published external TS structures and endpoints",
+      "independent_evidence": "Zenodo DOI 10.5281/zenodo.20489312, dataset version 1.0; adapter records source hashes",
+      "known_limitations": ["dataset is external and not redistributed", "copyright record does not establish open redistribution permission", "tblite reference and xTB executable are not numerically identical"],
+      "release_eligible": false
+    },
+    {
+      "id": "microsolvation-ms0",
+      "path": "../microsolvation",
+      "domain": "finite microsolvated structure sampling",
+      "reference_kind": "paired candidate-pool comparison and common-method rescoring",
+      "independent_evidence": "protocol.json declares cases, method settings, constraints, and resource budget",
+      "known_limitations": ["not bulk solvation thermodynamics", "external CREST and ORCA availability varies", "pilot evidence is not a frozen release baseline"],
+      "release_eligible": false
+    },
+    {
+      "id": "backend-scan-continuation",
+      "path": "../scan_bond",
+      "domain": "constrained scan and reaction-path continuation",
+      "reference_kind": "analytic potential plus recorded real xTB and ORCA smoke calculations",
+      "independent_evidence": "BACKEND_CONTINUATION_VALIDATION.md records versions, commands, energies, and limits",
+      "known_limitations": ["implementation validation, not a chemical mechanism benchmark", "no complete real scan-to-IRC validation", "Gaussian and AIMNet2 calculations were mocked"],
+      "release_eligible": false
+    }
+  ]
+}

@@ -1,13 +1,14 @@
 # Mandatory PyAR release gates
 
-Policy established 2026-10-18. These gates govern a future public release, not
+Policy established 2026-10-18; updated for R3 on 2026-10-19. These gates govern a future public release, not
 ordinary feature completion. They do not reopen the frozen ORE scientific scope
 or turn its separate benchmark project into unfinished implementation work.
 The new release-engineering R0–R5 stages are distinct from the ORE R0–R5 series.
 
 This is the canonical gate definition. The [preparation skill](../../.agents/skills/prepare-release/SKILL.md)
-supplies the procedure; the [plan](plan.md) identifies automation still to build.
-No new gate automation is implemented by this policy change.
+supplies the procedure; the [plan](plan.md) identifies remaining automation.
+R3 adds a deterministic scientific evidence comparator and Tier 1/Tier 2
+execution surfaces. It does not freeze or approve the release corpus.
 
 ## Evidence and decision rules
 
@@ -39,7 +40,7 @@ No new gate automation is implemented by this policy change.
 | --- | --- | --- |
 | G0 Candidate | Clean isolated candidate; intended diff reviewed; version/import/distribution metadata agree; changelog and supported-scope statement match the candidate. No unrelated files or unapproved scientific changes. | Git commands, `pyproject.toml`, `CHANGELOG.md`, metadata tests. Unified candidate manifest/version/changelog validator is missing. |
 | G1 Code and regressions | Full supported Python CI matrix passes on the exact SHA, including current coverage floor. Relevant negative, interruption/replay, v1/v2 compatibility and optional-dependency tests execute. Review skipped/xfail cases against an approved issue inventory; new unexplained omissions block. False-success and objective-corruption defects affecting release claims block until corrected or the affected capability is explicitly excluded from those claims. | `.github/workflows/ci.yml`, pytest and coverage configuration. Automated skip/xfail inventory and aggregate required-check validator are missing. |
-| G2 Scientific and backend validation | Run the preapproved representative corpus on the candidate: optimization, scan/reaction, conformer/selection, microsolvation and TS/IRC routes as selected in the release support matrix. Compare against approved references/baseline within declared energy/gradient/geometry/identity tolerances; verify units, electronic state, objective, constraints, budgets and failure classification. TS claims require saddle/frequency, both IRC branches and endpoint connection checks. Include invalid/stale/interrupted negative controls and paired cost evidence for recovery/performance claims. | Existing benchmark runners and scientific tests are starting points. A versioned release corpus, baseline, numerical comparator and nonzero-exit release verdict are missing. A small smoke run or mocked solver cannot satisfy this gate. |
+| G2 Scientific and backend validation | Run the preapproved representative corpus on the candidate: optimization, scan/reaction, conformer/selection, microsolvation and TS/IRC routes as selected in the release support matrix. Compare against approved references/baseline within declared energy/gradient/geometry/identity tolerances; verify units, electronic state, objective, constraints, budgets and failure classification. TS claims require saddle/frequency, both IRC branches and endpoint connection checks. Include invalid/stale/interrupted negative controls and paired cost evidence for recovery/performance claims. | Tier 1 is mandatory in PR CI. `.github/workflows/scientific-tier2.yml` runs real xTB GFN2 scan smoke weekly and manually. `tools/scientific_validation.py` checks manifest integrity, hashes, methods, electronic states, versions, raw-log references and numeric tolerances. The catalogue has no owner-approved release corpus; required Tier 2/Tier 3 cases and thresholds remain a release blocker. A small smoke run or mocked solver cannot satisfy the whole gate. |
 | G3 Documentation | Strict Sphinx passes; user-facing commands, installation/extras/backend instructions, changelog and version boundaries match actual behavior. Modern and legacy examples have appropriate automated help/preflight/smoke coverage. Generated documentation is reviewed without silently discarding unrelated edits. | Existing `Documentation` CI job and CLI tests. A systematic executable example/CLI-to-doc contract and consolidated release-note check are missing. |
 | G4 Installation and optional compatibility | Fresh non-editable core, declared workflow/extra compositions, wheel and sdist installs run outside the checkout; `pip check`, import-origin checks and real CLI/behavior smoke checks pass. Missing extras, models and executables fail actionably before work. Advertised backend versions have explicit positive/negative evidence or a clearly disclosed, owner-approved unvalidated/excluded status in the support matrix; optional absence cannot be relabelled a positive calculation. | `tools/installation_smoke.py`, installation tests and CI matrices exist. Full final-artifact/Python/extra coverage, dependency constraint snapshots and licensed-backend evidence are incomplete. |
 | G5 Distribution | Build fresh wheel and sdist from the frozen candidate with recorded build tools; archive inspection and `twine check` pass; required runtime files/licenses exist; private data, generated caches, unlicensed datasets and external model weights are excluded. Both artifact hashes are recorded. Install and test these exact artifacts; promotion must upload the approved bytes. | `python -m build`, `tools/check_distributions.py` and clean-install CI exist. The publish workflow rebuilds independently and lacks the approved-artifact promotion contract and full metadata/license checks. |
@@ -66,7 +67,7 @@ new methods, weaken chemistry gates or switch calculators to make tests pass.
 
 ## Release evidence record to implement
 
-R1–R4 will define and validate a machine-readable record containing:
+R1–R4 define and validate a machine-readable record containing:
 
 - candidate SHA/version and scope; artifact hashes and build environment;
 - the required gate/job/case matrix, thresholds and approved exclusions;
@@ -75,5 +76,6 @@ R1–R4 will define and validate a machine-readable record containing:
 - owner approval identity/time, target registry and approved hashes;
 - post-publication registry/install results and any incident record.
 
-Until that deterministic validator and the missing gates exist, an agent must
-report the gaps rather than substitute a subjective "looks ready" verdict.
+The R3 scientific comparator is not the aggregate release-record validator.
+Missing mandatory cases remain blockers; agents must report the gaps rather than
+substitute a subjective "looks ready" verdict.

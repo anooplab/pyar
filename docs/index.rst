@@ -136,6 +136,7 @@ internal design:
 * :doc:`generated_api`
 * :doc:`architecture`
 * :doc:`migration`
+* :doc:`scientific_validation/index`
 
 How to cite PyAR
 ----------------
@@ -224,6 +225,7 @@ The fastest way to verify a local install is:
    architecture
    persistence
    run_layout
+   scientific_validation/index
 
 .. toctree::
    :hidden:
