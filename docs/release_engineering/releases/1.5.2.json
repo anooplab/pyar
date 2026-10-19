@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "status": "APPROVED",
+  "version": "1.5.2",
+  "candidate_sha": "f621275c1ef19950bc562264f1319112eb3bc6ad",
+  "target_registry": "https://upload.pypi.org/legacy/",
+  "approved_by": "PyAR project owner (explicit release authorization in this conversation)",
+  "approved_at_utc": "2026-10-19T06:47:18Z",
+  "authorization_scope": "Publish PyAR 1.5.2 from the exact candidate and exact built artifacts recorded here, under the previously approved narrow maintenance-release scope.",
+  "scientific_scope_status": "PASS_SCOPED",
+  "scientific_scope_evidence": {
+    "tier2_run": "https://github.com/anooplab/pyar/actions/runs/39211573722",
+    "tier2_candidate_sha": "f621275c1ef19950bc562264f1319112eb3bc6ad",
+    "backend": "xTB GFN2-xTB",
+    "backend_version": "xTB version 6.7.1 (edcfbbe) compiled by conda on 2026-06-10",
+    "system": "H2; neutral singlet; 3-point constrained bond scan from 0.96 to 0.74 angstrom",
+    "energies_hartree": [
+      -0.971086678722,
+      -0.980467429012,
+      -0.981983694723
+    ],
+    "result": "Tier 2 scan execution and finite energies passed; this is a scan smoke, not a validated transition state or broad scientific benchmark.",
+    "artifact_archive_sha256": "f1392bd3320cac4708fdd54f77daba70b5ae68afcf58ad5dd1a32adf348246ea",
+    "input_fragment_sha256": "7dc85789455588c7e5be41c6d16fa7e63a01967ccb0258edbb54a756de022e96",
+    "derivative_validation": "Previously owner-approved H2 GFN2 energy/gradient consistency case passed at prior candidate 3c3e92af07d702d4b3b4e44e39b238fed99d0b61; final candidate changes are version/changelog integration only."
+  },
+  "scientific_exclusions": [
+    "Broad scientific benchmark corpus and method-specific tolerances are not approved or validated by this maintenance release.",
+    "Reaction exploration, NEB, transition-state characterization, frequency analysis, and IRC are excluded from scientific correctness claims.",
+    "Aggregation, conformer ranking, and microsolvation scientific validation are excluded.",
+    "Backend scientific validation beyond the recorded xTB GFN2 checks is excluded."
+  ],
+  "workflow_runs": {
+    "ci": "39211560723",
+    "tier2": "39211573722"
+  },
+  "workflow_urls": {
+    "ci": "https://github.com/anooplab/pyar/actions/runs/39211560723",
+    "tier2": "https://github.com/anooplab/pyar/actions/runs/39211573722"
+  },
+  "required_jobs": {
+    "ci": [
+      "Clean wheel and sdist installations",
+      "Documentation",
+      "Geodesic interpolation (py3.11)",
+      "Lint, format and fast regressions",
+      "R1 required checks",
+      "Sella TS optimizer (py3.11)",
+      "Tests (py3.10)",
+      "Tests (py3.11)",
+      "Tests (py3.12)",
+      "Tests (py3.13)",
+      "User installation (aggregate, py3.10)",
+      "User installation (aggregate, py3.13)",
+      "User installation (aimnet2, py3.10)",
+      "User installation (aimnet2, py3.13)",
+      "User installation (analysis, py3.10)",
+      "User installation (analysis, py3.13)",
+      "User installation (conformer, py3.10)",
+      "User installation (conformer, py3.13)",
+      "User installation (core, py3.10)",
+      "User installation (core, py3.13)",
+      "User installation (microsolvate, py3.10)",
+      "User installation (microsolvate, py3.13)",
+      "User installation (ml, py3.10)",
+      "User installation (ml, py3.13)",
+      "User installation (neb, py3.10)",
+      "User installation (neb, py3.13)",
+      "User installation (reaction, py3.10)",
+      "User installation (reaction, py3.13)"
+    ],
+    "tier2": [
+      "Real xTB GFN2 scan smoke"
+    ]
+  },
+  "ci_artifact": {
+    "run_artifact_id": "12168250384",
+    "archive_sha256": "b56933a264ad30cd084fa2cdf0f638c48d7838f9508b0da52e9801c816f17042"
+  },
+  "tier2_artifact": {
+    "run_artifact_id": "12167911527",
+    "archive_sha256": "f1392bd3320cac4708fdd54f77daba70b5ae68afcf58ad5dd1a32adf348246ea"
+  },
+  "artifacts": {
+    "pyar_chem-1.5.2-py3-none-any.whl": "c63927e0aaa74d91b8d17239b71b57028e2fac6e901974383f90fac75b4a244b",
+    "pyar_chem-1.5.2.tar.gz": "e0fedb6878f438ba0882f9d91049b69e8e9e1d70657e3398f0d6a823fd0d127a"
+  },
+  "tag": "v1.5.2"
+}
