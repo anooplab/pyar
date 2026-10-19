@@ -197,6 +197,33 @@ def test_unknown_backend_version_disables_cache_reuse_and_write(tmp_path, monkey
     assert not (tmp_path / 'job_audit' / 'optimization_cache.json').exists()
 
 
+def test_xtb_cache_provenance_records_executable_and_version(monkeypatch, tmp_path):
+    executable = tmp_path / 'xtb'
+    monkeypatch.setattr(optimiser.shutil, 'which', lambda _name: str(executable))
+    monkeypatch.setattr(
+        optimiser.subprocess, 'run',
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0, stdout='xtb version 6.7.1 (build-hash)', stderr='normal termination',
+        ),
+    )
+    provenance = optimiser._backend_cache_provenance({'software': 'xtb', 'method': 'GFN2-xTB'})
+    assert provenance == {
+        'backend': 'xtb', 'method': 'GFN2-xTB',
+        'executable': str(executable.resolve()),
+        'version': 'xtb version 6.7.1 (build-hash)\nnormal termination',
+    }
+
+
+def test_xtb_cache_provenance_unknown_when_version_probe_fails(monkeypatch):
+    from subprocess import TimeoutExpired
+    monkeypatch.setattr(optimiser.shutil, 'which', lambda _name: '/usr/bin/xtb')
+    monkeypatch.setattr(
+        optimiser.subprocess, 'run',
+        lambda *args, **kwargs: (_ for _ in ()).throw(TimeoutExpired(args[0], 5)),
+    )
+    assert optimiser._backend_cache_provenance({'software': 'xtb'}) is None
+
+
 def test_backend_version_change_invalidates_cache(tmp_path, monkeypatch, molecule, qc):
     monkeypatch.chdir(tmp_path)
     version = {'value': 'xTB 6.6.1'}
