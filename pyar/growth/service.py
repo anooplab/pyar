@@ -22,6 +22,7 @@ from pyar.selection import clustering
 from pyar.selection import reports as selection_reports
 from pyar.sampling import trial_generator as trial_generation
 from pyar.optimiser import is_cycle_exceeded, is_success, optimise
+from pyar.backend_errors import BackendExecutionError
 from pyar.optimization_service import optimize_workflow_once
 from pyar.structure_comparison.coordinate_graph import analyze_growth_transition
 from pyar.workflow_results import AggregateResult, ReactionResult, SolvationResult
@@ -70,6 +71,31 @@ def _write_growth_structure_analysis(input_parts, outputs, filename):
     except (KeyError, ValueError, TypeError) as exc:
         # This diagnostic must never block structure generation or selection.
         aggregator_logger.warning("Coordinate-only structural analysis skipped: %s", exc)
+
+
+def _optimize_growth_batch(molecules, qc_params, workflow_role, failure_filename):
+    """Attempt each independent candidate and persist backend failures."""
+    statuses = []
+    failures = []
+    failure_path = Path(failure_filename)
+    if failure_path.exists():
+        try:
+            failures = json.loads(failure_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            failures = []
+    for molecule in molecules:
+        try:
+            status, _diagnostic, _diagnostic_path = optimize_workflow_once(
+                molecule, qc_params, workflow_role=workflow_role, optimizer=optimise
+            )
+        except BackendExecutionError as exc:
+            statuses.append(False)
+            failures.append({"molecule": molecule.name, "workflow_role": workflow_role, "error": str(exc)})
+            failure_path.write_text(json.dumps(failures, indent=2) + "\n", encoding="utf-8")
+            aggregator_logger.error("Backend failed for %s (%s): %s", molecule.name, workflow_role, exc)
+        else:
+            statuses.append(status)
+    return statuses
 
 
 def _write_growth_selection_diagnostics(diagnostics, filename):
@@ -579,11 +605,10 @@ def add_one(
                         aggregator_logger.info(
                             f"    Optimization round {i + 1:d}: pending={len(not_converged):d}"
                         )
-                        status_list = [
-                            optimize_workflow_once(each_mol, preselection_qc_params,
-                                workflow_role="growth_preselection", optimizer=optimise)[0]
-                            for each_mol in not_converged
-                        ]
+                        status_list = _optimize_growth_batch(
+                            not_converged, preselection_qc_params,
+                            "growth_preselection", "backend_failures.json",
+                        )
                         converged = [n for n, s in zip(not_converged, status_list) if is_success(s)]
                         list_of_optimized_molecules.extend(converged)
                         not_converged = [
@@ -689,9 +714,10 @@ def add_one(
             refined_seeds = []
             for each_file in selected_seeds:
                 not_refined = copy.deepcopy(each_file)
-                status, _diagnostic, _diagnostic_path = optimize_workflow_once(
-                    each_file, refinement_qc_params, workflow_role="growth_refinement",
-                    optimizer=optimise)
+                status = _optimize_growth_batch(
+                    [each_file], refinement_qc_params,
+                    "growth_refinement", "backend_failures.json",
+                )[0]
                 if is_success(status):
                     xyz_file = f"job_{each_file.name}/result_{each_file.name}.xyz"
                     shutil.copy(xyz_file, ".")

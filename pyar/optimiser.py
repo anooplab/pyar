@@ -251,12 +251,20 @@ def bulk_optimize(input_molecules, qc_params):
     """Optimize molecules and keep only usable results."""
     # Modern requests resolve spin on every molecule, including mixed-parity pools.
     # Keep the historical parameter path unchanged for existing callers.
-    status_list = [optimise(each_mol, {
-        **qc_params, 'charge': each_mol.charge,
-        'multiplicity': each_mol.multiplicity, 'scftype': each_mol.scftype,
-        'xtb_unpaired_electrons': each_mol.multiplicity - 1,
-    } if qc_params.get('_electronic_state_from_molecule') else qc_params)
-        for each_mol in input_molecules]
+    status_list = []
+    backend_failures = []
+    for each_mol in input_molecules:
+        parameters = ({
+            **qc_params, 'charge': each_mol.charge,
+            'multiplicity': each_mol.multiplicity, 'scftype': each_mol.scftype,
+            'xtb_unpaired_electrons': each_mol.multiplicity - 1,
+        } if qc_params.get('_electronic_state_from_molecule') else qc_params)
+        try:
+            status_list.append(optimise(each_mol, parameters))
+        except BackendExecutionError as exc:
+            status_list.append(None)
+            backend_failures.append(f"{each_mol.name}: {exc}")
+            optimiser_logger.error("Backend failed for %s: %s", each_mol.name, exc)
     status_counts = {}
     for status in status_list:
         key = _status_label(status)
@@ -267,6 +275,11 @@ def bulk_optimize(input_molecules, qc_params):
         sum(1 for s in status_list if is_usable(s)),
         status_counts,
     )
+    if backend_failures:
+        raise BackendExecutionError(
+            "all input jobs were attempted; one or more molecule optimizations failed: "
+            + "; ".join(backend_failures)
+        )
     return [
         n
         for n, s in zip(input_molecules, status_list)

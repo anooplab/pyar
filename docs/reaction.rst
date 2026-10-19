@@ -78,8 +78,11 @@ The selection also applies to native xTB relaxation of reaction candidates.
 Start in a new directory when changing the Hamiltonian of an existing run.
 PyAR exits with a nonzero status before creating reaction state if the selected
 xTB executable cannot run ``--gxtb``. If a backend fails during optimization,
-``reaction/state.json`` records ``failed_backend`` and the error; such a run is
-not reported as ``completed_no_candidates``.
+PyAR records the failed orientation and error in ``reaction/state.json`` and
+continues with the remaining orientations in that cycle. A run in which every
+orientation fails at the backend ends as ``failed_backend`` rather than
+``completed_no_candidates``. Invalid requests and unsupported backend settings
+are still rejected before candidate execution.
 
 Backends
 --------

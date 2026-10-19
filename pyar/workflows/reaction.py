@@ -811,8 +811,10 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         else None
     )
     pending_orientations = list(orientations)
+    backend_failures = []
+    successful_optimizations = 0
 
-    def record_orientation_completion(job_name, status, identity=None):
+    def record_orientation_completion(job_name, status, identity=None, failure=None):
         """Persist the processed job and any orientations still pending."""
         pending_orientations.pop(0)
         if run_state is not None:
@@ -823,6 +825,7 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                 pending_orientations,
                 table_of_optimized_molecules,
                 identity=identity,
+                failure=failure,
             )
         reactor_logger.info(
             "Orientation completed! status=%s final_coordinate=%s",
@@ -833,6 +836,15 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                 job_name,
             ),
         )
+
+    def record_backend_failure(job_name, exc):
+        failure = f"{type(exc).__name__}: {exc}"
+        backend_failures.append((job_name, failure))
+        reactor_logger.exception(
+            "Backend job failed for orientation %s; continuing with remaining orientations",
+            job_name,
+        )
+        record_orientation_completion(job_name, "failed_backend", failure=failure)
 
     for this_molecule in orientations:
         job_key = this_molecule.name
@@ -851,12 +863,18 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         start_identity = molecule_identity_from_xyz(reference_xyz_file_name)
         orientation_qc_param = dict(qc_param)
         orientation_qc_param["release_job_name"] = job_name
-        status = _optimize_with_diagnostics(
-            this_molecule, orientation_qc_param, "reaction_afir_orientation"
-        )
+        try:
+            status = _optimize_with_diagnostics(
+                this_molecule, orientation_qc_param, "reaction_afir_orientation"
+            )
+        except BackendExecutionError as exc:
+            record_backend_failure(job_name, exc)
+            os.chdir(cwd)
+            continue
         this_molecule.name = job_name
         reactor_logger.info('Optimization step completed')
         if is_usable(status):
+            successful_optimizations += 1
             before_relax = this_molecule.copy()
             reactor_logger.info("Energy E({}): {:12.7f}".format(job_name, this_molecule.energy))
 
@@ -877,19 +895,25 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                 reactor_logger.info("Close contacts detected; running unbiased relaxation (gamma=0.0)")
                 release_survived = True
                 release_attempts = 0
-                if qc_param.get("bias_controller") == "adaptive":
-                    (
-                        status,
-                        this_molecule,
-                        before_relax,
-                        evidence,
-                        release_survived,
-                        release_attempts,
-                    ) = _adaptive_release_probe(
-                        before_relax, this_molecule, orientation_qc_param, evidence
-                    )
-                else:
-                    status = relax_without_afir_bias(this_molecule, qc_param)
+                try:
+                    if qc_param.get("bias_controller") == "adaptive":
+                        (
+                            status,
+                            this_molecule,
+                            before_relax,
+                            evidence,
+                            release_survived,
+                            release_attempts,
+                        ) = _adaptive_release_probe(
+                            before_relax, this_molecule, orientation_qc_param, evidence
+                        )
+                    else:
+                        status = relax_without_afir_bias(this_molecule, qc_param)
+                except BackendExecutionError as exc:
+                    successful_optimizations -= 1
+                    record_backend_failure(job_name, exc)
+                    os.chdir(cwd)
+                    continue
                 if is_success(status):
                     if qc_param.get("bias_controller") == "adaptive" and not release_survived:
                         reactor_logger.info("Native free relaxation lost the forming connectivity")
@@ -999,6 +1023,11 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
         record_orientation_completion(job_name, status)
         os.chdir(cwd)
         sys.stdout.flush()
+    if backend_failures and successful_optimizations == 0:
+        summary = "; ".join(f"{name}: {failure}" for name, failure in backend_failures)
+        raise BackendExecutionError(
+            f"All {len(backend_failures)} reaction orientation backend jobs failed: {summary}"
+        )
     return table_of_optimized_molecules
 
 
