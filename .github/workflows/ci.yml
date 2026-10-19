@@ -223,7 +223,7 @@ jobs:
           obabel -V
       - run: python -m pip install -e ".[selection,xtb]" --group test --group quality
       - run: python -m ruff check tests tools
-      - run: python -m ruff format --check tools/check_documentation.py tools/check_test_outcomes.py tools/release_evidence.py tools/scientific_validation.py tests/conftest.py tests/test_documentation_contract.py tests/test_release_evidence.py tests/test_scientific_validation.py
+      - run: python -m ruff format --check tools/check_documentation.py tools/check_test_outcomes.py tools/release_evidence.py tools/release_promotion.py tools/scientific_validation.py tools/verify_pypi_release.py tests/conftest.py tests/test_documentation_contract.py tests/test_release_evidence.py tests/test_release_promotion.py tests/test_scientific_validation.py
       - run: python tools/check_documentation.py
       - name: Run deterministic scientific Tier 1 tests
         run: python -m pytest -m "scientific and tier1" --junitxml=reports/scientific-tier1.xml

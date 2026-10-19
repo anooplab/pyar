@@ -1,78 +1,228 @@
-name: Publish to PyPI
+name: Publish approved artifacts to PyPI
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: Owner-approved package version
+        required: true
+        type: string
+      candidate_sha:
+        description: Exact approved candidate commit
+        required: true
+        type: string
+      ci_run_id:
+        description: Exact-SHA CI run containing approved distributions
+        required: true
+        type: string
+      tier2_run_id:
+        description: Exact-SHA Scientific Tier 2 run
+        required: true
+        type: string
 
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish-${{ inputs.version }}
   cancel-in-progress: false
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  build:
-    name: Build distributions
+  verify:
+    name: Verify approved candidate and artifacts
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.approval.outputs.version }}
+      candidate_sha: ${{ steps.approval.outputs.candidate_sha }}
     steps:
-      - name: Check out repository
+      - name: Require dispatch from the default branch
+        env:
+          REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: test "$REF" = "refs/heads/$DEFAULT_BRANCH"
+
+      - name: Check out release authorization
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: Verify release tag matches project version
-        if: github.ref_type == 'tag'
+      - name: Read the versioned authorization record
+        id: approval
+        env:
+          VERSION: ${{ inputs.version }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
-          python - <<'PY'
-          import os
-          import tomllib
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          import re
           from pathlib import Path
-
-          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
-          tag = os.environ["GITHUB_REF_NAME"]
-          if tag != f"v{version}":
-              raise SystemExit(f"Release tag {tag!r} does not match project version {version!r}")
+          version = os.environ["VERSION"]
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+              raise SystemExit("version input must be a three-part numeric version")
+          candidate_sha = os.environ["CANDIDATE_SHA"]
+          if not re.fullmatch(r"[0-9a-f]{40}", candidate_sha):
+              raise SystemExit("candidate SHA must be a full lowercase Git SHA")
+          approval = json.loads(Path(f"docs/release_engineering/releases/{version}.json").read_text())
+          if approval["version"] != version or approval["candidate_sha"] != candidate_sha:
+              raise SystemExit("dispatch version or candidate SHA differs from committed approval")
+          print(f"version={version}")
+          print(f"candidate_sha={approval['candidate_sha']}")
           PY
 
-      - name: Install build tooling
-        run: python -m pip install --upgrade pip build
+      - name: Check out the approved candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          fetch-depth: 0
 
-      - name: Build source and wheel distributions
-        run: python -m build
+      - name: Verify candidate is contained in the default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          git -C candidate fetch origin "$DEFAULT_BRANCH" --no-tags
+          git -C candidate merge-base --is-ancestor "$CANDIDATE_SHA" FETCH_HEAD
 
-      - name: Upload distributions
+      - name: Verify candidate package version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          from pathlib import Path
+          found = tomllib.loads(Path("candidate/pyproject.toml").read_text())["project"]["version"]
+          if found != os.environ["VERSION"]:
+              raise SystemExit(f"candidate metadata version {found!r} differs from approval")
+          PY
+
+      - name: Download distributions from the approved CI run
+        uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Record exact CI and Tier 2 run evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+          TIER2_RUN_ID: ${{ inputs.tier2_run_id }}
+        run: |
+          mkdir -p run-evidence
+          for kind in ci tier2; do
+            if [ "$kind" = ci ]; then id="$CI_RUN_ID"; else id="$TIER2_RUN_ID"; fi
+            case "$id" in *[!0-9]*|'') echo "Invalid workflow run id" >&2; exit 1;; esac
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" > "run-evidence/$kind-run.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100" > "run-evidence/$kind-jobs.json"
+            python - "$kind" <<'PY'
+          import json, pathlib, sys
+          kind = sys.argv[1]
+          root = pathlib.Path("run-evidence")
+          run = json.loads((root / f"{kind}-run.json").read_text())
+          jobs = json.loads((root / f"{kind}-jobs.json").read_text())
+          run["jobs"] = jobs["jobs"]
+          (root / f"{kind}-record.json").write_text(json.dumps(run, indent=2) + "\n")
+          PY
+          done
+
+      - name: Verify authorization, workflow runs and artifact hashes
+        env:
+          VERSION: ${{ inputs.version }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          python tools/release_promotion.py \
+            "docs/release_engineering/releases/$VERSION.json" dist \
+            --version "$VERSION" --candidate-sha "$CANDIDATE_SHA" \
+            --ci-run run-evidence/ci-record.json \
+            --tier2-run run-evidence/tier2-record.json \
+            --assert-unpublished
+
+      - name: Assemble the verified promotion bundle
+        run: |
+          mkdir -p promotion-bundle/dist promotion-bundle/run-evidence
+          cp dist/* promotion-bundle/dist/
+          cp "docs/release_engineering/releases/${{ inputs.version }}.json" promotion-bundle/approval.json
+          cp run-evidence/ci-record.json promotion-bundle/run-evidence/
+          cp run-evidence/tier2-record.json promotion-bundle/run-evidence/
+
+      - name: Carry verified approved bytes and evidence to the protected job
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/*
+          name: approved-promotion-bundle
+          path: promotion-bundle/
           if-no-files-found: error
+          retention-days: 90
 
   publish:
-    name: Publish to PyPI
+    name: Publish approved bytes
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: build
     environment:
       name: pypi
       url: https://pypi.org/p/pyar-chem
     permissions:
+      contents: write
+      actions: read
       id-token: write
-
     steps:
-      - name: Download distributions
+      - name: Check out promotion verifier
+        uses: actions/checkout@v4
+      - name: Download the verified distribution bytes
         uses: actions/download-artifact@v4
         with:
-          name: dist
-          path: dist
-
-      - name: Publish package distributions to PyPI
+          name: approved-promotion-bundle
+          path: promotion-bundle
+      - name: Recheck the exact approved bytes and evidence after transfer
+        env:
+          VERSION: ${{ inputs.version }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          python tools/release_promotion.py \
+            promotion-bundle/approval.json promotion-bundle/dist \
+            --version "$VERSION" --candidate-sha "$CANDIDATE_SHA" \
+            --ci-run promotion-bundle/run-evidence/ci-record.json \
+            --tier2-run promotion-bundle/run-evidence/tier2-record.json \
+            --assert-unpublished
+      - name: Create the immutable version tag at the approved candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          CANDIDATE_SHA: ${{ needs.verify.outputs.candidate_sha }}
+        run: |
+          ref="refs/tags/v$VERSION"
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" 2>/dev/null); then
+            existing_sha=$(printf '%s' "$existing" | python -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')
+            test "$existing_sha" = "$CANDIDATE_SHA" || {
+              echo "Existing tag $ref points to a different commit" >&2
+              exit 1
+            }
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=$ref" -f "sha=$CANDIDATE_SHA"
+          fi
+      - name: Publish the verified distribution bytes to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: promotion-bundle/dist/
+
+  verify-pypi:
+    name: Verify PyPI hashes and clean installation
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Check out release authorization
+        uses: actions/checkout@v4
+      - name: Verify versioned PyPI files and clean installed CLIs
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: python tools/verify_pypi_release.py "docs/release_engineering/releases/$VERSION.json"
