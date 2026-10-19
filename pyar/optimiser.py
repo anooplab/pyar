@@ -12,11 +12,13 @@ bulk_optimize(input_files, qc_params)
 
 import json
 import hashlib
+import importlib.metadata
 import logging
 import math
 import os
 from pathlib import Path
 import shutil
+import subprocess
 
 import numpy as np
 
@@ -32,6 +34,64 @@ SUCCESS_STATUSES = {True, 'converged'}
 CYCLE_EXCEEDED_STATUSES = {'CycleExceeded', 'cycle_exceeded', 'cycleexceeded'}
 RELEASE_CANDIDATE_STATUSES = {'ReleaseCandidate', 'release_candidate'}
 _OPTIMIZATION_CACHE_SCHEMA = 1
+
+
+def _xtb_cache_provenance():
+    executable = shutil.which("xtb")
+    if not executable:
+        return None
+    try:
+        completed = subprocess.run(
+            [executable, "--version"], capture_output=True, text=True,
+            timeout=5, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    version = (completed.stdout + "\n" + completed.stderr).strip()
+    if completed.returncode != 0 or not version:
+        return None
+    return {"executable": str(Path(executable).resolve()), "version": version}
+
+
+def _backend_cache_provenance(qc_params):
+    """Return a stable backend identity, or ``None`` when it cannot be verified.
+
+    Cache reuse is deliberately disabled for unknown backend versions. A changed
+    executable or model must not silently inherit results from an older run.
+    """
+    software = normalize_backend_name(qc_params.get("software", ""))
+    provenance = {"backend": software, "method": qc_params.get("method")}
+    if software == "xtb":
+        xtb = _xtb_cache_provenance()
+        if xtb is None:
+            return None
+        provenance.update(xtb)
+    elif software in {"aimnet2", "aimnet_2", "xtb-aimnet2"}:
+        try:
+            from pyar.backends.aimnet2_assets import MODEL_PATH
+            model = Path(MODEL_PATH)
+            if not model.is_file():
+                return None
+            digest = hashlib.sha256(model.read_bytes()).hexdigest()
+            torch_version = importlib.metadata.version("torch")
+        except (ImportError, OSError, importlib.metadata.PackageNotFoundError):
+            return None
+        provenance.update(model_sha256=digest, torch_version=torch_version)
+        if software == "xtb-aimnet2":
+            xtb = _xtb_cache_provenance()
+            if xtb is None:
+                return None
+            provenance["xtb"] = xtb
+    else:
+        # ORCA and other external engines have vendor-specific version probes;
+        # do not guess or reuse caches until their version can be established.
+        return None
+    if qc_params.get("geometry_optimizer") == "geometric":
+        try:
+            provenance["geometric_version"] = importlib.metadata.version("geometric")
+        except importlib.metadata.PackageNotFoundError:
+            return None
+    return _json_value(provenance)
 
 
 def _json_value(value):
@@ -55,7 +115,7 @@ def _json_value(value):
     raise TypeError(f"unsupported cache setting type: {type(value).__name__}")
 
 
-def _request_digest(molecule, qc_params):
+def _request_digest(molecule, qc_params, backend_provenance):
     """Fingerprint input structure, electronic state, backend, and all settings."""
     payload = {
         "schema_version": _OPTIMIZATION_CACHE_SCHEMA,
@@ -65,6 +125,7 @@ def _request_digest(molecule, qc_params):
         "multiplicity": int(molecule.multiplicity),
         "scftype": str(molecule.scftype),
         "settings": _json_value(qc_params),
+        "backend_provenance": backend_provenance,
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -99,7 +160,7 @@ def _archive_unverified_cache(result_path, metadata_path):
             shutil.move(str(path), str(target / path.name))
 
 
-def _verified_cache(molecule, request_digest, *, geometric=False):
+def _verified_cache(molecule, request_digest, backend_provenance, *, geometric=False):
     """Return a verified cached status/result, or archive and reject it."""
     result_path = Path(f"result_{molecule.name}.xyz")
     metadata_path = Path("optimization_cache.json")
@@ -130,6 +191,7 @@ def _verified_cache(molecule, request_digest, *, geometric=False):
         valid = (
             metadata.get("schema_version") == _OPTIMIZATION_CACHE_SCHEMA
             and metadata.get("request_sha256") == request_digest
+            and metadata.get("backend_provenance") == backend_provenance
             and metadata.get("result_sha256") == _result_digest(result_path, geometric=geometric)
             and status in {"converged", "cycle_exceeded", "release_candidate"}
         )
@@ -159,7 +221,7 @@ def _verified_cache(molecule, request_digest, *, geometric=False):
     return status, cached_energy, coordinates
 
 
-def _write_optimization_cache(molecule, request_digest, status, *, geometric=False):
+def _write_optimization_cache(molecule, request_digest, status, backend_provenance, *, geometric=False):
     """Atomically record a successful or explicitly provisional optimizer result."""
     result_path = Path(f"result_{molecule.name}.xyz")
     try:
@@ -173,6 +235,7 @@ def _write_optimization_cache(molecule, request_digest, status, *, geometric=Fal
         record = {
             "schema_version": _OPTIMIZATION_CACHE_SCHEMA,
             "request_sha256": request_digest,
+            "backend_provenance": backend_provenance,
             "result_sha256": _result_digest(result_path, geometric=geometric),
         "status": (
             "cycle_exceeded" if is_cycle_exceeded(status)
@@ -318,8 +381,12 @@ def optimise(molecule, qc_params):
             gamma,
             os.path.abspath(job_dir),
         )
+        backend_provenance = _backend_cache_provenance(qc_params)
         try:
-            request_digest = _request_digest(molecule, qc_params)
+            request_digest = (
+                _request_digest(molecule, qc_params, backend_provenance)
+                if backend_provenance is not None else None
+            )
         except (TypeError, ValueError) as exc:
             request_digest = None
             optimiser_logger.info("Optimization cache disabled for %s: %s", molecule.name, exc)
@@ -331,6 +398,7 @@ def optimise(molecule, qc_params):
         cached = _verified_cache(
             molecule,
             request_digest if not force_geometric_restart else None,
+            backend_provenance,
             geometric=qc_params.get('geometry_optimizer') == 'geometric',
         )
         if cached is not None:
@@ -378,6 +446,7 @@ def optimise(molecule, qc_params):
                         molecule,
                         request_digest,
                         optimize_status,
+                        backend_provenance,
                         geometric=qc_params.get('geometry_optimizer') == 'geometric',
                     )
                 except BackendExecutionError as exc:
