@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-10-19",
+  "candidate": {
+    "branch": "master",
+    "commit": "4c94f87217cf9a85af29077884fe2efefcf0fc20",
+    "package_version": "1.5.1",
+    "release_target": "PyAR 2.0",
+    "release_ready": false,
+    "publication_started": false
+  },
+  "gate_status": {
+    "G0_candidate": "BLOCKED",
+    "G1_code_regression": "PASS",
+    "G2_scientific_backend": "BLOCKED",
+    "G3_documentation": "PASS_CI_AND_LOCAL_STRICT_SPHINX",
+    "G4_installation_optional_compatibility": "PASS_CI",
+    "G5_distribution": "BLOCKED_FINAL_ARTIFACTS_NOT_FROZEN",
+    "G6_approval_publish_safety": "NOT_RUN",
+    "G7_post_release": "NOT_APPLICABLE"
+  },
+  "evidence": {
+    "pr_78_reviewed_head": "a30cf238cea504c384dfe6dcc178cc5aeb02dae7",
+    "ci_pr_url": "https://github.com/anooplab/pyar/actions/runs/39192224563",
+    "ci_push_url": "https://github.com/anooplab/pyar/actions/runs/39192219869",
+    "scientific_tier2_url": "https://github.com/anooplab/pyar/actions/runs/39192735168",
+    "scientific_tier2_conclusion": "success",
+    "scientific_tier2_candidate_sha": "4c94f87217cf9a85af29077884fe2efefcf0fc20",
+    "tier2_artifact": "scientific-tier2-4c94f87217cf9a85af29077884fe2efefcf0fc20",
+    "tier2_backend_versions": {
+      "xtb": "6.7.1 edcfbbe",
+      "openbabel": "3.2.1",
+      "python": "3.11.17",
+      "pyar": "1.5.1"
+    },
+    "tier2_input_sha256": "7dc85789455588c7e5be41c6d16fa7e63a01967ccb0258edbb54a756de022e96",
+    "tier2_request_sha256": "573e8b611a60b74f026301195cf7070c3d00a97f1a15506a66865c3ec60a7a19",
+    "tier2_scan_request_sha256": "b813c4be394d0a28f797cdf03eac309c30785fd49df676e2efe3073188ceb46b",
+    "tier2_scan_trajectory_sha256": "bff41e30c6318b758d8fe85d14b532d6fd098adaadcced84aa504beb183f5614",
+    "tier2_final_scan_sha256": "7185c791bac795e4a55a2672d58c09f62f367a0a83e91dd9372c1d7c6be151b2",
+    "local_exploratory_wheel_sha256": "c020c3a1905f8b1e678342b3394139bbdadd232e4bfbd511a6707a7970c09c58",
+    "local_exploratory_sdist_sha256": "33376d6990437fa50786fe33b3b2165e5d1e5b633bbaac599f0f873746b3a906",
+    "local_twine_check": "PASS",
+    "local_distribution_archive_check": "PASS_252_WHEEL_ENTRIES_442_SDIST_ENTRIES",
+    "local_clean_install": "NOT_TESTED_SLOW_DEPENDENCY_DOWNLOADS"
+  },
+  "blockers": [
+    "Scientific-owner approval of release corpus and per-case tolerances is pending.",
+    "Required real-backend reaction, TS Hessian/mode and IRC endpoint-connection coverage is incomplete.",
+    "AIMNet2 optimization result is rejected by convergence/result validation and needs reviewed resolution or scoped exclusion.",
+    "Version-specific final release artifacts and hashes have not been frozen.",
+    "Local clean installation did not complete because dependency downloads were too slow; exact-head CI clean installations passed."
+  ]
+}
