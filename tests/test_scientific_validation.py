@@ -18,6 +18,9 @@ def manifest(tmp_path):
     input_path = tmp_path / "input.xyz"
     input_path.write_text("1\nH\nH 0 0 0\n", encoding="utf-8")
     input_digest = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    log_path = tmp_path / "job" / "output.log"
+    log_path.parent.mkdir()
+    log_path.write_text("recorded raw backend output\n", encoding="utf-8")
     return {
         "schema_version": 1,
         "benchmark_id": "test-case",
@@ -65,9 +68,15 @@ def result(**updates):
 
 
 def test_manifest_backed_complete_result_passes(manifest, tmp_path):
-    report = evaluate(manifest, result(), tmp_path)
+    report = evaluate(manifest, result(), tmp_path, expected_candidate_sha="b" * 40)
     assert report["verdict"] == "PASS"
     assert report["counts"]["PASS"] == 1
+    assert report["cases"][0]["logs"] == [
+        {
+            "path": "job/output.log",
+            "sha256": hashlib.sha256(b"recorded raw backend output\n").hexdigest(),
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -81,7 +90,9 @@ def test_manifest_backed_complete_result_passes(manifest, tmp_path):
     ],
 )
 def test_invalid_scientific_evidence_fails_closed(manifest, tmp_path, updates):
-    report = evaluate(manifest, result(**updates), tmp_path)
+    report = evaluate(
+        manifest, result(**updates), tmp_path, expected_candidate_sha="b" * 40
+    )
     assert report["verdict"] == "FAIL"
     assert report["counts"]["FAIL"] == 1
 
@@ -91,13 +102,19 @@ def test_missing_case_is_not_tested_and_blocks_verdict(manifest, tmp_path):
         manifest,
         {"schema_version": 1, "candidate_sha": "b" * 40, "cases": []},
         tmp_path,
+        expected_candidate_sha="b" * 40,
     )
     assert report["cases"][0]["status"] == "NOT_TESTED"
     assert report["verdict"] == "FAIL"
 
 
 def test_not_applicable_without_authorized_exception_is_blocked(manifest, tmp_path):
-    report = evaluate(manifest, result(status="NOT_APPLICABLE"), tmp_path)
+    report = evaluate(
+        manifest,
+        result(status="NOT_APPLICABLE"),
+        tmp_path,
+        expected_candidate_sha="b" * 40,
+    )
     assert report["cases"][0]["status"] == "BLOCKED"
     assert report["verdict"] == "FAIL"
 
@@ -114,6 +131,7 @@ def test_approved_not_applicable_case_is_reported_as_exception(manifest, tmp_pat
             },
         ),
         tmp_path,
+        expected_candidate_sha="b" * 40,
     )
     assert report["cases"][0]["status"] == "NOT_APPLICABLE"
     assert report["verdict"] == "PASS"
@@ -122,7 +140,26 @@ def test_approved_not_applicable_case_is_reported_as_exception(manifest, tmp_pat
 def test_changed_reference_hash_is_rejected(manifest, tmp_path):
     (tmp_path / "reference.dat").write_text("changed", encoding="utf-8")
     with pytest.raises(EvidenceError, match="hash differs"):
-        evaluate(manifest, result(), tmp_path)
+        evaluate(manifest, result(), tmp_path, expected_candidate_sha="b" * 40)
+
+
+def test_candidate_sha_must_match_approved_head(manifest, tmp_path):
+    with pytest.raises(EvidenceError, match="differs from expected candidate"):
+        evaluate(manifest, result(), tmp_path, expected_candidate_sha="c" * 40)
+
+
+def test_missing_raw_log_cannot_pass(manifest, tmp_path):
+    (tmp_path / "job/output.log").unlink()
+    report = evaluate(manifest, result(), tmp_path, expected_candidate_sha="b" * 40)
+    assert report["verdict"] == "FAIL"
+    assert "raw log artifact is missing" in report["cases"][0]["failures"][0]
+
+
+def test_candidate_sha_must_be_hex(manifest, tmp_path):
+    invalid = result()
+    invalid["candidate_sha"] = "z" * 40
+    with pytest.raises(EvidenceError, match="full 40-character Git SHA"):
+        evaluate(manifest, invalid, tmp_path, expected_candidate_sha="b" * 40)
 
 
 def test_backend_matrix_covers_current_capability_registry():
@@ -164,6 +201,8 @@ def test_cli_writes_machine_and_human_reports_for_missing_case(
             "scientific_validation.py",
             str(manifest_path),
             str(results_path),
+            "--candidate-sha",
+            "b" * 40,
             "--json",
             str(json_output),
             "--markdown",

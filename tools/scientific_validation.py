@@ -133,13 +133,54 @@ def validate_manifest(manifest: dict, base_dir: Path) -> list[dict]:
     return cases
 
 
-def evaluate(manifest: dict, results: dict, base_dir: Path) -> dict:
+def _candidate_sha(value, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 40
+        or any(char not in "0123456789abcdef" for char in value.lower())
+    ):
+        raise EvidenceError(f"{label} must be a full 40-character Git SHA")
+    return value.lower()
+
+
+def _verified_logs(logs, base_dir: Path) -> list[dict]:
+    if not isinstance(logs, list):
+        raise EvidenceError("logs must be a list of repository-relative artifact paths")
+    if not logs:
+        raise EvidenceError("raw log/artifact references are missing")
+    verified = []
+    root = base_dir.resolve()
+    for item in logs:
+        if not isinstance(item, str) or not item.strip():
+            raise EvidenceError("each log reference must be a nonempty relative path")
+        relative = Path(item)
+        if relative.is_absolute():
+            raise EvidenceError(
+                f"log path must be relative to evidence directory: {item}"
+            )
+        path = (root / relative).resolve()
+        if root not in path.parents:
+            raise EvidenceError(f"log path must stay within evidence directory: {item}")
+        if not path.is_file():
+            raise EvidenceError(f"raw log artifact is missing: {item}")
+        verified.append({"path": relative.as_posix(), "sha256": sha256_file(path)})
+    return verified
+
+
+def evaluate(
+    manifest: dict, results: dict, base_dir: Path, *, expected_candidate_sha: str
+) -> dict:
     cases = validate_manifest(manifest, base_dir)
     if results.get("schema_version") != 1:
         raise EvidenceError("results schema_version must be 1")
-    candidate = results.get("candidate_sha")
-    if not isinstance(candidate, str) or len(candidate) != 40:
-        raise EvidenceError("results candidate_sha must be a full 40-character Git SHA")
+    candidate = _candidate_sha(results.get("candidate_sha"), "results candidate_sha")
+    expected_candidate = _candidate_sha(
+        expected_candidate_sha, "expected_candidate_sha"
+    )
+    if candidate != expected_candidate:
+        raise EvidenceError(
+            f"results candidate_sha {candidate} differs from expected candidate {expected_candidate}"
+        )
     observed = results.get("cases", [])
     if not isinstance(observed, list):
         raise EvidenceError("results cases must be a list")
@@ -202,6 +243,7 @@ def evaluate(manifest: dict, results: dict, base_dir: Path) -> dict:
             )
         elif status in {"NOT_TESTED", "BLOCKED"} and result.get("failure"):
             failures.append(str(result["failure"]))
+        verified_logs = []
         if status == "PASS":
             for field in (
                 "charge",
@@ -228,8 +270,10 @@ def evaluate(manifest: dict, results: dict, base_dir: Path) -> dict:
                         f"{name}: observed {observed_value} {rule['unit']}, expected "
                         f"{rule['expected']} +/- {rule['tolerance']} {rule['unit']}"
                     )
-            if not result.get("logs"):
-                failures.append("raw log/artifact references are missing")
+            try:
+                verified_logs = _verified_logs(result.get("logs"), base_dir)
+            except EvidenceError as exc:
+                failures.append(str(exc))
             if failures:
                 status = "FAIL"
         evaluated.append(
@@ -245,7 +289,7 @@ def evaluate(manifest: dict, results: dict, base_dir: Path) -> dict:
                 "reference": case["reference"],
                 "expected": case["acceptance"],
                 "observed": result.get("metrics", {}),
-                "logs": result.get("logs", []),
+                "logs": verified_logs if status == "PASS" else result.get("logs", []),
                 "status": status,
                 "failures": failures,
             }
@@ -291,9 +335,15 @@ def render_markdown(report: dict) -> str:
         values = json.dumps(
             {"expected": case["expected"], "observed": case["observed"]}, sort_keys=True
         )
+        log_refs = ", ".join(
+            f"{item['path']} (sha256 {item['sha256']})"
+            if isinstance(item, dict)
+            else str(item)
+            for item in case["logs"]
+        )
         lines.append(
             f"| {case['id']} | {case['tier']} | {identity} | {case['status']} | "
-            f"`{values}` | {', '.join(case['logs'])} | {'; '.join(case['failures'])} |"
+            f"`{values}` | {log_refs} | {'; '.join(case['failures'])} |"
         )
     return "\n".join(lines) + "\n"
 
@@ -302,13 +352,23 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
     parser.add_argument("results", type=Path)
+    parser.add_argument(
+        "--candidate-sha",
+        required=True,
+        help="expected full Git SHA for this evidence run",
+    )
     parser.add_argument("--json", dest="json_output", type=Path, required=True)
     parser.add_argument("--markdown", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
         results = json.loads(args.results.read_text(encoding="utf-8"))
-        report = evaluate(manifest, results, args.manifest.parent)
+        report = evaluate(
+            manifest,
+            results,
+            args.manifest.parent,
+            expected_candidate_sha=args.candidate_sha,
+        )
     except (OSError, json.JSONDecodeError, EvidenceError) as exc:
         parser.error(str(exc))
     args.json_output.write_text(

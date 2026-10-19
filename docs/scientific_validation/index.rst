@@ -62,8 +62,10 @@ method/backend version, old/new hashes, and scientific-owner review.
 
 ``tools/scientific_validation.py`` validates an evidence file against a frozen
 case manifest. It checks reference hashes, electronic state, method/backend,
-input hash, backend version, numerical metrics, tolerances and raw log links;
-it emits JSON and Markdown with ``PASS``, ``FAIL``, ``NOT_TESTED``,
+input hash, backend version, numerical metrics, tolerances and raw log links.
+It verifies that each log exists inside the evidence directory and records its
+SHA-256. The expected candidate SHA is required and must match the results
+record. It emits JSON and Markdown with ``PASS``, ``FAIL``, ``NOT_TESTED``,
 ``NOT_APPLICABLE`` or ``BLOCKED`` case states. The tool does not execute
 chemistry, convert a missing result into a pass, or approve exceptions. Example
 invocation:
@@ -71,6 +73,7 @@ invocation:
 .. code-block:: console
 
    python tools/scientific_validation.py cases.json results.json \
+     --candidate-sha "$(git rev-parse HEAD)" \
      --json evidence/scientific.json --markdown evidence/scientific.md
 
 Tolerance policy
