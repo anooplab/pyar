@@ -242,3 +242,9 @@ The fastest way to verify a local install is:
    :caption: Separate follow-up projects
 
    optimization_recovery_r5_plan
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Release engineering
+
+   release_engineering/index

@@ -119,19 +119,33 @@
       "required_python_modules": [],
       "optional_extra": null,
       "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
-      "real_calculation_status": "NOT_TESTED",
+      "real_calculation_status": "PASS_LIMITED_TIER2_SCAN",
       "notes": "xTB can feed geomeTRIC through the Cartesian energy/gradient provider.",
       "real_calculation": {
-        "status": "PASS",
-        "scope": "local Tier 2 backend integration smoke only; not release corpus qualification",
-        "candidate_sha": "39f412b48418840f02e6c1356c115f5d2262ad07",
-        "backend_version": "xTB 6.7.1-6.fc44.fc44",
-        "model": "GFN2-xTB",
-        "cases": [
-          "H2 energy/gradient finite-difference check",
-          "three-point constrained bond scan"
+        "status": "PASS_LIMITED_TIER2_SCAN",
+        "scope": "default-branch real xTB GFN2 constrained H2 scan smoke only; not mechanism validation",
+        "candidate_sha": "4c94f87217cf9a85af29077884fe2efefcf0fc20",
+        "workflow": "https://github.com/anooplab/pyar/actions/runs/39192735168",
+        "artifact": "scientific-tier2-4c94f87217cf9a85af29077884fe2efefcf0fc20",
+        "backend_versions": {
+          "xtb": "6.7.1 edcfbbe",
+          "openbabel": "3.2.1",
+          "python": "3.11.17",
+          "pyar": "1.5.1"
+        },
+        "input_sha256": "7dc85789455588c7e5be41c6d16fa7e63a01967ccb0258edbb54a756de022e96",
+        "request_sha256": "573e8b611a60b74f026301195cf7070c3d00a97f1a15506a66865c3ec60a7a19",
+        "energies_hartree": [
+          -0.971086678722,
+          -0.980467429012,
+          -0.981983694723
         ],
-        "evidence_record": "docs/release_engineering/r3.md"
+        "final_scan_distance_angstrom": 0.7400000005,
+        "limitations": [
+          "scan maximum explicitly unconfirmed as a transition state",
+          "no product registered",
+          "no independent reference or approved tolerance"
+        ]
       }
     },
     {
