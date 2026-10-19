@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.5.2 - 2026-10-19
+
 ### Fixed
 
 - Validate optimizer convergence evidence and finite energy/geometry before
