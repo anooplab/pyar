@@ -1,0 +1,40 @@
+name: Verify published PyAR release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published package version to verify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-published-release:
+    name: Verify PyPI hashes and clean installation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Require dispatch from the default branch
+        env:
+          REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: test "$REF" = "refs/heads/$DEFAULT_BRANCH"
+      - uses: actions/checkout@v4
+      - name: Verify approved registry hashes and clean installed CLIs
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          version = os.environ["VERSION"]
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+              raise SystemExit("version must be a three-part numeric version")
+          approval = json.loads(Path(f"docs/release_engineering/releases/{version}.json").read_text())
+          if approval.get("version") != version or approval.get("status") != "APPROVED":
+              raise SystemExit("version does not match an approved release record")
+          PY
+          python tools/verify_pypi_release.py "docs/release_engineering/releases/$VERSION.json"

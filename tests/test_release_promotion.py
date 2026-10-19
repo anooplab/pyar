@@ -156,6 +156,18 @@ def test_pypi_verification_requires_exact_file_hashes():
         validate_pypi_json(document, "1.5.2", expected)
 
 
+def test_pypi_version_endpoint_urls_are_verified():
+    expected = {WHEEL: "a" * 64, SDIST: "b" * 64}
+    document = {
+        "info": {"version": "1.5.2"},
+        "urls": [
+            {"filename": name, "digests": {"sha256": digest}}
+            for name, digest in expected.items()
+        ],
+    }
+    assert validate_pypi_json(document, "1.5.2", expected) == expected
+
+
 def test_pypi_verification_rejects_duplicate_release_filenames():
     expected = {WHEEL: "a" * 64, SDIST: "b" * 64}
     item = {"filename": WHEEL, "digests": {"sha256": expected[WHEEL]}}

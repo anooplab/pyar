@@ -24,7 +24,12 @@ def validate_pypi_json(document: dict, version: str, expected: dict[str, str]) -
         raise RegistryError(
             f"PyPI reports latest version {info.get('version')!r}, expected {version!r}"
         )
-    files = document.get("releases", {}).get(version)
+    # PyPI's version-specific JSON endpoint reports the files under ``urls``.
+    # The project-level endpoint instead exposes ``releases[version]``. Accept
+    # both shapes so this verifier can consume either documented response.
+    files = document.get("urls")
+    if files is None:
+        files = document.get("releases", {}).get(version)
     if not isinstance(files, list):
         raise RegistryError(f"PyPI has no release file list for {version}")
     actual = {
