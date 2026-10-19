@@ -36,14 +36,23 @@ usable without being classified as converged.
 ## Cache and status behavior
 
 Optimization cache records use schema 1 and include a request fingerprint, a
-digest of the parsed result, and an explicit status. Legacy result-only caches
-are unverified and are archived under `stale_cache/` before recomputation.
+digest of the parsed result, explicit status, and verified backend provenance.
+The request fingerprint includes the backend version so a version change
+invalidates reuse. xTB records its resolved executable and `--version` output;
+AIMNet2 records the model SHA256 and Torch version, and the xTB/AIMNet2 hybrid
+records both identities. geomeTRIC's package version is included when selected.
+Unknown or unavailable versions disable cache reads and writes while allowing
+the calculation to run. Legacy result-only caches are unverified and are
+archived under `stale_cache/` before recomputation.
 Changed input geometry, atom order, charge/multiplicity, backend/method, or
 settings invalidates reuse. For geomeTRIC, the state JSON is also checked for
 matching geometry, finite energy and forces, and status. A cycle-exceeded or
 release-candidate result remains distinguishable from convergence. Valid
 backend results remain usable if cache bookkeeping itself cannot be written;
 the result is then recomputed on a later call without a verified cache record.
+External backends without a safe version probe, including ORCA, currently run
+without cache reuse. Their scientific results are never reused across an
+unknown executable version.
 
 Fixed-name xTB outputs and markers are retained under `stale_attempts/` before
 each invocation. ORCA's old result frame is retained as `.input.xyz` while its
@@ -59,4 +68,5 @@ complete repository test suite, and CI results for the opened remediation PR
 are recorded with the PR. Proprietary ORCA was not installed or executed as
 part of public validation. Cache schema 1 intentionally rejects legacy
 unproven results and recomputes them; the legacy files are retained for
-inspection rather than deleted.
+inspection rather than deleted. Backend-provenance behavior is covered by
+stable-reuse, version-change invalidation, failed-probe, and model-hash tests.
