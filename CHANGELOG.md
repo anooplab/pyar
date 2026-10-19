@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- Validate optimizer convergence evidence and finite energy/geometry before
+  accepting ORCA, xTB, or geomeTRIC results; isolate stale backend markers,
+  verify optimization-cache provenance, and preserve molecule state on backend
+  failures. See the R3 safety remediation record for regression coverage and
+  compatibility behavior.
 - Continue independent reaction orientations, growth candidates, and standalone
   optimizer inputs after a per-job backend failure while retaining failure
   records and nonzero failure reporting where applicable.

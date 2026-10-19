@@ -328,6 +328,7 @@ class GeometricOptimizerTests(unittest.TestCase):
                               "trial_geom_optim.xyz")
                     Path("pyar_geometric_state.json").write_text(json.dumps({
                         "backend_energy_hartree": -1.25,
+                        "forces_ev_per_angstrom": np.zeros_like(self.molecule.coordinates).tolist(),
                         "optimization_status": "cycle_exceeded",
                         "positions_angstrom": self.molecule.coordinates.tolist(),
                     }))

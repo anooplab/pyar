@@ -31,6 +31,8 @@ def test_selection_and_cached_results_use_physical_energy(tmp_path, monkeypatch)
             'energy_hartree': total, 'total_energy_hartree': total,
             'backend_energy_hartree': physical, 'bias_energy_hartree': total-physical,
             'positions_angstrom': coordinates,
+            'forces_ev_per_angstrom': np.zeros_like(coordinates).tolist(),
+            'optimization_status': 'converged',
         }))
         return SimpleNamespace(returncode=0)
 

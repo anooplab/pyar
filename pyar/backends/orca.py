@@ -19,12 +19,14 @@ GNU General Public License for more details.
 
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 
 from pyar.backends import SF, require_executable, write_xyz
 from pyar.backends.orca_methods import orca_external_method_block, orca_method_keywords
 from pyar.backends.subprocess_utils import run_command
+from pyar.io.xyz import XYZParseError, parse_xyz
 
 orca_logger = logging.getLogger('pyar.orca')
 
@@ -41,8 +43,8 @@ class Orca(SF):
         self.start_coords = molecule.coordinates
         self.inp_file = 'trial_' + self.job_name + '.inp'
         self.out_file = 'trial_' + self.job_name + '.out'
-        self.optimized_coordinates = []
-        self.energy = 0.0
+        self.optimized_coordinates = None
+        self.energy = None
         optimization_keyword = {
             'loose': ' LooseOpt',
             'tight': ' TightOpt',
@@ -85,27 +87,53 @@ class Orca(SF):
 
         self.prepare_input()
 
+        output_xyz = Path(self.inp_file[:-4] + ".xyz")
+        # ORCA writes its optimized geometry to the same basename as the input
+        # XYZ. Preserve the input under an unambiguous diagnostic name, then
+        # require the calculation to produce a fresh output frame.
+        if output_xyz.exists():
+            input_copy = output_xyz.with_name(output_xyz.stem + ".input.xyz")
+            input_copy.write_bytes(output_xyz.read_bytes())
+            output_xyz.unlink()
+
         exit_status = run_command([self.orca_executable, self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
         if exit_status == 0:
-            with open(self.out_file, "r") as f:
-                line = f.readlines()
-            if any("****ORCA TERMINATED NORMALLY****" in item for item in line):
-                self.energy = self.get_energy()
-                self.optimized_coordinates = np.loadtxt(self.inp_file[:-4] + ".xyz", dtype=float, skiprows=2,
-                                                        usecols=(1, 2, 3))
-                write_xyz(self.atoms_list,
-                          self.optimized_coordinates,
-                          self.result_xyz_file, energy=self.energy)
-                orca_logger.info(
-                    "orca optimization completed job=%s input=%s output=%s result=%s energy=%s",
-                    self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
+            output_text = Path(self.out_file).read_text(encoding="utf-8", errors="replace")
+            if "****ORCA TERMINATED NORMALLY****" not in output_text:
+                orca_logger.error(
+                    "orca did not terminate normally job=%s input=%s output=%s cwd=%s",
+                    self.job_name, self.inp_file, self.out_file, os.getcwd(),
                 )
-                return True
-            orca_logger.error(
-                "orca optimization did not terminate normally job=%s input=%s output=%s cwd=%s",
-                self.job_name, self.inp_file, self.out_file, os.getcwd(),
+                return False
+            if "THE OPTIMIZATION HAS CONVERGED" not in output_text:
+                orca_logger.error("orca did not report geometry convergence for %s", self.job_name)
+                return False
+
+            energy = self.get_energy()
+            if energy is None or not np.isfinite(energy):
+                orca_logger.error("orca returned no finite final energy for %s", self.job_name)
+                return False
+            try:
+                symbols, coordinates, _name, _title, _xyz_energy = parse_xyz(output_xyz)
+            except (OSError, XYZParseError) as exc:
+                orca_logger.error("orca returned no usable fresh geometry for %s: %s", self.job_name, exc)
+                return False
+            coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
+            if symbols != list(self.atoms_list) or coordinates.shape != (self.number_of_atoms, 3):
+                orca_logger.error("orca geometry atom identities/order do not match input for %s", self.job_name)
+                return False
+            if not np.isfinite(coordinates).all():
+                orca_logger.error("orca returned nonfinite coordinates for %s", self.job_name)
+                return False
+
+            self.energy = float(energy)
+            self.optimized_coordinates = coordinates
+            write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, energy=self.energy)
+            orca_logger.info(
+                "orca optimization completed job=%s input=%s output=%s result=%s energy=%s",
+                self.job_name, self.inp_file, self.out_file, self.result_xyz_file, self.energy,
             )
-            return False
+            return True
         orca_logger.error(
             "orca command returned non-zero job=%s input=%s output=%s cwd=%s",
             self.job_name, self.inp_file, self.out_file, os.getcwd(),
@@ -124,7 +152,9 @@ class Orca(SF):
                 if en_steps:
                     energy_in_hartrees = float((en_steps[-1].strip().split())[-1])
                 else:
-                    energy_in_hartrees = 0.0
+                    energy_in_hartrees = None
+                if energy_in_hartrees is not None and not np.isfinite(energy_in_hartrees):
+                    return None
             return energy_in_hartrees
         except IOError:
             orca_logger.warning("orca output file missing job=%s output=%s", self.job_name, self.out_file)

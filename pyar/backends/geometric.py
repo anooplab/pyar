@@ -57,7 +57,7 @@ def _find_geometric_executable():
 
 
 def _read_last_xyz(path):
-    """Read the last XYZ frame from a geomeTRIC output file."""
+    """Read the final symbols and coordinates from a geomeTRIC XYZ file."""
     lines = Path(path).read_text().splitlines()
     if len(lines) < 2:
         raise ValueError(f"Invalid XYZ file: {path}")
@@ -68,8 +68,20 @@ def _read_last_xyz(path):
         raise ValueError(f"Invalid XYZ file: {path}")
 
     frame = lines[start:]
-    coords = np.loadtxt(frame[2:], usecols=(1, 2, 3), dtype=float)
-    return coords
+    symbols, coordinates = [], []
+    try:
+        for line in frame[2:]:
+            fields = line.split()
+            if len(fields) < 4:
+                raise ValueError("coordinate row has fewer than four fields")
+            symbols.append(fields[0].capitalize())
+            coordinates.append([float(value) for value in fields[1:4]])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid XYZ coordinates in {path}: {exc}") from exc
+    coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
+    if len(symbols) != natoms or not np.isfinite(coordinates).all():
+        raise ValueError(f"Invalid atom count or nonfinite coordinates in {path}")
+    return symbols, coordinates
 
 
 def _resolve_backend_evaluator(software, qc_params):
@@ -627,17 +639,6 @@ class Geometric(SF):
         for candidate in candidates:
             if candidate.exists():
                 return _read_last_xyz(candidate)
-
-        xyz_candidates = sorted(
-            (
-                path
-                for path in Path(".").glob("*.xyz")
-                if path.name != self.start_xyz_file
-            ),
-            key=lambda path: path.stat().st_mtime,
-        )
-        if xyz_candidates:
-            return _read_last_xyz(xyz_candidates[-1])
         raise FileNotFoundError("geomeTRIC did not write a final XYZ file")
 
     def optimize(self):
@@ -689,14 +690,27 @@ class Geometric(SF):
             )
 
         try:
-            self.optimized_coordinates = self._read_final_xyz()
-            self.coordinates = self.optimized_coordinates
+            symbols, coordinates = self._read_final_xyz()
+            if symbols != list(self.atoms_list):
+                raise ValueError("final XYZ atom symbols/order differ from the input")
             state_path = Path(_GEOMETRIC_STATE_FILE)
             with state_path.open() as fp:
                 state = json.load(fp)
-            self.energy = state.get("backend_energy_hartree")
-            if self.energy is None:
-                raise FileNotFoundError(_GEOMETRIC_STATE_FILE)
+            energy = float(state["backend_energy_hartree"])
+            state_coordinates = np.asarray(state["positions_angstrom"], dtype=float)
+            forces = np.asarray(state["forces_ev_per_angstrom"], dtype=float)
+            if (coordinates.shape != (self.number_of_atoms, 3)
+                    or state_coordinates.shape != coordinates.shape
+                    or forces.shape != coordinates.shape
+                    or not np.isfinite(coordinates).all()
+                    or not np.isfinite(state_coordinates).all()
+                    or not np.isfinite(forces).all()
+                    or not np.isfinite(energy)
+                    or not np.allclose(state_coordinates, coordinates, rtol=0.0, atol=5.1e-6)):
+                raise ValueError("final energy, forces, or geometry are invalid or inconsistent")
+            self.energy = energy
+            self.optimized_coordinates = coordinates
+            self.coordinates = coordinates
         except Exception as exc:
             geometric_logger.error("geomeTRIC completed but final state was incomplete: %s", exc)
             raise BackendExecutionError(
@@ -717,12 +731,24 @@ class Geometric(SF):
             float(self.energy),
         )
         if iteration_limit or state.get("optimization_status") == "cycle_exceeded":
+            state["optimization_status"] = "cycle_exceeded"
+            state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
             geometric_logger.warning(
                 "geomeTRIC reached its iteration limit; retaining the last "
                 "accepted geometry for unbiased relaxation: name=%s",
                 self.job_name,
             )
             return "CycleExceeded"
+        if state.get("optimization_status") == "release_candidate":
+            return "ReleaseCandidate"
+        if state.get("optimization_status") != "converged" and "Converged!" not in output_text:
+            geometric_logger.error("geomeTRIC returned without explicit convergence evidence for %s", self.job_name)
+            raise BackendExecutionError(
+                f"geomeTRIC did not provide convergence evidence for {self.job_name}; "
+                f"see {Path('geometric.out').resolve()}"
+            )
+        state["optimization_status"] = "converged"
+        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
         return True
 
 
