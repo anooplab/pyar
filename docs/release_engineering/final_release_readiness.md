@@ -8,7 +8,7 @@
 - Package: `pyar-chem`
 - Candidate/tag commit: `f621275c1ef19950bc562264f1319112eb3bc6ad`
 - Tag: `v1.5.2`
-- Current default-branch documentation/verifier commit: `7383f9140d82fef3b4b6d27667e3410498e7efca`
+- Post-release verifier fix commit: `7383f9140d82fef3b4b6d27667e3410498e7efca`
 - PyPI: <https://pypi.org/project/pyar-chem/1.5.2/>
 - GitHub release: <https://github.com/anooplab/pyar/releases/tag/v1.5.2>
 - Exact candidate CI: <https://github.com/anooplab/pyar/actions/runs/39211560723>
