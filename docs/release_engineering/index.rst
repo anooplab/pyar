@@ -11,6 +11,7 @@ Existing release process
 * :download:`Mandatory release gates <gates.md>`
 * :download:`Staged release plan <plan.md>`
 * :download:`R3 infrastructure report <r3.md>`
+* :download:`Approved-artifact publishing and post-release verification <publishing.md>`
 
 Current candidate records
 -------------------------
