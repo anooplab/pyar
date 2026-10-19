@@ -148,6 +148,8 @@ def test_generic_cache_needs_valid_convergence_and_request_identity(tmp_path, mo
 
 def test_matching_cache_is_reused_without_running_backend(tmp_path, monkeypatch, molecule, qc):
     monkeypatch.chdir(tmp_path)
+    provenance = {"backend": "orca", "method": "HF", "version": "test-1"}
+    monkeypatch.setattr(optimiser, '_backend_cache_provenance', lambda _qc: provenance)
     coordinates = np.asarray([[0., 0., 0.], [0., 0., .75]])
     calls = []
 
@@ -169,6 +171,58 @@ def test_matching_cache_is_reused_without_running_backend(tmp_path, monkeypatch,
     assert optimiser.optimise(same_request, qc) is True
     assert calls == ['run']
     assert same_request.energy == -1.1
+
+
+def test_unknown_backend_version_disables_cache_reuse_and_write(tmp_path, monkeypatch, molecule, qc):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(optimiser, '_backend_cache_provenance', lambda _qc: None)
+    calls = []
+
+    class Geometry:
+        atoms_list = ['H', 'H']
+        optimized_coordinates = np.asarray([[0., 0., 0.], [0., 0., .75]])
+        energy = -1.1
+
+        def optimize(self):
+            calls.append(1)
+            from pyar.backends import write_xyz
+            write_xyz(self.atoms_list, self.optimized_coordinates,
+                      'result_audit.xyz', energy=self.energy)
+            return True
+
+    monkeypatch.setattr(optimiser, 'build_geometry', lambda *_args: Geometry())
+    assert optimiser.optimise(molecule, qc) is True
+    assert optimiser.optimise(molecule, qc) is True
+    assert calls == [1, 1]
+    assert not (tmp_path / 'job_audit' / 'optimization_cache.json').exists()
+
+
+def test_backend_version_change_invalidates_cache(tmp_path, monkeypatch, molecule, qc):
+    monkeypatch.chdir(tmp_path)
+    version = {'value': 'xTB 6.6.1'}
+    monkeypatch.setattr(optimiser, '_backend_cache_provenance',
+                        lambda _qc: {'backend': 'xtb', 'version': version['value']})
+    calls = []
+
+    class Geometry:
+        atoms_list = ['H', 'H']
+        optimized_coordinates = np.asarray([[0., 0., 0.], [0., 0., .75]])
+        energy = -1.1
+
+        def optimize(self):
+            calls.append(version['value'])
+            from pyar.backends import write_xyz
+            write_xyz(self.atoms_list, self.optimized_coordinates,
+                      'result_audit.xyz', energy=self.energy)
+            return True
+
+    monkeypatch.setattr(optimiser, 'build_geometry', lambda *_args: Geometry())
+    assert optimiser.optimise(molecule, dict(qc, software='xtb')) is True
+    version['value'] = 'xTB 6.7.1'
+    assert optimiser.optimise(molecule, dict(qc, software='xtb')) is True
+    assert calls == ['xTB 6.6.1', 'xTB 6.7.1']
+    record = json.loads((tmp_path / 'job_audit' / 'optimization_cache.json').read_text())
+    assert record['backend_provenance']['version'] == 'xTB 6.7.1'
 
 
 def test_cache_with_changed_method_is_not_reused(tmp_path, monkeypatch, molecule, qc):
