@@ -12,6 +12,9 @@ Existing release process
 * :download:`Staged release plan <plan.md>`
 * :download:`R3 infrastructure report <r3.md>`
 * :download:`Approved-artifact publishing and post-release verification <publishing.md>`
+* :download:`Final release readiness and gate outcomes <final_release_readiness.md>`
+* :download:`1.5.2 scientific validation record <scientific_validation_final.md>`
+* :download:`1.5.2 release candidate and publication report <release_candidate_report.md>`
 
 Current candidate records
 -------------------------
