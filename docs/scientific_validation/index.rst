@@ -181,8 +181,8 @@ Workflow coverage and known gaps
      - Candidate policy tests and MS0 comparative runner/protocol
      - External comparators not guaranteed; no approved release baseline
    * - Optimization failure/recovery
-     - Extensive negative/replay tests; 17 strict expected failures recorded
-     - Those expected failures are open defects and release blockers for affected claims
+     - Extensive negative/replay tests; the 17 strict expected failures from the initial R3 audit now have ordinary regression tests in PR #76
+     - PR #76 adds result, cache, convergence and recovery safeguards; passing software tests do not establish scientific accuracy or complete real-backend coverage
 
 Failure reporting and release gate
 ----------------------------------

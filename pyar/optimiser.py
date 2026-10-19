@@ -11,10 +11,12 @@ bulk_optimize(input_files, qc_params)
 """
 
 import json
+import hashlib
 import logging
 import math
 import os
 from pathlib import Path
+import shutil
 
 import numpy as np
 
@@ -22,11 +24,167 @@ from pyar import file_manager
 from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import normalize_backend_name, validate_backend_capability
 from pyar.backend_errors import BackendExecutionError
+from pyar.io.xyz import XYZParseError, parse_xyz
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
 
 SUCCESS_STATUSES = {True, 'converged'}
 CYCLE_EXCEEDED_STATUSES = {'CycleExceeded', 'cycle_exceeded', 'cycleexceeded'}
+RELEASE_CANDIDATE_STATUSES = {'ReleaseCandidate', 'release_candidate'}
+_OPTIMIZATION_CACHE_SCHEMA = 1
+
+
+def _json_value(value):
+    """Convert request settings to stable JSON values or reject cacheability."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("nonfinite optimization setting")
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _json_value(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+    if isinstance(value, (list, tuple)):
+        return [_json_value(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return _json_value(value.tolist())
+    if isinstance(value, np.generic):
+        return _json_value(value.item())
+    raise TypeError(f"unsupported cache setting type: {type(value).__name__}")
+
+
+def _request_digest(molecule, qc_params):
+    """Fingerprint input structure, electronic state, backend, and all settings."""
+    payload = {
+        "schema_version": _OPTIMIZATION_CACHE_SCHEMA,
+        "symbols": list(molecule.atoms_list),
+        "coordinates_angstrom": np.asarray(molecule.coordinates, dtype=float).tolist(),
+        "charge": int(molecule.charge),
+        "multiplicity": int(molecule.multiplicity),
+        "scftype": str(molecule.scftype),
+        "settings": _json_value(qc_params),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _result_digest(path, *, geometric=False):
+    """Hash parsed result content; geomeTRIC state owns the physical energy."""
+    symbols, coordinates, _name, _title, energy = parse_xyz(path)
+    value = {
+        "symbols": symbols,
+        "coordinates_angstrom": np.asarray(coordinates, dtype=float).tolist(),
+    }
+    if not geometric:
+        value["energy_hartree"] = energy
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _archive_unverified_cache(result_path, metadata_path):
+    """Move an unverified result aside before the backend writes a fresh one."""
+    if not result_path.exists() and not metadata_path.exists():
+        return
+    archive = Path("stale_cache")
+    archive.mkdir(exist_ok=True)
+    suffix = 0
+    while (archive / f"attempt_{suffix:03d}").exists():
+        suffix += 1
+    target = archive / f"attempt_{suffix:03d}"
+    target.mkdir()
+    for path in (result_path, metadata_path):
+        if path.exists():
+            shutil.move(str(path), str(target / path.name))
+
+
+def _verified_cache(molecule, request_digest, *, geometric=False):
+    """Return a verified cached status/result, or archive and reject it."""
+    result_path = Path(f"result_{molecule.name}.xyz")
+    metadata_path = Path("optimization_cache.json")
+    if not result_path.exists():
+        return None
+    try:
+        symbols, coordinates, _name, _title, energy = parse_xyz(result_path)
+    except (OSError, XYZParseError) as exc:
+        raise BackendExecutionError(
+            f"Malformed cached optimization result {result_path}: {exc}"
+        ) from exc
+    coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
+    valid_geometry = (
+        symbols == list(molecule.atoms_list)
+        and coordinates.shape == (molecule.number_of_atoms, 3)
+        and np.isfinite(coordinates).all()
+        and energy is not None
+        and math.isfinite(float(energy))
+    )
+    if not valid_geometry:
+        raise BackendExecutionError(
+            f"Cached optimization result {result_path} has invalid atoms, coordinates, or energy"
+        )
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        status = metadata["status"]
+        cached_energy = float(energy)
+        valid = (
+            metadata.get("schema_version") == _OPTIMIZATION_CACHE_SCHEMA
+            and metadata.get("request_sha256") == request_digest
+            and metadata.get("result_sha256") == _result_digest(result_path, geometric=geometric)
+            and status in {"converged", "cycle_exceeded", "release_candidate"}
+        )
+        if geometric:
+            state = json.loads(Path("pyar_geometric_state.json").read_text(encoding="utf-8"))
+            state_status = state.get("optimization_status")
+            state_coordinates = np.asarray(state["positions_angstrom"], dtype=float)
+            state_energy = float(state["backend_energy_hartree"])
+            expected_state = status
+            valid = valid and (
+                state_status == expected_state
+                and state_coordinates.shape == coordinates.shape
+                and np.isfinite(state_coordinates).all()
+                and np.allclose(state_coordinates, coordinates, rtol=0.0, atol=5.1e-6)
+                and math.isfinite(state_energy)
+                and np.asarray(state["forces_ev_per_angstrom"], dtype=float).shape == coordinates.shape
+                and np.isfinite(np.asarray(state["forces_ev_per_angstrom"], dtype=float)).all()
+            )
+            if valid:
+                cached_energy = state_energy
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+        valid = False
+        status = None
+    if not valid:
+        _archive_unverified_cache(result_path, metadata_path)
+        return None
+    return status, cached_energy, coordinates
+
+
+def _write_optimization_cache(molecule, request_digest, status, *, geometric=False):
+    """Atomically record a successful or explicitly provisional optimizer result."""
+    result_path = Path(f"result_{molecule.name}.xyz")
+    try:
+        symbols, coordinates, _name, _title, energy = parse_xyz(result_path)
+        coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
+        if (symbols != list(molecule.atoms_list)
+                or coordinates.shape != (molecule.number_of_atoms, 3)
+                or not np.isfinite(coordinates).all()
+                or energy is None or not math.isfinite(float(energy))):
+            raise ValueError("optimizer wrote an invalid result geometry or energy")
+        record = {
+            "schema_version": _OPTIMIZATION_CACHE_SCHEMA,
+            "request_sha256": request_digest,
+            "result_sha256": _result_digest(result_path, geometric=geometric),
+        "status": (
+            "cycle_exceeded" if is_cycle_exceeded(status)
+            else "release_candidate" if status in RELEASE_CANDIDATE_STATUSES
+            else "converged"
+        ),
+        }
+        temporary = Path("optimization_cache.json.tmp")
+        temporary.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
+        temporary.replace("optimization_cache.json")
+    except (OSError, ValueError, TypeError, XYZParseError) as exc:
+        raise BackendExecutionError(f"Could not validate optimization result for cache: {exc}") from exc
 
 
 def is_success(status):
@@ -38,7 +196,7 @@ def is_cycle_exceeded(status):
 
 
 def is_usable(status):
-    return is_success(status) or is_cycle_exceeded(status)
+    return is_success(status) or is_cycle_exceeded(status) or status in RELEASE_CANDIDATE_STATUSES
 
 
 def _status_label(status):
@@ -47,6 +205,8 @@ def _status_label(status):
         return "success"
     if is_cycle_exceeded(status):
         return "cycle_exceeded_usable"
+    if status in RELEASE_CANDIDATE_STATUSES:
+        return "release_candidate_usable"
     if status is None:
         return "failed_none_status"
     return f"failed:{status}"
@@ -128,6 +288,14 @@ def build_geometry(molecule, qc_params):
 
 def optimise(molecule, qc_params):
     """Run one optimization job and return the backend status object."""
+    original_coordinates = (
+        None if molecule.coordinates is None else np.asarray(molecule.coordinates, dtype=float).copy()
+    )
+    original_energy = molecule.energy
+    had_optimized_coordinates = hasattr(molecule, "optimized_coordinates")
+    original_optimized_coordinates = getattr(molecule, "optimized_coordinates", None)
+    if original_optimized_coordinates is not None:
+        original_optimized_coordinates = np.asarray(original_optimized_coordinates, dtype=float).copy()
     cwd = os.getcwd()
     if molecule.name == '':
         molecule.name = 'Opt job'
@@ -139,8 +307,8 @@ def optimise(molecule, qc_params):
         cwd,
     )
     os.chdir(job_dir)
+    software = qc_params.get('software', 'unknown')
     try:
-        software = qc_params.get('software', 'unknown')
         gamma = qc_params.get('gamma', None)
         optimiser_logger.debug(
             "Optimization job start: name=%s software=%s geometry_optimizer=%s gamma=%s dir=%s",
@@ -150,52 +318,72 @@ def optimise(molecule, qc_params):
             gamma,
             os.path.abspath(job_dir),
         )
-        reuse_result = os.path.exists(f'result_{molecule.name}.xyz')
-        cached_physical_energy = None
+        try:
+            request_digest = _request_digest(molecule, qc_params)
+        except (TypeError, ValueError) as exc:
+            request_digest = None
+            optimiser_logger.info("Optimization cache disabled for %s: %s", molecule.name, exc)
         force_geometric_restart = bool(
             qc_params.get('bias_controller_restart') or qc_params.get('release_retry_attempt')
         )
-        if force_geometric_restart and qc_params.get('geometry_optimizer') == 'geometric':
-            reuse_result = False
-        if reuse_result:
-            read_molecule = Molecule.from_xyz(f'result_{molecule.name}.xyz')
-        if reuse_result and qc_params.get('geometry_optimizer') == 'geometric' and not force_geometric_restart:
-            try:
-                state = json.loads(Path('pyar_geometric_state.json').read_text())
-                cached_physical_energy = float(state['backend_energy_hartree'])
-                energy_coordinates = np.asarray(state['positions_angstrom'], dtype=float)
-                reuse_result = (
-                    math.isfinite(cached_physical_energy)
-                    and energy_coordinates.shape == read_molecule.coordinates.shape
-                    and np.allclose(energy_coordinates, read_molecule.coordinates,
-                                    rtol=0., atol=5.1e-6)
-                )
-            except (OSError, ValueError, TypeError, KeyError):
-                reuse_result = False
-            if not reuse_result:
-                optimiser_logger.info(
-                    "Cached geomeTRIC result has no matching physical energy; recomputing %s",
-                    molecule.name,
-                )
-        if reuse_result:
-            molecule.energy = (
-                read_molecule.energy if cached_physical_energy is None else cached_physical_energy
-            )
-            molecule.optimized_coordinates = read_molecule.coordinates
-            molecule.coordinates = read_molecule.coordinates
+        if force_geometric_restart:
+            request_digest = None
+        cached = _verified_cache(
+            molecule,
+            request_digest if not force_geometric_restart else None,
+            geometric=qc_params.get('geometry_optimizer') == 'geometric',
+        )
+        if cached is not None:
+            cached_status, molecule.energy, molecule.coordinates = cached
+            molecule.optimized_coordinates = molecule.coordinates.copy()
             optimiser_logger.info(
-                "Optimization reused cached result: name=%s status=success energy=%15.6f",
+                "Optimization reused verified cache: name=%s status=%s energy=%15.6f",
                 molecule.name,
+                cached_status,
                 float(molecule.energy),
             )
             optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
-            return True
+            return {
+                "converged": True,
+                "cycle_exceeded": "CycleExceeded",
+                "release_candidate": "ReleaseCandidate",
+            }[cached_status]
 
         geometry = build_geometry(molecule, qc_params)
         optimize_status = geometry.optimize()
         normalized_status = _status_label(optimize_status)
         if is_usable(optimize_status):
+            try:
+                result_coordinates = np.asarray(geometry.optimized_coordinates, dtype=float).reshape((-1, 3))
+                result_energy = float(geometry.energy)
+                result_symbols = list(getattr(geometry, "atoms_list", molecule.atoms_list))
+                valid_result = (
+                    result_symbols == list(molecule.atoms_list)
+                    and result_coordinates.shape == (molecule.number_of_atoms, 3)
+                    and np.isfinite(result_coordinates).all()
+                    and math.isfinite(result_energy)
+                )
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise BackendExecutionError(
+                    f"{software} returned an invalid optimization result for {molecule.name}: {exc}"
+                ) from exc
+            if not valid_result:
+                raise BackendExecutionError(
+                    f"{software} returned invalid atoms, coordinates, or energy for {molecule.name}"
+                )
             apply_geometry_result(molecule, geometry)
+            if request_digest is not None:
+                try:
+                    _write_optimization_cache(
+                        molecule,
+                        request_digest,
+                        optimize_status,
+                        geometric=qc_params.get('geometry_optimizer') == 'geometric',
+                    )
+                except BackendExecutionError as exc:
+                    # A valid calculator result remains valid if cache bookkeeping fails.
+                    # It will simply be recomputed on a later invocation without a verified record.
+                    optimiser_logger.warning("Could not record optimization cache: %s", exc)
             optimiser_logger.info(
                 "Optimization completed! status=%s final_coordinate=%s",
                 normalized_status,
@@ -225,13 +413,21 @@ def optimise(molecule, qc_params):
             )
         return optimize_status
     except BackendExecutionError:
-        molecule.energy = None
-        molecule.coordinates = None
+        molecule.energy = original_energy
+        molecule.coordinates = original_coordinates
+        if had_optimized_coordinates:
+            molecule.optimized_coordinates = original_optimized_coordinates
+        elif hasattr(molecule, "optimized_coordinates"):
+            del molecule.optimized_coordinates
         raise
     except Exception as exc:
         optimiser_logger.exception("Optimization crashed: name=%s", molecule.name)
-        molecule.energy = None
-        molecule.coordinates = None
+        molecule.energy = original_energy
+        molecule.coordinates = original_coordinates
+        if had_optimized_coordinates:
+            molecule.optimized_coordinates = original_optimized_coordinates
+        elif hasattr(molecule, "optimized_coordinates"):
+            del molecule.optimized_coordinates
         raise BackendExecutionError(
             f"{software} optimization crashed for {molecule.name}: {exc}"
         ) from exc

@@ -1,6 +1,8 @@
 """Pure xTB geometry optimization backend."""
 import logging
 import os
+from pathlib import Path
+import shutil
 import subprocess as subp
 import sys
 
@@ -10,6 +12,7 @@ from pyar.backends import SF, require_executable, write_xyz
 from pyar.backends.xtb_utils import (
     build_xtb_command, canonical_xtb_model, check_xtb_output, xtb_model_arguments,
 )
+from pyar.io.xyz import XYZParseError, parse_xyz
 
 xtb_logger = logging.getLogger('pyar.xtb')
 
@@ -59,6 +62,24 @@ class Xtb(SF):
         if gamma is not None:
             xtb_logger.error('not implemented in this module. Use xtb_turbo')
 
+        # xTB uses fixed marker and result filenames. Archive them before each
+        # launch so artifacts from an earlier attempt cannot authorize this one.
+        stale_names = (
+            '.xtboptok', '.sccnotconverged', 'NOT_CONVERGED', 'xtbopt.xyz',
+            'energy', 'xtb.out', 'xtbopt.log',
+        )
+        stale_paths = [Path(name) for name in stale_names if Path(name).exists()]
+        if stale_paths:
+            archive_root = Path('stale_attempts')
+            archive_root.mkdir(exist_ok=True)
+            index = 0
+            while (archive_root / f'run_{index:03d}').exists():
+                index += 1
+            archive = archive_root / f'run_{index:03d}'
+            archive.mkdir()
+            for stale_path in stale_paths:
+                shutil.move(str(stale_path), str(archive / stale_path.name))
+
         with open('xtb.out', 'w') as output_file_pointer:
             try:
                 out = subp.check_call(
@@ -77,19 +98,34 @@ class Xtb(SF):
 
         try:
             with open('xtb.out') as output_file_pointer:
-                check_xtb_output(output_file_pointer.read())
+                output_text = output_file_pointer.read()
+                check_xtb_output(output_text)
         except RuntimeError as exc:
             xtb_logger.error('%s', exc)
             return False
 
+        lowered_output = output_text.lower()
+        if any(marker in lowered_output for marker in (
+            'scc failed to converge', 'scc convergence failed', 'scc not converged',
+        )):
+            xtb_logger.error('Current xTB run reported SCC nonconvergence')
+            return 'SCFFailed'
+
         if os.path.isfile('.xtboptok'):
-            write_xyz(
-                self.atoms_list,
-                self.optimized_coordinates,
-                self.result_xyz_file,
-                job_name=self.job_name,
-                energy=self.energy,
-            )
+            try:
+                symbols, coordinates, _name, _title, _xyz_energy = parse_xyz('xtbopt.xyz')
+                coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
+                energy = self.energy
+                if (symbols != list(self.atoms_list)
+                        or coordinates.shape != (self.number_of_atoms, 3)
+                        or not np.isfinite(coordinates).all()
+                        or energy is None or not np.isfinite(float(energy))):
+                    raise ValueError('xTB result has invalid symbols, coordinates, or energy')
+            except (OSError, ValueError, TypeError, XYZParseError) as exc:
+                xtb_logger.error('Invalid current xTB optimization result: %s', exc)
+                return False
+            write_xyz(self.atoms_list, coordinates, self.result_xyz_file,
+                      job_name=self.job_name, energy=float(energy))
 
             if os.path.isfile('xtbopt.log'):
                 os.rename('xtbopt.log', self.trajectory_xyz_file)
