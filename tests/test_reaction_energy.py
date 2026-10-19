@@ -17,6 +17,13 @@ from pyar.workflows.reaction import build_reaction_request
 
 def test_selection_and_cached_results_use_physical_energy(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    # This test replaces the backend calculation, so provide stable provenance
+    # instead of depending on whichever xTB/geomeTRIC versions CI installed.
+    monkeypatch.setattr(
+        optimiser, '_backend_cache_provenance',
+        lambda _qc: {'backend': 'xtb', 'version': 'mock-xTB',
+                     'geometry_optimizer': 'mock-geomeTRIC'},
+    )
     monkeypatch.setattr('pyar.backends.geometric._find_geometric_executable',
                         lambda: 'geometric-optimize')
     calls = []
