@@ -25,6 +25,7 @@ jobs:
           create-args: >-
             python=3.11
             pip
+            openbabel
             xtb=6.7.1
           init-shell: bash
       - name: Install PyAR test/runtime dependencies
@@ -36,6 +37,7 @@ jobs:
           mkdir -p evidence
           git rev-parse HEAD > evidence/candidate-sha.txt
           "$MAMBA_EXE" run -n pyar-scientific xtb --version > evidence/xtb-version.txt 2>&1
+          "$MAMBA_EXE" run -n pyar-scientific obabel -V > evidence/openbabel-version.txt 2>&1
           "$MAMBA_EXE" run -n pyar-scientific python --version > evidence/python-version.txt 2>&1
           "$MAMBA_EXE" run -n pyar-scientific python -m pip --version > evidence/pip-version.txt 2>&1
           "$MAMBA_EXE" run -n pyar-scientific python -c 'import pyar; print(pyar.__version__)' > evidence/pyar-version.txt
@@ -44,6 +46,20 @@ jobs:
           "$MAMBA_EXE" run -n pyar-scientific python benchmarks/scan_bond/validate_backend_scans.py \
             --backend xtb-gfn2 --output "$RUNNER_TEMP/pyar-tier2" \
             > evidence/xtb-gfn2-scan.json
+      - name: Verify reactant identity evidence
+        run: |
+          "$MAMBA_EXE" run -n pyar-scientific python - "$RUNNER_TEMP/pyar-tier2/xtb-gfn2/request.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          request = json.loads(Path(sys.argv[1]).read_text())
+          if request.get("reactant_identity_error"):
+              raise SystemExit(request["reactant_identity_error"])
+          if not request.get("reactant_identity"):
+              raise SystemExit("Tier 2 request did not record reactant identity")
+          print(json.dumps(request["reactant_identity"], sort_keys=True))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
