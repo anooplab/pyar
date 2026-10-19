@@ -34,8 +34,10 @@ The final workflow job polls the version-specific PyPI JSON endpoint, verifies
 that the wheel and sdist names and SHA-256 hashes match the approval record,
 installs that exact version in a fresh virtual environment, runs `pip check`,
 checks the installed import origin and version, and runs `pyar-cli --help` and
-`pyar --help`. A passing upload job alone is not release completion; G7 requires
-the post-publication job to pass.
+`pyar --help`. For a later verification of an already published version, use
+the verification-only `verify-published-release.yml` workflow. A passing upload
+job alone is not release completion; G7 requires post-publication verification
+to pass.
 
 If upload succeeds but G7 fails, do not move the tag or upload replacement
 files. Preserve the failed run, artifact bundle and registry response, notify
