@@ -292,6 +292,7 @@ def optimise(molecule, qc_params):
         None if molecule.coordinates is None else np.asarray(molecule.coordinates, dtype=float).copy()
     )
     original_energy = molecule.energy
+    had_optimized_coordinates = hasattr(molecule, "optimized_coordinates")
     original_optimized_coordinates = getattr(molecule, "optimized_coordinates", None)
     if original_optimized_coordinates is not None:
         original_optimized_coordinates = np.asarray(original_optimized_coordinates, dtype=float).copy()
@@ -414,15 +415,19 @@ def optimise(molecule, qc_params):
     except BackendExecutionError:
         molecule.energy = original_energy
         molecule.coordinates = original_coordinates
-        if original_optimized_coordinates is not None:
+        if had_optimized_coordinates:
             molecule.optimized_coordinates = original_optimized_coordinates
+        elif hasattr(molecule, "optimized_coordinates"):
+            del molecule.optimized_coordinates
         raise
     except Exception as exc:
         optimiser_logger.exception("Optimization crashed: name=%s", molecule.name)
         molecule.energy = original_energy
         molecule.coordinates = original_coordinates
-        if original_optimized_coordinates is not None:
+        if had_optimized_coordinates:
             molecule.optimized_coordinates = original_optimized_coordinates
+        elif hasattr(molecule, "optimized_coordinates"):
+            del molecule.optimized_coordinates
         raise BackendExecutionError(
             f"{software} optimization crashed for {molecule.name}: {exc}"
         ) from exc

@@ -303,19 +303,26 @@ def test_path_stage_reuse_rejects_wrong_method_and_invalid_artifact(tmp_path, ta
         _load_stage(tmp_path, 'ts', calculator)
 
 
-def test_backend_failure_does_not_destroy_original_input(tmp_path, monkeypatch, molecule, qc):
+@pytest.mark.parametrize('had_optimized_coordinates', [True, False])
+def test_backend_failure_does_not_destroy_original_input(
+        tmp_path, monkeypatch, molecule, qc, had_optimized_coordinates):
     monkeypatch.chdir(tmp_path)
     coordinates = molecule.coordinates.copy()
     molecule.energy = -0.5
-    molecule.optimized_coordinates = coordinates.copy()
+    if had_optimized_coordinates:
+        molecule.optimized_coordinates = coordinates.copy()
     class Failure:
         def optimize(self):
+            molecule.optimized_coordinates = np.full_like(coordinates, 99.)
             raise BackendExecutionError('SCF failed at trial step')
     monkeypatch.setattr(optimiser, 'build_geometry', lambda *args: Failure())
     with pytest.raises(BackendExecutionError, match='SCF failed'):
         optimiser.optimise(molecule, qc)
     np.testing.assert_array_equal(molecule.coordinates, coordinates)
-    np.testing.assert_array_equal(molecule.optimized_coordinates, coordinates)
+    if had_optimized_coordinates:
+        np.testing.assert_array_equal(molecule.optimized_coordinates, coordinates)
+    else:
+        assert not hasattr(molecule, 'optimized_coordinates')
     assert molecule.energy == -0.5
 
 
