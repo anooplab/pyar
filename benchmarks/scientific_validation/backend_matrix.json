@@ -119,10 +119,10 @@
       "required_python_modules": [],
       "optional_extra": null,
       "interface_tests": "Existing adapter, routing, or missing-dependency coverage as applicable; this is not evidence of a real chemistry calculation.",
-      "real_calculation_status": "PASS_LIMITED_TIER2_SCAN",
+      "real_calculation_status": "PASS",
       "notes": "xTB can feed geomeTRIC through the Cartesian energy/gradient provider.",
       "real_calculation": {
-        "status": "PASS_LIMITED_TIER2_SCAN",
+        "status": "PASS",
         "scope": "default-branch real xTB GFN2 constrained H2 scan smoke only; not mechanism validation",
         "candidate_sha": "4c94f87217cf9a85af29077884fe2efefcf0fc20",
         "workflow": "https://github.com/anooplab/pyar/actions/runs/39192735168",
