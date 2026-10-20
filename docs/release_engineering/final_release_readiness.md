@@ -1,6 +1,6 @@
 # PyAR 1.5.2 release readiness and outcome
 
-**Decision: released.** The owner-authorized PyAR 1.5.2 maintenance release is published on PyPI and GitHub. This is a narrow maintenance release; it does not close the broader R3 scientific-validation program or establish readiness for a major release.
+**Decision: released.** The owner-authorized PyAR 1.5.2 maintenance release is published on PyPI and GitHub. This is a narrow maintenance release and does not establish readiness for a major release.
 
 ## Release identity
 
@@ -30,6 +30,6 @@
 
 ## Scientific limits
 
-This release's scoped evidence does not approve the initial broad benchmark corpus or universal numerical thresholds. It does not validate reaction exploration, NEB, transition-state identity, frequencies, IRC, aggregation/conformer ranking, microsolvation, or scientific compatibility with backends other than the recorded xTB cases. Do not cite 1.5.2 as proof that R3 is scientifically complete or as a major-release scientific qualification.
+This release's scoped evidence does not approve a broad benchmark corpus or universal numerical thresholds. It does not validate reaction exploration, NEB, transition-state identity, frequencies, IRC, aggregation/conformer ranking, microsolvation, or scientific compatibility with backends other than the recorded xTB cases. Do not cite 1.5.2 as major-release scientific qualification.
 
 The next major release remains blocked on the broader scientific corpus, scientific-owner review of references and tolerances, and real-backend workflow coverage specified by the release gates.
