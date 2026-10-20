@@ -208,6 +208,7 @@ release-required status.
 .. toctree::
    :maxdepth: 1
 
+   full_validation_plan
    benchmark_catalogue
    numerical_tolerances
    reference_provenance
