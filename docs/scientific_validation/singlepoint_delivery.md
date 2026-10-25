@@ -26,7 +26,7 @@ not a release qualification or a scientific accuracy benchmark.
 
 ## Complexity and coverage
 
-Radon 6.0.1 measured all **60 new functions** in `pyar/singlepoint/` and
+Radon 6.0.1 measured all **61 new functions**, including the evaluation closure, in `pyar/singlepoint/` and
 `pyar/scripts/singlepoint.py`. Maximum cyclomatic complexity is **6**.
 Function CRAP uses `CC^2 * (1 - executed_statement_fraction)^3 + CC`;
 maximum CRAP is **6.0**. All functions meet the local target of 6.
