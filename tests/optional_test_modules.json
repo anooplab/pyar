@@ -15,6 +15,7 @@
   "test_packaging_metadata",
   "test_persistence",
   "test_safe_recovery",
+  "test_singlepoint_backends",
   "test_structural_distances",
   "test_structure_comparison",
   "test_structure_comparison_dataset"

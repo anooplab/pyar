@@ -86,7 +86,7 @@ EXTERNAL_PROGRAMS = {
     "mopac": ExecutableRequirement("MOPAC", "https://openmopac.net/",
         "Install the official MOPAC distribution", ()),
 }
-for _executable in ("define", "ridft", "rdgrad", "statpt", "jobex"):
+for _executable in ("define", "dscf", "grad", "ridft", "rdgrad", "statpt", "jobex"):
     EXTERNAL_PROGRAMS[_executable] = ExecutableRequirement("Turbomole",
         "https://www.turbomole.org/turbomole/turbomole-documentation/",
         "Install licensed Turbomole and configure its executable directory on PATH", ())
