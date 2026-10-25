@@ -106,6 +106,7 @@ Start here
 Tools and references
 --------------------
 
+* :doc:`singlepoint`
 * :doc:`energy_table`
 * :doc:`molecule`
 * :doc:`orientation_sampling`
@@ -178,6 +179,7 @@ The fastest way to verify a local install is:
    :maxdepth: 2
    :caption: Chemistry tasks
 
+   singlepoint
    aggregate
    grow
    react

@@ -17,6 +17,10 @@ Core and workflow commands
      - Purpose
    * - ``pyar``
      - Modern task-oriented interface and diagnostics.
+   * - ``pyar energy`` / ``pyar engrad``
+     - Batch fixed-geometry energies and gradients; see :doc:`singlepoint`.
+   * - ``pyar frequency``
+     - Batch numerical frequencies with gradient and minimum qualification.
    * - ``pyar-cli``
      - Legacy aggregate, reaction, solvation, scan, and utility interface.
    * - ``pyar-react``

@@ -57,6 +57,10 @@ def backends(argv=None, *, prog="pyar backends"):
             "family": cap.family,
             "aliases": sorted(cap.aliases),
             "energy_gradient": cap.energy_gradient,
+            "single_point_energy": cap.single_point,
+            "single_point_gradient": cap.single_point,
+            "numerical_frequency": cap.single_point,
+            "single_point_executables": sorted(cap.single_point_executables),
             "native_optimization": cap.native_optimization,
             "biased_optimization": cap.supports_biased_optimization,
             "charge": cap.supports_charge,
@@ -78,6 +82,7 @@ def backends(argv=None, *, prog="pyar backends"):
             print(f"{name} ({cap['family']})")
             print(f"  energy/gradient: {'yes' if cap['energy_gradient'] else 'no'}; "
                   f"native optimization: {'yes' if cap['native_optimization'] else 'no'}")
+            print(f"  standalone energy/engrad/frequency: {cap['single_point_energy']}")
             if cap["executables"]:
                 print("  executables: " + ", ".join(cap["executables"]))
             if cap["python_modules"]:

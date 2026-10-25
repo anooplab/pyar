@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+
+- Add batch `pyar energy`, `pyar engrad` (`gradient`/`engra` aliases), and
+  `pyar frequency` for unchanged XYZ geometries, with xTB defaults, explicit
+  theory/solvent controls, isolated `job_<name>` folders, raw backend evidence,
+  per-input results and failure continuation. Support xTB, ORCA, Gaussian
+  SCF HF/DFT, ASE Turbomole, AIMNet2 and ANI routes independently of optimizers.
+- Qualify minima using gradients and projected numerical Hessians, retain
+  all imaginary modes, and return warnings/nonzero status for unconfirmed
+  minima. Integrate read-only preflight, JSON, saved configs and run records.
+  Existing optimization and reaction defaults remain unchanged.
+
+
 ## 1.5.2 - 2026-10-19
 
 ### Fixed

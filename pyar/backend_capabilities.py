@@ -26,10 +26,15 @@ class BackendCapabilities:
     optional_extra_hint: str = ""
     notes: str = ""
     supported_options: FrozenSet[str] = field(default_factory=frozenset)
+    # Standalone fixed-geometry routes are independent of optimizer support.
+    single_point: bool = False
+    single_point_executables: FrozenSet[str] = field(default_factory=frozenset)
 
 
 BACKEND_CAPABILITIES = {
     "gaussian": BackendCapabilities(
+        single_point=True,
+        single_point_executables=frozenset({"g16"}),
         family="dft_qc",
         aliases=frozenset({"g16"}),
         energy_gradient=True,
@@ -43,6 +48,8 @@ BACKEND_CAPABILITIES = {
         notes="Provides Cartesian energy/gradient evaluation for geomeTRIC AFIR."
     ),
     "orca": BackendCapabilities(
+        single_point=True,
+        single_point_executables=frozenset({"orca"}),
         family="dft_qc",
         aliases=frozenset({"orca16"}),
         energy_gradient=True,
@@ -66,6 +73,8 @@ BACKEND_CAPABILITIES = {
         notes="Native geometry optimisation only; no geomeTRIC energy/gradient provider."
     ),
     "turbomole": BackendCapabilities(
+        single_point=True,
+        single_point_executables=frozenset({"define", "dscf", "grad"}),
         family="dft_qc",
         supports_charge=True,
         supports_multiplicity=True,
@@ -87,6 +96,8 @@ BACKEND_CAPABILITIES = {
         notes="MOPAC input is generated through OpenBabel."
     ),
     "xtb": BackendCapabilities(
+        single_point=True,
+        single_point_executables=frozenset({"xtb"}),
         family="semiempirical",
         energy_gradient=True,
         supports_biased_optimization=True,
@@ -123,6 +134,7 @@ BACKEND_CAPABILITIES = {
         notes="OpenBabel helper used for force-field minimisation and format conversion."
     ),
     "ani": BackendCapabilities(
+        single_point=True,
         family="mlip",
         aliases=frozenset({"torchani"}),
         supports_charge=True,
@@ -135,6 +147,7 @@ BACKEND_CAPABILITIES = {
         notes="TorchANI calculator/helper used outside the main workflow router."
     ),
     "aimnet_2": BackendCapabilities(
+        single_point=True,
         family="mlip",
         energy_gradient=True,
         supports_biased_optimization=True,
