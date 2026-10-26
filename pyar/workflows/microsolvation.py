@@ -606,19 +606,12 @@ def _microsolvate_v2(request: MicrosolvationRequest, *, output="microsolvation")
     return _result(state)
 
 
-def _resample_cluster_pool(state, request):
-    """Apply a bounded, restartable sequence of rigid-cluster perturbations."""
-    from pyar.evaluation_budget import EvaluationBudgetExhausted
-    from pyar.microsolvation.perturbation import (
-        propose_rigid_move, has_interfragment_clash, preserves_cluster_identity,
-    )
+def _restore_or_prepare_resampling_attempt(state, request, root):
+    """Restore durable MS4 state or create its initial RNG-backed record."""
     from pyar.persistence import write_json
-    from pyar.persistence.json_store import read_json
     import numpy as np
     import time
 
-    root = state.directory / "resampling"
-    root.mkdir(parents=True, exist_ok=True)
     record = state.data.get("resampling")
     if record is None:
         rng = np.random.Generator(np.random.PCG64(request.resampling_seed))
@@ -659,6 +652,21 @@ def _resample_cluster_pool(state, request):
                     "pool_artifact_ids": [ref["artifact_id"]
                                           for ref in completed_attempt.get("pool_references", [])],
                     "failures": completed_attempt.get("failures", [])}, overwrite=False)
+    return record, rng
+
+
+def _resample_cluster_pool(state, request):
+    """Apply a bounded, restartable sequence of rigid-cluster perturbations."""
+    from pyar.evaluation_budget import EvaluationBudgetExhausted
+    from pyar.microsolvation.perturbation import (
+        propose_rigid_move, has_interfragment_clash, preserves_cluster_identity,
+    )
+    from pyar.persistence import write_json
+    from pyar.persistence.json_store import read_json
+
+    root = state.directory / "resampling"
+    root.mkdir(parents=True, exist_ok=True)
+    record, rng = _restore_or_prepare_resampling_attempt(state, request, root)
 
     counter_path = root / "evaluation_counter.json"
     expected_deadline = float(record["started_at_epoch"]) + float(record["time_limit_seconds"])
