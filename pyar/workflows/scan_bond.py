@@ -128,6 +128,39 @@ def _save_orientation_result(directory, result, *, qc_params, intramolecular,
     (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
 
 
+def _load_or_execute_scan(orientation, request, scan_dir, qc_params, *, software,
+                          previous_result, committed):
+    """Reuse a valid scan or execute once, preserving committed-scan guards."""
+    from pyar.backends.bond_scan import load_bond_scan_result, run_bond_scan
+    from pyar.recovery.stages import scan_diagnostic
+
+    scan = None
+    if previous_result and previous_result.get("scan_status") == "success":
+        if software == "orca":
+            loader = load_orca_bond_scan_result
+            loader_options = {"publish": False} if committed is not None else {}
+        else:
+            loader = load_bond_scan_result
+            loader_options = {}
+        scan = loader(orientation, request, scan_dir, **loader_options)
+    if scan is not None and scan.success:
+        if scan_diagnostic(orientation, request, scan)["stage_gate"] != "passed":
+            scan.success = False
+            scan.status = "scan_validation_failed"
+    if committed is not None and (scan is None or not scan.success):
+        raise ValueError("Committed scan no longer passes native scan validation")
+    if scan is None or not scan.success:
+        runner = run_orca_bond_scan if software == "orca" else run_bond_scan
+        try:
+            from pyar.recovery.stages import run_scan_once
+            scan = run_scan_once(runner, orientation, request, scan_dir, qc_params)
+        except BackendExecutionError:
+            raise
+        except Exception as exc:
+            return None, exc
+    return scan, None
+
+
 def _fragment_signature(molecule):
     return {"atoms": molecule.atoms_list, "coordinates": np.asarray(molecule.coordinates).tolist(),
             "charge": molecule.charge, "multiplicity": molecule.multiplicity, "scftype": molecule.scftype}
@@ -377,7 +410,6 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     the relaxed product; later stages require an identified changed product.
     """
     from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
-    from pyar.backends.bond_scan import run_bond_scan, load_bond_scan_result
     from pyar.workflows.scan_path import validate_continuation, continue_scan_paths
 
     software = normalize_backend_name(qc_params.get("software", "orca"))
@@ -586,35 +618,20 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             results.append(result)
             continue
         request_model = OrcaBondScanRequest(absolute_i, absolute_j, start_distance, end_distance, n_points)
-        scan = None
-        if previous_result and previous_result.get("scan_status") == "success":
-            scan = (load_orca_bond_scan_result if software == "orca" else load_bond_scan_result)(
-                orientation, request_model, scan_dir,
-                **({"publish": False} if committed is not None and software == "orca" else {}))
-        if scan is not None and scan.success:
-            from pyar.recovery.stages import scan_diagnostic
-            if scan_diagnostic(orientation, request_model, scan)['stage_gate'] != 'passed':
-                scan.success = False
-                scan.status = 'scan_validation_failed'
-        if committed is not None and (scan is None or not scan.success):
-            raise ValueError('Committed scan no longer passes native scan validation')
-        if scan is None or not scan.success:
-            try:
-                from pyar.recovery.stages import run_scan_once
-                scan = run_scan_once(run_orca_bond_scan if software == "orca" else run_bond_scan,
-                                     orientation, request_model, scan_dir, qc_params)
-            except BackendExecutionError:
-                raise
-            except Exception as exc:
-                result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
-                          "error": str(exc), "target_distance_start_angstrom": start_distance,
-                          "target_distance_scan_end_angstrom": end_distance, "scan_points": n_points}
-                _save_orientation_result(
-                    directory, result, qc_params=qc_params, intramolecular=intramolecular,
-                    completed_artifacts=completed_artifacts, layout=_layout,
-                )
-                results.append(result)
-                continue
+        scan, scan_error = _load_or_execute_scan(
+            orientation, request_model, scan_dir, qc_params, software=software,
+            previous_result=previous_result, committed=committed,
+        )
+        if scan_error is not None:
+            result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
+                      "error": str(scan_error), "target_distance_start_angstrom": start_distance,
+                      "target_distance_scan_end_angstrom": end_distance, "scan_points": n_points}
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
+            results.append(result)
+            continue
         result = {"orientation": index, "status": "scan_failed", "scan_status": scan.status,
                   "target_distance_start_angstrom": start_distance, "target_distance_scan_end_angstrom": end_distance,
                   "scan_points": n_points, "scan_input": str(scan.input_path), "scan_output": str(scan.output_path)}

@@ -11,6 +11,78 @@ from pyar.persistence import read_json, sha256_file, write_json
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
 
+def test_scan_loader_reuses_valid_cached_result(tmp_path, monkeypatch):
+    import pyar.recovery.stages as stages
+    from types import SimpleNamespace
+
+    cached = SimpleNamespace(success=True, status='success')
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: cached)
+    monkeypatch.setattr(stages, 'scan_diagnostic', lambda *args: {'stage_gate': 'passed'})
+    monkeypatch.setattr(stages, 'run_scan_once', lambda *args: pytest.fail('cached scan was rerun'))
+
+    result, error = workflow._load_or_execute_scan(
+        object(), object(), tmp_path, {}, software='orca',
+        previous_result={'scan_status': 'success'}, committed=None,
+    )
+
+    assert result is cached
+    assert error is None
+
+
+def test_scan_loader_reexecutes_invalid_cache_but_rejects_invalid_commit(tmp_path, monkeypatch):
+    import pyar.recovery.stages as stages
+    from types import SimpleNamespace
+
+    invalid = SimpleNamespace(success=False, status='scan_incomplete')
+    valid = SimpleNamespace(success=True, status='success')
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: invalid)
+    calls = []
+
+    def run(runner, *args):
+        calls.append(runner)
+        return valid
+
+    monkeypatch.setattr(stages, 'run_scan_once', run)
+    result, error = workflow._load_or_execute_scan(
+        object(), object(), tmp_path, {}, software='orca',
+        previous_result={'scan_status': 'success'}, committed=None,
+    )
+    assert result is valid
+    assert error is None
+    assert calls == [workflow.run_orca_bond_scan]
+
+    calls.clear()
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: None)
+    with pytest.raises(ValueError, match='Committed scan no longer passes'):
+        workflow._load_or_execute_scan(
+            object(), object(), tmp_path, {}, software='orca',
+            previous_result={'scan_status': 'success'}, committed={'status': 'committed'},
+        )
+    assert calls == []
+
+
+def test_scan_executor_preserves_backend_errors_and_returns_other_errors(tmp_path, monkeypatch):
+    import pyar.recovery.stages as stages
+    from pyar.backend_errors import BackendExecutionError
+
+    failure = BackendExecutionError('native output invalid')
+    monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(failure))
+    with pytest.raises(BackendExecutionError, match='native output invalid'):
+        workflow._load_or_execute_scan(
+            object(), object(), tmp_path, {}, software='xtb',
+            previous_result=None, committed=None,
+        )
+
+    ordinary_error = RuntimeError('recoverable scan exception')
+    monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(ordinary_error))
+    result, error = workflow._load_or_execute_scan(
+        object(), object(), tmp_path, {}, software='xtb',
+        previous_result=None, committed=None,
+    )
+    assert result is None
+    assert error is ordinary_error
+
+
 def test_orientation_result_publisher_preserves_success_record(tmp_path):
     directory = tmp_path / 'orientation_000'
     artifact = directory / 'execution/result_relaxed.xyz'
