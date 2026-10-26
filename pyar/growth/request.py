@@ -7,6 +7,17 @@ from pyar.backend_capabilities import (normalize_backend_name, validate_backend_
                                        BACKEND_CAPABILITIES, get_backend_capabilities, unsupported_qc_options)
 
 
+def _validate_growth_site(site, seed, monomer):
+    """Validate optional atom indices against the seed and monomer inputs."""
+    if site is None:
+        return
+    if len(site) != 2:
+        raise ValueError("Site requires one local atom index per input")
+    for index, molecule in zip(site, (seed, monomer)):
+        if not isinstance(index, int) or not 0 <= index < len(molecule):
+            raise ValueError(f"Site index {index} is out of range for {molecule.name}")
+
+
 @dataclass(frozen=True)
 class GrowRequest:
     seed: object
@@ -37,12 +48,7 @@ class GrowRequest:
                     or (electrons - (molecule.multiplicity - 1)) % 2
                     or molecule.multiplicity - 1 > electrons):
                 raise ValueError(f"Invalid charge/multiplicity for {molecule.name}")
-        if self.site is not None:
-            if len(self.site) != 2:
-                raise ValueError("Site requires one local atom index per input")
-            for index, molecule in zip(self.site, (self.seed, self.monomer)):
-                if not isinstance(index, int) or not 0 <= index < len(molecule):
-                    raise ValueError(f"Site index {index} is out of range for {molecule.name}")
+        _validate_growth_site(self.site, self.seed, self.monomer)
         qc = dict(self.backend_parameters or {})
         if qc.get("software"):
             from pyar.data.defualt_parameters import values

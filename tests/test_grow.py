@@ -117,6 +117,26 @@ def test_invalid_request(kwargs):
         GrowRequest(**options)
 
 
+@pytest.mark.parametrize(
+    ("site", "message"),
+    [
+        ((0,), "Site requires one local atom index per input"),
+        ((-1, 0), "Site index -1 is out of range for seed"),
+        ((0.5, 0), "Site index 0.5 is out of range for seed"),
+    ],
+)
+def test_growth_site_validation_errors(site, message):
+    with pytest.raises(ValueError, match=message):
+        GrowRequest(hydrogen(), hydrogen("monomer"), 1, site=site)
+
+
+def test_growth_request_preserves_valid_site():
+    request = GrowRequest(hydrogen(), hydrogen("monomer"), 1, site=(0, 1))
+
+    assert request.site == (0, 1)
+    assert request.to_state_dict()["site"] == [0, 1]
+
+
 def test_invalid_spin():
     seed = hydrogen()
     seed.multiplicity = 2
