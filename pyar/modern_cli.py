@@ -264,6 +264,33 @@ def _write_execution_record(command, request, resolved, observation, *, failure=
                                arguments=request.arguments, effective=resolved.values, metadata=metadata)
 
 
+def _execution_json_payload(command, resolved, observation, *, checking, dry_run,
+                            plan, failure, record_failure, provenance_only_failure):
+    """Build the stable JSON response from resolved request and run evidence."""
+    scientific_status = (
+        observation.result.get('status', 'completed')
+        if isinstance(observation.result, dict) else
+        'ready' if checking and failure is None else
+        'failed' if failure else 'completed'
+    )
+    invocation_status = (
+        'provenance_write_failed' if provenance_only_failure else
+        'failed' if failure else 'ready' if checking else 'completed'
+    )
+    payload = {'schema_version': 1, 'workflow': command,
+               'status': scientific_status, 'scientific_status': scientific_status,
+               'invocation_status': invocation_status,
+               'mode': 'dry-run' if dry_run else 'check' if checking else 'run',
+               'resolved': resolved.to_dict(), 'result': observation.result}
+    if plan:
+        payload['plan'] = plan.to_dict()
+    if failure:
+        payload['error'] = str(failure)
+    if record_failure is not None:
+        payload['provenance_error'] = str(record_failure)
+    return payload
+
+
 def invoke(command, arguments, *, config_file=None, profile_values=None, source_overrides=None):
     """Dispatch a task, observing its own validated request and actual result."""
     from pyar.cli_runtime import observe_run
@@ -400,27 +427,17 @@ def invoke(command, arguments, *, config_file=None, profile_values=None, source_
                         failure = OSError(message)
     plan = build_execution_plan(command, resolved) if dry_run and failure is None else None
     if as_json:
-        scientific_status = (
-            observation.result.get('status', 'completed')
-            if isinstance(observation.result, dict) else
-            'ready' if checking and failure is None else
-            'failed' if failure else 'completed'
+        payload = _execution_json_payload(
+            command,
+            resolved,
+            observation,
+            checking=checking,
+            dry_run=dry_run,
+            plan=plan,
+            failure=failure,
+            record_failure=record_failure,
+            provenance_only_failure=provenance_only_failure,
         )
-        invocation_status = (
-            'provenance_write_failed' if provenance_only_failure else
-            'failed' if failure else 'ready' if checking else 'completed'
-        )
-        payload = {'schema_version': 1, 'workflow': command,
-                   'status': scientific_status, 'scientific_status': scientific_status,
-                   'invocation_status': invocation_status,
-                   'mode': 'dry-run' if dry_run else 'check' if checking else 'run',
-                   'resolved': resolved.to_dict(), 'result': observation.result}
-        if plan:
-            payload['plan'] = plan.to_dict()
-        if failure:
-            payload['error'] = str(failure)
-        if record_failure is not None:
-            payload['provenance_error'] = str(record_failure)
         print(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False, default=str))
     elif plan and not quiet:
         _print_execution_plan(plan, resolved.scientific)
