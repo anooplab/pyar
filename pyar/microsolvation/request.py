@@ -14,6 +14,16 @@ class MicrosolvationRequestError(ValueError):
     """Raised when a microsolvation request is scientifically invalid."""
 
 
+def _validate_wall_mode_options(wall, wall_radius, wall_force_constant):
+    """Validate wall mode and which modes accept explicit wall parameters."""
+    if wall not in {"none", "outer-sphere", "auto"}:
+        raise MicrosolvationRequestError("wall must be 'none', 'outer-sphere', or 'auto'")
+    if wall == "none" and (wall_radius is not None or wall_force_constant is not None):
+        raise MicrosolvationRequestError("--wall-radius and --wall-force-constant require --wall outer-sphere")
+    if wall == "auto" and (wall_radius is not None or wall_force_constant is not None):
+        raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
+
+
 @dataclass(frozen=True)
 class MicrosolvationRequest:
     """Resolved settings for explicit shell or finite-cluster sampling."""
@@ -70,12 +80,7 @@ class MicrosolvationRequest:
         object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
         if self.objective not in {"shell", "cluster"}:
             raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
-        if self.wall not in {"none", "outer-sphere", "auto"}:
-            raise MicrosolvationRequestError("wall must be 'none', 'outer-sphere', or 'auto'")
-        if self.wall == "none" and (self.wall_radius is not None or self.wall_force_constant is not None):
-            raise MicrosolvationRequestError("--wall-radius and --wall-force-constant require --wall outer-sphere")
-        if self.wall == "auto" and (self.wall_radius is not None or self.wall_force_constant is not None):
-            raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
+        _validate_wall_mode_options(self.wall, self.wall_radius, self.wall_force_constant)
         if self.wall == "outer-sphere":
             if self.objective != "shell":
                 raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
