@@ -764,6 +764,90 @@ def _result_row(result):
     }
 
 
+def _pair_identity_matches(result, expected, run_manifest, case_id, optimizer):
+    """Check that one result belongs to its declared benchmark pair member."""
+    expected_qc = {"charge": expected["charge"], "multiplicity": expected["multiplicity"]}
+    return bool(
+        result
+        and result.get("schema_version") == 1
+        and result.get("case_id") == case_id
+        and result.get("optimizer") == optimizer
+        and result.get("source") == run_manifest.get("source")
+        and result.get("input_hashes") == expected["input_hashes"]
+        and result.get("qc_model") == run_manifest.get("qc_model")
+        and result.get("case_qc_settings") == expected_qc
+        and result.get("settings") == run_manifest.get("settings")
+        and result.get("runtime") == run_manifest.get("runtime")
+    )
+
+
+def _paired_result_row(expected, run_manifest, geometric, sella):
+    """Build one comparable row, withholding deltas for mismatched evidence."""
+    case_id = expected["case_id"]
+    identity_matches = bool(
+        _pair_identity_matches(geometric, expected, run_manifest, case_id, "geometric")
+        and _pair_identity_matches(sella, expected, run_manifest, case_id, "sella")
+    )
+    g_success = bool(geometric and geometric.get("outcome") in SUCCESS_OUTCOMES)
+    s_success = bool(sella and sella.get("outcome") in SUCCESS_OUTCOMES)
+    g_evals = None if not geometric else geometric.get("total_backend_energy_gradient_evaluations")
+    s_evals = None if not sella else sella.get("total_backend_energy_gradient_evaluations")
+    g_wall = None if not geometric else geometric.get("ts_wall_seconds")
+    s_wall = None if not sella else sella.get("ts_wall_seconds")
+    return {
+        "case_id": case_id,
+        "difficulty": expected["difficulty"],
+        "input_sha256": expected["ts_guess_sha256"],
+        "pair_identity_matches": identity_matches,
+        "geometric_outcome": None if not geometric else geometric.get("outcome"),
+        "sella_outcome": None if not sella else sella.get("outcome"),
+        "geometric_success": g_success,
+        "sella_success": s_success,
+        "discordant_success": g_success != s_success if identity_matches else None,
+        "total_evaluation_difference_geometric_minus_sella": (
+            g_evals - s_evals if identity_matches and isinstance(g_evals, int)
+            and isinstance(s_evals, int) else None
+        ),
+        "ts_wall_difference_seconds_geometric_minus_sella": (
+            float(g_wall) - float(s_wall) if identity_matches
+            and isinstance(g_wall, (int, float)) and isinstance(s_wall, (int, float)) else None
+        ),
+        "ts_evaluation_difference_geometric_minus_sella": (
+            geometric.get("ts_backend_energy_gradient_evaluations")
+            - sella.get("ts_backend_energy_gradient_evaluations")
+            if identity_matches and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
+            and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int) else None
+        ),
+        "validation_evaluation_difference_geometric_minus_sella": (
+            geometric.get("validation_backend_energy_gradient_evaluations")
+            - sella.get("validation_backend_energy_gradient_evaluations")
+            if identity_matches and isinstance(geometric.get("validation_backend_energy_gradient_evaluations"), int)
+            and isinstance(sella.get("validation_backend_energy_gradient_evaluations"), int) else None
+        ),
+        "validation_wall_difference_seconds_geometric_minus_sella": (
+            float(geometric.get("validation_wall_seconds"))
+            - float(sella.get("validation_wall_seconds"))
+            if identity_matches
+            and isinstance(geometric.get("validation_wall_seconds"), (int, float))
+            and isinstance(sella.get("validation_wall_seconds"), (int, float)) else None
+        ),
+        "validation_hessian_evaluation_difference_geometric_minus_sella": (
+            geometric.get("validation_hessian_evaluations")
+            - sella.get("validation_hessian_evaluations")
+            if identity_matches and isinstance(geometric.get("validation_hessian_evaluations"), int)
+            and isinstance(sella.get("validation_hessian_evaluations"), int) else None
+        ),
+        "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
+            float(geometric.get("validation_hessian_wall_seconds"))
+            - float(sella.get("validation_hessian_wall_seconds"))
+            if identity_matches
+            and isinstance(geometric.get("validation_hessian_wall_seconds"), (int, float))
+            and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float)) else None
+        ),
+        "pair_status": "paired" if identity_matches else "incomplete_or_mismatched",
+    }
+
+
 def _write_csv(path, columns, rows):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -853,84 +937,7 @@ def collect_ts_optimizer_benchmark(output):
         case_id = expected["case_id"]
         geometric = result_map.get((case_id, "geometric"))
         sella = result_map.get((case_id, "sella"))
-        expected_qc = {"charge": expected["charge"], "multiplicity": expected["multiplicity"]}
-
-        def identity_matches_manifest(result, optimizer):
-            return bool(
-                result
-                and result.get("schema_version") == 1
-                and result.get("case_id") == case_id
-                and result.get("optimizer") == optimizer
-                and result.get("source") == run_manifest.get("source")
-                and result.get("input_hashes") == expected["input_hashes"]
-                and result.get("qc_model") == run_manifest.get("qc_model")
-                and result.get("case_qc_settings") == expected_qc
-                and result.get("settings") == run_manifest.get("settings")
-                and result.get("runtime") == run_manifest.get("runtime")
-            )
-
-        identity_matches = bool(
-            identity_matches_manifest(geometric, "geometric")
-            and identity_matches_manifest(sella, "sella")
-        )
-        g_success = bool(geometric and geometric.get("outcome") in SUCCESS_OUTCOMES)
-        s_success = bool(sella and sella.get("outcome") in SUCCESS_OUTCOMES)
-        g_evals = None if not geometric else geometric.get("total_backend_energy_gradient_evaluations")
-        s_evals = None if not sella else sella.get("total_backend_energy_gradient_evaluations")
-        g_wall = None if not geometric else geometric.get("ts_wall_seconds")
-        s_wall = None if not sella else sella.get("ts_wall_seconds")
-        paired_rows.append({
-            "case_id": case_id,
-            "difficulty": expected["difficulty"],
-            "input_sha256": expected["ts_guess_sha256"],
-            "pair_identity_matches": identity_matches,
-            "geometric_outcome": None if not geometric else geometric.get("outcome"),
-            "sella_outcome": None if not sella else sella.get("outcome"),
-            "geometric_success": g_success,
-            "sella_success": s_success,
-            "discordant_success": g_success != s_success if identity_matches else None,
-            "total_evaluation_difference_geometric_minus_sella": (
-                g_evals - s_evals if identity_matches and isinstance(g_evals, int)
-                and isinstance(s_evals, int) else None
-            ),
-            "ts_wall_difference_seconds_geometric_minus_sella": (
-                float(g_wall) - float(s_wall) if identity_matches
-                and isinstance(g_wall, (int, float)) and isinstance(s_wall, (int, float)) else None
-            ),
-            "ts_evaluation_difference_geometric_minus_sella": (
-                geometric.get("ts_backend_energy_gradient_evaluations")
-                - sella.get("ts_backend_energy_gradient_evaluations")
-                if identity_matches and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
-                and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int) else None
-            ),
-            "validation_evaluation_difference_geometric_minus_sella": (
-                geometric.get("validation_backend_energy_gradient_evaluations")
-                - sella.get("validation_backend_energy_gradient_evaluations")
-                if identity_matches and isinstance(geometric.get("validation_backend_energy_gradient_evaluations"), int)
-                and isinstance(sella.get("validation_backend_energy_gradient_evaluations"), int) else None
-            ),
-            "validation_wall_difference_seconds_geometric_minus_sella": (
-                float(geometric.get("validation_wall_seconds"))
-                - float(sella.get("validation_wall_seconds"))
-                if identity_matches
-                and isinstance(geometric.get("validation_wall_seconds"), (int, float))
-                and isinstance(sella.get("validation_wall_seconds"), (int, float)) else None
-            ),
-            "validation_hessian_evaluation_difference_geometric_minus_sella": (
-                geometric.get("validation_hessian_evaluations")
-                - sella.get("validation_hessian_evaluations")
-                if identity_matches and isinstance(geometric.get("validation_hessian_evaluations"), int)
-                and isinstance(sella.get("validation_hessian_evaluations"), int) else None
-            ),
-            "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
-                float(geometric.get("validation_hessian_wall_seconds"))
-                - float(sella.get("validation_hessian_wall_seconds"))
-                if identity_matches
-                and isinstance(geometric.get("validation_hessian_wall_seconds"), (int, float))
-                and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float)) else None
-            ),
-            "pair_status": "paired" if identity_matches else "incomplete_or_mismatched",
-        })
+        paired_rows.append(_paired_result_row(expected, run_manifest, geometric, sella))
     _write_csv(output / "runs.csv", SUMMARY_COLUMNS, rows)
     _write_csv(output / "paired.csv", tuple(paired_rows[0]) if paired_rows else (
         "case_id", "difficulty", "input_sha256", "pair_identity_matches", "geometric_outcome",
