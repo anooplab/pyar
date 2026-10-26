@@ -55,6 +55,17 @@ def test_minimal_and_orientations(inputs, dependencies, override, count):
     assert args[6:9] == (None, None, None)
 
 
+def test_intramolecular_parameters_omit_second_fragment_fields(inputs, dependencies):
+    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+        modern_cli.main(['scan-bond', inputs[1], '--atoms', '0', '1', '--backend', 'xtb'])
+
+    parameters = run.call_args.args[4]
+    assert parameters['charge_a'] == 0
+    assert parameters['multiplicity_a'] == 1
+    assert parameters['scftype_a'] == 'rhf'
+    assert not {'charge_b', 'multiplicity_b', 'scftype_b'} & parameters.keys()
+
+
 @pytest.mark.parametrize('atoms', [['-1', '0'], ['2', '0'], ['0', '-1'], ['0', '2']])
 def test_invalid_atoms(inputs, dependencies, atoms, capsys):
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
