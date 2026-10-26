@@ -102,6 +102,26 @@ def test_controllers_softmin_site_and_spin(tmp_path):
     assert [m.multiplicity for m in neutral_even.reactants] == [1, 2]
 
 
+def test_site_maps_fragment_local_indices_to_combined_atom_indices(tmp_path):
+    first = tmp_path / 'diatomic.xyz'
+    first.write_text('2\nfirst\nC 0 0 0\nH 1 0 0\n')
+    second = xyz(tmp_path, 'second.xyz')
+
+    request = resolve_reaction_request(
+        [str(first), second],
+        dict(backend='xtb', bias_max=100, site=[1, 0]),
+    )
+
+    assert request.site == [1, 2]
+
+
+def test_site_mapping_error_keeps_reactant_local_range(tmp_path):
+    files = inputs(tmp_path)
+
+    with pytest.raises(ValueError, match=r"Site index 1 is out of range for reactant A \(0\.\.0\)"):
+        resolve(files, site=[1, 0])
+
+
 def test_one_charge_applies_to_both(tmp_path):
     resolved = resolve(inputs(tmp_path), charge=[-1])
     assert [m.charge for m in resolved.reactants] == [-1, -1]

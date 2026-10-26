@@ -32,6 +32,19 @@ class ReactionRequest:
     restart_request: dict
 
 
+def _resolve_reactant_site(site, molecules):
+    """Validate fragment-local site indices and map them into the combined system."""
+    if site is None:
+        return None
+    if len(site) != 2:
+        raise ValueError('--site requires one fragment-local atom index per reactant')
+    for index, atom in enumerate(site):
+        if not isinstance(atom, int) or not 0 <= atom < molecules[index].number_of_atoms:
+            raise ValueError(f'Site index {atom} is out of range for reactant {"AB"[index]} '
+                             f'(0..{molecules[index].number_of_atoms - 1})')
+    return [site[0], molecules[0].number_of_atoms + site[1]]
+
+
 def resolve_reaction_request(input_files, options):
     """Resolve modern defaults independently of an argparse parser."""
     def option(name, default=None):
@@ -107,15 +120,7 @@ def resolve_reaction_request(input_files, options):
         _validate_backend_spin_inputs([merged])
     except SystemExit as exc:
         raise ValueError(f'Invalid charge/multiplicity: {exc}') from exc
-    site = option('site')
-    if site is not None:
-        if len(site) != 2:
-            raise ValueError('--site requires one fragment-local atom index per reactant')
-        for index, atom in enumerate(site):
-            if not isinstance(atom, int) or not 0 <= atom < molecules[index].number_of_atoms:
-                raise ValueError(f'Site index {atom} is out of range for reactant {"AB"[index]} '
-                                 f'(0..{molecules[index].number_of_atoms - 1})')
-        site = [site[0], molecules[0].number_of_atoms + site[1]]
+    site = _resolve_reactant_site(option('site'), molecules)
     settings = {'software': backend, 'geometry_optimizer': optimizer, 'opt_target': 'minimum',
                 'bias_controller': controller, 'bias_potential': option('bias_potential', 'afir'),
                 'softmin_beta': resolve_softmin_beta(option('softmin_beta')),
