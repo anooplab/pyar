@@ -716,7 +716,9 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
         proximity_factor,
         **({"_v2": True} if _v2 else {}),
     )
-    product_registry = _restore_product_registry(run_state)
+    # initialize_reaction_run restores persisted products into this compatibility
+    # view; copy it once so this run owns subsequent identity decisions.
+    product_registry = dict(saved_product_identities)
 
     for gamma in gamma_list:
         adaptive_mode = qc_params.get("bias_controller") == "adaptive"
