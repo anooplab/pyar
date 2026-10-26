@@ -101,6 +101,32 @@ def test_site_group_indices_and_names_are_validated():
         MicrosolvationRequest(methane(), water(), 1, site_groups=(("x", (0,)),))
 
 
+def test_site_groups_are_canonicalized_for_state_and_request_ownership():
+    req = request(groups=[("  proton donor  ", ["0", 1])])
+
+    assert req.site_groups == (("proton donor", (0, 1)),)
+    assert req.to_state_dict()["site_contact_policy"]["groups"] == [
+        {"name": "proton donor", "solute_atom_indices": [0, 1]}
+    ]
+
+
+def test_site_group_validation_keeps_first_error_order():
+    with pytest.raises(ValueError, match="distinct non-empty"):
+        MicrosolvationRequest(
+            methane(), water(), 1,
+            site_groups=(("duplicate", (0,)), ("duplicate", (1,))),
+            contact_distance=0.0,
+        )
+    with pytest.raises(ValueError, match="out-of-range"):
+        MicrosolvationRequest(
+            methane(), water(), 1,
+            site_groups=(("outside", (5,)),),
+            contact_distance=0.0,
+        )
+    with pytest.raises(ValueError, match="--contact-distance requires at least one"):
+        MicrosolvationRequest(methane(), water(), 1, contact_distance=3.0)
+
+
 def test_anionic_substrate_can_be_reported_without_assuming_donor_acceptor_roles():
     acetate = Molecule(["C", "C", "O", "O", "H", "H", "H"],
                        [[0, 0, 0], [1.5, 0, 0], [-.7, 1.1, 0], [-.7, -1.1, 0],

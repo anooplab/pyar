@@ -24,6 +24,43 @@ def _validate_wall_mode_options(wall, wall_radius, wall_force_constant):
         raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
 
 
+def _normalize_site_groups(site_groups, contact_distance, solute_atom_count):
+    """Normalize named solute sites and validate their contact-reporting policy."""
+    groups = tuple(
+        (str(name).strip(), tuple(int(index) for index in indices))
+        for name, indices in site_groups
+    )
+    if groups:
+        names = [name for name, _ in groups]
+        has_invalid_names = any(not name.strip() for name in names)
+        has_duplicate_names = len(names) != len(set(names))
+        has_invalid_indices = any(
+            not indices or len(indices) != len(set(indices))
+            for _, indices in groups
+        )
+        if has_invalid_names or has_duplicate_names or has_invalid_indices:
+            raise MicrosolvationRequestError(
+                "site groups require unique names and distinct non-empty atom indices"
+            )
+        for name, indices in groups:
+            if any(index < 0 or index >= solute_atom_count for index in indices):
+                raise MicrosolvationRequestError(
+                    f"Site group {name!r} contains an out-of-range solute atom index"
+                )
+        if (
+            isinstance(contact_distance, bool)
+            or contact_distance is None
+            or not np.isfinite(float(contact_distance))
+            or float(contact_distance) <= 0
+        ):
+            raise MicrosolvationRequestError(
+                "site contact reporting requires a positive --contact-distance in Angstrom"
+            )
+    elif contact_distance is not None:
+        raise MicrosolvationRequestError("--contact-distance requires at least one --site-group")
+    return groups
+
+
 @dataclass(frozen=True)
 class MicrosolvationRequest:
     """Resolved settings for explicit shell or finite-cluster sampling."""
@@ -149,21 +186,9 @@ class MicrosolvationRequest:
                         f"Solute site index {index} is out of range (valid range: 0..{len(self.solute) - 1})"
                     )
             object.__setattr__(self, "site", site)
-        groups = tuple((str(name).strip(), tuple(int(index) for index in indices))
-                       for name, indices in self.site_groups)
-        if groups:
-            names = [name for name, _ in groups]
-            if (any(not name.strip() for name in names) or len(names) != len(set(names))
-                    or any(not indices or len(indices) != len(set(indices)) for _, indices in groups)):
-                raise MicrosolvationRequestError("site groups require unique names and distinct non-empty atom indices")
-            for name, indices in groups:
-                if any(index < 0 or index >= len(self.solute) for index in indices):
-                    raise MicrosolvationRequestError(f"Site group {name!r} contains an out-of-range solute atom index")
-            if (isinstance(self.contact_distance, bool) or self.contact_distance is None
-                    or not np.isfinite(float(self.contact_distance)) or float(self.contact_distance) <= 0):
-                raise MicrosolvationRequestError("site contact reporting requires a positive --contact-distance in Angstrom")
-        elif self.contact_distance is not None:
-            raise MicrosolvationRequestError("--contact-distance requires at least one --site-group")
+        groups = _normalize_site_groups(
+            self.site_groups, self.contact_distance, len(self.solute)
+        )
         object.__setattr__(self, "site_groups", groups)
         from pyar.molecule_merge import combine_multiplicity
         electrons = sum(self.solute.atomic_number)
