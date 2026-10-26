@@ -175,6 +175,17 @@ def _assess_attempt_progress(result, attempt, policy):
     return made_progress, plateau, None
 
 
+def _validate_and_commit_attempt(current, backend, result_path, commit_path, intent):
+    """Validate worker evidence and seal it before recovery uses the outcome."""
+    result_value = read_json(result_path)
+    result = _validated_result(current, backend, result_value)
+    if not commit_path.exists():
+        fsync_artifacts([ref.resolve(backend) for ref in snapshot_artifacts(backend)], backend)
+        write_json(commit_path, dict(schema_version=1, intent=intent,
+            execution_result=result_value), overwrite=False)
+    return result
+
+
 def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, recover_lock=False):
     if policy.mode == 'off':
         from pyar.optimization_service import optimize_once
@@ -276,12 +287,7 @@ def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, r
                         worker_returncode=code))
                     evaluations += remaining
                     break
-            result_value = read_json(result_path)
-            last = _validated_result(current, backend, result_value)
-            if not commit_path.exists():
-                fsync_artifacts([ref.resolve(backend) for ref in snapshot_artifacts(backend)], backend)
-                write_json(commit_path, dict(schema_version=1, intent=intent,
-                    execution_result=result_value), overwrite=False)
+            last = _validate_and_commit_attempt(current, backend, result_path, commit_path, intent)
             counter = safe_path(backend, 'ore_evaluations.json')
             observed_evaluations = read_json(counter)['used'] if counter.exists() else remaining
             if type(observed_evaluations) is not int or not 0 <= observed_evaluations <= remaining:
