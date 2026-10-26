@@ -1031,6 +1031,64 @@ def _match_endpoints(symbols, observed, expected, tolerance):
     }
 
 
+def _execute_ts_stage(output, calculator, options, neb):
+    """Optimize one TS guess and return its result and artifact contract."""
+    guess = options["ts_geometry"] or options["ts_guess"]
+    dependencies = []
+    if guess is None:
+        has_candidate = (
+            neb["ts_guess_image_index"] is not None
+            if "ts_guess_image_index" in neb else neb["interior_maximum"]
+        )
+        if not neb["converged"] or not has_candidate:
+            raise ValueError(
+                "TS optimization requires a converged NEB with an interior maximum "
+                "or a usable climbing image"
+            )
+        guess, dependencies = output / "ts_guess.xyz", ["neb"]
+    symbols, geometry, _ = read_xyz(guess)
+    optimization_started = time.perf_counter()
+    effective_fmax = (
+        options["ts_fmax"] if options["ts_fmax"] is not None
+        else options["sella_fmax"] if options["ts_optimizer"] == "sella"
+        else None
+    )
+    if options["ts_optimizer"] == "sella":
+        if options["sella_internal_coordinates"]:
+            frames, energies, converged, sella_version = _optimize_sella(
+                symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
+                internal=True,
+            )
+        else:
+            frames, energies, converged, sella_version = _optimize_sella(
+                symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
+            )
+        _write_xyz_trajectory(output / "ts_path.xyz", symbols, frames, energies)
+    else:
+        frames, energies, converged = _optimize_geometry(
+            symbols, geometry, calculator, output, "ts", options["ts_max_cycles"],
+            transition=True, fmax=effective_fmax,
+        )
+    optimization_wall_seconds = time.perf_counter() - optimization_started
+    _write_xyz_trajectory(output / "ts_optimized.xyz", symbols, [frames[-1]], [energies[-1]])
+    result = {
+        "ts_optimization_converged": converged,
+        "ts_energy_hartree": energies[-1],
+        "ts_optimization_wall_seconds": float(optimization_wall_seconds),
+        "effective_ts_convergence": {
+            "max_steps": options["ts_max_cycles"],
+            "fmax_ev_per_angstrom": effective_fmax,
+            "geometric_convergence_set": (
+                "GAU_TIGHT" if options["ts_optimizer"] == "geometric"
+                and effective_fmax is None else None
+            ),
+        },
+    }
+    if options["ts_optimizer"] == "sella":
+        result["sella_version"] = sella_version
+    return result, [guess], ["ts_optimized.xyz", "ts_path.xyz"], dependencies
+
+
 def _execute_stage(stage, output, calculator, options):
     """Execute a single stage; dependent results are checked before use."""
     stage_started = time.perf_counter()
@@ -1198,61 +1256,11 @@ def _execute_stage(stage, output, calculator, options):
 
     if stage == "ts":
         guess = options["ts_geometry"] or options["ts_guess"]
-        dependencies = []
-        if guess is None:
-            neb = load("neb")
-            has_candidate = (
-                neb["ts_guess_image_index"] is not None
-                if "ts_guess_image_index" in neb else neb["interior_maximum"]
-            )
-            if not neb["converged"] or not has_candidate:
-                raise ValueError(
-                    "TS optimization requires a converged NEB with an interior maximum "
-                    "or a usable climbing image"
-                )
-            guess, dependencies = output / "ts_guess.xyz", ["neb"]
-        symbols, geometry, _ = read_xyz(guess)
-        optimization_started = time.perf_counter()
-        effective_fmax = (
-            options["ts_fmax"] if options["ts_fmax"] is not None
-            else options["sella_fmax"] if options["ts_optimizer"] == "sella"
-            else None
+        neb = None if guess is not None else load("neb")
+        result, inputs, artifacts, dependencies = _execute_ts_stage(
+            output, calculator, options, neb,
         )
-        if options["ts_optimizer"] == "sella":
-            if options["sella_internal_coordinates"]:
-                frames, energies, converged, sella_version = _optimize_sella(
-                    symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
-                    internal=True,
-                )
-            else:
-                frames, energies, converged, sella_version = _optimize_sella(
-                    symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
-                )
-            _write_xyz_trajectory(output / "ts_path.xyz", symbols, frames, energies)
-        else:
-            frames, energies, converged = _optimize_geometry(
-                symbols, geometry, calculator, output, "ts", options["ts_max_cycles"],
-                transition=True, fmax=effective_fmax,
-            )
-        optimization_wall_seconds = time.perf_counter() - optimization_started
-        _write_xyz_trajectory(output / "ts_optimized.xyz", symbols, [frames[-1]], [energies[-1]])
-        result = {
-            "ts_optimization_converged": converged,
-            "ts_energy_hartree": energies[-1],
-            "ts_optimization_wall_seconds": float(optimization_wall_seconds),
-            "effective_ts_convergence": {
-                "max_steps": options["ts_max_cycles"],
-                "fmax_ev_per_angstrom": effective_fmax,
-                "geometric_convergence_set": (
-                    "GAU_TIGHT" if options["ts_optimizer"] == "geometric"
-                    and effective_fmax is None else None
-                ),
-            },
-        }
-        if options["ts_optimizer"] == "sella":
-            result["sella_version"] = sella_version
-        return save(result,
-                    [guess], ["ts_optimized.xyz", "ts_path.xyz"], dependencies)
+        return save(result, inputs, artifacts, dependencies)
 
     if stage == "frequency":
         geometry_path = options["ts_geometry"]
