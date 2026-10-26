@@ -80,6 +80,37 @@ class ReactionTraceTests(unittest.TestCase):
         ):
             validate_trace_record(record, 6)
 
+    def test_validate_trace_record_rejects_non_finite_optional_scalar_fields(self):
+        for field_name in (
+            "backend_force_norm",
+            "bias_force_norm",
+            "total_force_norm",
+            "max_force",
+            "backend_max_force",
+            "collective_coordinate_bohr",
+            "softmin_beta",
+        ):
+            with self.subTest(field=field_name):
+                record = self._valid_trace_record()
+                record[field_name] = float("inf")
+                with self.assertRaisesRegex(ValueError, field_name):
+                    validate_trace_record(record, 7)
+
+    def test_validate_trace_record_preserves_optional_scalar_error_order(self):
+        record = self._valid_trace_record()
+        record["backend_force_norm"] = float("nan")
+        record["bias_force_norm"] = float("inf")
+
+        with self.assertRaisesRegex(ValueError, "backend_force_norm"):
+            validate_trace_record(record, 8)
+
+    def test_validate_trace_record_requires_positive_softmin_beta(self):
+        record = self._valid_trace_record()
+        record["softmin_beta"] = 0
+
+        with self.assertRaisesRegex(ValueError, "softmin_beta.*positive"):
+            validate_trace_record(record, 9)
+
     def test_candidate_filters_exclude_high_force_and_energy_outlier_frames(self):
         records = [
             {"backend_max_force": 0.01, "backend_energy_hartree": -10.0},
