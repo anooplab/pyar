@@ -244,9 +244,13 @@ def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
 
 def _restore_product_registry(run_state):
     """Restore saved product identities so resumed runs deduplicate correctly."""
+    registry = {
+        job_name: {"inchi": inchi, "smiles": smiles}
+        for job_name, (inchi, smiles) in run_state.saved_product_identities().items()
+    }
     saved_product_identities.clear()
-    for job_name, (inchi, smiles) in run_state.saved_product_identities().items():
-        saved_product_identities[job_name] = {"inchi": inchi, "smiles": smiles}
+    saved_product_identities.update(registry)
+    return registry
 
 
 def _ensure_reactant_identity(run_state, reactant_a, reactant_b):
@@ -260,7 +264,7 @@ def _ensure_reactant_identity(run_state, reactant_a, reactant_b):
     return run_state.data["reactant_identity"]
 
 
-def _is_known_product(identity):
+def _is_known_product(identity, registry=None):
     """Return whether the product's canonical molecular identity is known.
 
     The registry stores canonical InChI/SMILES pairs for already accepted
@@ -269,13 +273,14 @@ def _is_known_product(identity):
     """
     return any(
         same_molecular_identity(identity, recorded_identity)
-        for recorded_identity in saved_product_identities.values()
+        for recorded_identity in (saved_product_identities if registry is None else registry).values()
     )
 
 
-def _should_continue_after_product(optimized_molecules):
+def _should_continue_after_product(optimized_molecules, registry=None):
     """Return whether the reaction loop should keep advancing gamma values."""
-    return len(optimized_molecules) == 0 and bool(saved_product_identities)
+    products = saved_product_identities if registry is None else registry
+    return len(optimized_molecules) == 0 and bool(products)
 
 
 def relax_without_afir_bias(molecule, qc_params):
@@ -711,6 +716,7 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
         proximity_factor,
         **({"_v2": True} if _v2 else {}),
     )
+    product_registry = _restore_product_registry(run_state)
 
     for gamma in gamma_list:
         adaptive_mode = qc_params.get("bias_controller") == "adaptive"
@@ -731,6 +737,7 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
                 run_state,
                 product_dir,
                 gamma_qc_params,
+                product_registry=product_registry,
             )
         except BackendExecutionError as exc:
             run_state.fail(exc)
@@ -741,11 +748,11 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
             f"Gamma cycle optimized geometries: {len(optimized_molecules)}")
         if len(optimized_molecules) == 0:
             run_state.complete_cycle(gamma, [])
-            if _should_continue_after_product(optimized_molecules):
+            if _should_continue_after_product(optimized_molecules, product_registry):
                 reactor_logger.info(
                     "Reaction search found %d unique product(s); continuing "
                     "through the remaining gamma schedule.",
-                    len(saved_product_identities),
+                    len(product_registry),
                 )
                 orientations_to_optimize = []
                 continue
@@ -769,7 +776,7 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
             orientations_to_optimize = clustering.remove_similar(
                 optimized_molecules)
         run_state.complete_cycle(gamma, orientations_to_optimize)
-        reactor_logger.info(f"Products found so far: {len(saved_product_identities)}")
+        reactor_logger.info(f"Products found so far: {len(product_registry)}")
         reactor_logger.info(f"Next cycle candidate geometries: {len(orientations_to_optimize)}")
 
         reactor_logger.debug("the keys of the molecules for next gamma cycle")
@@ -777,7 +784,7 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
             reactor_logger.debug(f"{this_orientation.name}")
 
     os.chdir(workdir)
-    terminal_status = "completed_products_found" if saved_product_identities else "completed"
+    terminal_status = "completed_products_found" if product_registry else "completed"
     run_state.finish(terminal_status)
     reactor_logger.info("Reaction workflow completed. State retained in reaction/state.json.")
     return _build_reaction_result(
@@ -791,7 +798,7 @@ def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_par
     )
 
 
-def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
+def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, product_registry=None):
     """Optimize all trial geometries for one gamma cycle.
 
     Each orientation is written to its own job directory, optimized with the
@@ -800,6 +807,7 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
     """
     gamma = qc_param['gamma']
     cwd = os.getcwd()
+    product_registry = saved_product_identities if product_registry is None else product_registry
     table_of_optimized_molecules = (
         run_state.current_survivor_molecules()
         if run_state is not None
@@ -960,11 +968,14 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param):
                         )
 
                         reactor_logger.info("Checking whether product is new")
-                        if _is_known_product(current_identity):
+                        if _is_known_product(current_identity, product_registry):
                             reactor_logger.info("Product matches an existing product; discarded")
                             product_status = "duplicate_product"
                         else:
                             reactor_logger.info("New product detected; saving")
+                            product_registry[job_name] = current_identity
+                            # Preserve the legacy module-level view for existing
+                            # direct callers; this run's decisions use its own registry.
                             saved_product_identities[job_name] = current_identity
                             shutil.copy('result_relax.xyz', f'{product_dir}/{job_name}.xyz')
                             trace_directory = os.path.join(os.getcwd(), f'job_{job_name}')
