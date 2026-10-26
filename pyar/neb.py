@@ -1031,11 +1031,12 @@ def _match_endpoints(symbols, observed, expected, tolerance):
     }
 
 
-def _execute_ts_stage(output, calculator, options, neb):
+def _execute_ts_stage(output, calculator, options, load_stage):
     """Optimize one TS guess and return its result and artifact contract."""
     guess = options["ts_geometry"] or options["ts_guess"]
     dependencies = []
     if guess is None:
+        neb = load_stage("neb")
         has_candidate = (
             neb["ts_guess_image_index"] is not None
             if "ts_guess_image_index" in neb else neb["interior_maximum"]
@@ -1255,10 +1256,8 @@ def _execute_stage(stage, output, calculator, options):
         }, [start_path, end_path, path_seed or guess], seed_artifacts + artifacts, ["relax"])
 
     if stage == "ts":
-        guess = options["ts_geometry"] or options["ts_guess"]
-        neb = None if guess is not None else load("neb")
         result, inputs, artifacts, dependencies = _execute_ts_stage(
-            output, calculator, options, neb,
+            output, calculator, options, load,
         )
         return save(result, inputs, artifacts, dependencies)
 
