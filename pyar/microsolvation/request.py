@@ -24,6 +24,22 @@ def _validate_wall_mode_options(wall, wall_radius, wall_force_constant):
         raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
 
 
+def _require_energy_gradient_backend(software, requirement):
+    """Require a registered energy-gradient backend with a policy-specific error."""
+    from pyar.backend_capabilities import (
+        backend_supports_geometry_optimization,
+        normalize_backend_name,
+    )
+
+    if not software:
+        raise MicrosolvationRequestError(f"{requirement} requires an energy-gradient backend")
+    backend = normalize_backend_name(software)
+    if not backend_supports_geometry_optimization(backend):
+        raise MicrosolvationRequestError(
+            f"{requirement} requires a registered energy-gradient provider; {backend!r} has none"
+        )
+
+
 def _normalize_site_groups(site_groups, contact_distance, solute_atom_count):
     """Normalize named solute sites and validate their contact-reporting policy."""
     groups = tuple(
@@ -128,23 +144,13 @@ class MicrosolvationRequest:
                     or not np.isfinite(float(self.wall_force_constant))
                     or float(self.wall_force_constant) <= 0):
                 raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-force-constant in hartree/angstrom^2")
-            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
             software = self.backend_parameters.get("software")
-            if not software:
-                raise MicrosolvationRequestError("outer-sphere wall requires an energy-gradient backend")
-            backend = normalize_backend_name(software)
-            if not backend_supports_geometry_optimization(backend):
-                raise MicrosolvationRequestError(f"outer-sphere wall requires a registered energy-gradient provider; {backend!r} has none")
+            _require_energy_gradient_backend(software, "outer-sphere wall")
             if self.backend_parameters.get("geometry_optimizer") != "geometric":
                 raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
         if self.wall == "auto" and self.objective == "shell":
-            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
             software = self.backend_parameters.get("software")
-            if not software:
-                raise MicrosolvationRequestError("automatic wall policy requires an energy-gradient backend")
-            backend = normalize_backend_name(software)
-            if not backend_supports_geometry_optimization(backend):
-                raise MicrosolvationRequestError(f"automatic wall policy requires a registered energy-gradient provider; {backend!r} has none")
+            _require_energy_gradient_backend(software, "automatic wall policy")
             if self.backend_parameters.get("geometry_optimizer") != "geometric":
                 raise MicrosolvationRequestError("automatic wall policy requires --geometry-optimizer geometric")
         if self.placement_score not in {"geometric", "energy"}:
@@ -152,12 +158,9 @@ class MicrosolvationRequest:
         if self.placement_score == "energy" and not self.backend_parameters.get("software"):
             raise MicrosolvationRequestError("energy placement scoring requires --backend")
         if self.placement_score == "energy":
-            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
-            backend = normalize_backend_name(self.backend_parameters["software"])
-            if not backend_supports_geometry_optimization(backend):
-                raise MicrosolvationRequestError(
-                    f"energy placement scoring requires a registered energy-gradient provider; {backend!r} has none"
-                )
+            _require_energy_gradient_backend(
+                self.backend_parameters["software"], "energy placement scoring"
+            )
         if self.objective == "cluster" and self.placement_score != "energy":
             raise MicrosolvationRequestError("cluster objective requires --placement-score energy")
         if (isinstance(self.resampling_moves, bool) or not isinstance(self.resampling_moves, int)
