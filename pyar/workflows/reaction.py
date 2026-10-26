@@ -1043,20 +1043,20 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
         data = read_json(path / 'state.json')
         return data.get('version') == 2 and data.get('workflow') == 'reaction'
     args = (reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor)
-    if ((root / 'jobs.pkl').exists() and not (directory / 'layout.json').exists()
-            and not (directory / 'state.json').exists()):
-        return _react(*args)
-    if detect_version(directory, 'reaction', validate_v1=legacy) == 1:
-        return _react(*args)
-    with RunLock(directory, recover_stale=recover_stale):
-        detect_version(directory, 'reaction', validate_v1=legacy)
-        try:
+    try:
+        if ((root / 'jobs.pkl').exists() and not (directory / 'layout.json').exists()
+                and not (directory / 'state.json').exists()):
+            return _react(*args)
+        if detect_version(directory, 'reaction', validate_v1=legacy) == 1:
+            return _react(*args)
+        with RunLock(directory, recover_stale=recover_stale):
+            detect_version(directory, 'reaction', validate_v1=legacy)
             result = _react(*args, _v2=True)
             from pyar.persistence import write_json
             write_json(directory / 'summary.json', result.to_dict())
             return result
-        finally:
-            os.chdir(root)
+    finally:
+        os.chdir(root)
 
 def main():
     """Compatibility entry point retained for older imports and scripts."""
