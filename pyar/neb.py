@@ -1090,6 +1090,31 @@ def _execute_ts_stage(output, calculator, options, load_stage):
     return result, [guess], ["ts_optimized.xyz", "ts_path.xyz"], dependencies
 
 
+def _execute_irc_stage(output, calculator, options, frequency):
+    """Trace both IRC branches from the validated stationary saddle."""
+    if not frequency["first_order_saddle_confirmed"]:
+        raise ValueError("IRC requires a stationary TS with exactly one significant imaginary frequency")
+    symbols, geometry, _ = read_xyz(output / "frequency_geometry.xyz")
+    result, paths, artifacts = {"irc_run": True}, [], []
+    for direction in ("forward", "backward"):
+        frames, energies, converged = _optimize_geometry(
+            symbols, geometry, calculator, output, f"irc_{direction}", options["irc_max_cycles"],
+            direction=direction, hessian=output / "ts_hessian.txt",
+        )
+        result[f"irc_{direction}_converged"] = converged
+        path = f"irc_{direction}_endpoint.xyz"
+        _write_xyz_trajectory(output / path, symbols, [frames[-1]], [energies[-1]])
+        artifacts.extend([path, f"irc_{direction}_path.xyz"])
+        paths.append((frames, energies))
+    _write_xyz_trajectory(output / "irc_path.xyz", symbols,
+                          paths[0][0][::-1] + paths[1][0][1:],
+                          paths[0][1][::-1] + paths[1][1][1:])
+    result["irc_converged"] = result["irc_forward_converged"] and result["irc_backward_converged"]
+    result["reactant_product_connection_confirmed"] = False
+    inputs = [output / "frequency_geometry.xyz", output / "ts_hessian.txt"]
+    return result, inputs, artifacts + ["irc_path.xyz"], ["frequency"]
+
+
 def _execute_stage(stage, output, calculator, options):
     """Execute a single stage; dependent results are checked before use."""
     stage_started = time.perf_counter()
@@ -1277,27 +1302,10 @@ def _execute_stage(stage, output, calculator, options):
 
     if stage == "irc":
         frequency = load("frequency")
-        if not frequency["first_order_saddle_confirmed"]:
-            raise ValueError("IRC requires a stationary TS with exactly one significant imaginary frequency")
-        symbols, geometry, _ = read_xyz(output / "frequency_geometry.xyz")
-        result, paths, artifacts = {"irc_run": True}, [], []
-        for direction in ("forward", "backward"):
-            frames, energies, converged = _optimize_geometry(
-                symbols, geometry, calculator, output, f"irc_{direction}", options["irc_max_cycles"],
-                direction=direction, hessian=output / "ts_hessian.txt",
-            )
-            result[f"irc_{direction}_converged"] = converged
-            path = f"irc_{direction}_endpoint.xyz"
-            _write_xyz_trajectory(output / path, symbols, [frames[-1]], [energies[-1]])
-            artifacts.extend([path, f"irc_{direction}_path.xyz"])
-            paths.append((frames, energies))
-        _write_xyz_trajectory(output / "irc_path.xyz", symbols,
-                              paths[0][0][::-1] + paths[1][0][1:],
-                              paths[0][1][::-1] + paths[1][1][1:])
-        result["irc_converged"] = result["irc_forward_converged"] and result["irc_backward_converged"]
-        result["reactant_product_connection_confirmed"] = False
-        return save(result, [output / "frequency_geometry.xyz", output / "ts_hessian.txt"],
-                    artifacts + ["irc_path.xyz"], ["frequency"])
+        result, inputs, artifacts, dependencies = _execute_irc_stage(
+            output, calculator, options, frequency,
+        )
+        return save(result, inputs, artifacts, dependencies)
 
     if stage in {"endpoints", *_SPLIT_ENDPOINT_STAGES}:
         irc = load("irc")
