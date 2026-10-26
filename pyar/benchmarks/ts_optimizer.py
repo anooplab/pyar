@@ -773,6 +773,43 @@ def _write_csv(path, columns, rows):
         writer.writerows(rows)
 
 
+def _summarize_ts_optimizer_results(expected_runs, optimizers, by_optimizer, rows, paired_rows, run_manifest):
+    """Aggregate paired benchmark evidence without reading or writing files."""
+    summaries = {}
+    for optimizer, optimizer_rows in by_optimizer.items():
+        outcomes = {}
+        for row in optimizer_rows:
+            outcomes[row["outcome"]] = outcomes.get(row["outcome"], 0) + 1
+        successes = sum(row["outcome"] in SUCCESS_OUTCOMES for row in optimizer_rows)
+        completed = sum(row["status"] in {"complete", "failed"} for row in optimizer_rows)
+        evaluations = [row["total_backend_evaluations"] for row in optimizer_rows
+                       if isinstance(row["total_backend_evaluations"], int)]
+        timings = [row["ts_wall_seconds"] for row in optimizer_rows
+                   if isinstance(row["ts_wall_seconds"], (int, float))]
+        summaries[optimizer] = {
+            "expected_runs": len(expected_runs),
+            "completed_runs": completed,
+            "successful_runs": successes,
+            "success_fraction_of_completed": successes / completed if completed else None,
+            "outcomes": outcomes,
+            "mean_total_backend_evaluations": (
+                sum(evaluations) / len(evaluations) if evaluations else None
+            ),
+            "mean_ts_wall_seconds": sum(timings) / len(timings) if timings else None,
+        }
+    return {
+        "schema_version": 1,
+        "benchmark_name": run_manifest.get("benchmark_name"),
+        "manifest_sha256": run_manifest.get("manifest_sha256"),
+        "expected_runs": len(expected_runs) * len(optimizers),
+        "completed_runs": sum(value["completed_runs"] for value in summaries.values()),
+        "incomplete_runs": sum(row["outcome"] == "incomplete_run" for row in rows),
+        "optimizers": summaries,
+        "paired_cases": sum(row["pair_status"] == "paired" for row in paired_rows),
+        "paired": paired_rows,
+    }
+
+
 def collect_ts_optimizer_benchmark(output):
     """Collect complete and missing paired jobs into machine-readable tables."""
     output = Path(output).expanduser().resolve()
@@ -907,43 +944,9 @@ def collect_ts_optimizer_benchmark(output):
         "validation_hessian_wall_difference_seconds_geometric_minus_sella", "pair_status",
     ), paired_rows)
 
-    summaries = {}
-    for optimizer, optimizer_rows in by_optimizer.items():
-        outcomes = {}
-        for row in optimizer_rows:
-            outcomes[row["outcome"]] = outcomes.get(row["outcome"], 0) + 1
-        successes = sum(
-            row["outcome"] in SUCCESS_OUTCOMES for row in optimizer_rows
-        )
-        completed = sum(row["status"] in {"complete", "failed"} for row in optimizer_rows)
-        evaluations = [row["total_backend_evaluations"] for row in optimizer_rows
-                       if isinstance(row["total_backend_evaluations"], int)]
-        timings = [row["ts_wall_seconds"] for row in optimizer_rows
-                   if isinstance(row["ts_wall_seconds"], (int, float))]
-        summaries[optimizer] = {
-            "expected_runs": len(expected_runs),
-            "completed_runs": completed,
-            "successful_runs": successes,
-            "success_fraction_of_completed": successes / completed if completed else None,
-            "outcomes": outcomes,
-            "mean_total_backend_evaluations": (
-                sum(evaluations) / len(evaluations) if evaluations else None
-            ),
-            "mean_ts_wall_seconds": sum(timings) / len(timings) if timings else None,
-        }
-    summary = {
-        "schema_version": 1,
-        "benchmark_name": run_manifest.get("benchmark_name"),
-        "manifest_sha256": run_manifest.get("manifest_sha256"),
-        "expected_runs": len(expected_runs) * len(optimizers),
-        "completed_runs": sum(value["completed_runs"] for value in summaries.values()),
-        "incomplete_runs": sum(
-            row["outcome"] == "incomplete_run" for row in rows
-        ),
-        "optimizers": summaries,
-        "paired_cases": sum(row["pair_status"] == "paired" for row in paired_rows),
-        "paired": paired_rows,
-    }
+    summary = _summarize_ts_optimizer_results(
+        expected_runs, optimizers, by_optimizer, rows, paired_rows, run_manifest,
+    )
     _write_json(output / "runs.json", rows)
     _write_json(output / "summary.json", summary)
     return summary
