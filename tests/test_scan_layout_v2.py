@@ -11,6 +11,36 @@ from pyar.persistence import read_json, sha256_file, write_json
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
 
+@pytest.mark.parametrize(
+    'results, through, intramolecular, unique, products, expected',
+    [
+        ([{'status': 'scan_success_relax_success'}], None, False, False, None, True),
+        ([{'status': 'scan_success'}], None, False, False, None, False),
+        ([{'status': 'scan_success'}], 'scan', False, False, None, True),
+        ([{'status': 'scan_success_relax_success', 'identity_status': 'failed'}],
+         None, True, False, None, False),
+        ([{'status': 'scan_success_relax_success', 'continuation_status': 'complete'}],
+         'all', False, False, None, True),
+        ([{'status': 'scan_success_relax_success', 'identity_status': 'success'}],
+         'neb', True, True,
+         {'products': [{'characterization_status': 'reaction_connected'}]}, True),
+        ([{'status': 'scan_success', 'identity_status': 'success'}],
+         'neb', True, True,
+         {'products': [{'characterization_status': 'path_complete_connection_unconfirmed'}]}, True),
+        ([{'status': 'scan_success', 'identity_status': 'unresolved'}],
+         'neb', True, True,
+         {'products': [{'characterization_status': 'reaction_connected'}]}, False),
+        ([{'status': 'scan_success'}], 'neb', False, True,
+         {'products': [{'characterization_status': 'blocked'}]}, False),
+    ],
+)
+def test_scan_completion_uses_explicit_workflow_evidence(
+        results, through, intramolecular, unique, products, expected):
+    assert workflow._scan_completion_status(
+        results, through, intramolecular, unique, products,
+    ) is expected
+
+
 def test_scan_loader_reuses_valid_cached_result(tmp_path, monkeypatch):
     import pyar.recovery.stages as stages
     from types import SimpleNamespace

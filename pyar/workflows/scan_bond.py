@@ -199,6 +199,30 @@ def _relax_scan_endpoint(relaxed, qc_params, software, relax_dir, execution):
     return relax_status, True, None
 
 
+def _scan_completion_status(results, through, intramolecular, characterize_unique_products,
+                            product_index):
+    """Evaluate final scan completion from already-loaded workflow evidence."""
+    if characterize_unique_products:
+        complete = all(row.get("status") in {"scan_success_relax_success", "scan_success"}
+                       for row in results)
+        if intramolecular:
+            complete = complete and all(row.get("identity_status") == "success" for row in results)
+        products = product_index.get("products", [])
+        complete = complete and all(item.get("characterization_status") in {
+            "reaction_connected", "path_complete_connection_unconfirmed",
+        } for item in products)
+    elif through is None:
+        complete = all(row.get("status") == "scan_success_relax_success" for row in results)
+    elif through == "scan":
+        complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"}
+                       for row in results)
+    else:
+        complete = all(row.get("continuation_status") == "complete" for row in results)
+    if intramolecular and not characterize_unique_products:
+        complete = complete and all(row.get("identity_status") == "success" for row in results)
+    return complete
+
+
 def _fragment_signature(molecule):
     return {"atoms": molecule.atoms_list, "coordinates": np.asarray(molecule.coordinates).tolist(),
             "charge": molecule.charge, "multiplicity": molecule.multiplicity, "scftype": molecule.scftype}
@@ -803,23 +827,13 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         fields = sorted({key for result in results for key in result})
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader(); writer.writerows(results)
-    if characterize_unique_products:
-        complete = all(row.get("status") in {"scan_success_relax_success", "scan_success"}
-                       for row in results)
-        index = json.loads((root / "products/index.json").read_text())
-        if intramolecular:
-            complete = complete and all(row.get('identity_status') == 'success' for row in results)
-        complete = complete and all(item.get("characterization_status") in {
-                                        "reaction_connected", "path_complete_connection_unconfirmed"}
-                                    for item in index.get("products", []))
-    elif through is None:
-        complete = all(row.get("status") == "scan_success_relax_success" for row in results)
-    elif through == "scan":
-        complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"} for row in results)
-    else:
-        complete = all(row.get("continuation_status") == "complete" for row in results)
-    if intramolecular:
-        complete = complete and all(row.get('identity_status') == 'success' for row in results)
+    product_index = (
+        json.loads((root / "products/index.json").read_text())
+        if characterize_unique_products else None
+    )
+    complete = _scan_completion_status(
+        results, through, intramolecular, characterize_unique_products, product_index,
+    )
     return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
             "status": "complete" if complete else "failed", "requested_through": through,
             "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)
