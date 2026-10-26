@@ -26,6 +26,54 @@ def _validate_positive_growth_limits(count, orientations, maximum_number_of_seed
             raise ValueError(f"{label} must be a positive integer")
 
 
+def _normalize_growth_backend_parameters(backend_parameters, seed, monomer):
+    """Normalize backend options and validate growth execution capabilities."""
+    qc = dict(backend_parameters or {})
+    caps = None
+    if qc.get("software"):
+        from pyar.data.defualt_parameters import values
+        for key in ("nprocs", "opt_cycles", "scf_cycles", "opt_threshold", "scf_threshold", "geometry_optimizer"):
+            qc.setdefault(key, values[key])
+    if not qc.get("software") and any(qc.get(k) is not None for k in ("method", "basis", "model", "xtb_model")):
+        raise ValueError("Backend options require software")
+    if qc.get("software"):
+        qc["software"] = normalize_backend_name(qc["software"])
+        if qc["software"] not in BACKEND_CAPABILITIES:
+            raise ValueError(f"Unknown backend: {qc['software']}")
+        caps = get_backend_capabilities(qc["software"])
+        for molecule in (seed, monomer):
+            if (molecule.charge and not caps.supports_charge) or (molecule.multiplicity != 1 and not caps.supports_multiplicity):
+                raise ValueError("Backend does not support the requested electronic state")
+        unsupported = unsupported_qc_options(qc["software"], {k for k in ("method", "basis", "model") if qc.get(k) is not None})
+        if unsupported:
+            raise ValueError(f"Unsupported backend options: {', '.join(sorted(unsupported))}")
+        if qc["software"] == "orca":
+            from pyar.backends.orca_methods import orca_method_keywords, orca_external_method_block
+            orca_method_keywords(qc)
+            orca_external_method_block(qc)
+        if qc["software"] == "gaussian" and not all(qc.get(k) for k in ("method", "basis")):
+            raise ValueError("Gaussian requires method and basis")
+        if qc.get("xtb_model") is not None:
+            from pyar.backends.xtb_utils import canonical_xtb_model
+            if qc["software"] != "xtb":
+                raise ValueError("xtb_model is only valid for standalone xtb")
+            qc["xtb_model"] = canonical_xtb_model(qc["xtb_model"])
+        if qc.get("gxtb_wrapper") is not None:
+            import os
+            from pathlib import Path
+            wrapper = Path(qc["gxtb_wrapper"]).expanduser().resolve()
+            if not wrapper.is_file() or not os.access(wrapper, os.X_OK):
+                raise ValueError("gxtb_wrapper must be an executable file")
+            qc["gxtb_wrapper"] = str(wrapper)
+        optimizer = qc.get("geometry_optimizer", "native")
+        if optimizer not in {"native", "geometric"}:
+            raise ValueError("Geometry optimizer must be native or geometric")
+        validate_backend_capability(qc["software"],
+                                    ["native_optimization" if optimizer == "native" else "energy_gradient"],
+                                    context="grow")
+    return qc, caps
+
+
 @dataclass(frozen=True)
 class GrowRequest:
     seed: object
@@ -56,48 +104,7 @@ class GrowRequest:
                     or molecule.multiplicity - 1 > electrons):
                 raise ValueError(f"Invalid charge/multiplicity for {molecule.name}")
         _validate_growth_site(self.site, self.seed, self.monomer)
-        qc = dict(self.backend_parameters or {})
-        if qc.get("software"):
-            from pyar.data.defualt_parameters import values
-            for key in ("nprocs", "opt_cycles", "scf_cycles", "opt_threshold", "scf_threshold", "geometry_optimizer"):
-                qc.setdefault(key, values[key])
-        if not qc.get("software") and any(qc.get(k) is not None for k in ("method", "basis", "model", "xtb_model")):
-            raise ValueError("Backend options require software")
-        if qc.get("software"):
-            qc["software"] = normalize_backend_name(qc["software"])
-            if qc["software"] not in BACKEND_CAPABILITIES:
-                raise ValueError(f"Unknown backend: {qc['software']}")
-            caps = get_backend_capabilities(qc["software"])
-            for molecule in (self.seed, self.monomer):
-                if (molecule.charge and not caps.supports_charge) or (molecule.multiplicity != 1 and not caps.supports_multiplicity):
-                    raise ValueError("Backend does not support the requested electronic state")
-            unsupported = unsupported_qc_options(qc["software"], {k for k in ("method", "basis", "model") if qc.get(k) is not None})
-            if unsupported:
-                raise ValueError(f"Unsupported backend options: {', '.join(sorted(unsupported))}")
-            if qc["software"] == "orca":
-                from pyar.backends.orca_methods import orca_method_keywords, orca_external_method_block
-                orca_method_keywords(qc)
-                orca_external_method_block(qc)
-            if qc["software"] == "gaussian" and not all(qc.get(k) for k in ("method", "basis")):
-                raise ValueError("Gaussian requires method and basis")
-            if qc.get("xtb_model") is not None:
-                from pyar.backends.xtb_utils import canonical_xtb_model
-                if qc["software"] != "xtb":
-                    raise ValueError("xtb_model is only valid for standalone xtb")
-                qc["xtb_model"] = canonical_xtb_model(qc["xtb_model"])
-            if qc.get("gxtb_wrapper") is not None:
-                import os
-                from pathlib import Path
-                wrapper = Path(qc["gxtb_wrapper"]).expanduser().resolve()
-                if not wrapper.is_file() or not os.access(wrapper, os.X_OK):
-                    raise ValueError("gxtb_wrapper must be an executable file")
-                qc["gxtb_wrapper"] = str(wrapper)
-            optimizer = qc.get("geometry_optimizer", "native")
-            if optimizer not in {"native", "geometric"}:
-                raise ValueError("Geometry optimizer must be native or geometric")
-            validate_backend_capability(qc["software"],
-                                        ["native_optimization" if optimizer == "native" else "energy_gradient"],
-                                        context="grow")
+        qc, caps = _normalize_growth_backend_parameters(self.backend_parameters, self.seed, self.monomer)
         if qc.get("opt_target", "minimum") not in {"min", "minimum"} or qc.get("gamma") not in (None, 0):
             raise ValueError("Grow supports unbiased minimum optimization only")
         if qc.get("opt_target") == "min":
