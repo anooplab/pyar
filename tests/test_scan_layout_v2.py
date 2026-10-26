@@ -11,6 +11,72 @@ from pyar.persistence import read_json, sha256_file, write_json
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
 
+def test_orientation_result_publisher_preserves_success_record(tmp_path):
+    directory = tmp_path / 'orientation_000'
+    artifact = directory / 'execution/result_relaxed.xyz'
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b'2\nrelaxed\nH 0 0 0\nH 1 0 0\n')
+    calls = []
+
+    class Layout:
+        def relaxed(self, index, result, artifacts):
+            calls.append((index, dict(result), tuple(artifacts)))
+
+    result = {
+        'orientation': 0,
+        'status': 'scan_success_relax_success',
+        'product_identity_changed': False,
+    }
+    artifacts = (artifact, directory / 'missing.xyz')
+    workflow._save_orientation_result(
+        directory,
+        result,
+        qc_params={'total_multiplicity': 1, 'total_multiplicity_source': 'input'},
+        intramolecular=True,
+        completed_artifacts=artifacts,
+        layout=Layout(),
+    )
+
+    saved = read_json(directory / 'result.json')
+    assert saved == result
+    assert saved['discovery_status'] == 'no_new_product'
+    assert saved['reactant_product_connection_confirmed'] is False
+    assert saved['total_multiplicity'] == 1
+    assert saved['total_multiplicity_source'] == 'input'
+    assert saved['completed_artifact_hashes'] == {
+        'execution/result_relaxed.xyz': sha256_file(artifact),
+    }
+    assert calls == [(0, saved, artifacts)]
+
+
+def test_orientation_result_publisher_keeps_failed_report_uncommitted(tmp_path):
+    directory = tmp_path / 'orientation_000'
+    directory.mkdir()
+    calls = []
+
+    class Layout:
+        def relaxed(self, *args):
+            calls.append(args)
+
+    result = {'orientation': 0, 'status': 'scan_success_relax_failed'}
+    workflow._save_orientation_result(
+        directory,
+        result,
+        qc_params={'total_multiplicity': 2, 'total_multiplicity_source': 'user'},
+        intramolecular=True,
+        completed_artifacts=(),
+        layout=Layout(),
+    )
+
+    assert read_json(directory / 'result.json') == {
+        **result,
+        'total_multiplicity': 2,
+        'total_multiplicity_source': 'user',
+    }
+    assert 'completed_artifact_hashes' not in result
+    assert calls == []
+
+
 @pytest.fixture
 def scan_run(tmp_path, monkeypatch):
     a, b = tmp_path / 'a.xyz', tmp_path / 'b.xyz'
