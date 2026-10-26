@@ -113,41 +113,15 @@ def _resolve_input(raw_path, root, case_id, label, *, required):
     return str(path)
 
 
-def load_ts_optimizer_benchmark(path):
-    """Load and validate a JSON manifest for paired geometric/Sella runs."""
-    manifest_path = Path(path).expanduser().resolve()
-    try:
-        raw_bytes = manifest_path.read_bytes()
-        raw = json.loads(raw_bytes)
-    except OSError as exc:
-        raise TSOptimizerBenchmarkError(f"Cannot read benchmark manifest {path}: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise TSOptimizerBenchmarkError(f"Invalid benchmark JSON: {exc}") from exc
-    if not isinstance(raw, dict):
-        raise TSOptimizerBenchmarkError("benchmark manifest must contain a JSON object")
-
-    name = _required_text(raw, "name", "benchmark")
-    source = raw.get("source", {})
-    qc_model = raw.get("qc_model")
-    settings = raw.get("settings")
-    raw_cases = raw.get("cases")
-    if not isinstance(source, dict):
-        raise TSOptimizerBenchmarkError("source must be an object")
-    if not isinstance(qc_model, dict):
-        raise TSOptimizerBenchmarkError("qc_model must be an object")
-    if not isinstance(settings, dict):
-        raise TSOptimizerBenchmarkError("settings must be an object")
+def _normalize_qc_model(qc_model):
+    """Validate and normalize the benchmark's electronic-structure settings."""
     software = _required_text(qc_model, "software", "qc_model").lower()
     qc_model = dict(qc_model, software=software)
-    for key in ("name", "version", "license"):
-        _required_text(source, key, "source")
-    if not any(isinstance(source.get(key), str) and source[key].strip() for key in ("doi", "url")):
-        raise TSOptimizerBenchmarkError("source must define a non-empty 'doi' or 'url'")
-    if software.lower() == "xtb":
+    if software == "xtb":
         if "xtb_model" not in qc_model:
             raise TSOptimizerBenchmarkError("qc_model must explicitly define xtb_model for xTB")
         try:
-            qc_model = dict(qc_model, xtb_model=canonical_xtb_model(qc_model["xtb_model"]))
+            qc_model["xtb_model"] = canonical_xtb_model(qc_model["xtb_model"])
         except ValueError as exc:
             raise TSOptimizerBenchmarkError(str(exc)) from exc
     elif "xtb_model" in qc_model:
@@ -176,6 +150,38 @@ def load_ts_optimizer_benchmark(path):
         or qc_model["nprocs"] < 1
     ):
         raise TSOptimizerBenchmarkError("qc_model.nprocs must be a positive integer")
+    return qc_model
+
+
+def load_ts_optimizer_benchmark(path):
+    """Load and validate a JSON manifest for paired geometric/Sella runs."""
+    manifest_path = Path(path).expanduser().resolve()
+    try:
+        raw_bytes = manifest_path.read_bytes()
+        raw = json.loads(raw_bytes)
+    except OSError as exc:
+        raise TSOptimizerBenchmarkError(f"Cannot read benchmark manifest {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise TSOptimizerBenchmarkError(f"Invalid benchmark JSON: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise TSOptimizerBenchmarkError("benchmark manifest must contain a JSON object")
+
+    name = _required_text(raw, "name", "benchmark")
+    source = raw.get("source", {})
+    qc_model = raw.get("qc_model")
+    settings = raw.get("settings")
+    raw_cases = raw.get("cases")
+    if not isinstance(source, dict):
+        raise TSOptimizerBenchmarkError("source must be an object")
+    if not isinstance(qc_model, dict):
+        raise TSOptimizerBenchmarkError("qc_model must be an object")
+    if not isinstance(settings, dict):
+        raise TSOptimizerBenchmarkError("settings must be an object")
+    for key in ("name", "version", "license"):
+        _required_text(source, key, "source")
+    if not any(isinstance(source.get(key), str) and source[key].strip() for key in ("doi", "url")):
+        raise TSOptimizerBenchmarkError("source must define a non-empty 'doi' or 'url'")
+    qc_model = _normalize_qc_model(qc_model)
 
     settings = dict(settings)
     allowed_settings = {
