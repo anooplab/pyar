@@ -151,6 +151,38 @@ def test_energy_gradient_backend_requirement_messages(options, message):
 @pytest.mark.parametrize(
     ("options", "message"),
     [
+        (
+            {
+                "wall": "outer-sphere",
+                "wall_radius": 0,
+                "wall_force_constant": 0,
+                "objective": "cluster",
+            },
+            "outer-sphere wall is only supported for shell objective",
+        ),
+        (
+            {"wall": "outer-sphere", "wall_radius": 0, "wall_force_constant": 0},
+            "outer-sphere wall requires a positive --wall-radius",
+        ),
+        (
+            {
+                "wall": "outer-sphere",
+                "wall_radius": 8,
+                "wall_force_constant": 0.5,
+                "backend_parameters": {"geometry_optimizer": "native"},
+            },
+            "outer-sphere wall requires an energy-gradient backend",
+        ),
+    ],
+)
+def test_wall_policy_preserves_first_error_order(options, message):
+    with pytest.raises(ValueError, match=message):
+        MicrosolvationRequest(methane(), water(), 1, **options)
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    [
         ({"wall": "unknown", "placement_score": "unknown"},
          "wall must be 'none', 'outer-sphere', or 'auto'"),
         ({"wall": "none", "wall_radius": 8.0},

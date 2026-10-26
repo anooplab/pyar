@@ -40,6 +40,30 @@ def _require_energy_gradient_backend(software, requirement):
         )
 
 
+def _validate_wall_policy(wall, objective, wall_radius, wall_force_constant, backend_parameters):
+    """Validate wall parameters and their geometry-optimization backend route."""
+    _validate_wall_mode_options(wall, wall_radius, wall_force_constant)
+    if wall == "outer-sphere":
+        if objective != "shell":
+            raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
+        if (isinstance(wall_radius, bool) or wall_radius is None
+                or not np.isfinite(float(wall_radius)) or float(wall_radius) <= 0):
+            raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-radius in Angstrom")
+        if (isinstance(wall_force_constant, bool) or wall_force_constant is None
+                or not np.isfinite(float(wall_force_constant))
+                or float(wall_force_constant) <= 0):
+            raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-force-constant in hartree/angstrom^2")
+        software = backend_parameters.get("software")
+        _require_energy_gradient_backend(software, "outer-sphere wall")
+        if backend_parameters.get("geometry_optimizer") != "geometric":
+            raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
+    if wall == "auto" and objective == "shell":
+        software = backend_parameters.get("software")
+        _require_energy_gradient_backend(software, "automatic wall policy")
+        if backend_parameters.get("geometry_optimizer") != "geometric":
+            raise MicrosolvationRequestError("automatic wall policy requires --geometry-optimizer geometric")
+
+
 def _normalize_site_groups(site_groups, contact_distance, solute_atom_count):
     """Normalize named solute sites and validate their contact-reporting policy."""
     groups = tuple(
@@ -133,26 +157,13 @@ class MicrosolvationRequest:
         object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
         if self.objective not in {"shell", "cluster"}:
             raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
-        _validate_wall_mode_options(self.wall, self.wall_radius, self.wall_force_constant)
-        if self.wall == "outer-sphere":
-            if self.objective != "shell":
-                raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
-            if (isinstance(self.wall_radius, bool) or self.wall_radius is None
-                    or not np.isfinite(float(self.wall_radius)) or float(self.wall_radius) <= 0):
-                raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-radius in Angstrom")
-            if (isinstance(self.wall_force_constant, bool) or self.wall_force_constant is None
-                    or not np.isfinite(float(self.wall_force_constant))
-                    or float(self.wall_force_constant) <= 0):
-                raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-force-constant in hartree/angstrom^2")
-            software = self.backend_parameters.get("software")
-            _require_energy_gradient_backend(software, "outer-sphere wall")
-            if self.backend_parameters.get("geometry_optimizer") != "geometric":
-                raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
-        if self.wall == "auto" and self.objective == "shell":
-            software = self.backend_parameters.get("software")
-            _require_energy_gradient_backend(software, "automatic wall policy")
-            if self.backend_parameters.get("geometry_optimizer") != "geometric":
-                raise MicrosolvationRequestError("automatic wall policy requires --geometry-optimizer geometric")
+        _validate_wall_policy(
+            self.wall,
+            self.objective,
+            self.wall_radius,
+            self.wall_force_constant,
+            self.backend_parameters,
+        )
         if self.placement_score not in {"geometric", "energy"}:
             raise MicrosolvationRequestError("placement score must be 'geometric' or 'energy'")
         if self.placement_score == "energy" and not self.backend_parameters.get("software"):
