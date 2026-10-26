@@ -384,6 +384,17 @@ def canonical_ts_parameters(parameters):
     return canonical
 
 
+def _canonical_expected_stage_parameters(options):
+    """Project run options onto the canonical settings stored by each stage."""
+    expected = {
+        name: {key: options[key] for key in keys}
+        for name, keys in _STAGE_OPTIONS.items()
+    }
+    expected["neb"] = canonical_neb_parameters(expected["neb"])
+    expected["ts"] = canonical_ts_parameters(expected["ts"])
+    return expected
+
+
 def build_neb_images(
     start, end, ts_guess, image_count, *, interpolation="linear",
     idpp_fmax=0.1, idpp_steps=100, geodesic_tol=0.002, geodesic_max_iter=15,
@@ -1025,12 +1036,7 @@ def _execute_stage(stage, output, calculator, options):
     stage_started = time.perf_counter()
     evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
     optimizer_steps_start = getattr(calculator, "_pyar_optimizer_steps_total", None)
-    expected_by_stage = {
-        name: {key: options[key] for key in keys}
-        for name, keys in _STAGE_OPTIONS.items()
-    }
-    expected_by_stage["neb"] = canonical_neb_parameters(expected_by_stage["neb"])
-    expected_by_stage["ts"] = canonical_ts_parameters(expected_by_stage["ts"])
+    expected_by_stage = _canonical_expected_stage_parameters(options)
     if stage not in {"all", "relax", "neb"}:
         neb_summary_path = output / "neb_summary.json"
         if neb_summary_path.is_file():
@@ -1499,9 +1505,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     results = {"reactant_product_connection_confirmed": False}
     for current in stages:
         if reuse and (output / f"{current}_summary.json").is_file():
-            expected = {name: {key: options[key] for key in keys}
-                        for name, keys in _STAGE_OPTIONS.items()}
-            expected["neb"] = canonical_neb_parameters(expected["neb"])
+            expected = _canonical_expected_stage_parameters(options)
             if stage not in {"all", "relax", "neb"}:
                 neb_summary_path = output / "neb_summary.json"
                 if neb_summary_path.is_file():
@@ -1511,7 +1515,6 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                         if key in recorded_parameters:
                             expected["neb"][key] = recorded_parameters[key]
                     expected["neb"] = canonical_neb_parameters(expected["neb"])
-            expected["ts"] = canonical_ts_parameters(expected["ts"])
             if stage in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
                 expected["ts"] = None
             try:
