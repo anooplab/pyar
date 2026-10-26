@@ -137,6 +137,22 @@ def test_growth_request_preserves_valid_site():
     assert request.to_state_dict()["site"] == [0, 1]
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "label"),
+    [
+        ("count", True, "count"),
+        ("number_of_orientations", 1.5, "orientations"),
+        ("maximum_number_of_seeds", 0, "maximum_number_of_seeds"),
+    ],
+)
+def test_growth_limits_require_positive_integers(field, value, label):
+    options = {"seed": hydrogen(), "monomer": hydrogen("monomer"), "count": 1}
+    options[field] = value
+
+    with pytest.raises(ValueError, match=f"^{label} must be a positive integer$"):
+        GrowRequest(**options)
+
+
 def test_invalid_spin():
     seed = hydrogen()
     seed.multiplicity = 2

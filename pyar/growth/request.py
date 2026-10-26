@@ -18,6 +18,14 @@ def _validate_growth_site(site, seed, monomer):
             raise ValueError(f"Site index {index} is out of range for {molecule.name}")
 
 
+def _validate_positive_growth_limits(count, orientations, maximum_number_of_seeds):
+    """Validate integer limits that control the size of a growth request."""
+    for label, value in (("count", count), ("orientations", orientations),
+                         ("maximum_number_of_seeds", maximum_number_of_seeds)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ValueError(f"{label} must be a positive integer")
+
+
 @dataclass(frozen=True)
 class GrowRequest:
     seed: object
@@ -34,10 +42,9 @@ class GrowRequest:
     selection_system_type: str = "auto"
 
     def __post_init__(self):
-        for label, value in (("count", self.count), ("orientations", self.number_of_orientations),
-                             ("maximum_number_of_seeds", self.maximum_number_of_seeds)):
-            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-                raise ValueError(f"{label} must be a positive integer")
+        _validate_positive_growth_limits(
+            self.count, self.number_of_orientations, self.maximum_number_of_seeds
+        )
         for molecule in (self.seed, self.monomer):
             if not hasattr(molecule, "atoms_list"):
                 raise ValueError("Grow requires exactly one seed molecule and one monomer molecule")
