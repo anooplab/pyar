@@ -83,6 +83,83 @@ def test_scan_executor_preserves_backend_errors_and_returns_other_errors(tmp_pat
     assert error is ordinary_error
 
 
+def test_scan_relaxation_uses_unbiased_retry_and_restores_cwd(tmp_path, monkeypatch):
+    relax_dir = tmp_path / 'relax'
+    (relax_dir / 'job_relaxed').mkdir(parents=True)
+    (relax_dir / 'retry_001').mkdir()
+    execution = tmp_path / 'execution'
+    execution.mkdir()
+    caller_cwd = Path.cwd()
+    observations = []
+
+    def optimize(molecule, params, role):
+        observations.append((Path.cwd(), params, role))
+        target = Path('job_relaxed/result_relaxed.xyz')
+        target.parent.mkdir()
+        target.write_text('accepted geometry')
+        return True
+
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', optimize)
+    status, succeeded, error = workflow._relax_scan_endpoint(
+        object(), {'software': 'orca'}, 'orca', relax_dir, execution,
+    )
+
+    assert (status, succeeded, error) == (True, True, None)
+    workdir, params, role = observations[0]
+    assert workdir == relax_dir / 'retry_002'
+    assert params == {'software': 'orca', 'geometry_optimizer': 'native', 'gamma': 0.0}
+    assert role == 'bond_scan_unbiased_relaxation'
+    assert (execution / 'result_relaxed.xyz').read_text() == 'accepted geometry'
+    assert Path.cwd() == caller_cwd
+
+
+def test_scan_relaxation_returns_generic_optimizer_error_and_restores_cwd(tmp_path, monkeypatch):
+    caller_cwd = Path.cwd()
+
+    def optimize(*args):
+        raise RuntimeError('optimizer failed')
+
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', optimize)
+    status, succeeded, error = workflow._relax_scan_endpoint(
+        object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
+    )
+    assert status is None
+    assert succeeded is False
+    assert error == 'optimizer failed'
+    assert Path.cwd() == caller_cwd
+
+
+def test_scan_relaxation_propagates_backend_error_and_restores_cwd(tmp_path, monkeypatch):
+    from pyar.backend_errors import BackendExecutionError
+
+    caller_cwd = Path.cwd()
+
+    def optimize(*args):
+        raise BackendExecutionError('backend failed')
+
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', optimize)
+    with pytest.raises(BackendExecutionError, match='backend failed'):
+        workflow._relax_scan_endpoint(object(), {}, 'xtb', tmp_path / 'relax', tmp_path)
+    assert Path.cwd() == caller_cwd
+
+
+def test_scan_relaxation_rejects_success_without_geometry(tmp_path, monkeypatch):
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: True)
+    status, succeeded, error = workflow._relax_scan_endpoint(
+        object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
+    )
+    assert status is True
+    assert succeeded is False
+    assert 'optimizer reported success but did not write' in error
+
+
+def test_scan_relaxation_preserves_non_success_status(tmp_path, monkeypatch):
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: False)
+    assert workflow._relax_scan_endpoint(
+        object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
+    ) == (False, False, None)
+
+
 def test_orientation_result_publisher_preserves_success_record(tmp_path):
     directory = tmp_path / 'orientation_000'
     artifact = directory / 'execution/result_relaxed.xyz'

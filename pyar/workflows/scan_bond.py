@@ -161,6 +161,44 @@ def _load_or_execute_scan(orientation, request, scan_dir, qc_params, *, software
     return scan, None
 
 
+def _relax_scan_endpoint(relaxed, qc_params, software, relax_dir, execution):
+    """Run one unbiased endpoint relaxation and preserve its accepted geometry."""
+    relax_dir.mkdir(parents=True, exist_ok=True)
+    relax_run_dir = relax_dir
+    if (relax_dir / "job_relaxed").exists():
+        retry_index = 1
+        while (relax_dir / f"retry_{retry_index:03d}").exists():
+            retry_index += 1
+        relax_run_dir = relax_dir / f"retry_{retry_index:03d}"
+        relax_run_dir.mkdir()
+
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(relax_run_dir)
+        relax_status = _optimize_with_diagnostics(
+            relaxed,
+            dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
+            "bond_scan_unbiased_relaxation",
+        )
+    except BackendExecutionError:
+        raise
+    except Exception as exc:
+        return None, False, str(exc)
+    finally:
+        os.chdir(old_cwd)
+
+    if not is_success(relax_status):
+        return relax_status, False, None
+    optimized_output = relax_run_dir / "job_relaxed" / "result_relaxed.xyz"
+    if not optimized_output.is_file():
+        return relax_status, False, f"optimizer reported success but did not write {optimized_output}"
+    try:
+        shutil.copy(optimized_output, execution / "result_relaxed.xyz")
+    except OSError as exc:
+        return relax_status, False, f"could not preserve relaxed geometry: {exc}"
+    return relax_status, True, None
+
+
 def _fragment_signature(molecule):
     return {"atoms": molecule.atoms_list, "coordinates": np.asarray(molecule.coordinates).tolist(),
             "charge": molecule.charge, "multiplicity": molecule.multiplicity, "scftype": molecule.scftype}
@@ -685,57 +723,19 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         relaxed = Molecule(orientation.atoms_list, scan.final_coordinates, name="relaxed",
                            fragments=orientation.fragments, charge=orientation.charge,
                            multiplicity=orientation.multiplicity, scftype=orientation.scftype)
-        relax_dir.mkdir(parents=True, exist_ok=True)
-        relax_run_dir = relax_dir
-        if (relax_dir / "job_relaxed").exists():
-            retry_index = 1
-            while (relax_dir / f"retry_{retry_index:03d}").exists():
-                retry_index += 1
-            relax_run_dir = relax_dir / f"retry_{retry_index:03d}"
-            relax_run_dir.mkdir()
-        old_cwd = Path.cwd()
-        try:
-            os.chdir(relax_run_dir)
-            relax_status = _optimize_with_diagnostics(
-                relaxed,
-                dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
-                "bond_scan_unbiased_relaxation",
-            )
-        except BackendExecutionError:
-            raise
-        except Exception as exc:
+        relax_status, relaxation_succeeded, relax_error = _relax_scan_endpoint(
+            relaxed, qc_params, software, relax_dir, execution,
+        )
+        if relax_error is not None:
             result["status"] = "scan_success_relax_failed"
-            result["error"] = str(exc)
+            result["error"] = relax_error
             _save_orientation_result(
                 directory, result, qc_params=qc_params, intramolecular=intramolecular,
                 completed_artifacts=completed_artifacts, layout=_layout,
             )
             results.append(result)
             continue
-        finally:
-            os.chdir(old_cwd)
-        if is_success(relax_status):
-            optimized_output = relax_run_dir / "job_relaxed" / "result_relaxed.xyz"
-            if not optimized_output.is_file():
-                result["status"] = "scan_success_relax_failed"
-                result["error"] = f"optimizer reported success but did not write {optimized_output}"
-                _save_orientation_result(
-                    directory, result, qc_params=qc_params, intramolecular=intramolecular,
-                    completed_artifacts=completed_artifacts, layout=_layout,
-                )
-                results.append(result)
-                continue
-            try:
-                shutil.copy(optimized_output, execution / "result_relaxed.xyz")
-            except OSError as exc:
-                result["status"] = "scan_success_relax_failed"
-                result["error"] = f"could not preserve relaxed geometry: {exc}"
-                _save_orientation_result(
-                    directory, result, qc_params=qc_params, intramolecular=intramolecular,
-                    completed_artifacts=completed_artifacts, layout=_layout,
-                )
-                results.append(result)
-                continue
+        if relaxation_succeeded:
             result["status"] = "scan_success_relax_success"
             result["relaxed_path"] = str(execution / "result_relaxed.xyz")
             result["target_distance_relaxed_angstrom"] = _distance(relaxed.coordinates, absolute_i, absolute_j)
