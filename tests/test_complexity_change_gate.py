@@ -2,7 +2,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from tools.check_complexity_changes import analyze_complexity_change
+from tools.check_complexity_changes import analyze_complexity_change, main
 
 
 def _git(repo, *args):
@@ -57,6 +57,32 @@ def test_new_decision_requires_explicit_pr_reason_and_owner(tmp_path):
     assert report["decision_delta"] == 1
     assert len(report["changed_functions"]["modified"]) == 1
     assert report["status"] == "fail"
+
+
+def test_cli_returns_failure_for_unexplained_enforced_growth(tmp_path):
+    repo, base = _repository(tmp_path, "def work(value):\n    return value\n")
+    head = _commit_source(
+        repo,
+        "def work(value):\n    if value:\n        return 1\n    return 0\n",
+    )
+    output = tmp_path / "reports" / "complexity-change.json"
+
+    exit_code = main(
+        [
+            "--repo",
+            str(repo),
+            "--base",
+            base,
+            "--head",
+            head,
+            "--output",
+            str(output),
+            "--enforce",
+        ]
+    )
+
+    assert exit_code == 1
+    assert json.loads(output.read_text())["status"] == "fail"
 
 
 def test_decision_preserving_helper_extraction_is_not_metric_gamed(tmp_path):
