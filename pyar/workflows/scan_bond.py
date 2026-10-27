@@ -479,8 +479,6 @@ class _ScanRoute:
 
     software: str
     intramolecular: bool
-    through: str | None
-    characterize_unique_products: bool
     relax_in_orientation: bool
     continue_individual_paths: bool
 
@@ -527,8 +525,6 @@ def _validate_scan_route(input_b, orientations, qc_params, scan_end, scan_step,
     route = _ScanRoute(
         software=software,
         intramolecular=intramolecular,
-        through=through,
-        characterize_unique_products=characterize_unique_products,
         relax_in_orientation=through is None or characterize_unique_products or intramolecular,
         continue_individual_paths=through not in (None, "scan") and not characterize_unique_products,
     )
@@ -862,7 +858,7 @@ def _execute_scan_orientation(index, orientation, generation_error, paths, recov
     relaxed = Molecule(orientation.atoms_list, scan.final_coordinates, name="relaxed",
                        fragments=orientation.fragments, charge=orientation.charge,
                        multiplicity=orientation.multiplicity, scftype=orientation.scftype)
-    relax_status, relaxation_succeeded, relax_error = _relax_scan_endpoint(
+    _, relaxation_succeeded, relax_error = _relax_scan_endpoint(
         relaxed, qc_params, software, relax_dir, execution,
     )
     if relax_error is not None:
@@ -884,7 +880,7 @@ def _finalize_scan(root, request, route, results, qc_params, through,
     if route.continue_individual_paths:
         continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
     if layout is not None:
-        registry = layout.product_registry(results, request)
+        layout.product_registry(results, request)
         if characterize_unique_products:
             if through in (None, "scan"):
                 raise ValueError("--characterize-unique-products requires --through neb or a later stage")
