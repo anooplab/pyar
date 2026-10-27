@@ -140,6 +140,25 @@ requests, call feature services, persist workflow state, and return public
 result objects, but feature-specific validation and policy should be owned by
 the relevant feature package.
 
+Bond-scan orchestration
+-----------------------
+
+``pyar.workflows.scan_bond`` keeps the public ``run_scan_bond`` entry point and
+the legacy and v2 restart routes. Its private flow validates route options,
+prepares one or two input molecules, establishes the saved signed request,
+recovers each orientation from the appropriate authority, executes the remaining
+scan and relaxation stages, publishes one derived orientation report, and
+finalizes continuation and summaries. ``ScanLayout`` owns v2 immutable scan
+and relaxation records; a derived ``result.json`` is not restart authority when
+those records exist. ``scan_path`` still owns path continuation and its
+scientific acceptance checks.
+
+The preparation and execution helpers currently remain in this module. Backend,
+identity and optimizer call sites resolve the existing workflow bindings, which
+preserves the established integration and test interfaces. Moving these helpers
+to separate modules would currently require passing those bindings through a
+large callback surface without a clearer scientific ownership boundary.
+
 Public API
 ----------
 

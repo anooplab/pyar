@@ -8,6 +8,7 @@
   check to quality CI. Complexity growth requires an explicit reason and owner
   in pull-request descriptions; function-level coverage and CRAP remain
   unavailable from this gate.
+
 - Check production modules with Ruff's fatal syntax and undefined-name rules.
 - Add batch `pyar energy`, `pyar engrad` (`gradient`/`engra` aliases), and
   `pyar frequency` for unchanged XYZ geometries, with xTB defaults, explicit
@@ -18,6 +19,13 @@
   all imaginary modes, and return warnings/nonzero status for unconfirmed
   minima. Integrate read-only preflight, JSON, saved configs and run records.
   Existing optimization and reaction defaults remain unchanged.
+
+### Changed
+
+- Separate bond-scan route validation, input preparation, signed request and
+  restart recovery, orientation execution, and run finalization into private
+  responsibility boundaries. Preserve existing scientific settings, public
+  signatures, v1/v2 artifacts, and continuation behavior.
 
 
 ## 1.5.2 - 2026-10-19
