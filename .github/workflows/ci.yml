@@ -212,6 +212,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -223,9 +225,37 @@ jobs:
           obabel -V
       - run: python -m pip install -e ".[selection,xtb]" --group test --group quality
       - run: python -m ruff check tests tools
-      - run: python -m ruff format --check tools/check_documentation.py tools/check_test_outcomes.py tools/release_evidence.py tools/release_promotion.py tools/scientific_validation.py tools/verify_pypi_release.py tests/conftest.py tests/test_documentation_contract.py tests/test_release_evidence.py tests/test_release_promotion.py tests/test_scientific_validation.py
+      - name: Check fatal Ruff findings in production modules
+        run: python -m ruff check pyar --select E9,F63,F7,F82
+      - run: python -m ruff format --check tools/check_complexity_changes.py tools/check_documentation.py tools/check_test_outcomes.py tools/release_evidence.py tools/release_promotion.py tools/scientific_validation.py tools/verify_pypi_release.py tests/conftest.py tests/test_complexity_change_gate.py tests/test_documentation_contract.py tests/test_release_evidence.py tests/test_release_promotion.py tests/test_scientific_validation.py
       - name: Generate source-bound complexity report
         run: python tools/measure_complexity.py --output-dir reports/complexity
+      - name: Check changed-code complexity budget
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_SHA="$PR_BASE_SHA"
+            HEAD_SHA="$PR_HEAD_SHA"
+          else
+            HEAD_SHA="$GITHUB_SHA"
+            BASE_SHA="$EVENT_BEFORE"
+            if [ -z "$BASE_SHA" ] || printf '%s' "$BASE_SHA" | grep -Eq '^0+$'; then
+              git fetch --no-tags origin "$DEFAULT_BRANCH"
+              BASE_SHA="$(git merge-base "$HEAD_SHA" "origin/$DEFAULT_BRANCH")"
+            fi
+          fi
+          ARGS=(--repo . --base "$BASE_SHA" --head "$HEAD_SHA"
+            --event-json "$GITHUB_EVENT_PATH"
+            --output reports/complexity-changes/report.json)
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            ARGS+=(--enforce)
+          fi
+          python tools/check_complexity_changes.py "${ARGS[@]}"
       - run: python tools/check_documentation.py
       - name: Run deterministic scientific Tier 1 tests
         run: python -m pytest -m "scientific and tier1" --junitxml=reports/scientific-tier1.xml

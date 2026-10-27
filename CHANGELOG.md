@@ -4,6 +4,11 @@
 
 ### Added
 
+- Add source-bound Radon complexity reporting and a changed-code decision-budget
+  check to quality CI. Complexity growth requires an explicit reason and owner
+  in pull-request descriptions; function-level coverage and CRAP remain
+  unavailable from this gate.
+- Check production modules with Ruff's fatal syntax and undefined-name rules.
 - Add batch `pyar energy`, `pyar engrad` (`gradient`/`engra` aliases), and
   `pyar frequency` for unchanged XYZ geometries, with xTB defaults, explicit
   theory/solvent controls, isolated `job_<name>` folders, raw backend evidence,

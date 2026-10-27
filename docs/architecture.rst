@@ -379,8 +379,16 @@ Packaging And Quality
 Current packaging metadata is maintained in ``pyproject.toml``. Runtime
 capabilities are declared as optional extras; checkout tools are declared as
 dependency groups. CI runs pytest, scoped Ruff checks, strict Sphinx, archive
-validation, and clean artifact installation. See :doc:`installation` for the
-commands and :doc:`cli_reference` for installed entry points.
+validation, and clean artifact installation. Quality CI also records a
+source-bound Radon function inventory and checks changed-code decision growth
+using the sum of ``CC - 1`` across functions in changed PyAR source files.
+Positive growth on a pull request requires ``Complexity-Increase-Reason`` and
+``Complexity-Increase-Owner`` fields in its description. This check reports
+changed function source hashes and does not infer function-level coverage or
+CRAP scores. Production Ruff checks are limited to fatal syntax and undefined
+name rules; historical code is not subject to a broad style rewrite. See
+:doc:`installation` for the commands and :doc:`cli_reference` for installed
+entry points.
 
 PyAR uses the optional external ``mlatom`` package for MLatom calculations.
 The ``pyar/mlatom/__init__.py`` adapter preserves older package-level imports
