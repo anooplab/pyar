@@ -620,6 +620,117 @@ def _prepare_fragment_inputs(input_a, input_b, atoms, orientations, qc_params):
     )
 
 
+def _establish_scan_request(root, input_a, input_b, atoms, orientations, qc_params,
+                            scan_end, scan_step, scan_points, prepared, layout):
+    """Return the saved signed request that authorizes this run and its commits."""
+    fragment_a, fragment_b = prepared.fragment_a, prepared.fragment_b
+    orientation_items = prepared.orientation_items
+    total_multiplicity = qc_params['total_multiplicity']
+    spin_source = qc_params['total_multiplicity_source']
+    orientation_definitions = [
+        {"orientation": index,
+         "molecule": None if orientation is None else _fragment_signature(orientation),
+         "total_multiplicity": total_multiplicity,
+         "total_multiplicity_source": spin_source,
+         "generation_error": generation_error}
+        for index, orientation, generation_error in orientation_items
+    ]
+    request = scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms,
+                                  orientations, qc_params, scan_end, scan_step, scan_points)
+    request.update(orientation_definitions=orientation_definitions,
+                   reactant_identity=prepared.reactant_identity,
+                   reactant_identity_error=prepared.reactant_identity_error)
+    signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
+    request["request_signature"] = hashlib.sha256(signature_payload.encode("utf-8")).hexdigest()
+    if layout is not None:
+        request.pop('request_signature')
+        request.update(request_schema_version=1, workflow='scan-bond', run_id=layout.run_id)
+        signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
+        request['request_signature'] = hashlib.sha256(signature_payload.encode('utf-8')).hexdigest()
+    if layout is None or (root.exists() and any(root.iterdir())):
+        validate_scan_restart(root, request)
+    root.mkdir(parents=True, exist_ok=True)
+    request_path = root / "request.json"
+    if request_path.exists():
+        # The original request/signature remains the authority for existing commits.
+        request = json.loads(request_path.read_text())
+    elif layout is not None:
+        from pyar.persistence import write_json
+        write_json(request_path, request, overwrite=False)
+    else:
+        request_temp = root / "request.json.tmp"
+        request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
+        request_temp.replace(request_path)
+    if layout is not None:
+        layout.initialize((input_a,) if prepared.fragment_b is None else (input_a, input_b))
+    return request
+
+
+@dataclass(frozen=True, slots=True)
+class _OrientationPaths:
+    directory: Path
+    execution: Path
+    scan_dir: Path
+    relax_dir: Path
+    completed_artifacts: tuple[Path, ...]
+
+
+def _orientation_paths(root, index, layout):
+    """Resolve legacy or protected v2 paths without allocating directories."""
+    directory = (root / f"orientation_{index:03d}" if layout is None else
+                 layout.layout.path(f"orientation_{index:03d}"))
+    execution = (directory if layout is None else
+                 layout.layout.path(f"orientation_{index:03d}/attempts/attempt_000/execution"))
+    scan_dir = execution / "scan" if layout is None else layout.layout.path(
+        f"orientation_{index:03d}/attempts/attempt_000/execution/scan")
+    relax_dir = execution / "relax" if layout is None else layout.layout.path(
+        f"orientation_{index:03d}/attempts/attempt_000/execution/relax")
+    completed_artifacts = (
+        directory / "start.xyz",
+        execution / "result_relaxed.xyz",
+        scan_dir / "final_scan.xyz",
+        scan_dir / "scan_trajectory.xyz",
+        scan_dir / "scan_profile.csv",
+        scan_dir / "scan_profile.json",
+        execution / "ts_candidates" / "metadata.json",
+        execution / "ts_candidates" / "highest_scan_energy.xyz",
+    )
+    return _OrientationPaths(directory, execution, scan_dir, relax_dir, completed_artifacts)
+
+
+@dataclass(frozen=True, slots=True)
+class _RecoveredOrientation:
+    previous_result: dict | None
+    committed: dict | None
+    complete: bool
+
+
+def _recover_orientation(paths, index, request, layout):
+    """Use immutable v2 commits when present and legacy reports as a fallback."""
+    paths.directory.mkdir(exist_ok=True)
+    paths.execution.mkdir(parents=True, exist_ok=True)
+    result_path = paths.directory / "result.json"
+    previous_result = None
+    if result_path.is_file():
+        try:
+            previous_result = json.loads(result_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            previous_result = None
+    committed = layout.restore(index, request) if layout is not None else None
+    if committed is not None:
+        previous_result = layout.relaxed(index) or committed
+    complete = bool(
+        previous_result
+        and previous_result.get("status") == "scan_success_relax_success"
+        and all(path.is_file() for path in paths.completed_artifacts)
+        and previous_result.get("completed_artifact_hashes") == {
+            str(path.relative_to(paths.directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in paths.completed_artifacts
+        }
+    )
+    return _RecoveredOrientation(previous_result, committed, complete)
+
+
 def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                   scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
                   *, characterize_unique_products=False, _layout=None):
@@ -646,7 +757,6 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         prepared = _prepare_fragment_inputs(
             input_a, input_b, atoms, orientations, qc_params,
         )
-    fragment_a, fragment_b = prepared.fragment_a, prepared.fragment_b
     absolute_i, absolute_j = prepared.absolute_atoms
     target_radii = prepared.target_radii
     default_scan_end = prepared.default_scan_end
@@ -654,86 +764,20 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     reactant_identity = prepared.reactant_identity
     reactant_identity_error = prepared.reactant_identity_error
     orientation_items = prepared.orientation_items
-    total_multiplicity = qc_params['total_multiplicity']
-    spin_source = qc_params['total_multiplicity_source']
-    orientation_definitions = [
-        {"orientation": index,
-         "molecule": None if orientation is None else _fragment_signature(orientation),
-         "total_multiplicity": total_multiplicity,
-         "total_multiplicity_source": spin_source,
-         "generation_error": generation_error}
-        for index, orientation, generation_error in orientation_items
-    ]
     root = Path(output_dir).resolve()
-    request = scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms,
-                                  orientations, qc_params, scan_end, scan_step, scan_points)
-    request.update(orientation_definitions=orientation_definitions,
-                   reactant_identity=reactant_identity, reactant_identity_error=reactant_identity_error)
-    signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
-    request["request_signature"] = hashlib.sha256(signature_payload.encode("utf-8")).hexdigest()
-    if _layout is not None:
-        request.pop('request_signature')
-        request.update(request_schema_version=1, workflow='scan-bond', run_id=_layout.run_id)
-        signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
-        request['request_signature'] = hashlib.sha256(signature_payload.encode('utf-8')).hexdigest()
-    if _layout is None or (root.exists() and any(root.iterdir())):
-        validate_scan_restart(root, request)
-    root.mkdir(parents=True, exist_ok=True)
-    request_path = root / "request.json"
-    if request_path.exists():
-        # Validation above established compatibility. Keep the original
-        # request/signature as the authority for existing native/v2 commits.
-        request = json.loads(request_path.read_text())
-    elif _layout is not None:
-        from pyar.persistence import write_json
-        write_json(request_path, request, overwrite=False)
-    else:
-        request_temp = root / "request.json.tmp"
-        request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
-        request_temp.replace(request_path)
-    if _layout is not None:
-        _layout.initialize((input_a,) if intramolecular else (input_a, input_b))
+    request = _establish_scan_request(
+        root, input_a, input_b, atoms, orientations, qc_params,
+        scan_end, scan_step, scan_points, prepared, _layout,
+    )
     results = []
     for index, orientation, generation_error in orientation_items:
-        directory = (root / f"orientation_{index:03d}" if _layout is None else
-                     _layout.layout.path(f"orientation_{index:03d}"))
-        execution = (directory if _layout is None else
-                     _layout.layout.path(f"orientation_{index:03d}/attempts/attempt_000/execution"))
-        scan_dir = execution / "scan" if _layout is None else _layout.layout.path(
-            f"orientation_{index:03d}/attempts/attempt_000/execution/scan")
-        relax_dir = execution / "relax" if _layout is None else _layout.layout.path(
-            f"orientation_{index:03d}/attempts/attempt_000/execution/relax")
-        directory.mkdir(exist_ok=True)
-        execution.mkdir(parents=True, exist_ok=True)
-        result_path = directory / "result.json"
-        previous_result = None
-        if result_path.is_file():
-            try:
-                previous_result = json.loads(result_path.read_text())
-            except (OSError, json.JSONDecodeError):
-                previous_result = None
-        committed = _layout.restore(index, request) if _layout is not None else None
-        if committed is not None:
-            # Immutable records, not the derived per-orientation report, are
-            # the recovery authority for a committed scan.
-            previous_result = _layout.relaxed(index) or committed
-        completed_artifacts = (
-            directory / "start.xyz",
-            execution / "result_relaxed.xyz",
-            scan_dir / "final_scan.xyz",
-            scan_dir / "scan_trajectory.xyz",
-            scan_dir / "scan_profile.csv",
-            scan_dir / "scan_profile.json",
-            execution / "ts_candidates" / "metadata.json",
-            execution / "ts_candidates" / "highest_scan_energy.xyz",
-        )
-        if (previous_result
-                and previous_result.get("status") == "scan_success_relax_success"
-                and all(path.is_file() for path in completed_artifacts)
-                and previous_result.get("completed_artifact_hashes") == {
-                    str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
-                    for path in completed_artifacts
-                }):
+        paths = _orientation_paths(root, index, _layout)
+        directory, execution = paths.directory, paths.execution
+        scan_dir, relax_dir = paths.scan_dir, paths.relax_dir
+        completed_artifacts = paths.completed_artifacts
+        recovered = _recover_orientation(paths, index, request, _layout)
+        previous_result, committed = recovered.previous_result, recovered.committed
+        if recovered.complete:
             _save_orientation_result(
                 directory, previous_result, qc_params=qc_params, intramolecular=intramolecular,
                 completed_artifacts=completed_artifacts, layout=_layout,
