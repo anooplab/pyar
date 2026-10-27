@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
+import locale
 import math
 import os
 import warnings
@@ -25,6 +27,7 @@ from pyar.core.molecule import Molecule
 from pyar.optimiser import optimise, is_success
 from pyar.optimization_service import optimize_workflow_once
 from pyar.persistence import sha256_file
+from pyar.persistence.json_store import write_bytes_atomic
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
     reaction_product_changed,
@@ -110,6 +113,11 @@ def _distance(coordinates, i, j):
     return float(np.linalg.norm(np.asarray(coordinates[i]) - np.asarray(coordinates[j])))
 
 
+def _publish_derived_report(path, text):
+    """Replace a human-facing report with its existing text encoding and bytes."""
+    write_bytes_atomic(path, text.encode(locale.getpreferredencoding(False)))
+
+
 def _save_orientation_result(directory, result, *, qc_params, intramolecular,
                              completed_artifacts, layout):
     """Persist the derived orientation report and update its layout record."""
@@ -127,7 +135,9 @@ def _save_orientation_result(directory, result, *, qc_params, intramolecular,
         }
         if layout is not None:
             layout.relaxed(result['orientation'], result, completed_artifacts)
-    (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
+    _publish_derived_report(
+        directory / "result.json", json.dumps(result, indent=2, sort_keys=True, default=str),
+    )
 
 
 def _load_or_execute_scan(orientation, request, scan_dir, qc_params, *, software,
@@ -890,17 +900,22 @@ def _finalize_scan(root, request, route, results, qc_params, through,
                     if intramolecular:
                         result['reactant_product_connection_confirmed'] = bool(
                             product_route.get('path_result', {}).get('reactant_product_connection_confirmed', False))
-                    (root / f"orientation_{int(result['orientation']):03d}" / "result.json").write_text(
-                        json.dumps(result, indent=2, sort_keys=True, default=str))
+                    _publish_derived_report(
+                        root / f"orientation_{int(result['orientation']):03d}" / "result.json",
+                        json.dumps(result, indent=2, sort_keys=True, default=str),
+                    )
                 elif intramolecular:
                     result['continuation_status'] = ('not_started_no_new_product'
                         if result.get('product_identity_changed') is False else 'blocked_by_product_identity')
         layout.manifest(results)
-    (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
-    with (root / "summary.csv").open("w", newline="") as handle:
+    _publish_derived_report(
+        root / "summary.json", json.dumps(results, indent=2, sort_keys=True, default=str),
+    )
+    with io.StringIO(newline="") as handle:
         fields = sorted({key for result in results for key in result})
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader(); writer.writerows(results)
+        _publish_derived_report(root / "summary.csv", handle.getvalue())
     product_index = (
         json.loads((root / "products/index.json").read_text())
         if characterize_unique_products else None

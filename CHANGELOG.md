@@ -28,6 +28,9 @@
   signatures, v1/v2 artifacts, and continuation behavior.
 - Stream bond-scan completed-artifact hashes in fixed-size blocks to bound
   memory use during result publication and restart verification.
+- Publish mutable bond-scan orientation reports and JSON/CSV summaries through
+  atomic same-directory replacement, retaining their existing successful bytes
+  and the immutable v2 records as restart authority.
 
 
 ## 1.5.2 - 2026-10-19

@@ -1,7 +1,9 @@
 """Observable scan-bond outcomes across preparation and stage boundaries."""
 
 import importlib
+import csv
 import hashlib
+import io
 import json
 from pathlib import Path
 
@@ -195,3 +197,98 @@ def test_completed_artifact_hashes_stream_without_whole_file_reads(tmp_path, mon
     recovered = workflow._recover_orientation(paths, 0, {}, None)
     assert recovered.complete
     assert recovered.previous_result["completed_artifact_hashes"] == expected
+
+
+def test_interrupted_derived_report_keeps_previous_complete_bytes(tmp_path, monkeypatch):
+    target = tmp_path / "result.json"
+    previous = b'{\n  "orientation": 0,\n  "status": "scan_failed"\n}'
+    target.write_bytes(previous)
+    real_open = Path.open
+
+    class InterruptedTemporary:
+        def __init__(self, stream):
+            self.stream = stream
+            self.name = stream.name
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def fileno(self):
+            return self.stream.fileno()
+
+        def write(self, payload):
+            self.stream.write(payload[:12])
+            raise KeyboardInterrupt("injected partial temporary write")
+
+    def interrupt_temporary_open(path, *args, **kwargs):
+        stream = real_open(path, *args, **kwargs)
+        return InterruptedTemporary(stream) if path.name.startswith(".pyar-report-") else stream
+
+    monkeypatch.setattr(Path, "open", interrupt_temporary_open)
+    with pytest.raises(KeyboardInterrupt, match="partial temporary write"):
+        workflow._publish_derived_report(target, '{"new": true}')
+    assert target.read_bytes() == previous
+    assert json.loads(target.read_text())["status"] == "scan_failed"
+    assert not list(tmp_path.glob(".pyar-report-*"))
+
+
+def test_derived_report_fsync_failure_after_replace_remains_parseable(tmp_path, monkeypatch):
+    from pyar.persistence import json_store
+
+    target = tmp_path / "result.json"
+    target.write_text('{"old": true}')
+    real_fsync = json_store.os.fsync
+    calls = 0
+
+    def fail_after_replace(descriptor):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("injected directory fsync failure")
+        return real_fsync(descriptor)
+
+    monkeypatch.setattr(json_store.os, "fsync", fail_after_replace)
+    with pytest.raises(OSError, match="directory fsync failure"):
+        workflow._publish_derived_report(target, '{"new": true}')
+    assert target.read_bytes() == b'{"new": true}'
+    assert json.loads(target.read_text()) == {"new": True}
+    assert not list(tmp_path.glob(".pyar-report-*"))
+
+
+def test_derived_report_bytes_match_previous_text_and_csv_writers(tmp_path):
+    value = {"name": "café", "status": "complete"}
+    json_text = json.dumps(value, indent=2, sort_keys=True, default=str)
+    old_json, new_json = tmp_path / "old.json", tmp_path / "new.json"
+    old_json.write_text(json_text)
+    workflow._publish_derived_report(new_json, json_text)
+    assert new_json.read_bytes() == old_json.read_bytes()
+    assert new_json.stat().st_mode & 0o777 == old_json.stat().st_mode & 0o777
+    new_json.chmod(0o640)
+    workflow._publish_derived_report(new_json, json_text)
+    assert new_json.stat().st_mode & 0o777 == 0o640
+
+    old_csv, new_csv = tmp_path / "old.csv", tmp_path / "new.csv"
+    with old_csv.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=sorted(value))
+        writer.writeheader()
+        writer.writerow(value)
+    with io.StringIO(newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=sorted(value))
+        writer.writeheader()
+        writer.writerow(value)
+        workflow._publish_derived_report(new_csv, handle.getvalue())
+    assert new_csv.read_bytes() == old_csv.read_bytes()
+
+
+def test_derived_report_rejects_symlink_without_touching_target(tmp_path):
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"keep": true}')
+    report = tmp_path / "result.json"
+    report.symlink_to(outside)
+    with pytest.raises(ValueError, match="Refusing report publication through a symlink"):
+        workflow._publish_derived_report(report, '{"new": true}')
+    assert outside.read_text() == '{"keep": true}'
