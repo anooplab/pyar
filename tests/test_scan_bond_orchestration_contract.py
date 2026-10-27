@@ -1,7 +1,9 @@
 """Observable scan-bond outcomes across preparation and stage boundaries."""
 
 import importlib
+import hashlib
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -166,3 +168,30 @@ def test_profile_failure_preserves_scan_evidence_but_never_commits(
     assert (
         output / "orientation_000/attempts/attempt_000/execution/scan/scan.out"
     ).read_text() == "native evidence\n"
+
+
+def test_completed_artifact_hashes_stream_without_whole_file_reads(tmp_path, monkeypatch):
+    paths = workflow._orientation_paths(tmp_path, 0, None)
+    paths.directory.mkdir()
+    for path in paths.completed_artifacts:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"evidence" if path.name != "scan_trajectory.xyz" else b"x" * 3_000_000)
+    expected = {
+        str(path.relative_to(paths.directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in paths.completed_artifacts
+    }
+
+    def reject_whole_file_read(self):
+        raise AssertionError(f"whole-file read attempted for {self}")
+
+    monkeypatch.setattr(Path, "read_bytes", reject_whole_file_read)
+    result = {"orientation": 0, "status": "scan_success_relax_success"}
+    workflow._save_orientation_result(
+        paths.directory, result,
+        qc_params={"total_multiplicity": 1, "total_multiplicity_source": "explicit"},
+        intramolecular=False, completed_artifacts=paths.completed_artifacts, layout=None,
+    )
+    assert result["completed_artifact_hashes"] == expected
+    recovered = workflow._recover_orientation(paths, 0, {}, None)
+    assert recovered.complete
+    assert recovered.previous_result["completed_artifact_hashes"] == expected

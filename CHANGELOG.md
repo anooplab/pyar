@@ -26,6 +26,8 @@
   restart recovery, orientation execution, and run finalization into private
   responsibility boundaries. Preserve existing scientific settings, public
   signatures, v1/v2 artifacts, and continuation behavior.
+- Stream bond-scan completed-artifact hashes in fixed-size blocks to bound
+  memory use during result publication and restart verification.
 
 
 ## 1.5.2 - 2026-10-19

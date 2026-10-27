@@ -24,6 +24,7 @@ from pyar.backends.orca_scan import (
 from pyar.core.molecule import Molecule
 from pyar.optimiser import optimise, is_success
 from pyar.optimization_service import optimize_workflow_once
+from pyar.persistence import sha256_file
 from pyar.reaction_identity import (
     molecule_identity_from_xyz,
     reaction_product_changed,
@@ -121,7 +122,7 @@ def _save_orientation_result(directory, result, *, qc_params, intramolecular,
         result.setdefault('reactant_product_connection_confirmed', False)
     if result.get("status") == "scan_success_relax_success":
         result["completed_artifact_hashes"] = {
-            str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+            str(path.relative_to(directory)): sha256_file(path)
             for path in completed_artifacts if path.is_file()
         }
         if layout is not None:
@@ -724,7 +725,7 @@ def _recover_orientation(paths, index, request, layout):
         and previous_result.get("status") == "scan_success_relax_success"
         and all(path.is_file() for path in paths.completed_artifacts)
         and previous_result.get("completed_artifact_hashes") == {
-            str(path.relative_to(paths.directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+            str(path.relative_to(paths.directory)): sha256_file(path)
             for path in paths.completed_artifacts
         }
     )
