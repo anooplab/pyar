@@ -14,10 +14,103 @@ from pyar.biases.collective_coordinates import evaluate_contact_coordinate
 from pyar.energy_gradient_providers import EnergyGradientResult
 from pyar.reaction_analysis import _candidate_record_indices, analyse_reaction_trace
 from pyar.reaction_analysis import plot_reaction_trace
-from pyar.reaction_trace import bond_changes, infer_bonds, load_trace_records
+from pyar.reaction_trace import (
+    bond_changes,
+    infer_bonds,
+    load_trace_records,
+    validate_trace_record,
+)
 
 
 class ReactionTraceTests(unittest.TestCase):
+    @staticmethod
+    def _valid_trace_record():
+        return {
+            "step_index": 2,
+            "symbols": ["C", "H"],
+            "coordinates_angstrom": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+            "backend_energy_hartree": -1.0,
+            "bias_energy_hartree": 0.1,
+            "total_energy_hartree": -0.9,
+            "current_bonds": [[0, 1]],
+            "formed_bonds": [[0, 1]],
+            "broken_bonds": [],
+            "bond_change_count": 1,
+            "min_interfragment_distance_angstrom": 1.0,
+            "backend_forces_hartree_per_bohr": [[0.1, 0.0, 0.0], [-0.1, 0.0, 0.0]],
+            "bias_forces_hartree_per_bohr": [[0.01, 0.0, 0.0], [-0.01, 0.0, 0.0]],
+            "total_forces_hartree_per_bohr": [[0.11, 0.0, 0.0], [-0.11, 0.0, 0.0]],
+        }
+
+    def test_validate_trace_record_normalizes_force_arrays_and_legacy_alias(self):
+        record = self._valid_trace_record()
+        record["afir_forces_hartree_per_bohr"] = record.pop(
+            "bias_forces_hartree_per_bohr"
+        )
+
+        normalized = validate_trace_record(record, 4)
+
+        self.assertEqual(normalized["step_index"], 2)
+        self.assertEqual(
+            normalized["bias_forces_hartree_per_bohr"],
+            [[0.01, 0.0, 0.0], [-0.01, 0.0, 0.0]],
+        )
+        self.assertEqual(
+            normalized["afir_forces_hartree_per_bohr"],
+            normalized["bias_forces_hartree_per_bohr"],
+        )
+        self.assertEqual(record["afir_forces_hartree_per_bohr"][0][0], 0.01)
+
+    def test_validate_trace_record_preserves_force_validation_error_order(self):
+        record = self._valid_trace_record()
+        record["backend_forces_hartree_per_bohr"] = [[0.1, 0.0]]
+        record["bias_forces_hartree_per_bohr"] = [[float("nan"), 0.0, 0.0]]
+
+        with self.assertRaisesRegex(
+            ValueError, "backend_forces_hartree_per_bohr.*shape"
+        ):
+            validate_trace_record(record, 5)
+
+    def test_validate_trace_record_rejects_non_finite_force_values(self):
+        record = self._valid_trace_record()
+        record["total_forces_hartree_per_bohr"][1][2] = float("inf")
+
+        with self.assertRaisesRegex(
+            ValueError, "total_forces_hartree_per_bohr.*finite values"
+        ):
+            validate_trace_record(record, 6)
+
+    def test_validate_trace_record_rejects_non_finite_optional_scalar_fields(self):
+        for field_name in (
+            "backend_force_norm",
+            "bias_force_norm",
+            "total_force_norm",
+            "max_force",
+            "backend_max_force",
+            "collective_coordinate_bohr",
+            "softmin_beta",
+        ):
+            with self.subTest(field=field_name):
+                record = self._valid_trace_record()
+                record[field_name] = float("inf")
+                with self.assertRaisesRegex(ValueError, field_name):
+                    validate_trace_record(record, 7)
+
+    def test_validate_trace_record_preserves_optional_scalar_error_order(self):
+        record = self._valid_trace_record()
+        record["backend_force_norm"] = float("nan")
+        record["bias_force_norm"] = float("inf")
+
+        with self.assertRaisesRegex(ValueError, "backend_force_norm"):
+            validate_trace_record(record, 8)
+
+    def test_validate_trace_record_requires_positive_softmin_beta(self):
+        record = self._valid_trace_record()
+        record["softmin_beta"] = 0
+
+        with self.assertRaisesRegex(ValueError, "softmin_beta.*positive"):
+            validate_trace_record(record, 9)
+
     def test_candidate_filters_exclude_high_force_and_energy_outlier_frames(self):
         records = [
             {"backend_max_force": 0.01, "backend_energy_hartree": -10.0},

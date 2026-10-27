@@ -81,6 +81,78 @@ def _require_sklearn_pairwise(name):
     return getattr(pairwise, name)
 
 
+def _prepare_selection_pool(
+    molecules,
+    maximum_number_of_seeds,
+    *,
+    persist_basin_memory,
+    apply_basin_memory,
+    group_basin_by_stoichiometry,
+    connectivity_policy,
+    feature,
+    distance_metric,
+    system_type,
+    algorithm,
+    distance_options,
+):
+    """Filter candidates and load/apply the existing basin and connectivity policies."""
+    pruned_molecules = remove_similar(molecules)
+    basin_registry_path = _basin_registry_path(
+        pruned_molecules[0],
+        group_by_stoichiometry=group_basin_by_stoichiometry,
+    ) if pruned_molecules and os.path.isdir('selected') else None
+    write_path = basin_registry_path if persist_basin_memory else None
+    basin_entries = []
+    basin_memory_diagnostics = {"status": "disabled", "schema_version": 2}
+    if not apply_basin_memory and not persist_basin_memory:
+        basin_memory_diagnostics["status"] = "disabled-by-request"
+    elif basin_registry_path is None:
+        basin_memory_diagnostics["status"] = "no-registry-path"
+    if basin_registry_path and (apply_basin_memory or persist_basin_memory):
+        from pyar.selection.basin_memory import BasinMemoryError
+
+        try:
+            basin_entries = _load_basin_registry(basin_registry_path)
+        except BasinMemoryError as exc:
+            # A damaged or future-version registry must never be overwritten
+            # or used to remove candidates. Continue with memory disabled.
+            cluster_logger.warning(
+                "Basin registry unavailable; retaining all candidates and leaving it untouched: %s",
+                exc,
+            )
+            write_path = None
+            basin_entries = []
+            basin_memory_diagnostics.update({
+                "status": "registry-unavailable-keep-all",
+                "registry_path": basin_registry_path,
+                "reason": str(exc),
+            })
+        else:
+            basin_memory_diagnostics.update({
+                "status": "loaded" if basin_entries else "empty-registry",
+                "registry_path": basin_registry_path,
+                "schema_version": 2,
+            })
+    if apply_basin_memory and basin_entries:
+        pruned_molecules = _apply_basin_memory(
+            pruned_molecules,
+            maximum_number_of_seeds,
+            basin_entries,
+            feature=feature,
+            distance_metric=distance_metric,
+            system_type=system_type,
+            algorithm=algorithm,
+            distance_options=distance_options,
+            diagnostics=basin_memory_diagnostics,
+        )
+    if connectivity_policy in {"prefer", "strict"}:
+        pruned_molecules = _prefer_connected_structures(
+            pruned_molecules,
+            policy=connectivity_policy,
+        )
+    return pruned_molecules, write_path, basin_entries, basin_memory_diagnostics
+
+
 def choose_geometries(
     list_of_molecules,
     maximum_number_of_seeds=12,
@@ -132,60 +204,20 @@ def choose_geometries(
         })
     cluster_logger.info(f'Seed selection on {len(list_of_molecules)} geometries using {algorithm}')
 
-    pruned_molecules = remove_similar(list_of_molecules)
-    basin_registry_path = _basin_registry_path(
-        pruned_molecules[0],
-        group_by_stoichiometry=group_basin_by_stoichiometry,
-    ) if pruned_molecules and os.path.isdir('selected') else None
-    write_path = basin_registry_path if persist_basin_memory else None
-    basin_entries = []
-    basin_memory_diagnostics = {"status": "disabled", "schema_version": 2}
-    if not apply_basin_memory and not persist_basin_memory:
-        basin_memory_diagnostics["status"] = "disabled-by-request"
-    elif basin_registry_path is None:
-        basin_memory_diagnostics["status"] = "no-registry-path"
-    if basin_registry_path and (apply_basin_memory or persist_basin_memory):
-        from pyar.selection.basin_memory import BasinMemoryError
-
-        try:
-            basin_entries = _load_basin_registry(basin_registry_path)
-        except BasinMemoryError as exc:
-            # A damaged or future-version registry must never be overwritten
-            # or used to remove candidates. Continue with memory disabled.
-            cluster_logger.warning(
-                "Basin registry unavailable; retaining all candidates and leaving it untouched: %s",
-                exc,
-            )
-            write_path = None
-            basin_entries = []
-            basin_memory_diagnostics.update({
-                "status": "registry-unavailable-keep-all",
-                "registry_path": basin_registry_path,
-                "reason": str(exc),
-            })
-        else:
-            basin_memory_diagnostics.update({
-                "status": "loaded" if basin_entries else "empty-registry",
-                "registry_path": basin_registry_path,
-                "schema_version": 2,
-            })
-    if apply_basin_memory and basin_entries:
-        pruned_molecules = _apply_basin_memory(
-            pruned_molecules,
-            maximum_number_of_seeds,
-            basin_entries,
-            feature=feature,
-            distance_metric=distance_metric,
-            system_type=system_type,
-            algorithm=cluster_algorithm,
-            distance_options=distance_options,
-            diagnostics=basin_memory_diagnostics,
-        )
-    if normalized_connectivity_policy in {"prefer", "strict"}:
-        pruned_molecules = _prefer_connected_structures(
-            pruned_molecules,
-            policy=normalized_connectivity_policy,
-        )
+    (pruned_molecules, write_path, basin_entries,
+     basin_memory_diagnostics) = _prepare_selection_pool(
+        list_of_molecules,
+        maximum_number_of_seeds,
+        persist_basin_memory=persist_basin_memory,
+        apply_basin_memory=apply_basin_memory,
+        group_basin_by_stoichiometry=group_basin_by_stoichiometry,
+        connectivity_policy=normalized_connectivity_policy,
+        feature=feature,
+        distance_metric=distance_metric,
+        system_type=system_type,
+        algorithm=cluster_algorithm,
+        distance_options=distance_options,
+    )
 
     if diagnostics is not None:
         if basin_memory_diagnostics.get("status") in {"loaded", "empty-registry"}:

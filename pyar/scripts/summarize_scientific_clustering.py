@@ -9,6 +9,108 @@ from pathlib import Path
 import numpy as np
 
 
+def _summarize_condition(algorithm, feature, observations):
+    """Aggregate one algorithm/feature condition without filesystem access."""
+    retention = [item["retention_fraction"] for item in observations]
+    coverage = [item["coverage"]["mean_nearest_indexed_heavy_atom_rmsd_angstrom"]
+                for item in observations
+                if item["coverage"]["mean_nearest_indexed_heavy_atom_rmsd_angstrom"] is not None]
+    downstream = [item["downstream_optimization"] for item in observations
+                  if item["downstream_optimization"] is not None]
+    downstream_total = sum(item["selected_count"] for item in downstream)
+    downstream_success = sum(item["successful_terminations"] for item in downstream)
+    recovered_seeds = sum(item["verified_reference_basin_seed_count"] for item in downstream)
+    fallback_algorithm = sum(bool(item["diagnostics"].get("algorithm_fallbacks"))
+                             for item in observations)
+    fallback_feature = sum(bool(item["diagnostics"].get("feature_fallbacks"))
+                           for item in observations)
+    fallback_distance = sum(bool(item["diagnostics"].get("distance_fallbacks"))
+                            for item in observations)
+    return {
+        "algorithm_requested": algorithm,
+        "feature_requested": feature,
+        "systems": len(observations),
+        "macro_mean_basin_retention": float(np.mean(retention)),
+        "micro_basin_retention": (
+            sum(item["basins_retained"] for item in observations)
+            / sum(item["coverage"]["reference_basin_count"] for item in observations)
+        ),
+        "per_system_basin_retention": {
+            item["system"]: item["retention_fraction"] for item in observations
+        },
+        "per_system_retained_reference_basins": {
+            item["system"]: item["basins_retained"] for item in observations
+        },
+        "energy_window_basin_retention": {
+            window: {
+                "reference_basins_total": sum(
+                    item["energy_window_basin_retention"][window]["reference_basins"]
+                    for item in observations
+                ),
+                "retained_basins_total": sum(
+                    item["energy_window_basin_retention"][window]["retained_basins"]
+                    for item in observations
+                ),
+                "macro_mean_recall": float(np.mean([
+                    item["energy_window_basin_retention"][window]["recall"]
+                    for item in observations
+                    if item["energy_window_basin_retention"][window]["recall"] is not None
+                ])),
+                "micro_recall": (
+                    sum(item["energy_window_basin_retention"][window]["retained_basins"]
+                        for item in observations)
+                    / sum(item["energy_window_basin_retention"][window]["reference_basins"]
+                          for item in observations)
+                ),
+                "per_system": {
+                    item["system"]: item["energy_window_basin_retention"][window]
+                    for item in observations
+                },
+            }
+            for window in ("1.0", "3.0", "6.0")
+        },
+        "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": (
+            float(np.mean(coverage)) if coverage else None
+        ),
+        "downstream_optimization_success_fraction": (
+            downstream_success / downstream_total if downstream_total else None
+        ),
+        "verified_reference_basin_recovery_fraction": (
+            recovered_seeds / downstream_total if downstream_total else None
+        ),
+        "basin_changed_after_complete_comparison": sum(
+            item["basin_changed_after_complete_comparison_count"] for item in downstream
+        ),
+        "uncertain_due_to_incomplete_mapping": sum(
+            item["uncertain_due_to_incomplete_mapping_count"] for item in downstream
+        ),
+        "algorithm_fallback_systems": fallback_algorithm,
+        "feature_fallback_systems": fallback_feature,
+        "distance_fallback_systems": fallback_distance,
+        "macro_mean_runtime_seconds": float(np.mean([
+            item["runtime_seconds"] for item in observations
+        ])),
+        "actual_methods_by_system": {
+            item["system"]: {
+                "algorithm": item["diagnostics"].get("algorithm_used"),
+                "feature": item["diagnostics"].get("feature_used"),
+                "distance": item["diagnostics"].get("distance_used"),
+            } for item in observations
+        },
+    }
+
+
+def _rank_settings(rows):
+    """Return rows in the existing benchmark's deterministic ranking order."""
+    return sorted(rows, key=lambda item: (
+        -item["micro_basin_retention"],
+        -item["energy_window_basin_retention"]["1.0"]["micro_recall"],
+        float("inf") if item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"] is None
+        else item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"],
+        item["macro_mean_runtime_seconds"],
+    ))
+
+
 def summarize(runs: list[Path], output: Path):
     systems = []
     condition_map = {}
@@ -86,100 +188,11 @@ def summarize(runs: list[Path], output: Path):
                 **condition,
             })
 
-    rows = []
-    for (algorithm, feature), observations in sorted(condition_map.items()):
-        retention = [item["retention_fraction"] for item in observations]
-        coverage = [item["coverage"]["mean_nearest_indexed_heavy_atom_rmsd_angstrom"]
-                    for item in observations
-                    if item["coverage"]["mean_nearest_indexed_heavy_atom_rmsd_angstrom"] is not None]
-        downstream = [item["downstream_optimization"] for item in observations
-                      if item["downstream_optimization"] is not None]
-        downstream_total = sum(item["selected_count"] for item in downstream)
-        downstream_success = sum(item["successful_terminations"] for item in downstream)
-        recovered_seeds = sum(item["verified_reference_basin_seed_count"] for item in downstream)
-        fallback_algorithm = sum(bool(item["diagnostics"].get("algorithm_fallbacks"))
-                                 for item in observations)
-        fallback_feature = sum(bool(item["diagnostics"].get("feature_fallbacks"))
-                               for item in observations)
-        fallback_distance = sum(bool(item["diagnostics"].get("distance_fallbacks"))
-                                for item in observations)
-        rows.append({
-            "algorithm_requested": algorithm,
-            "feature_requested": feature,
-            "systems": len(observations),
-            "macro_mean_basin_retention": float(np.mean(retention)),
-            "micro_basin_retention": (
-                sum(item["basins_retained"] for item in observations)
-                / sum(item["coverage"]["reference_basin_count"] for item in observations)
-            ),
-            "per_system_basin_retention": {
-                item["system"]: item["retention_fraction"] for item in observations
-            },
-            "per_system_retained_reference_basins": {
-                item["system"]: item["basins_retained"] for item in observations
-            },
-            "energy_window_basin_retention": {
-                window: {
-                    "reference_basins_total": sum(
-                        item["energy_window_basin_retention"][window]["reference_basins"]
-                        for item in observations
-                    ),
-                    "retained_basins_total": sum(
-                        item["energy_window_basin_retention"][window]["retained_basins"]
-                        for item in observations
-                    ),
-                    "macro_mean_recall": float(np.mean([
-                        item["energy_window_basin_retention"][window]["recall"]
-                        for item in observations
-                        if item["energy_window_basin_retention"][window]["recall"] is not None
-                    ])),
-                    "micro_recall": (
-                        sum(item["energy_window_basin_retention"][window]["retained_basins"]
-                            for item in observations)
-                        / sum(item["energy_window_basin_retention"][window]["reference_basins"]
-                              for item in observations)
-                    ),
-                    "per_system": {
-                        item["system"]: item["energy_window_basin_retention"][window]
-                        for item in observations
-                    },
-                }
-                for window in ("1.0", "3.0", "6.0")
-            },
-            "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": float(np.mean(coverage)) if coverage else None,
-            "downstream_optimization_success_fraction": (
-                downstream_success / downstream_total if downstream_total else None
-            ),
-            "verified_reference_basin_recovery_fraction": (
-                recovered_seeds / downstream_total if downstream_total else None
-            ),
-            "basin_changed_after_complete_comparison": sum(
-                item["basin_changed_after_complete_comparison_count"] for item in downstream
-            ),
-            "uncertain_due_to_incomplete_mapping": sum(
-                item["uncertain_due_to_incomplete_mapping_count"] for item in downstream
-            ),
-            "algorithm_fallback_systems": fallback_algorithm,
-            "feature_fallback_systems": fallback_feature,
-            "distance_fallback_systems": fallback_distance,
-            "macro_mean_runtime_seconds": float(np.mean([
-                item["runtime_seconds"] for item in observations
-            ])),
-            "actual_methods_by_system": {
-                item["system"]: {
-                    "algorithm": item["diagnostics"].get("algorithm_used"),
-                    "feature": item["diagnostics"].get("feature_used"),
-                    "distance": item["diagnostics"].get("distance_used"),
-                } for item in observations
-            },
-        })
-    rows.sort(key=lambda item: (
-        -item["micro_basin_retention"],
-        -item["energy_window_basin_retention"]["1.0"]["micro_recall"],
-        float("inf") if item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"] is None
-        else item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"],
-        item["macro_mean_runtime_seconds"],
-    ))
+    rows = [
+        _summarize_condition(algorithm, feature, observations)
+        for (algorithm, feature), observations in sorted(condition_map.items())
+    ]
+    rows = _rank_settings(rows)
 
     output.mkdir(parents=True, exist_ok=True)
     payload = {

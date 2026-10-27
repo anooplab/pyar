@@ -14,6 +14,93 @@ class MicrosolvationRequestError(ValueError):
     """Raised when a microsolvation request is scientifically invalid."""
 
 
+def _validate_wall_mode_options(wall, wall_radius, wall_force_constant):
+    """Validate wall mode and which modes accept explicit wall parameters."""
+    if wall not in {"none", "outer-sphere", "auto"}:
+        raise MicrosolvationRequestError("wall must be 'none', 'outer-sphere', or 'auto'")
+    if wall == "none" and (wall_radius is not None or wall_force_constant is not None):
+        raise MicrosolvationRequestError("--wall-radius and --wall-force-constant require --wall outer-sphere")
+    if wall == "auto" and (wall_radius is not None or wall_force_constant is not None):
+        raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
+
+
+def _require_energy_gradient_backend(software, requirement):
+    """Require a registered energy-gradient backend with a policy-specific error."""
+    from pyar.backend_capabilities import (
+        backend_supports_geometry_optimization,
+        normalize_backend_name,
+    )
+
+    if not software:
+        raise MicrosolvationRequestError(f"{requirement} requires an energy-gradient backend")
+    backend = normalize_backend_name(software)
+    if not backend_supports_geometry_optimization(backend):
+        raise MicrosolvationRequestError(
+            f"{requirement} requires a registered energy-gradient provider; {backend!r} has none"
+        )
+
+
+def _validate_wall_policy(wall, objective, wall_radius, wall_force_constant, backend_parameters):
+    """Validate wall parameters and their geometry-optimization backend route."""
+    _validate_wall_mode_options(wall, wall_radius, wall_force_constant)
+    if wall == "outer-sphere":
+        if objective != "shell":
+            raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
+        if (isinstance(wall_radius, bool) or wall_radius is None
+                or not np.isfinite(float(wall_radius)) or float(wall_radius) <= 0):
+            raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-radius in Angstrom")
+        if (isinstance(wall_force_constant, bool) or wall_force_constant is None
+                or not np.isfinite(float(wall_force_constant))
+                or float(wall_force_constant) <= 0):
+            raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-force-constant in hartree/angstrom^2")
+        software = backend_parameters.get("software")
+        _require_energy_gradient_backend(software, "outer-sphere wall")
+        if backend_parameters.get("geometry_optimizer") != "geometric":
+            raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
+    if wall == "auto" and objective == "shell":
+        software = backend_parameters.get("software")
+        _require_energy_gradient_backend(software, "automatic wall policy")
+        if backend_parameters.get("geometry_optimizer") != "geometric":
+            raise MicrosolvationRequestError("automatic wall policy requires --geometry-optimizer geometric")
+
+
+def _normalize_site_groups(site_groups, contact_distance, solute_atom_count):
+    """Normalize named solute sites and validate their contact-reporting policy."""
+    groups = tuple(
+        (str(name).strip(), tuple(int(index) for index in indices))
+        for name, indices in site_groups
+    )
+    if groups:
+        names = [name for name, _ in groups]
+        has_invalid_names = any(not name.strip() for name in names)
+        has_duplicate_names = len(names) != len(set(names))
+        has_invalid_indices = any(
+            not indices or len(indices) != len(set(indices))
+            for _, indices in groups
+        )
+        if has_invalid_names or has_duplicate_names or has_invalid_indices:
+            raise MicrosolvationRequestError(
+                "site groups require unique names and distinct non-empty atom indices"
+            )
+        for name, indices in groups:
+            if any(index < 0 or index >= solute_atom_count for index in indices):
+                raise MicrosolvationRequestError(
+                    f"Site group {name!r} contains an out-of-range solute atom index"
+                )
+        if (
+            isinstance(contact_distance, bool)
+            or contact_distance is None
+            or not np.isfinite(float(contact_distance))
+            or float(contact_distance) <= 0
+        ):
+            raise MicrosolvationRequestError(
+                "site contact reporting requires a positive --contact-distance in Angstrom"
+            )
+    elif contact_distance is not None:
+        raise MicrosolvationRequestError("--contact-distance requires at least one --site-group")
+    return groups
+
+
 @dataclass(frozen=True)
 class MicrosolvationRequest:
     """Resolved settings for explicit shell or finite-cluster sampling."""
@@ -70,52 +157,21 @@ class MicrosolvationRequest:
         object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
         if self.objective not in {"shell", "cluster"}:
             raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
-        if self.wall not in {"none", "outer-sphere", "auto"}:
-            raise MicrosolvationRequestError("wall must be 'none', 'outer-sphere', or 'auto'")
-        if self.wall == "none" and (self.wall_radius is not None or self.wall_force_constant is not None):
-            raise MicrosolvationRequestError("--wall-radius and --wall-force-constant require --wall outer-sphere")
-        if self.wall == "auto" and (self.wall_radius is not None or self.wall_force_constant is not None):
-            raise MicrosolvationRequestError("automatic wall policy derives its own radius and strength")
-        if self.wall == "outer-sphere":
-            if self.objective != "shell":
-                raise MicrosolvationRequestError("the outer-sphere wall is only supported for shell objective")
-            if (isinstance(self.wall_radius, bool) or self.wall_radius is None
-                    or not np.isfinite(float(self.wall_radius)) or float(self.wall_radius) <= 0):
-                raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-radius in Angstrom")
-            if (isinstance(self.wall_force_constant, bool) or self.wall_force_constant is None
-                    or not np.isfinite(float(self.wall_force_constant))
-                    or float(self.wall_force_constant) <= 0):
-                raise MicrosolvationRequestError("outer-sphere wall requires a positive --wall-force-constant in hartree/angstrom^2")
-            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
-            software = self.backend_parameters.get("software")
-            if not software:
-                raise MicrosolvationRequestError("outer-sphere wall requires an energy-gradient backend")
-            backend = normalize_backend_name(software)
-            if not backend_supports_geometry_optimization(backend):
-                raise MicrosolvationRequestError(f"outer-sphere wall requires a registered energy-gradient provider; {backend!r} has none")
-            if self.backend_parameters.get("geometry_optimizer") != "geometric":
-                raise MicrosolvationRequestError("outer-sphere wall requires --geometry-optimizer geometric")
-        if self.wall == "auto" and self.objective == "shell":
-            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
-            software = self.backend_parameters.get("software")
-            if not software:
-                raise MicrosolvationRequestError("automatic wall policy requires an energy-gradient backend")
-            backend = normalize_backend_name(software)
-            if not backend_supports_geometry_optimization(backend):
-                raise MicrosolvationRequestError(f"automatic wall policy requires a registered energy-gradient provider; {backend!r} has none")
-            if self.backend_parameters.get("geometry_optimizer") != "geometric":
-                raise MicrosolvationRequestError("automatic wall policy requires --geometry-optimizer geometric")
+        _validate_wall_policy(
+            self.wall,
+            self.objective,
+            self.wall_radius,
+            self.wall_force_constant,
+            self.backend_parameters,
+        )
         if self.placement_score not in {"geometric", "energy"}:
             raise MicrosolvationRequestError("placement score must be 'geometric' or 'energy'")
         if self.placement_score == "energy" and not self.backend_parameters.get("software"):
             raise MicrosolvationRequestError("energy placement scoring requires --backend")
         if self.placement_score == "energy":
-            from pyar.backend_capabilities import backend_supports_geometry_optimization, normalize_backend_name
-            backend = normalize_backend_name(self.backend_parameters["software"])
-            if not backend_supports_geometry_optimization(backend):
-                raise MicrosolvationRequestError(
-                    f"energy placement scoring requires a registered energy-gradient provider; {backend!r} has none"
-                )
+            _require_energy_gradient_backend(
+                self.backend_parameters["software"], "energy placement scoring"
+            )
         if self.objective == "cluster" and self.placement_score != "energy":
             raise MicrosolvationRequestError("cluster objective requires --placement-score energy")
         if (isinstance(self.resampling_moves, bool) or not isinstance(self.resampling_moves, int)
@@ -144,21 +200,9 @@ class MicrosolvationRequest:
                         f"Solute site index {index} is out of range (valid range: 0..{len(self.solute) - 1})"
                     )
             object.__setattr__(self, "site", site)
-        groups = tuple((str(name).strip(), tuple(int(index) for index in indices))
-                       for name, indices in self.site_groups)
-        if groups:
-            names = [name for name, _ in groups]
-            if (any(not name.strip() for name in names) or len(names) != len(set(names))
-                    or any(not indices or len(indices) != len(set(indices)) for _, indices in groups)):
-                raise MicrosolvationRequestError("site groups require unique names and distinct non-empty atom indices")
-            for name, indices in groups:
-                if any(index < 0 or index >= len(self.solute) for index in indices):
-                    raise MicrosolvationRequestError(f"Site group {name!r} contains an out-of-range solute atom index")
-            if (isinstance(self.contact_distance, bool) or self.contact_distance is None
-                    or not np.isfinite(float(self.contact_distance)) or float(self.contact_distance) <= 0):
-                raise MicrosolvationRequestError("site contact reporting requires a positive --contact-distance in Angstrom")
-        elif self.contact_distance is not None:
-            raise MicrosolvationRequestError("--contact-distance requires at least one --site-group")
+        groups = _normalize_site_groups(
+            self.site_groups, self.contact_distance, len(self.solute)
+        )
         object.__setattr__(self, "site_groups", groups)
         from pyar.molecule_merge import combine_multiplicity
         electrons = sum(self.solute.atomic_number)

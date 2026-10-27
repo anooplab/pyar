@@ -129,6 +129,23 @@ def _matching_line(text, pattern):
     return next((line.strip() for line in text.splitlines() if re.search(pattern, line, re.I)), None)
 
 
+def _execute_native_optts(command, input_path, run_directory, environment):
+    """Run the configured ORCA command and return its captured process evidence."""
+    started = time.perf_counter()
+    try:
+        process = subprocess.run(
+            [command, str(input_path)],
+            cwd=run_directory, env=environment, capture_output=True, text=True,
+            check=False,
+        )
+        output_text = (process.stdout or "") + "\n" + (process.stderr or "")
+        returncode = process.returncode
+    except OSError as exc:
+        output_text = f"{type(exc).__name__}: {exc}"
+        returncode = 127
+    return output_text, returncode, time.perf_counter() - started
+
+
 def _xtb_version(executable):
     process = subprocess.run(
         [str(Path(executable).resolve()), "--version"], capture_output=True,
@@ -206,19 +223,9 @@ def run_orca_optts_case(
     ), encoding="utf-8")
     environment = os.environ.copy()
     environment["XTBEXE"] = str(Path(xtb_executable).resolve())
-    started = time.perf_counter()
-    try:
-        process = subprocess.run(
-            [str(Path(orca_executable).resolve()), str(input_path)],
-            cwd=run_directory, env=environment, capture_output=True, text=True,
-            check=False,
-        )
-        output_text = (process.stdout or "") + "\n" + (process.stderr or "")
-        returncode = process.returncode
-    except OSError as exc:
-        output_text = f"{type(exc).__name__}: {exc}"
-        returncode = 127
-    elapsed = time.perf_counter() - started
+    output_text, returncode, elapsed = _execute_native_optts(
+        str(Path(orca_executable).resolve()), input_path, run_directory, environment,
+    )
     output_path.write_text(output_text, encoding="utf-8")
     parsed = parse_orca_optts_output(output_text, returncode)
     optimized_path = run_directory / "orca_optts.xyz"

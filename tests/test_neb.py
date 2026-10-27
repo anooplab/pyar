@@ -14,6 +14,7 @@ from pyar.neb import (
     _align_rigid_frame,
     _ase_idpp_api,
     _bond_set,
+    _canonical_expected_stage_parameters,
     canonical_neb_parameters,
     canonical_ts_parameters,
     _relax_endpoint,
@@ -525,6 +526,60 @@ def test_neb_parameter_canonicalization_is_method_aware():
     ))
     geo_b = dict(geo_a, geodesic_tol=0.003)
     assert geo_a != geo_b
+
+
+def test_expected_stage_settings_are_projected_and_canonicalized_without_mutation():
+    options = {
+        "product_relaxation_fmax": 0.05,
+        "product_relaxation_max_steps": 200,
+        "images": 11,
+        "max_cycles": 100,
+        "max_gradient": 0.05,
+        "average_gradient": 0.025,
+        "spring": 1.0,
+        "climb": 0.5,
+        "align": False,
+        "interpolation": "linear",
+        "path_refinement": None,
+        "path_seed_maximum_frame_index": None,
+        "idpp_fmax": 0.1,
+        "idpp_steps": 100,
+        "geodesic_tol": 0.002,
+        "geodesic_max_iter": 15,
+        "ts_max_cycles": 200,
+        "ts_optimizer": "geometric",
+        "ts_fmax": None,
+        "sella_fmax": 0.05,
+        "sella_internal_coordinates": False,
+        "endpoint_max_cycles": 300,
+        "imaginary_frequency_threshold": 20.0,
+        "irc_endpoint_rmsd_tolerance": 0.5,
+        "irc_max_cycles": 200,
+    }
+    original = dict(options)
+
+    expected = _canonical_expected_stage_parameters(options)
+
+    assert options == original
+    assert expected["relax"] == {
+        "product_relaxation_fmax": 0.05,
+        "product_relaxation_max_steps": 200,
+    }
+    assert expected["neb"] == {
+        "images": 11,
+        "max_cycles": 100,
+        "max_gradient": 0.05,
+        "average_gradient": 0.025,
+        "spring": 1.0,
+        "climb": 0.5,
+        "align": False,
+        "interpolation": "linear",
+    }
+    assert expected["ts"] == {
+        "ts_max_cycles": 200,
+        "ts_optimizer": "geometric",
+        "ts_fmax": None,
+    }
 
 
 def test_ts_parameter_canonicalization_is_optimizer_aware():

@@ -98,6 +98,52 @@ def _optimize_growth_batch(molecules, qc_params, workflow_role, failure_filename
     return statuses
 
 
+def _select_growth_seed_pool(
+    optimized_molecules,
+    selected_from_restart,
+    *,
+    maximum_number_of_seeds,
+    connectivity_policy,
+    selection_feature,
+    selection_algorithm,
+    selection_distance,
+    selection_system_type,
+    persist_basin_memory,
+):
+    """Select fresh candidates and combine them with the resumed selected pool."""
+    selection_diagnostics = {}
+    selected_seeds = clustering.choose_geometries(
+        optimized_molecules,
+        maximum_number_of_seeds=maximum_number_of_seeds,
+        persist_basin_memory=persist_basin_memory,
+        group_basin_by_stoichiometry=False,
+        connectivity_policy=connectivity_policy,
+        feature=selection_feature,
+        algorithm=selection_algorithm,
+        distance_metric=selection_distance,
+        system_type=selection_system_type,
+        diagnostics=selection_diagnostics,
+    )
+    _write_growth_selection_diagnostics(
+        selection_diagnostics,
+        os.path.join("selected", "selection_diagnostics.json"),
+    )
+    for molecule in selected_seeds:
+        molecule.connectivity_policy_hint = connectivity_policy
+    selected_seeds = selected_from_restart + selected_seeds
+    if len(selected_seeds) > maximum_number_of_seeds:
+        aggregator_logger.warning(
+            "Restart plus current selection produced %d seeds; keeping lowest-energy %d.",
+            len(selected_seeds),
+            maximum_number_of_seeds,
+        )
+        selected_seeds = sorted(
+            selected_seeds,
+            key=lambda molecule: float(molecule.energy),
+        )[:maximum_number_of_seeds]
+    return selected_seeds
+
+
 def _write_growth_selection_diagnostics(diagnostics, filename):
     """Persist selection and basin-memory provenance without gating workflow progress."""
     if not diagnostics:
@@ -658,36 +704,17 @@ def add_one(
                 list_of_optimized_molecules,
                 "structural_analysis_preselection.json",
             )
-        selection_diagnostics = {}
-        selected_seeds = clustering.choose_geometries(
+        selected_seeds = _select_growth_seed_pool(
             list_of_optimized_molecules,
+            selected_from_restart,
             maximum_number_of_seeds=maximum_number_of_seeds,
-            persist_basin_memory=not staged_optimization,
-            group_basin_by_stoichiometry=False,
             connectivity_policy=connectivity_policy,
-            feature=selection_feature,
-            algorithm=selection_algorithm,
-            distance_metric=selection_distance,
-            system_type=selection_system_type,
-            diagnostics=selection_diagnostics,
+            selection_feature=selection_feature,
+            selection_algorithm=selection_algorithm,
+            selection_distance=selection_distance,
+            selection_system_type=selection_system_type,
+            persist_basin_memory=not staged_optimization,
         )
-        _write_growth_selection_diagnostics(
-            selection_diagnostics,
-            os.path.join("selected", "selection_diagnostics.json"),
-        )
-        for molecule in selected_seeds:
-            molecule.connectivity_policy_hint = connectivity_policy
-        selected_seeds = selected_from_restart + selected_seeds
-        if len(selected_seeds) > maximum_number_of_seeds:
-            aggregator_logger.warning(
-                "Restart plus current selection produced %d seeds; keeping lowest-energy %d.",
-                len(selected_seeds),
-                maximum_number_of_seeds,
-            )
-            selected_seeds = sorted(
-                selected_seeds,
-                key=lambda molecule: float(molecule.energy),
-            )[:maximum_number_of_seeds]
 
         if not staged_optimization:
             aggregator_logger.info(

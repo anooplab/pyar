@@ -160,6 +160,32 @@ def _execute_attempt(directory, timeout):
             raise
 
 
+def _assess_attempt_progress(result, attempt, policy):
+    """Apply existing progress and plateau evidence to one recovery attempt."""
+    if (result.status is not Outcome.INCOMPLETE_USABLE or result.accepted_frame is None
+            or {diagnostic.code for diagnostic in result.diagnostics} - {FailureCode.OPT_MAX_STEPS}):
+        return False, False, 'no_verified_safe_action'
+    made_progress = improving(attempt.steps)
+    threshold = {'loose': 1.7e-3, 'normal': 3e-4, 'tight': 1e-5}[
+        attempt.request.settings['opt_threshold']
+    ]
+    plateau = flat_pes_evidence(attempt.steps, threshold)
+    if not made_progress and not (policy.mode == 'guided' and plateau):
+        return made_progress, plateau, 'no_verified_safe_action'
+    return made_progress, plateau, None
+
+
+def _validate_and_commit_attempt(current, backend, result_path, commit_path, intent):
+    """Validate worker evidence and seal it before recovery uses the outcome."""
+    result_value = read_json(result_path)
+    result = _validated_result(current, backend, result_value)
+    if not commit_path.exists():
+        fsync_artifacts([ref.resolve(backend) for ref in snapshot_artifacts(backend)], backend)
+        write_json(commit_path, dict(schema_version=1, intent=intent,
+            execution_result=result_value), overwrite=False)
+    return result
+
+
 def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, recover_lock=False):
     if policy.mode == 'off':
         from pyar.optimization_service import optimize_once
@@ -261,12 +287,7 @@ def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, r
                         worker_returncode=code))
                     evaluations += remaining
                     break
-            result_value = read_json(result_path)
-            last = _validated_result(current, backend, result_value)
-            if not commit_path.exists():
-                fsync_artifacts([ref.resolve(backend) for ref in snapshot_artifacts(backend)], backend)
-                write_json(commit_path, dict(schema_version=1, intent=intent,
-                    execution_result=result_value), overwrite=False)
+            last = _validate_and_commit_attempt(current, backend, result_path, commit_path, intent)
             counter = safe_path(backend, 'ore_evaluations.json')
             observed_evaluations = read_json(counter)['used'] if counter.exists() else remaining
             if type(observed_evaluations) is not int or not 0 <= observed_evaluations <= remaining:
@@ -286,15 +307,9 @@ def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, r
             if remaining == 0:
                 reason = 'evaluation_budget_exhausted' if counter.exists() else 'unverified_evaluation_cost'
                 break
-            if (last.status is not Outcome.INCOMPLETE_USABLE or last.accepted_frame is None
-                    or {d.code for d in last.diagnostics} - {FailureCode.OPT_MAX_STEPS}):
-                reason = 'no_verified_safe_action'
-                break
-            made_progress = improving(attempt.steps)
-            plateau = flat_pes_evidence(attempt.steps, {'loose': 1.7e-3, 'normal': 3e-4,
-                                                        'tight': 1e-5}[current.settings['opt_threshold']])
-            if not made_progress and not (policy.mode == 'guided' and plateau):
-                reason = 'no_verified_safe_action'
+            made_progress, plateau, stop_reason = _assess_attempt_progress(last, attempt, policy)
+            if stop_reason is not None:
+                reason = stop_reason
                 if plateau:
                     last = replace(last, diagnostics=last.diagnostics + (FailureDiagnostic(
                         FailureCode.OPT_STAGNATED, 'optimizer',

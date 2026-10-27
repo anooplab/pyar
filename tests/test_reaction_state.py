@@ -10,6 +10,7 @@ import numpy as np
 
 from pyar.core.molecule import Molecule
 from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
+from pyar.workflows import reaction as reaction_workflow
 
 
 class ReactionRunStateTests(unittest.TestCase):
@@ -277,6 +278,23 @@ class ReactionRunStateTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ReactionStateError, "Could not read legacy reaction checkpoint"):
                 read_legacy_checkpoint(tmpdir)
+
+
+def test_reaction_product_decisions_use_explicit_run_registry():
+    from unittest.mock import patch
+
+    first_run = {"first": {"inchi": "inchi-1", "smiles": "C"}}
+    second_run = {"second": {"inchi": "inchi-2", "smiles": "N"}}
+    incoming = {"inchi": "inchi-1", "smiles": "C"}
+    with patch.object(
+        reaction_workflow, "same_molecular_identity",
+        side_effect=lambda left, right: left["inchi"] == right["inchi"],
+    ):
+        assert reaction_workflow._is_known_product(incoming, first_run)
+        assert not reaction_workflow._is_known_product(incoming, second_run)
+    assert reaction_workflow._should_continue_after_product([], first_run)
+    assert reaction_workflow._should_continue_after_product([], second_run)
+    assert not reaction_workflow._should_continue_after_product([object()], first_run)
 
 
 if __name__ == "__main__":

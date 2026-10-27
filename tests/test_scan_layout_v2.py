@@ -11,6 +11,251 @@ from pyar.persistence import read_json, sha256_file, write_json
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
 
+@pytest.mark.parametrize(
+    'results, through, intramolecular, unique, products, expected',
+    [
+        ([{'status': 'scan_success_relax_success'}], None, False, False, None, True),
+        ([{'status': 'scan_success'}], None, False, False, None, False),
+        ([{'status': 'scan_success'}], 'scan', False, False, None, True),
+        ([{'status': 'scan_success_relax_success', 'identity_status': 'failed'}],
+         None, True, False, None, False),
+        ([{'status': 'scan_success_relax_success', 'continuation_status': 'complete'}],
+         'all', False, False, None, True),
+        ([{'status': 'scan_success_relax_success', 'identity_status': 'success'}],
+         'neb', True, True,
+         {'products': [{'characterization_status': 'reaction_connected'}]}, True),
+        ([{'status': 'scan_success', 'identity_status': 'success'}],
+         'neb', True, True,
+         {'products': [{'characterization_status': 'path_complete_connection_unconfirmed'}]}, True),
+        ([{'status': 'scan_success', 'identity_status': 'unresolved'}],
+         'neb', True, True,
+         {'products': [{'characterization_status': 'reaction_connected'}]}, False),
+        ([{'status': 'scan_success'}], 'neb', False, True,
+         {'products': [{'characterization_status': 'blocked'}]}, False),
+    ],
+)
+def test_scan_completion_uses_explicit_workflow_evidence(
+        results, through, intramolecular, unique, products, expected):
+    assert workflow._scan_completion_status(
+        results, through, intramolecular, unique, products,
+    ) is expected
+
+
+def test_scan_loader_reuses_valid_cached_result(tmp_path, monkeypatch):
+    import pyar.recovery.stages as stages
+    from types import SimpleNamespace
+
+    cached = SimpleNamespace(success=True, status='success')
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: cached)
+    monkeypatch.setattr(stages, 'scan_diagnostic', lambda *args: {'stage_gate': 'passed'})
+    monkeypatch.setattr(stages, 'run_scan_once', lambda *args: pytest.fail('cached scan was rerun'))
+
+    result, error = workflow._load_or_execute_scan(
+        object(), object(), tmp_path, {}, software='orca',
+        previous_result={'scan_status': 'success'}, committed=None,
+    )
+
+    assert result is cached
+    assert error is None
+
+
+def test_scan_loader_reexecutes_invalid_cache_but_rejects_invalid_commit(tmp_path, monkeypatch):
+    import pyar.recovery.stages as stages
+    from types import SimpleNamespace
+
+    invalid = SimpleNamespace(success=False, status='scan_incomplete')
+    valid = SimpleNamespace(success=True, status='success')
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: invalid)
+    calls = []
+
+    def run(runner, *args):
+        calls.append(runner)
+        return valid
+
+    monkeypatch.setattr(stages, 'run_scan_once', run)
+    result, error = workflow._load_or_execute_scan(
+        object(), object(), tmp_path, {}, software='orca',
+        previous_result={'scan_status': 'success'}, committed=None,
+    )
+    assert result is valid
+    assert error is None
+    assert calls == [workflow.run_orca_bond_scan]
+
+    calls.clear()
+    monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: None)
+    with pytest.raises(ValueError, match='Committed scan no longer passes'):
+        workflow._load_or_execute_scan(
+            object(), object(), tmp_path, {}, software='orca',
+            previous_result={'scan_status': 'success'}, committed={'status': 'committed'},
+        )
+    assert calls == []
+
+
+def test_scan_executor_preserves_backend_errors_and_returns_other_errors(tmp_path, monkeypatch):
+    import pyar.recovery.stages as stages
+    from pyar.backend_errors import BackendExecutionError
+
+    failure = BackendExecutionError('native output invalid')
+    monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(failure))
+    with pytest.raises(BackendExecutionError, match='native output invalid'):
+        workflow._load_or_execute_scan(
+            object(), object(), tmp_path, {}, software='xtb',
+            previous_result=None, committed=None,
+        )
+
+    ordinary_error = RuntimeError('recoverable scan exception')
+    monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(ordinary_error))
+    result, error = workflow._load_or_execute_scan(
+        object(), object(), tmp_path, {}, software='xtb',
+        previous_result=None, committed=None,
+    )
+    assert result is None
+    assert error is ordinary_error
+
+
+def test_scan_relaxation_uses_unbiased_retry_and_restores_cwd(tmp_path, monkeypatch):
+    relax_dir = tmp_path / 'relax'
+    (relax_dir / 'job_relaxed').mkdir(parents=True)
+    (relax_dir / 'retry_001').mkdir()
+    execution = tmp_path / 'execution'
+    execution.mkdir()
+    caller_cwd = Path.cwd()
+    observations = []
+
+    def optimize(molecule, params, role):
+        observations.append((Path.cwd(), params, role))
+        target = Path('job_relaxed/result_relaxed.xyz')
+        target.parent.mkdir()
+        target.write_text('accepted geometry')
+        return True
+
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', optimize)
+    status, succeeded, error = workflow._relax_scan_endpoint(
+        object(), {'software': 'orca'}, 'orca', relax_dir, execution,
+    )
+
+    assert (status, succeeded, error) == (True, True, None)
+    workdir, params, role = observations[0]
+    assert workdir == relax_dir / 'retry_002'
+    assert params == {'software': 'orca', 'geometry_optimizer': 'native', 'gamma': 0.0}
+    assert role == 'bond_scan_unbiased_relaxation'
+    assert (execution / 'result_relaxed.xyz').read_text() == 'accepted geometry'
+    assert Path.cwd() == caller_cwd
+
+
+def test_scan_relaxation_returns_generic_optimizer_error_and_restores_cwd(tmp_path, monkeypatch):
+    caller_cwd = Path.cwd()
+
+    def optimize(*args):
+        raise RuntimeError('optimizer failed')
+
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', optimize)
+    status, succeeded, error = workflow._relax_scan_endpoint(
+        object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
+    )
+    assert status is None
+    assert succeeded is False
+    assert error == 'optimizer failed'
+    assert Path.cwd() == caller_cwd
+
+
+def test_scan_relaxation_propagates_backend_error_and_restores_cwd(tmp_path, monkeypatch):
+    from pyar.backend_errors import BackendExecutionError
+
+    caller_cwd = Path.cwd()
+
+    def optimize(*args):
+        raise BackendExecutionError('backend failed')
+
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', optimize)
+    with pytest.raises(BackendExecutionError, match='backend failed'):
+        workflow._relax_scan_endpoint(object(), {}, 'xtb', tmp_path / 'relax', tmp_path)
+    assert Path.cwd() == caller_cwd
+
+
+def test_scan_relaxation_rejects_success_without_geometry(tmp_path, monkeypatch):
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: True)
+    status, succeeded, error = workflow._relax_scan_endpoint(
+        object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
+    )
+    assert status is True
+    assert succeeded is False
+    assert 'optimizer reported success but did not write' in error
+
+
+def test_scan_relaxation_preserves_non_success_status(tmp_path, monkeypatch):
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: False)
+    assert workflow._relax_scan_endpoint(
+        object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
+    ) == (False, False, None)
+
+
+def test_orientation_result_publisher_preserves_success_record(tmp_path):
+    directory = tmp_path / 'orientation_000'
+    artifact = directory / 'execution/result_relaxed.xyz'
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b'2\nrelaxed\nH 0 0 0\nH 1 0 0\n')
+    calls = []
+
+    class Layout:
+        def relaxed(self, index, result, artifacts):
+            calls.append((index, dict(result), tuple(artifacts)))
+
+    result = {
+        'orientation': 0,
+        'status': 'scan_success_relax_success',
+        'product_identity_changed': False,
+    }
+    artifacts = (artifact, directory / 'missing.xyz')
+    workflow._save_orientation_result(
+        directory,
+        result,
+        qc_params={'total_multiplicity': 1, 'total_multiplicity_source': 'input'},
+        intramolecular=True,
+        completed_artifacts=artifacts,
+        layout=Layout(),
+    )
+
+    saved = read_json(directory / 'result.json')
+    assert saved == result
+    assert saved['discovery_status'] == 'no_new_product'
+    assert saved['reactant_product_connection_confirmed'] is False
+    assert saved['total_multiplicity'] == 1
+    assert saved['total_multiplicity_source'] == 'input'
+    assert saved['completed_artifact_hashes'] == {
+        'execution/result_relaxed.xyz': sha256_file(artifact),
+    }
+    assert calls == [(0, saved, artifacts)]
+
+
+def test_orientation_result_publisher_keeps_failed_report_uncommitted(tmp_path):
+    directory = tmp_path / 'orientation_000'
+    directory.mkdir()
+    calls = []
+
+    class Layout:
+        def relaxed(self, *args):
+            calls.append(args)
+
+    result = {'orientation': 0, 'status': 'scan_success_relax_failed'}
+    workflow._save_orientation_result(
+        directory,
+        result,
+        qc_params={'total_multiplicity': 2, 'total_multiplicity_source': 'user'},
+        intramolecular=True,
+        completed_artifacts=(),
+        layout=Layout(),
+    )
+
+    assert read_json(directory / 'result.json') == {
+        **result,
+        'total_multiplicity': 2,
+        'total_multiplicity_source': 'user',
+    }
+    assert 'completed_artifact_hashes' not in result
+    assert calls == []
+
+
 @pytest.fixture
 def scan_run(tmp_path, monkeypatch):
     a, b = tmp_path / 'a.xyz', tmp_path / 'b.xyz'

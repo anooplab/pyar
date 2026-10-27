@@ -133,7 +133,7 @@ class Turbomole(SF):
             turbomole_logger.debug('Initial Define failed again. Quit')
             return 'UpdateFailed'
 
-        if gamma is None:
+        if self.gamma is None:
             return self.run_turbomole_jobex(max_cycles=max_cycles)
 
         # Test for Turbomole input

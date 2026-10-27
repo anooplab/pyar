@@ -8,7 +8,7 @@ import ase.units as units
 import numpy as np
 
 from mlatom import constants
-from mlatom import data, stopper
+from mlatom import data
 import copy, tempfile
 
 def optimize_geometry(initial_molecule, model, convergence_criterion_for_forces, maximum_number_of_steps, optimization_algorithm='LBFGS'):
@@ -85,8 +85,7 @@ class MLatomCalculator(Calculator):
 
             self.model.predict(molecule=current_molecule, calculate_energy=True, calculate_energy_gradients=True)
             if not 'energy' in current_molecule.__dict__:
-                if pythonpackage: raise ValueError('model did not return any energy')
-                else: stopper.stopMLatom('model did not return any energy')
+                raise ValueError('model did not return any energy')
 
             if self.save_optimization_trajectory:
                 global optimization_trajectory

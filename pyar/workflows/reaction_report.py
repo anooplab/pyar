@@ -180,6 +180,33 @@ def _verify_scan_evidence(evidence):
     return verified
 
 
+def _electronic_energetics(gates_passed, assignment, endpoint_stage, frequency,
+                          reference_mode, reactant_reference):
+    """Calculate reported energy differences only after existing gates pass."""
+    energies = {"unit": "hartree", "reference_mode": reference_mode,
+                "E_R": None, "E_TS": frequency.get("energy_hartree"), "E_P": None,
+                "delta_E_rxn": None, "delta_E_forward_activation": None,
+                "delta_E_reverse_activation": None, "validated": False}
+    if gates_passed and assignment and sorted(assignment) == [0, 1]:
+        reactant_index, product_index = map(int, assignment)
+        directions = ("forward", "backward")
+        reactant_frequency = endpoint_stage.get(f"{directions[reactant_index]}_frequency", {})
+        product_frequency = endpoint_stage.get(f"{directions[product_index]}_frequency", {})
+        reactant_energy = (reactant_reference.get("reference_energy_hartree")
+                           if reference_mode == "separated-reactants" and reactant_reference else
+                           reactant_frequency.get("energy_hartree"))
+        product_energy = product_frequency.get("energy_hartree")
+        ts_energy = frequency.get("energy_hartree")
+        if all(value is not None and np.isfinite(float(value))
+               for value in (reactant_energy, product_energy, ts_energy)):
+            energies.update(E_R=float(reactant_energy), E_TS=float(ts_energy), E_P=float(product_energy),
+                            delta_E_rxn=float(product_energy - reactant_energy),
+                            delta_E_forward_activation=float(ts_energy - reactant_energy),
+                            delta_E_reverse_activation=float(ts_energy - product_energy), validated=True,
+                            physical_settings_compatible=True)
+    return energies
+
+
 def build_reaction_characterization_report(*, route_root, product, provenance,
                                            path_result, route_result, alternatives,
                                            reference_mode="minima", reactant_reference=None,
@@ -226,27 +253,9 @@ def build_reaction_characterization_report(*, route_root, product, provenance,
     endpoints_ok = endpoint_stage.get("endpoints_are_minima") is True
     gates_passed = (connected and saddle and irc_ok and endpoints_ok and physical_compatible
                     and artifacts_verified and stage_records_complete and scan_evidence_verified)
-    energies = {"unit": "hartree", "reference_mode": reference_mode,
-                "E_R": None, "E_TS": frequency.get("energy_hartree"), "E_P": None,
-                "delta_E_rxn": None, "delta_E_forward_activation": None,
-                "delta_E_reverse_activation": None, "validated": False}
-    if gates_passed and assignment and sorted(assignment) == [0, 1]:
-        reactant_index, product_index = map(int, assignment)
-        directions = ("forward", "backward")
-        reactant_frequency = endpoint_stage.get(f"{directions[reactant_index]}_frequency", {})
-        product_frequency = endpoint_stage.get(f"{directions[product_index]}_frequency", {})
-        reactant_energy = (reactant_reference.get("reference_energy_hartree")
-                           if reference_mode == "separated-reactants" and reactant_reference else
-                           reactant_frequency.get("energy_hartree"))
-        product_energy = product_frequency.get("energy_hartree")
-        ts_energy = frequency.get("energy_hartree")
-        if all(value is not None and np.isfinite(float(value))
-               for value in (reactant_energy, product_energy, ts_energy)):
-            energies.update(E_R=float(reactant_energy), E_TS=float(ts_energy), E_P=float(product_energy),
-                            delta_E_rxn=float(product_energy - reactant_energy),
-                            delta_E_forward_activation=float(ts_energy - reactant_energy),
-                            delta_E_reverse_activation=float(ts_energy - product_energy), validated=True,
-                            physical_settings_compatible=True)
+    energies = _electronic_energetics(
+        gates_passed, assignment, endpoint_stage, frequency, reference_mode, reactant_reference,
+    )
     report = {
         "schema_version": 1, "product_id": provenance.get("product_id"),
         "pathway_id": provenance.get("pathway_id"),

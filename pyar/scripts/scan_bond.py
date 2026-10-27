@@ -95,6 +95,40 @@ def modern_main(argv=None, *, prog=None):
     main(argv, modern=True, prog=prog)
 
 
+def _backend_parameters_from_args(args, intramolecular, parser):
+    """Translate parsed CLI settings into the scan workflow's parameter mapping."""
+    def pair_value(values, label, index):
+        if len(values) == 1:
+            return values[0]
+        if len(values) == 2:
+            return values[index]
+        parser.error(f"{label} accepts one value or one value per fragment")
+
+    params = {
+        "software": args.software,
+        "method": args.method,
+        "basis": args.basis,
+        "gxtb_wrapper": args.gxtb_wrapper,
+        "nprocs": args.nprocs,
+        "scf_cycles": args.scf_cycles,
+        "opt_cycles": args.opt_cycles,
+        "opt_threshold": args.opt_threshold,
+        "charge_a": pair_value(args.charge, "charge", 0),
+        "charge_b": pair_value(args.charge, "charge", 1),
+        "multiplicity_a": pair_value(args.multiplicity, "multiplicity", 0),
+        "multiplicity_b": pair_value(args.multiplicity, "multiplicity", 1),
+        "total_multiplicity": args.total_multiplicity,
+        "scftype_a": pair_value(args.scftype, "scftype", 0),
+        "scftype_b": pair_value(args.scftype, "scftype", 1),
+    }
+    if args.software == "xtb":
+        params["xtb_model"] = args.xtb_model
+    if intramolecular:
+        for key in ("charge_b", "multiplicity_b", "scftype_b"):
+            params.pop(key)
+    return params
+
+
 def main(argv=None, *, modern=False, prog=None):
     parser = build_parser(modern=modern, prog=prog)
     args = parser.parse_args(argv)
@@ -166,26 +200,7 @@ def main(argv=None, *, modern=False, prog=None):
             molecules = validate_inputs(args)
         except ValueError as exc:
             parser.error(str(exc))
-    def pair_value(values, label, index):
-        if len(values) == 1: return values[0]
-        if len(values) == 2: return values[index]
-        parser.error(f"{label} accepts one value or one value per fragment")
-    params = {"software": args.software, "method": args.method, "basis": args.basis,
-              "gxtb_wrapper": args.gxtb_wrapper,
-              "nprocs": args.nprocs, "scf_cycles": args.scf_cycles,
-              "opt_cycles": args.opt_cycles, "opt_threshold": args.opt_threshold,
-              "charge_a": pair_value(args.charge, "charge", 0),
-              "charge_b": pair_value(args.charge, "charge", 1),
-              "multiplicity_a": pair_value(args.multiplicity, "multiplicity", 0),
-              "multiplicity_b": pair_value(args.multiplicity, "multiplicity", 1),
-              "total_multiplicity": args.total_multiplicity,
-              "scftype_a": pair_value(args.scftype, "scftype", 0),
-              "scftype_b": pair_value(args.scftype, "scftype", 1)}
-    if args.software == "xtb":
-        params["xtb_model"] = args.xtb_model
-    if intramolecular:
-        for key in ('charge_b', 'multiplicity_b', 'scftype_b'):
-            params.pop(key)
+    params = _backend_parameters_from_args(args, intramolecular, parser)
     if modern:
         from pyar.scan_request import preflight_scan
         try:

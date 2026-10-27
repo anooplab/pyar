@@ -192,6 +192,50 @@ def _validate_bond_list(value, field_name, natoms, record_index):
     return bonds
 
 
+def _validate_trace_force_family(record, symbols, record_index):
+    """Validate and normalize optional force arrays in a trace record."""
+    force_fields = {}
+    for field_name in (
+        "backend_forces_hartree_per_bohr",
+        "bias_forces_hartree_per_bohr",
+        "total_forces_hartree_per_bohr",
+    ):
+        if field_name not in record:
+            continue
+        forces = np.asarray(record[field_name], dtype=float)
+        if forces.shape != (len(symbols), 3):
+            raise ValueError(
+                f"Trace record {record_index} field {field_name!r} must have "
+                f"shape ({len(symbols)}, 3); got {forces.shape!r}"
+            )
+        if not np.all(np.isfinite(forces)):
+            raise ValueError(
+                f"Trace record {record_index} field {field_name!r} must "
+                "contain finite values"
+            )
+        force_fields[field_name] = forces
+    return force_fields
+
+
+def _validate_optional_trace_scalars(record, record_index):
+    """Validate the optional scalar diagnostics in their historical order."""
+    for field_name in (
+        "backend_force_norm",
+        "bias_force_norm",
+        "total_force_norm",
+        "max_force",
+        "backend_max_force",
+        "collective_coordinate_bohr",
+        "softmin_beta",
+    ):
+        if field_name in record:
+            value = _ensure_finite_scalar(record[field_name], field_name, record_index)
+            if field_name == "softmin_beta" and value <= 0.0:
+                raise ValueError(
+                    f"Trace record {record_index} field 'softmin_beta' must be positive"
+                )
+
+
 def validate_trace_record(record, record_index):
     """Validate the structure of one trace record.
 
@@ -254,63 +298,13 @@ def validate_trace_record(record, record_index):
             record_index,
         )
 
-    if "backend_force_norm" in record:
-        _ensure_finite_scalar(record["backend_force_norm"], "backend_force_norm", record_index)
-    if "bias_force_norm" in record:
-        _ensure_finite_scalar(record["bias_force_norm"], "bias_force_norm", record_index)
-    if "total_force_norm" in record:
-        _ensure_finite_scalar(record["total_force_norm"], "total_force_norm", record_index)
-    if "max_force" in record:
-        _ensure_finite_scalar(record["max_force"], "max_force", record_index)
-    if "backend_max_force" in record:
-        _ensure_finite_scalar(record["backend_max_force"], "backend_max_force", record_index)
-    if "collective_coordinate_bohr" in record:
-        _ensure_finite_scalar(record["collective_coordinate_bohr"], "collective_coordinate_bohr", record_index)
-    if "softmin_beta" in record:
-        beta = _ensure_finite_scalar(record["softmin_beta"], "softmin_beta", record_index)
-        if beta <= 0.0:
-            raise ValueError(f"Trace record {record_index} field 'softmin_beta' must be positive")
+    _validate_optional_trace_scalars(record, record_index)
     if "contact_diagnostics" in record and not isinstance(record["contact_diagnostics"], dict):
         raise ValueError(f"Trace record {record_index} field 'contact_diagnostics' must be an object")
     if "bias_parameters" in record and not isinstance(record["bias_parameters"], dict):
         raise ValueError(f"Trace record {record_index} field 'bias_parameters' must be an object")
 
-    if "backend_forces_hartree_per_bohr" in record:
-        backend_forces = np.asarray(record["backend_forces_hartree_per_bohr"], dtype=float)
-        if backend_forces.shape != (len(normalized_symbols), 3):
-            raise ValueError(
-                f"Trace record {record_index} field 'backend_forces_hartree_per_bohr' must have "
-                f"shape ({len(normalized_symbols)}, 3); got {backend_forces.shape!r}"
-            )
-        if not np.all(np.isfinite(backend_forces)):
-            raise ValueError(
-                f"Trace record {record_index} field 'backend_forces_hartree_per_bohr' must "
-                "contain finite values"
-            )
-    if "bias_forces_hartree_per_bohr" in record:
-        bias_forces = np.asarray(record["bias_forces_hartree_per_bohr"], dtype=float)
-        if bias_forces.shape != (len(normalized_symbols), 3):
-            raise ValueError(
-                f"Trace record {record_index} field 'bias_forces_hartree_per_bohr' must have "
-                f"shape ({len(normalized_symbols)}, 3); got {bias_forces.shape!r}"
-            )
-        if not np.all(np.isfinite(bias_forces)):
-            raise ValueError(
-                f"Trace record {record_index} field 'bias_forces_hartree_per_bohr' must contain "
-                "finite values"
-            )
-    if "total_forces_hartree_per_bohr" in record:
-        total_forces = np.asarray(record["total_forces_hartree_per_bohr"], dtype=float)
-        if total_forces.shape != (len(normalized_symbols), 3):
-            raise ValueError(
-                f"Trace record {record_index} field 'total_forces_hartree_per_bohr' must have "
-                f"shape ({len(normalized_symbols)}, 3); got {total_forces.shape!r}"
-            )
-        if not np.all(np.isfinite(total_forces)):
-            raise ValueError(
-                f"Trace record {record_index} field 'total_forces_hartree_per_bohr' must contain "
-                "finite values"
-            )
+    force_fields = _validate_trace_force_family(record, normalized_symbols, record_index)
 
     current_bonds = _validate_bond_list(record["current_bonds"], "current_bonds", len(normalized_symbols), record_index)
     formed_bonds = _validate_bond_list(record["formed_bonds"], "formed_bonds", len(normalized_symbols), record_index)
@@ -348,13 +342,21 @@ def validate_trace_record(record, record_index):
         ),
     }
 
-    if "backend_forces_hartree_per_bohr" in record:
-        normalized["backend_forces_hartree_per_bohr"] = backend_forces.tolist()
-    if "bias_forces_hartree_per_bohr" in record:
-        normalized["bias_forces_hartree_per_bohr"] = bias_forces.tolist()
-        normalized["afir_forces_hartree_per_bohr"] = bias_forces.tolist()
-    if "total_forces_hartree_per_bohr" in record:
-        normalized["total_forces_hartree_per_bohr"] = total_forces.tolist()
+    if "backend_forces_hartree_per_bohr" in force_fields:
+        normalized["backend_forces_hartree_per_bohr"] = force_fields[
+            "backend_forces_hartree_per_bohr"
+        ].tolist()
+    if "bias_forces_hartree_per_bohr" in force_fields:
+        normalized["bias_forces_hartree_per_bohr"] = force_fields[
+            "bias_forces_hartree_per_bohr"
+        ].tolist()
+        normalized["afir_forces_hartree_per_bohr"] = force_fields[
+            "bias_forces_hartree_per_bohr"
+        ].tolist()
+    if "total_forces_hartree_per_bohr" in force_fields:
+        normalized["total_forces_hartree_per_bohr"] = force_fields[
+            "total_forces_hartree_per_bohr"
+        ].tolist()
     if "collective_coordinate_bohr" in record:
         normalized["collective_coordinate_bohr"] = float(record["collective_coordinate_bohr"])
     if "softmin_beta" in record:

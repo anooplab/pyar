@@ -117,6 +117,42 @@ def test_invalid_request(kwargs):
         GrowRequest(**options)
 
 
+@pytest.mark.parametrize(
+    ("site", "message"),
+    [
+        ((0,), "Site requires one local atom index per input"),
+        ((-1, 0), "Site index -1 is out of range for seed"),
+        ((0.5, 0), "Site index 0.5 is out of range for seed"),
+    ],
+)
+def test_growth_site_validation_errors(site, message):
+    with pytest.raises(ValueError, match=message):
+        GrowRequest(hydrogen(), hydrogen("monomer"), 1, site=site)
+
+
+def test_growth_request_preserves_valid_site():
+    request = GrowRequest(hydrogen(), hydrogen("monomer"), 1, site=(0, 1))
+
+    assert request.site == (0, 1)
+    assert request.to_state_dict()["site"] == [0, 1]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "label"),
+    [
+        ("count", True, "count"),
+        ("number_of_orientations", 1.5, "orientations"),
+        ("maximum_number_of_seeds", 0, "maximum_number_of_seeds"),
+    ],
+)
+def test_growth_limits_require_positive_integers(field, value, label):
+    options = {"seed": hydrogen(), "monomer": hydrogen("monomer"), "count": 1}
+    options[field] = value
+
+    with pytest.raises(ValueError, match=f"^{label} must be a positive integer$"):
+        GrowRequest(**options)
+
+
 def test_invalid_spin():
     seed = hydrogen()
     seed.multiplicity = 2
@@ -179,6 +215,23 @@ def test_cumulative_electronic_states_reach_shared_engine(tmp_path):
     assert [item.args[4]['charge'] for item in call.call_args_list] == [-1, -2]
     assert all(item.args[4]['multiplicity'] == 2 for item in call.call_args_list)
     assert 'method' not in request.backend_parameters and 'basis' not in request.backend_parameters
+
+
+def test_growth_backend_normalization_preserves_caller_options():
+    options = {'software': 'xtb', 'xtb_model': 'GFN2'}
+    request = GrowRequest(hydrogen(), hydrogen('monomer'), 1, backend_parameters=options)
+
+    assert options == {'software': 'xtb', 'xtb_model': 'GFN2'}
+    assert request.backend_parameters['xtb_model'] == 'gfn2'
+    assert 'opt_target' not in request.backend_parameters
+
+
+def test_growth_backend_validation_precedes_growth_objective_validation():
+    with pytest.raises(ValueError, match='Gaussian requires method and basis'):
+        GrowRequest(
+            hydrogen(), hydrogen('monomer'), 1,
+            backend_parameters={'software': 'gaussian', 'gamma': 1.0},
+        )
 
 
 def test_failed_comparison_conservatively_retains_geometry(tmp_path, monkeypatch):

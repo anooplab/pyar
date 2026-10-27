@@ -384,6 +384,17 @@ def canonical_ts_parameters(parameters):
     return canonical
 
 
+def _canonical_expected_stage_parameters(options):
+    """Project run options onto the canonical settings stored by each stage."""
+    expected = {
+        name: {key: options[key] for key in keys}
+        for name, keys in _STAGE_OPTIONS.items()
+    }
+    expected["neb"] = canonical_neb_parameters(expected["neb"])
+    expected["ts"] = canonical_ts_parameters(expected["ts"])
+    return expected
+
+
 def build_neb_images(
     start, end, ts_guess, image_count, *, interpolation="linear",
     idpp_fmax=0.1, idpp_steps=100, geodesic_tol=0.002, geodesic_max_iter=15,
@@ -1020,17 +1031,96 @@ def _match_endpoints(symbols, observed, expected, tolerance):
     }
 
 
+def _execute_ts_stage(output, calculator, options, load_stage):
+    """Optimize one TS guess and return its result and artifact contract."""
+    guess = options["ts_geometry"] or options["ts_guess"]
+    dependencies = []
+    if guess is None:
+        neb = load_stage("neb")
+        has_candidate = (
+            neb["ts_guess_image_index"] is not None
+            if "ts_guess_image_index" in neb else neb["interior_maximum"]
+        )
+        if not neb["converged"] or not has_candidate:
+            raise ValueError(
+                "TS optimization requires a converged NEB with an interior maximum "
+                "or a usable climbing image"
+            )
+        guess, dependencies = output / "ts_guess.xyz", ["neb"]
+    symbols, geometry, _ = read_xyz(guess)
+    optimization_started = time.perf_counter()
+    effective_fmax = (
+        options["ts_fmax"] if options["ts_fmax"] is not None
+        else options["sella_fmax"] if options["ts_optimizer"] == "sella"
+        else None
+    )
+    if options["ts_optimizer"] == "sella":
+        if options["sella_internal_coordinates"]:
+            frames, energies, converged, sella_version = _optimize_sella(
+                symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
+                internal=True,
+            )
+        else:
+            frames, energies, converged, sella_version = _optimize_sella(
+                symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
+            )
+        _write_xyz_trajectory(output / "ts_path.xyz", symbols, frames, energies)
+    else:
+        frames, energies, converged = _optimize_geometry(
+            symbols, geometry, calculator, output, "ts", options["ts_max_cycles"],
+            transition=True, fmax=effective_fmax,
+        )
+    optimization_wall_seconds = time.perf_counter() - optimization_started
+    _write_xyz_trajectory(output / "ts_optimized.xyz", symbols, [frames[-1]], [energies[-1]])
+    result = {
+        "ts_optimization_converged": converged,
+        "ts_energy_hartree": energies[-1],
+        "ts_optimization_wall_seconds": float(optimization_wall_seconds),
+        "effective_ts_convergence": {
+            "max_steps": options["ts_max_cycles"],
+            "fmax_ev_per_angstrom": effective_fmax,
+            "geometric_convergence_set": (
+                "GAU_TIGHT" if options["ts_optimizer"] == "geometric"
+                and effective_fmax is None else None
+            ),
+        },
+    }
+    if options["ts_optimizer"] == "sella":
+        result["sella_version"] = sella_version
+    return result, [guess], ["ts_optimized.xyz", "ts_path.xyz"], dependencies
+
+
+def _execute_irc_stage(output, calculator, options, frequency):
+    """Trace both IRC branches from the validated stationary saddle."""
+    if not frequency["first_order_saddle_confirmed"]:
+        raise ValueError("IRC requires a stationary TS with exactly one significant imaginary frequency")
+    symbols, geometry, _ = read_xyz(output / "frequency_geometry.xyz")
+    result, paths, artifacts = {"irc_run": True}, [], []
+    for direction in ("forward", "backward"):
+        frames, energies, converged = _optimize_geometry(
+            symbols, geometry, calculator, output, f"irc_{direction}", options["irc_max_cycles"],
+            direction=direction, hessian=output / "ts_hessian.txt",
+        )
+        result[f"irc_{direction}_converged"] = converged
+        path = f"irc_{direction}_endpoint.xyz"
+        _write_xyz_trajectory(output / path, symbols, [frames[-1]], [energies[-1]])
+        artifacts.extend([path, f"irc_{direction}_path.xyz"])
+        paths.append((frames, energies))
+    _write_xyz_trajectory(output / "irc_path.xyz", symbols,
+                          paths[0][0][::-1] + paths[1][0][1:],
+                          paths[0][1][::-1] + paths[1][1][1:])
+    result["irc_converged"] = result["irc_forward_converged"] and result["irc_backward_converged"]
+    result["reactant_product_connection_confirmed"] = False
+    inputs = [output / "frequency_geometry.xyz", output / "ts_hessian.txt"]
+    return result, inputs, artifacts + ["irc_path.xyz"], ["frequency"]
+
+
 def _execute_stage(stage, output, calculator, options):
     """Execute a single stage; dependent results are checked before use."""
     stage_started = time.perf_counter()
     evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
     optimizer_steps_start = getattr(calculator, "_pyar_optimizer_steps_total", None)
-    expected_by_stage = {
-        name: {key: options[key] for key in keys}
-        for name, keys in _STAGE_OPTIONS.items()
-    }
-    expected_by_stage["neb"] = canonical_neb_parameters(expected_by_stage["neb"])
-    expected_by_stage["ts"] = canonical_ts_parameters(expected_by_stage["ts"])
+    expected_by_stage = _canonical_expected_stage_parameters(options)
     if stage not in {"all", "relax", "neb"}:
         neb_summary_path = output / "neb_summary.json"
         if neb_summary_path.is_file():
@@ -1191,62 +1281,10 @@ def _execute_stage(stage, output, calculator, options):
         }, [start_path, end_path, path_seed or guess], seed_artifacts + artifacts, ["relax"])
 
     if stage == "ts":
-        guess = options["ts_geometry"] or options["ts_guess"]
-        dependencies = []
-        if guess is None:
-            neb = load("neb")
-            has_candidate = (
-                neb["ts_guess_image_index"] is not None
-                if "ts_guess_image_index" in neb else neb["interior_maximum"]
-            )
-            if not neb["converged"] or not has_candidate:
-                raise ValueError(
-                    "TS optimization requires a converged NEB with an interior maximum "
-                    "or a usable climbing image"
-                )
-            guess, dependencies = output / "ts_guess.xyz", ["neb"]
-        symbols, geometry, _ = read_xyz(guess)
-        optimization_started = time.perf_counter()
-        effective_fmax = (
-            options["ts_fmax"] if options["ts_fmax"] is not None
-            else options["sella_fmax"] if options["ts_optimizer"] == "sella"
-            else None
+        result, inputs, artifacts, dependencies = _execute_ts_stage(
+            output, calculator, options, load,
         )
-        if options["ts_optimizer"] == "sella":
-            if options["sella_internal_coordinates"]:
-                frames, energies, converged, sella_version = _optimize_sella(
-                    symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
-                    internal=True,
-                )
-            else:
-                frames, energies, converged, sella_version = _optimize_sella(
-                    symbols, geometry, calculator, options["ts_max_cycles"], effective_fmax,
-                )
-            _write_xyz_trajectory(output / "ts_path.xyz", symbols, frames, energies)
-        else:
-            frames, energies, converged = _optimize_geometry(
-                symbols, geometry, calculator, output, "ts", options["ts_max_cycles"],
-                transition=True, fmax=effective_fmax,
-            )
-        optimization_wall_seconds = time.perf_counter() - optimization_started
-        _write_xyz_trajectory(output / "ts_optimized.xyz", symbols, [frames[-1]], [energies[-1]])
-        result = {
-            "ts_optimization_converged": converged,
-            "ts_energy_hartree": energies[-1],
-            "ts_optimization_wall_seconds": float(optimization_wall_seconds),
-            "effective_ts_convergence": {
-                "max_steps": options["ts_max_cycles"],
-                "fmax_ev_per_angstrom": effective_fmax,
-                "geometric_convergence_set": (
-                    "GAU_TIGHT" if options["ts_optimizer"] == "geometric"
-                    and effective_fmax is None else None
-                ),
-            },
-        }
-        if options["ts_optimizer"] == "sella":
-            result["sella_version"] = sella_version
-        return save(result,
-                    [guess], ["ts_optimized.xyz", "ts_path.xyz"], dependencies)
+        return save(result, inputs, artifacts, dependencies)
 
     if stage == "frequency":
         geometry_path = options["ts_geometry"]
@@ -1264,27 +1302,10 @@ def _execute_stage(stage, output, calculator, options):
 
     if stage == "irc":
         frequency = load("frequency")
-        if not frequency["first_order_saddle_confirmed"]:
-            raise ValueError("IRC requires a stationary TS with exactly one significant imaginary frequency")
-        symbols, geometry, _ = read_xyz(output / "frequency_geometry.xyz")
-        result, paths, artifacts = {"irc_run": True}, [], []
-        for direction in ("forward", "backward"):
-            frames, energies, converged = _optimize_geometry(
-                symbols, geometry, calculator, output, f"irc_{direction}", options["irc_max_cycles"],
-                direction=direction, hessian=output / "ts_hessian.txt",
-            )
-            result[f"irc_{direction}_converged"] = converged
-            path = f"irc_{direction}_endpoint.xyz"
-            _write_xyz_trajectory(output / path, symbols, [frames[-1]], [energies[-1]])
-            artifacts.extend([path, f"irc_{direction}_path.xyz"])
-            paths.append((frames, energies))
-        _write_xyz_trajectory(output / "irc_path.xyz", symbols,
-                              paths[0][0][::-1] + paths[1][0][1:],
-                              paths[0][1][::-1] + paths[1][1][1:])
-        result["irc_converged"] = result["irc_forward_converged"] and result["irc_backward_converged"]
-        result["reactant_product_connection_confirmed"] = False
-        return save(result, [output / "frequency_geometry.xyz", output / "ts_hessian.txt"],
-                    artifacts + ["irc_path.xyz"], ["frequency"])
+        result, inputs, artifacts, dependencies = _execute_irc_stage(
+            output, calculator, options, frequency,
+        )
+        return save(result, inputs, artifacts, dependencies)
 
     if stage in {"endpoints", *_SPLIT_ENDPOINT_STAGES}:
         irc = load("irc")
@@ -1499,9 +1520,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
     results = {"reactant_product_connection_confirmed": False}
     for current in stages:
         if reuse and (output / f"{current}_summary.json").is_file():
-            expected = {name: {key: options[key] for key in keys}
-                        for name, keys in _STAGE_OPTIONS.items()}
-            expected["neb"] = canonical_neb_parameters(expected["neb"])
+            expected = _canonical_expected_stage_parameters(options)
             if stage not in {"all", "relax", "neb"}:
                 neb_summary_path = output / "neb_summary.json"
                 if neb_summary_path.is_file():
@@ -1511,7 +1530,6 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                         if key in recorded_parameters:
                             expected["neb"][key] = recorded_parameters[key]
                     expected["neb"] = canonical_neb_parameters(expected["neb"])
-            expected["ts"] = canonical_ts_parameters(expected["ts"])
             if stage in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
                 expected["ts"] = None
             try:

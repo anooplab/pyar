@@ -108,6 +108,121 @@ def _distance(coordinates, i, j):
     return float(np.linalg.norm(np.asarray(coordinates[i]) - np.asarray(coordinates[j])))
 
 
+def _save_orientation_result(directory, result, *, qc_params, intramolecular,
+                             completed_artifacts, layout):
+    """Persist the derived orientation report and update its layout record."""
+    result.setdefault("total_multiplicity", qc_params["total_multiplicity"])
+    result.setdefault("total_multiplicity_source", qc_params["total_multiplicity_source"])
+    if intramolecular and result.get('status') == 'scan_success_relax_success':
+        result['discovery_status'] = ('new_product' if result.get('product_identity_changed') is True else
+                                      'no_new_product' if result.get('product_identity_changed') is False else
+                                      'identity_unresolved')
+        result.setdefault('reactant_product_connection_confirmed', False)
+    if result.get("status") == "scan_success_relax_success":
+        result["completed_artifact_hashes"] = {
+            str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in completed_artifacts if path.is_file()
+        }
+        if layout is not None:
+            layout.relaxed(result['orientation'], result, completed_artifacts)
+    (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
+
+
+def _load_or_execute_scan(orientation, request, scan_dir, qc_params, *, software,
+                          previous_result, committed):
+    """Reuse a valid scan or execute once, preserving committed-scan guards."""
+    from pyar.backends.bond_scan import load_bond_scan_result, run_bond_scan
+    from pyar.recovery.stages import scan_diagnostic
+
+    scan = None
+    if previous_result and previous_result.get("scan_status") == "success":
+        if software == "orca":
+            loader = load_orca_bond_scan_result
+            loader_options = {"publish": False} if committed is not None else {}
+        else:
+            loader = load_bond_scan_result
+            loader_options = {}
+        scan = loader(orientation, request, scan_dir, **loader_options)
+    if scan is not None and scan.success:
+        if scan_diagnostic(orientation, request, scan)["stage_gate"] != "passed":
+            scan.success = False
+            scan.status = "scan_validation_failed"
+    if committed is not None and (scan is None or not scan.success):
+        raise ValueError("Committed scan no longer passes native scan validation")
+    if scan is None or not scan.success:
+        runner = run_orca_bond_scan if software == "orca" else run_bond_scan
+        try:
+            from pyar.recovery.stages import run_scan_once
+            scan = run_scan_once(runner, orientation, request, scan_dir, qc_params)
+        except BackendExecutionError:
+            raise
+        except Exception as exc:
+            return None, exc
+    return scan, None
+
+
+def _relax_scan_endpoint(relaxed, qc_params, software, relax_dir, execution):
+    """Run one unbiased endpoint relaxation and preserve its accepted geometry."""
+    relax_dir.mkdir(parents=True, exist_ok=True)
+    relax_run_dir = relax_dir
+    if (relax_dir / "job_relaxed").exists():
+        retry_index = 1
+        while (relax_dir / f"retry_{retry_index:03d}").exists():
+            retry_index += 1
+        relax_run_dir = relax_dir / f"retry_{retry_index:03d}"
+        relax_run_dir.mkdir()
+
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(relax_run_dir)
+        relax_status = _optimize_with_diagnostics(
+            relaxed,
+            dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
+            "bond_scan_unbiased_relaxation",
+        )
+    except BackendExecutionError:
+        raise
+    except Exception as exc:
+        return None, False, str(exc)
+    finally:
+        os.chdir(old_cwd)
+
+    if not is_success(relax_status):
+        return relax_status, False, None
+    optimized_output = relax_run_dir / "job_relaxed" / "result_relaxed.xyz"
+    if not optimized_output.is_file():
+        return relax_status, False, f"optimizer reported success but did not write {optimized_output}"
+    try:
+        shutil.copy(optimized_output, execution / "result_relaxed.xyz")
+    except OSError as exc:
+        return relax_status, False, f"could not preserve relaxed geometry: {exc}"
+    return relax_status, True, None
+
+
+def _scan_completion_status(results, through, intramolecular, characterize_unique_products,
+                            product_index):
+    """Evaluate final scan completion from already-loaded workflow evidence."""
+    if characterize_unique_products:
+        complete = all(row.get("status") in {"scan_success_relax_success", "scan_success"}
+                       for row in results)
+        if intramolecular:
+            complete = complete and all(row.get("identity_status") == "success" for row in results)
+        products = product_index.get("products", [])
+        complete = complete and all(item.get("characterization_status") in {
+            "reaction_connected", "path_complete_connection_unconfirmed",
+        } for item in products)
+    elif through is None:
+        complete = all(row.get("status") == "scan_success_relax_success" for row in results)
+    elif through == "scan":
+        complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"}
+                       for row in results)
+    else:
+        complete = all(row.get("continuation_status") == "complete" for row in results)
+    if intramolecular and not characterize_unique_products:
+        complete = complete and all(row.get("identity_status") == "success" for row in results)
+    return complete
+
+
 def _fragment_signature(molecule):
     return {"atoms": molecule.atoms_list, "coordinates": np.asarray(molecule.coordinates).tolist(),
             "charge": molecule.charge, "multiplicity": molecule.multiplicity, "scftype": molecule.scftype}
@@ -357,7 +472,6 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     the relaxed product; later stages require an identified changed product.
     """
     from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
-    from pyar.backends.bond_scan import run_bond_scan, load_bond_scan_result
     from pyar.workflows.scan_path import validate_continuation, continue_scan_paths
 
     software = normalize_backend_name(qc_params.get("software", "orca"))
@@ -495,23 +609,6 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     if _layout is not None:
         _layout.initialize((input_a,) if intramolecular else (input_a, input_b))
     results = []
-    def save_result(directory, result):
-        result.setdefault("total_multiplicity", qc_params["total_multiplicity"])
-        result.setdefault("total_multiplicity_source", qc_params["total_multiplicity_source"])
-        if intramolecular and result.get('status') == 'scan_success_relax_success':
-            result['discovery_status'] = ('new_product' if result.get('product_identity_changed') is True else
-                                          'no_new_product' if result.get('product_identity_changed') is False else
-                                          'identity_unresolved')
-            result.setdefault('reactant_product_connection_confirmed', False)
-        if result.get("status") == "scan_success_relax_success":
-            result["completed_artifact_hashes"] = {
-                str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
-                for path in completed_artifacts if path.is_file()
-            }
-            if _layout is not None:
-                _layout.relaxed(result['orientation'], result, completed_artifacts)
-        (directory / "result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str))
-
     for index, orientation, generation_error in orientation_items:
         directory = (root / f"orientation_{index:03d}" if _layout is None else
                      _layout.layout.path(f"orientation_{index:03d}"))
@@ -552,14 +649,20 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                     str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
                     for path in completed_artifacts
                 }):
-            save_result(directory, previous_result)
+            _save_orientation_result(
+                directory, previous_result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(previous_result)
             continue
         if orientation is None:
             result = {"orientation": index, "status": "scan_failed",
                       "scan_status": "orientation_generation_failed",
                       "error": generation_error}
-            save_result(directory, result)
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(result)
             continue
         if committed is None:
@@ -570,36 +673,27 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             n_points = scan_point_count(start_distance, end_distance, scan_step, scan_points)
         except ValueError as exc:
             result = {"status": "scan_failed", "error": str(exc), "orientation": index}
-            save_result(directory, result)
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(result)
             continue
         request_model = OrcaBondScanRequest(absolute_i, absolute_j, start_distance, end_distance, n_points)
-        scan = None
-        if previous_result and previous_result.get("scan_status") == "success":
-            scan = (load_orca_bond_scan_result if software == "orca" else load_bond_scan_result)(
-                orientation, request_model, scan_dir,
-                **({"publish": False} if committed is not None and software == "orca" else {}))
-        if scan is not None and scan.success:
-            from pyar.recovery.stages import scan_diagnostic
-            if scan_diagnostic(orientation, request_model, scan)['stage_gate'] != 'passed':
-                scan.success = False
-                scan.status = 'scan_validation_failed'
-        if committed is not None and (scan is None or not scan.success):
-            raise ValueError('Committed scan no longer passes native scan validation')
-        if scan is None or not scan.success:
-            try:
-                from pyar.recovery.stages import run_scan_once
-                scan = run_scan_once(run_orca_bond_scan if software == "orca" else run_bond_scan,
-                                     orientation, request_model, scan_dir, qc_params)
-            except BackendExecutionError:
-                raise
-            except Exception as exc:
-                result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
-                          "error": str(exc), "target_distance_start_angstrom": start_distance,
-                          "target_distance_scan_end_angstrom": end_distance, "scan_points": n_points}
-                save_result(directory, result)
-                results.append(result)
-                continue
+        scan, scan_error = _load_or_execute_scan(
+            orientation, request_model, scan_dir, qc_params, software=software,
+            previous_result=previous_result, committed=committed,
+        )
+        if scan_error is not None:
+            result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
+                      "error": str(scan_error), "target_distance_start_angstrom": start_distance,
+                      "target_distance_scan_end_angstrom": end_distance, "scan_points": n_points}
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
+            results.append(result)
+            continue
         result = {"orientation": index, "status": "scan_failed", "scan_status": scan.status,
                   "target_distance_start_angstrom": start_distance, "target_distance_scan_end_angstrom": end_distance,
                   "scan_points": n_points, "scan_input": str(scan.input_path), "scan_output": str(scan.output_path)}
@@ -609,7 +703,10 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             result.update(intra_plan)
             result['orientation'] = index
         if not scan.success:
-            save_result(directory, result)
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(result)
             continue
         result.update({"scan_status": "success", "trajectory_path": str(scan.trajectory_path),
@@ -632,60 +729,37 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         except Exception as exc:
             result["status"] = "scan_success_analysis_failed"
             result["error"] = str(exc)
-            save_result(directory, result)
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(result)
             continue
         if through is not None and not characterize_unique_products and not intramolecular:
             result["status"] = "scan_success"
             result["requested_through"] = through
-            save_result(directory, result)
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(result)
             continue
         relaxed = Molecule(orientation.atoms_list, scan.final_coordinates, name="relaxed",
                            fragments=orientation.fragments, charge=orientation.charge,
                            multiplicity=orientation.multiplicity, scftype=orientation.scftype)
-        relax_dir.mkdir(parents=True, exist_ok=True)
-        relax_run_dir = relax_dir
-        if (relax_dir / "job_relaxed").exists():
-            retry_index = 1
-            while (relax_dir / f"retry_{retry_index:03d}").exists():
-                retry_index += 1
-            relax_run_dir = relax_dir / f"retry_{retry_index:03d}"
-            relax_run_dir.mkdir()
-        old_cwd = Path.cwd()
-        try:
-            os.chdir(relax_run_dir)
-            relax_status = _optimize_with_diagnostics(
-                relaxed,
-                dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
-                "bond_scan_unbiased_relaxation",
-            )
-        except BackendExecutionError:
-            raise
-        except Exception as exc:
+        relax_status, relaxation_succeeded, relax_error = _relax_scan_endpoint(
+            relaxed, qc_params, software, relax_dir, execution,
+        )
+        if relax_error is not None:
             result["status"] = "scan_success_relax_failed"
-            result["error"] = str(exc)
-            save_result(directory, result)
+            result["error"] = relax_error
+            _save_orientation_result(
+                directory, result, qc_params=qc_params, intramolecular=intramolecular,
+                completed_artifacts=completed_artifacts, layout=_layout,
+            )
             results.append(result)
             continue
-        finally:
-            os.chdir(old_cwd)
-        if is_success(relax_status):
-            optimized_output = relax_run_dir / "job_relaxed" / "result_relaxed.xyz"
-            if not optimized_output.is_file():
-                result["status"] = "scan_success_relax_failed"
-                result["error"] = f"optimizer reported success but did not write {optimized_output}"
-                save_result(directory, result)
-                results.append(result)
-                continue
-            try:
-                shutil.copy(optimized_output, execution / "result_relaxed.xyz")
-            except OSError as exc:
-                result["status"] = "scan_success_relax_failed"
-                result["error"] = f"could not preserve relaxed geometry: {exc}"
-                save_result(directory, result)
-                results.append(result)
-                continue
+        if relaxation_succeeded:
             result["status"] = "scan_success_relax_success"
             result["relaxed_path"] = str(execution / "result_relaxed.xyz")
             result["target_distance_relaxed_angstrom"] = _distance(relaxed.coordinates, absolute_i, absolute_j)
@@ -718,7 +792,10 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                     result["identity_error"] = str(exc)
         else:
             result["status"] = "scan_success_relax_failed"
-        save_result(directory, result)
+        _save_orientation_result(
+            directory, result, qc_params=qc_params, intramolecular=intramolecular,
+            completed_artifacts=completed_artifacts, layout=_layout,
+        )
         results.append(result)
     if through not in (None, "scan") and not characterize_unique_products:
         continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
@@ -750,23 +827,13 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         fields = sorted({key for result in results for key in result})
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader(); writer.writerows(results)
-    if characterize_unique_products:
-        complete = all(row.get("status") in {"scan_success_relax_success", "scan_success"}
-                       for row in results)
-        index = json.loads((root / "products/index.json").read_text())
-        if intramolecular:
-            complete = complete and all(row.get('identity_status') == 'success' for row in results)
-        complete = complete and all(item.get("characterization_status") in {
-                                        "reaction_connected", "path_complete_connection_unconfirmed"}
-                                    for item in index.get("products", []))
-    elif through is None:
-        complete = all(row.get("status") == "scan_success_relax_success" for row in results)
-    elif through == "scan":
-        complete = all(row.get("status") in {"scan_success", "scan_success_relax_success"} for row in results)
-    else:
-        complete = all(row.get("continuation_status") == "complete" for row in results)
-    if intramolecular:
-        complete = complete and all(row.get('identity_status') == 'success' for row in results)
+    product_index = (
+        json.loads((root / "products/index.json").read_text())
+        if characterize_unique_products else None
+    )
+    complete = _scan_completion_status(
+        results, through, intramolecular, characterize_unique_products, product_index,
+    )
     return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
             "status": "complete" if complete else "failed", "requested_through": through,
             "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)

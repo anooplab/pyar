@@ -66,3 +66,44 @@ def test_orca_rejects_different_xtb_executable_for_validation(tmp_path, monkeypa
         runner.run_orca_optts_case(spec, case_id='case', output=tmp_path / 'run',
                                   xtb_executable=second, orca_executable=first)
     assert not (tmp_path / 'run').exists()
+
+
+def test_native_optts_runner_preserves_command_and_captured_process_output(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from pyar.benchmarks import orca_optts as runner
+
+    observed = {}
+
+    def fake_run(command, **kwargs):
+        observed.update(command=command, kwargs=kwargs)
+        return SimpleNamespace(stdout="stdout", stderr="stderr", returncode=7)
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    output, returncode, elapsed = runner._execute_native_optts(
+        "/opt/orca", tmp_path / "job.inp", tmp_path, {"XTBEXE": "/opt/xtb"},
+    )
+
+    assert observed["command"] == ["/opt/orca", str(tmp_path / "job.inp")]
+    assert observed["kwargs"] == {
+        "cwd": tmp_path, "env": {"XTBEXE": "/opt/xtb"},
+        "capture_output": True, "text": True, "check": False,
+    }
+    assert output == "stdout\nstderr"
+    assert returncode == 7
+    assert elapsed >= 0
+
+
+def test_native_optts_runner_maps_oserror_to_existing_failure_evidence(tmp_path, monkeypatch):
+    from pyar.benchmarks import orca_optts as runner
+
+    def fail_to_start(*_args, **_kwargs):
+        raise OSError("executable disappeared")
+
+    monkeypatch.setattr(runner.subprocess, "run", fail_to_start)
+    output, returncode, elapsed = runner._execute_native_optts(
+        "/opt/orca", tmp_path / "job.inp", tmp_path, {},
+    )
+
+    assert output == "OSError: executable disappeared"
+    assert returncode == 127
+    assert elapsed >= 0

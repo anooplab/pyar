@@ -40,37 +40,8 @@ def _unsupported_request(request):
             or (request.optimizer == 'native' and bool(settings.get('gamma') or settings.get('microsolvation_wall'))))
 
 
-def inspect_optimization(request, directory, *, execution=None, exception=None):
-    """Independently inspect pilot outputs; a receipt binds them to one execution.
-
-    Missing provenance, unknown formats and unsupported workflow constraints fail
-    closed. Returned ArtifactRefs describe observations, not committed restart
-    authority. The original exception object and its chain remain accessible.
-    """
-    root = Path(directory).absolute()
-    artifacts = ()
-    try:
-        artifacts = snapshot_artifacts(root)
-        trusted = (execution is not None and execution.fresh_directory
-                   and execution.request_fingerprint == request.request_fingerprint
-                   and execution.artifacts == artifacts)
-        if _unsupported_request(request):
-            from pyar.recovery.diagnose_only import diagnose_only
-            return diagnose_only(request, root, artifacts, execution=execution, exception=exception)
-        known = {ref.path for ref in artifacts}
-        def path(relative):
-            result = safe_path(root, relative)
-            if result.exists() and relative not in known:
-                raise ValueError('Unobserved artifact: ' + relative)
-            return result
-        if trusted:
-            verify_start(request, root, path)
-        observed = parse_observation(request, path)
-        if snapshot_artifacts(root) != artifacts:
-            raise ValueError('Artifacts changed during observational inspection')
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        return _invalid(FailureCode.INVALID_RESULT, str(exc), execution=execution,
-                        exception=exception or exc, request=request, artifacts=artifacts)
+def _classify_observation(request, execution, exception, artifacts, trusted, observed):
+    """Classify parsed evidence without reading files or launching a backend."""
     processes = execution.processes if trusted else ()
     returncode = processes[-1].returncode if processes else None
     terminated = observed.terminated and returncode == 0
@@ -118,6 +89,38 @@ def inspect_optimization(request, directory, *, execution=None, exception=None):
     return OptimizationResult(status, tuple(diagnostics), gates, (attempt,),
                               observed.frame if observed.accepted and trusted else None, observed.frame, exception)
 
+def inspect_optimization(request, directory, *, execution=None, exception=None):
+    """Independently inspect pilot outputs; a receipt binds them to one execution.
+
+    Missing provenance, unknown formats and unsupported workflow constraints fail
+    closed. Returned ArtifactRefs describe observations, not committed restart
+    authority. The original exception object and its chain remain accessible.
+    """
+    root = Path(directory).absolute()
+    artifacts = ()
+    try:
+        artifacts = snapshot_artifacts(root)
+        trusted = (execution is not None and execution.fresh_directory
+                   and execution.request_fingerprint == request.request_fingerprint
+                   and execution.artifacts == artifacts)
+        if _unsupported_request(request):
+            from pyar.recovery.diagnose_only import diagnose_only
+            return diagnose_only(request, root, artifacts, execution=execution, exception=exception)
+        known = {ref.path for ref in artifacts}
+        def path(relative):
+            result = safe_path(root, relative)
+            if result.exists() and relative not in known:
+                raise ValueError('Unobserved artifact: ' + relative)
+            return result
+        if trusted:
+            verify_start(request, root, path)
+        observed = parse_observation(request, path)
+        if snapshot_artifacts(root) != artifacts:
+            raise ValueError('Artifacts changed during observational inspection')
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return _invalid(FailureCode.INVALID_RESULT, str(exc), execution=execution,
+                        exception=exception or exc, request=request, artifacts=artifacts)
+    return _classify_observation(request, execution, exception, artifacts, trusted, observed)
 
 def optimize_once(molecule, qc_params):
     """Execute one opt-in minimum optimization in the caller's current directory.

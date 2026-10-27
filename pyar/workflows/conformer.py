@@ -888,6 +888,37 @@ def _select_refinement_records(records, limit, top_n, diversity_fraction, compac
     return sorted(selected, key=_record_sort_key)
 
 
+def _refine_one_record(record, backend_directory, run_directory, qc_params):
+    """Run and record one backend refinement without changing selection policy."""
+    molecule = record.molecule.copy()
+    try:
+        status, diagnostic, diagnostic_path = optimize_workflow_once(
+            molecule, qc_params, workflow_role="conformer_refinement", optimizer=optimise,
+            allow_incomplete=True,
+        )
+    except Exception as exc:
+        record.backend_status = 'failed'
+        record.backend_validation_status = 'FAILED_FINAL'
+        diagnostic_path = getattr(exc, 'ore_diagnostic_path', None)
+        record.backend_diagnostic_path = (
+            Path(diagnostic_path).relative_to(run_directory).as_posix()
+            if diagnostic_path is not None else None)
+        return False
+    record.backend_status = _status_label(status)
+    record.backend_validation_status = diagnostic.status.value
+    record.backend_diagnostic_path = (Path(diagnostic_path).relative_to(run_directory).as_posix()
+                                      if diagnostic_path is not None else None)
+    backend_result = backend_directory / f"job_{molecule.name}" / f"result_{molecule.name}.xyz"
+    if backend_result.is_file():
+        record.backend_path = str(backend_result)
+    if is_usable(status) and molecule.coordinates is not None:
+        record.molecule = molecule
+        if molecule.energy is not None:
+            record.backend_energy = float(molecule.energy)
+        return True
+    return False
+
+
 def _refine_with_backend(records, run_directory, qc_params, *, v2=False):
     """Optimize selected RDKit conformers with an existing PyAR backend."""
     backend_directory = run_directory / ("refinement/execution" if v2 else "backend")
@@ -895,31 +926,7 @@ def _refine_with_backend(records, run_directory, qc_params, *, v2=False):
     refined = []
     with _working_directory(backend_directory):
         for record in records:
-            molecule = record.molecule.copy()
-            try:
-                status, diagnostic, diagnostic_path = optimize_workflow_once(
-                    molecule, qc_params, workflow_role="conformer_refinement", optimizer=optimise,
-                    allow_incomplete=True,
-                )
-            except Exception as exc:
-                record.backend_status = 'failed'
-                record.backend_validation_status = 'FAILED_FINAL'
-                diagnostic_path = getattr(exc, 'ore_diagnostic_path', None)
-                record.backend_diagnostic_path = (
-                    Path(diagnostic_path).relative_to(run_directory).as_posix()
-                    if diagnostic_path is not None else None)
-                continue
-            record.backend_status = _status_label(status)
-            record.backend_validation_status = diagnostic.status.value
-            record.backend_diagnostic_path = (Path(diagnostic_path).relative_to(run_directory).as_posix()
-                                              if diagnostic_path is not None else None)
-            backend_result = backend_directory / f"job_{molecule.name}" / f"result_{molecule.name}.xyz"
-            if backend_result.is_file():
-                record.backend_path = str(backend_result)
-            if is_usable(status) and molecule.coordinates is not None:
-                record.molecule = molecule
-                if molecule.energy is not None:
-                    record.backend_energy = float(molecule.energy)
+            if _refine_one_record(record, backend_directory, run_directory, qc_params):
                 refined.append(record)
     return sorted(
         refined,

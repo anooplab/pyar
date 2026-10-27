@@ -113,41 +113,15 @@ def _resolve_input(raw_path, root, case_id, label, *, required):
     return str(path)
 
 
-def load_ts_optimizer_benchmark(path):
-    """Load and validate a JSON manifest for paired geometric/Sella runs."""
-    manifest_path = Path(path).expanduser().resolve()
-    try:
-        raw_bytes = manifest_path.read_bytes()
-        raw = json.loads(raw_bytes)
-    except OSError as exc:
-        raise TSOptimizerBenchmarkError(f"Cannot read benchmark manifest {path}: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise TSOptimizerBenchmarkError(f"Invalid benchmark JSON: {exc}") from exc
-    if not isinstance(raw, dict):
-        raise TSOptimizerBenchmarkError("benchmark manifest must contain a JSON object")
-
-    name = _required_text(raw, "name", "benchmark")
-    source = raw.get("source", {})
-    qc_model = raw.get("qc_model")
-    settings = raw.get("settings")
-    raw_cases = raw.get("cases")
-    if not isinstance(source, dict):
-        raise TSOptimizerBenchmarkError("source must be an object")
-    if not isinstance(qc_model, dict):
-        raise TSOptimizerBenchmarkError("qc_model must be an object")
-    if not isinstance(settings, dict):
-        raise TSOptimizerBenchmarkError("settings must be an object")
+def _normalize_qc_model(qc_model):
+    """Validate and normalize the benchmark's electronic-structure settings."""
     software = _required_text(qc_model, "software", "qc_model").lower()
     qc_model = dict(qc_model, software=software)
-    for key in ("name", "version", "license"):
-        _required_text(source, key, "source")
-    if not any(isinstance(source.get(key), str) and source[key].strip() for key in ("doi", "url")):
-        raise TSOptimizerBenchmarkError("source must define a non-empty 'doi' or 'url'")
-    if software.lower() == "xtb":
+    if software == "xtb":
         if "xtb_model" not in qc_model:
             raise TSOptimizerBenchmarkError("qc_model must explicitly define xtb_model for xTB")
         try:
-            qc_model = dict(qc_model, xtb_model=canonical_xtb_model(qc_model["xtb_model"]))
+            qc_model["xtb_model"] = canonical_xtb_model(qc_model["xtb_model"])
         except ValueError as exc:
             raise TSOptimizerBenchmarkError(str(exc)) from exc
     elif "xtb_model" in qc_model:
@@ -176,6 +150,38 @@ def load_ts_optimizer_benchmark(path):
         or qc_model["nprocs"] < 1
     ):
         raise TSOptimizerBenchmarkError("qc_model.nprocs must be a positive integer")
+    return qc_model
+
+
+def load_ts_optimizer_benchmark(path):
+    """Load and validate a JSON manifest for paired geometric/Sella runs."""
+    manifest_path = Path(path).expanduser().resolve()
+    try:
+        raw_bytes = manifest_path.read_bytes()
+        raw = json.loads(raw_bytes)
+    except OSError as exc:
+        raise TSOptimizerBenchmarkError(f"Cannot read benchmark manifest {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise TSOptimizerBenchmarkError(f"Invalid benchmark JSON: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise TSOptimizerBenchmarkError("benchmark manifest must contain a JSON object")
+
+    name = _required_text(raw, "name", "benchmark")
+    source = raw.get("source", {})
+    qc_model = raw.get("qc_model")
+    settings = raw.get("settings")
+    raw_cases = raw.get("cases")
+    if not isinstance(source, dict):
+        raise TSOptimizerBenchmarkError("source must be an object")
+    if not isinstance(qc_model, dict):
+        raise TSOptimizerBenchmarkError("qc_model must be an object")
+    if not isinstance(settings, dict):
+        raise TSOptimizerBenchmarkError("settings must be an object")
+    for key in ("name", "version", "license"):
+        _required_text(source, key, "source")
+    if not any(isinstance(source.get(key), str) and source[key].strip() for key in ("doi", "url")):
+        raise TSOptimizerBenchmarkError("source must define a non-empty 'doi' or 'url'")
+    qc_model = _normalize_qc_model(qc_model)
 
     settings = dict(settings)
     allowed_settings = {
@@ -764,6 +770,90 @@ def _result_row(result):
     }
 
 
+def _pair_identity_matches(result, expected, run_manifest, case_id, optimizer):
+    """Check that one result belongs to its declared benchmark pair member."""
+    expected_qc = {"charge": expected["charge"], "multiplicity": expected["multiplicity"]}
+    return bool(
+        result
+        and result.get("schema_version") == 1
+        and result.get("case_id") == case_id
+        and result.get("optimizer") == optimizer
+        and result.get("source") == run_manifest.get("source")
+        and result.get("input_hashes") == expected["input_hashes"]
+        and result.get("qc_model") == run_manifest.get("qc_model")
+        and result.get("case_qc_settings") == expected_qc
+        and result.get("settings") == run_manifest.get("settings")
+        and result.get("runtime") == run_manifest.get("runtime")
+    )
+
+
+def _paired_result_row(expected, run_manifest, geometric, sella):
+    """Build one comparable row, withholding deltas for mismatched evidence."""
+    case_id = expected["case_id"]
+    identity_matches = bool(
+        _pair_identity_matches(geometric, expected, run_manifest, case_id, "geometric")
+        and _pair_identity_matches(sella, expected, run_manifest, case_id, "sella")
+    )
+    g_success = bool(geometric and geometric.get("outcome") in SUCCESS_OUTCOMES)
+    s_success = bool(sella and sella.get("outcome") in SUCCESS_OUTCOMES)
+    g_evals = None if not geometric else geometric.get("total_backend_energy_gradient_evaluations")
+    s_evals = None if not sella else sella.get("total_backend_energy_gradient_evaluations")
+    g_wall = None if not geometric else geometric.get("ts_wall_seconds")
+    s_wall = None if not sella else sella.get("ts_wall_seconds")
+    return {
+        "case_id": case_id,
+        "difficulty": expected["difficulty"],
+        "input_sha256": expected["ts_guess_sha256"],
+        "pair_identity_matches": identity_matches,
+        "geometric_outcome": None if not geometric else geometric.get("outcome"),
+        "sella_outcome": None if not sella else sella.get("outcome"),
+        "geometric_success": g_success,
+        "sella_success": s_success,
+        "discordant_success": g_success != s_success if identity_matches else None,
+        "total_evaluation_difference_geometric_minus_sella": (
+            g_evals - s_evals if identity_matches and isinstance(g_evals, int)
+            and isinstance(s_evals, int) else None
+        ),
+        "ts_wall_difference_seconds_geometric_minus_sella": (
+            float(g_wall) - float(s_wall) if identity_matches
+            and isinstance(g_wall, (int, float)) and isinstance(s_wall, (int, float)) else None
+        ),
+        "ts_evaluation_difference_geometric_minus_sella": (
+            geometric.get("ts_backend_energy_gradient_evaluations")
+            - sella.get("ts_backend_energy_gradient_evaluations")
+            if identity_matches and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
+            and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int) else None
+        ),
+        "validation_evaluation_difference_geometric_minus_sella": (
+            geometric.get("validation_backend_energy_gradient_evaluations")
+            - sella.get("validation_backend_energy_gradient_evaluations")
+            if identity_matches and isinstance(geometric.get("validation_backend_energy_gradient_evaluations"), int)
+            and isinstance(sella.get("validation_backend_energy_gradient_evaluations"), int) else None
+        ),
+        "validation_wall_difference_seconds_geometric_minus_sella": (
+            float(geometric.get("validation_wall_seconds"))
+            - float(sella.get("validation_wall_seconds"))
+            if identity_matches
+            and isinstance(geometric.get("validation_wall_seconds"), (int, float))
+            and isinstance(sella.get("validation_wall_seconds"), (int, float)) else None
+        ),
+        "validation_hessian_evaluation_difference_geometric_minus_sella": (
+            geometric.get("validation_hessian_evaluations")
+            - sella.get("validation_hessian_evaluations")
+            if identity_matches and isinstance(geometric.get("validation_hessian_evaluations"), int)
+            and isinstance(sella.get("validation_hessian_evaluations"), int) else None
+        ),
+        "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
+            float(geometric.get("validation_hessian_wall_seconds"))
+            - float(sella.get("validation_hessian_wall_seconds"))
+            if identity_matches
+            and isinstance(geometric.get("validation_hessian_wall_seconds"), (int, float))
+            and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float)) else None
+        ),
+        "pair_status": "paired" if identity_matches else "incomplete_or_mismatched",
+    }
+
+
 def _write_csv(path, columns, rows):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -771,6 +861,43 @@ def _write_csv(path, columns, rows):
         writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _summarize_ts_optimizer_results(expected_runs, optimizers, by_optimizer, rows, paired_rows, run_manifest):
+    """Aggregate paired benchmark evidence without reading or writing files."""
+    summaries = {}
+    for optimizer, optimizer_rows in by_optimizer.items():
+        outcomes = {}
+        for row in optimizer_rows:
+            outcomes[row["outcome"]] = outcomes.get(row["outcome"], 0) + 1
+        successes = sum(row["outcome"] in SUCCESS_OUTCOMES for row in optimizer_rows)
+        completed = sum(row["status"] in {"complete", "failed"} for row in optimizer_rows)
+        evaluations = [row["total_backend_evaluations"] for row in optimizer_rows
+                       if isinstance(row["total_backend_evaluations"], int)]
+        timings = [row["ts_wall_seconds"] for row in optimizer_rows
+                   if isinstance(row["ts_wall_seconds"], (int, float))]
+        summaries[optimizer] = {
+            "expected_runs": len(expected_runs),
+            "completed_runs": completed,
+            "successful_runs": successes,
+            "success_fraction_of_completed": successes / completed if completed else None,
+            "outcomes": outcomes,
+            "mean_total_backend_evaluations": (
+                sum(evaluations) / len(evaluations) if evaluations else None
+            ),
+            "mean_ts_wall_seconds": sum(timings) / len(timings) if timings else None,
+        }
+    return {
+        "schema_version": 1,
+        "benchmark_name": run_manifest.get("benchmark_name"),
+        "manifest_sha256": run_manifest.get("manifest_sha256"),
+        "expected_runs": len(expected_runs) * len(optimizers),
+        "completed_runs": sum(value["completed_runs"] for value in summaries.values()),
+        "incomplete_runs": sum(row["outcome"] == "incomplete_run" for row in rows),
+        "optimizers": summaries,
+        "paired_cases": sum(row["pair_status"] == "paired" for row in paired_rows),
+        "paired": paired_rows,
+    }
 
 
 def collect_ts_optimizer_benchmark(output):
@@ -816,84 +943,7 @@ def collect_ts_optimizer_benchmark(output):
         case_id = expected["case_id"]
         geometric = result_map.get((case_id, "geometric"))
         sella = result_map.get((case_id, "sella"))
-        expected_qc = {"charge": expected["charge"], "multiplicity": expected["multiplicity"]}
-
-        def identity_matches_manifest(result, optimizer):
-            return bool(
-                result
-                and result.get("schema_version") == 1
-                and result.get("case_id") == case_id
-                and result.get("optimizer") == optimizer
-                and result.get("source") == run_manifest.get("source")
-                and result.get("input_hashes") == expected["input_hashes"]
-                and result.get("qc_model") == run_manifest.get("qc_model")
-                and result.get("case_qc_settings") == expected_qc
-                and result.get("settings") == run_manifest.get("settings")
-                and result.get("runtime") == run_manifest.get("runtime")
-            )
-
-        identity_matches = bool(
-            identity_matches_manifest(geometric, "geometric")
-            and identity_matches_manifest(sella, "sella")
-        )
-        g_success = bool(geometric and geometric.get("outcome") in SUCCESS_OUTCOMES)
-        s_success = bool(sella and sella.get("outcome") in SUCCESS_OUTCOMES)
-        g_evals = None if not geometric else geometric.get("total_backend_energy_gradient_evaluations")
-        s_evals = None if not sella else sella.get("total_backend_energy_gradient_evaluations")
-        g_wall = None if not geometric else geometric.get("ts_wall_seconds")
-        s_wall = None if not sella else sella.get("ts_wall_seconds")
-        paired_rows.append({
-            "case_id": case_id,
-            "difficulty": expected["difficulty"],
-            "input_sha256": expected["ts_guess_sha256"],
-            "pair_identity_matches": identity_matches,
-            "geometric_outcome": None if not geometric else geometric.get("outcome"),
-            "sella_outcome": None if not sella else sella.get("outcome"),
-            "geometric_success": g_success,
-            "sella_success": s_success,
-            "discordant_success": g_success != s_success if identity_matches else None,
-            "total_evaluation_difference_geometric_minus_sella": (
-                g_evals - s_evals if identity_matches and isinstance(g_evals, int)
-                and isinstance(s_evals, int) else None
-            ),
-            "ts_wall_difference_seconds_geometric_minus_sella": (
-                float(g_wall) - float(s_wall) if identity_matches
-                and isinstance(g_wall, (int, float)) and isinstance(s_wall, (int, float)) else None
-            ),
-            "ts_evaluation_difference_geometric_minus_sella": (
-                geometric.get("ts_backend_energy_gradient_evaluations")
-                - sella.get("ts_backend_energy_gradient_evaluations")
-                if identity_matches and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
-                and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int) else None
-            ),
-            "validation_evaluation_difference_geometric_minus_sella": (
-                geometric.get("validation_backend_energy_gradient_evaluations")
-                - sella.get("validation_backend_energy_gradient_evaluations")
-                if identity_matches and isinstance(geometric.get("validation_backend_energy_gradient_evaluations"), int)
-                and isinstance(sella.get("validation_backend_energy_gradient_evaluations"), int) else None
-            ),
-            "validation_wall_difference_seconds_geometric_minus_sella": (
-                float(geometric.get("validation_wall_seconds"))
-                - float(sella.get("validation_wall_seconds"))
-                if identity_matches
-                and isinstance(geometric.get("validation_wall_seconds"), (int, float))
-                and isinstance(sella.get("validation_wall_seconds"), (int, float)) else None
-            ),
-            "validation_hessian_evaluation_difference_geometric_minus_sella": (
-                geometric.get("validation_hessian_evaluations")
-                - sella.get("validation_hessian_evaluations")
-                if identity_matches and isinstance(geometric.get("validation_hessian_evaluations"), int)
-                and isinstance(sella.get("validation_hessian_evaluations"), int) else None
-            ),
-            "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
-                float(geometric.get("validation_hessian_wall_seconds"))
-                - float(sella.get("validation_hessian_wall_seconds"))
-                if identity_matches
-                and isinstance(geometric.get("validation_hessian_wall_seconds"), (int, float))
-                and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float)) else None
-            ),
-            "pair_status": "paired" if identity_matches else "incomplete_or_mismatched",
-        })
+        paired_rows.append(_paired_result_row(expected, run_manifest, geometric, sella))
     _write_csv(output / "runs.csv", SUMMARY_COLUMNS, rows)
     _write_csv(output / "paired.csv", tuple(paired_rows[0]) if paired_rows else (
         "case_id", "difficulty", "input_sha256", "pair_identity_matches", "geometric_outcome",
@@ -907,43 +957,9 @@ def collect_ts_optimizer_benchmark(output):
         "validation_hessian_wall_difference_seconds_geometric_minus_sella", "pair_status",
     ), paired_rows)
 
-    summaries = {}
-    for optimizer, optimizer_rows in by_optimizer.items():
-        outcomes = {}
-        for row in optimizer_rows:
-            outcomes[row["outcome"]] = outcomes.get(row["outcome"], 0) + 1
-        successes = sum(
-            row["outcome"] in SUCCESS_OUTCOMES for row in optimizer_rows
-        )
-        completed = sum(row["status"] in {"complete", "failed"} for row in optimizer_rows)
-        evaluations = [row["total_backend_evaluations"] for row in optimizer_rows
-                       if isinstance(row["total_backend_evaluations"], int)]
-        timings = [row["ts_wall_seconds"] for row in optimizer_rows
-                   if isinstance(row["ts_wall_seconds"], (int, float))]
-        summaries[optimizer] = {
-            "expected_runs": len(expected_runs),
-            "completed_runs": completed,
-            "successful_runs": successes,
-            "success_fraction_of_completed": successes / completed if completed else None,
-            "outcomes": outcomes,
-            "mean_total_backend_evaluations": (
-                sum(evaluations) / len(evaluations) if evaluations else None
-            ),
-            "mean_ts_wall_seconds": sum(timings) / len(timings) if timings else None,
-        }
-    summary = {
-        "schema_version": 1,
-        "benchmark_name": run_manifest.get("benchmark_name"),
-        "manifest_sha256": run_manifest.get("manifest_sha256"),
-        "expected_runs": len(expected_runs) * len(optimizers),
-        "completed_runs": sum(value["completed_runs"] for value in summaries.values()),
-        "incomplete_runs": sum(
-            row["outcome"] == "incomplete_run" for row in rows
-        ),
-        "optimizers": summaries,
-        "paired_cases": sum(row["pair_status"] == "paired" for row in paired_rows),
-        "paired": paired_rows,
-    }
+    summary = _summarize_ts_optimizer_results(
+        expected_runs, optimizers, by_optimizer, rows, paired_rows, run_manifest,
+    )
     _write_json(output / "runs.json", rows)
     _write_json(output / "summary.json", summary)
     return summary
