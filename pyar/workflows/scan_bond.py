@@ -865,6 +865,54 @@ def _execute_scan_orientation(index, orientation, generation_error, paths, recov
     return result
 
 
+def _finalize_scan(root, request, route, results, qc_params, through,
+                   reaction_options, characterize_unique_products, layout,
+                   continue_scan_paths):
+    """Publish continuation, grouping and summaries in their established order."""
+    intramolecular = route.intramolecular
+    if route.continue_individual_paths:
+        continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
+    if layout is not None:
+        registry = layout.product_registry(results, request)
+        if characterize_unique_products:
+            if through in (None, "scan"):
+                raise ValueError("--characterize-unique-products requires --through neb or a later stage")
+            from pyar.workflows.scan_path import characterize_scan_products
+            characterization = characterize_scan_products(
+                root.resolve(), request, qc_params, through,
+                reaction_options or {}, layout,
+            )
+            for result in results:
+                if result.get("product_role") == "representative":
+                    product_route = characterization.get(result['product_id'], {})
+                    result["continuation_status"] = product_route.get("status", "not_started")
+                    if intramolecular:
+                        result['reactant_product_connection_confirmed'] = bool(
+                            product_route.get('path_result', {}).get('reactant_product_connection_confirmed', False))
+                    (root / f"orientation_{int(result['orientation']):03d}" / "result.json").write_text(
+                        json.dumps(result, indent=2, sort_keys=True, default=str))
+                elif intramolecular:
+                    result['continuation_status'] = ('not_started_no_new_product'
+                        if result.get('product_identity_changed') is False else 'blocked_by_product_identity')
+        layout.manifest(results)
+    (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
+    with (root / "summary.csv").open("w", newline="") as handle:
+        fields = sorted({key for result in results for key in result})
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader(); writer.writerows(results)
+    product_index = (
+        json.loads((root / "products/index.json").read_text())
+        if characterize_unique_products else None
+    )
+    complete = _scan_completion_status(
+        results, through, intramolecular, characterize_unique_products, product_index,
+    )
+    return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
+            "status": "complete" if complete else "failed", "requested_through": through,
+            "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)
+                            else "scan_incomplete")}
+
+
 def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                   scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
                   *, characterize_unique_products=False, _layout=None):
@@ -911,47 +959,10 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             completed_artifacts=paths.completed_artifacts, layout=_layout,
         )
         results.append(result)
-    if route.continue_individual_paths:
-        continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
-    if _layout is not None:
-        registry = _layout.product_registry(results, request)
-        if characterize_unique_products:
-            if through in (None, "scan"):
-                raise ValueError("--characterize-unique-products requires --through neb or a later stage")
-            from pyar.workflows.scan_path import characterize_scan_products
-            characterization = characterize_scan_products(
-                root.resolve(), request, qc_params, through,
-                reaction_options or {}, _layout,
-            )
-            for result in results:
-                if result.get("product_role") == "representative":
-                    route = characterization.get(result['product_id'], {})
-                    result["continuation_status"] = route.get("status", "not_started")
-                    if intramolecular:
-                        result['reactant_product_connection_confirmed'] = bool(
-                            route.get('path_result', {}).get('reactant_product_connection_confirmed', False))
-                    (root / f"orientation_{int(result['orientation']):03d}" / "result.json").write_text(
-                        json.dumps(result, indent=2, sort_keys=True, default=str))
-                elif intramolecular:
-                    result['continuation_status'] = ('not_started_no_new_product'
-                        if result.get('product_identity_changed') is False else 'blocked_by_product_identity')
-        _layout.manifest(results)
-    (root / "summary.json").write_text(json.dumps(results, indent=2, sort_keys=True, default=str))
-    with (root / "summary.csv").open("w", newline="") as handle:
-        fields = sorted({key for result in results for key in result})
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader(); writer.writerows(results)
-    product_index = (
-        json.loads((root / "products/index.json").read_text())
-        if characterize_unique_products else None
+    return _finalize_scan(
+        root, request, route, results, qc_params, through, reaction_options,
+        characterize_unique_products, _layout, continue_scan_paths,
     )
-    complete = _scan_completion_status(
-        results, through, intramolecular, characterize_unique_products, product_index,
-    )
-    return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
-            "status": "complete" if complete else "failed", "requested_through": through,
-            "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)
-                            else "scan_incomplete")}
 
 
 def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
