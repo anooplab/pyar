@@ -524,6 +524,102 @@ def _validate_scan_route(input_b, orientations, qc_params, scan_end, scan_step,
     return route, settings
 
 
+@dataclass(slots=True)
+class _PreparedScan:
+    """Run-owned chemistry and orientations prepared before durable allocation."""
+
+    fragment_a: Molecule
+    fragment_b: Molecule | None
+    absolute_atoms: tuple[int, int]
+    target_radii: float
+    default_scan_end: float
+    intramolecular_plan: dict | None
+    reactant_identity: dict | None
+    reactant_identity_error: str | None
+    orientation_items: list[tuple[int, Molecule | None, str | None]]
+
+
+def _prepare_intramolecular_inputs(input_a, atoms, qc_params, scan_end,
+                                   scan_step, scan_points):
+    """Prepare the unplaced input and identify it before allocating a run."""
+    fragment_a = Molecule.from_xyz(input_a)
+    fragment_a.charge = int(qc_params.get('charge_a', qc_params.get('charge', fragment_a.charge)))
+    fragment_a.multiplicity = int(qc_params.get('multiplicity_a', qc_params.get('multiplicity', fragment_a.multiplicity)))
+    fragment_a.scftype = qc_params.get('scftype_a', qc_params.get('scftype', fragment_a.scftype))
+    fragment_a.fragments = [list(range(fragment_a.number_of_atoms))]
+    intra_plan = intramolecular_scan_plan(fragment_a, atoms, scan_end, scan_step, scan_points)
+    absolute_i, absolute_j = map(int, atoms)
+    total_multiplicity = fragment_a.multiplicity
+    if qc_params.get('total_multiplicity') not in (None, total_multiplicity):
+        raise ValueError('Intramolecular total multiplicity must equal the input molecule multiplicity')
+    qc_params.update(total_multiplicity=total_multiplicity, total_multiplicity_source='input_molecule')
+    target_radii = fragment_a.covalent_radius[absolute_i] + fragment_a.covalent_radius[absolute_j]
+    # Product identity must be available before creating the run directory.
+    reactant_identity = molecule_identity_from_xyz(input_a)
+    if not reactant_identity or not reactant_identity.get('inchi'):
+        raise ValueError('Intramolecular input identity is unavailable; no scan was started')
+    orientation = fragment_a.copy()
+    orientation.name = orientation.title = 'orientation_000'
+    return _PreparedScan(
+        fragment_a=fragment_a, fragment_b=None,
+        absolute_atoms=(absolute_i, absolute_j), target_radii=target_radii,
+        default_scan_end=intra_plan['end_distance_angstrom'],
+        intramolecular_plan=intra_plan, reactant_identity=reactant_identity,
+        reactant_identity_error=None, orientation_items=[(0, orientation, None)],
+    )
+
+
+def _prepare_fragment_inputs(input_a, input_b, atoms, orientations, qc_params):
+    """Resolve fragment-local chemistry, identity and ordered placements."""
+    fragment_a = Molecule.from_xyz(input_a)
+    fragment_b = Molecule.from_xyz(input_b)
+    for fragment, suffix in ((fragment_a, "a"), (fragment_b, "b")):
+        fragment.charge = int(qc_params.get(f"charge_{suffix}", fragment.charge))
+        fragment.multiplicity = int(qc_params.get(f"multiplicity_{suffix}", fragment.multiplicity))
+        fragment.scftype = qc_params.get(f"scftype_{suffix}", fragment.scftype)
+    if len(atoms) != 2 or any(isinstance(value, bool) or int(value) != value for value in atoms):
+        raise ValueError("exactly two integer fragment-local atom indices are required")
+    local_i, local_j = map(int, atoms)
+    absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
+    if local_j >= fragment_b.number_of_atoms:
+        raise ValueError(f"Atom index {local_j} is out of range for fragment B containing {fragment_b.number_of_atoms} atoms (valid 0..{fragment_b.number_of_atoms - 1}).")
+    merged = fragment_a.merged_with(fragment_b)
+    requested_total = qc_params.get("total_multiplicity")
+    recorded_spin_source = qc_params.get("total_multiplicity_source")
+    heuristic_total = merged.multiplicity
+    if recorded_spin_source == "historical_heuristic":
+        if requested_total is not None and int(requested_total) != heuristic_total:
+            raise ValueError("recorded historical total multiplicity does not match the fragment heuristic")
+        total_multiplicity, spin_source = heuristic_total, "historical_heuristic"
+    else:
+        total_multiplicity, spin_source = _resolve_total_multiplicity(
+            fragment_a, fragment_b, requested_total
+        )
+    qc_params["total_multiplicity"] = total_multiplicity
+    qc_params["total_multiplicity_source"] = spin_source
+    target_radii = merged.covalent_radius[absolute_i] + merged.covalent_radius[absolute_j]
+    try:
+        reactant_identity = separated_reactant_identity(fragment_a, fragment_b)
+        reactant_identity_error = None
+    except Exception as exc:
+        reactant_identity = None
+        reactant_identity_error = str(exc)
+    orientation_items = _make_orientations(
+        fragment_a, fragment_b, int(orientations), local_i, local_j
+    )
+    for _, orientation, _ in orientation_items:
+        if orientation is not None:
+            orientation.multiplicity = total_multiplicity
+    return _PreparedScan(
+        fragment_a=fragment_a, fragment_b=fragment_b,
+        absolute_atoms=(absolute_i, absolute_j), target_radii=target_radii,
+        default_scan_end=DEFAULT_SCAN_END_FACTOR * target_radii,
+        intramolecular_plan=None, reactant_identity=reactant_identity,
+        reactant_identity_error=reactant_identity_error,
+        orientation_items=orientation_items,
+    )
+
+
 def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
                   scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
                   *, characterize_unique_products=False, _layout=None):
@@ -543,71 +639,23 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     software = route.software
     intramolecular = route.intramolecular
     if intramolecular:
-        fragment_a = Molecule.from_xyz(input_a)
-        fragment_b = None
-        fragment_a.charge = int(qc_params.get('charge_a', qc_params.get('charge', fragment_a.charge)))
-        fragment_a.multiplicity = int(qc_params.get('multiplicity_a', qc_params.get('multiplicity', fragment_a.multiplicity)))
-        fragment_a.scftype = qc_params.get('scftype_a', qc_params.get('scftype', fragment_a.scftype))
-        fragment_a.fragments = [list(range(fragment_a.number_of_atoms))]
-        intra_plan = intramolecular_scan_plan(fragment_a, atoms, scan_end, scan_step, scan_points)
-        absolute_i, absolute_j = map(int, atoms)
-        local_i, local_j = absolute_i, absolute_j
-        total_multiplicity, spin_source = fragment_a.multiplicity, 'input_molecule'
-        if qc_params.get('total_multiplicity') not in (None, total_multiplicity):
-            raise ValueError('Intramolecular total multiplicity must equal the input molecule multiplicity')
-        qc_params.update(total_multiplicity=total_multiplicity, total_multiplicity_source=spin_source)
-        target_radii = fragment_a.covalent_radius[absolute_i] + fragment_a.covalent_radius[absolute_j]
-        default_scan_end = intra_plan['end_distance_angstrom']
-        # A product cannot be identified against an unknown input. Fail before
-        # allocating the run or starting an expensive constrained scan.
-        reactant_identity = molecule_identity_from_xyz(input_a)
-        if not reactant_identity or not reactant_identity.get('inchi'):
-            raise ValueError('Intramolecular input identity is unavailable; no scan was started')
-        reactant_identity_error = None
-        orientation = fragment_a.copy()
-        orientation.name = orientation.title = 'orientation_000'
-        orientation_items = [(0, orientation, None)]
-    else:
-        fragment_a = Molecule.from_xyz(input_a)
-        fragment_b = Molecule.from_xyz(input_b)
-        for fragment, suffix in ((fragment_a, "a"), (fragment_b, "b")):
-            fragment.charge = int(qc_params.get(f"charge_{suffix}", fragment.charge))
-            fragment.multiplicity = int(qc_params.get(f"multiplicity_{suffix}", fragment.multiplicity))
-            fragment.scftype = qc_params.get(f"scftype_{suffix}", fragment.scftype)
-        if len(atoms) != 2 or any(isinstance(value, bool) or int(value) != value for value in atoms):
-            raise ValueError("exactly two integer fragment-local atom indices are required")
-        local_i, local_j = map(int, atoms)
-        absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
-        if local_j >= fragment_b.number_of_atoms:
-            raise ValueError(f"Atom index {local_j} is out of range for fragment B containing {fragment_b.number_of_atoms} atoms (valid 0..{fragment_b.number_of_atoms - 1}).")
-        merged = fragment_a.merged_with(fragment_b)
-        requested_total = qc_params.get("total_multiplicity")
-        recorded_spin_source = qc_params.get("total_multiplicity_source")
-        heuristic_total = merged.multiplicity
-        if recorded_spin_source == "historical_heuristic":
-            if requested_total is not None and int(requested_total) != heuristic_total:
-                raise ValueError("recorded historical total multiplicity does not match the fragment heuristic")
-            total_multiplicity, spin_source = heuristic_total, "historical_heuristic"
-        else:
-            total_multiplicity, spin_source = _resolve_total_multiplicity(
-                fragment_a, fragment_b, requested_total
-            )
-        qc_params["total_multiplicity"] = total_multiplicity
-        qc_params["total_multiplicity_source"] = spin_source
-        target_radii = merged.covalent_radius[absolute_i] + merged.covalent_radius[absolute_j]
-        default_scan_end = DEFAULT_SCAN_END_FACTOR * target_radii
-        try:
-            reactant_identity = separated_reactant_identity(fragment_a, fragment_b)
-            reactant_identity_error = None
-        except Exception as exc:
-            reactant_identity = None
-            reactant_identity_error = str(exc)
-        orientation_items = _make_orientations(
-            fragment_a, fragment_b, int(orientations), local_i, local_j
+        prepared = _prepare_intramolecular_inputs(
+            input_a, atoms, qc_params, scan_end, scan_step, scan_points,
         )
-        for _, orientation, _ in orientation_items:
-            if orientation is not None:
-                orientation.multiplicity = total_multiplicity
+    else:
+        prepared = _prepare_fragment_inputs(
+            input_a, input_b, atoms, orientations, qc_params,
+        )
+    fragment_a, fragment_b = prepared.fragment_a, prepared.fragment_b
+    absolute_i, absolute_j = prepared.absolute_atoms
+    target_radii = prepared.target_radii
+    default_scan_end = prepared.default_scan_end
+    intra_plan = prepared.intramolecular_plan
+    reactant_identity = prepared.reactant_identity
+    reactant_identity_error = prepared.reactant_identity_error
+    orientation_items = prepared.orientation_items
+    total_multiplicity = qc_params['total_multiplicity']
+    spin_source = qc_params['total_multiplicity_source']
     orientation_definitions = [
         {"orientation": index,
          "molecule": None if orientation is None else _fragment_signature(orientation),
