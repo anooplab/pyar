@@ -9,6 +9,7 @@ import math
 import os
 import warnings
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -461,26 +462,32 @@ def _resolve_total_multiplicity(fragment_a, fragment_b, requested, *, warn=True)
     return int(requested), "user_explicit"
 
 
-def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
-                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
-                  *, characterize_unique_products=False, _layout=None):
-    """Run a scan, optionally continuing through a named reaction-path stage.
+@dataclass(frozen=True, slots=True)
+class _ScanRoute:
+    """Internal route decisions, without persisted state or mutable chemistry."""
 
-    ``through=None`` preserves the original Python scan-plus-relaxation API.
-    Explicit ``through="scan"`` performs only the constrained scan for two
-    fragments. Single-molecule scans always release the constraint and identify
-    the relaxed product; later stages require an identified changed product.
-    """
+    software: str
+    intramolecular: bool
+    through: str | None
+    characterize_unique_products: bool
+    relax_in_orientation: bool
+    continue_individual_paths: bool
+
+
+def _validate_scan_route(input_b, orientations, qc_params, scan_end, scan_step,
+                         scan_points, through, reaction_options,
+                         characterize_unique_products):
+    """Validate the requested route before reading molecules or allocating a run."""
     from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
-    from pyar.workflows.scan_path import validate_continuation, continue_scan_paths
+    from pyar.workflows.scan_path import validate_continuation
 
     software = normalize_backend_name(qc_params.get("software", "orca"))
     if software not in supported_geometry_backends():
         raise ValueError(f"scan-bond requires an energy/gradient backend; unsupported: {software}")
-    qc_params = dict(qc_params, software=software)
+    settings = dict(qc_params, software=software)
     if software == "xtb":
         from pyar.backends.xtb_utils import canonical_xtb_model
-        qc_params["xtb_model"] = canonical_xtb_model(qc_params.get("xtb_model"))
+        settings["xtb_model"] = canonical_xtb_model(settings.get("xtb_model"))
     if characterize_unique_products and through in (None, "scan"):
         raise ValueError("unique-product characterization requires through='neb' or a later stage")
     if characterize_unique_products and (reaction_options or {}).get("interpolation") == "geodesic":
@@ -489,7 +496,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
         validate_continuation(through, reaction_options or {})
         if software == "orca" and through != "scan":
             from pyar.backends.orca_methods import orca_method
-            if orca_method(qc_params.get("method", "BP86"))[0] == "g-xTB":
+            if orca_method(settings.get("method", "BP86"))[0] == "g-xTB":
                 raise ValueError("ORCA external g-xTB supports native scanning only; "
                                  "use software=xtb, xtb_model=gxtb for continuation")
     if isinstance(orientations, bool) or int(orientations) != orientations or orientations < 1:
@@ -503,9 +510,39 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     if scan_step is not None and scan_points is not None:
         raise ValueError("--scan-step and --scan-points cannot be used together")
     intramolecular = input_b is None
+    if intramolecular and int(orientations) != 1:
+        raise ValueError('Intramolecular scans require one orientation; no fragment placement is performed')
+
+    route = _ScanRoute(
+        software=software,
+        intramolecular=intramolecular,
+        through=through,
+        characterize_unique_products=characterize_unique_products,
+        relax_in_orientation=through is None or characterize_unique_products or intramolecular,
+        continue_individual_paths=through not in (None, "scan") and not characterize_unique_products,
+    )
+    return route, settings
+
+
+def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
+                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
+                  *, characterize_unique_products=False, _layout=None):
+    """Run a scan, optionally continuing through a named reaction-path stage.
+
+    ``through=None`` preserves the original Python scan-plus-relaxation API.
+    Explicit ``through="scan"`` performs only the constrained scan for two
+    fragments. Single-molecule scans always release the constraint and identify
+    the relaxed product; later stages require an identified changed product.
+    """
+    from pyar.workflows.scan_path import continue_scan_paths
+
+    route, qc_params = _validate_scan_route(
+        input_b, orientations, qc_params, scan_end, scan_step, scan_points,
+        through, reaction_options, characterize_unique_products,
+    )
+    software = route.software
+    intramolecular = route.intramolecular
     if intramolecular:
-        if int(orientations) != 1:
-            raise ValueError('Intramolecular scans require one orientation; no fragment placement is performed')
         fragment_a = Molecule.from_xyz(input_a)
         fragment_b = None
         fragment_a.charge = int(qc_params.get('charge_a', qc_params.get('charge', fragment_a.charge)))
@@ -735,7 +772,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             )
             results.append(result)
             continue
-        if through is not None and not characterize_unique_products and not intramolecular:
+        if not route.relax_in_orientation:
             result["status"] = "scan_success"
             result["requested_through"] = through
             _save_orientation_result(
@@ -797,7 +834,7 @@ def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
             completed_artifacts=completed_artifacts, layout=_layout,
         )
         results.append(result)
-    if through not in (None, "scan") and not characterize_unique_products:
+    if route.continue_individual_paths:
         continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
     if _layout is not None:
         registry = _layout.product_registry(results, request)
