@@ -3,7 +3,9 @@ import json
 import math
 import os
 from pathlib import Path
+import stat
 import tempfile
+from uuid import uuid4
 
 
 def _pairs(items):
@@ -62,9 +64,20 @@ def write_json(path, value, *, overwrite=True):
     the file before recovery, rather than assuming the write never happened.
     """
     payload = canonical_json_bytes(value)
+    _publish_bytes(path, payload, overwrite=overwrite, kind="JSON")
+
+
+def write_bytes_atomic(path, payload):
+    """Durably replace a mutable report while preserving its caller-owned bytes."""
+    if not isinstance(payload, bytes):
+        raise TypeError("Atomic report payload must be bytes")
+    _publish_bytes(path, payload, overwrite=True, kind="report")
+
+
+def _publish_bytes(path, payload, *, overwrite, kind):
     path = Path(path)
     if path.is_symlink():
-        raise ValueError(f"Refusing JSON publication through a symlink: {path}")
+        raise ValueError(f"Refusing {kind} publication through a symlink: {path}")
     missing = []
     parent = path.parent
     while not parent.exists():
@@ -76,8 +89,20 @@ def write_json(path, value, *, overwrite=True):
         fsync_directory(directory.parent)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".pyar-json-", delete=False) as stream:
-            temporary = Path(stream.name)
+        if kind == "JSON":
+            stream_context = tempfile.NamedTemporaryFile(
+                dir=path.parent, prefix=".pyar-json-", delete=False,
+            )
+        else:
+            # Exclusive creation retains the mode of the previous text writer:
+            # 0666 masked by the process umask. NamedTemporaryFile uses 0600.
+            temporary = path.parent / f".pyar-report-{uuid4().hex}"
+            stream_context = temporary.open("xb")
+        with stream_context as stream:
+            if kind == "JSON":
+                temporary = Path(stream.name)
+            elif path.exists():
+                os.fchmod(stream.fileno(), stat.S_IMODE(path.stat().st_mode))
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())

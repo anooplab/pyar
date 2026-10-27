@@ -132,7 +132,10 @@ def test_malformed_report_is_recorded_as_incomplete_evidence(tmp_path, monkeypat
     assert manifest["evidence_complete"] is False
     assert manifest["junit"]["valid"] is False
     assert manifest["coverage"]["valid"] is False
-    assert len(manifest["evidence_errors"]) == 2
+    assert sum(
+        message.startswith(("JUnit report is invalid:", "coverage report is invalid:"))
+        for message in manifest["evidence_errors"]
+    ) == 2
 
 
 @pytest.mark.parametrize("bad_xml", ["", "<testsuite", "<not-junit/>"])
