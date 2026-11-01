@@ -1,209 +1,97 @@
-#!/usr/bin/env python3
-"""Command-line entrypoint for RDKit conformational search."""
+"""conformer interface with read-only input and refinement preflight."""
+from pathlib import Path
+import shutil
 
-from __future__ import annotations
-
-import argparse
-import logging
-import sys
-
-from pyar.data import defualt_parameters
-from pyar.workflows.conformer import ConformerWorkflowError, conformer_search
-
-logger = logging.getLogger("pyar-conformer")
-
-
-def build_parser(prog=None, *, modern=False):
-    """Parse conformer-search CLI arguments."""
-    parser = argparse.ArgumentParser(
-        prog=prog or "pyar-cli conformer",
-        description="Generate and optionally refine RDKit conformers.",
-    )
-    parser.add_argument("input", help="SMILES string, SDF/MOL file, or XYZ file")
-    parser.add_argument(
-        "--input-format",
-        choices=["auto", "smiles", "sdf", "mol", "xyz"],
-        default="auto",
-        help="Input format; auto treats existing .xyz/.sdf/.mol paths as files and other input as SMILES.",
-    )
-    parser.add_argument("--num-conformers", type=int, default=150)
-    parser.add_argument("--top-n", type=int, default=10)
-    parser.add_argument("--backend-top-n", type=int)
-    advanced = parser.add_argument_group("Advanced generation controls") if modern else parser
-    advanced.add_argument("--num-seeds", type=int, default=5)
-    advanced.add_argument("--diversity-fraction", type=float, default=0.2)
-    advanced.add_argument(
-        "--compactness-fraction",
-        type=float,
-        default=0.2,
-        help="Protected contact-rich folded-basin quota; matched by an open-basin quota for diversity.",
-    )
-    advanced.add_argument(
-        "--rms-threshold",
-        "--prune-rms-threshold",
-        dest="rms_threshold",
-        type=float,
-        default=0.25,
-        help="RDKit greedy prune RMS threshold; lower values keep more embedded conformers.",
-    )
-    advanced.add_argument(
-        "--use-random-coords",
-        dest="use_random_coords",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Start RDKit embedding from random coordinates instead of distance geometry eigenvectors.",
-    )
-    advanced.add_argument(
-        "--torsion-kicks",
-        dest="torsion_kicks",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Generate local torsion-perturbed conformers before backend refinement.",
-    )
-    advanced.add_argument(
-        "--torsion-mode",
-        choices=["random"],
-        default="random",
-        help="Use the stratified random torsion-kick sampler.",
-    )
-    advanced.add_argument("--torsion-rounds", type=int, default=2)
-    advanced.add_argument("--torsion-kicks-per-conformer", type=int, default=6)
-    advanced.add_argument("--torsion-max-bonds", type=int, default=3)
-    advanced.add_argument("--torsion-dedup-rms", type=float, default=0.5)
-    advanced.add_argument(
-        "--dedup-atom-mode", choices=["heavy", "all"], default="heavy",
-        help="Atoms scored by shared graph RMSD; full connectivity is always checked.",
-    )
-    parser.add_argument("--force-field", choices=["auto", "mmff", "uff"], default="auto")
-    advanced.add_argument("--seed", type=int, default=1)
-    advanced.add_argument("--num-threads", type=int, default=0)
-    advanced.add_argument("--max-iterations", type=int, default=200)
-
-    molecule_group = parser.add_argument_group("molecule")
-    molecule_group.add_argument("-c", "--charge", type=int)
-    molecule_group.add_argument("-m", "--multiplicity", type=int, default=None if modern else 1)
-    molecule_group.add_argument("--scftype", type=str, default=None if modern else "rhf")
-
-    if modern:
-        from pyar.modern_workflow import add_backend_arguments
-        add_backend_arguments(parser)
-        parser.add_argument('--check', action='store_true', help='Validate without embedding or creating a run directory')
-        return parser
-    backend_group = parser.add_argument_group("backend refinement")
-    backend_group.add_argument(
-        "--software",
-        type=str,
-        choices=[
-            "gaussian",
-            "mopac",
-            "obabel",
-            "orca",
-            "psi4",
-            "turbomole",
-            "xtb",
-            "xtb_turbo",
-            "mlatom_aiqm1",
-            "aimnet_2",
-            "aiqm1_mlatom",
-            "xtb-aimnet2",
-            "xtb-aiqm1",
-        ],
-    )
-    backend_group.add_argument(
-        "--geometry-optimizer",
-        type=str,
-        default=defualt_parameters.values["geometry_optimizer"],
-        choices=["native", "geometric"],
-    )
-    backend_group.add_argument(
-        "--opt-target",
-        type=str,
-        default=defualt_parameters.values["opt_target"],
-        choices=["minimum", "ts"],
-    )
-    backend_group.add_argument("-basis", "--basis", type=str, default=defualt_parameters.values["basis"])
-    backend_group.add_argument("-method", "--method", type=str, default=defualt_parameters.values["method"])
-    backend_group.add_argument("--opt-threshold", type=str, default=defualt_parameters.values["opt_threshold"])
-    backend_group.add_argument("--opt-cycles", type=int, default=defualt_parameters.values["opt_cycles"])
-    backend_group.add_argument("--scf-threshold", type=str, default=defualt_parameters.values["scf_threshold"])
-    backend_group.add_argument("--scf-cycles", type=int, default=defualt_parameters.values["scf_cycles"])
-    backend_group.add_argument("-nprocs", "--nprocs", type=int, default=defualt_parameters.values["nprocs"])
-    backend_group.add_argument("--custom-keywords", type=str)
-    backend_group.add_argument("-model", "--model", type=str, default=defualt_parameters.values["model"])
-    return parser
+from pyar.cli_runtime import prepared_run, started_run, finished_run
+from pyar.backend_errors import BackendExecutionError
+from pyar.core.molecule import Molecule
+from pyar.conformer.request import ConformerRequest, ConformerRequestError
+from pyar.cli_inputs import load_fragments, optional_backend, resolve_states, print_check
+from pyar.optimization_request import preflight
+from pyar.scripts.conformer_options import build_parser as conformer_parser, workflow_options
+from pyar.workflows import conformer as workflow
 
 
-def argument_parse(argv=None):
-    return build_parser().parse_args(argv)
+def build_parser(prog=None):
+    return conformer_parser(prog or 'pyar conformer')
 
 
-def _backend_qc_params(args):
-    """Return backend parameters when backend refinement was requested."""
-    if args.software is None:
-        return None
-    return {
-        "basis": args.basis,
-        "method": args.method,
-        "software": args.software,
-        "geometry_optimizer": args.geometry_optimizer,
-        "opt_target": args.opt_target,
-        "opt_cycles": args.opt_cycles,
-        "opt_threshold": args.opt_threshold,
-        "scf_cycles": args.scf_cycles,
-        "scf_threshold": args.scf_threshold,
-        "nprocs": args.nprocs,
-        "gamma": None,
-        "custom_keywords": args.custom_keywords,
-        "custom_keyword": args.custom_keywords,
-        "model": args.model,
-    }
+def resolve_request(args):
+    """Validate chemistry without embedding conformers or converting XYZ files."""
+    Chem, AllChem = workflow._rdkit_modules()
+    fmt = workflow._resolve_input_format(args.input, args.input_format)
+    if args.input_format == 'auto' and Path(args.input).suffix.lower() in {'.xyz', '.sdf', '.mol', '.sd'}:
+        if not Path(args.input).is_file():
+            raise ValueError(f'Input file does not exist: {args.input}')
+    if fmt == 'xyz':
+        if not Path(args.input).is_file():
+            raise ValueError(f'XYZ input file {args.input!r} does not exist')
+        if shutil.which('obabel') is None:
+            raise ValueError('OpenBabel executable obabel is required for XYZ conformer input. '
+                             'Install OpenBabel from https://openbabel.org/docs/Installation/install.html '
+                             'and ensure obabel is on PATH.')
+        mol = workflow._load_xyz_with_openbabel(args.input, None, Chem)
+        Chem.SanitizeMol(mol)
+        mol = Chem.AddHs(mol, addCoords=True)
+        workflow._force_field_for_molecule(mol, AllChem, args.force_field)
+        molecules = [Molecule([atom.GetSymbol() for atom in mol.GetAtoms()],
+                              mol.GetConformer().GetPositions(), name='input')]
+        default_charge = [0]  # XYZ does not reliably encode total charge.
+    else:
+        mol, fmt = workflow._load_rdkit_molecule(args.input, fmt, Chem, None)
+        workflow._force_field_for_molecule(mol, AllChem, args.force_field)
+        atoms = [atom.GetSymbol() for atom in mol.GetAtoms()]
+        # Parity validation needs atomic numbers, not generated coordinates.
+        molecules = [Molecule(atoms, [[0., 0., 0.]] * len(atoms), name='input')]
+        default_charge = [workflow._formal_charge(mol)]
+    molecule = resolve_states(molecules, None if args.charge is None else [args.charge],
+                              None if args.multiplicity is None else [args.multiplicity],
+                              None if args.scftype is None else [args.scftype],
+                              default_charges=default_charge)[0]
+    args.charge, args.multiplicity, args.scftype = molecule.charge, molecule.multiplicity, molecule.scftype
+    qc = optional_backend(args)
+    if qc:
+        # Conformer refinement calls optimise directly, rather than bulk_optimize.
+        qc.update(charge=molecule.charge, multiplicity=molecule.multiplicity,
+                  scftype=molecule.scftype, xtb_unpaired_electrons=molecule.multiplicity - 1)
+    options = workflow_options(args, qc or None)
+    options['input_format'] = fmt
+    if args.max_iterations < 1 or args.num_threads < 0:
+        raise ValueError('--max-iterations must be positive and --num-threads nonnegative')
+    request = ConformerRequest.from_options(args.input, **options)
+    # The existing conformer workflow does not resume a prior state.
+    directory = Path('conformers')
+    if directory.exists() and (not directory.is_dir() or (directory / 'state.json').exists()):
+        raise ValueError('Existing conformers state cannot be resumed; start in a new directory.')
+    return request, options, molecule
 
 
-def workflow_options(args, qc_params):
-    """Shared mapping for legacy and modern interfaces to the canonical engine."""
-    names = (
-        'input_format', 'num_conformers', 'top_n', 'backend_top_n', 'num_seeds',
-        'diversity_fraction', 'compactness_fraction', 'rms_threshold',
-        'use_random_coords', 'torsion_kicks', 'torsion_mode', 'torsion_rounds',
-        'torsion_kicks_per_conformer', 'torsion_max_bonds', 'torsion_dedup_rms',
-        'dedup_atom_mode', 'force_field', 'seed', 'num_threads', 'max_iterations',
-        'charge', 'multiplicity', 'scftype',
-    )
-    return {**{name: getattr(args, name) for name in names}, "qc_params": qc_params}
-
-
-def main(argv=None):
-    """Run the RDKit conformer-search workflow."""
-    args = argument_parse(argv)
-    qc_params = _backend_qc_params(args)
-    input_format = args.input_format
-    if input_format == "xyz" or (input_format == "auto" and str(args.input).lower().endswith(".xyz")):
-        from pyar.backends import require_executable
-        try:
-            require_executable("obabel", "OpenBabel")
-        except FileNotFoundError as exc:
-            raise SystemExit(str(exc)) from None
-    if qc_params is not None:
-        from pyar.cli_validation import _preflight_cli_requirements
-
-        _preflight_cli_requirements(
-            "conformer",
-            qc_params["software"],
-            qc_params["geometry_optimizer"],
-        )
-
+def main(argv=None, *, prog=None):
+    parser = build_parser(prog)
+    args = parser.parse_args(argv)
     try:
         from pyar.dependencies import require_workflow
-        require_workflow("conformer")
-        result = conformer_search(args.input, **workflow_options(args, qc_params))
-    except (ConformerWorkflowError, FileNotFoundError, ImportError, ValueError) as exc:
-        raise SystemExit(str(exc)) from exc
-
-    print(f"Conformer workflow: {result.status}")
-    print(f"Run directory: {result.run_directory}")
-    print(f"Selected conformers: {len(result.selected_paths)}")
-    return None
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+        require_workflow('conformer')
+        request, options, molecule = resolve_request(args)
+        qc = dict(request.backend_parameters)
+        requirements = ['RDKit'] + (['obabel'] if request.input_format == 'xyz' else [])
+        if qc:
+            requirements += preflight(qc, [molecule], check_example='pyar conformer INPUT --backend BACKEND --check')
+        prepared_run(args, request=request.to_state_dict(), backend=qc,
+                     molecules=[molecule], requirements=requirements, outputs=['conformers'], state_lists=False)
+        if args.check:
+            print_check('conformer', qc, requirements, [('Input', args.input), ('Format', request.input_format),
+                        ('Conformers', request.num_conformers), ('Seeds', request.num_seeds),
+                        ('Top N', request.top_n), ('Force field', request.force_field),
+                        ('Torsion kicks', request.torsion_kicks), ('Charge', request.charge),
+                        ('Multiplicity', request.multiplicity)])
+            return
+        started_run()
+        result = workflow.conformer_search(args.input, **options)
+    except (ValueError, OSError, ImportError, ConformerRequestError,
+            workflow.ConformerWorkflowError, BackendExecutionError) as exc:
+        parser.error(str(exc))
+    finished_run(result)
+    print(f'Conformer search {result.status}.\nSelected conformers: {len(result.selected_paths)}\nRun directory: {result.run_directory}')
+    if result.status.startswith('failed'):
+        raise SystemExit(1)

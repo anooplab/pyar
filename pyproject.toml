@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyar-chem"
-version = "1.5.2"
+version = "1.6.0"
 description = "PyAR: Python program for Aggregation and Reaction"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
@@ -45,26 +45,7 @@ Repository = "https://github.com/anooplab/pyar"
 Issues = "https://github.com/anooplab/pyar/issues"
 
 [project.scripts]
-pyar = "pyar.modern_cli:main"
-pyar-cli = "pyar.cli:main"
-pyar-react = "pyar.scripts.react:main"
-pyar-explore = "pyar.scripts.explore:main"
-pyar-optimiser = "pyar.scripts.optimiser:main"
-pyar-trial-generation = "pyar.scripts.trial_generation:main"
-pyar-clustering = "pyar.scripts.clustering:main"
-pyar-basin-memory = "pyar.scripts.basin_memory:main"
-pyar-energy-table = "pyar.scripts.energy_table:main"
-pyar-reaction-trace = "pyar.scripts.reaction_trace:main"
-pyar-neb = "pyar.neb:main"
-pyar-conformer = "pyar.scripts.conformer:main"
-pyar-conformer-benchmark = "pyar.scripts.conformer_benchmark:main"
-pyar-benchmark-clustering = "pyar.scripts.benchmark_clustering:main"
-pyar-benchmark-orientations = "pyar.scripts.benchmark_orientations:main"
-pyar-benchmark-ts = "pyar.scripts.ts_optimizer_benchmark:main"
-pyar-similarity = "pyar.scripts.similarity:main"
-pyar-descriptor = "pyar.scripts.descriptor:main"
-pyar-mlopt = "pyar.backends.mlopt:main"
-pyar-aimnet2-ase-opt = "pyar.AIMNet2.calculators.aimnet2_ase_opt:main"
+pyar = "pyar.cli:main"
 
 [project.optional-dependencies]
 aggregate = ["ase", "dscribe", "hdbscan", "scikit-learn>=0.23.2"]

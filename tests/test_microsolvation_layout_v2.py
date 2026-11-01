@@ -97,16 +97,16 @@ def test_surface_tamper_rejected_and_manifest_can_be_rebuilt(tmp_path):
 
 
 def test_preflight_on_completed_run_is_read_only(tmp_path, monkeypatch):
-    from pyar.scripts import modern_microsolvate
-    from pyar.modern_cli import main
+    from pyar.scripts import microsolvate
+    from pyar.cli import main
     monkeypatch.chdir(tmp_path)
     req = request()
     req.solute.mol_to_xyz('solute.xyz')
     req.solvent.mol_to_xyz('solvent.xyz')
     vector = ['solute.xyz','solvent.xyz','--count','2','--orientations','3',
               '--maximum-number-of-seeds','2','--surface-points-per-atom','32','--shell-tolerance','3.5']
-    args = modern_microsolvate.build_parser().parse_args(vector)
-    workflow.microsolvate(modern_microsolvate.resolve_request(args))
+    args = microsolvate.build_parser().parse_args(vector)
+    workflow.microsolvate(microsolvate.resolve_request(args))
     before = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
     main(['microsolvate', *vector, '--check'])
     assert before == {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}

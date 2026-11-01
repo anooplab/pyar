@@ -66,7 +66,7 @@ def build_parser(command, prog=None):
 
 
 def _load_for_state(path, charge, multiplicity):
-    from pyar.modern_workflow import load_fragments, resolve_states
+    from pyar.cli_inputs import load_fragments, resolve_states
     molecules = load_fragments([path])
     return resolve_states(molecules, [charge], None if multiplicity is None else [multiplicity])[0]
 
@@ -260,13 +260,13 @@ def main(command, argv=None, *, prog=None):
         raise SystemExit(1)
 
 
-def modern_neb(argv=None, *, prog=None):
+def neb(argv=None, *, prog=None):
     return main("neb", argv, prog=prog)
 
 
-def modern_ts(argv=None, *, prog=None):
+def ts(argv=None, *, prog=None):
     return main("ts", argv, prog=prog)
 
 
-def modern_irc(argv=None, *, prog=None):
+def irc(argv=None, *, prog=None):
     return main("irc", argv, prog=prog)

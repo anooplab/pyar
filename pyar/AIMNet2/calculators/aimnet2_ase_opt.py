@@ -61,10 +61,10 @@ def guess_charge(mol):
     return charge
 
 
-def main():
+def main(argv=None, *, prog=None):
     import argparse
     global pybel
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog=prog)
     parser.add_argument('--charge', '-c', type=int, default=None,
                         help='Molecular charge (default: check molecule title for "charge: {int}" or get total charge from OpenBabel).')
     parser.add_argument('--traj', help='Trajectory file', type=str, default=None)
@@ -72,7 +72,7 @@ def main():
     parser.add_argument('model')
     parser.add_argument('in_file')
     parser.add_argument('out_file')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # PyAR writes XYZ and supplies an explicit charge. This route needs only
     # the pip-installable AIMNet2 stack; retain format/charge perception below

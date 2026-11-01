@@ -17,7 +17,7 @@ import pyar.scan
 import pyar.sampling.trial_generator as generation
 
 
-def main():
+def main(argv=None, *, prog=None):
     """Generate trial placements or composite configurations."""
     parser = argparse.ArgumentParser(
         description="Generate trial directions and trial molecular orientations."
@@ -35,7 +35,7 @@ def main():
     task_group.add_argument('--make-composite', action='store_true')
     task_group.add_argument('-make-sphere', type=str)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     number_of_trial_orientations = args.number_of_trial_orientations
     d_scale = args.distance_scaling
     if args.file:

@@ -1,4 +1,4 @@
-"""Modern composition search; no input is a permanently privileged seed."""
+"""composition search; no input is a permanently privileged seed."""
 from pyar.persistence import LockError
 import argparse
 from pathlib import Path
@@ -7,7 +7,7 @@ from pyar.aggregation.request import AggregateRequest
 from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar.backend_errors import BackendExecutionError
 from pyar.data.defualt_parameters import values
-from pyar.modern_workflow import (add_backend_arguments, add_fragment_arguments,
+from pyar.cli_inputs import (add_backend_arguments, add_fragment_arguments,
                                  add_selection_arguments, load_fragments, optional_backend,
                                  resolve_states, print_check)
 from pyar.optimization_request import preflight

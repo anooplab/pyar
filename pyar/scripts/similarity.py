@@ -115,12 +115,12 @@ def process_files(x, array_keys, Info_Coords, threshold_duplicate, file_tmp, fil
                 logfile.write("------------------------\n")
 
 
-def main():
+def main(argv=None, *, prog=None):
     """Scan XYZ files for near-duplicate structures and write summary files."""
-    parser = argparse.ArgumentParser(description='Grigoryan Springborg Similarity')
+    parser = argparse.ArgumentParser(prog=prog, description='Grigoryan Springborg Similarity')
     parser.add_argument('-f', '--files', default='*.xyz')
     parser.add_argument('-t', '--threshold', type=float, default=0.005)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     threshold_duplicate = args.threshold
     start_time = time.time()
     Info_Coords = {}

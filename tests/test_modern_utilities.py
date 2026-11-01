@@ -10,7 +10,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from pyar.modern_cli import main
+from pyar.cli import main
 from pyar.geometry_utilities import orient_structures
 from pyar.core.molecule import parse_xyz
 from pyar.selection.deduplication import deduplicate_structures

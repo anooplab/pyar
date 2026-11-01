@@ -19,18 +19,15 @@ from pyar.core.molecule import Molecule
 from pyar.data import new_atomic_data as atomic_data
 from pyar.sampling.trial_generator import generate_points, merge_two_molecules
 
-logging.basicConfig(filename='pyar_explore.log', level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-def parse_arguments():
+def parse_arguments(argv=None, *, prog=None):
     """Parse the `pyar-explore` command-line arguments."""
-    parser = argparse.ArgumentParser(description='Generate geometries based on formula.')
+    parser = argparse.ArgumentParser(prog=prog, description='Generate geometries based on formula.')
     parser.add_argument('seed_file', type=str, help='XYZ file for the seed monomer.')
     parser.add_argument('monomer_file', type=str, help='XYZ file for the monomer.')
     parser.add_argument('--formula', type=str, required=True, help='Target formula, e.g., C5H4.')
     parser.add_argument('--pop', type=int, required=True, help='Number of geometries to generate.')
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def parse_formula(formula):
@@ -90,9 +87,9 @@ def create_composite_molecule_wrapper(seed, monomer, pathway, sequence_offset=0)
     return composite
 
 
-def main():
+def main(argv=None, *, prog=None):
     """Generate one or more composite geometries from a formula."""
-    args = parse_arguments()
+    args = parse_arguments(argv, prog=prog)
     seed = Molecule.from_xyz(args.seed_file)
     monomer = Molecule.from_xyz(args.monomer_file)
     atom_counts = parse_formula(args.formula)

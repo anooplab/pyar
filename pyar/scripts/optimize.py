@@ -1,4 +1,4 @@
-"""Modern bulk minimum optimization; computational execution stays in optimiser."""
+"""bulk minimum optimization; computational execution stays in optimiser."""
 
 import argparse
 import sys

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pyar.modern_cli import main
+from pyar.cli import main
 from pyar.reaction_request import resolve_reaction_request, validate_restart, preflight_reaction
 from pyar.state.reaction import ReactionRunState, ReactionStateError
 from pyar.workflow_results import ReactionResult
@@ -26,7 +26,7 @@ def resolve(files, **kwargs):
 
 @pytest.fixture
 def workflow():
-    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb', 'geometric', 'obabel']), patch(
+    with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb', 'geometric', 'obabel']), patch(
             'pyar.workflows.reaction.react', return_value=ReactionResult(
                 'reaction', 'completed_no_products', 'reaction', 'reaction/state.json')) as run:
         yield run
@@ -163,8 +163,8 @@ def test_check_no_mutations(tmp_path, workflow, monkeypatch, capsys):
 def test_through_all_preflights_full_chain_without_mutations(tmp_path, monkeypatch, workflow):
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
-    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb']), patch(
-            'pyar.scripts.modern_react.preflight_path_request', return_value=['geometric', 'ase', 'sella']) as path_check:
+    with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb']), patch(
+            'pyar.scripts.react.preflight_path_request', return_value=['geometric', 'ase', 'sella']) as path_check:
         main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--through', 'all', '--check'])
     path_check.assert_called_once()
     assert path_check.call_args.args[1] == 'all'
@@ -176,8 +176,8 @@ def test_react_dry_run_reports_only_the_requested_cumulative_stages(
         tmp_path, monkeypatch, workflow, capsys):
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
-    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb']), patch(
-            'pyar.scripts.modern_react.preflight_path_request', return_value=['geometric']) as path_check:
+    with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb']), patch(
+            'pyar.scripts.react.preflight_path_request', return_value=['geometric']) as path_check:
         main(['react', *files, '--backend', 'xtb', '--bias-max', '100',
               '--through', 'neb', '--dry-run', '--json'])
     payload = json.loads(capsys.readouterr().out)
@@ -198,8 +198,8 @@ def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, wo
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
     characterization = {'status': 'complete', 'selected_routes': [], 'preparation_failures': []}
-    with patch('pyar.scripts.modern_react.preflight_path_request', return_value=[]), patch(
-            'pyar.scripts.modern_react.characterize_reaction', return_value=characterization) as characterize:
+    with patch('pyar.scripts.react.preflight_path_request', return_value=[]), patch(
+            'pyar.scripts.react.characterize_reaction', return_value=characterization) as characterize:
         main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--through', 'neb'])
     assert workflow.called
     characterize.assert_called_once()
@@ -211,7 +211,7 @@ def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, wo
                                      ValueError('native relaxation unavailable')])
 def test_preflight_failure_no_work(tmp_path, monkeypatch, workflow, failure, capsys):
     monkeypatch.chdir(tmp_path)
-    with patch('pyar.scripts.modern_react.preflight_reaction', side_effect=failure):
+    with patch('pyar.scripts.react.preflight_reaction', side_effect=failure):
         with pytest.raises(SystemExit) as exc:
             main(['react', *inputs(tmp_path), '--backend', 'xtb', '--bias-max', '100', '--check'])
     assert exc.value.code == 2 and not workflow.called
@@ -332,42 +332,8 @@ def test_invalid_xyz_before_directory_creation(tmp_path, workflow, monkeypatch):
     assert not workflow.called and not (tmp_path/'reaction').exists()
 
 
-def test_legacy_standalone_contract_unchanged(tmp_path, monkeypatch):
-    from importlib import import_module
-    import sys
-    monkeypatch.chdir(tmp_path)
-    legacy = import_module('pyar.scripts.react')
-    files = inputs(tmp_path)
-    with patch.object(sys, 'argv', ['pyar-react', *files, '--software', 'xtb', '--bias-max', '100']):
-        with pytest.raises(SystemExit):
-            legacy.argument_parse()  # -N is still required.
-    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software', 'xtb', '--bias-max', '100']):
-        args = legacy.argument_parse()
-        assert args.bias_controller is None
-        with pytest.raises(SystemExit, match='bias-min'):
-            legacy.main()  # No controller means legacy fixed, still requiring min.
-    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software', 'xtb', '--bias-min', '10', '--bias-max', '100']), patch(
-            'pyar.workflows.reaction.react') as run, patch('pyar.cli_validation._preflight_cli_requirements') as preflight:
-        legacy.main()
-    preflight.assert_called_once_with('react', 'xtb', 'geometric')
-    assert run.call_args.args[2:5] == (10, 100, 8)
-    assert 'bias_controller' not in run.call_args.args[5]
 
 
-def test_legacy_standalone_missing_xtb_stops_before_workflow(tmp_path, monkeypatch):
-    from importlib import import_module
-    import sys
-
-    monkeypatch.chdir(tmp_path)
-    legacy = import_module('pyar.scripts.react')
-    files = inputs(tmp_path)
-    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software',
-                                  'xtb', '--bias-min', '10', '--bias-max', '100']), \
-         patch('pyar.cli_validation.shutil.which', side_effect=lambda name: None if name == 'xtb' else '/mock/' + name), \
-         patch('pyar.workflows.reaction.react') as run:
-        with pytest.raises(SystemExit, match="Missing executable 'xtb'"):
-            legacy.main()
-    run.assert_not_called()
 
 
 def test_stale_lock_recovery_is_explicit(tmp_path, monkeypatch, workflow):

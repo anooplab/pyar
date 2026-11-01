@@ -20,7 +20,7 @@ UNIT_FILES = {
 }
 REGRESSION_FILES = {
     "test_reaction_review_regressions.py",
-    "test_modern_cli_review.py",
+    "test_cli_review.py",
     "test_intramolecular_scan.py",
     "test_safe_recovery.py",
     "test_optimization_recovery_audit.py",

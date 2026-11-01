@@ -1,7 +1,6 @@
-"""Importable entrypoint for explicit basin-registry migration."""
+"""Explicit basin registry inspection and maintenance."""
+from pyar.selection import basin_memory
 
-from pyar.selection.basin_memory import main
 
-
-if __name__ == "__main__":
-    main()
+def main(argv=None, *, prog=None):
+    return basin_memory.main(argv)

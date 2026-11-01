@@ -153,7 +153,7 @@ def _conformer_options(args):
     }
 
 
-def main(argv=None):
+def main(argv=None, *, prog=None):
     """Run conformer benchmark diagnosis from the command line."""
     args = argument_parse(argv)
     qc_params = _backend_qc_params(args)

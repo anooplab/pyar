@@ -1,4 +1,4 @@
-"""Modern CLI for solute-centred first-shell microsolvation."""
+"""CLI for solute-centred first-shell microsolvation."""
 
 from pyar.persistence import LockError
 import argparse
@@ -7,7 +7,7 @@ from pyar.cli_runtime import prepared_run, started_run, finished_run
 from pyar.backend_errors import BackendExecutionError
 from pyar.microsolvation import MicrosolvationRequest
 from pyar.microsolvation.surface import build_solute_surface
-from pyar.modern_workflow import add_backend_arguments, add_fragment_arguments, load_fragments, optional_backend, resolve_states
+from pyar.cli_inputs import add_backend_arguments, add_fragment_arguments, load_fragments, optional_backend, resolve_states
 from pyar.optimization_request import preflight
 from pyar.state.microsolvation import MicrosolvationRunState, MicrosolvationStateError
 from pyar.workflows.microsolvation import microsolvate
@@ -161,7 +161,3 @@ def main(argv=None, *, prog=None):
     )
     if result.status not in {"completed", "stopped"}:
         raise SystemExit(1)
-
-
-def modern_main(argv=None, *, prog=None):
-    return main(argv, prog=prog)

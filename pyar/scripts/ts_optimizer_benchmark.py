@@ -54,7 +54,7 @@ def argument_parse(argv=None):
     return parser.parse_args(argv)
 
 
-def main(argv=None):
+def main(argv=None, *, prog=None):
     args = argument_parse(argv)
     try:
         if args.command == "run":

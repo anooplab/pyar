@@ -181,16 +181,10 @@ def test_cli(tmp_path, monkeypatch, capsys):
     hydrogen('monomer').mol_to_xyz('monomer.xyz')
     result = main(['seed.xyz', 'monomer.xyz', '--count', '1', '-N', '4',
                    '--maximum-number-of-seeds', '2', '--connectivity-policy', 'off'])
-    assert result.status == 'completed'
+    assert result is None
+    assert list((tmp_path / 'grow').rglob('selected_*.xyz'))
     assert 'Growth completed' in capsys.readouterr().out
 
-
-def test_cli_dispatch(monkeypatch):
-    import pyar.cli
-    monkeypatch.setattr('sys.argv', ['pyar-cli', 'grow', '--help'])
-    with patch('pyar.scripts.grow.main') as main:
-        pyar.cli.main()
-    main.assert_called_once_with(['--help'])
 
 
 def test_all_survivors_feed_next_stage(tmp_path):

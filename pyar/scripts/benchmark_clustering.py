@@ -140,8 +140,8 @@ def _benchmark_algorithm(pool, algorithm, max_seeds, feature="mbtr", distance_me
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Benchmark clustering algorithms on XYZ pools.")
+def main(argv=None, *, prog=None):
+    parser = argparse.ArgumentParser(prog=prog, description="Benchmark clustering algorithms on XYZ pools.")
     parser.add_argument("paths", nargs="+", help="XYZ files or directories containing result_*.xyz files")
     parser.add_argument(
         "-a",
@@ -164,7 +164,7 @@ def main():
     )
     parser.add_argument("--feature", choices=FEATURES, default="mbtr")
     parser.add_argument("--distance", choices=DISTANCE_METRICS, default="euclidean")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     pools = []
     for raw_path in args.paths:

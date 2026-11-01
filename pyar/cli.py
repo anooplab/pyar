@@ -1,1160 +1,460 @@
-#!/usr/bin/env python3
-"""Command-line entrypoint for PyAR."""
+"""Task-oriented CLI pilot, alongside the existing PyAR entry points.
+
+The command tree owns task discovery; each command owns its argument parser
+and execution. Command modules are imported only when their task is selected.
+"""
 
 import argparse
-import datetime
-import importlib.util
-import logging
-import os
-import shlex
-import shutil
+import io
+import json
+from contextlib import ExitStack, contextmanager, redirect_stdout
+from importlib import import_module
 import sys
-import time
-from collections import Counter, defaultdict
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+import uuid
 
-from pyar.data import defualt_parameters
-from pyar.backend_errors import BackendExecutionError
-from pyar.selection.distances import DISTANCE_METRICS
-from pyar.selection.policy import SYSTEM_TYPES
-from pyar.biases.controller import resolve_controller_policy
-from pyar.backend_capabilities import (
-    backend_family,
-    backend_supports_geometry_optimization,
-    backend_supports_staged_optimization,
-    get_backend_capabilities,
-    normalize_backend_name,
-    unsupported_qc_options,
-    supported_geometry_backends,
-)
+from pyar import __version__
 
-logger = logging.getLogger('pyar')
-handler = None
 
-QC_OPTION_ALIASES = {
-    "basis": "--basis (basis set)",
-    "method": "--method (functional/method)",
-    "opt_threshold": "--opt-threshold",
-    "opt_cycles": "--opt-cycles",
-    "scf_threshold": "--scf-threshold",
-    "scf_cycles": "--scf-cycles",
-    "nprocs": "--nprocs",
-    "custom_keywords": "--custom-keywords",
-    "gamma": "--bias-min/--bias-max",
-    "model": "--model",
+# Add future tasks here without importing their scientific dependencies at startup.
+_COMMANDS = {
+    "explore": ("pyar.scripts.explore", "Generate formula-directed composite geometries"),
+    "trial": ("pyar.scripts.trial_generation", "Generate trial directions and placement geometries"),
+    "basin-memory": ("pyar.scripts.basin_memory", "Inspect and maintain basin registries"),
+    "similarity": ("pyar.scripts.similarity", "Compare pools with Grigoryan–Springborg similarity"),
+    "descriptor": ("pyar.scripts.descriptor", "Calculate cluster descriptors"),
+    "mlopt": ("pyar.backends.mlopt", "Optimize with the MLatom AIQM1 driver"),
+    "aimnet2-ase-opt": ("pyar.AIMNet2.calculators.aimnet2_ase_opt", "Optimize with a supplied AIMNet2 model"),
+    "benchmark": ("pyar.scripts.benchmark", "Run developer benchmark campaigns"),
+    "run": ("pyar.scripts.cli_meta", "Run a versioned PyAR task configuration"),
+    "config": ("pyar.scripts.cli_meta", "Create or validate run configurations"),
+    "profile": ("pyar.scripts.cli_meta", "Manage reusable methodology profiles"),
+    "info": ("pyar.scripts.cli_meta", "Show PyAR installation information"),
+    "backends": ("pyar.scripts.cli_meta", "List backend capabilities"),
+    "doctor": ("pyar.scripts.cli_meta", "Check PyAR installation health"),
+    "install": ("pyar.scripts.cli_meta", "Show installation status for Python packages and external programs"),
+    "inspect": ("pyar.scripts.cli_meta", "Inspect a PyAR run or workflow state"),
+    "conformer": ("pyar.scripts.conformer", "Generate and optionally refine molecular conformers"),
+    "aggregate": ("pyar.scripts.aggregate", "Search structures for a requested final composition"),
+    "grow": ("pyar.scripts.grow", "Sequentially add one species to a fixed seed"),
+    "microsolvate": ("pyar.scripts.microsolvate", "Build explicit solvent shells around a fixed solute"),
+    "neb": ("pyar.scripts.path_stage", "Search a reaction path between endpoint structures"),
+    "ts": ("pyar.scripts.path_stage", "Optimize and validate a transition-state geometry"),
+    "irc": ("pyar.scripts.path_stage", "Continue a validated TS along both IRC directions"),
+    "react": ("pyar.scripts.react", "Search for reaction products with adaptive bias"),
+    "orient": ("pyar.scripts.orient", "Generate trial encounter geometries for two fragments"),
+    "deduplicate": ("pyar.scripts.deduplicate", "Remove structurally duplicate XYZ geometries"),
+    "select": ("pyar.scripts.select", "Select low-energy structures"),
+    "identify": ("pyar.scripts.identify", "Inspect composition and perceived chemical identity"),
+    "split": ("pyar.scripts.split", "Split disconnected coordinate components"),
+    "trace": ("pyar.scripts.reaction_trace", "Analyze a PyAR reaction trace"),
+    "energies": ("pyar.scripts.energy_table", "Print a relative-energy table from XYZ files"),
+    "compare": ("pyar.scripts.compare", "Compare two structures, energies, geometry, and connectivity"),
+    "clustering": ("pyar.scripts.clustering", "Cluster or filter XYZ structures"),
+    "energy": ("pyar.scripts.singlepoint", "Calculate single-point energies for fixed geometries"),
+    "engrad": ("pyar.scripts.singlepoint", "Calculate energies and Cartesian gradients"),
+    "gradient": ("pyar.scripts.singlepoint", "Alias for engrad"),
+    "engra": ("pyar.scripts.singlepoint", "Alias for engrad"),
+    "frequency": ("pyar.scripts.singlepoint", "Calculate harmonic frequencies and qualify minima"),
+    "optimize": ("pyar.scripts.optimize", "Optimize each XYZ structure independently"),
+    "scan-bond": ("pyar.scripts.scan_bond", "Relaxed bond scan with optional reaction-path continuation"),
 }
 
-QC_PARAMETER_KEYS = {
-    "basis",
-    "method",
-    "opt_cycles",
-    "opt_threshold",
-    "scf_cycles",
-    "scf_threshold",
-    "nprocs",
-    "gamma",
-    "custom_keywords",
-    "custom_keyword",
-    "model",
-}
 
-_SUBCOMMAND_ALIASES = {
-    "aggregate": "--aggregate",
-    "react": "--react",
-    "solvate": "--solvate",
+_CHECK_COMMANDS = {
+    "react", "scan-bond", "optimize", "conformer", "aggregate", "grow",
+    "energy", "engrad", "gradient", "engra", "frequency",
+    "microsolvate", "neb", "ts", "irc",
+}
+_META_COMMANDS = {"run", "config", "profile", "info", "backends", "doctor", "install", "inspect", "benchmark"}
+_COMMAND_GROUPS = {
+    "Structure exploration": ("conformer", "aggregate", "grow", "microsolvate", "optimize"),
+    "Fixed-geometry calculations": ("energy", "engrad", "gradient", "engra", "frequency"),
+    "Reaction exploration": ("react", "scan-bond", "neb", "ts", "irc"),
+    "Analysis and geometry": ("clustering", "energies", "compare", "identify", "orient", "deduplicate", "select", "split", "trace"),
+    "Specialist tools": ("explore", "trial", "basin-memory", "similarity", "descriptor", "mlopt", "aimnet2-ase-opt", "benchmark"),
+    "Configuration and diagnostics": ("run", "config", "profile", "inspect", "info", "backends", "doctor", "install"),
 }
 
 
-def _get_file_handler():
-    """Create the CLI log file handler only when the command actually runs."""
-    global handler
-    if handler is None:
-        handler = logging.FileHandler('pyar.log', 'a')
-    return handler
+class _TaskParser(argparse.ArgumentParser):
+    def format_help(self):
+        lines = ["usage: pyar [OPTIONS] COMMAND [ARGS]", "", self.description, ""]
+        for group, commands in _COMMAND_GROUPS.items():
+            lines.append(group + ":")
+            for name in commands:
+                lines.append(f"  {name:<14} {_COMMANDS[name][1]}")
+            lines.append("")
+        lines += ["Options: --version, -h/--help, -q/--quiet, -v/-vv/-vvv, --no-color",
+                  "Use 'pyar COMMAND --help' for command options.", ""]
+        return "\n".join(lines)
 
 
-def _active_run_mode(run_parameters):
-    """Return the active top-level workflow mode name."""
-    if run_parameters['aggregate']:
-        return 'aggregate'
-    if run_parameters['solvate']:
-        return 'solvate'
-    if run_parameters['react']:
-        return 'react'
-    return 'unknown'
+def build_parser():
+    parser = _TaskParser(prog="pyar", description="PyAR molecular structure and reaction exploration", allow_abbrev=False)
+    if hasattr(parser, 'color'):
+        parser.color = False
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("-v", "--verbose", action="count", default=0)
+    parser.add_argument("-q", "--quiet", action="store_true")
+    parser.add_argument("--no-color", action="store_true")
+    commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
+    for name in _COMMANDS:
+        commands.add_parser(name, add_help=False, allow_abbrev=False)
+    return parser
 
 
-def _verbosity_name(level):
-    """Map CLI verbosity integer to logging level label."""
-    return {
-        0: 'DEBUG',
-        1: 'INFO',
-        2: 'WARNING',
-        3: 'ERROR',
-        4: 'CRITICAL',
-    }.get(level, 'INFO')
-
-
-def _provided_qc_options(args):
-    """Return QC option keys explicitly provided by user on CLI."""
-    provided = set()
-    if args.get("basis") is not None:
-        provided.add("basis")
-    if args.get("method") is not None:
-        provided.add("method")
-    if args.get("model") is not None:
-        provided.add("model")
-    if args.get("custom_keywords") is not None:
-        provided.add("custom_keywords")
-    if args.get("nprocs") is not None:
-        provided.add("nprocs")
-    if "--opt-threshold" in sys.argv:
-        provided.add("opt_threshold")
-    if "--opt-cycles" in sys.argv:
-        provided.add("opt_cycles")
-    if "--scf-threshold" in sys.argv:
-        provided.add("scf_threshold")
-    if "--scf-cycles" in sys.argv:
-        provided.add("scf_cycles")
-    if args.get("bias_min") is not None or args.get("bias_max") is not None:
-        provided.add("gamma")
-    return provided
-
-
-def _validate_backend_qc_options(software, provided_options, geometry_optimizer="native"):
-    """Validate options against the selected backend and optimizer."""
-    backend_options = set(provided_options)
-    if geometry_optimizer == "geometric":
-        # These control the external optimizer, not the energy/gradient backend.
-        backend_options.difference_update({"opt_cycles", "opt_threshold"})
-    return backend_family(software), unsupported_qc_options(software, backend_options)
-
-
-def _configure_reaction_optimizer(run_parameters, run_mode):
-    """Select the external optimizer for supported reaction-bias backends."""
-    if run_mode != "react":
-        if any(run_parameters.get(key) is not None for key in (
-            "bias_controller", "bias_alpha_min", "bias_alpha_margin",
-            "bias_alpha_smoothing", "bias_alpha_epsilon", "bias_scheduled_alpha",
-        )):
-            sys.exit("Bias controller options are available only for reaction runs.")
-        return
+def main(argv=None):
+    """Console entry point: never pass a domain object to sys.exit()."""
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == 'help':
+        argv = [*argv[1:], '--help'] if len(argv) > 1 else ['--help']
+    args, remainder = build_parser().parse_known_args(argv)
+    controls = ['-v'] * args.verbose
+    if args.quiet:
+        controls.append('--quiet')
+    if args.no_color:
+        controls.append('--no-color')
     try:
-        controller_policy = resolve_controller_policy(
-            run_parameters.get("bias_controller"),
-            alpha_min=run_parameters.get("bias_alpha_min"),
-            safety_margin=run_parameters.get("bias_alpha_margin"),
-            smoothing=run_parameters.get("bias_alpha_smoothing"),
-            epsilon=run_parameters.get("bias_alpha_epsilon"),
-            scheduled_alpha=run_parameters.get("bias_scheduled_alpha"),
-        )
-    except ValueError as exc:
-        sys.exit(str(exc))
-    if run_parameters.get("bias_controller") is not None or controller_policy != "fixed":
-        run_parameters["bias_controller"] = controller_policy
-    supports_geometry = backend_supports_geometry_optimization(run_parameters["software"])
-    if controller_policy != "fixed" and not supports_geometry:
-        sys.exit(
-            "Non-fixed bias control requires a registered Cartesian energy-gradient backend "
-            "and --geometry-optimizer geometric."
-        )
-    if not supports_geometry:
+        invoke(args.command, [*controls, *remainder])
+    except KeyboardInterrupt:
+        print('Interrupted.', file=sys.stderr)
+        raise SystemExit(130) from None
+    except BrokenPipeError:
+        # Downstream consumers (e.g. head) may close stdout early.
         return
-    if run_parameters["opt_target"] == "ts":
-        sys.exit(
-            "Transition-state optimization is reserved for a future "
-            "reaction-product workflow"
-        )
-    explicitly_selected = "--geometry-optimizer" in sys.argv
-    if not explicitly_selected:
-        run_parameters["geometry_optimizer"] = "geometric"
-        logger.info(
-            "Reaction optimizer: selected geomeTRIC for backend energy/forces plus reaction bias."
-        )
-        return
-    if run_parameters["geometry_optimizer"] != "geometric":
-        sys.exit(
-            "Reaction-bias runs with "
-            f"{', '.join(supported_geometry_backends())} require "
-            "--geometry-optimizer geometric"
-        )
 
 
-def _mask_unsupported_qc_parameters(qc_params, software):
-    """Return QC params with backend-unsupported options set to None."""
-    masked = dict(qc_params)
-    _, unsupported = _validate_backend_qc_options(
-        software, QC_PARAMETER_KEYS, qc_params.get("geometry_optimizer", "native")
-    )
-    for option in unsupported:
-        if option in masked:
-            masked[option] = None
-        if option == "custom_keywords":
-            masked["custom_keyword"] = None
-    return masked
-
-
-def _format_effective_qc_settings(qc_params):
-    """Format active QC parameters without listing ignored/None values."""
-    labels = []
-    for key in sorted(QC_PARAMETER_KEYS):
-        value = qc_params.get(key)
-        if value is not None and key != "custom_keyword":
-            labels.append(f"{key}={value}")
-    return " ".join(labels) if labels else "none"
-
-
-def _aggregate_stoichiometry_label(input_molecules, aggregate_sizes):
-    """Return the aggregate stoichiometry label implied by the inputs."""
-    parts = []
-    for molecule, count in zip(input_molecules, aggregate_sizes):
-        count = int(count)
-        atoms_list = getattr(molecule, "atoms_list", None)
-        if atoms_list:
-            counts = Counter(atoms_list * count)
-            fragment = []
-            if 'C' in counts:
-                carbon = counts.pop('C')
-                fragment.append('C' if carbon == 1 else f'C{carbon}')
-            if 'H' in counts:
-                hydrogen = counts.pop('H')
-                fragment.append('H' if hydrogen == 1 else f'H{hydrogen}')
-            for element in sorted(counts):
-                element_count = counts[element]
-                fragment.append(element if element_count == 1 else f'{element}{element_count}')
-            parts.append(''.join(fragment))
-        else:
-            label = getattr(molecule, "name", None) or getattr(molecule, "title", None) or "unknown"
-            if count == 1:
-                parts.append(label)
-            elif len(label) == 1 and label.isalpha():
-                parts.append(f"{label}{count}")
+def _remove_option(arguments, name, *, takes_value=False):
+    result, value = [], None
+    index = 0
+    while index < len(arguments):
+        token = arguments[index]
+        if token == '--':
+            result.extend(arguments[index:])
+            break
+        if token == name:
+            if takes_value:
+                if index + 1 >= len(arguments) or arguments[index + 1].startswith('--'):
+                    raise ValueError(f"{name} requires a value")
+                value = arguments[index + 1]
+                index += 2
             else:
-                parts.append(f"{label}x{count}")
-    return ''.join(parts) if parts else 'unknown'
-
-
-def _normalize_subcommand_argv(argv):
-    """Translate subcommand style invocation into the existing flag-based CLI."""
-    if not argv:
-        return argv
-    alias = _SUBCOMMAND_ALIASES.get(argv[0])
-    if alias is None:
-        return argv
-    return [alias, *argv[1:]]
-
-
-def _dispatch_trace_subcommand(argv):
-    """Run the reaction-trace CLI from pyar-cli."""
-    from pyar.scripts.reaction_trace import main as reaction_trace_main
-
-    reaction_trace_main(argv)
-
-
-def _dispatch_conformer_subcommand(argv):
-    """Run the conformer-search CLI from pyar-cli."""
-    from pyar.scripts.conformer import main as conformer_main
-
-    conformer_main(argv)
-
-
-def _log_workflow_result(result):
-    """Log a structured workflow result when a workflow returns one."""
-    if hasattr(result, "to_dict"):
-        logger.info("Workflow result: %s", result.to_dict())
-
-
-def argument_parse(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    else:
-        argv = list(argv)
-    argv = _normalize_subcommand_argv(argv)
-    pyar_description = """pyar is a program to predict aggregation, reaction,
-and clustering. Reactor explores several possible reactions between two given
-molecules. Aggregator explores several possible geometries of weakly bound
-molecular complexes or atomic clusters.
-"""
-    pyar_epilog = """Examples:
-  pyar-cli aggregate C H -as 1 4 -N 8
-  pyar-cli grow seed.xyz monomer.xyz --count 4 -N 16 --software xtb
-  pyar-cli react A.xyz B.xyz -N 8 --bias-min 100 --bias-max 1000
-  pyar-cli solvate solute.xyz solvent.xyz -ss 10 -N 16
-  pyar-cli -a C H -as 1 4 -N 8
-  pyar-cli --aggregate --formula C5H4 -N 8
-  pyar-cli -r A.xyz B.xyz -N 8 --bias-min 100 --bias-max 1000
-  pyar-cli conformer "CCO" --num-conformers 50 --top-n 5
-  pyar-cli trace .
-  pyar-cli trace . --plot
-  pyar-cli trace . --plot-only
-
-In aggregate mode, each input can be an XYZ file, a bare element symbol, or a
-chemical formula.
-"""
-
-    parser = argparse.ArgumentParser(
-        prog='pyar-cli',
-        description=pyar_description,
-        epilog=pyar_epilog,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument('-v', '--verbosity',
-                        choices=[0, 1, 2, 3, 4],
-                        type=int,
-                        default=1,
-                        help="Choose output verbosity"
-                             " (0=Debug; 1 = Info (default); "
-                             "2 = Warning; 3 = Error; 4 = Critical)")
-    parser.add_argument("input_files", metavar='input',
-                        type=str, nargs='*',
-                        help='input coordinate files in xyz format. In '
-                             '--aggregate mode, bare element symbols and '
-                             'chemical formulas are also accepted.')
-    parser.add_argument('-N', dest='how_many_orientations', metavar='N',
-                        required=True,
-                        help='The number of orientations to be used')
-    parser.add_argument('--formula', type=str,
-                        help='Chemical formula of the molecule to generate '
-                             'in --aggregate mode')
-    parser.add_argument('-nprocs', '--nprocs', metavar='n',
-                        type=int, help='The number of processors/cores to be '
-                                       'used by the quantum chemistry software.'
-                                       'Not fully implemented with all '
-                                       'interfaces. Write to '
-                                       'anoop@chem.iitkgp.ac.in'
-                                       ' if this does not work properly')
-    parser.add_argument('-model', '--model', metavar='model',
-                        type=str, help='The model to be used for the '
-                                       'aggregation. Default is '
-                                       'aimnet2_wb97m-d3_0.jpt')
-    parser.add_argument('--xtb-model', choices=('gxtb', 'gfn2'), default=None,
-                        help='Hamiltonian for standalone xTB (default: GFN2-xTB)')
-    parser.add_argument('-basis', '--basis', type=str,
-                        help='Basis set (default=def2-SVP)')
-    parser.add_argument('-method', '--method', type=str,
-                        help='The method (default=BP86)')
-
-    run_type_group = parser.add_mutually_exclusive_group(required=True)
-    run_type_group.add_argument("-r", "--react", action='store_true',
-                                help="Run a reactor calculation")
-    run_type_group.add_argument("-s", "--solvate", action='store_true',
-                                help="Add one solvent molecules to given solute molecules")
-    run_type_group.add_argument("-a", "--aggregate", action='store_true',
-                                help="Run a aggregator calculation")
-
-    parser.add_argument('-ss', '--solvation-size', type=int, metavar='n',
-                        help='number of solvent molecules to be added')
-    parser.add_argument('-mns', '--maximum-number-of-seeds', metavar='n',
-                        type=int, help='maximum number of seeds')
-    parser.add_argument(
-        '-f', '--features',
-        choices=['auto', 'mbtr', 'soap', 'distance-histogram'],
-        default=defualt_parameters.values.get('features', 'auto'),
-        help="Structural representation for aggregate seed clustering (default: auto by system type)",
-    )
-    parser.add_argument(
-        '--selection-algorithm',
-        choices=['auto', 'hdbscan', 'agglomerative', 'dbscan', 'optics', 'maxmin'],
-        default=defualt_parameters.values.get('selection_algorithm', 'auto'),
-        help="Cluster-label algorithm; maxmin uses auto clustering and trims cluster minima",
-    )
-    parser.add_argument(
-        '--selection-distance',
-        choices=DISTANCE_METRICS,
-        default=defualt_parameters.values.get('selection_distance', 'euclidean'),
-        help="Descriptor or structural clustering distance (default: euclidean)",
-    )
-    parser.add_argument(
-        '--selection-system-type',
-        choices=SYSTEM_TYPES,
-        default='auto',
-        help="System class for automatic feature selection; auto uses workflow context and XYZ graph evidence",
-    )
-    parser.add_argument(
-        "--connectivity-policy",
-        choices=["auto", "off", "prefer", "strict"],
-        default=defualt_parameters.values["connectivity_policy"],
-        help=(
-            "Connectivity handling for covalent-graph selection: "
-            "auto lets the workflow decide, off never filters by connectivity, "
-            "prefer keeps connected candidates when available, and strict "
-            "discards disconnected candidates."
-        ),
-    )
-    parser.add_argument('-as', '--aggregate-size', type=int, nargs='*',
-                        metavar=('l', 'm',),
-                        help='number of monomers in aggregate; defaults to '
-                             '[1] for single-formula aggregate runs')
-    parser.add_argument('--number-of-pathways', type=int, metavar='n',
-                        help='How many pathways to be used in binary/ternary aggregation.')
-    parser.add_argument(
-        '-gmin', '--gmin', '--bias-min', dest='bias_min', type=float,
-        help='minimum reaction-bias strength (legacy aliases: -gmin, --gmin)',
-    )
-    parser.add_argument(
-        '-gmax', '--gmax', '--bias-max', dest='bias_max', type=float,
-        help='maximum reaction-bias strength (legacy aliases: -gmax, --gmax)',
-    )
-    parser.add_argument(
-        '--bias-potential', choices=['afir', 'softmin'], default='afir',
-        help='reaction bias potential (default: afir)',
-    )
-    parser.add_argument(
-        '--softmin-beta', type=float, default=1.0,
-        help='soft-min contact-localization parameter in Bohr^-1 (default: 1.0)',
-    )
-    parser.add_argument(
-        '--bias-controller', choices=['fixed', 'scheduled', 'adaptive'], default=None,
-        help='bias force-scale controller for reaction runs (default: fixed)',
-    )
-    parser.add_argument('--bias-alpha-min', type=float, default=None,
-                        help='lower bound for the applied bias scale (Ha/Bohr)')
-    parser.add_argument('--bias-alpha-margin', type=float, default=None,
-                        help='positive adaptive load increment per optimized segment (Ha/Bohr; default: 0.001)')
-    parser.add_argument('--bias-alpha-smoothing', type=float, default=None,
-                        help='deprecated for adaptive loading; only 1 is supported')
-    parser.add_argument('--bias-alpha-epsilon', type=float, default=None,
-                        help='positive regularizer in the alpha_critical denominator')
-    parser.add_argument('--bias-scheduled-alpha', type=float, default=None,
-                        help='constant bias scale used by the scheduled controller (Ha/Bohr)')
-    parser.add_argument('--release-retry-limit', type=int, default=2,
-                        help='maximum adaptive release retries after failed native relaxation')
-    parser.add_argument('--release-margin-factor', type=float, default=2.0,
-                        help='factor applied to adaptive margin for each release retry')
-    parser.add_argument(
-        '--release-distance-fraction', type=float, default=0.95,
-        help='adaptive release contact threshold as a fraction of covalent-radii sum',
-    )
-    parser.add_argument('--site', type=int, nargs=2,
-                        help='atom for site specific reaction')
-    parser.add_argument("-c", "--charge", type=int, nargs='+', metavar='c',
-                        help="Charge of the system")
-    parser.add_argument("-m", "--multiplicity", type=int, nargs='+', metavar='m',
-                        help="Multiplicity of the system")
-    parser.add_argument("--scftype", type=str, nargs='+',
-                        help="specify rhf or uhf (default=rhf)")
-    parser.add_argument("--software", type=str,
-                        choices=['gaussian', 'mopac', 'obabel', 'orca',
-                                 'psi4', 'turbomole', 'xtb', 'xtb_turbo',
-                                 'mlatom_aiqm1', 'aimnet_2', 'aiqm1_mlatom',
-                                 'xtb-aimnet2', 'xtb-aiqm1'],
-                        required=False, default=None, help="Software")
-    parser.add_argument('--geometry-optimizer', type=str, default='native',
-                        choices=['native', 'geometric'],
-                        help='Geometry optimizer used for backend gradients')
-    parser.add_argument('--opt-target', type=str, default='minimum',
-                        choices=['minimum', 'ts'],
-                        help='Optimization target for the geometry optimizer')
-    parser.add_argument('--opt-threshold', type=str, default='normal',
-                        choices=['loose', 'normal', 'tight'],
-                        help='Optimization threshold')
-    parser.add_argument('--opt-cycles', type=int, default=100,
-                        help='Maximum optimization cycles')
-    parser.add_argument('--scf-threshold', type=str, default='normal',
-                        choices=['loose', 'normal', 'tight'],
-                        help='SCF threshold')
-    parser.add_argument('--scf-cycles', type=int, default=1000,
-                        help='Maximum SCF cycles.')
-    parser.add_argument('--custom-keywords', type=str,
-                        help='Software related custom keywords.')
-    return parser.parse_args(argv)
-
-
-def _resolve_aggregate_input(spec, aggregate_mode):
-    """Resolve an input spec to a molecule, allowing formulas in aggregate mode."""
-    from pyar.core.molecule import Molecule
-    from pyar.workflows.aggregate import generate_molecule_from_formula
-
-    if os.path.exists(spec):
-        return Molecule.from_xyz(spec)
-
-    if aggregate_mode:
-        if spec.lower().endswith(".xyz") or os.path.sep in spec or (
-            os.path.altsep is not None and os.path.altsep in spec
-        ):
-            raise SystemExit(f"File {spec} does not exist")
-        try:
-            return generate_molecule_from_formula(spec)
-        except ValueError as exc:
-            raise SystemExit(str(exc)) from exc
-
-    raise SystemExit(f"File {spec} does not exist")
-
-
-def _expand_formula_inputs(formula):
-    """Expand a formula into aggregate fragment specs and multiplicities."""
-    from pyar.workflows.aggregate import expand_formula_to_aggregate_inputs
-
-    try:
-        return expand_formula_to_aggregate_inputs(formula)
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-
-
-def _normalize_parameter_list(values, default_value, number_of_inputs, label):
-    """Expand a single provided value or validate a full per-input list."""
-    resolved = values or [default_value for _ in range(number_of_inputs)]
-    if len(resolved) == 1 and number_of_inputs > 1:
-        return resolved * number_of_inputs
-    if len(resolved) != number_of_inputs:
-        sys.exit(f'{label} are not specified for all input files')
-    return resolved
-
-
-def _validate_cli_request_shape(run_parameters, number_of_input_files):
-    """Validate CLI-only constraints before importing workflow modules."""
-    if run_parameters['formula']:
-        if not run_parameters['aggregate']:
-            sys.exit('--formula can only be used with --aggregate in pyar-cli')
-        if number_of_input_files != 0:
-            sys.exit('Do not provide XYZ input files when using --formula')
-    elif number_of_input_files == 0:
-        sys.exit('Provide at least one XYZ input file, or use --formula with --aggregate')
-
-    if run_parameters['react'] and number_of_input_files != 2:
-        sys.exit('Reactor requires exactly two XYZ input files')
-    if run_parameters['solvate'] and number_of_input_files < 2:
-        sys.exit('Solvation requires at least two XYZ input files')
-
-
-def _missing_module_message(module_name, install_hint):
-    """Return a short install hint for a missing Python module."""
-    if install_hint.startswith("http"):
-        install_text = f"See {install_hint} for installation details."
-    else:
-        install_text = f"Install it with {install_hint}."
-    return (
-        f"Missing Python package '{module_name}'. "
-        f"{install_text}"
-    )
-
-
-def _missing_executable_message(program, friendly_name, install_hint):
-    """Return a short install hint for a missing executable."""
-    if install_hint.startswith("http"):
-        install_text = f"See {install_hint} for installation details."
-    else:
-        install_text = f"Install it with {install_hint}."
-    return (
-        f"Missing executable '{program}' for {friendly_name}. "
-        f"{install_text} Make sure '{program}' is on PATH."
-    )
-
-
-from pyar.dependencies import EXTERNAL_PROGRAMS, PYTHON_REQUIREMENTS
-
-_BACKEND_EXECUTABLE_REQUIREMENT_HINTS = {
-    name: (requirement.name, requirement.installation_url)
-    for name, requirement in EXTERNAL_PROGRAMS.items()
-}
-_BACKEND_MODULE_REQUIREMENT_HINTS = {
-    name: requirement.install_hint for name, requirement in PYTHON_REQUIREMENTS.items()
-}
-
-
-def _workflow_requirement_messages(run_mode, software, geometry_optimizer):
-    """Return user-facing messages for missing requirements on the active path."""
-    from pyar.dependencies import (WORKFLOW_EXECUTABLES, workflow_requirement_messages,
-                                   missing_executable_message)
-
-    missing = workflow_requirement_messages(run_mode)
-    capabilities = get_backend_capabilities(software)
-
-    if geometry_optimizer == "geometric" and software is not None:
-        if importlib.util.find_spec("ase") is None:
-            missing.append(
-                _missing_module_message(
-                    "ase",
-                    _BACKEND_MODULE_REQUIREMENT_HINTS["ase"],
-                )
-            )
-        if importlib.util.find_spec("geometric") is None:
-            missing.append(
-                _missing_module_message(
-                    "geometric",
-                    _BACKEND_MODULE_REQUIREMENT_HINTS["geometric"],
-                )
-            )
-        if shutil.which("geometric-optimize") is None:
-            missing.append(
-                _missing_executable_message(
-                    "geometric-optimize",
-                    "geomeTRIC",
-                    "https://geometric.readthedocs.io/en/1.1/install.html",
-                )
-            )
-
-    canonical_software = normalize_backend_name(software)
-    executables = set(capabilities.required_executables) | set(WORKFLOW_EXECUTABLES.get(run_mode, ()))
-    for executable in sorted(executables):
-        if shutil.which(executable) is None:
-            friendly_name, install_hint = _BACKEND_EXECUTABLE_REQUIREMENT_HINTS.get(
-                executable,
-                (canonical_software, 'python -m pip install "pyar-chem[all]"'),
-            )
-            missing.append(
-                missing_executable_message(executable) if executable in EXTERNAL_PROGRAMS
-                else _missing_executable_message(executable, friendly_name, install_hint)
-            )
-
-    for module_name in capabilities.required_python_modules:
-        if importlib.util.find_spec(module_name) is None:
-                missing.append(
-                    _missing_module_message(
-                        module_name,
-                        _BACKEND_MODULE_REQUIREMENT_HINTS.get(module_name, "https://pypi.org/"),
-                    )
-                )
-
-    return list(dict.fromkeys(missing))
-
-
-def _preflight_cli_requirements(run_mode, software, geometry_optimizer):
-    """Fail fast when the selected workflow path is missing requirements."""
-    missing = _workflow_requirement_messages(run_mode, software, geometry_optimizer)
-    if normalize_backend_name(software) in {"aimnet_2", "xtb-aimnet2"}:
-        from pyar.backends.aimnet2_assets import validate_aimnet2_runtime_assets
-        try:
-            validate_aimnet2_runtime_assets(include_script=geometry_optimizer == "native")
-        except FileNotFoundError as exc:
-            missing.append(str(exc))
-    if missing:
-        raise SystemExit(
-            "Missing requirements for the selected workflow:\n- " + "\n- ".join(missing)
-        )
-
-
-def _preflight_xtb_model(qc_params):
-    """Reject a requested xTB Hamiltonian the installed executable cannot run."""
-    if qc_params.get("software") != "xtb" or qc_params.get("xtb_model") != "gxtb":
-        return
-    from pyar.backends import require_executable
-    from pyar.backends.xtb import xtb_supports_gxtb
-
-    executable = require_executable("xtb", "xTB")
-    if not xtb_supports_gxtb(executable):
-        raise BackendExecutionError(
-            f"xTB executable {executable!r} does not support --gxtb; "
-            "select --xtb-model gfn2 or install a g-xTB-capable executable"
-        )
-
-
-def _merge_run_parameters(args):
-    """Overlay parsed CLI arguments onto default run parameters."""
-    run_parameters = defaultdict(lambda: None, defualt_parameters.values)
-    for key, value in args.items():
-        if value is not None and run_parameters[key] != value:
-            run_parameters[key] = value
-    return run_parameters
-
-
-def _configure_cli_logging(verbosity):
-    """Configure the CLI logger and file handler for this invocation."""
-    if verbosity == 0:
-        logger.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(name)-12s %(filename)s %(funcName)s '
-                                      '%(lineno)d %(levelname)-8s: %(message)s')
-    elif verbosity == 1:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.INFO)
-    elif verbosity == 2:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.WARNING)
-    elif verbosity == 3:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.ERROR)
-    else:
-        formatter = logging.Formatter('%(message)s')
-        logger.setLevel(logging.CRITICAL)
-
-    file_handler = _get_file_handler()
-    file_handler.setFormatter(formatter)
-    if file_handler not in logger.handlers:
-        logger.addHandler(file_handler)
-
-
-def _log_startup_context(run_parameters, run_mode, input_files, number_of_input_files):
-    """Write startup metadata that is independent of workflow dispatch."""
-    time_now = datetime.datetime.now().strftime("%d %b %Y, %H:%M:%S")
-    logger.info(
-r"""
-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                           |  _ \ _   _   / \  |  _ \
-                           | |_) | | | | / _ \ | |_) |
-                           |  __/| |_| |/ ___ \|  _ <
-                           |_|    \__, /_/   \_\_| \_\
-                                  |___/
-                         Aggregation and Reaction
-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+ +-+-+-+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-"""
-    )
-    logger.info(
-        f'==============================Starting at {time_now}==============================')
-    logger.info(f'Job directory: {os.getcwd()}')
-    logger.info("Command line: %s", " ".join(shlex.quote(arg) for arg in sys.argv))
-    logger.debug(f'Logging level is {{{logger.level}}}')
-
-    logger.debug(f"{number_of_input_files} input files")
-    logger.info(f'Run mode: {run_mode}')
-    logger.info(f'Log level: {_verbosity_name(run_parameters["verbosity"])}')
-    if run_parameters['formula']:
-        logger.info(f'Formula input: {run_parameters["formula"]}')
-    else:
-        logger.info(f'Input specs: {input_files}')
-    logger.info(
-        "Trial sampling: Fibonacci approach directions with quaternion rotations "
-        "for multi-atom monomers"
-    )
-    logger.debug(f'Parsed CLI options: {dict(run_parameters)}')
-
-
-def _resolve_cli_input_specs(run_parameters, input_files):
-    """Return molecule input specs and formula-derived aggregate sizes."""
-    if run_parameters['formula']:
-        return _expand_formula_inputs(run_parameters['formula'])
-    return input_files, None
-
-
-def _infer_default_multiplicities(input_molecules, charges):
-    """Infer spin multiplicity from electron parity when the CLI omits it."""
-    multiplicities = []
-    for mol, charge in zip(input_molecules, charges):
-        n_electrons = sum(mol.atomic_number) - charge
-        multiplicity = 1 if n_electrons % 2 == 0 else 2
-        multiplicities.append(multiplicity)
-        mol.multiplicity = multiplicity
-    return multiplicities
-
-
-def _load_input_molecules(run_parameters, input_specs):
-    """Resolve input specs into molecules with validated charge/multiplicity lists."""
-    number_of_inputs = len(input_specs)
-    charges = _normalize_parameter_list(run_parameters['charge'], 0, number_of_inputs, 'Charges')
-    multiplicities = _normalize_parameter_list(run_parameters['multiplicity'], 1, number_of_inputs, 'Multiplicities')
-    scftypes = _normalize_parameter_list(run_parameters['scftype'], 'rhf', number_of_inputs, 'SCF Types')
-
-    logger.info("Parsing the following inputs: ")
-    input_molecules = []
-    for each_file, charge, multiplicity, scftype in zip(input_specs, charges, multiplicities, scftypes):
-        try:
-            mol = _resolve_aggregate_input(each_file, run_parameters['aggregate'])
-            mol.charge = charge
-            mol.multiplicity = multiplicity
-            input_molecules.append(mol)
-            logger.info(f" {each_file} {charge} {multiplicity} {scftype}")
-        except SystemExit:
-            raise
-
-    if run_parameters['multiplicity'] is None:
-        multiplicities = _infer_default_multiplicities(input_molecules, charges)
-        logger.info('Multiplicity not provided: inferred defaults from electron parity.')
-
-    return input_molecules, charges, multiplicities, scftypes
-
-
-def _validate_backend_spin_inputs(input_molecules):
-    """Reject charge/multiplicity combinations with impossible electron parity."""
-    for mol in input_molecules:
-        n_electrons = sum(mol.atomic_number) - mol.charge
-        if n_electrons % 2 == 0:
-            if mol.multiplicity % 2 != 1:
-                sys.exit(f"{n_electrons} (even) electrons and multiplicty {mol.multiplicity} (odd) is not pssible for {mol.name}")
-        else:
-            if mol.multiplicity % 2 == 1:
-                sys.exit(f"{n_electrons} (odd) electrons and multiplicty {mol.multiplicity} (even) is not pssible for {mol.name}")
-
-
-def _build_qc_parameters(run_parameters, args, run_mode):
-    """Build backend-aware QC parameters and return reporting metadata."""
-    if run_parameters.get('xtb_model') is not None and run_parameters['software'] != 'xtb':
-        sys.exit('--xtb-model requires --software xtb')
-    custom_keywords = run_parameters['custom_keywords']
-    provided_qc_options = _provided_qc_options(args)
-    if run_mode == "react" and run_parameters["geometry_optimizer"] == "geometric":
-        provided_qc_options.discard("gamma")
-    backend_family_name = "none"
-    staged_optimization = False
-    ignored_qc_options = []
-    if run_parameters["software"] is not None:
-        backend_family_name, ignored_qc_options = _validate_backend_qc_options(
-            run_parameters["software"], provided_qc_options,
-            run_parameters["geometry_optimizer"],
-        )
-        staged_optimization = backend_supports_staged_optimization(run_parameters["software"])
-        if run_parameters["geometry_optimizer"] == "geometric" and not backend_supports_geometry_optimization(run_parameters["software"]):
-            sys.exit(
-                f"Backend '{run_parameters['software']}' cannot be used with geomeTRIC AFIR "
-                "optimisation because it does not expose Cartesian energy and gradients."
-            )
-        if ignored_qc_options:
-            ignored_labels = [QC_OPTION_ALIASES.get(k, k) for k in ignored_qc_options]
-            logger.warning(
-                "Backend '%s' ignores unsupported options: %s",
-                run_parameters["software"],
-                ", ".join(ignored_labels),
-            )
-    effective_qc_options = sorted(provided_qc_options - set(ignored_qc_options))
-
-    quantum_chemistry_parameters = {
-        'basis': run_parameters['basis'],
-        'method': run_parameters['method'],
-        'software': run_parameters['software'],
-        'geometry_optimizer': run_parameters['geometry_optimizer'],
-        'opt_target': run_parameters['opt_target'],
-        'opt_cycles': run_parameters['opt_cycles'],
-        'opt_threshold': run_parameters['opt_threshold'],
-        'scf_cycles': run_parameters['scf_cycles'],
-        'scf_threshold': run_parameters['scf_threshold'],
-        'nprocs': run_parameters['nprocs'],
-        'gamma': run_parameters['gamma'],
-        'bias_potential': run_parameters['bias_potential'],
-        'softmin_beta': run_parameters['softmin_beta'],
-        'custom_keywords': custom_keywords,
-        'custom_keyword': custom_keywords,
-        'model': run_parameters['model']
-    }
-    if run_parameters['software'] == 'xtb' and (
-        run_mode == 'react' or run_parameters.get('xtb_model') is not None
-    ):
-        quantum_chemistry_parameters['xtb_model'] = run_parameters.get('xtb_model') or 'gfn2'
-    if run_mode == 'react':
-        quantum_chemistry_parameters['release_retry_limit'] = run_parameters['release_retry_limit']
-        quantum_chemistry_parameters['release_margin_factor'] = run_parameters['release_margin_factor']
-        quantum_chemistry_parameters['release_distance_fraction'] = run_parameters['release_distance_fraction']
-    for option in (
-        'bias_controller', 'bias_alpha_min', 'bias_alpha_margin',
-        'bias_alpha_smoothing', 'bias_alpha_epsilon', 'bias_scheduled_alpha',
-    ):
-        if run_mode == 'react' and run_parameters.get(option) is not None:
-            quantum_chemistry_parameters[option] = run_parameters[option]
-    quantum_chemistry_parameters['_two_layer_optimization'] = staged_optimization
-    quantum_chemistry_parameters = _mask_unsupported_qc_parameters(
-        quantum_chemistry_parameters,
-        run_parameters["software"],
-    )
-    return (
-        quantum_chemistry_parameters,
-        backend_family_name,
-        ignored_qc_options,
-        effective_qc_options,
-        staged_optimization,
-    )
-
-
-def _log_qc_context(
-    run_parameters,
-    quantum_chemistry_parameters,
-    backend_family_name,
-    ignored_qc_options,
-    effective_qc_options,
-    staged_optimization,
-):
-    """Log backend and QC settings after unsupported options are masked."""
-    logger.info(f'QM Software:   {quantum_chemistry_parameters["software"]}')
-    logger.info(f'Geometry optimizer: {quantum_chemistry_parameters["geometry_optimizer"]}')
-    logger.info(f'Optimization target: {quantum_chemistry_parameters["opt_target"]}')
-    logger.info(f'Backend family: {backend_family_name}')
-    logger.info(
-        "Optimization layers: %s",
-        "two-stage" if staged_optimization else "single-stage",
-    )
-    if ignored_qc_options:
-        logger.info(
-            "Ignored QC options: %s",
-            ", ".join(QC_OPTION_ALIASES.get(k, k) for k in ignored_qc_options),
-        )
-    else:
-        logger.info("Ignored QC options: none")
-    logger.info(
-        "Effective QC options: %s",
-        ", ".join(QC_OPTION_ALIASES.get(k, k) for k in effective_qc_options) if effective_qc_options else "defaults-only",
-    )
-    logger.info("QC settings: %s", _format_effective_qc_settings(quantum_chemistry_parameters))
-    logger.debug(f'QC parameter object: {quantum_chemistry_parameters}')
-    if run_parameters['software'] in {'xtb', 'xtb_turbo', 'xtb-aimnet2', 'xtb-aiqm1'}:
-        if run_parameters['nprocs'] is not None:
-            logger.info("xTB parallel threads: %s", run_parameters['nprocs'])
-        else:
-            logger.info("xTB parallel threads: not requested; xTB will run serially")
-
-
-def _resolve_site_constraint(run_parameters, input_molecules):
-    """Return the absolute site constraint used by workflow functions."""
-    if run_parameters['site'] is None:
+                value = True
+                index += 1
+            continue
+        if takes_value and token.startswith(name + "="):
+            value = token.split("=", 1)[1]
+            index += 1
+            continue
+        result.append(token)
+        index += 1
+    return result, value
+
+
+def _command_parser(command, module):
+    builder = getattr(module, 'build_parser', None) or getattr(module, '_build_parser', None)
+    if builder is None:
         return None
-    site = run_parameters['site']
-    return [site[0], input_molecules[0].number_of_atoms + site[1]]
+    if command in {'scan-bond', 'energies'}:
+        parser = builder(prog=f'pyar {command}')
+    elif command in {'neb', 'ts', 'irc', 'energy', 'engrad', 'gradient', 'engra', 'frequency'}:
+        parser = builder(command, prog=f'pyar {command}')
+    else:
+        parser = builder(prog=f'pyar {command}')
+    parser.allow_abbrev = False
+    if hasattr(parser, 'color'):
+        parser.color = False
+    return parser
 
 
-def _log_workflow_plan(run_mode, run_parameters, input_molecules, formula_aggregate_sizes, number_of_orientations):
-    """Log the user-facing workflow plan."""
-    if run_mode == 'aggregate':
-        planned_aggregate_sizes = formula_aggregate_sizes if run_parameters['formula'] else run_parameters['aggregate_size']
-        logger.info(
-            f'Plan: aggregate fragments={len(input_molecules)} '
-            f'sizes={planned_aggregate_sizes} pathways={run_parameters["number_of_pathways"]} '
-            f'first_pathway={run_parameters["first_pathway"]}'
-        )
-    elif run_mode == 'solvate':
-        logger.info(
-            f'Plan: solvate seeds={max(len(input_molecules) - 1, 0)} '
-            f'solvent_count={run_parameters["solvation_size"]}'
-        )
-    elif run_mode == 'react':
-        logger.info(
-            f'Plan: react bias={run_parameters["bias_potential"]} '
-            f'softmin_beta={run_parameters["softmin_beta"]} '
-            f'controller={run_parameters.get("bias_controller") or "fixed"} '
-            f'range=({run_parameters["bias_min"]}, {run_parameters["bias_max"]}) '
-            f'orientations={number_of_orientations}'
-        )
+def _add_shared_help(parser, *, dry_run=True):
+    group = parser.add_argument_group('Common execution controls')
+    group.add_argument('--profile', metavar='NAME', help='Apply methodology settings; explicit CLI values win')
+    group.add_argument('--write-config', metavar='FILE', help='Save a validated configuration (refuses existing files)')
+    if dry_run:
+        group.add_argument('--dry-run', action='store_true', help='Preflight and display the resolved execution plan')
+        group.add_argument('--json', action='store_true', help='Emit a structured request/result; progress goes to stderr')
+    group.add_argument('-v', '--verbose', action='count', default=0, help='Increase detail (-vv/-vvv for diagnostics)')
+    group.add_argument('-q', '--quiet', action='store_true', help='Suppress workflow progress; preserve primary analysis data')
+    group.add_argument('--no-color', action='store_true', help='Plain output (currently the default)')
+    return parser
 
 
-def _run_aggregate_workflow(
-    aggregate,
-    run_parameters,
-    input_molecules,
-    formula_aggregate_sizes,
-    number_of_orientations,
-    maximum_number_of_seeds,
-    quantum_chemistry_parameters,
-    site,
-):
-    """Validate and dispatch aggregate workflow execution."""
-    size_of_aggregate = run_parameters['aggregate_size']
-    if run_parameters['formula']:
-        size_of_aggregate = formula_aggregate_sizes
-    if size_of_aggregate is None or len(size_of_aggregate) != len(input_molecules):
-        message = ('Error: For an Aggregation run, specify \nthe desired number of each monomers to be added \nusing the argument\n -as <int> <int> ...')
-        logger.critical(message)
-        sys.exit(message)
-    if quantum_chemistry_parameters["software"] is None:
-        logger.info(
-            "No --software specified: aggregate mode will generate trial "
-            "geometries only; no quantum-chemistry optimization will be run."
-        )
-    t1_0 = time.time()
-    time_started = datetime.datetime.now()
-    selected_stoichiometry = _aggregate_stoichiometry_label(input_molecules, size_of_aggregate)
-    logger.info(
-        "Output hierarchy: aggregates/<aggregate-id>/selected/stoichiometry_%s/",
-        selected_stoichiometry,
-    )
-    result = aggregate(
-        input_molecules,
-        size_of_aggregate,
-        number_of_orientations,
-        quantum_chemistry_parameters,
-        maximum_number_of_seeds,
-        run_parameters['first_pathway'],
-        run_parameters['number_of_pathways'],
-        site,
-        connectivity_policy=run_parameters["connectivity_policy"],
-        selection_feature=run_parameters["features"],
-        selection_algorithm=run_parameters["selection_algorithm"],
-        selection_distance=run_parameters["selection_distance"],
-        selection_system_type=run_parameters["selection_system_type"],
-    )
-    _log_workflow_result(result)
-    logger.info('Total Time: {}'.format(time.time() - t1_0))
-    logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
+def _verbosity(arguments):
+    remaining, level = [], 0
+    for index, token in enumerate(arguments):
+        if token == '--':
+            remaining.extend(arguments[index:])
+            break
+        if token == '--verbose':
+            level += 1
+        elif token.startswith('-v') and set(token[1:]) == {'v'}:
+            level += len(token) - 1
+        else:
+            remaining.append(token)
+    return remaining, level
 
 
-def _run_solvation_workflow(
-    solvate,
-    run_parameters,
-    input_molecules,
-    number_of_orientations,
-    maximum_number_of_seeds,
-    quantum_chemistry_parameters,
-    site,
-):
-    """Validate and dispatch solvation workflow execution."""
-    number_of_solvent_molecules = run_parameters['solvation_size']
-    if number_of_solvent_molecules is None:
-        sys.exit('For this please provide the number of solvent\nmolecules to be added. Use the following option\n  -ss <int>')
-    if len(input_molecules) == 1:
-        sys.exit('Please provide more than two molecules.\nThe last input file will be considered as solvent\nand the other molecules as solutes to which solvent\nmolecules will be added.')
-    monomer = input_molecules[-1]
-    seeds = input_molecules[:-1]
-    t1_0 = time.time()
-    time_started = datetime.datetime.now()
-    result = solvate(
-        seeds,
-        monomer,
-        number_of_solvent_molecules,
-        number_of_orientations,
-        quantum_chemistry_parameters,
-        maximum_number_of_seeds,
-        site,
-        connectivity_policy=run_parameters["connectivity_policy"],
-    )
-    _log_workflow_result(result)
-    logger.info('Total Time: {}'.format(time.time() - t1_0))
-    logger.info("Started at {}\nEnded at {}".format(time_started, datetime.datetime.now()))
-
-
-def _run_reaction_workflow(
-    reaction_workflow,
-    run_parameters,
-    input_molecules,
-    number_of_orientations,
-    quantum_chemistry_parameters,
-    site,
-):
-    """Validate and dispatch reaction workflow execution."""
-    minimum_gamma = run_parameters['bias_min']
-    maximum_gamma = run_parameters['bias_max']
-    adaptive_mode = run_parameters.get('bias_controller') == 'adaptive'
-    if len(input_molecules) < 2:
-        sys.exit('Missing arguments: provide at least two molecules')
-    if maximum_gamma is None:
-        sys.exit('missing argument: --bias-max <number>')
-    if not adaptive_mode and minimum_gamma is None:
-        sys.exit('missing argument: --bias-min <number>')
-    if adaptive_mode and minimum_gamma is not None:
-        logger.warning(
-            'Ignoring --bias-min in adaptive mode; --bias-max is the single bias ceiling.'
-        )
-        minimum_gamma = None
-    if number_of_orientations is None:
-        sys.exit('Missing arguments: -N #')
-
-    proximity_factor = 2.3
-    zero_time = time.time()
-    time_started = datetime.datetime.now()
-    result = reaction_workflow.react(
-        input_molecules[0],
-        input_molecules[1],
-        minimum_gamma,
-        maximum_gamma,
-        int(number_of_orientations),
-        quantum_chemistry_parameters,
-        site,
-        proximity_factor,
-    )
-    _log_workflow_result(result)
-    logger.info('Total run time: {}'.format(time.time() - zero_time))
-    logger.info(f"Started at {time_started}\nEnded at {datetime.datetime.now()}")
-
-
-def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "grow":
-        from pyar.scripts.grow import main as grow_main
-        grow_main(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] in {"scan-bond", "scan_bond"}:
-        from pyar.scripts.scan_bond import main as scan_bond_main
-        scan_bond_main(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] in {"trace", "reaction-trace"}:
-        _dispatch_trace_subcommand(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] in {"conformer", "conformers"}:
-        _dispatch_conformer_subcommand(sys.argv[2:])
-        return
-    args = vars(argument_parse())
-
-    run_parameters = _merge_run_parameters(args)
-    run_mode = _active_run_mode(run_parameters)
-    input_files = run_parameters['input_files'] or []
-    number_of_input_files = len(input_files)
-    _validate_cli_request_shape(run_parameters, number_of_input_files)
-    _configure_reaction_optimizer(run_parameters, run_mode)
-    _preflight_cli_requirements(
-        run_mode,
-        run_parameters["software"],
-        run_parameters["geometry_optimizer"],
-    )
-
-    from pyar.state.aggregate import AggregateStateError
-    from pyar.state.solvation import SolvationStateError
-    from pyar.workflows.aggregate import aggregate
-    from pyar.workflows import reaction as reaction_workflow
-    from pyar.workflows.solvation import solvate
-    from pyar.state.reaction import ReactionStateError
-
-    _configure_cli_logging(run_parameters['verbosity'])
-    _log_startup_context(run_parameters, run_mode, input_files, number_of_input_files)
-    input_specs, formula_aggregate_sizes = _resolve_cli_input_specs(run_parameters, input_files)
-    input_molecules, _, _, _ = _load_input_molecules(run_parameters, input_specs)
-    if run_parameters['software'] is not None:
-        _validate_backend_spin_inputs(input_molecules)
-
-    (
-        quantum_chemistry_parameters,
-        backend_family_name,
-        ignored_qc_options,
-        effective_qc_options,
-        staged_optimization,
-    ) = _build_qc_parameters(run_parameters, args, run_mode)
+@contextmanager
+def _logging(level, quiet):
+    logger = logging.getLogger('pyar')
+    previous = logger.level
+    handler = None
+    if level or quiet:
+        logger.setLevel(logging.ERROR if quiet else logging.DEBUG if level > 1 else logging.INFO)
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        logger.addHandler(handler)
     try:
-        _preflight_xtb_model(quantum_chemistry_parameters)
-    except (BackendExecutionError, FileNotFoundError) as exc:
-        logger.critical(str(exc))
-        sys.exit(str(exc))
-    _log_qc_context(
-        run_parameters,
-        quantum_chemistry_parameters,
-        backend_family_name,
-        ignored_qc_options,
-        effective_qc_options,
-        staged_optimization,
-    )
+        yield
+    finally:
+        if handler is not None:
+            logger.removeHandler(handler)
+            handler.close()
+        logger.setLevel(previous)
 
-    number_of_orientations = run_parameters['how_many_orientations']
-    logger.info(f'Number of orientations: {number_of_orientations}')
-    maximum_number_of_seeds = run_parameters['maximum_number_of_seeds']
-    logger.info(f'Maximum number of seeds: {maximum_number_of_seeds}')
 
-    site = _resolve_site_constraint(run_parameters, input_molecules)
-    logger.info(f'Site constraint: {site}')
-    _log_workflow_plan(
-        run_mode,
-        run_parameters,
-        input_molecules,
-        formula_aggregate_sizes,
-        number_of_orientations,
+def _print_execution_plan(plan, scientific):
+    print(f'Execution plan: {plan.workflow}')
+    if plan.inputs:
+        print('Inputs: ' + ', '.join(plan.inputs))
+    print(f"Backend: {plan.backend or 'none (geometry-only or RDKit generation)'}")
+    print('Resolved command settings:')
+    for key, value in sorted(plan.settings.items()):
+        print(f"  {key.replace('_', '-')}: {value} [{plan.value_sources.get(key, 'resolved')}]")
+    if scientific.get('backend'):
+        print('Resolved backend settings:')
+        for key, value in sorted(scientific['backend'].items()):
+            print(f'  {key}: {value}')
+    print('Planned stages:')
+    for index, stage in enumerate(plan.stages, 1):
+        print(f'  {index}. {stage}')
+    if plan.outputs:
+        print('Output locations: ' + ', '.join(plan.outputs))
+    print('No calculation or workflow output was created.')
+
+
+def _write_execution_record(command, request, resolved, observation, *, failure=None, config_file=None):
+    from pyar.run_config import RUN_RECORD_KIND, write_toml_document
+    result = observation.result or {}
+    directory = result.get('run_directory') if isinstance(result, dict) else None
+    if directory is None:
+        outputs = resolved.scientific.get('outputs', [])
+        directory = outputs[0] if command != 'optimize' and len(outputs) == 1 else None
+    if directory is None or not Path(directory).is_dir():
+        run_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-') + uuid.uuid4().hex[:12]
+        directory = Path.cwd() / '.pyar' / 'runs' / run_id
+    directory = Path(directory).resolve()
+    path = directory / 'pyar-run.toml'
+    if path.exists():
+        path = directory / f'pyar-run-{uuid.uuid4().hex}.toml'
+    status = (
+        result.get('status') if isinstance(result, dict) and result.get('status') else
+        'failed' if failure is not None else 'completed'
     )
+    metadata = {
+        'pyar_version': __version__, 'created_utc': datetime.now(timezone.utc).isoformat(),
+        'status': status, 'scientific_status': status,
+        'invocation_status': 'failed' if failure is not None else 'completed',
+        'record_id': str(uuid.uuid4()),
+        'record_directory': str(directory), 'profile': request.profile,
+        'value_sources': resolved.value_sources, 'resolved_request': resolved.scientific,
+        'config_file': config_file, 'result': result,
+    }
+    if isinstance(result, dict) and result.get('run_directory'):
+        metadata['run_directory'] = result['run_directory']
+    if failure is not None:
+        metadata['error'] = str(failure)
+    return write_toml_document(path, kind=RUN_RECORD_KIND, workflow=command,
+                               arguments=request.arguments, effective=resolved.values, metadata=metadata)
+
+
+def _execution_json_payload(command, resolved, observation, *, checking, dry_run,
+                            plan, failure, record_failure, provenance_only_failure):
+    """Build the stable JSON response from resolved request and run evidence."""
+    scientific_status = (
+        observation.result.get('status', 'completed')
+        if isinstance(observation.result, dict) else
+        'ready' if checking and failure is None else
+        'failed' if failure else 'completed'
+    )
+    invocation_status = (
+        'provenance_write_failed' if provenance_only_failure else
+        'failed' if failure else 'ready' if checking else 'completed'
+    )
+    payload = {'schema_version': 1, 'workflow': command,
+               'status': scientific_status, 'scientific_status': scientific_status,
+               'invocation_status': invocation_status,
+               'mode': 'dry-run' if dry_run else 'check' if checking else 'run',
+               'resolved': resolved.to_dict(), 'result': observation.result}
+    if plan:
+        payload['plan'] = plan.to_dict()
+    if failure:
+        payload['error'] = str(failure)
+    if record_failure is not None:
+        payload['provenance_error'] = str(record_failure)
+    return payload
+
+
+def invoke(command, arguments, *, config_file=None, profile_values=None, source_overrides=None):
+    """Dispatch a task, observing its own validated request and actual result."""
+    from pyar.cli_runtime import observe_run
+    from pyar.run_config import (PROFILE_KIND, RUN_CONFIG_KIND, ResolvedRunSpec, RunSpec,
+                                 arguments_from_profile, build_execution_plan, load_toml_document,
+                                 profile_path, resolve_run_spec, without_execution_controls,
+                                 write_toml_document)
+    error_parser = argparse.ArgumentParser(prog=f'pyar {command}', add_help=False)
+    if command not in _COMMANDS:
+        error_parser.error(f'Unknown task: {command}')
+    args = list(arguments)
     try:
-        if run_parameters['aggregate']:
-            _run_aggregate_workflow(
-                aggregate,
-                run_parameters,
-                input_molecules,
-                formula_aggregate_sizes,
-                number_of_orientations,
-                maximum_number_of_seeds,
-                quantum_chemistry_parameters,
-                site,
-            )
+        args, verbosity = _verbosity(args)
+        args, quiet_long = _remove_option(args, '--quiet')
+        args, quiet_short = _remove_option(args, '-q')
+        args, _ = _remove_option(args, '--no-color')
+        quiet = bool(quiet_long or quiet_short)
+        if quiet and verbosity:
+            raise ValueError('--quiet and --verbose cannot be combined')
+    except ValueError as exc:
+        error_parser.error(str(exc))
+    if command in _META_COMMANDS:
+        module = import_module(_COMMANDS[command][0])
+        if command == "benchmark":
+            return module.main(args, prog="pyar benchmark")
+        function = {'run': module.run_config, 'config': module.config, 'profile': module.profile,
+                    'info': module.info, 'backends': module.backends, 'doctor': module.doctor,
+                    'inspect': module.inspect_run, 'install': module.install}[command]
+        if command == 'run':
+            return function(args, prog=f'pyar {command}', verbosity=verbosity, quiet=quiet)
+        with _logging(verbosity, quiet):
+            return function(args, prog=f'pyar {command}')
+    try:
+        args, profile_name = _remove_option(args, '--profile', takes_value=True)
+        args, config_path = _remove_option(args, '--write-config', takes_value=True)
+        args, dry_run = _remove_option(args, '--dry-run')
+        as_json = False
+        if command in _CHECK_COMMANDS:
+            args, as_json = _remove_option(args, '--json')
+        if dry_run and command not in _CHECK_COMMANDS:
+            raise ValueError('--dry-run is supported only for calculation workflows with --check')
+    except ValueError as exc:
+        error_parser.error(str(exc))
+    module = import_module(_COMMANDS[command][0])
+    parser = _command_parser(command, module)
+    option_part = args[:args.index('--')] if '--' in args else args
+    if any(token in {'-h', '--help'} for token in option_part) and parser is not None:
+        _add_shared_help(parser, dry_run=command in _CHECK_COMMANDS).print_help()
+        parser.exit()
+    profile_values = dict(profile_values or {})
+    try:
+        if profile_name:
+            profile = load_toml_document(profile_path(profile_name), PROFILE_KIND)
+            if profile['workflow'] != command:
+                raise ValueError(f"Profile {profile_name!r} is for {profile['workflow']!r}")
+            profile_values.update(profile['effective'])
+        if config_path and Path(config_path).expanduser().exists():
+            raise ValueError(f'Configuration already exists: {config_path}. Choose a new path.')
+    except (ValueError, OSError) as exc:
+        error_parser.error(str(exc))
+    if parser is not None:
+        request, resolved = resolve_run_spec(command, parser, args, profile_values=profile_values,
+                                             profile=profile_name, argument_source='config' if config_file else 'cli')
+    else:
+        request = RunSpec(command, tuple(args), profile_name)
+        resolved = ResolvedRunSpec(command, {}, {}, tuple(args))
+    if source_overrides:
+        resolved.value_sources.update(source_overrides)
+    execution = list(args)
+    if parser is not None:
+        applied = {key: value for key, value in profile_values.items() if resolved.value_sources.get(key) == 'profile'}
+        extra = arguments_from_profile(applied, parser, workflow=command, skip_defaults=False)
+        boundary = execution.index('--') if '--' in execution else len(execution)
+        execution[boundary:boundary] = extra
+    checking = bool(resolved.values.get('check') or dry_run)
+    if dry_run and not resolved.values.get('check'):
+        boundary = execution.index('--') if '--' in execution else len(execution)
+        execution.insert(boundary, '--check')
+    # Configs are calculation specifications, never permanently validation-only.
+    request = RunSpec(command, tuple(without_execution_controls(args)), profile_name)
+    saved_config = False
 
-        if run_parameters['solvate']:
-            _run_solvation_workflow(
-                solvate,
-                run_parameters,
-                input_molecules,
-                number_of_orientations,
-                maximum_number_of_seeds,
-                quantum_chemistry_parameters,
-                site,
-            )
-
-        if run_parameters['react']:
-            _run_reaction_workflow(
-                reaction_workflow,
-                run_parameters,
-                input_molecules,
-                number_of_orientations,
-                quantum_chemistry_parameters,
-                site,
-            )
+    def save_config():
+        nonlocal saved_config
+        if not config_path or saved_config:
             return
+        write_toml_document(config_path, kind=RUN_CONFIG_KIND, workflow=command,
+                            arguments=request.arguments, effective={**resolved.values, 'check': False} if 'check' in resolved.values else resolved.values,
+                            metadata={'profile': profile_name, 'value_sources': resolved.value_sources,
+                                      'resolved_request': resolved.scientific})
+        saved_config = True
+        print(f'Wrote run configuration: {Path(config_path).expanduser().resolve()}', file=sys.stderr)
 
-    except (FileNotFoundError, AggregateStateError, ReactionStateError, SolvationStateError,
-            ValueError, BackendExecutionError) as exc:
-        logger.critical(str(exc))
-        sys.exit(str(exc))
+    def prepared(observation):
+        nonlocal resolved
+        values = dict(resolved.values)
+        sources = dict(resolved.value_sources)
+        for key, value in observation.options.items():
+            if key not in values:
+                continue
+            if values[key] != value and sources.get(key) == 'default':
+                sources[key] = 'workflow-default'
+            values[key] = value
+        resolved = ResolvedRunSpec(command, values, sources, request.arguments, observation.prepared)
+        save_config()
+
+    if command in {'neb', 'ts', 'irc'}:
+        entry = getattr(module, command)
+    else:
+        entry = module.main
+    result, failure, record_failure = None, None, None
+    provenance_only_failure = False
+    with observe_run(prepared) as observation, _logging(verbosity, quiet), ExitStack() as stack:
+        if as_json or (quiet and command in _CHECK_COMMANDS):
+            stack.enter_context(redirect_stdout(io.StringIO() if checking or quiet else sys.stderr))
+        try:
+            result = entry(execution, prog=f'pyar {command}')
+            if observation.result is None and result is not None:
+                observation.result = result.to_dict() if hasattr(result, 'to_dict') else result
+            save_config()
+        except BaseException as exc:
+            failure = exc
+        finally:
+            if observation.started and not checking:
+                try:
+                    _write_execution_record(command, request, resolved, observation, failure=failure, config_file=config_file)
+                except (OSError, ValueError) as exc:
+                    record_failure = exc
+                    message = (
+                        f'pyar {command}: calculation outputs were retained, but run provenance '
+                        f'could not be written: {exc}. Check directory permissions and free space.'
+                    )
+                    print(message, file=sys.stderr)
+                    if failure is None:
+                        provenance_only_failure = True
+                        failure = OSError(message)
+    plan = build_execution_plan(command, resolved) if dry_run and failure is None else None
+    if as_json:
+        payload = _execution_json_payload(
+            command,
+            resolved,
+            observation,
+            checking=checking,
+            dry_run=dry_run,
+            plan=plan,
+            failure=failure,
+            record_failure=record_failure,
+            provenance_only_failure=provenance_only_failure,
+        )
+        print(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False, default=str))
+    elif plan and not quiet:
+        _print_execution_plan(plan, resolved.scientific)
+    if failure is not None:
+        raise failure
+    return result
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

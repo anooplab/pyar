@@ -59,7 +59,7 @@ def _benchmark(method, count, repeat, evaluation_points, oversample_factor):
     return np.mean(values, axis=0), np.std(values, axis=0), np.mean(runtimes)
 
 
-def main():
+def main(argv=None, *, prog=None):
     """Run reproducible unit-sphere coverage comparisons."""
     parser = argparse.ArgumentParser(
         description="Benchmark direction samplers for trial geometry generation."
@@ -99,7 +99,7 @@ def main():
         default=8,
         help="Candidate-pool multiplier for maximin methods.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     print(
         "N\tmethod\tmin_sep_deg\tmean_nn_deg\tcover_radius_deg"
