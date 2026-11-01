@@ -198,7 +198,7 @@ class EnergyGradientProviderTests(unittest.TestCase):
         coordinates_bohr = np.zeros((2, 3), dtype=float)
         aimnet_backend = ModuleType("pyar.backends.aimnet_2")
         aimnet_backend.load_default_aimnet2_model = mock.Mock(return_value=object())
-        aimnet_calculator = ModuleType("pyar.AIMNet2.calculators.aimnet2ase")
+        aimnet_calculator = ModuleType("pyar.backends.aimnet2ase")
         aimnet_calculator.AIMNet2Calculator = FakeCalculator
 
         with (
@@ -206,7 +206,7 @@ class EnergyGradientProviderTests(unittest.TestCase):
                 sys.modules,
                 {
                     "pyar.backends.aimnet_2": aimnet_backend,
-                    "pyar.AIMNet2.calculators.aimnet2ase": aimnet_calculator,
+                    "pyar.backends.aimnet2ase": aimnet_calculator,
                 },
             )
         ):

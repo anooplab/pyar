@@ -86,6 +86,8 @@ class PackagingMetadataTests(unittest.TestCase):
             name
             for name in names
             if name in blocked_exact
+            or name.startswith("pyar/AIMNet2/")
+            or name.endswith(".jpt")
             or any(
                 name.startswith(prefix) and name.endswith(suffix)
                 for prefix, suffix in blocked_patterns

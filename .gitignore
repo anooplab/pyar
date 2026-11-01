@@ -11,6 +11,8 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *.log
+# AIMNet2 model weights are provided externally via PYAR_AIMNET2_MODEL.
+*.jpt
 /pyar_geometric_state.json
 pyar.log
 pyar-optimiser.log

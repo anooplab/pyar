@@ -1,11 +1,11 @@
 AIMNet2 third-party notice
 ==========================
 
-The files under these paths are AIMNet2 model/code assets bundled for PyAR's
-AIMNet2 interface:
+The files under these paths are adapted AIMNet2 code retained for PyAR's
+AIMNet2 interface (model weights are supplied externally):
 
-- pyar/AIMNet2/
-- pyar/AIMNet2/models/*.jpt
+- pyar/backends/aimnet2ase.py
+- pyar/backends/aimnet2_ase_opt.py
 
 Upstream project:
 

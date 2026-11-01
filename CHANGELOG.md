@@ -4,6 +4,11 @@
 
 ### Breaking interface and format cleanup
 
+- Remove the bundled AIMNet2 `.jpt` model from the source checkout, matching
+  wheel/sdist installations. Set `PYAR_AIMNET2_MODEL` to an externally supplied
+  compatible TorchScript model before using the AIMNet2 backends. Source runs
+  no longer discover a packaged model automatically. Move the calculator and
+  optimizer adapters to `pyar.backends` and remove the unused `afir_aimnet.py`.
 - Install one executable, `pyar`, with canonical task modules and specialist
   tools under subcommands. Remove standalone launchers and parser/import shims.
 - Reject older run/config generations; reproduce older work with its original

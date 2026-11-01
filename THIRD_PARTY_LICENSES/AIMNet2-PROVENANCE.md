@@ -1,15 +1,19 @@
 # AIMNet2 Provenance
 
-PyAR bundles AIMNet2 assets for its `aimnet_2` and `xtb-aimnet2` interfaces.
+PyAR retains adapted AIMNet2 calculator code for its `aimnet_2` and
+`xtb-aimnet2` interfaces. The adapters now live at:
 
-## Bundled Paths
+- `pyar/backends/aimnet2ase.py`
+- `pyar/backends/aimnet2_ase_opt.py`
 
-- `pyar/AIMNet2/`
-- `pyar/AIMNet2/models/aimnet2_wb97m-d3_0.jpt`
-
-Only the default model used by PyAR is retained. Unused ensemble members,
-ensemble models, and B97-3c models have been removed. Model files are excluded
-from published wheels and source distributions.
+The unused `afir_aimnet.py` implementation has been removed; the active AFIR
+implementation remains in PyAR's scientific bias/provider services.
+No model weights are distributed in the checkout, wheel or sdist. Set
+`PYAR_AIMNET2_MODEL` to an externally supplied compatible
+`aimnet2_wb97m-d3_0.jpt` TorchScript model. This removes the previous
+checkout-only model fallback; the standalone optimizer also accepts an explicit
+model argument. Preserve the model's acquisition source, version, license and
+checksum with calculation evidence.
 
 ## Upstream Sources
 
@@ -35,5 +39,6 @@ https://doi.org/10.1039/D4SC08572H
 ## Maintenance Note
 
 Prefer upstream AIMNet2 model distribution channels for new work when possible.
-If bundled `.jpt` files are replaced, update this provenance note with the
-source URL, download date, and upstream version or commit identifier.
+Retain this license and provenance notice with the adapted calculator code.
+Do not add runtime weights to Git; model changes require explicit scientific
+validation and provenance, rather than silently replacing a Hamiltonian.

@@ -56,6 +56,10 @@ def outer():
     (vendored / "vendor.py").write_text(
         "def excluded():\n    if True:\n        return 1\n", encoding="utf-8"
     )
+    adapters = package / "backends"
+    adapters.mkdir()
+    for filename in ("aimnet2ase.py", "aimnet2_ase_opt.py"):
+        (adapters / filename).write_text("def vendor_adapter():\n    return 1\n")
     cache = package / "__pycache__"
     cache.mkdir()
     (cache / "generated.py").write_text(
@@ -84,6 +88,9 @@ def test_inventory_matches_independent_function_and_decision_counts(tmp_path):
     )
     assert len(rows) == independent_count == manifest["function_count"]
     assert all("AIMNet2" not in row["file"] for row in rows)
+    assert all(not row["file"].startswith("pyar/backends/") for row in rows)
+    assert "pyar/backends/aimnet2ase.py" in manifest["exclusions"]
+    assert "pyar/backends/aimnet2_ase_opt.py" in manifest["exclusions"]
     assert all(
         row["source_tree_sha256"] == manifest["source_tree_sha256"] for row in rows
     )
@@ -155,7 +162,14 @@ def test_repository_inventory_binds_to_git_head_and_matches_ast_count():
     expected_count = 0
     for path in (repository / "pyar").rglob("*.py"):
         relative = path.relative_to(repository)
-        if "AIMNet2" in relative.parts or "__pycache__" in relative.parts:
+        if (
+            "AIMNet2" in relative.parts
+            or "__pycache__" in relative.parts
+            or relative.as_posix() in {
+                "pyar/backends/aimnet2ase.py",
+                "pyar/backends/aimnet2_ase_opt.py",
+            }
+        ):
             continue
         expected_count += sum(
             isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))

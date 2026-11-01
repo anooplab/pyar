@@ -232,7 +232,7 @@ class Aimnet2EnergyGradientProvider:
         self.qc_params = dict(qc_params or {})
 
     def evaluate(self, molecule, coordinates_bohr):
-        from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+        from pyar.backends.aimnet2ase import AIMNet2Calculator
         from pyar.backends.aimnet_2 import load_default_aimnet2_model
 
         coordinates_bohr = _as_numpy_positions(coordinates_bohr)

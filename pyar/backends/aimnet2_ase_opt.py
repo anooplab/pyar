@@ -81,7 +81,7 @@ def main(argv=None, *, prog=None):
         try:
             import torch
             from ase.io import iread, write
-            from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+            from pyar.backends.aimnet2ase import AIMNet2Calculator
         except ImportError as exc:
             error = optional_dependency_error(
                 getattr(exc, "name", None) or "torch",
@@ -103,12 +103,12 @@ def main(argv=None, *, prog=None):
     try:
         import torch
         from openbabel import pybel as openbabel_pybel
-        from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+        from pyar.backends.aimnet2ase import AIMNet2Calculator
     except ImportError as exc:
         module_name = getattr(exc, "name", None) or "openbabel"
         if module_name == "openbabel":
             raise SystemExit(
-                'openbabel is required for pyar-aimnet2-ase-opt. '
+                'openbabel is required for pyar aimnet2-ase-opt. '
                 'Install with `mamba install -c conda-forge openbabel`.'
             ) from exc
         error = optional_dependency_error(
