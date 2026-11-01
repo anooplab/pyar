@@ -159,6 +159,23 @@ preserves the established integration and test interfaces. Moving these helpers
 to separate modules would currently require passing those bindings through a
 large callback surface without a clearer scientific ownership boundary.
 
+NEB orchestration
+-----------------
+
+``pyar.neb.run_neb`` owns the output directory and restores the caller's working
+directory on every exit. The internal coordinator validates the route before
+numerical controls, builds backend settings, adopts verified cached stages,
+and sequences the requested stages. Each stage handler returns its result,
+inputs, artifacts and dependencies to the publication owner. That owner records
+scientific gates, counter deltas, elapsed time and canonical parameters through
+the existing stage store. The execution wrapper preserves observations and
+writes failure receipts before propagating the original exception.
+
+``_load_stage`` retains recursive dependency and hash validation, including
+checks before and after legacy migration. Backend compatibility and stage
+parameter checks have separate owners; this separation does not authorize a
+cached artifact or an optimizer success flag to bypass scientific gates.
+
 Public API
 ----------
 
