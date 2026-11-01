@@ -1,4 +1,5 @@
 """xTB followed by AIMNet2 refinement backend."""
+from pyar.constants import EV_HARTREE_ROUNDED
 
 import logging
 import os
@@ -114,7 +115,7 @@ class XtbAimnet2(SF):
                 if len(energy_tokens) >= 4:
                     energy = energy_tokens[3]
                     try:
-                        energy = float(energy) * 0.0367493  # Convert energy from eV to Hartree
+                        energy = float(energy) * EV_HARTREE_ROUNDED  # Convert energy from eV to Hartree
                         return energy
                     except ValueError:
                         print("Error: Unable to convert energy value to float")

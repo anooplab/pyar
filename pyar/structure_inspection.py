@@ -1,4 +1,5 @@
 """Read-only pairwise inspection using PyAR's coordinate graph and RMSD APIs."""
+from pyar.constants import GRAPH_BOND_FACTOR
 
 import math
 from pathlib import Path
@@ -31,7 +32,7 @@ def optional_energy(filename):
         return None
 
 
-def compare_structures(first, second, *, atom_mode="heavy", bond_scale=1.15,
+def compare_structures(first, second, *, atom_mode="heavy", bond_scale=GRAPH_BOND_FACTOR,
                        maximum_mappings=10000, rmsd_threshold=None, charges=None):
     """Compare two XYZ paths; return JSON-ready data independently of rendering.
 
@@ -90,7 +91,7 @@ def format_formula(composition):
                    for element in order)
 
 
-def identify_structure(molecule, *, charge=None, bond_scale=1.15):
+def identify_structure(molecule, *, charge=None, bond_scale=GRAPH_BOND_FACTOR):
     """Enrich an already loaded geometry without making RDKit mandatory."""
     from pyar.structure_comparison.coordinate_graph import analyze_coordinate_structure
     from pyar.structure_comparison.chemical_identity import perceive_chemical_identity

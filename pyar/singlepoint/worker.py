@@ -1,4 +1,5 @@
 """Isolated optional Python calculators. Invoked inside each evaluation folder."""
+from pyar.constants import HARTREE_EV
 
 import hashlib
 import json
@@ -41,7 +42,7 @@ def turbomole_calculator(request):
             "density functional": functional,
             "use resolution of identity": False,
             "scf iterations": settings["scf_cycles"],
-            "scf energy convergence": 1e-8 * 27.211386245988,
+            "scf energy convergence": 1e-8 * HARTREE_EV,
         },
     )
 

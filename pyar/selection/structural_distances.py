@@ -1,4 +1,5 @@
 """Complete structural distance matrices with explicit, pool-wide fallbacks."""
+from pyar.constants import GRAPH_BOND_FACTOR
 
 from dataclasses import dataclass, field
 
@@ -117,7 +118,7 @@ def _mapped_matrix(molecules, metric, options):
         from pyar.structure_comparison import GraphFirstDeduplicationComparator
 
         parameters = {"atom_mode": options.get("atom_mode", "heavy"),
-                      "bond_scale": options.get("bond_scale", 1.15),
+                      "bond_scale": options.get("bond_scale", GRAPH_BOND_FACTOR),
                       "max_isomorphisms": options.get("max_mappings", 10000),
                       "irmsd_timeout": options.get("irmsd_timeout", 30.)}
         comparator = GraphFirstDeduplicationComparator(**parameters)
@@ -125,7 +126,7 @@ def _mapped_matrix(molecules, metric, options):
         from pyar.structure_comparison.fragment_rmsd import FragmentRMSDComparator
 
         parameters = {"atom_mode": options.get("atom_mode", "all"),
-                      "bond_scale": options.get("bond_scale", 1.15),
+                      "bond_scale": options.get("bond_scale", GRAPH_BOND_FACTOR),
                       "max_mappings": options.get("max_mappings", 10000)}
         comparator = FragmentRMSDComparator(**parameters)
         parameters.update(max_fragment_permutations=720, distance_is_upper_bound=True)

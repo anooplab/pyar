@@ -4,6 +4,7 @@ Calculate or retrieve properties of the input molecules.
 
 
 """
+from pyar.constants import BOND_DISTANCE_FACTOR
 from math import pi
 
 import numpy as np
@@ -64,7 +65,7 @@ def get_bond_matrix(coordinates, covalent_radius):
     bm = np.zeros((len(coordinates), len(coordinates)), dtype=int)
     for i, c in enumerate(coordinates):
         for j, d in enumerate(coordinates):
-            sum_of_covalent_radii = (covalent_radius[i] + covalent_radius[j]) * 1.3
+            sum_of_covalent_radii = (covalent_radius[i] + covalent_radius[j]) * BOND_DISTANCE_FACTOR
             if i != j and dm[i, j] < sum_of_covalent_radii:
                 bm[i, j] = 1
     return bm
@@ -77,7 +78,7 @@ def get_connectivity(coordinates, covalent_radius):
     bond_graph = collections.defaultdict(list)
     for i, c in enumerate(coordinates):
         for j, d in enumerate(coordinates):
-            sum_of_covalent_radii = (covalent_radius[i] + covalent_radius[j]) * 1.3
+            sum_of_covalent_radii = (covalent_radius[i] + covalent_radius[j]) * BOND_DISTANCE_FACTOR
             if i != j and dm[i, j] < sum_of_covalent_radii:
                 bond_graph[j].append(i)
     return bond_graph

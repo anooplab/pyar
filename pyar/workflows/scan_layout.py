@@ -1,4 +1,5 @@
 """Scan-owned immutable records; native scan and path executors retain filenames."""
+from pyar.constants import HARTREE_KCAL_MOL_SCAN
 import hashlib
 import json
 import math
@@ -154,7 +155,7 @@ class ScanLayout:
                 and highest_path.relative_to(self.root).as_posix() in candidate_paths:
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
             internal_maximum = bool(metadata.get('maximum_is_internal'))
-        peak_delta = (max(energies) - energies[0]) * 627.509474 if trace_complete else math.inf
+        peak_delta = (max(energies) - energies[0]) * HARTREE_KCAL_MOL_SCAN if trace_complete else math.inf
         return {
             "complete_validated_trace": trace_complete,
             "usable_internal_scan_maximum": internal_maximum,

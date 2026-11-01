@@ -1,6 +1,8 @@
 """Relaxed bond scans and optional validated reaction-path continuation."""
 
 from __future__ import annotations
+from pyar.constants import BOND_DISTANCE_FACTOR
+from pyar.constants import HARTREE_KCAL_MOL_SCAN
 
 import csv
 import hashlib
@@ -36,7 +38,7 @@ from pyar.reaction_identity import (
 from pyar.sampling.trial_generator import generate_trial_vectors, merge_two_molecules
 
 DEFAULT_SCAN_END_FACTOR = 0.8
-TARGET_CONTACT_FACTOR = 1.3
+TARGET_CONTACT_FACTOR = BOND_DISTANCE_FACTOR
 INTRAMOLECULAR_FORM_FACTOR = 1.05
 INTRAMOLECULAR_BREAK_FACTOR = 2.5
 INTRAMOLECULAR_SAFE_FACTOR = 2.0
@@ -351,7 +353,7 @@ def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxsca
             "frame_index": frame_index,
             "target_distance_angstrom": point["target_distance_angstrom"],
             "energy_hartree": point["energy_hartree"],
-            "relative_energy_kcal_mol": (point["energy_hartree"] - first_energy) * 627.509474,
+            "relative_energy_kcal_mol": (point["energy_hartree"] - first_energy) * HARTREE_KCAL_MOL_SCAN,
             "geometry_path": "scan_trajectory.xyz",
         })
     csv_path = directory / "scan_profile.csv"
@@ -390,7 +392,7 @@ def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxsca
         "maximum_frame_index": maximum_frame,
         "maximum_target_distance_angstrom": profile[maximum_frame]["target_distance_angstrom"],
         "maximum_energy_hartree": maximum_energy,
-        "barrier_from_first_scan_point_kcal_mol": (maximum_energy - first_energy) * 627.509474,
+        "barrier_from_first_scan_point_kcal_mol": (maximum_energy - first_energy) * HARTREE_KCAL_MOL_SCAN,
         "maximum_is_internal": 0 < maximum_frame < len(profile) - 1,
         "candidate_files": candidate_files,
         "interpretation": "scan maximum candidate; not a confirmed transition state",

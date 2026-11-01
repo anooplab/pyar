@@ -6,6 +6,7 @@ the analysis and plotting helpers in :mod:`pyar.reaction_analysis`.
 """
 
 from __future__ import annotations
+from pyar.constants import GRAPH_BOND_FACTOR, TRACE_BOND_OFF_FACTOR
 
 import json
 import math
@@ -16,8 +17,8 @@ import numpy as np
 from pyar.backends import write_xyz
 from pyar.data import new_atomic_data
 
-_BOND_ON_SCALE = 1.15
-_BOND_OFF_SCALE = 1.35
+_BOND_ON_SCALE = GRAPH_BOND_FACTOR
+_BOND_OFF_SCALE = TRACE_BOND_OFF_FACTOR
 _VALID_TRACE_MODES = {"write", "append"}
 _REQUIRED_TRACE_KEYS = {
     "step_index",

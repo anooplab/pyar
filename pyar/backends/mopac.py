@@ -17,6 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 """
+from pyar.constants import HARTREE_KCAL_MOL_REPORT
 
 import os
 import logging
@@ -118,7 +119,7 @@ class Mopac(SF):
                     break
         except IOError:
             mopac_logger.warning("mopac arc file missing job=%s arc=%s", self.job_name, self.arc_file)
-        return en_kcal / 627.51
+        return en_kcal / HARTREE_KCAL_MOL_REPORT
 
     def get_coords(self):
         """Return the optimized Cartesian coordinates from the ARC file."""

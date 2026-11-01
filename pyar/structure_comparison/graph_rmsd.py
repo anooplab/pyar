@@ -1,6 +1,7 @@
 """Connectivity-constrained permutation and Kabsch RMSD comparison."""
 
 from __future__ import annotations
+from pyar.constants import GRAPH_BOND_FACTOR
 
 from collections import Counter
 
@@ -12,7 +13,7 @@ from pyar.structure_comparison.rmsd import kabsch_rmsd
 from pyar.structure_comparison.coordinate_graph import infer_coordinate_graph
 
 
-def infer_molecular_graph(molecule, bond_scale=1.15):
+def infer_molecular_graph(molecule, bond_scale=GRAPH_BOND_FACTOR):
     """Compatibility wrapper for the shared coordinate-only graph inference.
 
     This deliberately exposes the bond scale: XYZ has no bond orders, and
@@ -53,7 +54,7 @@ class GraphRMSDComparator:
 
     method = "element-labeled-graph-isomorphism-kabsch-rmsd"
 
-    def __init__(self, threshold=None, bond_scale=1.15, max_isomorphisms=10000,
+    def __init__(self, threshold=None, bond_scale=GRAPH_BOND_FACTOR, max_isomorphisms=10000,
                  atom_mode="all"):
         if not np.isfinite(bond_scale) or bond_scale <= 0:
             raise ValueError("bond_scale must be finite and positive")

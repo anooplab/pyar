@@ -1,6 +1,7 @@
 """Conservative graph-first policy for removing duplicate geometries."""
 
 from __future__ import annotations
+from pyar.constants import GRAPH_BOND_FACTOR
 
 import json
 import os
@@ -67,7 +68,7 @@ for left, right in ((first, second), (second, first)):
 '''
 
 
-def _run_bidirectional_irmsd(first, second, timeout, bond_scale=1.15, atom_mode="all"):
+def _run_bidirectional_irmsd(first, second, timeout, bond_scale=GRAPH_BOND_FACTOR, atom_mode="all"):
     """Run native iRMSD in a child so warnings/fallbacks are observable."""
     payload = {
         "first_symbols": list(first.atoms_list),
@@ -118,7 +119,7 @@ class GraphFirstDeduplicationComparator:
 
     method = "graph-rmsd-with-bidirectional-irmsd-on-incomplete-mapping"
 
-    def __init__(self, threshold=None, bond_scale=1.15, max_isomorphisms=10000,
+    def __init__(self, threshold=None, bond_scale=GRAPH_BOND_FACTOR, max_isomorphisms=10000,
                  irmsd_timeout=30.0, atom_mode="all"):
         self.threshold = threshold
         self.irmsd_timeout = float(irmsd_timeout)

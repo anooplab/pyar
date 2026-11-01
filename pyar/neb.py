@@ -1,6 +1,7 @@
 """Unbiased geomeTRIC reaction-path stages with validated artifact handoff."""
 
 from __future__ import annotations
+from pyar.constants import BOND_DISTANCE_FACTOR
 
 import argparse
 import hashlib
@@ -591,7 +592,7 @@ def _validate_geodesic_options(tol, max_iter):
         raise ValueError("geodesic_max_iter must be a positive integer")
 
 
-def _bond_set(symbols, coordinates, scale=1.3):
+def _bond_set(symbols, coordinates, scale=BOND_DISTANCE_FACTOR):
     from pyar.data.new_atomic_data import covalent_radius
 
     return {

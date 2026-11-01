@@ -12,6 +12,7 @@ the exception-based :func:`parse_xyz` helper for improved testability.
 """
 
 from __future__ import annotations
+from pyar.constants import BOND_DISTANCE_FACTOR
 
 import itertools
 import sys
@@ -194,7 +195,7 @@ class Molecule(object):
         """Write the geometry in Turbomole ``coord`` format."""
         molecule_io.write_turbomole_coord(self)
 
-    def is_bonded(self, bond_scale=1.3):
+    def is_bonded(self, bond_scale=BOND_DISTANCE_FACTOR):
         """Return whether any inter-fragment pair forms a covalent bond."""
         fragment_one, fragment_two = self.split_coordinates()
         radius_one, radius_two = self.split_covalent_radii_list()
