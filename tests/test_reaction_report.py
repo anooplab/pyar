@@ -6,6 +6,7 @@ import pytest
 
 from pyar.backends import write_xyz
 from pyar.workflows.reaction_report import (
+    CharacterizationInputs,
     assemble_validated_path,
     build_reaction_characterization_report,
     write_reaction_characterization_report,
@@ -107,13 +108,13 @@ def test_report_validates_electronic_energy_arithmetic_and_separated_reference(t
     if association_state == "failed-route":
         route.update(status="failed", association_status="association_endpoint_gate_failed")
     provenance = {"product_id": "product_001", "pathway_id": "pathway_001"}
-    report = build_reaction_characterization_report(
+    report = build_reaction_characterization_report(CharacterizationInputs(
         route_root=tmp_path, product={"symbols": symbols}, provenance=provenance,
         path_result=path_result, route_result=route, alternatives=[],
         reference_mode="separated-reactants",
         reactant_reference={"reference_energy_hartree": -1.2,
                             "request": {"physical_method": {"software": "xtb", "xtb_model": "gfn2"}}},
-    )
+    ))
     energies = report["electronic_energetics"]
     if association_state != "matched":
         assert not report["connection_confirmed"]
@@ -139,11 +140,11 @@ def test_failed_connection_suppresses_energetics_and_validated_trace(tmp_path):
                                  "energy_hartree": -.8},
                    "irc": {"qc_params": method, "irc_converged": True},
                    "endpoint-frequency": {"qc_params": method, "endpoints_are_minima": True}}
-    report = build_reaction_characterization_report(
+    report = build_reaction_characterization_report(CharacterizationInputs(
         route_root=tmp_path, product={}, provenance={}, path_result=path_result,
         route_result={"status": "failed", "reactant_product_connection_confirmed": False},
         alternatives=[],
-    )
+    ))
     assert report["electronic_energetics"]["validated"] is False
     assert report["electronic_energetics"]["E_R"] is None
     assert report["validated_reaction_path"] is None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
@@ -207,11 +208,37 @@ def _electronic_energetics(gates_passed, assignment, endpoint_stage, frequency,
     return energies
 
 
-def build_reaction_characterization_report(*, route_root, product, provenance,
-                                           path_result, route_result, alternatives,
-                                           reference_mode="minima", reactant_reference=None,
-                                           discovery=None, scan_evidence=None):
-    """Build a JSON-safe report; validated energetics require compatible gates."""
+@dataclass(frozen=True, slots=True)
+class CharacterizationInputs:
+    route_root: object
+    product: dict
+    provenance: dict
+    path_result: dict
+    route_result: dict
+    alternatives: list
+    reference_mode: str = "minima"
+    reactant_reference: dict | None = None
+    discovery: dict | None = None
+    scan_evidence: dict | None = None
+
+
+def build_reaction_characterization_report(inputs: CharacterizationInputs):
+    """Build a report from explicit evidence; scientific acceptance stays gated."""
+    route_root, product, provenance = (
+        inputs.route_root,
+        inputs.product,
+        inputs.provenance,
+    )
+    path_result, route_result, alternatives = (
+        inputs.path_result,
+        inputs.route_result,
+        inputs.alternatives,
+    )
+    reference_mode, reactant_reference = (
+        inputs.reference_mode,
+        inputs.reactant_reference,
+    )
+    discovery, scan_evidence = inputs.discovery, inputs.scan_evidence
     route_root = Path(route_root).resolve()
     execution = Path(path_result.get("execution_directory", route_root)).resolve()
     (stage_results, artifacts, evaluation_counts, optimizer_steps,

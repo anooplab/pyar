@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import tempfile
@@ -24,19 +25,7 @@ def _write_json(path, value):
     temporary.replace(path)
 
 
-def prepare_separated_reactant_reference(reactants, qc_params, output, options):
-    """Optimize and frequency-check each isolated reactant once.
-
-    Returns a persistent E_A + E_B reference. Failed or non-minimum fragments
-    remain explicit failures and never receive an energy-sum claim.
-    """
-    from pyar.backends.geometric import PyarGeometricCalculator
-    from pyar.neb import _frequency, _optimize_geometry
-    from pyar.reaction_identity import (molecule_identity_from_xyz, same_molecular_identity,
-                                        separated_reactant_identity)
-
-    output = Path(output).resolve()
-    output.mkdir(parents=True, exist_ok=True)
+def _snapshot_reactant_fragments(reactants, output):
     request_rows = []
     sources = []
     for index, molecule in enumerate(reactants):
@@ -57,6 +46,90 @@ def prepare_separated_reactant_reference(reactants, qc_params, output, options):
             'charge': int(molecule.charge), 'multiplicity': int(molecule.multiplicity),
             'scftype': getattr(molecule, 'scftype', 'rhf'),
         })
+    return request_rows, sources
+
+
+@dataclass(frozen=True, slots=True)
+class ReactantReferenceRun:
+    output: Path
+    physical: dict
+    request: dict
+
+
+def _verify_reference_frequency(run, molecule, frames, calculator, label, optimized):
+    from pyar.neb import _frequency
+
+    output, request = run.output, run.request
+    index = int(label.removeprefix("fragment_"))
+    frequency = _frequency(
+        molecule.atoms_list, frames[-1], calculator, output, label,
+        request['imaginary_frequency_threshold_cm-1'],
+    )
+    if not frequency['minimum_confirmed']:
+        raise RuntimeError(f'isolated reactant fragment {index} is not a confirmed minimum')
+    final_coordinates = frequency['evaluated_coordinates_angstrom']
+    write_xyz(molecule.atoms_list, final_coordinates, optimized,
+              energy=frequency['energy_hartree'], precision=12)
+    return frequency
+
+
+def _verify_reference_identity(source, optimized, index):
+    from pyar.reaction_identity import molecule_identity_from_xyz, same_molecular_identity
+
+    initial_identity = molecule_identity_from_xyz(source)
+    final_identity = molecule_identity_from_xyz(optimized)
+    if not same_molecular_identity(initial_identity, final_identity):
+        raise RuntimeError(f'isolated reactant fragment {index} changed chemical identity during optimization')
+    return final_identity
+
+
+def _optimize_reference_fragment(run, molecule, source, fragment_request, index):
+    from pyar.backends.geometric import PyarGeometricCalculator
+    from pyar.neb import _optimize_geometry
+
+    output, physical, request = run.output, run.physical, run.request
+    label = f'fragment_{index}'
+    settings = dict(physical, charge=fragment_request['charge'],
+                    multiplicity=fragment_request['multiplicity'],
+                    scftype=fragment_request['scftype'], geometry_optimizer='geometric', gamma=0.0)
+    calculator = PyarGeometricCalculator(qc_params=settings)
+    frames, energies, converged = _optimize_geometry(
+        molecule.atoms_list, np.asarray(molecule.coordinates, dtype=float), calculator,
+        output, label, request['optimization']['max_steps'],
+        fmax=request['optimization']['fmax_ev_per_angstrom'],
+    )
+    if not converged:
+        raise RuntimeError(f'isolated reactant fragment {index} did not converge')
+    optimized = output / f'{label}_optimized.xyz'
+    frequency = _verify_reference_frequency(
+        run, molecule, frames, calculator, label, optimized
+    )
+    final_identity = _verify_reference_identity(source, optimized, index)
+    return {
+        "fragment": index,
+        "input_sha256": fragment_request["source_sha256"],
+        "optimized_geometry": optimized.name,
+        "optimized_geometry_sha256": _sha256(optimized),
+        "charge": fragment_request["charge"],
+        "multiplicity": fragment_request["multiplicity"],
+        "identity": final_identity,
+        "energy_hartree": frequency["energy_hartree"],
+        "optimization_converged": converged,
+        "frequency": frequency,
+    }
+
+
+def prepare_separated_reactant_reference(reactants, qc_params, output, options):
+    """Optimize and frequency-check each isolated reactant once.
+
+    Returns a persistent E_A + E_B reference. Failed or non-minimum fragments
+    remain explicit failures and never receive an energy-sum claim.
+    """
+    from pyar.reaction_identity import separated_reactant_identity
+
+    output = Path(output).resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    request_rows, sources = _snapshot_reactant_fragments(reactants, output)
     physical = {key: qc_params.get(key) for key in
                 ('software', 'method', 'basis', 'xtb_model', 'nprocs', 'scf_cycles')}
     combined_identity = separated_reactant_identity(reactants[0], reactants[1])
@@ -82,41 +155,18 @@ def prepare_separated_reactant_reference(reactants, qc_params, output, options):
               'status': 'running', 'reference_energy_hartree': None, 'fragments': []}
     _write_json(manifest, record)
     try:
-        for index, (molecule, source, fragment_request) in enumerate(zip(reactants, sources, request_rows), start=1):
-            label = f'fragment_{index}'
-            settings = dict(physical, charge=fragment_request['charge'],
-                            multiplicity=fragment_request['multiplicity'],
-                            scftype=fragment_request['scftype'], geometry_optimizer='geometric', gamma=0.0)
-            calculator = PyarGeometricCalculator(qc_params=settings)
-            frames, energies, converged = _optimize_geometry(
-                molecule.atoms_list, np.asarray(molecule.coordinates, dtype=float), calculator,
-                output, label, request['optimization']['max_steps'],
-                fmax=request['optimization']['fmax_ev_per_angstrom'],
+        for index, (molecule, source, fragment_request) in enumerate(
+            zip(reactants, sources, request_rows), start=1
+        ):
+            record["fragments"].append(
+                _optimize_reference_fragment(
+                    ReactantReferenceRun(output, physical, request),
+                    molecule,
+                    source,
+                    fragment_request,
+                    index,
+                )
             )
-            if not converged:
-                raise RuntimeError(f'isolated reactant fragment {index} did not converge')
-            optimized = output / f'{label}_optimized.xyz'
-            frequency = _frequency(
-                molecule.atoms_list, frames[-1], calculator, output, label,
-                request['imaginary_frequency_threshold_cm-1'],
-            )
-            if not frequency['minimum_confirmed']:
-                raise RuntimeError(f'isolated reactant fragment {index} is not a confirmed minimum')
-            final_coordinates = frequency['evaluated_coordinates_angstrom']
-            write_xyz(molecule.atoms_list, final_coordinates, optimized,
-                      energy=frequency['energy_hartree'], precision=12)
-            initial_identity = molecule_identity_from_xyz(source)
-            final_identity = molecule_identity_from_xyz(optimized)
-            if not same_molecular_identity(initial_identity, final_identity):
-                raise RuntimeError(f'isolated reactant fragment {index} changed chemical identity during optimization')
-            record['fragments'].append({
-                'fragment': index, 'input_sha256': fragment_request['source_sha256'],
-                'optimized_geometry': optimized.name,
-                'optimized_geometry_sha256': _sha256(optimized),
-                'charge': fragment_request['charge'], 'multiplicity': fragment_request['multiplicity'],
-                'identity': final_identity, 'energy_hartree': frequency['energy_hartree'],
-                'optimization_converged': converged, 'frequency': frequency,
-            })
             record['status'] = 'running'
             _write_json(manifest, record)
         record['reference_energy_hartree'] = sum(item['energy_hartree'] for item in record['fragments'])

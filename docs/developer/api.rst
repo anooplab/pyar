@@ -74,3 +74,14 @@ relaxation evidence, artifact hashes, product membership and restart authority.
 ``ScanRun`` and per-orientation contexts identify the owners of that evidence.
 
 .. autofunction:: pyar.workflows.scan_bond.run_scan_bond_request
+
+Resolved reaction discovery
+---------------------------
+
+``run_reaction(request, directory=..., recover_stale=False)`` accepts the
+``ReactionRequest`` returned by ``resolve_reaction_request``. The command line
+uses this same entry point. The existing ``react(...)`` argument API remains
+supported. Discovery owns restart verification; the request's descriptive
+``restart_request`` field cannot authorize reuse of persisted artifacts.
+
+.. autofunction:: pyar.workflows.reaction.run_reaction

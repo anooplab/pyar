@@ -63,10 +63,11 @@ def test_adaptive_reaction_runs_one_named_cycle(tmp_path, monkeypatch):
     optimize_all = Mock(return_value=[])
     monkeypatch.setattr(reaction, "optimize_all", optimize_all)
 
-    result = reaction._react(
-        object(), object(), None, 250.0, 1,
-        {"software": "xtb", "bias_controller": "adaptive"}, None, 2.3,
-    )
+    from pyar.reaction_request import ReactionRequest
+    result = reaction._react(ReactionRequest(
+        [object(), object()], {"software": "xtb", "bias_controller": "adaptive"},
+        None, 250.0, 1, None, 2.3, {},
+    ))
 
     assert result.status == "completed_no_candidates"
     assert state.complete_cycle.call_args.args == (250.0, [])

@@ -20,6 +20,7 @@ import logging
 import json
 import math
 import os
+from dataclasses import dataclass
 from pathlib import Path
 import shutil
 import sys
@@ -540,24 +541,19 @@ def initialize_reaction_run(
     _restore_product_registry(run_state)
     return (current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir)
 
-def _react(
-    reactant_a,
-    reactant_b,
-    gamma_min,
-    gamma_max,
-    hm_orientations,
-    qc_params,
-    site,
-    proximity_factor,
-    *,
-    directory=None,
-):
-    """Run the reaction-search workflow for two reactants.
-
-    The workflow iterates over the gamma schedule, optimizes each orientation,
-    records products and trace summaries, and returns a structured result that
-    summarizes the final reaction state.
-    """
+def _react(request, *, directory=None):
+    """Run discovery with the already resolved request."""
+    reactant_a, reactant_b = request.reactants
+    gamma_min, gamma_max, hm_orientations = (
+        request.bias_min,
+        request.bias_max,
+        request.orientations,
+    )
+    qc_params, site, proximity_factor = (
+        request.qc_params,
+        request.site,
+        request.proximity_factor,
+    )
     directory = Path(directory or Path.cwd()).resolve()
     sampling = sampling_configuration(number_of_orientations=int(hm_orientations), use_angles=site is None and getattr(reactant_b, 'number_of_atoms', 0) > 1)
     workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir = (
@@ -628,6 +624,216 @@ def _react(
     reactor_logger.info('Reaction workflow completed. State retained in reaction/state.json.')
     return _build_reaction_result(workdir, terminal_status, product_dir, run_state, gamma_list, orientations_to_optimize, sampling)
 
+@dataclass(frozen=True, slots=True)
+class ReactionCycle:
+    gamma_id: str
+    directory: Path
+    parameters: dict
+    state: object
+    product_directory: object
+    registry: dict
+    reactant_identity: dict | None
+
+
+@dataclass(frozen=True, slots=True)
+class OrientationJob:
+    molecule: object
+    name: str
+    directory: Path
+    home: str
+    start_identity: dict
+    parameters: dict
+
+
+@dataclass(frozen=True, slots=True)
+class OrientationOutcome:
+    status: object
+    survivor: object | None = None
+    identity: dict | None = None
+    failure: str | None = None
+    successful: bool = False
+
+
+def _prepare_reaction_orientation(molecule, run):
+    key = molecule.name
+    reactor_logger.info(f"   Orientation: {key}")
+    suffix = f"_{key[-8:]}"
+    home = f"orientation{suffix}"
+    directory = run.directory / home
+    file_manager.make_directories(str(directory))
+    name = run.gamma_id + suffix
+    molecule.name = name
+    reactor_logger.info(f"Optimizing {molecule.name}")
+    molecule.mol_to_xyz(str(directory / f"trial_{name}.xyz"))
+    reference = directory / f"reactants_{name}.xyz"
+    write_disconnected_reference(molecule, str(reference))
+    identity = molecule_identity_from_xyz(str(reference), directory=directory)
+    parameters = dict(run.parameters, release_job_name=name)
+    return OrientationJob(molecule, name, directory, home, identity, parameters)
+
+
+def _reaction_backend_failure(job, exc):
+    reactor_logger.exception(
+        "Backend job failed for orientation %s; continuing with remaining orientations",
+        job.name,
+    )
+    return OrientationOutcome("failed_backend", failure=f"{type(exc).__name__}: {exc}")
+
+
+def _run_biased_orientation(job):
+    status = _optimize_with_diagnostics(
+        job.molecule,
+        job.parameters,
+        "reaction_afir_orientation",
+        directory=job.directory,
+    )
+    job.molecule.name = job.name
+    reactor_logger.info('Optimization step completed')
+    return status
+
+
+def _publish_reaction_product(run, job, molecule, before_relax, status):
+    directory, job_name = job.directory, job.name
+    qc_param, reactant_identity = run.parameters, run.reactant_identity
+    product_registry, product_dir, run_state = (
+        run.registry,
+        run.product_directory,
+        run.state,
+    )
+    gamma, start_identity = qc_param["gamma"], job.start_identity
+    survivor = None
+    current_identity = molecule_identity_from_xyz(
+        str(directory / "result_relax.xyz")
+    , directory=directory)
+    current_inchi = current_identity['inchi']
+    current_smile = current_identity['smiles']
+    reactor_logger.info('Relaxation completed')
+    reactor_logger.info('Checking product formation using SMILES and InChI')
+    reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
+    reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
+    reference_identity = reactant_identity or start_identity
+    if reactant_identity is not None:
+        reactor_logger.info(f"Reactant SMILE: {reactant_identity['smiles']} Current SMILE: {current_smile}")
+        reactor_logger.info(f"Reactant InChi: {reactant_identity['inchi']} Current InChi: {current_inchi}")
+    if not reaction_product_changed(reference_identity, current_identity):
+        if qc_param.get("bias_controller") == "adaptive":
+            _set_release_outcome(
+                job_name,
+                "RELEASE_FAILED",
+                "relaxed_identity_matches_reactants",
+                directory=directory,
+            )
+        survivor = before_relax
+        reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
+    else:
+        if qc_param.get("bias_controller") == "adaptive":
+            _set_release_outcome(
+                job_name,
+                "PRODUCT_CONFIRMED",
+                "free_relaxation_and_identity_changed",
+                directory=directory,
+            )
+        reactor_logger.info('Relaxed identity changed from the starting structure.')
+        reactor_logger.info('Checking whether product is new')
+        if _is_known_product(current_identity, product_registry):
+            reactor_logger.info('Product matches an existing product; discarded')
+            product_status = 'duplicate_product'
+        else:
+            reactor_logger.info('New product detected; saving')
+            product_registry[job_name] = current_identity
+            saved_product_identities[job_name] = current_identity
+            shutil.copy(
+                str(directory / "result_relax.xyz"),
+                str(directory / f"{product_dir}/{job_name}.xyz"),
+            )
+            trace_directory = os.path.join(
+                str(directory), f"job_{job_name}"
+            )
+            trace_summary = None
+            try:
+                trace_summary = reaction_analysis.analyse_reaction_trace(trace_directory)
+                reactor_logger.info('Reaction trace analyzed for %s: %s', job_name, trace_summary['candidate_ts_directory'] if trace_summary else 'no trace records')
+                if trace_summary is not None:
+                    reactor_logger.info('Trace candidates for %s: highest_backend=%s pre_product=%s first_topology_change=%s highest_total=%s', job_name, trace_summary.get('highest_backend_energy_index'), trace_summary.get('pre_product_index'), trace_summary.get('first_topology_change_index'), trace_summary.get('highest_total_energy_index'))
+            except Exception:
+                reactor_logger.exception('Reaction trace analysis failed for %s', job_name)
+            if run_state is not None:
+                run_state.record_product(job_name, gamma, current_inchi, current_smile, f'{product_dir}/{job_name}.xyz', trace_summary=trace_summary)
+            product_status = 'new_product'
+        return OrientationOutcome(
+            product_status,
+            identity={"inchi": current_inchi, "smiles": current_smile},
+            successful=True,
+        )
+    return OrientationOutcome(status, survivor=survivor, successful=True)
+
+
+def _release_reaction_orientation(run, job, before_relax, evidence):
+    molecule = job.molecule
+    release_survived = True
+    if run.parameters.get("bias_controller") == "adaptive":
+        status, molecule, before_relax, evidence, release_survived, _ = (
+            _adaptive_release_probe(
+                before_relax,
+                molecule,
+                job.parameters,
+                evidence,
+                directory=job.directory,
+            )
+        )
+    else:
+        status = relax_without_afir_bias(
+            molecule, run.parameters, directory=job.directory
+        )
+    if is_success(status):
+        if run.parameters.get("bias_controller") == "adaptive" and not release_survived:
+            reactor_logger.info('Native free relaxation lost the forming connectivity')
+            return OrientationOutcome(
+                "release_failed", survivor=before_relax, successful=True
+            )
+        return _publish_reaction_product(run, job, molecule, before_relax, status)
+    if is_cycle_exceeded(status):
+        reactor_logger.info(f"{job.name} kept for higher-gamma optimization")
+        return OrientationOutcome(status, survivor=before_relax, successful=True)
+    if run.parameters.get("bias_controller") == "adaptive":
+        reactor_logger.info(
+            "%s native free relaxation failed; preserving pre-release geometry",
+            job.name,
+        )
+        return OrientationOutcome(status, survivor=before_relax, successful=True)
+    return OrientationOutcome(status, successful=True)
+
+
+def _execute_reaction_orientation(run, job):
+    try:
+        status = _run_biased_orientation(job)
+    except BackendExecutionError as exc:
+        return _reaction_backend_failure(job, exc)
+    if not is_usable(status):
+        return OrientationOutcome(status)
+    before_relax = job.molecule.copy()
+    reactor_logger.info("Energy E({}): {:12.7f}".format(job.name, job.molecule.energy))
+    if not job.molecule.is_bonded():
+        reactor_logger.info('No close contacts found')
+        reactor_logger.info(f"{job.name} kept for higher-gamma optimization")
+        return OrientationOutcome(status, survivor=job.molecule, successful=True)
+    evidence = _release_evidence(job.parameters, directory=job.directory)
+    candidate = evidence is not None and evidence.get("state") == "CANDIDATE"
+    if run.parameters.get("bias_controller") == "adaptive" and not candidate:
+        reactor_logger.info(
+            "%s has contact but no conservative release candidate; retaining accepted geometry",
+            job.name,
+        )
+        return OrientationOutcome(
+            "contact_not_release_ready", survivor=before_relax, successful=True
+        )
+    reactor_logger.info('Close contacts detected; running unbiased relaxation (gamma=0.0)')
+    try:
+        return _release_reaction_orientation(run, job, before_relax, evidence)
+    except BackendExecutionError as exc:
+        return _reaction_backend_failure(job, exc)
+
+
 def optimize_all(
     gamma_id,
     orientations,
@@ -638,201 +844,54 @@ def optimize_all(
     product_registry=None,
     directory=None,
 ):
-    """Optimize all trial geometries for one gamma cycle.
-
-    Each orientation is written to its own job directory, optimized with the
-    current gamma, and then either retained for the next gamma value or
-    promoted to a unique product if it survives the unbiased relaxation step.
-    """
-    directory = Path(directory or Path.cwd()).resolve()
-    gamma = qc_param['gamma']
-    cwd = str(directory)
-    product_registry = saved_product_identities if product_registry is None else product_registry
-    table_of_optimized_molecules = run_state.current_survivor_molecules() if run_state is not None else []
-    reactant_identity = getattr(run_state, 'data', {}).get('reactant_identity') if run_state is not None else None
-    pending_orientations = list(orientations)
-    backend_failures = []
-    successful_optimizations = 0
-
-    def record_orientation_completion(job_name, status, identity=None, failure=None):
-        """Persist the processed job and any orientations still pending."""
-        pending_orientations.pop(0)
+    """Collect orientation outcomes; the cycle owns completion and survivor state."""
+    root = Path(directory or Path.cwd()).resolve()
+    registry = (
+        saved_product_identities if product_registry is None else product_registry
+    )
+    reactant = (
+        getattr(run_state, "data", {}).get("reactant_identity")
+        if run_state is not None
+        else None
+    )
+    run = ReactionCycle(
+        gamma_id, root, qc_param, run_state, product_dir, registry, reactant
+    )
+    survivors = run_state.current_survivor_molecules() if run_state is not None else []
+    pending = list(orientations)
+    failures = []
+    successful = 0
+    for molecule in orientations:
+        job = _prepare_reaction_orientation(molecule, run)
+        outcome = _execute_reaction_orientation(run, job)
+        if outcome.survivor is not None:
+            survivors.append(outcome.survivor)
+        successful += int(outcome.successful)
+        if outcome.failure is not None:
+            failures.append((job.name, outcome.failure))
+        pending.pop(0)
         if run_state is not None:
-            run_state.record_job(job_name, gamma, status, pending_orientations, table_of_optimized_molecules, identity=identity, failure=failure)
-        reactor_logger.info('Orientation completed! status=%s final_coordinate=%s', status, _orientation_final_coordinate_path(cwd, orientations_home, job_name))
-
-    def record_backend_failure(job_name, exc):
-        failure = f'{type(exc).__name__}: {exc}'
-        backend_failures.append((job_name, failure))
-        reactor_logger.exception('Backend job failed for orientation %s; continuing with remaining orientations', job_name)
-        record_orientation_completion(job_name, 'failed_backend', failure=failure)
-
-    for this_molecule in orientations:
-        job_key = this_molecule.name
-        reactor_logger.info(f'   Orientation: {job_key}')
-        o_key = f'_{job_key[-8:]}'
-        orientations_home = f'orientation{o_key}'
-        file_manager.make_directories(str(directory / orientations_home))
-        directory = directory / orientations_home
-        job_name = gamma_id + o_key
-        this_molecule.name = job_name
-        reactor_logger.info(f'Optimizing {this_molecule.name}')
-        start_xyz_file_name = f'trial_{this_molecule.name}.xyz'
-        this_molecule.mol_to_xyz(str(directory / start_xyz_file_name))
-        reference_xyz_file_name = f'reactants_{this_molecule.name}.xyz'
-        write_disconnected_reference(
-            this_molecule, str(directory / reference_xyz_file_name)
-        )
-        start_identity = molecule_identity_from_xyz(
-            str(directory / reference_xyz_file_name)
-        , directory=directory)
-        orientation_qc_param = dict(qc_param)
-        orientation_qc_param['release_job_name'] = job_name
-        try:
-            status = _optimize_with_diagnostics(
-                this_molecule,
-                orientation_qc_param,
-                "reaction_afir_orientation",
-                directory=directory,
+            run_state.record_job(
+                job.name,
+                qc_param["gamma"],
+                outcome.status,
+                pending,
+                survivors,
+                identity=outcome.identity,
+                failure=outcome.failure,
             )
-        except BackendExecutionError as exc:
-            record_backend_failure(job_name, exc)
-            directory = directory / cwd
-            continue
-        this_molecule.name = job_name
-        reactor_logger.info('Optimization step completed')
-        if is_usable(status):
-            successful_optimizations += 1
-            before_relax = this_molecule.copy()
-            reactor_logger.info('Energy E({}): {:12.7f}'.format(job_name, this_molecule.energy))
-            if this_molecule.is_bonded():
-                evidence = _release_evidence(orientation_qc_param, directory=directory)
-                release_candidate = evidence is not None and evidence.get('state') == 'CANDIDATE'
-                if qc_param.get("bias_controller") == "adaptive" and (
-                    not release_candidate
-                ):
-                    reactor_logger.info('%s has contact but no conservative release candidate; retaining accepted geometry', job_name)
-                    table_of_optimized_molecules.append(before_relax)
-                    record_orientation_completion(job_name, 'contact_not_release_ready')
-                    directory = directory / cwd
-                    continue
-                reactor_logger.info('Close contacts detected; running unbiased relaxation (gamma=0.0)')
-                release_survived = True
-                release_attempts = 0
-                try:
-                    if qc_param.get("bias_controller") == "adaptive":
-                        (
-                            status,
-                            this_molecule,
-                            before_relax,
-                            evidence,
-                            release_survived,
-                            release_attempts,
-                        ) = _adaptive_release_probe(
-                            before_relax,
-                            this_molecule,
-                            orientation_qc_param,
-                            evidence,
-                            directory=directory,
-                        )
-                    else:
-                        status = relax_without_afir_bias(
-                            this_molecule, qc_param, directory=directory
-                        )
-                except BackendExecutionError as exc:
-                    successful_optimizations -= 1
-                    record_backend_failure(job_name, exc)
-                    directory = directory / cwd
-                    continue
-                if is_success(status):
-                    if qc_param.get("bias_controller") == "adaptive" and (
-                        not release_survived
-                    ):
-                        reactor_logger.info('Native free relaxation lost the forming connectivity')
-                        table_of_optimized_molecules.append(before_relax)
-                        record_orientation_completion(job_name, 'release_failed')
-                        directory = directory / cwd
-                        continue
-                    current_identity = molecule_identity_from_xyz(
-                        str(directory / "result_relax.xyz")
-                    , directory=directory)
-                    current_inchi = current_identity['inchi']
-                    current_smile = current_identity['smiles']
-                    reactor_logger.info('Relaxation completed')
-                    reactor_logger.info('Checking product formation using SMILES and InChI')
-                    reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
-                    reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
-                    reference_identity = reactant_identity or start_identity
-                    if reactant_identity is not None:
-                        reactor_logger.info(f"Reactant SMILE: {reactant_identity['smiles']} Current SMILE: {current_smile}")
-                        reactor_logger.info(f"Reactant InChi: {reactant_identity['inchi']} Current InChi: {current_inchi}")
-                    if not reaction_product_changed(
-                        reference_identity, current_identity
-                    ):
-                        if qc_param.get("bias_controller") == "adaptive":
-                            _set_release_outcome(
-                                job_name,
-                                "RELEASE_FAILED",
-                                "relaxed_identity_matches_reactants",
-                                directory=directory,
-                            )
-                        table_of_optimized_molecules.append(before_relax)
-                        reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
-                    else:
-                        if qc_param.get("bias_controller") == "adaptive":
-                            _set_release_outcome(
-                                job_name,
-                                "PRODUCT_CONFIRMED",
-                                "free_relaxation_and_identity_changed",
-                                directory=directory,
-                            )
-                        reactor_logger.info('Relaxed identity changed from the starting structure.')
-                        reactor_logger.info('Checking whether product is new')
-                        if _is_known_product(current_identity, product_registry):
-                            reactor_logger.info('Product matches an existing product; discarded')
-                            product_status = 'duplicate_product'
-                        else:
-                            reactor_logger.info('New product detected; saving')
-                            product_registry[job_name] = current_identity
-                            saved_product_identities[job_name] = current_identity
-                            shutil.copy(
-                                str(directory / "result_relax.xyz"),
-                                str(directory / f"{product_dir}/{job_name}.xyz"),
-                            )
-                            trace_directory = os.path.join(
-                                str(directory), f"job_{job_name}"
-                            )
-                            trace_summary = None
-                            try:
-                                trace_summary = reaction_analysis.analyse_reaction_trace(trace_directory)
-                                reactor_logger.info('Reaction trace analyzed for %s: %s', job_name, trace_summary['candidate_ts_directory'] if trace_summary else 'no trace records')
-                                if trace_summary is not None:
-                                    reactor_logger.info('Trace candidates for %s: highest_backend=%s pre_product=%s first_topology_change=%s highest_total=%s', job_name, trace_summary.get('highest_backend_energy_index'), trace_summary.get('pre_product_index'), trace_summary.get('first_topology_change_index'), trace_summary.get('highest_total_energy_index'))
-                            except Exception:
-                                reactor_logger.exception('Reaction trace analysis failed for %s', job_name)
-                            if run_state is not None:
-                                run_state.record_product(job_name, gamma, current_inchi, current_smile, f'{product_dir}/{job_name}.xyz', trace_summary=trace_summary)
-                            product_status = 'new_product'
-                        directory = directory / cwd
-                        record_orientation_completion(job_name, product_status, identity={'inchi': current_inchi, 'smiles': current_smile})
-                        continue
-                elif is_cycle_exceeded(status):
-                    table_of_optimized_molecules.append(before_relax)
-                    reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
-                elif qc_param.get('bias_controller') == 'adaptive':
-                    table_of_optimized_molecules.append(before_relax)
-                    reactor_logger.info('%s native free relaxation failed; preserving pre-release geometry', job_name)
-            else:
-                table_of_optimized_molecules.append(this_molecule)
-                reactor_logger.info('No close contacts found')
-                reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
-        record_orientation_completion(job_name, status)
-        directory = directory / cwd
+        reactor_logger.info(
+            "Orientation completed! status=%s final_coordinate=%s",
+            outcome.status,
+            _orientation_final_coordinate_path(str(root), job.home, job.name),
+        )
         sys.stdout.flush()
-    if backend_failures and successful_optimizations == 0:
-        summary = '; '.join((f'{name}: {failure}' for name, failure in backend_failures))
-        raise BackendExecutionError(f'All {len(backend_failures)} reaction orientation backend jobs failed: {summary}')
-    return table_of_optimized_molecules
+    if failures and successful == 0:
+        summary = "; ".join(f"{name}: {failure}" for name, failure in failures)
+        raise BackendExecutionError(
+            f"All {len(failures)} reaction orientation backend jobs failed: {summary}"
+        )
+    return survivors
 
 def react(
     reactant_a,
@@ -848,17 +907,38 @@ def react(
     directory=None,
 ):
     """Keep existing discovery formats and guard fresh v2 publication."""
+
+    from pyar.reaction_request import ReactionRequest
+
+    request = ReactionRequest(
+        [reactant_a, reactant_b],
+        qc_params,
+        gamma_min,
+        gamma_max,
+        hm_orientations,
+        site,
+        proximity_factor,
+        {},
+    )
+    return run_reaction(request, recover_stale=recover_stale, directory=directory)
+
+
+def run_reaction(request, *, recover_stale=False, directory=None):
+    """Execute a resolved :class:`pyar.reaction_request.ReactionRequest`.
+
+    The workflow still owns the signed discovery request and restart checks;
+    caller-supplied restart metadata never authorizes artifact reuse.
+    """
     from pyar.persistence import detect_version, RunLock
 
     root = Path(directory or Path.cwd()).resolve()
     directory = root / 'reaction'
-    args = (reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor)
     if (root / 'jobs.pkl').exists():
         raise ValueError('Legacy jobs.pkl is unsupported in PyAR 1.6; use its original environment.')
     detect_version(directory, 'reaction')
     with RunLock(directory, recover_stale=recover_stale):
         detect_version(directory, 'reaction')
-        result = _react(*args, directory=root)
+        result = _react(request, directory=root)
         from pyar.persistence import write_json
 
         write_json(directory / 'summary.json', result.to_dict())

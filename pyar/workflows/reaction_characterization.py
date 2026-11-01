@@ -1,6 +1,7 @@
 """Bridge accepted reaction products to the shared unbiased path engine."""
 from __future__ import annotations
 import hashlib
+from dataclasses import dataclass
 import json
 import os
 import tempfile
@@ -213,10 +214,20 @@ def _prepare_route(root, product, product_number, options, qc_params, previous=N
     _write_pathway_record(root, route_dir, provenance)
     return {'product': f'product_{product_number:03d}', 'pathway': pathway_id, 'directory': str(route_dir), 'provenance': provenance, 'start': start_out, 'end': end_out, 'ts_guess': waypoint_out}
 
-def _characterize_reaction(root, request, through, options):
-    """Characterize one selected trace pathway for each accepted product."""
-    if through == 'react':
-        return {'status': 'not_requested', 'pathways': []}
+@dataclass(frozen=True, slots=True)
+class ReactionCharacterizationRun:
+    root: object
+    request: object
+    through: str
+    options: dict
+    state: object
+    state_path: Path
+    summary: dict
+    reference_mode: str
+    reactant_reference: dict | None
+
+
+def _open_reaction_characterization(root, request, through, options):
     state = ReactionRunState.read_completed(root, request.restart_request)
     if state is None:
         raise ValueError('Path continuation requires a completed reaction/state.json')
@@ -252,104 +263,197 @@ def _characterize_reaction(root, request, through, options):
         summary['reactant_reference'] = reactant_reference
         _write_json_atomic(state_path, summary)
     _write_json_atomic(state_path, summary)
-    for number, product in enumerate(state.data.get('products', []), start=1):
-        try:
-            product_key = f'product_{number:03d}'
-            route = _prepare_route(root, product, number, dict(options, through=through), request.qc_params, previous=previous_routes.get(product_key))
-        except (OSError, ValueError, KeyError) as exc:
-            failures.append({'product': product.get('job_name'), 'status': 'preparation_failed', 'error': str(exc)})
-            from pyar.workflows.reaction_report import write_reaction_characterization_report
-            report_root = _pathway_root(root) / 'products' / f'product_{number:03d}'
-            write_reaction_characterization_report(report_root / 'reaction_characterization.json', {'schema_version': 1, 'product_id': f'product_{number:03d}', 'status': 'preparation_failed', 'error': f'{type(exc).__name__}: {exc}', 'through': through, 'connection_confirmed': False, 'discovery_product': product, 'electronic_energetics': {'validated': False}, 'validated_reaction_path': None})
-            _write_json_atomic(state_path, summary)
-            continue
-        summary['routes'][route['product']] = route['provenance']
-        _write_json_atomic(state_path, summary)
-        if reference_mode == 'separated-reactants' and reactant_reference.get('status') != 'complete':
-            route_result = {'product': route['product'], 'pathway': route['pathway'], 'directory': route['directory'], 'through': through, 'status': 'failed', 'failed_stage': 'reactant-reference', 'error': reactant_reference.get('error'), 'association_status': 'reactant_reference_failed', 'reactant_product_connection_confirmed': False}
-            records.append(route_result)
-            failures.append({'product': route['product'], 'status': 'reactant_reference_failed', 'error': reactant_reference.get('error')})
-            from pyar.workflows.reaction_report import write_reaction_characterization_report
-            report_root = _pathway_root(root) / 'products' / route['product']
-            write_reaction_characterization_report(report_root / 'reaction_characterization.json', {'schema_version': 1, 'product_id': route['product'], 'pathway_id': route['pathway'], 'status': 'reactant_reference_failed', 'through': through, 'connection_confirmed': False, 'discovery_product': product, 'representative': route['provenance'], 'reactant_reference': reactant_reference, 'electronic_energetics': {'validated': False}, 'validated_reaction_path': None})
-            summary['selected_routes'] = records
-            summary['preparation_failures'] = failures
-            _write_json_atomic(state_path, summary)
-            continue
-        run_options = {key: value for key, value in path_options.items() if key not in {'pathway_ts_source', 'reactant_reference_mode'}}
-        if reference_mode == 'separated-reactants':
-            run_options['association_endpoint_mode'] = True
-        extra = {'layout_dependency': _sha256(_discovery_source(root))}
-        result = run_path_stages(start=route['start'], end=route['end'], ts_guess=route['ts_guess'], output=route['directory'], qc_params=request.qc_params, through=through, options=run_options, **extra)
-        association = None
-        association_status = None
-        if reference_mode == 'separated-reactants':
-            result['reactant_product_connection_confirmed'] = False
-            if result.get('failed_stage') == 'relax':
-                from pyar.workflows.association_reference import classify_reactant_relaxation_failure
-                association = classify_reactant_relaxation_failure(result, result.get('execution_directory', route['directory']), route['end'])
-                association_status = association['status']
-                result['association_endpoint_validation'] = association
-                _write_json_atomic(Path(route['directory']) / 'association_endpoint_validation.json', association)
-            elif result.get('status') == 'scientific_gate_failed' and result.get('failed_stage') == 'frequency':
-                association_status = 'no_confirmed_saddle'
-            elif 'endpoint-frequency' in result.get('completed_stages', []):
-                from pyar.neb import read_xyz
-                from pyar.workflows.association_reference import classify_association_endpoints
-                execution = Path(result['execution_directory'])
-                symbols = read_xyz(execution / 'reactant_relaxed.xyz')[0]
-                endpoint_frequency = result.get('endpoint-frequency', {})
-                endpoint_geometries = [endpoint_frequency.get(f'{direction}_frequency', {}).get('evaluated_coordinates_angstrom') for direction in ('forward', 'backward')]
-                if all((value is not None for value in endpoint_geometries)):
-                    try:
-                        association = classify_association_endpoints(symbols, endpoint_geometries, execution / 'product_relaxed.xyz', reactant_reference, request.reactants, options.get('irc_endpoint_rmsd_tolerance', 0.5), reference_directory=reference_directory)
-                        irc_passed = result.get('irc', {}).get('irc_converged', False)
-                        endpoint_minima = endpoint_frequency.get('endpoints_are_minima', False)
-                        confirmed = bool(irc_passed and endpoint_minima and association.get('reactant_product_connection_confirmed'))
-                        association['reactant_product_connection_confirmed'] = confirmed
-                        association['reactant_reference_mode'] = reference_mode
-                        association['reactant_energy_hartree'] = reactant_reference['reference_energy_hartree']
-                        association['reactant_reference_fragments'] = reactant_reference['fragments']
-                        result['association_endpoint_validation'] = association
-                        result['reactant_product_connection_confirmed'] = confirmed
-                        association_status = 'reaction_connected' if confirmed else 'association_endpoint_gate_failed'
-                    except Exception as exc:
-                        association = {'status': 'association_validation_failed', 'error': f'{type(exc).__name__}: {exc}', 'reactant_product_connection_confirmed': False}
-                        association_status = 'association_endpoint_gate_failed'
-                    result['association_endpoint_validation'] = association
-                    association_path = Path(route['directory']) / 'association_endpoint_validation.json'
-                    _write_json_atomic(association_path, association)
-                else:
-                    result['association_endpoint_validation'] = {'status': 'association_validation_failed', 'error': 'IRC endpoint frequency coordinates are missing', 'reactant_product_connection_confirmed': False}
-                    association_status = 'association_endpoint_gate_failed'
-            else:
-                association_status = 'pending_validation'
-        route_result = {'product': route['product'], 'pathway': route['pathway'], 'directory': route['directory'], 'through': through, 'status': 'complete' if association_status == 'reaction_connected' else 'failed' if association_status in {'no_confirmed_saddle', 'association_endpoint_gate_failed'} else result['status'], 'association_status': association_status, 'failed_stage': result.get('failed_stage'), 'error': result.get('error'), 'reactant_product_connection_confirmed': result.get('reactant_product_connection_confirmed', False)}
-        report_product = dict(product)
-        try:
+    return ReactionCharacterizationRun(
+        root,
+        request,
+        through,
+        options,
+        state,
+        state_path,
+        summary,
+        reference_mode,
+        reactant_reference,
+    )
+
+
+def _interpret_association(run, route, result):
+    root = run.root
+    request = run.request
+    options = run.options
+    reference_mode = run.reference_mode
+    reactant_reference = run.reactant_reference
+    reference_directory = _pathway_root(root) / 'reactant_references'
+    association = None
+    association_status = None
+    if reference_mode == 'separated-reactants':
+        result['reactant_product_connection_confirmed'] = False
+        if result.get('failed_stage') == 'relax':
+            from pyar.workflows.association_reference import classify_reactant_relaxation_failure
+            association = classify_reactant_relaxation_failure(result, result.get('execution_directory', route['directory']), route['end'])
+            association_status = association['status']
+            result['association_endpoint_validation'] = association
+            _write_json_atomic(Path(route['directory']) / 'association_endpoint_validation.json', association)
+        elif result.get('status') == 'scientific_gate_failed' and result.get('failed_stage') == 'frequency':
+            association_status = 'no_confirmed_saddle'
+        elif 'endpoint-frequency' in result.get('completed_stages', []):
             from pyar.neb import read_xyz
-            report_product['symbols'] = read_xyz(route['end'])[0]
-        except Exception:
-            report_product['symbols'] = []
-        from pyar.workflows.reaction_report import build_reaction_characterization_report, write_reaction_characterization_report
-        discovery_jobs = state.data.get('completed_jobs', [])
-        report = build_reaction_characterization_report(route_root=route['directory'], product=report_product, provenance=route['provenance'], path_result=result, route_result=route_result, alternatives=summary['alternatives'].get(route['product'], []), reference_mode=reference_mode, reactant_reference=reactant_reference, discovery={'reaction_request': state.data.get('request'), 'completed_jobs': discovery_jobs, 'accepted_product': product})
-        report_root = _pathway_root(root) / 'products' / route['product']
-        report['report_pathway_directory'] = str(route['directory'])
-        write_reaction_characterization_report(report_root / 'reaction_characterization.json', report)
-        route['provenance'].update(status=result['status'], stage_status=result)
-        _write_pathway_record(root, Path(route['directory']), route['provenance'])
-        summary['routes'][route['product']] = route['provenance']
+            from pyar.workflows.association_reference import classify_association_endpoints
+            execution = Path(result['execution_directory'])
+            symbols = read_xyz(execution / 'reactant_relaxed.xyz')[0]
+            endpoint_frequency = result.get('endpoint-frequency', {})
+            endpoint_geometries = [endpoint_frequency.get(f'{direction}_frequency', {}).get('evaluated_coordinates_angstrom') for direction in ('forward', 'backward')]
+            if all((value is not None for value in endpoint_geometries)):
+                try:
+                    association = classify_association_endpoints(symbols, endpoint_geometries, execution / 'product_relaxed.xyz', reactant_reference, request.reactants, options.get('irc_endpoint_rmsd_tolerance', 0.5), reference_directory=reference_directory)
+                    irc_passed = result.get('irc', {}).get('irc_converged', False)
+                    endpoint_minima = endpoint_frequency.get('endpoints_are_minima', False)
+                    confirmed = bool(irc_passed and endpoint_minima and association.get('reactant_product_connection_confirmed'))
+                    association['reactant_product_connection_confirmed'] = confirmed
+                    association['reactant_reference_mode'] = reference_mode
+                    association['reactant_energy_hartree'] = reactant_reference['reference_energy_hartree']
+                    association['reactant_reference_fragments'] = reactant_reference['fragments']
+                    result['association_endpoint_validation'] = association
+                    result['reactant_product_connection_confirmed'] = confirmed
+                    association_status = 'reaction_connected' if confirmed else 'association_endpoint_gate_failed'
+                except Exception as exc:
+                    association = {'status': 'association_validation_failed', 'error': f'{type(exc).__name__}: {exc}', 'reactant_product_connection_confirmed': False}
+                    association_status = 'association_endpoint_gate_failed'
+                result['association_endpoint_validation'] = association
+                association_path = Path(route['directory']) / 'association_endpoint_validation.json'
+                _write_json_atomic(association_path, association)
+            else:
+                result['association_endpoint_validation'] = {'status': 'association_validation_failed', 'error': 'IRC endpoint frequency coordinates are missing', 'reactant_product_connection_confirmed': False}
+                association_status = 'association_endpoint_gate_failed'
+        else:
+            association_status = 'pending_validation'
+    return association_status
+
+
+def _publish_route_report(run, route, product, result, route_result):
+    root = run.root
+    state = run.state
+    summary = run.summary
+    reference_mode = run.reference_mode
+    reactant_reference = run.reactant_reference
+    _pathway_root(root) / "reactant_references"
+    report_product = dict(product)
+    try:
+        from pyar.neb import read_xyz
+        report_product['symbols'] = read_xyz(route['end'])[0]
+    except Exception:
+        report_product['symbols'] = []
+    from pyar.workflows.reaction_report import (
+        CharacterizationInputs,
+        build_reaction_characterization_report,
+        write_reaction_characterization_report,
+    )
+
+    discovery_jobs = state.data.get('completed_jobs', [])
+    report = build_reaction_characterization_report(
+        CharacterizationInputs(
+            route_root=route["directory"],
+            product=report_product,
+            provenance=route["provenance"],
+            path_result=result,
+            route_result=route_result,
+            alternatives=summary["alternatives"].get(route["product"], []),
+            reference_mode=reference_mode,
+            reactant_reference=reactant_reference,
+            discovery={
+                "reaction_request": state.data.get("request"),
+                "completed_jobs": discovery_jobs,
+                "accepted_product": product,
+            },
+        )
+    )
+    report_root = _pathway_root(root) / 'products' / route['product']
+    report['report_pathway_directory'] = str(route['directory'])
+    write_reaction_characterization_report(report_root / 'reaction_characterization.json', report)
+
+
+def _characterize_product_route(run, number, product):
+    root = run.root
+    request = run.request
+    through = run.through
+    options = run.options
+    state_path = run.state_path
+    summary = run.summary
+    records = summary["selected_routes"]
+    failures = summary["preparation_failures"]
+    previous_routes = summary["routes"]
+    path_options = summary["path_options"]
+    reference_mode = run.reference_mode
+    reactant_reference = run.reactant_reference
+    _pathway_root(root) / "reactant_references"
+    try:
+        product_key = f'product_{number:03d}'
+        route = _prepare_route(root, product, number, dict(options, through=through), request.qc_params, previous=previous_routes.get(product_key))
+    except (OSError, ValueError, KeyError) as exc:
+        failures.append({'product': product.get('job_name'), 'status': 'preparation_failed', 'error': str(exc)})
+        from pyar.workflows.reaction_report import write_reaction_characterization_report
+
+        report_root = _pathway_root(root) / 'products' / f'product_{number:03d}'
+        write_reaction_characterization_report(report_root / 'reaction_characterization.json', {'schema_version': 1, 'product_id': f'product_{number:03d}', 'status': 'preparation_failed', 'error': f'{type(exc).__name__}: {exc}', 'through': through, 'connection_confirmed': False, 'discovery_product': product, 'electronic_energetics': {'validated': False}, 'validated_reaction_path': None})
+        _write_json_atomic(state_path, summary)
+        return
+    summary['routes'][route['product']] = route['provenance']
+    _write_json_atomic(state_path, summary)
+    if (
+        reference_mode == "separated-reactants"
+        and reactant_reference.get("status") != "complete"
+    ):
+        route_result = {'product': route['product'], 'pathway': route['pathway'], 'directory': route['directory'], 'through': through, 'status': 'failed', 'failed_stage': 'reactant-reference', 'error': reactant_reference.get('error'), 'association_status': 'reactant_reference_failed', 'reactant_product_connection_confirmed': False}
         records.append(route_result)
+        failures.append({'product': route['product'], 'status': 'reactant_reference_failed', 'error': reactant_reference.get('error')})
+        from pyar.workflows.reaction_report import write_reaction_characterization_report
+
+        report_root = _pathway_root(root) / 'products' / route['product']
+        write_reaction_characterization_report(report_root / 'reaction_characterization.json', {'schema_version': 1, 'product_id': route['product'], 'pathway_id': route['pathway'], 'status': 'reactant_reference_failed', 'through': through, 'connection_confirmed': False, 'discovery_product': product, 'representative': route['provenance'], 'reactant_reference': reactant_reference, 'electronic_energetics': {'validated': False}, 'validated_reaction_path': None})
         summary['selected_routes'] = records
         summary['preparation_failures'] = failures
         _write_json_atomic(state_path, summary)
+        return
+    run_options = {key: value for key, value in path_options.items() if key not in {'pathway_ts_source', 'reactant_reference_mode'}}
+    if reference_mode == 'separated-reactants':
+        run_options['association_endpoint_mode'] = True
+    extra = {'layout_dependency': _sha256(_discovery_source(root))}
+    result = run_path_stages(start=route['start'], end=route['end'], ts_guess=route['ts_guess'], output=route['directory'], qc_params=request.qc_params, through=through, options=run_options, **extra)
+    association_status = _interpret_association(run, route, result)
+    route_result = {'product': route['product'], 'pathway': route['pathway'], 'directory': route['directory'], 'through': through, 'status': 'complete' if association_status == 'reaction_connected' else 'failed' if association_status in {'no_confirmed_saddle', 'association_endpoint_gate_failed'} else result['status'], 'association_status': association_status, 'failed_stage': result.get('failed_stage'), 'error': result.get('error'), 'reactant_product_connection_confirmed': result.get('reactant_product_connection_confirmed', False)}
+    _publish_route_report(run, route, product, result, route_result)
+    route['provenance'].update(status=result['status'], stage_status=result)
+    _write_pathway_record(root, Path(route['directory']), route['provenance'])
+    summary['routes'][route['product']] = route['provenance']
+    records.append(route_result)
+    summary['selected_routes'] = records
+    summary['preparation_failures'] = failures
+    _write_json_atomic(state_path, summary)
+
+
+def _finalize_reaction_characterization(run):
+    root = run.root
+    state = run.state
+    state_path = run.state_path
+    summary = run.summary
+    records = summary["selected_routes"]
+    failures = summary["preparation_failures"]
+    _pathway_root(root) / "reactant_references"
     status = 'complete' if not failures and all((item['status'] == 'complete' for item in records)) else 'failed'
     if not state.data.get('products'):
         status = 'complete_no_products'
     summary['status'] = status
     _write_json_atomic(state_path, summary)
     return summary
+
+
+def _characterize_reaction(root, request, through, options):
+    """Characterize isolated routes; each stage retains its acceptance owner."""
+    if through == 'react':
+        return {'status': 'not_requested', 'pathways': []}
+    run = _open_reaction_characterization(root, request, through, options)
+    for number, product in enumerate(run.state.data.get("products", []), start=1):
+        _characterize_product_route(run, number, product)
+    return _finalize_reaction_characterization(run)
 
 def validate_characterization_restart(root, request, through, options):
     """Validate pathway provenance without creating or modifying any files."""

@@ -36,6 +36,9 @@
 
 ### Added
 
+- Add ``run_reaction(request, directory=..., recover_stale=False)`` for already
+  resolved reaction requests; retain the existing ``react(...)`` API.
+
 - Add `run_scan_bond_request(settings)` for existing scan invocation mappings;
   preserve `run_scan_bond` and its signed request, artifact and restart contracts.
 
@@ -46,6 +49,10 @@
   existing `ConformerRequest` without converting options again.
 
 ### Internal
+
+- Give reaction orientations explicit outcomes and separate release, product
+  publication, association-reference checks and route-report stages. Report
+  assembly consumes named evidence without changing scientific acceptance gates.
 
 - Separate microsolvation step execution, candidate outcomes and durable MS4
   proposal/evaluation/commit stages. Preserve checkpoint order, RNG state,
