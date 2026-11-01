@@ -56,7 +56,6 @@ API_EXCLUDED_PREFIXES = (
     "pyar.tests.",
     "pyar.backends.",
     "pyar.checkvalidity",
-    "pyar.mlatom.",
 )
 
 templates_path = ["_templates"]

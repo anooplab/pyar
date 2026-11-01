@@ -7,7 +7,7 @@ name = "pyar-chem"
 version = "1.6.0"
 description = "PyAR: Python program for Aggregation and Reaction"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE", "THIRD_PARTY_LICENSES/*"]
 authors = [
@@ -24,7 +24,6 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -35,7 +34,6 @@ dependencies = [
   "numpy>=1.18.4",
   "scipy>=1.5.2",
   "networkx",
-  "tomli>=1.1.0; python_version < '3.11'",
 ]
 
 [project.urls]
@@ -94,7 +92,6 @@ source = ["pyar"]
 omit = [
   "pyar/backends/aimnet2ase.py",
   "pyar/backends/aimnet2_ase_opt.py",
-  "pyar/mlatom/*",
 ]
 
 [tool.coverage.report]
@@ -117,7 +114,7 @@ markers = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E9", "F63", "F7", "F82"]

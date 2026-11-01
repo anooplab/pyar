@@ -57,9 +57,8 @@ def main():
         import mlatom
         import torchani
         from pyar.backends import ani
-        from pyar import mlatom as compatibility
         assert 'site-packages/mlatom' in mlatom.__file__
-        assert compatibility.data is mlatom.data
+        assert mlatom.data and ani
         print('MLatom and TorchANI runtime imports passed.')
         return
     if mode == 'analysis':

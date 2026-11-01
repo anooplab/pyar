@@ -5,8 +5,7 @@
 PyAR is a Python package distributed as `pyar-chem` while preserving the `pyar`
 import namespace. Core source lives in `pyar/`: CLI wiring in `pyar/cli.py`,
 console helpers in `pyar/scripts/`, backend adapters in `pyar/backends/`, sampling
-logic in `pyar/sampling/`, AIMNet2 calculator adapters in `pyar/backends/` with externally supplied models,
-the external MLatom compatibility adapter in `pyar/mlatom/`, and workflow/state
+logic in `pyar/sampling/`, AIMNet2 calculator adapters in `pyar/backends/` with externally supplied models, and workflow/state
 code in the corresponding subpackages.
 Tests live in `tests/` as `test_*.py`. Sphinx documentation lives in `docs/`.
 Avoid editing generated artifacts such as `build/`, `pyar_chem.egg-info/`,
@@ -27,7 +26,7 @@ Avoid editing generated artifacts such as `build/`, `pyar_chem.egg-info/`,
 
 ## Coding Style & Naming Conventions
 
-Use Python 3.10+ syntax and 4-space indentation. Prefer small, explicit
+Use Python 3.11+ syntax and 4-space indentation. Prefer small, explicit
 functions over broad side effects, especially in CLI and backend code. Keep
 module names lowercase with underscores. Classes use `CamelCase`; functions,
 variables, and tests use `snake_case`. `pyproject.toml` is the authoritative

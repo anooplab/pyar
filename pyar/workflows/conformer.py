@@ -17,6 +17,7 @@ from pyar.conformer.comparison import ConformerComparisons
 from pyar.conformer.request import ConformerRequest, ConformerRequestError
 from pyar.core.molecule import Molecule
 from pyar.optional_dependencies import optional_dependency_error
+from pyar.conformer.stereo import conformer_coordinates, describe_input_stereo, stereo_signature
 from pyar.optimiser import _status_label, is_usable, optimise
 from pyar.optimization_service import optimize_workflow_once
 from pyar.workflow_results import ConformerResult
@@ -55,6 +56,7 @@ class ConformerRecord:
     backend_energy: float | None = None
     backend_path: str | None = None
     selected_path: str | None = None
+    stereo_signature: str | None = None
 
 def _json_value(value):
     """Return a JSON-serializable representation for workflow state."""
@@ -214,6 +216,42 @@ def _embed_and_rank_conformers(rdkit_molecule, AllChem, *, seed, num_conformers,
             continue
         records.append(ConformerRecord(seed=int(seed), source_conf_id=int(conformer_id), rdkit_energy=energy, rdkit_status='not_converged' if int(not_converged) else 'converged', force_field=selected_force_field, rdkit_molecule=rdkit_molecule, rdkit_conf_id=int(conformer_id), generation_stage='etkdg', generation_round=0))
     return sorted(records, key=lambda record: (record.rdkit_energy, record.source_conf_id))
+
+def _unspecified_stereo_message(unspecified):
+    """Explain which stereo elements are unspecified and how to name them."""
+    labels = ', '.join(element['label'] for element in unspecified)
+    return (f'Input stereochemistry is not fully specified ({labels}). Each '
+            'unspecified element would be chosen at random per structure, mixing '
+            'different stereoisomers into one conformer set. Give the configuration '
+            'in the SMILES, e.g. C[C@H](O)CC or C[C@@H](O)CC for a centre and C/C=C/C '
+            'or C/C=C\\C for a double bond, and run each stereoisomer separately.')
+
+def _assign_stereo_signatures(records, rdkit_molecule, reference):
+    """Label records with their perceived stereo; drop those contradicting a fully specified input."""
+    kept = []
+    rejected = 0
+    for record in records:
+        template = record.rdkit_molecule if record.rdkit_molecule is not None else rdkit_molecule
+        conformer_id = record.source_conf_id if record.rdkit_conf_id is None else record.rdkit_conf_id
+        record.stereo_signature = stereo_signature(template, conformer_coordinates(template, conformer_id))
+        if record.stereo_signature is None or record.stereo_signature != reference:
+            rejected += 1
+            continue
+        kept.append(record)
+    if rejected:
+        conformer_logger.warning('Discarded %d generated conformer(s) with unverifiable or inconsistent stereochemistry for input %s.', rejected, reference)
+    return kept, rejected
+
+def validate_input_stereo(rdkit_molecule):
+    """Require verified, fully specified input configuration before generation."""
+    stereo = describe_input_stereo(rdkit_molecule)
+    if not stereo['available']:
+        raise ConformerWorkflowError('Cannot validate input stereochemistry: RDKit perception failed.')
+    if stereo['unspecified']:
+        raise ConformerWorkflowError(_unspecified_stereo_message(stereo['unspecified']))
+    if stereo['reference'] is None:
+        raise ConformerWorkflowError('Cannot establish an input stereochemistry reference.')
+    return stereo
 
 def _parent_record_name(record):
     """Return the stable name assigned to an embedded RDKit conformer."""
@@ -589,6 +627,11 @@ def _refine_one_record(record, backend_directory, run_directory, qc_params):
     if backend_result.is_file():
         record.backend_path = str(backend_result)
     if is_usable(status) and molecule.coordinates is not None:
+        refined_signature = stereo_signature(record.rdkit_molecule, molecule.coordinates)
+        if refined_signature is None or refined_signature != record.stereo_signature:
+            conformer_logger.warning('Backend stereochemistry of %s is unverifiable or changed (%s -> %s); excluding it.', record.name, record.stereo_signature, refined_signature)
+            record.backend_status = 'stereo_unverified' if refined_signature is None else 'stereo_changed'
+            return False
         record.molecule = molecule
         if molecule.energy is not None:
             record.backend_energy = float(molecule.energy)
@@ -618,16 +661,16 @@ def _write_selected_conformers(records, selected_directory):
 
 def _write_summary(records, summary_path):
     """Write a CSV summary for all accepted conformers."""
-    columns = ['rank', 'seed', 'name', 'source_conf_id', 'force_field', 'rdkit_status', 'rdkit_energy', 'rdkit_path', 'generation_stage', 'generation_round', 'parent_name', 'torsion_moves', 'refinement_reason', 'refinement_diversity', 'contact_count', 'radius_gyration', 'backend_status', 'backend_validation_status', 'backend_diagnostic_path', 'backend_energy', 'backend_path', 'selected_path']
+    columns = ['rank', 'seed', 'name', 'source_conf_id', 'force_field', 'rdkit_status', 'rdkit_energy', 'rdkit_path', 'generation_stage', 'generation_round', 'parent_name', 'torsion_moves', 'refinement_reason', 'refinement_diversity', 'contact_count', 'radius_gyration', 'backend_status', 'backend_validation_status', 'backend_diagnostic_path', 'backend_energy', 'backend_path', 'selected_path', 'stereo_signature']
     with summary_path.open('w', newline='', encoding='utf-8') as fp:
         writer = csv.DictWriter(fp, fieldnames=columns)
         writer.writeheader()
         for record in records:
-            writer.writerow({'rank': record.rank, 'seed': record.seed, 'name': record.name, 'source_conf_id': record.source_conf_id, 'force_field': record.force_field, 'rdkit_status': record.rdkit_status, 'rdkit_energy': record.rdkit_energy, 'rdkit_path': record.rdkit_path, 'generation_stage': record.generation_stage, 'generation_round': record.generation_round, 'parent_name': record.parent_name, 'torsion_moves': record.torsion_moves, 'refinement_reason': record.refinement_reason, 'refinement_diversity': record.refinement_diversity, 'contact_count': record.contact_count, 'radius_gyration': record.radius_gyration, 'backend_status': record.backend_status, 'backend_validation_status': record.backend_validation_status, 'backend_diagnostic_path': record.backend_diagnostic_path, 'backend_energy': record.backend_energy, 'backend_path': record.backend_path, 'selected_path': record.selected_path})
+            writer.writerow({'rank': record.rank, 'seed': record.seed, 'name': record.name, 'source_conf_id': record.source_conf_id, 'force_field': record.force_field, 'rdkit_status': record.rdkit_status, 'rdkit_energy': record.rdkit_energy, 'rdkit_path': record.rdkit_path, 'generation_stage': record.generation_stage, 'generation_round': record.generation_round, 'parent_name': record.parent_name, 'torsion_moves': record.torsion_moves, 'refinement_reason': record.refinement_reason, 'refinement_diversity': record.refinement_diversity, 'contact_count': record.contact_count, 'radius_gyration': record.radius_gyration, 'backend_status': record.backend_status, 'backend_validation_status': record.backend_validation_status, 'backend_diagnostic_path': record.backend_diagnostic_path, 'backend_energy': record.backend_energy, 'backend_path': record.backend_path, 'selected_path': record.selected_path, 'stereo_signature': record.stereo_signature})
 
 def _build_state(*, status, request, selected_paths, records, source_format, backend_requested):
     """Return the persisted conformer state payload."""
-    return {'version': STATE_VERSION, 'workflow': 'conformer', 'package_version': __version__, 'status': status, 'request': request, 'source_format': source_format, 'backend_requested': bool(backend_requested), 'generated_conformers': len(records), 'selected_results': selected_paths, 'records': [{'rank': record.rank, 'seed': record.seed, 'name': record.name, 'source_conf_id': record.source_conf_id, 'force_field': record.force_field, 'rdkit_status': record.rdkit_status, 'rdkit_energy': record.rdkit_energy, 'rdkit_path': record.rdkit_path, 'generation_stage': record.generation_stage, 'generation_round': record.generation_round, 'parent_name': record.parent_name, 'torsion_moves': record.torsion_moves, 'refinement_reason': record.refinement_reason, 'refinement_diversity': record.refinement_diversity, 'contact_count': record.contact_count, 'radius_gyration': record.radius_gyration, 'backend_status': record.backend_status, 'backend_validation_status': record.backend_validation_status, 'backend_diagnostic_path': record.backend_diagnostic_path, 'backend_energy': record.backend_energy, 'backend_path': record.backend_path, 'selected_path': record.selected_path} for record in records]}
+    return {'version': STATE_VERSION, 'workflow': 'conformer', 'package_version': __version__, 'status': status, 'request': request, 'source_format': source_format, 'backend_requested': bool(backend_requested), 'generated_conformers': len(records), 'selected_results': selected_paths, 'records': [{'rank': record.rank, 'seed': record.seed, 'name': record.name, 'source_conf_id': record.source_conf_id, 'force_field': record.force_field, 'rdkit_status': record.rdkit_status, 'rdkit_energy': record.rdkit_energy, 'rdkit_path': record.rdkit_path, 'generation_stage': record.generation_stage, 'generation_round': record.generation_round, 'parent_name': record.parent_name, 'torsion_moves': record.torsion_moves, 'refinement_reason': record.refinement_reason, 'refinement_diversity': record.refinement_diversity, 'contact_count': record.contact_count, 'radius_gyration': record.radius_gyration, 'backend_status': record.backend_status, 'backend_validation_status': record.backend_validation_status, 'backend_diagnostic_path': record.backend_diagnostic_path, 'backend_energy': record.backend_energy, 'backend_path': record.backend_path, 'selected_path': record.selected_path, 'stereo_signature': record.stereo_signature} for record in records]}
 
 def _build_conformer_request(input_spec, *, input_format, num_conformers, top_n, backend_top_n, num_seeds, diversity_fraction, compactness_fraction, rms_threshold, use_random_coords, torsion_kicks, torsion_rounds, torsion_mode, torsion_kicks_per_conformer, torsion_max_bonds, torsion_dedup_rms, force_field, seed, num_threads, max_iterations, charge, multiplicity, scftype, qc_params, dedup_atom_mode='heavy'):
     """Validate and normalize the persisted conformer workflow request."""
@@ -672,6 +715,7 @@ def _conformer_search(input_spec, *, input_format='auto', num_conformers=150, to
     layout = ConformerLayout(run_directory, request)
     state_path = Path(workflow_state_path(str(run_directory)))
     rdkit_molecule, source_format = _load_rdkit_molecule(input_spec, request['input_format'], Chem, run_directory)
+    stereo = validate_input_stereo(rdkit_molecule)
     records = []
     for seed_value in seed_values:
         try:
@@ -691,9 +735,11 @@ def _conformer_search(input_spec, *, input_format='auto', num_conformers=150, to
             records = _collapse_generation_records(records + kicked_records, generation_dedup_rms, comparisons=comparisons)
     records = _collapse_generation_records(records, generation_dedup_rms, comparisons=comparisons)
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
+    records, stereo['rejected_generated'] = _assign_stereo_signatures(records, rdkit_molecule, stereo['reference'])
     if not records:
         state = _build_state(status='failed_no_conformers', request=request, selected_paths=[], records=[], source_format=source_format, backend_requested=bool(qc_params and qc_params.get('software')))
         state['comparison_policy'] = comparisons.summary()
+        state['stereochemistry'] = stereo
         if layout is None:
             _write_json_atomic(state_path, state)
         else:
@@ -719,12 +765,13 @@ def _conformer_search(input_spec, *, input_format='auto', num_conformers=150, to
     _write_summary(records, run_directory / 'summary.csv')
     state = _build_state(status=status, request=request, selected_paths=selected_paths, records=records, source_format=source_format, backend_requested=backend_requested)
     state['comparison_policy'] = comparisons.summary()
+    state['stereochemistry'] = stereo
     if layout is None:
         _write_json_atomic(state_path, state)
     else:
         layout.publish(state)
     conformer_logger.info('Conformer workflow completed: generated=%d selected=%d backend=%s', len(records), len(selected_records), 'yes' if backend_requested else 'no')
-    return ConformerResult(workflow='conformer', status=status, run_directory=str(run_directory), state_path=str(state_path), selected_paths=tuple(selected_paths), metadata={'comparison_policy': comparisons.summary(), 'source_format': source_format, 'generated_conformers': len(records), 'selected_conformers': len(selected_records), 'summary_path': str(run_directory / 'summary.csv'), 'backend_requested': backend_requested, 'seed_values': seed_values, 'backend_top_n': refinement_limit, 'diversity_fraction': float(diversity_fraction), 'compactness_fraction': float(compactness_fraction), 'use_random_coords': bool(use_random_coords), 'torsion_kicks': bool(torsion_kicks), 'torsion_rounds': int(torsion_rounds), 'torsion_mode': torsion_mode, 'torsion_kicks_per_conformer': int(torsion_kicks_per_conformer), 'torsion_max_bonds': int(torsion_max_bonds), 'torsion_dedup_rms': float(torsion_dedup_rms)})
+    return ConformerResult(workflow='conformer', status=status, run_directory=str(run_directory), state_path=str(state_path), selected_paths=tuple(selected_paths), metadata={'comparison_policy': comparisons.summary(), 'stereochemistry': stereo, 'source_format': source_format, 'generated_conformers': len(records), 'selected_conformers': len(selected_records), 'summary_path': str(run_directory / 'summary.csv'), 'backend_requested': backend_requested, 'seed_values': seed_values, 'backend_top_n': refinement_limit, 'diversity_fraction': float(diversity_fraction), 'compactness_fraction': float(compactness_fraction), 'use_random_coords': bool(use_random_coords), 'torsion_kicks': bool(torsion_kicks), 'torsion_rounds': int(torsion_rounds), 'torsion_mode': torsion_mode, 'torsion_kicks_per_conformer': int(torsion_kicks_per_conformer), 'torsion_max_bonds': int(torsion_max_bonds), 'torsion_dedup_rms': float(torsion_dedup_rms)})
 
 def conformer_search(input_spec, *, input_format='auto', num_conformers=150, top_n=10, backend_top_n=None, num_seeds=5, diversity_fraction=0.2, compactness_fraction=0.2, rms_threshold=0.25, use_random_coords=True, torsion_kicks=True, torsion_rounds=2, torsion_mode='random', torsion_kicks_per_conformer=6, torsion_max_bonds=3, torsion_dedup_rms=0.5, dedup_atom_mode='heavy', force_field='auto', seed=1, num_threads=0, max_iterations=200, charge=None, multiplicity=1, scftype='rhf', qc_params=None, root_directory=None):
     """Run a fresh conformer search; existing v1/v2 runs remain nonresumable."""

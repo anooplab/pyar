@@ -40,10 +40,10 @@ def resolve_settings(args):
         raise ValueError(f'Unsupported optimization backend: {args.backend!r}')
     capabilities = get_backend_capabilities(backend)
     optimizer = args.geometry_optimizer or ('geometric' if backend == 'gaussian' else 'native')
-    # The existing native Gaussian adapter writes a single-point route without
-    # an Opt keyword. Use its established gradient route, without changing it.
+    # The native Gaussian Opt route has not been qualified against real g16
+    # output; keep the geomeTRIC gradient route as the supported path.
     if backend == 'gaussian' and optimizer == 'native':
-        raise ValueError('The Gaussian native adapter does not request geometry optimization; '
+        raise ValueError('The native Gaussian optimization route is not yet qualified; '
                          'use --geometry-optimizer geometric')
     if args.opt_target != 'minimum':
         raise ValueError('Transition-state optimization is not supported by the bulk optimize command')

@@ -272,9 +272,11 @@ class EnergyGradientProviderTests(unittest.TestCase):
         )
 
         captured = []
+        inputs = []
 
-        def fake_run(command, cwd=None, capture_output=None, text=None, check=None):
+        def fake_run(command, input=None, cwd=None, capture_output=None, text=None, check=None):
             captured.append(list(command))
+            inputs.append(input)
             return SimpleNamespace(returncode=0, stdout=gaussian_output, stderr="")
 
         with mock.patch("pyar.energy_gradient_providers.require_executable", return_value="g16"), \
@@ -282,13 +284,28 @@ class EnergyGradientProviderTests(unittest.TestCase):
             result = provider.evaluate(molecule, coordinates_bohr)
 
         self.assertAlmostEqual(result.energy_hartree, -1.234)
-        self.assertEqual(captured[0][0], "g16")
+        self.assertEqual(captured[0], ["g16"])
+        self.assertIn(" Force NoSymm ", inputs[0])
         self.assertNotIn("--gxtb", captured[0])
         self.assertNotIn("--gfn", captured[0])
         np.testing.assert_allclose(
             result.gradient_hartree_per_bohr,
             np.asarray([[-0.01, -0.02, -0.03], [0.01, 0.02, 0.03]]),
         )
+
+    def test_gaussian_provider_rejects_abnormal_termination(self):
+        provider = get_energy_gradient_provider(
+            "gaussian",
+            {"charge": 0, "multiplicity": 1, "method": "B97-D", "basis": "def2-SVP", "nprocs": 1},
+        )
+        molecule = Atoms(symbols=["H", "H"], positions=np.zeros((2, 3)))
+        output = " SCF Done:  E(RB97D) =  -1.234000     A.U. after   10 cycles\n Error termination via Lnk1e"
+
+        with mock.patch("pyar.energy_gradient_providers.require_executable", return_value="g16"), \
+            mock.patch("pyar.energy_gradient_providers.subp.run",
+                       return_value=SimpleNamespace(returncode=0, stdout=output, stderr="")):
+            with self.assertRaisesRegex(RuntimeError, "did not terminate normally"):
+                provider.evaluate(molecule, np.zeros((2, 3)))
 
     def test_gaussian_provider_does_not_request_missing_pseudopotential_input(self):
         provider = get_energy_gradient_provider(

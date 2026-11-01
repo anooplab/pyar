@@ -290,6 +290,15 @@ pyar.conformer.request
    :undoc-members:
    :show-inheritance:
 
+pyar.conformer.stereo
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.conformer.stereo
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Core
 ----
 
@@ -594,18 +603,6 @@ pyar.microsolvation.wall_policy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.microsolvation.wall_policy
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Mlatom
-------
-
-pyar.mlatom
-~~~~~~~~~~~
-
-.. automodule:: pyar.mlatom
    :no-index:
    :members:
    :undoc-members:

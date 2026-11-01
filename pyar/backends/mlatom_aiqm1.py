@@ -1,7 +1,6 @@
 """MLatom AIQM1 backend implementation."""
 
 import logging  # noqa: F401
-from time import sleep  # noqa: F401
 import numpy as np
 from pyar import backends
 from pyar.backends import SF  # noqa: F811
@@ -59,8 +58,8 @@ class MlatomAiqm1(SF):
             initial_molecule.multiplicity = self.multiplicity
             # future = ml.optimize_geometry(model=self.aiqm1, initial_molecule=initial_molecule)
             # self.optimized_molecule = future.result().optimized_molecule
+            # optimize_geometry returns only after the Gaussian-driven optimisation finishes.
             self.optimized_molecule =  ml.optimize_geometry(model=self.aiqm1, initial_molecule=initial_molecule).optimized_molecule
-            sleep(90)
 
             self.out_file = 'gaussian.log'
 
@@ -94,7 +93,7 @@ class MlatomAiqm1(SF):
                 return None
 
         except Exception as e:
-            mlatom_logger.info('    Optimization failed:', f"      {e}")
+            mlatom_logger.info('    Optimization failed: %s', e)
             return None
 
 

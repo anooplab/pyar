@@ -56,7 +56,6 @@ _COMMANDS = {
     "energy": ("pyar.scripts.singlepoint", "Calculate single-point energies for fixed geometries"),
     "engrad": ("pyar.scripts.singlepoint", "Calculate energies and Cartesian gradients"),
     "gradient": ("pyar.scripts.singlepoint", "Alias for engrad"),
-    "engra": ("pyar.scripts.singlepoint", "Alias for engrad"),
     "frequency": ("pyar.scripts.singlepoint", "Calculate harmonic frequencies and qualify minima"),
     "optimize": ("pyar.scripts.optimize", "Optimize each XYZ structure independently"),
     "scan-bond": ("pyar.scripts.scan_bond", "Relaxed bond scan with optional reaction-path continuation"),
@@ -65,13 +64,13 @@ _COMMANDS = {
 
 _CHECK_COMMANDS = {
     "react", "scan-bond", "optimize", "conformer", "aggregate", "grow",
-    "energy", "engrad", "gradient", "engra", "frequency",
+    "energy", "engrad", "gradient", "frequency",
     "microsolvate", "neb", "ts", "irc",
 }
 _META_COMMANDS = {"run", "config", "profile", "info", "backends", "doctor", "install", "inspect", "benchmark"}
 _COMMAND_GROUPS = {
     "Structure exploration": ("conformer", "aggregate", "grow", "microsolvate", "optimize"),
-    "Fixed-geometry calculations": ("energy", "engrad", "gradient", "engra", "frequency"),
+    "Fixed-geometry calculations": ("energy", "engrad", "gradient", "frequency"),
     "Reaction exploration": ("react", "scan-bond", "neb", "ts", "irc"),
     "Analysis and geometry": ("clustering", "energies", "compare", "identify", "orient", "deduplicate", "select", "split", "trace"),
     "Specialist tools": ("explore", "trial", "basin-memory", "similarity", "descriptor", "mlopt", "aimnet2-ase-opt", "benchmark"),
@@ -160,7 +159,7 @@ def _command_parser(command, module):
         return None
     if command in {'scan-bond', 'energies'}:
         parser = builder(prog=f'pyar {command}')
-    elif command in {'neb', 'ts', 'irc', 'energy', 'engrad', 'gradient', 'engra', 'frequency'}:
+    elif command in {'neb', 'ts', 'irc', 'energy', 'engrad', 'gradient', 'frequency'}:
         parser = builder(command, prog=f'pyar {command}')
     else:
         parser = builder(prog=f'pyar {command}')

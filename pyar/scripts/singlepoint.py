@@ -9,7 +9,7 @@ from pyar.singlepoint.service import run_batch
 
 
 def build_parser(command="energy", *, prog=None):
-    command = {"gradient": "engrad", "engra": "engrad"}.get(command, command)
+    command = {"gradient": "engrad"}.get(command, command)
     parser = argparse.ArgumentParser(
         prog=prog,
         description=f"Calculate {command} for each fixed XYZ geometry independently.",
@@ -127,7 +127,7 @@ def prepare(parser, args, command):
 
 def main(argv=None, *, prog=None):
     command = (prog or "pyar energy").split()[-1]
-    command = {"gradient": "engrad", "engra": "engrad"}.get(command, command)
+    command = {"gradient": "engrad"}.get(command, command)
     parser = build_parser(command, prog=prog)
     args = parser.parse_args(argv)
     settings, molecules, root, controls = prepare(parser, args, command)

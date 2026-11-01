@@ -30,6 +30,20 @@ from pyar.backends.subprocess_utils import run_command
 mopac_logger = logging.getLogger("pyar.mopac")
 
 
+_SPIN_STATES = {2: 'DOUBLET', 3: 'TRIPLET', 4: 'QUARTET', 5: 'QUINTET', 6: 'SEXTET', 7: 'SEPTET'}
+
+
+def mopac_spin_keywords(multiplicity):
+    """Return MOPAC keywords that request ``multiplicity`` with a UHF reference."""
+    multiplicity = int(multiplicity or 1)
+    if multiplicity == 1:
+        return ''
+    try:
+        return f' UHF {_SPIN_STATES[multiplicity]}'
+    except KeyError:
+        raise ValueError(f'MOPAC adapter supports multiplicities 1-7; got {multiplicity}') from None
+
+
 class Mopac(SF):
     """MOPAC optimization wrapper for PyAR."""
 
@@ -46,7 +60,7 @@ class Mopac(SF):
         self.start_coords = molecule.coordinates
         self.optimized_coordinates = []
         self.energy = 0.0
-        keyword = f'PM7 PRECISE LET DDMIN=0.0 CYCLES=10000 charge={molecule.charge}'
+        keyword = f'PM7 PRECISE LET DDMIN=0.0 CYCLES=10000 charge={molecule.charge}{mopac_spin_keywords(molecule.multiplicity)}'
         self.prepare_input(keyword=keyword)
 
     def prepare_input(self, keyword=""):

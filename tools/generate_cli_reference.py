@@ -7,7 +7,7 @@ from pyar.cli import _COMMANDS
 
 def main():
     sections = []
-    commands = [[name] for name in _COMMANDS if name not in {'gradient', 'engra'}]
+    commands = [[name] for name in _COMMANDS if name not in {'gradient'}]
     commands += [['benchmark', task] for task in ('conformer', 'clustering', 'orientations', 'ts')]
     for command in commands:
         run = subprocess.run([sys.executable, '-m', 'pyar', *command, '--help'],

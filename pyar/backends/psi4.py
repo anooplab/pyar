@@ -27,11 +27,25 @@ from pyar.backends.subprocess_utils import run_command
 psi4_logger = logging.getLogger("pyar.psi4")
 
 
+DEFAULT_METHOD = "B97-D"
+DEFAULT_BASIS = "def2-SVP"
+
+
+def psi4_reference(method, multiplicity, scftype):
+    """Return the Psi4 ``reference`` for an open-shell job, or None for closed shell."""
+    if (multiplicity or 1) == 1 and str(scftype or "rhf").lower() in {"rhf", "rks"}:
+        return None
+    # Psi4 constructs the HF/KS functional from the requested method. UHF is
+    # valid for its unrestricted SCF driver and correlated wavefunction methods.
+    return "uhf"
+
+
 class Psi4(SF):
     """Psi4 optimization wrapper for PyAR."""
 
-    def __init__(self, molecule, method, custom_keyword=None):
+    def __init__(self, molecule, qc_params=None, custom_keyword=None):
         """Prepare a Psi4 job from a PyAR molecule and QC settings."""
+        qc_params = qc_params or {}
 
         super(Psi4, self).__init__(molecule)
         self.psi4_executable = require_executable("psi4", "Psi4")
@@ -42,9 +56,13 @@ class Psi4(SF):
         self.optimized_coordinates = []
         self.number_of_atoms = len(self.atoms_list)
         self.energy = 0.0
-        keyword = "set basis def2-SVP\n"
-        if any(x >= 21 for x in molecule.atomic_number):
-            keyword += ' def2-ECP'
+        self.method = qc_params.get('method') or DEFAULT_METHOD
+        self.basis = qc_params.get('basis') or DEFAULT_BASIS
+        # Psi4 attaches the def2 effective core potentials itself.
+        keyword = f"set basis {self.basis}\n"
+        reference = psi4_reference(self.method, self.multiplicity, self.scftype)
+        if reference is not None:
+            keyword += f"set reference {reference}\n"
         if custom_keyword is not None:
             keyword += custom_keyword
         self.prepare_input(keyword=keyword)
@@ -52,8 +70,6 @@ class Psi4(SF):
     def prepare_input(self, keyword=""):
         """Write the Psi4 input file for the current molecule."""
         coords = self.start_coords
-        if self.scftype == 'uks':
-            keyword += 'UKS'
         with open(self.inp_file, "w") as f1:
             f1.write(keyword + "\n")
             f1.write("molecule {\n")
@@ -62,7 +78,7 @@ class Psi4(SF):
                 f1.write(
                     " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
             f1.write("}\n")
-            f1.write("optimize(\"B97-D\")")
+            f1.write(f"optimize(\"{self.method}\")\n")
 
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """

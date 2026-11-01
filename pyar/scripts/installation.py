@@ -15,11 +15,9 @@ from pyar.dependencies import (
 
 
 def installation_status():
-    core = (*CORE_MODULES, 'tomli') if sys.version_info < (3, 11) else CORE_MODULES
+    core = CORE_MODULES
     packages = {}
     for module, requirement in PYTHON_REQUIREMENTS.items():
-        if module == 'tomli' and module not in core:
-            continue
         try:
             installed_version = version(requirement.package)
         except PackageNotFoundError:

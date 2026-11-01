@@ -36,7 +36,7 @@ def harmonic(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "command", ["energy", "engrad", "engra", "gradient", "frequency"]
+    "command", ["energy", "engrad", "gradient", "frequency"]
 )
 def test_batch_layout_and_json(geometries, harmonic, command, capsys):
     args = [command, *geometries, "--json"]

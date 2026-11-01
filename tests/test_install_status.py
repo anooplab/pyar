@@ -11,10 +11,10 @@ from pyar.dependencies import CORE_MODULES
 from pyar.scripts import installation
 
 
-@pytest.mark.parametrize('python_version', [(3, 10), (3, 13)])
+@pytest.mark.parametrize('python_version', [(3, 11), (3, 13)])
 def test_core_only_status_lists_missing_optional_requirements(tmp_path, monkeypatch, capsys, python_version):
     monkeypatch.chdir(tmp_path)
-    available = set(CORE_MODULES) | {'tomli'}
+    available = set(CORE_MODULES)
 
     def installed_version(package):
         if package in available:
@@ -35,7 +35,7 @@ def test_core_only_status_lists_missing_optional_requirements(tmp_path, monkeypa
     assert result['executables']['orca']['status'] == 'missing'
     assert not result['workflows']['aggregate']['available']
     assert result['packages']['numpy']['version'] == '1.0'
-    assert ('tomli' in result['packages']) == (python_version < (3, 11))
+    assert 'tomli' not in result['packages']
     assert list(tmp_path.iterdir()) == []
 
 

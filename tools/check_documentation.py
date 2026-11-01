@@ -8,10 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10 fallback provided by PyAR dependencies
-    import tomli as tomllib
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
@@ -24,7 +21,6 @@ SUBCOMMANDS = {
     "energy",
     "engrad",
     "gradient",
-    "engra",
     "frequency",
     "react",
     "scan-bond",

@@ -45,7 +45,7 @@ class Molecule(object):
         fragments=None,
         charge=0,
         multiplicity=1,
-        scftype='rhf',
+        scftype=None,
         energy=None,
     ):
         """Create a molecule from atom symbols and Cartesian coordinates."""
@@ -70,6 +70,17 @@ class Molecule(object):
             self.fragments = molecule_io.validate_fragments(fragments, self.number_of_atoms)
             self.fragments_coordinates = self.split_coordinates()
             self.fragments_atoms_list = self.split_atoms_lists()
+
+    @property
+    def scftype(self):
+        """Return the explicit SCF type, or the one implied by the multiplicity."""
+        if self._scftype is not None:
+            return self._scftype
+        return 'rhf' if self.multiplicity in (None, 1) else 'uhf'
+
+    @scftype.setter
+    def scftype(self, value):
+        self._scftype = value
 
     @property
     def coordinates(self) -> Optional[np.ndarray]:
@@ -140,7 +151,7 @@ class Molecule(object):
             fragments=None if coordinates is None else deepcopy(getattr(self, "fragments", [])),
             charge=self.charge,
             multiplicity=self.multiplicity,
-            scftype=self.scftype,
+            scftype=self._scftype,
             energy=self.energy,
         )
         if coordinates is None:
@@ -250,7 +261,7 @@ class Molecule(object):
         return Atoms(self.atoms_list, positions=self.coordinates)
 
     @classmethod
-    def from_ase_atoms(cls, atoms, name=None, title=None, charge=0, multiplicity=1, scftype="rhf", energy=None):
+    def from_ase_atoms(cls, atoms, name=None, title=None, charge=0, multiplicity=1, scftype=None, energy=None):
         """Create a molecule from an ASE ``Atoms`` object."""
         atoms_list = atoms.get_chemical_symbols()
         coords = np.asarray(atoms.get_positions(), dtype=float)

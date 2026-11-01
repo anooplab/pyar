@@ -78,7 +78,9 @@ def test_backend_input_error_exits_and_persists_failed_state(tmp_path):
     assert "completed_no_candidates" not in state["status"]
 
 
-def test_missing_optimizer_input_exits_nonzero(tmp_path):
+def test_missing_optimizer_input_exits_nonzero(tmp_path, monkeypatch):
+    # Run this checkout, not whichever pyar another site-packages provides.
+    monkeypatch.setenv("PYTHONPATH", str(Path(__file__).resolve().parents[1]))
     result = subprocess.run(
         [
             sys.executable,

@@ -14,10 +14,7 @@ from pathlib import Path
 import re
 import tempfile
 import warnings
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10, supported by pyar-chem.
-    import tomli as tomllib
+import tomllib
 from dataclasses import asdict, dataclass, field
 
 
@@ -105,7 +102,6 @@ _PLAN_STAGES = {
     "energy": ("Validate fixed geometries", "Evaluate single-point energies", "Write per-input results"),
     "engrad": ("Validate fixed geometries", "Evaluate energies and gradients", "Write per-input results"),
     "gradient": ("Validate fixed geometries", "Evaluate energies and gradients", "Write per-input results"),
-    "engra": ("Validate fixed geometries", "Evaluate energies and gradients", "Write per-input results"),
     "frequency": ("Validate fixed geometries", "Evaluate energies and gradients", "Build numerical Hessians", "Analyze modes and qualify minima"),
     "optimize": ("Validate structures", "Optimize each structure", "Write optimized geometries"),
     "conformer": ("Generate conformers", "Optionally refine with the backend", "Select and write conformers"),

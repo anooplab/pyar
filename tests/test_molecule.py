@@ -148,3 +148,64 @@ class MoleculeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.parametrize("title, energy", [
+    ("job: -1.23", -1.23),
+    ("job -1.25", -1.25),
+    ("-76.3", -76.3),
+    (" energy: -5.070544 gnorm: 0.000312 xtb: 6.7.1 (8538ac1)", -5.070544),
+    ("Coordinates from ORCA-job input E -76.32", -76.32),
+    ("water 3", None),
+    ("conformer 12", None),
+    ("title: None", None),
+    ("benzene", None),
+])
+def test_title_energy_labels(title, energy):
+    from pyar.io.xyz import energy_from_title
+    assert energy_from_title(title) == energy
+
+
+def test_write_xyz_does_not_accumulate_energy_suffixes(tmp_path):
+    path = tmp_path / "w.xyz"
+    path.write_text("1\nwater: -1.5\nH 0 0 0\n")
+    molecule = Molecule.from_xyz(str(path))
+    molecule.energy = -2.0
+    molecule.mol_to_xyz(str(path))
+    assert path.read_text().splitlines()[1] == "water: -2.0"
+
+
+def test_align_is_a_proper_rotation_that_keeps_handedness():
+    # A chiral arrangement: signed volume of (b-a, c-a, d-a) flips under reflection.
+    coordinates = np.array([[0.0, 0.0, 0.0], [1.1, 0.0, 0.0], [-0.3, 1.0, 0.1], [-0.4, -0.4, 0.9], [0.2, -0.9, -0.5]])
+    molecule = Molecule(["C", "F", "Cl", "Br", "H"], coordinates)
+
+    def signed_volume(xyz):
+        return float(np.linalg.det(np.array([xyz[1] - xyz[0], xyz[2] - xyz[0], xyz[3] - xyz[0]])))
+
+    before = signed_volume(molecule.coordinates)
+    molecule.align()
+    after = signed_volume(molecule.coordinates)
+    assert np.sign(before) == np.sign(after)
+    assert np.isclose(before, after)
+    from pyar.core.geometry import moments_of_inertia_tensor
+    tensor = moments_of_inertia_tensor(molecule)
+    np.testing.assert_allclose(tensor, np.diag(np.diag(tensor)), atol=1e-10)
+    assert np.all(np.diff(np.diag(tensor)) >= -1e-12)
+
+
+@pytest.mark.parametrize('title', [
+    'energy: -5.07 gnorm: 0.0001',
+    'energy: -5.07 gnorm: 1',
+    'E=-5.07 iteration 3.0',
+    'energy=-5.07 gnorm=0.0001',
+])
+def test_explicit_energy_takes_precedence_over_trailing_metadata(tmp_path, title):
+    from pyar.io.xyz import energy_from_title
+    from pyar.selection.reports import read_energy_from_xyz_file
+
+    path = tmp_path / 'structure.xyz'
+    path.write_text(f'1\n{title}\nH 0 0 0\n')
+    assert energy_from_title(title) == pytest.approx(-5.07)
+    assert parse_xyz(path)[-1] == pytest.approx(-5.07)
+    assert read_energy_from_xyz_file(path) == pytest.approx(-5.07)

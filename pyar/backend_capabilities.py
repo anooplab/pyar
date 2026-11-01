@@ -69,7 +69,7 @@ BACKEND_CAPABILITIES = {
         supports_charge_multiplicity=True,
         supports_method_basis_options=True,
         required_executables=frozenset({"psi4"}),
-        supported_options=frozenset(),
+        supported_options=frozenset({"method", "basis"}),
         notes="Native geometry optimisation only; no geomeTRIC energy/gradient provider."
     ),
     "turbomole": BackendCapabilities(

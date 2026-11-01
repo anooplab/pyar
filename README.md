@@ -2,7 +2,7 @@
 
 PyAR searches molecular structures and reaction candidates, runs electronic-structure calculations through selected backends, and helps inspect the resulting evidence. Use one command: `pyar`.
 
-Python 3.10–3.13 is the classified, CI-tested range. The distribution is `pyar-chem`; the Python namespace is `pyar`.
+Python 3.11–3.13 is the classified, CI-tested range. The distribution is `pyar-chem`; the Python namespace is `pyar`.
 
 ## Start here
 

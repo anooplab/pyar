@@ -8,10 +8,7 @@ from importlib.metadata import version
 from pathlib import Path
 from unittest import mock
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
-    import tomli as tomllib
+import tomllib
 
 
 class PackagingMetadataTests(unittest.TestCase):
@@ -53,17 +50,15 @@ class PackagingMetadataTests(unittest.TestCase):
         from pyar.scripts.benchmark import TASKS
         self.assertEqual(TASKS["ts"], "pyar.scripts.ts_optimizer_benchmark")
 
-    def test_python310_declares_tomli_runtime_fallback(self):
-        metadata = tomllib.loads(Path("pyproject.toml").read_text())
+    def test_python_floor_is_311_without_tomli_backport(self):
+        from packaging.specifiers import SpecifierSet
 
-        self.assertTrue(
-            any(
-                dependency.startswith("tomli")
-                and "python_version" in dependency
-                and "3.11" in dependency
-                for dependency in metadata["project"]["dependencies"]
-            )
-        )
+        project = tomllib.loads(Path("pyproject.toml").read_text())["project"]
+        supported = SpecifierSet(project["requires-python"])
+        self.assertNotIn("3.10", supported)
+        self.assertIn("3.11", supported)
+        self.assertNotIn("Programming Language :: Python :: 3.10", project["classifiers"])
+        self.assertFalse(any(dependency.startswith("tomli") for dependency in project["dependencies"]))
 
     def test_built_wheel_excludes_large_model_assets(self):
         wheels = sorted(Path("dist").glob("pyar_chem-*.whl"))

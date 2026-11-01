@@ -172,7 +172,7 @@ def resolve_reaction_request(input_files, options):
         elif not settings['basis'] or not settings['basis'].strip():
             raise ValueError(f'Backend {backend!r} requires an explicit --basis')
     if backend == 'gaussian':
-        raise ValueError('The current native Gaussian adapter does not request geometry optimization; '
+        raise ValueError('The native Gaussian optimization route is not yet qualified; '
                          'modern react requires a valid native unbiased release route. Use another backend.')
     if settings['opt_threshold'] not in {'loose', 'normal', 'tight'}:
         raise ValueError('--opt-threshold must be loose, normal, or tight for the shared biased/native route')

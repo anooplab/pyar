@@ -1,9 +1,6 @@
 import json
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 

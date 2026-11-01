@@ -44,6 +44,7 @@ def resolve_request(args):
         # Parity validation needs atomic numbers, not generated coordinates.
         molecules = [Molecule(atoms, [[0., 0., 0.]] * len(atoms), name='input')]
         default_charge = [workflow._formal_charge(mol)]
+    workflow.validate_input_stereo(mol)
     molecule = resolve_states(molecules, None if args.charge is None else [args.charge],
                               None if args.multiplicity is None else [args.multiplicity],
                               None if args.scftype is None else [args.scftype],
