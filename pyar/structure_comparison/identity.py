@@ -12,7 +12,7 @@ from pyar.structure_comparison.models import IdentityResult
 class ChemicalIdentityProvider(Protocol):
     """Service that identifies chemical species and compares their identity."""
 
-    def identify(self, structure) -> IdentityResult:
+    def identify(self, structure, *, directory=None) -> IdentityResult:
         """Return a canonical chemical identity for a structure."""
 
     def same_identity(self, first, second) -> bool:
@@ -24,9 +24,10 @@ class OpenBabelIdentityProvider:
 
     method = "openbabel-inchi"
 
-    def identify(self, structure) -> IdentityResult:
-        inchi = babel.make_inchi_string_from_xyz(structure)
-        smiles = babel.make_smile_string_from_xyz(structure)
+    def identify(self, structure, *, directory=None) -> IdentityResult:
+        options = {'directory': directory} if directory is not None else {}
+        inchi = babel.make_inchi_string_from_xyz(structure, **options)
+        smiles = babel.make_smile_string_from_xyz(structure, **options)
         if not inchi or not smiles:
             raise ValueError(
                 f"Could not determine complete product identity from {structure}"

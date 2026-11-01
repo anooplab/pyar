@@ -158,22 +158,26 @@ def xyz_to_sdf_file(xyz_input_files, sdf_output_file):
     os.remove('tmp.log')
 
 
-def make_inchi_string_from_xyz(xyzfile):
+def make_inchi_string_from_xyz(xyzfile, *, directory=None):
     """Return an InChI string for a molecule stored in an XYZ file."""
+    if directory is not None:
+        xyzfile = os.path.abspath(os.path.join(directory, xyzfile))
     if os.path.isfile(xyzfile):
-        inchi = run_output([_obabel_executable(), "-ixyz", str(xyzfile), "-oinchi"], stderr_path='OBabel.log')
+        inchi = run_output([_obabel_executable(), "-ixyz", str(xyzfile), "-oinchi"], stderr_path='OBabel.log', **({'cwd': directory} if directory is not None else {}))
         babel_logger.info("obabel inchi conversion input=%s log=%s", xyzfile, 'OBabel.log')
         return inchi.decode("utf-8").strip()
     else:
         raise IOError("file %s does not exists" % xyzfile)
 
 
-def make_smile_string_from_xyz(xyzfile):
+def make_smile_string_from_xyz(xyzfile, *, directory=None):
     """Return a SMILES string for a molecule stored in an XYZ file."""
+    if directory is not None:
+        xyzfile = os.path.abspath(os.path.join(directory, xyzfile))
     if os.path.isfile(xyzfile):
-        with open('OBabel.log', 'w') as ferr:
+        with open(os.path.join(directory or os.getcwd(), 'OBabel.log'), 'w') as ferr:
             try:
-                pre_smile = run_output([_obabel_executable(), "-ixyz", str(xyzfile), "-ocan", "-xn"], stderr_path='OBabel.log')
+                pre_smile = run_output([_obabel_executable(), "-ixyz", str(xyzfile), "-ocan", "-xn"], stderr_path='OBabel.log', **({'cwd': directory} if directory is not None else {}))
                 smile = pre_smile.decode("utf-8").strip()
             except Exception as e:
                 ferr.write(str(e))

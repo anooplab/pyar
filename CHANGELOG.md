@@ -36,6 +36,9 @@
 
 ### Fixed
 
+- Keep reaction OpenBabel identity diagnostics in the owning reaction/orientation
+  workspace when executing without process-wide directory changes.
+
 - Remove process-wide working-directory changes. Workflow/optimization calls
   accept explicit run directories; native commands use subprocess `cwd`, and
   relative-file Python calculators execute in isolated child processes. Preserve

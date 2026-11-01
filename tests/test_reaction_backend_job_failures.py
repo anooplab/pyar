@@ -63,7 +63,7 @@ def test_failed_orientation_is_recorded_and_remaining_jobs_continue(
     monkeypatch.setattr(
         reaction,
         "molecule_identity_from_xyz",
-        lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
+        lambda *_args, **_kwargs: {"inchi": "reactants", "smiles": "reactants"},
     )
     monkeypatch.setattr(
         reaction,
@@ -97,7 +97,7 @@ def test_all_failed_orientations_still_raise_backend_failure(tmp_path, monkeypat
     monkeypatch.setattr(
         reaction,
         "molecule_identity_from_xyz",
-        lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
+        lambda *_args, **_kwargs: {"inchi": "reactants", "smiles": "reactants"},
     )
 
     def fail_job(*_args, **_kwargs):
@@ -137,7 +137,7 @@ def test_legacy_reaction_exception_restores_process_working_directory(
     monkeypatch.setattr(
         reaction,
         "separated_reactant_identity",
-        lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
+        lambda *_args, **_kwargs: {"inchi": "reactants", "smiles": "reactants"},
     )
 
     def fail_after_gamma_chdir(*_args, **_kwargs):

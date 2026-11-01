@@ -180,10 +180,10 @@ def _restore_product_registry(run_state):
     saved_product_identities.update(registry)
     return registry
 
-def _ensure_reactant_identity(run_state, reactant_a, reactant_b):
+def _ensure_reactant_identity(run_state, reactant_a, reactant_b, *, directory=None):
     """Persist the original separated-reactant identity used for product gating."""
     if 'reactant_identity' not in run_state.data:
-        run_state.data['reactant_identity'] = separated_reactant_identity(reactant_a, reactant_b)
+        run_state.data['reactant_identity'] = separated_reactant_identity(reactant_a, reactant_b, directory=directory)
         run_state.save()
     return run_state.data['reactant_identity']
 
@@ -488,7 +488,7 @@ def initialize_reaction_run(
     run_state = ReactionRunState.load(current_workdir, request)
     if run_state is not None:
         reactor_logger.info('Reaction state detected: resuming reaction workflow')
-        _ensure_reactant_identity(run_state, reactant_a, reactant_b)
+        _ensure_reactant_identity(run_state, reactant_a, reactant_b, directory=directory)
         gamma_list = run_state.remaining_gamma_schedule()
         orientations_to_optimize = run_state.pending_molecules()
         directory = directory / "reaction"
@@ -536,7 +536,7 @@ def initialize_reaction_run(
 
     state_class = ReactionRunStateV2
     run_state = state_class.create(current_workdir, request, orientations_to_optimize, (reactant_a, reactant_b), sampling=sampling)
-    _ensure_reactant_identity(run_state, reactant_a, reactant_b)
+    _ensure_reactant_identity(run_state, reactant_a, reactant_b, directory=directory)
     _restore_product_registry(run_state)
     return (current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir)
 
@@ -685,7 +685,7 @@ def optimize_all(
         )
         start_identity = molecule_identity_from_xyz(
             str(directory / reference_xyz_file_name)
-        )
+        , directory=directory)
         orientation_qc_param = dict(qc_param)
         orientation_qc_param['release_job_name'] = job_name
         try:
@@ -755,7 +755,7 @@ def optimize_all(
                         continue
                     current_identity = molecule_identity_from_xyz(
                         str(directory / "result_relax.xyz")
-                    )
+                    , directory=directory)
                     current_inchi = current_identity['inchi']
                     current_smile = current_identity['smiles']
                     reactor_logger.info('Relaxation completed')

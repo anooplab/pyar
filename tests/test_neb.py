@@ -1966,9 +1966,9 @@ def test_reaction_v2_discovery_to_validated_characterization(tmp_path, fake_path
     monkeypatch.setattr(workflow.trial_generation, 'create_trial_geometries', lambda *args, **kwargs: [oriented.copy()])
     original = dict(inchi='reactants', smiles='[H].CN')
     product = dict(inchi='product', smiles='NC')
-    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: original)
+    monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args, **kwargs: original)
     monkeypatch.setattr(workflow, 'molecule_identity_from_xyz',
-                        lambda path: product if Path(path).name == 'result_relax.xyz' else original)
+                        lambda path, **kwargs: product if Path(path).name == 'result_relax.xyz' else original)
     @in_test_workspace
     def optimize(molecule, parameters):
         directory = Path(f'job_{molecule.name}')
