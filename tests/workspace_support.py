@@ -32,3 +32,10 @@ def in_test_workspace(function):
             return function(*args, **kwargs)
 
     return execute
+
+
+def run_legacy_scan(*args, **kwargs):
+    """Exercise the unchanged layout-less scan contract through its new context."""
+    from pyar.workflows import scan_bond
+    bound = scan_bond._SCAN_SIGNATURE.bind(*args, **kwargs)
+    return scan_bond._run_scan_bond(scan_bond._scan_options(bound.arguments))

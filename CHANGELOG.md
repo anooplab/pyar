@@ -36,6 +36,9 @@
 
 ### Added
 
+- Add `run_scan_bond_request(settings)` for existing scan invocation mappings;
+  preserve `run_scan_bond` and its signed request, artifact and restart contracts.
+
 - Add `run_aggregate(request)` and `run_grow(request, output=...)` for resolved
   aggregation and growth requests; retain the existing supported entry points.
 
@@ -43,6 +46,9 @@
   existing `ConformerRequest` without converting options again.
 
 ### Internal
+
+- Carry resolved scan and orientation contexts through native execution, evidence
+  commitment, continuation and publication, retaining `ScanLayout` ownership.
 
 - Separate aggregate/grow run opening, pathway/step execution and publication;
   reuse resolved CLI requests and preserve immutable checkpoint ownership.

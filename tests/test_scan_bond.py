@@ -20,10 +20,10 @@ from pyar.backends.orca_methods import orca_external_method_block, orca_method, 
 from pyar.core.molecule import Molecule
 from pyar.workflows.scan_bond import (
     absolute_target_indices, _resolve_total_multiplicity,
-    _run_scan_bond as run_scan_bond, scan_point_count,
+    scan_point_count,
 )
 
-from workspace_support import in_test_workspace
+from workspace_support import in_test_workspace, run_legacy_scan as run_scan_bond
 
 
 def test_fragment_local_indices_are_merged_asymmetric():
@@ -56,15 +56,8 @@ def test_scan_preflight_spin_request_matches_execution_request(tmp_path):
     fragment_b = Molecule.from_xyz(b)
     fragment_a.multiplicity = 2
     fragment_b.multiplicity = 2
-    preflight = scan_request_fields(
-        a, b, fragment_a, fragment_b, (0, 0), 1,
-        {"software": "orca", "total_multiplicity": None},
-    )
-    execution = scan_request_fields(
-        a, b, fragment_a, fragment_b, (0, 0), 1,
-        {"software": "orca", "total_multiplicity": 1,
-          "total_multiplicity_source": "historical_heuristic"},
-    )
+    preflight = scan_request_fields({'input_a': a, 'input_b': b, 'atoms': (0, 0), 'orientations': 1, 'qc_params': {'software': 'orca', 'total_multiplicity': None}, 'scan_end': None, 'scan_step': None, 'scan_points': None}, fragment_a, fragment_b)
+    execution = scan_request_fields({'input_a': a, 'input_b': b, 'atoms': (0, 0), 'orientations': 1, 'qc_params': {'software': 'orca', 'total_multiplicity': 1, 'total_multiplicity_source': 'historical_heuristic'}, 'scan_end': None, 'scan_step': None, 'scan_points': None}, fragment_a, fragment_b)
     assert preflight == execution
 
 
@@ -331,9 +324,9 @@ def test_scan_bond_cli_requires_gxtb_wrapper_and_dft_basis(tmp_path, monkeypatch
     wrapper.write_text("#!/bin/sh\n")
     wrapper.chmod(0o755)
     captured = {}
-    monkeypatch.setattr(scan_bond, "run_scan_bond", lambda *args: captured.setdefault("args", args))
+    monkeypatch.setattr(scan_bond, "run_scan_bond_request", lambda *args: captured.setdefault("args", args))
     scan_bond.main(common + ["--method", "g-xTB", "--gxtb-wrapper", str(wrapper)])
-    params = captured["args"][4]
+    params = captured["args"][0]["qc_params"]
     assert params["basis"] is None
     assert params["gxtb_wrapper"] == str(wrapper.resolve())
 

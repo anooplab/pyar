@@ -13,6 +13,20 @@ from workspace_support import in_test_workspace
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
 
+def _load_scan(orientation, request, directory, settings, *, software, previous_result, committed):
+    """Arrange only the run/orientation fields used by the loader boundary."""
+    from types import SimpleNamespace
+    run = SimpleNamespace(qc_params=settings, route=SimpleNamespace(software=software))
+    task = SimpleNamespace(molecule=orientation, paths=SimpleNamespace(scan_dir=directory),
+        recovered=workflow._RecoveredOrientation(previous_result, committed, False))
+    return workflow._load_or_execute_scan(run, task, request)
+
+
+def _legacy_scan_call(*args, **kwargs):
+    bound = workflow._SCAN_SIGNATURE.bind(*args, **kwargs)
+    return workflow._run_scan_bond(workflow._scan_options(bound.arguments))
+
+
 @pytest.mark.parametrize(
     'results, through, intramolecular, unique, products, expected',
     [
@@ -52,7 +66,7 @@ def test_scan_loader_reuses_valid_cached_result(tmp_path, monkeypatch):
     monkeypatch.setattr(stages, 'scan_diagnostic', lambda *args: {'stage_gate': 'passed'})
     monkeypatch.setattr(stages, 'run_scan_once', lambda *args: pytest.fail('cached scan was rerun'))
 
-    result, error = workflow._load_or_execute_scan(
+    result, error = _load_scan(
         object(), object(), tmp_path, {}, software='orca',
         previous_result={'scan_status': 'success'}, committed=None,
     )
@@ -75,7 +89,7 @@ def test_scan_loader_reexecutes_invalid_cache_but_rejects_invalid_commit(tmp_pat
         return valid
 
     monkeypatch.setattr(stages, 'run_scan_once', run)
-    result, error = workflow._load_or_execute_scan(
+    result, error = _load_scan(
         object(), object(), tmp_path, {}, software='orca',
         previous_result={'scan_status': 'success'}, committed=None,
     )
@@ -86,7 +100,7 @@ def test_scan_loader_reexecutes_invalid_cache_but_rejects_invalid_commit(tmp_pat
     calls.clear()
     monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: None)
     with pytest.raises(ValueError, match='Committed scan no longer passes'):
-        workflow._load_or_execute_scan(
+        _load_scan(
             object(), object(), tmp_path, {}, software='orca',
             previous_result={'scan_status': 'success'}, committed={'status': 'committed'},
         )
@@ -100,14 +114,14 @@ def test_scan_executor_preserves_backend_errors_and_returns_other_errors(tmp_pat
     failure = BackendExecutionError('native output invalid')
     monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(failure))
     with pytest.raises(BackendExecutionError, match='native output invalid'):
-        workflow._load_or_execute_scan(
+        _load_scan(
             object(), object(), tmp_path, {}, software='xtb',
             previous_result=None, committed=None,
         )
 
     ordinary_error = RuntimeError('recoverable scan exception')
     monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(ordinary_error))
-    result, error = workflow._load_or_execute_scan(
+    result, error = _load_scan(
         object(), object(), tmp_path, {}, software='xtb',
         previous_result=None, committed=None,
     )
@@ -281,7 +295,7 @@ def scan_run(tmp_path, monkeypatch):
     monkeypatch.setattr('pyar.backends.orca_scan.run_command', execute)
     root = tmp_path / 'scan'
     def run(through='scan', legacy=False, **options):
-        function = workflow._run_scan_bond if legacy else workflow.run_scan_bond
+        function = _legacy_scan_call if legacy else workflow.run_scan_bond
         target = root.with_name('legacy') if legacy else root
         return function(a, b, (0, 0), 1, {'software':'orca', 'method':'BP86', 'basis':'def2-SVP'},
                                       target, scan_end=1., scan_points=2, through=through, **options)

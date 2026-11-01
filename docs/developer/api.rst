@@ -11,7 +11,7 @@ Use canonical scientific modules rather than retired compatibility imports:
    from pyar.workflows.aggregate import aggregate, run_aggregate
    from pyar.workflows.grow import grow, run_grow
    from pyar.workflows.microsolvation import microsolvate
-   from pyar.workflows.scan_bond import run_scan_bond
+   from pyar.workflows.scan_bond import run_scan_bond, run_scan_bond_request
    from pyar.neb import run_neb
 
 Consult the signatures/docstrings below before constructing requests. Python
@@ -55,3 +55,22 @@ restart authorization remain owned by the workflow.
 .. autofunction:: pyar.workflows.aggregate.run_aggregate
 
 .. autofunction:: pyar.workflows.grow.run_grow
+
+Request-taking bond scans
+-------------------------
+
+``run_scan_bond_request(settings, recover_stale=False)`` accepts a mapping of
+the existing ``run_scan_bond`` keyword fields: ``input_a``, ``input_b`` (``None``
+for an intramolecular scan), ``atoms``, ``orientations``, ``qc_params`` and
+``output_dir``, plus the same optional grid and continuation controls. The
+mapping is copied and bound against the established signature; the CLI reuses
+one invocation for preflight and execution. ``recover_stale`` is an execution
+control passed separately. Backend electronic state must be resolved as for the
+CLI; this API does not infer different scientific defaults.
+
+This is an invocation mapping, not a stored signed request or a manifest.
+``ScanLayout`` still creates/verifies request signatures, immutable scan and
+relaxation evidence, artifact hashes, product membership and restart authority.
+``ScanRun`` and per-orientation contexts identify the owners of that evidence.
+
+.. autofunction:: pyar.workflows.scan_bond.run_scan_bond_request
