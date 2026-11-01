@@ -43,7 +43,7 @@ def add_fragment_arguments(parser):
 
 def resolve_states(molecules, charges=None, multiplicities=None, scftypes=None, *, default_charges=None):
     """Apply one/per-fragment values using the established PyAR parity rules."""
-    from pyar.cli import _normalize_parameter_list, _infer_default_multiplicities, _validate_backend_spin_inputs
+    from pyar.cli_validation import _normalize_parameter_list, _infer_default_multiplicities, _validate_backend_spin_inputs
     try:
         charges = (default_charges if charges is None and default_charges is not None else
                    _normalize_parameter_list(charges, 0, len(molecules), 'Charges'))

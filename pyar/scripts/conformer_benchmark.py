@@ -158,7 +158,7 @@ def main(argv=None):
     args = argument_parse(argv)
     qc_params = _backend_qc_params(args)
     if qc_params is not None:
-        from pyar.cli import _preflight_cli_requirements
+        from pyar.cli_validation import _preflight_cli_requirements
 
         _preflight_cli_requirements(
             "conformer-benchmark",

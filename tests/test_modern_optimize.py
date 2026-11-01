@@ -22,7 +22,7 @@ def inputs(tmp_path, monkeypatch):
 
 @pytest.fixture
 def dependencies():
-    with mock.patch('pyar.cli.shutil.which', return_value='/bin/backend'):
+    with mock.patch('pyar.cli_validation.shutil.which', return_value='/bin/backend'):
         yield
 
 
@@ -115,7 +115,7 @@ def test_all_inputs_validated_before_execution(inputs, dependencies, contents):
 
 @pytest.mark.parametrize('check', [[], ['--check']])
 def test_missing_executable(inputs, check, capsys):
-    with mock.patch('pyar.cli.shutil.which', return_value=None), mock.patch.object(
+    with mock.patch('pyar.cli_validation.shutil.which', return_value=None), mock.patch.object(
         optimiser, 'bulk_optimize'
     ) as bulk:
         with pytest.raises(SystemExit):
@@ -233,7 +233,7 @@ def test_xtb_spin_mapping_is_opt_in():
 
 
 def test_missing_python_requirement(inputs, dependencies, capsys):
-    with mock.patch('pyar.cli.importlib.util.find_spec', return_value=None), mock.patch.object(
+    with mock.patch('pyar.cli_validation.importlib.util.find_spec', return_value=None), mock.patch.object(
         optimiser, 'bulk_optimize'
     ) as bulk:
         with pytest.raises(SystemExit):

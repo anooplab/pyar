@@ -49,7 +49,7 @@ def test_explicit_grid_and_end_are_used_without_changing_start():
 def cli_case(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path('molecule.xyz').write_text('2\nH2\nH 0 0 0\nH .74 0 0\n')
-    monkeypatch.setattr('pyar.cli.shutil.which', lambda name: '/bin/backend')
+    monkeypatch.setattr('pyar.cli_validation.shutil.which', lambda name: '/bin/backend')
     return ['scan-bond', 'molecule.xyz', '--atoms', '0', '1', '--backend', 'xtb']
 
 

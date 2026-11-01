@@ -174,7 +174,7 @@ def main():
             "Non-fixed bias control requires a registered Cartesian energy-gradient backend "
             "and --geometry-optimizer geometric."
         )
-    from pyar.cli import _preflight_cli_requirements
+    from pyar.cli_validation import _preflight_cli_requirements
     _preflight_cli_requirements("react", software, geometry_optimizer)
 
     qc_params = {

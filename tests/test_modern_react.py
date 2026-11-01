@@ -222,7 +222,7 @@ def test_preflight_failure_no_work(tmp_path, monkeypatch, workflow, failure, cap
 def test_two_phase_preflight_and_identity(tmp_path):
     request = resolve(inputs(tmp_path))
     with patch('pyar.reaction_request.preflight', return_value=['xtb']) as check, patch(
-            'pyar.cli._workflow_requirement_messages', return_value=[]), patch(
+            'pyar.cli_validation._workflow_requirement_messages', return_value=[]), patch(
             'pyar.reaction_request.import_module'):
         requirements = preflight_reaction(request)
     assert check.call_count == 2
@@ -237,7 +237,7 @@ def test_real_missing_executable_requirement(tmp_path):
     request = resolve(inputs(tmp_path))
     import shutil
     actual_which = shutil.which
-    with patch('pyar.cli.shutil.which', side_effect=lambda name: None if name == 'xtb' else actual_which(name)):
+    with patch('pyar.cli_validation.shutil.which', side_effect=lambda name: None if name == 'xtb' else actual_which(name)):
         with pytest.raises(ValueError, match='xtb-docs'):
             preflight_reaction(request)
 
@@ -280,7 +280,7 @@ def test_missing_geometric_has_pyar_extra_guidance(tmp_path):
     request = resolve(inputs(tmp_path))
     import importlib.util
     find = importlib.util.find_spec
-    with patch('pyar.cli.importlib.util.find_spec', side_effect=lambda name: None if name == 'geometric' else find(name)):
+    with patch('pyar.cli_validation.importlib.util.find_spec', side_effect=lambda name: None if name == 'geometric' else find(name)):
         with pytest.raises(ValueError, match=r'pyar-chem\[reaction\]'):
             preflight_reaction(request)
 
@@ -288,7 +288,7 @@ def test_missing_geometric_has_pyar_extra_guidance(tmp_path):
 def test_missing_identity_executable(tmp_path):
     request = resolve(inputs(tmp_path))
     with patch('pyar.reaction_request.preflight', return_value=[]), patch(
-            'pyar.cli.shutil.which', return_value=None):
+            'pyar.cli_validation.shutil.which', return_value=None):
         with pytest.raises(ValueError, match='openbabel.org'):
             preflight_reaction(request)
 
@@ -296,7 +296,7 @@ def test_missing_identity_executable(tmp_path):
 def test_import_failure_prevents_execution(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     with patch('pyar.reaction_request.preflight', return_value=[]), patch(
-            'pyar.cli._workflow_requirement_messages', return_value=[]), patch(
+            'pyar.cli_validation._workflow_requirement_messages', return_value=[]), patch(
             'pyar.reaction_request.import_module', side_effect=ImportError('provider unavailable')), patch(
             'pyar.workflows.reaction.react') as run:
         with pytest.raises(SystemExit):
@@ -347,7 +347,7 @@ def test_legacy_standalone_contract_unchanged(tmp_path, monkeypatch):
         with pytest.raises(SystemExit, match='bias-min'):
             legacy.main()  # No controller means legacy fixed, still requiring min.
     with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software', 'xtb', '--bias-min', '10', '--bias-max', '100']), patch(
-            'pyar.workflows.reaction.react') as run, patch('pyar.cli._preflight_cli_requirements') as preflight:
+            'pyar.workflows.reaction.react') as run, patch('pyar.cli_validation._preflight_cli_requirements') as preflight:
         legacy.main()
     preflight.assert_called_once_with('react', 'xtb', 'geometric')
     assert run.call_args.args[2:5] == (10, 100, 8)
@@ -363,7 +363,7 @@ def test_legacy_standalone_missing_xtb_stops_before_workflow(tmp_path, monkeypat
     files = inputs(tmp_path)
     with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software',
                                   'xtb', '--bias-min', '10', '--bias-max', '100']), \
-         patch('pyar.cli.shutil.which', side_effect=lambda name: None if name == 'xtb' else '/mock/' + name), \
+         patch('pyar.cli_validation.shutil.which', side_effect=lambda name: None if name == 'xtb' else '/mock/' + name), \
          patch('pyar.workflows.reaction.react') as run:
         with pytest.raises(SystemExit, match="Missing executable 'xtb'"):
             legacy.main()

@@ -20,7 +20,7 @@ def inputs(tmp_path, monkeypatch):
 
 @pytest.fixture
 def dependencies():
-    with mock.patch('pyar.cli.shutil.which', return_value='/bin/backend'):
+    with mock.patch('pyar.cli_validation.shutil.which', return_value='/bin/backend'):
         yield
 
 
@@ -175,7 +175,7 @@ def test_stage_optional_dependencies(inputs, dependencies):
 
 
 def test_missing_backend(inputs, capsys):
-    with mock.patch('pyar.cli.shutil.which', return_value=None), mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch('pyar.cli_validation.shutil.which', return_value=None), mock.patch.object(scan_bond, 'run_scan_bond') as run:
         with pytest.raises(SystemExit):
             modern_cli.main([*inputs, '--backend', 'xtb', '--check'])
     run.assert_not_called()
@@ -183,7 +183,7 @@ def test_missing_backend(inputs, capsys):
 
 
 def test_orca_scan_only_does_not_need_geometric(inputs, dependencies):
-    with mock.patch('pyar.cli.importlib.util.find_spec', return_value=None):
+    with mock.patch('pyar.cli_validation.importlib.util.find_spec', return_value=None):
         modern_cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--check'])
         with pytest.raises(SystemExit):
             modern_cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--through', 'neb', '--check'])

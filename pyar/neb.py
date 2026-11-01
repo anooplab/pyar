@@ -1811,7 +1811,7 @@ def main(argv=None):
     try:
         args = parser.parse_args(argv)
         from pyar.dependencies import require_workflow
-        from pyar.cli import _preflight_cli_requirements
+        from pyar.cli_validation import _preflight_cli_requirements
         require_workflow("neb")
         _preflight_cli_requirements("neb", args.software, "geometric")
         result = run_neb(**vars(args))

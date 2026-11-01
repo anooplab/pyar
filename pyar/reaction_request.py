@@ -97,7 +97,7 @@ def resolve_reaction_request(input_files, options):
     from pyar.release import ReleaseTracker
     ReleaseTracker(distance_fraction=fraction)
     molecules = load_structures(input_files)
-    from pyar.cli import _infer_default_multiplicities, _validate_backend_spin_inputs
+    from pyar.cli_validation import _infer_default_multiplicities, _validate_backend_spin_inputs
     charges = expand_charges(option('charge', [0]), 2)
     multiplicities = None if option('multiplicity') is None else expand_charges(option('multiplicity'), 2)
     scftypes = expand_charges(option('scftype', ['rhf']), 2)
@@ -179,7 +179,7 @@ def resolve_reaction_request(input_files, options):
 
 def preflight_reaction(request):
     """Validate biased and unbiased requirements without constructing calculators."""
-    from pyar.cli import _workflow_requirement_messages
+    from pyar.cli_validation import _workflow_requirement_messages
     backend = request.qc_params['software']
     example = f'pyar react A.xyz B.xyz --backend {backend} --bias-max {request.bias_max} --check'
     try:

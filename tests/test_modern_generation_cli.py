@@ -125,7 +125,7 @@ def test_backend_policy(inputs, command):
     arguments = {'aggregate': inputs, 'grow': [*inputs, '--count', '4'], 'conformer': ['CCO']}[command]
     module, target = {'aggregate': (aggregate, 'aggregate'), 'grow': (grow, 'grow'),
                       'conformer': (conformer_workflow, 'conformer_search')}[command]
-    with patch('pyar.cli.shutil.which', return_value='/bin/xtb'), patch.object(module, target, return_value=result()) as engine:
+    with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(module, target, return_value=result()) as engine:
         modern_cli.main([command, *arguments, '--backend', 'xtb'])
     qc = (engine.call_args.args[3] if command == 'aggregate' else engine.call_args.args[0].backend_parameters
           if command == 'grow' else engine.call_args.kwargs['qc_params'])
@@ -157,7 +157,7 @@ def test_grow_check_exits_before_workflow(inputs):
 @pytest.mark.parametrize('command', ['aggregate', 'grow', 'conformer'])
 def test_backend_missing_fails_before_run(inputs, command, capsys):
     arguments = {'aggregate': inputs, 'grow': [*inputs, '--count', '4'], 'conformer': ['CCO']}[command]
-    with patch('pyar.cli.shutil.which', return_value=None), pytest.raises(SystemExit) as exc:
+    with patch('pyar.cli_validation.shutil.which', return_value=None), pytest.raises(SystemExit) as exc:
         modern_cli.main([command, *arguments, '--backend', 'xtb', '--check'])
     assert exc.value.code != 0
     assert 'xtb' in capsys.readouterr().err
@@ -187,7 +187,7 @@ def test_conformer_advanced_and_charged_input(inputs):
 
 
 def test_conformer_odd_spin_backend(inputs):
-    with patch('pyar.cli.shutil.which', return_value='/bin/xtb'), patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
         modern_cli.main(['conformer', '[CH3]', '--backend', 'xtb'])
     options = engine.call_args.kwargs
     assert options['multiplicity'] == 2 and options['scftype'] == 'uhf'

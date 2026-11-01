@@ -2,7 +2,7 @@
 from pyar.persistence import LockError
 import argparse
 
-from pyar.cli import (_normalize_parameter_list, _infer_default_multiplicities,
+from pyar.cli_validation import (_normalize_parameter_list, _infer_default_multiplicities,
                       _preflight_cli_requirements,
                       _validate_backend_qc_options)
 from pyar.core.molecule import Molecule, parse_xyz

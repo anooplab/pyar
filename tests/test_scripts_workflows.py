@@ -87,7 +87,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 with mock.patch.object(script, "argument_parse", return_value=arguments):
                     with mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]):
                         with mock.patch.object(script.reaction_workflow, "react") as react, \
-                             mock.patch('pyar.cli._preflight_cli_requirements') as preflight:
+                             mock.patch('pyar.cli_validation._preflight_cli_requirements') as preflight:
                             script.main()
             finally:
                 os.chdir(cwd)
@@ -119,7 +119,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     index=0,
                 )
                 with mock.patch.object(script, "argument_parse", return_value=arguments), \
-                    mock.patch('pyar.cli._preflight_cli_requirements'), \
+                    mock.patch('pyar.cli_validation._preflight_cli_requirements'), \
                     mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
                     mock.patch.object(
                         script.reaction_workflow,
@@ -296,7 +296,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                     run_directory=str(Path(tmpdir) / "conformers"),
                     selected_paths=(),
                 )
-                with mock.patch("pyar.cli._preflight_cli_requirements") as preflight:
+                with mock.patch("pyar.cli_validation._preflight_cli_requirements") as preflight:
                     with mock.patch.object(script, "conformer_search", return_value=result) as search:
                         script.main(["CCO", "--software", "xtb"])
             finally:

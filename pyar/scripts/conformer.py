@@ -184,7 +184,7 @@ def main(argv=None):
         except FileNotFoundError as exc:
             raise SystemExit(str(exc)) from None
     if qc_params is not None:
-        from pyar.cli import _preflight_cli_requirements
+        from pyar.cli_validation import _preflight_cli_requirements
 
         _preflight_cli_requirements(
             "conformer",
