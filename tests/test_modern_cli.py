@@ -1,6 +1,7 @@
 """Compatibility checks for the task-oriented clustering pilot."""
 
 import importlib.metadata
+import os
 import subprocess
 import sys
 import sysconfig
@@ -123,9 +124,17 @@ def test_top_level_does_not_load_clustering():
 
 
 def test_installed_entry_points():
-    # Source-tree egg-info can mask the editable installation's fresh metadata.
-    distribution = next(dist for dist in importlib.metadata.distributions(
-        path=[sysconfig.get_path("purelib")]) if dist.metadata["Name"] == "pyar-chem")
+    # Source-tree egg-info can mask the editable installation's fresh metadata,
+    # and an older wheel may sit in user site-packages; only installed
+    # dist-info metadata for this checkout's version is evidence here.
+    import tomllib
+    root = Path(__file__).resolve().parents[1]
+    expected = tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
+    search = [sysconfig.get_path("purelib"), sysconfig.get_path("purelib", f"{os.name}_user")]
+    distribution = next((dist for dist in importlib.metadata.distributions(path=search)
+                         if dist.metadata["Name"] == "pyar-chem" and dist.version == expected), None)
+    if distribution is None:
+        pytest.skip(f"pyar-chem {expected} is not installed from this checkout")
     entries = {ep.name: ep.value for ep in distribution.entry_points
                if ep.group == "console_scripts"}
     assert entries["pyar"] == "pyar.cli:main"
