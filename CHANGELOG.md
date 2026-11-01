@@ -14,6 +14,7 @@
 - Remove the unused `pyar.mlatom` re-export module (import `mlatom` directly)
   and the unimportable `pyar/backends/orca-afir.py`.
 - Remove the `solvate` install extra; use `pyar-chem[microsolvate]`.
+- Remove the `engra` alias; use `pyar engrad` (or `pyar gradient`).
 - The `orca-aiqm1` backend no longer points at a hard-coded wrapper path. Set
   `PYAR_ORCA_AIQM1_PROGEXT` (or the `orca_aiqm1_progext` backend setting) to
   the ORCA external-program wrapper.
@@ -60,8 +61,6 @@
   unspecified stereo elements, discards generated structures that contradict
   a fully specified input and excludes refinements that change the
   configuration.
-- The `engra` alias for `engrad` still works but is no longer listed in
-  `pyar --help`.
 
 
 ### Added
@@ -72,7 +71,7 @@
   unavailable from this gate.
 
 - Check production modules with Ruff's fatal syntax and undefined-name rules.
-- Add batch `pyar energy`, `pyar engrad` (`gradient`/`engra` aliases), and
+- Add batch `pyar energy`, `pyar engrad` (`gradient` alias), and
   `pyar frequency` for unchanged XYZ geometries, with xTB defaults, explicit
   theory/solvent controls, isolated `job_<name>` folders, raw backend evidence,
   per-input results and failure continuation. Support xTB, ORCA, Gaussian

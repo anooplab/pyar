@@ -24,7 +24,6 @@ SUBCOMMANDS = {
     "energy",
     "engrad",
     "gradient",
-    "engra",
     "frequency",
     "react",
     "scan-bond",
