@@ -481,7 +481,7 @@ def _finalize_selected_geometries(
             )
         else:
             selected = select_geometry_only(molecules, maximum_number_of_seeds, connectivity_policy,
-                                            feature, distance_metric, system_type)
+                                            feature, distance_metric, system_type, directory=aggregate_root)
             selection_diagnostics.update(selection_mode="geometry-diversity", energy_ranked=False,
                                          input_count=len(molecules), selected_count=len(selected))
         final_selected.extend(selected)
@@ -860,7 +860,7 @@ def add_one(
         return all_orientations
     selected = select_geometry_only(
         all_orientations, maximum_number_of_seeds, connectivity_policy,
-        selection_feature, selection_distance, selection_system_type,
+        selection_feature, selection_distance, selection_system_type, directory=directory,
     )
     _snapshot_selected_geometries(
         selected,
@@ -1082,7 +1082,7 @@ def generate_molecule_from_formula(formula, box_size=None, rng=None):
 
 
 def select_geometry_only(molecules, maximum_number_of_seeds, connectivity_policy="off",
-                         feature="auto", distance="euclidean", system_type="auto"):
+                         feature="auto", distance="euclidean", system_type="auto", *, directory=None):
     """Bound an energy-free pool using graph-first pruning and max-min diversity."""
     from pyar.selection.deduplication import remove_similar, _prefer_connected_structures
     from pyar.selection.features import compute_feature_matrix, standardize_features
@@ -1104,5 +1104,5 @@ def select_geometry_only(molecules, maximum_number_of_seeds, connectivity_policy
         diagnostics.update(distances.to_dict())
         diagnostics.update(feature_used=features.name, feature_fallbacks=list(features.fallbacks))
     diagnostics["selected_count"] = len(unique)
-    _write_growth_selection_diagnostics(diagnostics, "selection_diagnostics.json")
+    _write_growth_selection_diagnostics(diagnostics, str(Path(directory or Path.cwd()) / "selection_diagnostics.json"))
     return unique
