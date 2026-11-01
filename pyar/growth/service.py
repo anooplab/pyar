@@ -513,11 +513,11 @@ def _supports_two_layer_optimization(qc_params):
     return qc_params.get("software") in {"xtb", "xtb-aiqm1", "xtb-aimnet2"}
 
 
-def random_permutation(iterable, r=None):
+def random_permutation(iterable, r=None, *, rng=None):
     """Random selection from itertools.permutations(iterable, r)."""
     pool = tuple(iterable)
     r = len(pool) if r is None else r
-    return tuple(random.sample(pool, r))
+    return tuple((random if rng is None else rng).sample(pool, r))
 
 
 def read_old_path():
@@ -552,12 +552,24 @@ def old_path_to_new_path(monomers_to_be_added, old_path):
     return complete_pathways
 
 
-def select_pathways(monomers_to_be_added, number_of_pathways):
-    complete_pathways = set()
-    for _ in range(number_of_pathways):
-        new_permutation = random_permutation(monomers_to_be_added)
-        if new_permutation not in complete_pathways:
-            complete_pathways.add(new_permutation)
+def select_pathways(monomers_to_be_added, number_of_pathways, *, seed=0):
+    """Return up to ``number_of_pathways`` distinct addition orders, reproducibly.
+
+    A seeded generator and first-seen ordering make fresh runs repeatable; the
+    attempt budget lets duplicate draws be retried without looping forever when
+    fewer distinct orders exist than were requested.
+    """
+    rng = random.Random(seed)
+    complete_pathways = []
+    seen = set()
+    for _ in range(max(0, int(number_of_pathways)) * 20):
+        if len(complete_pathways) >= number_of_pathways:
+            break
+        new_permutation = random_permutation(monomers_to_be_added, rng=rng)
+        key = tuple(monomer.name for monomer in new_permutation)
+        if key not in seen:
+            seen.add(key)
+            complete_pathways.append(new_permutation)
     return complete_pathways
 
 
