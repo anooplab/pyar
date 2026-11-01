@@ -36,10 +36,16 @@
 
 ### Added
 
+- Add `run_aggregate(request)` and `run_grow(request, output=...)` for resolved
+  aggregation and growth requests; retain the existing supported entry points.
+
 - Add `run_conformer_search(request, root_directory=...)` for executing an
   existing `ConformerRequest` without converting options again.
 
 ### Internal
+
+- Separate aggregate/grow run opening, pathway/step execution and publication;
+  reuse resolved CLI requests and preserve immutable checkpoint ownership.
 
 - Separate growth seed preparation, bounded retries, restart pickup, selection
   and refinement using owned growth/selection policies and explicit directories.

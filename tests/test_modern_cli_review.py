@@ -34,7 +34,7 @@ def test_saved_check_config_executes_and_cli_overrides_edited_values(fragments, 
     config['effective']['count'] = 2
     write_toml_document('edited.toml', kind=RUN_CONFIG_KIND, workflow='grow',
                         arguments=config['arguments'], effective=config['effective'])
-    with patch.object(grow, 'grow', side_effect=result) as engine:
+    with patch.object(grow, 'run_grow', side_effect=result) as engine:
         cli.main(['run', 'edited.toml'])
         assert engine.call_args.args[0].count == 2
         cli.main(['run', 'edited.toml', '--count', '3'])
@@ -50,7 +50,7 @@ def test_saved_check_config_executes_and_cli_overrides_edited_values(fragments, 
 
 def test_dry_run_json_has_actual_resolved_backend_and_no_writes(fragments, capsys):
     before = set(Path('.').iterdir())
-    with patch.object(grow, 'preflight', return_value=['xtb']), patch.object(grow, 'grow') as engine:
+    with patch.object(grow, 'preflight', return_value=['xtb']), patch.object(grow, 'run_grow') as engine:
         cli.main(['grow', *fragments, '--count', '2', '--backend', 'xtb', '--dry-run', '--json'])
     value = json.loads(capsys.readouterr().out)
     backend = value['resolved']['scientific']['backend']
@@ -79,7 +79,7 @@ def test_preflight_failure_writes_neither_config_nor_run_record(fragments):
 
 
 def test_failure_after_start_is_recorded_even_for_parser_exit(fragments):
-    with patch.object(grow, 'grow', side_effect=ValueError('backend failed')), pytest.raises(SystemExit):
+    with patch.object(grow, 'run_grow', side_effect=ValueError('backend failed')), pytest.raises(SystemExit):
         cli.main(['grow', *fragments, '--count', '1'])
     path = next(Path('.pyar/runs').glob('*/pyar-run.toml'))
     record = load_toml_document(path, 'pyar-run-record')
@@ -185,7 +185,7 @@ def test_no_abbreviation_can_override_profile_by_accident():
 
 
 def test_json_run_contains_result_without_console_exit_object(fragments, capsys):
-    with patch.object(grow, 'grow', side_effect=result):
+    with patch.object(grow, 'run_grow', side_effect=result):
         assert cli.main(['grow', *fragments, '--count', '2', '--json']) is None
     streams = capsys.readouterr()
     value = json.loads(streams.out)
@@ -206,7 +206,7 @@ def test_editable_toml_and_validation_reject_scientific_errors(fragments, capsys
     text = Path('run.toml').read_text()
     assert '[settings]' in text
     Path('run.toml').write_text(text.replace('"count" = 1', '"count" = 0'))
-    with patch.object(grow, 'grow') as engine, pytest.raises(SystemExit):
+    with patch.object(grow, 'run_grow') as engine, pytest.raises(SystemExit):
         cli.main(['config', 'validate', 'run.toml'])
     engine.assert_not_called()
     assert not Path('grow').exists()
@@ -229,7 +229,7 @@ def test_latest_run_record_and_backend_detail(tmp_path, capsys):
 def test_quiet_run_config_does_not_restore_progress(fragments, capsys):
     cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
     capsys.readouterr()
-    with patch.object(grow, 'grow', side_effect=result):
+    with patch.object(grow, 'run_grow', side_effect=result):
         cli.main(['run', 'run.toml', '--quiet'])
     assert capsys.readouterr().out == ''
 
@@ -245,7 +245,7 @@ def test_formula_profile_can_be_reused_with_new_building_blocks(tmp_path, monkey
     cli.main(['profile', 'create', 'geometry', '--from', 'record.toml'])
     profile = load_toml_document(profile_path('geometry'), PROFILE_KIND)
     assert 'formula' not in profile['effective']
-    with patch.object(aggregate, 'aggregate') as engine:
+    with patch.object(aggregate, 'run_aggregate') as engine:
         cli.main(['aggregate', 'Ne', '--size', '2', '--profile', 'geometry', '--check'])
     engine.assert_not_called()
     assert 'Ready to run.' in capsys.readouterr().out

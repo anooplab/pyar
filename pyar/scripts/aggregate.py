@@ -14,7 +14,7 @@ from pyar.cli_inputs import (add_backend_arguments, add_fragment_arguments,
                                  resolve_states, print_check)
 from pyar.optimization_request import preflight
 from pyar.state.aggregate import AggregateStateError
-from pyar.workflows.aggregate import aggregate
+from pyar.workflows.aggregate import run_aggregate
 from pyar.growth.service import expand_formula_to_aggregate_inputs
 
 
@@ -72,6 +72,7 @@ def main(argv=None, *, prog=None):
     args = parser.parse_args(argv)
     try:
         from pyar.dependencies import require_workflow
+
         require_workflow('aggregate')
         request = resolve_request(args)
         validate_restart(request)
@@ -87,13 +88,17 @@ def main(argv=None, *, prog=None):
                         ('Max survivors', request.maximum_number_of_seeds), ('Connectivity', request.connectivity_policy)])
             return
         started_run()
-        result = aggregate(list(request.molecules), list(request.aggregate_sizes), request.orientations,
-                           qc, request.maximum_number_of_seeds, request.first_pathway,
-                           request.number_of_pathways, request.site, request.connectivity_policy,
-                           request.selection_feature, request.selection_algorithm,
-                           request.selection_distance, request.selection_system_type,
-                           **({"recover_stale": True} if args.recover_stale_lock else {}))
-    except (ValueError, OSError, ImportError, AggregateStateError, LockError, BackendExecutionError) as exc:
+        result = run_aggregate(
+            request, **({"recover_stale": True} if args.recover_stale_lock else {})
+        )
+    except (
+        ValueError,
+        OSError,
+        ImportError,
+        AggregateStateError,
+        LockError,
+        BackendExecutionError,
+    ) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Aggregation {result.status}.\nSelected structures: {len(result.selected_paths)}\nRun directory: {result.run_directory}')

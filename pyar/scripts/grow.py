@@ -12,7 +12,7 @@ from pyar.cli_inputs import (add_backend_arguments, add_fragment_arguments,
                                  resolve_states, print_check)
 from pyar.optimization_request import preflight
 from pyar.state.grow import GrowStateError
-from pyar.workflows.grow import grow
+from pyar.workflows.grow import run_grow
 
 
 def build_parser(prog=None):
@@ -44,6 +44,7 @@ def main(argv=None, *, prog=None):
     args = parser.parse_args(argv)
     try:
         from pyar.dependencies import require_workflow
+
         require_workflow('grow')
         request = resolve_request(args)
         if detect_version(args.output, 'grow') == 2:
@@ -60,8 +61,19 @@ def main(argv=None, *, prog=None):
                         ('Electronic states', [(m.charge, m.multiplicity) for m in (request.seed, request.monomer)])])
             return None
         started_run()
-        result = grow(request, output=args.output, **({"recover_stale": True} if args.recover_stale_lock else {}))
-    except (ValueError, OSError, ImportError, GrowStateError, LockError, BackendExecutionError) as exc:
+        result = run_grow(
+            request,
+            output=args.output,
+            **({"recover_stale": True} if args.recover_stale_lock else {}),
+        )
+    except (
+        ValueError,
+        OSError,
+        ImportError,
+        GrowStateError,
+        LockError,
+        BackendExecutionError,
+    ) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Growth {result.status}.\nCompleted additions: {result.metadata["completed_additions"]}/{request.count}\n'

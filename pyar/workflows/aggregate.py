@@ -25,7 +25,7 @@ import string
 from pathlib import Path
 from pyar.growth.errors import GrowthStopped
 from pyar.growth.policy import GrowthPolicy, FinalSelectionRun
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from pyar.aggregation import AggregateRequest
 from pyar.state.aggregate import AggregateStateError
@@ -78,83 +78,31 @@ def _selected_result_paths(pattern):
 
 
 
-def aggregate_from_formulas(
-    formulas,
-    aggregate_sizes,
-    hm_orientations,
-    qc_params,
-    maximum_number_of_seeds,
-    first_pathway,
-    number_of_pathways,
-    site,
-    connectivity_policy="auto",
-    selection_feature="auto",
-    selection_algorithm="auto",
-    selection_distance="euclidean",
-    selection_system_type="auto",
-):
-    """Generate initial molecules from formulas and run the aggregate workflow.
+@dataclass(frozen=True)
+class AggregateRun:
+    request: AggregateRequest
+    root: Path
+    layout: object
+    state: object
+    monomers: list
+    initial_id: str
+    policy: GrowthPolicy
 
-    This is the convenience entry point used by ``--formula`` aggregation
-    runs. It converts the provided formulas into molecule objects and then
-    delegates to :func:`aggregate`.
-    """
-    molecules = [generate_molecule_from_formula(formula) for formula in formulas]
-    return aggregate(
-        molecules,
-        aggregate_sizes,
-        hm_orientations,
-        qc_params,
-        maximum_number_of_seeds,
-        first_pathway,
-        number_of_pathways,
-        site,
-        connectivity_policy=connectivity_policy,
-        selection_feature=selection_feature,
-        selection_algorithm=selection_algorithm,
-        selection_distance=selection_distance,
-        selection_system_type=selection_system_type,
-    )
+    @property
+    def directory(self):
+        return self.root / 'aggregates'
 
 
-def aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
-              first_pathway, number_of_pathways, site, connectivity_policy="auto",
-              selection_feature="auto", selection_algorithm="auto", selection_distance="euclidean",
-              selection_system_type="auto", *, recover_stale=False):
-    """Create or resume supported immutable aggregation records."""
-    from pyar.persistence import detect_version, RunLock
-    if check_stop_signal():
-        return stopped_workflow_result('aggregate', os.getcwd())
-    root = Path.cwd().resolve()
-    args = (molecules, aggregate_sizes, hm_orientations, qc_params, maximum_number_of_seeds,
-            first_pathway, number_of_pathways, site, connectivity_policy, selection_feature,
-            selection_algorithm, selection_distance, selection_system_type)
-    request = AggregateRequest.from_options(*args)
-    payload = request.to_state_dict()
-    directory = root / 'aggregates'
-    detect_version(directory, 'aggregate')
-    with RunLock(directory, recover_stale=recover_stale):
-        detect_version(directory, 'aggregate')
-        try:
-            return _aggregate_v2(root, request, hm_orientations)
-        except GrowthStopped:
-            # Keep the pending checkpoint resumable; never publish a partial selection.
-            return stopped_workflow_result("aggregate", root)
-
-
-def _aggregate_v2(root, request, hm_orientations):
-    from pyar.aggregation.layout_v2 import AggregateRunStateV2, verify_refs
-    from pyar.persistence import RunLayout, write_json
+def _open_aggregate_run(root, request, payload):
+    from pyar.aggregation.layout_v2 import AggregateRunStateV2
+    from pyar.persistence import RunLayout
 
     directory = root / 'aggregates'
     layout = RunLayout(directory, 'aggregate')
-    payload = request.to_state_dict()
     state = AggregateRunStateV2.load(root, payload) if layout.marker.exists() else None
     molecules = list(request.molecules)
-    number_of_orientations = _resolve_orientation_count(hm_orientations)
+    number_of_orientations = _resolve_orientation_count(request.orientations)
     sampling = sampling_configuration(number_of_orientations=number_of_orientations, use_angles=None)
-    qc_params = dict(request.backend_parameters)
-    site = None if request.site is None else list(request.site)
     final_connectivity_policy = (resolve_connectivity_policy_for_aggregate(molecules)
                                  if request.connectivity_policy == 'auto' else request.connectivity_policy)
     policy = replace(
@@ -172,56 +120,170 @@ def _aggregate_v2(root, request, hm_orientations):
                     select_pathways(monomers_to_be_added, request.number_of_pathways))
         state = AggregateRunStateV2.create(root, payload, molecules,
                                           [_format_path(path) for path in pathways], sampling)
-    for index in range(
-        len(state.data["completed_pathways"]), len(state.data["pathways"])
-    ):
-        label = state.data['pathways'][index]
-        pathway = _pathway_from_label(monomers_to_be_added, label)
-        ag_id = initial_id
-        seeds = None
-        for step, monomer in enumerate(pathway):
-            ag_id = update_id(ag_id, monomer.name)
-            if state.selection_path(index, step).exists():
-                if str(step) not in state.data['steps'].get(str(index), {}):
-                    seeds = state.adopt_step(index, step)
-                else:
-                    seeds = verify_refs(state.selection(index, step)['selected'], directory)
-                if not seeds:
-                    break
-                continue
-            if step == 0:
-                seeds = [monomer]
-                state.commit_step(index, step, seeds, None, None)
-                continue
-            source_key = '{}_{:03d}'.format(ag_id, request.first_pathway + index)
-            native = layout.path(f'pathways/pathway_{index:03d}/steps/step_{step:03d}/attempts/attempt_000/execution/{source_key}')
-            native.mkdir(parents=True, exist_ok=True)
-            selected = add_one(ag_id, seeds, monomer, policy, directory=native)
-            state.commit_step(index, step, selected, native, source_key)
-            seeds = selected
-            if not seeds:
-                break
-        state.complete_pathway(index, label)
-    if layout.path("final_selection.json").exists():
-        state.adopt_final()
+    return AggregateRun(
+        request, root, layout, state, monomers_to_be_added, initial_id, policy
+    )
+
+
+@dataclass(frozen=True)
+class AggregateStep:
+    pathway: int
+    index: int
+    aggregate_id: str
+    monomer: object
+    seeds: list | None
+
+
+def _run_aggregate_step(run, step):
+    from pyar.aggregation.layout_v2 import verify_refs
+
+    if run.state.selection_path(step.pathway, step.index).exists():
+        if str(step.index) not in run.state.data["steps"].get(str(step.pathway), {}):
+            return run.state.adopt_step(step.pathway, step.index)
+        return verify_refs(
+            run.state.selection(step.pathway, step.index)["selected"], run.directory
+        )
+    if step.index == 0:
+        seeds = [step.monomer]
+        run.state.commit_step(step.pathway, step.index, seeds, None, None)
+        return seeds
+    source_key = "{}_{:03d}".format(
+        step.aggregate_id, run.request.first_pathway + step.pathway
+    )
+    native = run.layout.path(
+        f"pathways/pathway_{step.pathway:03d}/steps/step_{step.index:03d}/attempts/attempt_000/execution/{source_key}"
+    )
+    native.mkdir(parents=True, exist_ok=True)
+    selected = add_one(
+        step.aggregate_id, step.seeds, step.monomer, run.policy, directory=native
+    )
+    run.state.commit_step(step.pathway, step.index, selected, native, source_key)
+    return selected
+
+
+def _run_aggregate_pathway(run: AggregateRun, index):
+    label = run.state.data["pathways"][index]
+    pathway = _pathway_from_label(run.monomers, label)
+    aggregate_id, seeds = run.initial_id, None
+    for position, monomer in enumerate(pathway):
+        aggregate_id = update_id(aggregate_id, monomer.name)
+        seeds = _run_aggregate_step(
+            run, AggregateStep(index, position, aggregate_id, monomer, seeds)
+        )
+        if not seeds:
+            break
+    run.state.complete_pathway(index, label)
+
+
+def _commit_final_aggregation(run: AggregateRun):
+    if run.layout.path("final_selection.json").exists():
+        run.state.adopt_final()
     else:
-        execution = layout.path('selection/attempts/attempt_000/execution')
+        execution = run.layout.path("selection/attempts/attempt_000/execution")
         execution.mkdir(parents=True, exist_ok=True)
         selected = _finalize_selected_geometries(
             FinalSelectionRun(
                 execution,
-                state.native_sources(),
-                bool(request.backend_parameters.get("software")),
+                run.state.native_sources(),
+                bool(run.request.backend_parameters.get("software")),
             ),
-            policy,
+            run.policy,
         )
-        state.finish(selected)
-    result = AggregateResult(workflow='aggregate', status=state.data['status'],
-        run_directory=str(directory), state_path=str(state.state_file),
-        selected_paths=tuple(state.data['final_selected_results']),
-        metadata=dict(pathways=tuple(state.data['pathways']),
-                      completed_pathways=tuple(item['label'] for item in state.data['completed_pathways']),
-                      sampling=state.data['sampling'],
-                      connectivity_policy=final_connectivity_policy, layout_version=2))
-    write_json(layout.path('summary.json'), result.to_dict())
+        run.state.finish(selected)
+
+def _publish_aggregate_result(run: AggregateRun):
+    from pyar.persistence import write_json
+
+    result = AggregateResult(
+        workflow="aggregate",
+        status=run.state.data["status"],
+        run_directory=str(run.directory),
+        state_path=str(run.state.state_file),
+        selected_paths=tuple(run.state.data["final_selected_results"]),
+        metadata=dict(
+            pathways=tuple(run.state.data["pathways"]),
+            completed_pathways=tuple(
+                (item["label"] for item in run.state.data["completed_pathways"])
+            ),
+            sampling=run.state.data["sampling"],
+            connectivity_policy=run.policy.connectivity_policy,
+            layout_version=2,
+        ),
+    )
+    write_json(run.layout.path("summary.json"), result.to_dict())
     return result
+
+def run_aggregate(request: AggregateRequest, *, recover_stale=False):
+    """Execute a resolved aggregation request with existing pathway/restart contracts."""
+    from pyar.persistence import detect_version, RunLock
+
+    root = Path.cwd().resolve()
+    if check_stop_signal():
+        return stopped_workflow_result("aggregate", root)
+    payload = request.to_state_dict()
+    directory = root / 'aggregates'
+    detect_version(directory, 'aggregate')
+    with RunLock(directory, recover_stale=recover_stale):
+        detect_version(directory, 'aggregate')
+        run = _open_aggregate_run(root, request, payload)
+        try:
+            for index in range(
+                len(run.state.data["completed_pathways"]),
+                len(run.state.data["pathways"]),
+            ):
+                _run_aggregate_pathway(run, index)
+            _commit_final_aggregation(run)
+            return _publish_aggregate_result(run)
+        except GrowthStopped:
+            return stopped_workflow_result("aggregate", root)
+
+
+def aggregate_from_formulas(
+    formulas,
+    aggregate_sizes,
+    hm_orientations,
+    qc_params,
+    maximum_number_of_seeds,
+    first_pathway,
+    number_of_pathways,
+    site,
+    connectivity_policy="auto",
+    selection_feature="auto",
+    selection_algorithm="auto",
+    selection_distance="euclidean",
+    selection_system_type="auto",
+):
+    """Build formula fragments and execute one resolved aggregation request."""
+    molecules = [generate_molecule_from_formula(formula) for formula in formulas]
+    if check_stop_signal():
+        return stopped_workflow_result('aggregate', os.getcwd())
+    options = dict(locals())
+    options.pop("formulas")
+    return run_aggregate(AggregateRequest.from_options(**options))
+
+
+def aggregate(
+    molecules,
+    aggregate_sizes,
+    hm_orientations,
+    qc_params,
+    maximum_number_of_seeds,
+    first_pathway,
+    number_of_pathways,
+    site,
+    connectivity_policy="auto",
+    selection_feature="auto",
+    selection_algorithm="auto",
+    selection_distance="euclidean",
+    selection_system_type="auto",
+    *,
+    recover_stale=False,
+):
+    """Keep the keyword API and convert scientific options only once."""
+    if check_stop_signal():
+        return stopped_workflow_result('aggregate', os.getcwd())
+    options = dict(locals())
+    options.pop("recover_stale")
+    return run_aggregate(
+        AggregateRequest.from_options(**options), recover_stale=recover_stale
+    )

@@ -138,11 +138,16 @@ def test_cluster_cli_report_tracks_the_selected_geometries(tmp_path, monkeypatch
     assert report["algorithm_used"] == "agglomerative"
 
 
-def test_workflow_positional_distance_argument_retains_its_original_slot():
+def test_public_workflow_positional_distance_retains_its_original_slot():
     import inspect
+    from pyar.workflows.aggregate import aggregate
     from pyar.growth.service import add_one
+    from pyar.growth.policy import GrowthPolicy, SelectionOptions
 
-    bound = inspect.signature(add_one).bind(
-        "aggregate", [], None, 8, {}, 4, None, "off", "soap", "agglomerative", "cosine",
+    bound = inspect.signature(aggregate).bind(
+        [], [], 8, {}, 4, 0, 1, None, 'off', 'soap', 'agglomerative', 'cosine',
     )
-    assert bound.arguments["selection_distance"] == "cosine"
+    assert bound.arguments['selection_distance'] == 'cosine'
+    policy = GrowthPolicy(selection=SelectionOptions('soap', 'agglomerative', 'cosine'))
+    internal = inspect.signature(add_one).bind('aggregate', [], None, policy)
+    assert internal.arguments['policy'].selection.distance == 'cosine'
