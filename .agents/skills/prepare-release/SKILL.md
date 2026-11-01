@@ -7,9 +7,9 @@ description: Prepare PyAR release-candidate evidence and evaluate mandatory engi
 
 Read repository `AGENTS.md` and the canonical
 [release gates](../../../docs/release_engineering/gates.md). Consult the
-[audit](../../../docs/release_engineering/audit.md) for existing infrastructure
-and the [staged plan](../../../docs/release_engineering/plan.md) for missing
-automation. These are release-engineering stages, separate from the ORE series.
+[architecture](../../../docs/developer/architecture.rst) for current ownership
+and the [release procedures](../../../docs/developer/release.rst) for required
+validation. Release engineering does not change the approved recovery/scientific scope.
 Do not implement planned infrastructure merely because this skill was invoked.
 
 ## Establish the candidate

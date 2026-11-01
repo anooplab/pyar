@@ -22,7 +22,7 @@ Avoid editing generated artifacts such as `build/`, `pyar_chem.egg-info/`,
   in prior repository checks.
 - `python -m sphinx -E -b html -W --keep-going docs docs/_build/html`: build docs
   and fail on warnings.
-- `pyar-cli --help` and entry points such as `pyar-react --help`: smoke-test CLI
+- `pyar --help` and task help such as `pyar react --help`: smoke-test CLI
   registration after packaging changes.
 
 ## Coding Style & Naming Conventions

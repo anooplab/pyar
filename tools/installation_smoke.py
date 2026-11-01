@@ -73,7 +73,7 @@ def main():
     workflow = 'conformer' if mode == 'aimnet2' else mode
     require_workflow(workflow)
     modules = {
-        'microsolvate': 'microsolvation': 'microsolvation',
+        'microsolvate': 'microsolvation',
         'grow': 'grow', 'reaction': 'reaction', 'aimnet2': 'conformer',
         'aggregate': 'aggregate', 'neb': 'scan_path', 'conformer': 'conformer',
     }

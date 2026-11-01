@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased
+## Unreleased — 1.6.0
+
+### Breaking interface and format cleanup
+
+- Install one executable, `pyar`, with canonical task modules and specialist
+  tools under subcommands. Remove standalone launchers and parser/import shims.
+- Reject older run/config generations; reproduce older work with its original
+  PyAR environment. Retain current integrity, provenance and scientific gates.
+- Replace public planning/audit pages with student tutorials, analysis and
+  interpretation guides, canonical reference and separate developer procedures.
+  Archive operational material outside the public source/manual.
+
+### Fixed
+
+- Pass each molecule's charge, multiplicity and SCF state centrally to every
+  optimization backend without mutating caller settings. Exercise a charged
+  sodium–water aggregate through native GFN2-xTB.
+- Rewrite trial XYZ input on every backend attempt so a repeated job name
+  cannot reuse coordinates from an earlier request.
+
 
 ### Added
 

@@ -8,30 +8,6 @@ Generated API from Docstrings
    refactoring modules; the developer API documentation will then update
    automatically on the next documentation build.
 
-Aimnet2
--------
-
-pyar.AIMNet2
-~~~~~~~~~~~~
-
-.. automodule:: pyar.AIMNet2
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Molecule
---------
-
-pyar.Molecule
-~~~~~~~~~~~~~
-
-.. automodule:: pyar.Molecule
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Afir
 ----
 
@@ -53,18 +29,6 @@ pyar.afir.restraints
    :undoc-members:
    :show-inheritance:
 
-Aggregate State
----------------
-
-pyar.aggregate_state
-~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: pyar.aggregate_state
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Aggregation
 -----------
 
@@ -77,22 +41,19 @@ pyar.aggregation
    :undoc-members:
    :show-inheritance:
 
-pyar.aggregation.request
-~~~~~~~~~~~~~~~~~~~~~~~~
+pyar.aggregation.layout_v2
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.aggregation.request
+.. automodule:: pyar.aggregation.layout_v2
    :no-index:
    :members:
    :undoc-members:
    :show-inheritance:
 
-Aggregator
-----------
+pyar.aggregation.request
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-pyar.aggregator
-~~~~~~~~~~~~~~~
-
-.. automodule:: pyar.aggregator
+.. automodule:: pyar.aggregation.request
    :no-index:
    :members:
    :undoc-members:
@@ -254,6 +215,42 @@ pyar.cli
    :undoc-members:
    :show-inheritance:
 
+Cli Inputs
+----------
+
+pyar.cli_inputs
+~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.cli_inputs
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Cli Runtime
+-----------
+
+pyar.cli_runtime
+~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.cli_runtime
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Cli Validation
+--------------
+
+pyar.cli_validation
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.cli_validation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Conformer
 ---------
 
@@ -270,6 +267,15 @@ pyar.conformer.comparison
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.conformer.comparison
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.conformer.layout_v2
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.conformer.layout_v2
    :no-index:
    :members:
    :undoc-members:
@@ -362,22 +368,13 @@ pyar.data.units
    :undoc-members:
    :show-inheritance:
 
-Data Analysis
--------------
+Dependencies
+------------
 
-pyar.data_analysis
-~~~~~~~~~~~~~~~~~~
+pyar.dependencies
+~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.data_analysis
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pyar.data_analysis.clustering
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: pyar.data_analysis.clustering
+.. automodule:: pyar.dependencies
    :no-index:
    :members:
    :undoc-members:
@@ -395,6 +392,18 @@ pyar.energy_gradient_providers
    :undoc-members:
    :show-inheritance:
 
+Evaluation Budget
+-----------------
+
+pyar.evaluation_budget
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.evaluation_budget
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 File Manager
 ------------
 
@@ -407,22 +416,61 @@ pyar.file_manager
    :undoc-members:
    :show-inheritance:
 
-Interface
----------
+Geometry Utilities
+------------------
 
-pyar.interface
-~~~~~~~~~~~~~~
+pyar.geometry_utilities
+~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.interface
+.. automodule:: pyar.geometry_utilities
    :no-index:
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.interface.mlopt
-~~~~~~~~~~~~~~~~~~~~
+Growth
+------
 
-.. automodule:: pyar.interface.mlopt
+pyar.growth
+~~~~~~~~~~~
+
+.. automodule:: pyar.growth
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.growth.layout_v2
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.growth.layout_v2
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.growth.reporting
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.growth.reporting
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.growth.request
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.growth.request
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.growth.service
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.growth.service
    :no-index:
    :members:
    :undoc-members:
@@ -458,6 +506,99 @@ pyar.io.xyz
    :undoc-members:
    :show-inheritance:
 
+Microsolvation
+--------------
+
+pyar.microsolvation
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.confinement
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.confinement
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.contacts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.contacts
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.layout_v2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.layout_v2
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.perturbation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.perturbation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.placement
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.placement
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.request
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.request
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.surface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.surface
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.wall
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.wall
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.microsolvation.wall_policy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.microsolvation.wall_policy
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Mlatom
 ------
 
@@ -465,30 +606,6 @@ pyar.mlatom
 ~~~~~~~~~~~
 
 .. automodule:: pyar.mlatom
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Molecule Geometry
------------------
-
-pyar.molecule_geometry
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: pyar.molecule_geometry
-   :no-index:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Molecule Io
------------
-
-pyar.molecule_io
-~~~~~~~~~~~~~~~~
-
-.. automodule:: pyar.molecule_io
    :no-index:
    :members:
    :undoc-members:
@@ -530,6 +647,30 @@ pyar.optimiser
    :undoc-members:
    :show-inheritance:
 
+Optimization Request
+--------------------
+
+pyar.optimization_request
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.optimization_request
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Optimization Service
+--------------------
+
+pyar.optimization_service
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.optimization_service
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Optional Dependencies
 ---------------------
 
@@ -542,13 +683,58 @@ pyar.optional_dependencies
    :undoc-members:
    :show-inheritance:
 
-Orientation Sampling
---------------------
+Persistence
+-----------
 
-pyar.orientation_sampling
+pyar.persistence
+~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.persistence
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.persistence.artifacts
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.persistence.artifacts
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.persistence.json_store
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.persistence.json_store
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.persistence.layout
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.persistence.layout
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.persistence.locking
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.persistence.locking
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.persistence.versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.orientation_sampling
+.. automodule:: pyar.persistence.versions
    :no-index:
    :members:
    :undoc-members:
@@ -590,13 +776,13 @@ pyar.reaction_identity
    :undoc-members:
    :show-inheritance:
 
-Reaction State
---------------
+Reaction Request
+----------------
 
-pyar.reaction_state
-~~~~~~~~~~~~~~~~~~~
+pyar.reaction_request
+~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.reaction_state
+.. automodule:: pyar.reaction_request
    :no-index:
    :members:
    :undoc-members:
@@ -614,13 +800,130 @@ pyar.reaction_trace
    :undoc-members:
    :show-inheritance:
 
-Reactor
--------
+Recovery
+--------
 
-pyar.reactor
-~~~~~~~~~~~~
+pyar.recovery
+~~~~~~~~~~~~~
 
-.. automodule:: pyar.reactor
+.. automodule:: pyar.recovery
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.advanced
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.advanced
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.checkpoints
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.checkpoints
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.controller
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.controller
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.diagnose_only
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.diagnose_only
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.models
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.models
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.observations
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.observations
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.parsers
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.parsers
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.policy
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.policy
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.stages
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.stages
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.trajectory
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.trajectory
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.validation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.validation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.worker
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.worker
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.recovery.workflow
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.recovery.workflow
    :no-index:
    :members:
    :undoc-members:
@@ -645,6 +948,18 @@ pyar.representations
 ~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.representations
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Run Config
+----------
+
+pyar.run_config
+~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.run_config
    :no-index:
    :members:
    :undoc-members:
@@ -710,6 +1025,18 @@ pyar.scan
    :undoc-members:
    :show-inheritance:
 
+Scan Request
+------------
+
+pyar.scan_request
+~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scan_request
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Scripts
 -------
 
@@ -717,6 +1044,15 @@ pyar.scripts
 ~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.aggregate
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.aggregate
    :no-index:
    :members:
    :undoc-members:
@@ -735,6 +1071,15 @@ pyar.scripts.basin_memory
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.basin_memory
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.benchmark
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.benchmark
    :no-index:
    :members:
    :undoc-members:
@@ -767,10 +1112,28 @@ pyar.scripts.benchmark_orientations
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.cli_meta
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.cli_meta
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.clustering
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.clustering
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.compare
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.compare
    :no-index:
    :members:
    :undoc-members:
@@ -789,6 +1152,24 @@ pyar.scripts.conformer_benchmark
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.conformer_benchmark
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.conformer_options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.conformer_options
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.deduplicate
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.deduplicate
    :no-index:
    :members:
    :undoc-members:
@@ -821,6 +1202,33 @@ pyar.scripts.explore
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.grow
+~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.grow
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.identify
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.identify
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.installation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.installation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.meta_analyze_clustering_benchmarks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -830,10 +1238,37 @@ pyar.scripts.meta_analyze_clustering_benchmarks
    :undoc-members:
    :show-inheritance:
 
-pyar.scripts.optimiser
-~~~~~~~~~~~~~~~~~~~~~~
+pyar.scripts.microsolvate
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.scripts.optimiser
+.. automodule:: pyar.scripts.microsolvate
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.optimize
+~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.optimize
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.orient
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.orient
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.path_stage
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.path_stage
    :no-index:
    :members:
    :undoc-members:
@@ -875,10 +1310,37 @@ pyar.scripts.scientific_clustering_benchmark
    :undoc-members:
    :show-inheritance:
 
+pyar.scripts.select
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.select
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.scripts.similarity
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.scripts.similarity
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.singlepoint
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.singlepoint
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.scripts.split
+~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.scripts.split
    :no-index:
    :members:
    :undoc-members:
@@ -986,6 +1448,15 @@ pyar.selection.diversity
    :undoc-members:
    :show-inheritance:
 
+pyar.selection.energy_window
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.selection.energy_window
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.selection.features
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1034,34 +1505,67 @@ pyar.similarity
    :undoc-members:
    :show-inheritance:
 
-Solvation
----------
+Singlepoint
+-----------
 
-pyar.solvation
-~~~~~~~~~~~~~~
+pyar.singlepoint
+~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.solvation
+.. automodule:: pyar.singlepoint
    :no-index:
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.solvation.request
-~~~~~~~~~~~~~~~~~~~~~~
+pyar.singlepoint.io
+~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.solvation.request
+.. automodule:: pyar.singlepoint.io
    :no-index:
    :members:
    :undoc-members:
    :show-inheritance:
 
-Solvation State
----------------
+pyar.singlepoint.native
+~~~~~~~~~~~~~~~~~~~~~~~
 
-pyar.solvation_state
-~~~~~~~~~~~~~~~~~~~~
+.. automodule:: pyar.singlepoint.native
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-.. automodule:: pyar.solvation_state
+pyar.singlepoint.request
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.singlepoint.request
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.singlepoint.service
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.singlepoint.service
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.singlepoint.vibrations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.singlepoint.vibrations
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.singlepoint.worker
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.singlepoint.worker
    :no-index:
    :members:
    :undoc-members:
@@ -1088,6 +1592,24 @@ pyar.state.aggregate
    :undoc-members:
    :show-inheritance:
 
+pyar.state.grow
+~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.state.grow
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.state.microsolvation
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.state.microsolvation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.state.reaction
 ~~~~~~~~~~~~~~~~~~~
 
@@ -1097,10 +1619,10 @@ pyar.state.reaction
    :undoc-members:
    :show-inheritance:
 
-pyar.state.solvation
-~~~~~~~~~~~~~~~~~~~~
+pyar.state.reaction_v2
+~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.state.solvation
+.. automodule:: pyar.state.reaction_v2
    :no-index:
    :members:
    :undoc-members:
@@ -1113,6 +1635,15 @@ pyar.structure_comparison
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.structure_comparison
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.structure_comparison.chemical_identity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.chemical_identity
    :no-index:
    :members:
    :undoc-members:
@@ -1199,6 +1730,15 @@ pyar.structure_comparison.models
    :undoc-members:
    :show-inheritance:
 
+pyar.structure_comparison.pairwise
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.structure_comparison.pairwise
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.structure_comparison.rmsd
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1208,13 +1748,25 @@ pyar.structure_comparison.rmsd
    :undoc-members:
    :show-inheritance:
 
-Trial Generation
-----------------
+Structure Inspection
+--------------------
 
-pyar.trial_generation
-~~~~~~~~~~~~~~~~~~~~~
+pyar.structure_inspection
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.trial_generation
+.. automodule:: pyar.structure_inspection
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Utility Io
+----------
+
+pyar.utility_io
+~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.utility_io
    :no-index:
    :members:
    :undoc-members:
@@ -1244,19 +1796,19 @@ pyar.workflows
    :undoc-members:
    :show-inheritance:
 
-pyar.workflows._growth
-~~~~~~~~~~~~~~~~~~~~~~
+pyar.workflows.aggregate
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.workflows._growth
+.. automodule:: pyar.workflows.aggregate
    :no-index:
    :members:
    :undoc-members:
    :show-inheritance:
 
-pyar.workflows.aggregate
-~~~~~~~~~~~~~~~~~~~~~~~~
+pyar.workflows.association_reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pyar.workflows.aggregate
+.. automodule:: pyar.workflows.association_reference
    :no-index:
    :members:
    :undoc-members:
@@ -1271,10 +1823,55 @@ pyar.workflows.conformer
    :undoc-members:
    :show-inheritance:
 
+pyar.workflows.grow
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.grow
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.microsolvation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.microsolvation
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.path_layout
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.path_layout
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.workflows.reaction
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: pyar.workflows.reaction
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.reaction_characterization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.reaction_characterization
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pyar.workflows.reaction_report
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.reaction_report
    :no-index:
    :members:
    :undoc-members:
@@ -1289,6 +1886,15 @@ pyar.workflows.scan_bond
    :undoc-members:
    :show-inheritance:
 
+pyar.workflows.scan_layout
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.workflows.scan_layout
+   :no-index:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pyar.workflows.scan_path
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1298,10 +1904,13 @@ pyar.workflows.scan_path
    :undoc-members:
    :show-inheritance:
 
-pyar.workflows.solvation
-~~~~~~~~~~~~~~~~~~~~~~~~
+Xyz Trajectory
+--------------
 
-.. automodule:: pyar.workflows.solvation
+pyar.xyz_trajectory
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: pyar.xyz_trajectory
    :no-index:
    :members:
    :undoc-members:

@@ -49,6 +49,14 @@ SUBCOMMANDS = {
     "backends",
     "doctor",
     "install",
+    "benchmark",
+    "explore",
+    "trial",
+    "basin-memory",
+    "similarity",
+    "descriptor",
+    "mlopt",
+    "aimnet2-ase-opt",
 }
 NESTED_HELP = {
     ("pyar", "install", "status"),
@@ -112,19 +120,17 @@ def _python_blocks(path: Path):
 
 
 def _route(tokens):
-    executable = tokens[0]
-    if executable == "pyar":
-        if len(tokens) > 2 and tuple(tokens[:3]) in NESTED_HELP:
-            return tokens[:3] + ["--help"]
+    if tokens[0] == "pyar":
+        prefix = [sys.executable, "-m", "pyar"]
+        if len(tokens) > 2 and (
+            tuple(tokens[:3]) in NESTED_HELP or tokens[1] == "benchmark"
+        ):
+            return prefix + tokens[1:3] + ["--help"]
         if len(tokens) > 1 and tokens[1] in SUBCOMMANDS:
-            return tokens[:2] + ["--help"]
-        return ["pyar", "--help"]
-    if executable == "pyar-cli":
-        if len(tokens) > 1 and tokens[1] in SUBCOMMANDS:
-            return tokens[:2] + ["--help"]
-        return ["pyar-cli", "--help"]
-    if executable.startswith("pyar-"):
-        return [executable, "--help"]
+            return prefix + tokens[1:2] + ["--help"]
+        return prefix + ["--help"]
+    if tokens[0].startswith("pyar-"):
+        raise ValueError(f"Removed executable in documentation: {tokens[0]}")
     return None
 
 
@@ -148,7 +154,7 @@ def check(root=ROOT, run=subprocess.run):
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))[
         "project"
     ]
-    install_doc = (root / "docs/installation.rst").read_text(encoding="utf-8")
+    install_doc = (root / "docs/user/installation.rst").read_text(encoding="utf-8")
     minimum = re.fullmatch(r">=([0-9]+\.[0-9]+)", project["requires-python"])
     if not minimum or f"{minimum.group(1)} or newer" not in install_doc:
         raise ValueError(
@@ -190,7 +196,7 @@ def check(root=ROOT, run=subprocess.run):
                 f"Installation guide does not document dependency group [{group}]"
             )
     scripts = set(project["scripts"])
-    cli_reference = (root / "docs/cli_reference.rst").read_text(encoding="utf-8")
+    cli_reference = (root / "docs/reference/cli.rst").read_text(encoding="utf-8")
     documented_scripts = set(re.findall(r"``(pyar(?:-[a-z0-9-]+)?)``", cli_reference))
     if scripts != documented_scripts:
         missing = sorted(scripts - documented_scripts)
@@ -202,8 +208,8 @@ def check(root=ROOT, run=subprocess.run):
     api_import_block = next(
         (
             block
-            for block in _python_blocks(root / "docs/architecture.rst")
-            if "from pyar import Molecule" in block
+            for block in _python_blocks(root / "docs/developer/api.rst")
+            if "from pyar.core.molecule import Molecule" in block
         ),
         None,
     )
@@ -259,7 +265,7 @@ def check(root=ROOT, run=subprocess.run):
                 f"{path.relative_to(root)}: {' '.join(route[:-1])} has no documented option(s) {', '.join(unknown)}"
             )
     preflight = run(
-        ["pyar", "conformer", "CCO", "--check"],
+        [sys.executable, "-m", "pyar", "conformer", "CCO", "--check"],
         cwd=root,
         text=True,
         capture_output=True,
