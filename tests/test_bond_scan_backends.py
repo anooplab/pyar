@@ -127,6 +127,8 @@ def test_continuation_stops_at_failed_scientific_gate(scan_continuation, monkeyp
 
 def test_cli_xtb_full_cycle_does_not_require_basis(tmp_path, monkeypatch):
     from pyar.scripts import scan_bond
+    # Execution is simulated below; this test covers dispatch/reporting, not discovery.
+    monkeypatch.setattr('pyar.scan_request.preflight_scan', lambda *args: [])
     path = tmp_path / "H.xyz"
     path.write_text("1\nH\nH 0 0 0\n")
     calls = []
@@ -207,6 +209,8 @@ def test_orca_hf_gradient_keyword_handles_exchange():
 
 def test_cli_reports_scientific_failure_with_nonzero_exit(tmp_path, monkeypatch, capsys):
     from pyar.scripts import scan_bond
+    # Execution is simulated below; this test covers dispatch/reporting, not discovery.
+    monkeypatch.setattr('pyar.scan_request.preflight_scan', lambda *args: [])
     path = tmp_path / 'H.xyz'
     path.write_text('1\nH\nH 0 0 0\n')
     monkeypatch.setattr(scan_bond, 'run_scan_bond', lambda *args: {
