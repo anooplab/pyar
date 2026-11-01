@@ -158,7 +158,7 @@ def controlled_conformers(monkeypatch):
     """Fixed embedding evidence keeps the golden independent of RDKit minimizers."""
     from pyar.workflows import conformer
 
-    def embed(molecule, AllChem, *, seed, **options):
+    def embed(molecule, toolkit_or_request, seed=None, **options):
         from rdkit import Chem
 
         geometry = Chem.Conformer(molecule.GetNumAtoms())
@@ -478,7 +478,10 @@ def snapshot(root, result, calls):
         elif path.suffix == ".xyz":
             inventory[name] = dict(sha256=digest(data), text=data.decode())
         else:
-            inventory[name] = normalize(data.decode())
+            try:
+                inventory[name] = normalize(data.decode())
+            except UnicodeDecodeError:
+                inventory[name] = dict(sha256=digest(data), bytes=len(data))
     return dict(
         result=normalize(result), backend_calls=normalize(calls), files=inventory
     )

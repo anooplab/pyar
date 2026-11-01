@@ -11,6 +11,8 @@ from pyar.workflows import conformer
 
 from workspace_support import in_test_workspace
 
+from types import SimpleNamespace
+
 
 def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch):
     records = [conformer.ConformerRecord(1, i, float(i), 'converged', 'mmff',
@@ -47,7 +49,9 @@ class ConformerWorkflowTests(unittest.TestCase):
             self.addCleanup(boundary.stop)
 
     def _molecule_factory(self):
-        def build_molecule(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):
+        def build_molecule(rdkit_molecule, conformer_id, name, record, request):
+            seed, energy = record.seed, record.rdkit_energy
+            charge, multiplicity, scftype = request.charge, request.multiplicity, request.scftype
             return Molecule(
                 # Distinct toy geometries for ranking tests. Translated C-H
                 # copies are duplicates under a rigid-motion invariant policy.
@@ -134,8 +138,8 @@ class ConformerWorkflowTests(unittest.TestCase):
                 )
 
         random_kicks.assert_called_once()
-        self.assertEqual(random_kicks.call_args.kwargs["kicks_per_conformer"], 6)
-        self.assertEqual(random_kicks.call_args.kwargs["max_bonds"], 3)
+        self.assertEqual(random_kicks.call_args.args[1].torsion_kicks_per_conformer, 6)
+        self.assertEqual(random_kicks.call_args.args[1].torsion_max_bonds, 3)
         self.assertNotIn("p_xgm_initial", random_kicks.call_args.kwargs)
 
     def test_conformer_search_rejects_removed_torsion_modes(self):
@@ -145,7 +149,7 @@ class ConformerWorkflowTests(unittest.TestCase):
                     conformer.conformer_search("CCO", torsion_mode=mode)
 
     def test_conformer_request_normalizes_values_without_rdkit(self):
-        request = conformer._build_conformer_request(
+        request = conformer.ConformerRequest.from_options(
             "CCO",
             input_format="auto",
             num_conformers="5",
@@ -172,6 +176,7 @@ class ConformerWorkflowTests(unittest.TestCase):
             qc_params={"software": "xtb"},
         )
 
+        request = request.to_state_dict()
         self.assertEqual(request["num_conformers"], 5)
         self.assertEqual(request["top_n"], 2)
         self.assertEqual(request["backend_top_n"], 7)
@@ -223,7 +228,7 @@ class ConformerWorkflowTests(unittest.TestCase):
                 kwargs = dict(defaults)
                 kwargs[option] = value
                 with self.assertRaisesRegex(conformer.ConformerWorkflowError, message):
-                    conformer._build_conformer_request("CCO", **kwargs)
+                    conformer.conformer_search("CCO", **kwargs)
 
     def test_conformer_search_refines_only_top_ranked_records_with_backend(self):
         records = [
@@ -305,13 +310,7 @@ class ConformerWorkflowTests(unittest.TestCase):
             make_record("far", 3, 9.0, [[0, 0, 0], [3, 0, 0], [0, 3, 0]]),
         ]
 
-        selected = conformer._select_refinement_records(
-            records,
-            limit=3,
-            top_n=1,
-            diversity_fraction=0.5,
-            compactness_fraction=0.5,
-        )
+        selected = conformer._select_refinement_records(records, 3, SimpleNamespace(top_n=1, diversity_fraction=0.5, compactness_fraction=0.5))
 
         selected_names = {record.name for record in selected}
         self.assertEqual(selected_names, {"low", "near", "moderate"})
@@ -335,13 +334,7 @@ class ConformerWorkflowTests(unittest.TestCase):
             make_record("diverse", 4, 7.0, [[0, 0, 0], [2, 0, 0], [0, 5, 0]]),
         ]
 
-        selected = conformer._select_refinement_records(
-            records,
-            limit=5,
-            top_n=1,
-            diversity_fraction=0.2,
-            compactness_fraction=0.2,
-        )
+        selected = conformer._select_refinement_records(records, 5, SimpleNamespace(top_n=1, diversity_fraction=0.2, compactness_fraction=0.2))
 
         reasons = {record.name: record.refinement_reason for record in selected}
         self.assertEqual(reasons["compact"], "contact_compact")
@@ -384,7 +377,9 @@ class ConformerWorkflowTests(unittest.TestCase):
                 energy=record.rdkit_energy,
             )
 
-        def molecule_factory(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):
+        def molecule_factory(rdkit_molecule, conformer_id, name, record, request):
+            seed, energy = record.seed, record.rdkit_energy
+            charge, multiplicity, scftype = request.charge, request.multiplicity, request.scftype
             return Molecule(
                 ["C", "C", "C"],
                 coordinates[int(conformer_id)],
@@ -467,29 +462,9 @@ class ConformerWorkflowTests(unittest.TestCase):
             self.skipTest("RDKit is not available")
 
         molecule = Chem.AddHs(Chem.MolFromSmiles("CCCCCC"))
-        embedded = conformer._embed_and_rank_conformers(
-            molecule,
-            AllChem,
-            num_conformers=1,
-            prune_rms_threshold=0.5,
-            force_field="mmff",
-            seed=1,
-            num_threads=0,
-            use_random_coords=True,
-            max_iterations=200,
-        )
+        embedded = conformer._embed_and_rank_conformers(molecule, SimpleNamespace(num_conformers=1, rms_threshold=0.5, force_field='mmff', num_threads=0, use_random_coords=True, max_iterations=200), 1, modules=(None, AllChem))
 
-        kicked = conformer._generate_torsion_random_records(
-            embedded,
-            Chem,
-            AllChem,
-            enabled=True,
-            kicks_per_conformer=4,
-            max_bonds=3,
-            seed=1,
-            round_index=1,
-            max_iterations=200,
-        )
+        kicked = conformer._generate_torsion_random_records(embedded, SimpleNamespace(torsion_kicks=True, torsion_kicks_per_conformer=4, torsion_max_bonds=3, seed=1, max_iterations=200), 1, modules=(Chem, AllChem))
 
         self.assertGreaterEqual(len(kicked), 1)
         self.assertEqual(kicked[0].generation_stage, "torsion_kick")
@@ -506,29 +481,9 @@ class ConformerWorkflowTests(unittest.TestCase):
             self.skipTest("RDKit is not available")
 
         molecule = Chem.AddHs(Chem.MolFromSmiles("CCCCCC"))
-        embedded = conformer._embed_and_rank_conformers(
-            molecule,
-            AllChem,
-            num_conformers=1,
-            prune_rms_threshold=0.5,
-            force_field="mmff",
-            seed=1,
-            num_threads=0,
-            use_random_coords=True,
-            max_iterations=100,
-        )
+        embedded = conformer._embed_and_rank_conformers(molecule, SimpleNamespace(num_conformers=1, rms_threshold=0.5, force_field='mmff', num_threads=0, use_random_coords=True, max_iterations=100), 1, modules=(None, AllChem))
 
-        kicked = conformer._generate_torsion_random_records(
-            embedded,
-            Chem,
-            AllChem,
-            enabled=True,
-            kicks_per_conformer=12,
-            max_bonds=3,
-            seed=1,
-            round_index=1,
-            max_iterations=100,
-        )
+        kicked = conformer._generate_torsion_random_records(embedded, SimpleNamespace(torsion_kicks=True, torsion_kicks_per_conformer=12, torsion_max_bonds=3, seed=1, max_iterations=100), 1, modules=(Chem, AllChem))
 
         source_ids = [record.source_conf_id for record in kicked]
         self.assertGreater(len(source_ids), 1)
@@ -572,18 +527,7 @@ class ConformerWorkflowTests(unittest.TestCase):
         }
         calls = []
 
-        def fake_embed_and_rank(
-            rdkit_molecule,
-            AllChem,
-            *,
-            seed,
-            num_conformers,
-            prune_rms_threshold,
-            force_field,
-            num_threads,
-            use_random_coords,
-            max_iterations,
-        ):
+        def fake_embed_and_rank(rdkit_molecule, request, seed, *, modules=None):
             calls.append(seed)
             return records[seed]
 
@@ -740,29 +684,9 @@ class ConformerWorkflowTests(unittest.TestCase):
             def UFFOptimizeMoleculeConfs(molecule, numThreads, maxIters):
                 return [(0, -0.5)]
 
-        records = conformer._embed_and_rank_conformers(
-            object(),
-            FakeAllChem,
-            num_conformers=1,
-            prune_rms_threshold=0.5,
-            force_field="auto",
-            seed=1,
-            num_threads=0,
-            use_random_coords=False,
-            max_iterations=200,
-        )
+        records = conformer._embed_and_rank_conformers(object(), SimpleNamespace(num_conformers=1, rms_threshold=0.5, force_field='auto', num_threads=0, use_random_coords=False, max_iterations=200), 1, modules=(None, FakeAllChem))
         FakeAllChem.mmff = False
-        fallback_records = conformer._embed_and_rank_conformers(
-            object(),
-            FakeAllChem,
-            num_conformers=1,
-            prune_rms_threshold=0.5,
-            force_field="auto",
-            seed=1,
-            num_threads=0,
-            use_random_coords=False,
-            max_iterations=200,
-        )
+        fallback_records = conformer._embed_and_rank_conformers(object(), SimpleNamespace(num_conformers=1, rms_threshold=0.5, force_field='auto', num_threads=0, use_random_coords=False, max_iterations=200), 1, modules=(None, FakeAllChem))
 
         self.assertEqual(records[0].force_field, "mmff")
         self.assertEqual(fallback_records[0].force_field, "uff")

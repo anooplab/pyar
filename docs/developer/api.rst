@@ -6,6 +6,8 @@ Use canonical scientific modules rather than retired compatibility imports:
 .. code-block:: python
 
    from pyar.core.molecule import Molecule
+   from pyar.conformer.request import ConformerRequest
+   from pyar.workflows.conformer import conformer_search, run_conformer_search
    from pyar.workflows.aggregate import aggregate
    from pyar.workflows.grow import grow
    from pyar.workflows.microsolvation import microsolvate
@@ -27,3 +29,15 @@ persistence compatibility promise.
 See :doc:`/generated_api` for implementation details. Backend APIs and stored
 protocol versions must be tested independently; import success is not a real
 backend calculation.
+
+Request-taking conformer execution
+----------------------------------
+
+``run_conformer_search(request, root_directory=...)`` accepts an already resolved
+``ConformerRequest`` and executes exactly the same fresh-run workflow as
+``conformer_search(...)``. The latter retains its supported keyword signature
+and performs request conversion once. CLI execution reuses its resolved request.
+Both interfaces retain stereo checks, seeded generation, physical backend energy
+ranking, immutable artifacts, and rejection of existing nonresumable runs.
+
+.. autofunction:: pyar.workflows.conformer.run_conformer_search

@@ -121,11 +121,11 @@ def test_grow_invalid(inputs, options):
 def test_backend_policy(inputs, command):
     arguments = {'aggregate': inputs, 'grow': [*inputs, '--count', '4'], 'conformer': ['CCO']}[command]
     module, target = {'aggregate': (aggregate, 'aggregate'), 'grow': (grow, 'grow'),
-                      'conformer': (conformer_workflow, 'conformer_search')}[command]
+                      'conformer': (conformer_workflow, 'run_conformer_search')}[command]
     with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(module, target, return_value=result()) as engine:
         cli.main([command, *arguments, '--backend', 'xtb'])
     qc = (engine.call_args.args[3] if command == 'aggregate' else engine.call_args.args[0].backend_parameters
-          if command == 'grow' else engine.call_args.kwargs['qc_params'])
+          if command == 'grow' else engine.call_args.args[0].backend_parameters)
     assert qc['software'] == 'xtb' and qc['xtb_model'] == 'gfn2'
     assert qc['method'] is None and qc['basis'] is None
 
@@ -134,7 +134,7 @@ def test_backend_policy(inputs, command):
 def test_check_no_side_effects(inputs, command):
     arguments = {'aggregate': inputs, 'grow': [*inputs, '--count', '4'], 'conformer': ['CCO']}[command]
     module, target = {'aggregate': (aggregate, 'aggregate'), 'grow': (grow, 'grow'),
-                      'conformer': (conformer_workflow, 'conformer_search')}[command]
+                      'conformer': (conformer_workflow, 'run_conformer_search')}[command]
     before = set(Path('.').iterdir())
     with patch.object(module, target) as engine:
         cli.main([command, *arguments, '--check'])
@@ -162,33 +162,33 @@ def test_backend_missing_fails_before_run(inputs, command, capsys):
 
 
 def test_conformer_defaults(inputs):
-    with patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch.object(conformer_workflow, 'run_conformer_search', return_value=result()) as engine:
         cli.main(['conformer', 'CCO'])
-    options = engine.call_args.kwargs
+    options = engine.call_args.args[0].to_state_dict()
     expected = dict(num_conformers=150, top_n=10, num_seeds=5, diversity_fraction=.2, compactness_fraction=.2,
                     rms_threshold=.25, use_random_coords=True, torsion_kicks=True, torsion_rounds=2,
                     torsion_kicks_per_conformer=6, torsion_max_bonds=3, torsion_dedup_rms=.5,
                     dedup_atom_mode='heavy', force_field='auto', seed=1, max_iterations=200)
     assert {key: options[key] for key in expected} == expected
-    assert options['qc_params'] is None
+    assert options['backend_parameters'] == {}
 
 
 def test_conformer_advanced_and_charged_input(inputs):
-    with patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch.object(conformer_workflow, 'run_conformer_search', return_value=result()) as engine:
         cli.main(['conformer', '[NH4+]', '--num-conformers', '20', '--num-seeds', '2', '--top-n', '3',
                          '--no-use-random-coords', '--no-torsion-kicks', '--torsion-rounds', '0', '--seed', '9'])
-    options = engine.call_args.kwargs
+    options = engine.call_args.args[0].to_state_dict()
     assert options['charge'] == 1 and options['multiplicity'] == 1
     assert (options['num_conformers'], options['num_seeds'], options['top_n'], options['seed']) == (20, 2, 3, 9)
     assert not options['torsion_kicks'] and not options['use_random_coords']
 
 
 def test_conformer_odd_spin_backend(inputs):
-    with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(conformer_workflow, 'run_conformer_search', return_value=result()) as engine:
         cli.main(['conformer', '[CH3]', '--backend', 'xtb'])
-    options = engine.call_args.kwargs
+    options = engine.call_args.args[0].to_state_dict()
     assert options['multiplicity'] == 2 and options['scftype'] == 'uhf'
-    assert options['qc_params']['xtb_unpaired_electrons'] == 1
+    assert options['backend_parameters']['xtb_unpaired_electrons'] == 1
     with pytest.raises(SystemExit):
         cli.main(['conformer', '[CH3]', '--multiplicity', '1', '--check'])
 

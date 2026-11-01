@@ -34,6 +34,17 @@
   interpretation guides, canonical reference and separate developer procedures.
   Archive operational material outside the public source/manual.
 
+### Added
+
+- Add `run_conformer_search(request, root_directory=...)` for executing an
+  existing `ConformerRequest` without converting options again.
+
+### Internal
+
+- Separate conformer run setup, seeded generation, stereochemistry, selection,
+  refinement and publication around an explicit run context. Retain the existing
+  keyword API, scientific settings, output formats and fresh-run guards.
+
 ### Fixed
 
 - Keep reaction OpenBabel identity diagnostics in the owning reaction/orientation

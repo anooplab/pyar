@@ -194,17 +194,38 @@ def _embed_parameters(AllChem, seed, prune_rms_threshold, num_threads, use_rando
     parameters.useRandomCoords = bool(use_random_coords)
     return parameters
 
-def _embed_and_rank_conformers(rdkit_molecule, AllChem, *, seed, num_conformers, prune_rms_threshold, force_field, num_threads, use_random_coords, max_iterations):
+def _embed_and_rank_conformers(rdkit_molecule, request, seed, *, modules=None):
     """Generate, minimize, and rank RDKit conformers."""
-    parameters = _embed_parameters(AllChem, seed, prune_rms_threshold, num_threads, use_random_coords)
-    conformer_ids = list(AllChem.EmbedMultipleConfs(rdkit_molecule, numConfs=int(num_conformers), params=parameters))
+    AllChem = (modules or _rdkit_modules())[1]
+    parameters = _embed_parameters(
+        AllChem,
+        seed,
+        request.rms_threshold,
+        request.num_threads,
+        request.use_random_coords,
+    )
+    conformer_ids = list(
+        AllChem.EmbedMultipleConfs(
+            rdkit_molecule, numConfs=int(request.num_conformers), params=parameters
+        )
+    )
     if not conformer_ids:
         return []
-    selected_force_field = _force_field_for_molecule(rdkit_molecule, AllChem, force_field)
-    if selected_force_field == 'mmff':
-        results = AllChem.MMFFOptimizeMoleculeConfs(rdkit_molecule, numThreads=int(num_threads), maxIters=int(max_iterations))
+    selected_force_field = _force_field_for_molecule(
+        rdkit_molecule, AllChem, request.force_field
+    )
+    if selected_force_field == "mmff":
+        results = AllChem.MMFFOptimizeMoleculeConfs(
+            rdkit_molecule,
+            numThreads=int(request.num_threads),
+            maxIters=int(request.max_iterations),
+        )
     else:
-        results = AllChem.UFFOptimizeMoleculeConfs(rdkit_molecule, numThreads=int(num_threads), maxIters=int(max_iterations))
+        results = AllChem.UFFOptimizeMoleculeConfs(
+            rdkit_molecule,
+            numThreads=int(request.num_threads),
+            maxIters=int(request.max_iterations),
+        )
     records = []
     for conformer_id, result in zip(conformer_ids, results):
         not_converged, energy = result
@@ -307,6 +328,7 @@ def _rdkit_minimize_conformer(rdkit_molecule, AllChem, force_field, conf_id, max
         return (None, None)
     return (int(status), energy)
 
+# Explicit numerical arrays and index maps keep this small kernel auditable.
 def _apply_torsion_moves(work_molecule, conf_id, torsions, angle_choices, move_indices, angle_indices):
     """Apply torsion moves in-place and return a compact move description."""
     moves = []
@@ -332,6 +354,7 @@ def _torsion_kick_move_count(num_torsions, max_bonds, kick_index):
         return min(max_move_count, 2 + int(kick_index) // 5 % 2)
     return max_move_count
 
+# Index/seed inputs stay explicit to preserve the documented RNG progression.
 def _stratified_torsion_kick_plan(num_torsions, num_angles, *, parent_index, round_index, kick_index, kicks_per_conformer, max_bonds, rng):
     """Return torsion and angle indices with explicit bond/bin coverage."""
     move_count = _torsion_kick_move_count(num_torsions, max_bonds, kick_index)
@@ -343,9 +366,14 @@ def _stratified_torsion_kick_plan(num_torsions, num_angles, *, parent_index, rou
     angle_indices = [int((int(kick_index) + int(round_index) + int(parent_index) + torsion_index + local_index) % int(num_angles)) for local_index, torsion_index in enumerate(torsion_indices)]
     return (torsion_indices, angle_indices)
 
-def _generate_torsion_random_records(records, Chem, AllChem, *, enabled, kicks_per_conformer, max_bonds, seed, round_index, max_iterations):
+def _generate_torsion_random_records(records, request, round_index, *, modules=None):
     """Generate locally minimized stratified random torsion-kicked conformers."""
-    if not enabled or int(kicks_per_conformer) < 1 or int(max_bonds) < 1:
+    Chem, AllChem = modules or _rdkit_modules()
+    if (
+        not request.torsion_kicks
+        or int(request.torsion_kicks_per_conformer) < 1
+        or int(request.torsion_max_bonds) < 1
+    ):
         return []
     angle_choices = np.asarray([60.0, 120.0, 180.0, 240.0, 300.0], dtype=float)
     kicked_records = []
@@ -358,7 +386,7 @@ def _generate_torsion_random_records(records, Chem, AllChem, *, enabled, kicks_p
         if not torsions:
             continue
         next_ids_by_seed.setdefault(parent.seed, max((record.source_conf_id for record in records if record.seed == parent.seed)) + 1)
-        for kick_index in range(int(kicks_per_conformer)):
+        for kick_index in range(int(request.torsion_kicks_per_conformer)):
             try:
                 work_molecule = Chem.Mol(rdkit_molecule)
                 parent_conformer = rdkit_molecule.GetConformer(_record_conformer_id(parent))
@@ -368,16 +396,38 @@ def _generate_torsion_random_records(records, Chem, AllChem, *, enabled, kicks_p
                 conf_id = int(work_molecule.AddConformer(kicked_conformer, assignId=True))
             except (AttributeError, RuntimeError, ValueError):
                 continue
-            rng_seed = int(seed) * 1000003 + int(round_index) * 100003 + int(parent.seed) * 10007 + int(parent.source_conf_id) * 101 + int(kick_index) + int(parent_index)
+            rng_seed = (
+                int(request.seed) * 1000003
+                + int(round_index) * 100003
+                + int(parent.seed) * 10007
+                + int(parent.source_conf_id) * 101
+                + int(kick_index)
+                + int(parent_index)
+            )
             rng = np.random.default_rng(rng_seed)
-            torsion_indices, angle_indices = _stratified_torsion_kick_plan(len(torsions), len(angle_choices), parent_index=parent_index, round_index=round_index, kick_index=kick_index, kicks_per_conformer=kicks_per_conformer, max_bonds=max_bonds, rng=rng)
+            torsion_indices, angle_indices = _stratified_torsion_kick_plan(
+                len(torsions),
+                len(angle_choices),
+                parent_index=parent_index,
+                round_index=round_index,
+                kick_index=kick_index,
+                kicks_per_conformer=request.torsion_kicks_per_conformer,
+                max_bonds=request.torsion_max_bonds,
+                rng=rng,
+            )
             if not torsion_indices:
                 continue
             try:
                 moves = _apply_torsion_moves(work_molecule, conf_id, torsions, angle_choices, np.atleast_1d(torsion_indices), np.atleast_1d(angle_indices))
             except Exception:
                 continue
-            status, energy = _rdkit_minimize_conformer(work_molecule, AllChem, parent.force_field, conf_id, max_iterations)
+            status, energy = _rdkit_minimize_conformer(
+                work_molecule,
+                AllChem,
+                parent.force_field,
+                conf_id,
+                request.max_iterations,
+            )
             if status is None or energy is None:
                 continue
             source_conf_id = next_ids_by_seed[parent.seed]
@@ -396,7 +446,7 @@ def _formal_charge(rdkit_molecule):
             total += int(atom.GetFormalCharge())
     return total
 
-def _molecule_from_rdkit_conformer(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):
+def _molecule_from_rdkit_conformer(rdkit_molecule, conformer_id, name, record, request):
     """Convert one RDKit conformer to a PyAR Molecule."""
     conformer = rdkit_molecule.GetConformer(int(conformer_id))
     atoms = [atom.GetSymbol() for atom in rdkit_molecule.GetAtoms()]
@@ -404,7 +454,18 @@ def _molecule_from_rdkit_conformer(rdkit_molecule, conformer_id, *, name, seed, 
     for atom_index in range(len(atoms)):
         position = conformer.GetAtomPosition(atom_index)
         coordinates.append([float(position.x), float(position.y), float(position.z)])
-    return Molecule(atoms, coordinates, name=name, title=f'RDKit seed {seed} conformer {conformer_id}', charge=_formal_charge(rdkit_molecule) if charge is None else int(charge), multiplicity=int(multiplicity), scftype=scftype, energy=float(energy))
+    return Molecule(
+        atoms,
+        coordinates,
+        name=name,
+        title=f"RDKit seed {record.seed} conformer {conformer_id}",
+        charge=_formal_charge(rdkit_molecule)
+        if request.charge is None
+        else int(request.charge),
+        multiplicity=int(request.multiplicity),
+        scftype=request.scftype,
+        energy=float(record.rdkit_energy),
+    )
 
 def _prepare_run_directory(root_directory, *, v2=False):
     """Create the conformer run directory, rejecting completed prior runs."""
@@ -421,7 +482,7 @@ def _prepare_run_directory(root_directory, *, v2=False):
         (run_directory / child).mkdir(parents=True, exist_ok=True)
     return run_directory
 
-def _write_rdkit_conformers(records, rdkit_molecule, rdkit_directory, *, charge, multiplicity, scftype):
+def _write_rdkit_conformers(records, rdkit_molecule, rdkit_directory, request):
     """Write ranked RDKit conformers and attach PyAR molecules to records."""
     for rank, record in enumerate(records):
         if record.generation_stage == 'torsion_kick':
@@ -430,7 +491,9 @@ def _write_rdkit_conformers(records, rdkit_molecule, rdkit_directory, *, charge,
             name = _parent_record_name(record)
         source_molecule = record.rdkit_molecule if record.rdkit_molecule is not None else rdkit_molecule
         conformer_id = record.source_conf_id if record.rdkit_conf_id is None else record.rdkit_conf_id
-        molecule = _molecule_from_rdkit_conformer(source_molecule, conformer_id, name=name, seed=record.seed, charge=charge, multiplicity=multiplicity, scftype=scftype, energy=record.rdkit_energy)
+        molecule = _molecule_from_rdkit_conformer(
+            source_molecule, conformer_id, name, record, request
+        )
         path = rdkit_directory / f'{name}.xyz'
         molecule.mol_to_xyz(str(path))
         record.rank = rank
@@ -441,6 +504,7 @@ def _write_rdkit_conformers(records, rdkit_molecule, rdkit_directory, *, charge,
 def _record_sort_key(record):
     return (record.rdkit_energy, record.seed, record.source_conf_id)
 
+# Standalone comparison controls remain explicit; orchestrators pass one policy.
 def _deduplicate_records(records, rms_threshold, *, sort_key=_record_sort_key, atom_mode='heavy', comparisons=None, stage='deduplication'):
     """Keep records unless the shared comparison policy confirms a duplicate."""
     threshold = float(rms_threshold)
@@ -566,20 +630,20 @@ def _selection_quota(limit, fraction):
         return 0
     return max(1, int(math.ceil(limit * float(fraction))))
 
-def _select_refinement_records(records, limit, top_n, diversity_fraction, compactness_fraction, *, comparisons=None):
+def _select_refinement_records(records, limit, request, *, comparisons=None):
     """Select backend candidates from energy, diversity, compact, and open basins."""
     comparisons = comparisons or ConformerComparisons()
     limit = min(int(limit), len(records))
     if limit <= 0:
         return []
-    diversity_fraction = float(diversity_fraction)
-    compactness_fraction = float(compactness_fraction)
+    diversity_fraction = float(request.diversity_fraction)
+    compactness_fraction = float(request.compactness_fraction)
     compact_count = min(limit, _selection_quota(limit, compactness_fraction))
     open_count = min(limit, _selection_quota(limit, compactness_fraction))
     diversity_count = min(limit, _selection_quota(limit, diversity_fraction))
     outlier_count = 1 if limit >= 10 else 0
     protected_count = compact_count + open_count + diversity_count + outlier_count
-    energy_count = max(1, min(int(top_n), max(1, limit - protected_count)))
+    energy_count = max(1, min(int(request.top_n), max(1, limit - protected_count)))
     energy_count = min(limit, energy_count)
     ordered_records = sorted(records, key=_record_sort_key)
     selected = []
@@ -674,121 +738,304 @@ def _write_summary(records, summary_path):
         for record in records:
             writer.writerow({'rank': record.rank, 'seed': record.seed, 'name': record.name, 'source_conf_id': record.source_conf_id, 'force_field': record.force_field, 'rdkit_status': record.rdkit_status, 'rdkit_energy': record.rdkit_energy, 'rdkit_path': record.rdkit_path, 'generation_stage': record.generation_stage, 'generation_round': record.generation_round, 'parent_name': record.parent_name, 'torsion_moves': record.torsion_moves, 'refinement_reason': record.refinement_reason, 'refinement_diversity': record.refinement_diversity, 'contact_count': record.contact_count, 'radius_gyration': record.radius_gyration, 'backend_status': record.backend_status, 'backend_validation_status': record.backend_validation_status, 'backend_diagnostic_path': record.backend_diagnostic_path, 'backend_energy': record.backend_energy, 'backend_path': record.backend_path, 'selected_path': record.selected_path, 'stereo_signature': record.stereo_signature})
 
-def _build_state(*, status, request, selected_paths, records, source_format, backend_requested):
+def _build_state(run, status, records, selected_paths, backend_requested):
     """Return the persisted conformer state payload."""
-    return {'version': STATE_VERSION, 'workflow': 'conformer', 'package_version': __version__, 'status': status, 'request': request, 'source_format': source_format, 'backend_requested': bool(backend_requested), 'generated_conformers': len(records), 'selected_results': selected_paths, 'records': [{'rank': record.rank, 'seed': record.seed, 'name': record.name, 'source_conf_id': record.source_conf_id, 'force_field': record.force_field, 'rdkit_status': record.rdkit_status, 'rdkit_energy': record.rdkit_energy, 'rdkit_path': record.rdkit_path, 'generation_stage': record.generation_stage, 'generation_round': record.generation_round, 'parent_name': record.parent_name, 'torsion_moves': record.torsion_moves, 'refinement_reason': record.refinement_reason, 'refinement_diversity': record.refinement_diversity, 'contact_count': record.contact_count, 'radius_gyration': record.radius_gyration, 'backend_status': record.backend_status, 'backend_validation_status': record.backend_validation_status, 'backend_diagnostic_path': record.backend_diagnostic_path, 'backend_energy': record.backend_energy, 'backend_path': record.backend_path, 'selected_path': record.selected_path, 'stereo_signature': record.stereo_signature} for record in records]}
+    return {
+        "version": STATE_VERSION,
+        "workflow": "conformer",
+        "package_version": __version__,
+        "status": status,
+        "request": run.state_request,
+        "source_format": run.source_format,
+        "backend_requested": bool(backend_requested),
+        "generated_conformers": len(records),
+        "selected_results": selected_paths,
+        "records": [
+            {
+                "rank": record.rank,
+                "seed": record.seed,
+                "name": record.name,
+                "source_conf_id": record.source_conf_id,
+                "force_field": record.force_field,
+                "rdkit_status": record.rdkit_status,
+                "rdkit_energy": record.rdkit_energy,
+                "rdkit_path": record.rdkit_path,
+                "generation_stage": record.generation_stage,
+                "generation_round": record.generation_round,
+                "parent_name": record.parent_name,
+                "torsion_moves": record.torsion_moves,
+                "refinement_reason": record.refinement_reason,
+                "refinement_diversity": record.refinement_diversity,
+                "contact_count": record.contact_count,
+                "radius_gyration": record.radius_gyration,
+                "backend_status": record.backend_status,
+                "backend_validation_status": record.backend_validation_status,
+                "backend_diagnostic_path": record.backend_diagnostic_path,
+                "backend_energy": record.backend_energy,
+                "backend_path": record.backend_path,
+                "selected_path": record.selected_path,
+                "stereo_signature": record.stereo_signature,
+            }
+            for record in records
+        ],
+    }
 
-def _build_conformer_request(input_spec, *, input_format, num_conformers, top_n, backend_top_n, num_seeds, diversity_fraction, compactness_fraction, rms_threshold, use_random_coords, torsion_kicks, torsion_rounds, torsion_mode, torsion_kicks_per_conformer, torsion_max_bonds, torsion_dedup_rms, force_field, seed, num_threads, max_iterations, charge, multiplicity, scftype, qc_params, dedup_atom_mode='heavy'):
-    """Validate and normalize the persisted conformer workflow request."""
-    try:
-        request = ConformerRequest.from_options(input_spec, input_format=input_format, num_conformers=num_conformers, top_n=top_n, backend_top_n=backend_top_n, num_seeds=num_seeds, diversity_fraction=diversity_fraction, compactness_fraction=compactness_fraction, rms_threshold=rms_threshold, use_random_coords=use_random_coords, torsion_kicks=torsion_kicks, torsion_rounds=torsion_rounds, torsion_mode=torsion_mode, torsion_kicks_per_conformer=torsion_kicks_per_conformer, torsion_max_bonds=torsion_max_bonds, torsion_dedup_rms=torsion_dedup_rms, dedup_atom_mode=dedup_atom_mode, force_field=force_field, seed=seed, num_threads=num_threads, max_iterations=max_iterations, charge=charge, multiplicity=multiplicity, scftype=scftype, qc_params=qc_params)
-    except ConformerRequestError as exc:
-        raise ConformerWorkflowError(str(exc)) from exc
-    return request.to_state_dict()
+@dataclass(frozen=True)
+class ConformerRun:
+    """One run owns its layout, comparison policy, toolkit and stereo evidence."""
+    request: ConformerRequest
+    state_request: dict[str, object]
+    directory: Path
+    layout: object
+    state_path: Path
+    comparisons: ConformerComparisons
+    modules: tuple[object, object]
+    molecule: object
+    source_format: str
+    stereo: dict[str, object]
 
-def _conformer_search(input_spec, *, input_format='auto', num_conformers=150, top_n=10, backend_top_n=None, num_seeds=5, diversity_fraction=0.2, compactness_fraction=0.2, rms_threshold=0.25, use_random_coords=True, torsion_kicks=True, torsion_rounds=2, torsion_mode='random', torsion_kicks_per_conformer=6, torsion_max_bonds=3, torsion_dedup_rms=0.5, dedup_atom_mode='heavy', force_field='auto', seed=1, num_threads=0, max_iterations=200, charge=None, multiplicity=1, scftype='rhf', qc_params=None, root_directory=None):
-    """Generate and optionally refine conformers for one molecule."""
-    request = _build_conformer_request(input_spec, input_format=input_format, num_conformers=num_conformers, top_n=top_n, backend_top_n=backend_top_n, num_seeds=num_seeds, diversity_fraction=diversity_fraction, compactness_fraction=compactness_fraction, rms_threshold=rms_threshold, use_random_coords=use_random_coords, torsion_kicks=torsion_kicks, torsion_rounds=torsion_rounds, torsion_mode=torsion_mode, torsion_kicks_per_conformer=torsion_kicks_per_conformer, torsion_max_bonds=torsion_max_bonds, torsion_dedup_rms=torsion_dedup_rms, dedup_atom_mode=dedup_atom_mode, force_field=force_field, seed=seed, num_threads=num_threads, max_iterations=max_iterations, charge=charge, multiplicity=multiplicity, scftype=scftype, qc_params=qc_params)
-    num_conformers = request['num_conformers']
-    top_n = request['top_n']
-    backend_top_n = request['backend_top_n']
-    diversity_fraction = request['diversity_fraction']
-    compactness_fraction = request['compactness_fraction']
-    rms_threshold = request['rms_threshold']
-    use_random_coords = request['use_random_coords']
-    torsion_kicks = request['torsion_kicks']
-    torsion_rounds = request['torsion_rounds']
-    torsion_mode = request['torsion_mode']
-    torsion_kicks_per_conformer = request['torsion_kicks_per_conformer']
-    torsion_max_bonds = request['torsion_max_bonds']
-    torsion_dedup_rms = request['torsion_dedup_rms']
-    force_field = request['force_field']
-    seed = request['seed']
-    seed_values = request['seed_values']
-    num_threads = request['num_threads']
-    max_iterations = request['max_iterations']
-    charge = request['charge']
-    multiplicity = request['multiplicity']
-    scftype = request['scftype']
-    qc_params = request['backend_parameters']
-    generation_dedup_rms = request['generation_dedup_rms']
-    comparisons = ConformerComparisons(request['dedup_atom_mode'], charge=charge, multiplicity=multiplicity)
-    root_directory = os.getcwd() if root_directory is None else root_directory
-    Chem, AllChem = _rdkit_modules()
-    run_directory = _prepare_run_directory(root_directory, **{'v2': True})
-    layout = None
+
+@dataclass(frozen=True)
+class ConformerSelection:
+    records: list[ConformerRecord]
+    status: str
+    refinement_limit: int
+    backend_requested: bool
+
+
+def _open_conformer_run(request: ConformerRequest, root: Path) -> ConformerRun:
     from pyar.conformer.layout_v2 import ConformerLayout
-    layout = ConformerLayout(run_directory, request)
-    state_path = Path(workflow_state_path(str(run_directory)))
-    rdkit_molecule, source_format = _load_rdkit_molecule(input_spec, request['input_format'], Chem, run_directory)
-    stereo = validate_input_stereo(rdkit_molecule)
+
+    comparisons = ConformerComparisons(
+        request.dedup_atom_mode,
+        charge=request.charge,
+        multiplicity=request.multiplicity,
+    )
+    modules = _rdkit_modules()
+    directory = _prepare_run_directory(root, v2=True)
+    state_request = request.to_state_dict()
+    layout = ConformerLayout(directory, state_request)
+    state_path = Path(workflow_state_path(str(directory)))
+    molecule, source_format = _load_rdkit_molecule(
+        request.input, request.input_format, modules[0], directory
+    )
+    stereo = validate_input_stereo(molecule)
+    return ConformerRun(
+        request,
+        state_request,
+        directory,
+        layout,
+        state_path,
+        comparisons,
+        modules,
+        molecule,
+        source_format,
+        stereo,
+    )
+
+
+def _publish_conformer_state(run, status, records, selected_paths, backend_requested):
+    state = _build_state(run, status, records, selected_paths, backend_requested)
+    state["comparison_policy"] = run.comparisons.summary()
+    state["stereochemistry"] = run.stereo
+    run.layout.publish(state)
+
+
+def _filter_conformer_stereo(run: ConformerRun, records: list[ConformerRecord]) -> list[ConformerRecord]:
+    records, rejected = _assign_stereo_signatures(
+        records, run.molecule, run.stereo["reference"]
+    )
+    run.stereo["rejected_generated"] = rejected
+    if not records:
+        _publish_conformer_state(
+            run, "failed_no_conformers", [], [], run.request.backend_requested
+        )
+        raise ConformerWorkflowError('RDKit did not generate any conformers')
+    _write_rdkit_conformers(
+        records, run.molecule, run.directory / "generated", run.request
+    )
+    return records
+
+
+def _generate_conformer_records(run: ConformerRun) -> list[ConformerRecord]:
     records = []
-    for seed_value in seed_values:
+    for seed_value in run.state_request["seed_values"]:
         try:
-            seed_molecule = Chem.Mol(rdkit_molecule)
+            seed_molecule = run.modules[0].Mol(run.molecule)
         except (AttributeError, TypeError):
-            seed_molecule = rdkit_molecule
-        seed_records = _embed_and_rank_conformers(seed_molecule, AllChem, seed=seed_value, num_conformers=num_conformers, prune_rms_threshold=rms_threshold, force_field=force_field, num_threads=num_threads, use_random_coords=use_random_coords, max_iterations=max_iterations)
+            seed_molecule = run.molecule
+        seed_records = _embed_and_rank_conformers(
+            seed_molecule, run.request, seed_value, modules=run.modules
+        )
         records.extend(seed_records)
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
-    if records and torsion_kicks and (int(torsion_rounds) > 0):
-        torsion_parent_limit = max(int(top_n) * 15, 100)
-        for round_index in range(1, int(torsion_rounds) + 1):
-            parent_records = _select_torsion_parent_records(records, torsion_parent_limit, diversity_fraction, compactness_fraction, comparisons=comparisons)
-            kicked_records = _generate_torsion_random_records(parent_records, Chem, AllChem, enabled=torsion_kicks, kicks_per_conformer=torsion_kicks_per_conformer, max_bonds=torsion_max_bonds, seed=seed, round_index=round_index, max_iterations=max_iterations)
+    if records and run.request.torsion_kicks and (int(run.request.torsion_rounds) > 0):
+        torsion_parent_limit = max(int(run.request.top_n) * 15, 100)
+        for round_index in range(1, int(run.request.torsion_rounds) + 1):
+            parent_records = _select_torsion_parent_records(
+                records,
+                torsion_parent_limit,
+                run.request.diversity_fraction,
+                run.request.compactness_fraction,
+                comparisons=run.comparisons,
+            )
+            kicked_records = _generate_torsion_random_records(
+                parent_records, run.request, round_index, modules=run.modules
+            )
             if not kicked_records:
                 break
-            records = _collapse_generation_records(records + kicked_records, generation_dedup_rms, comparisons=comparisons)
-    records = _collapse_generation_records(records, generation_dedup_rms, comparisons=comparisons)
+            records = _collapse_generation_records(
+                records + kicked_records,
+                run.request.generation_dedup_rms,
+                comparisons=run.comparisons,
+            )
+    records = _collapse_generation_records(
+        records, run.request.generation_dedup_rms, comparisons=run.comparisons
+    )
     records = sorted(records, key=lambda record: (record.rdkit_energy, record.seed, record.source_conf_id))
-    records, stereo['rejected_generated'] = _assign_stereo_signatures(records, rdkit_molecule, stereo['reference'])
-    if not records:
-        state = _build_state(status='failed_no_conformers', request=request, selected_paths=[], records=[], source_format=source_format, backend_requested=bool(qc_params and qc_params.get('software')))
-        state['comparison_policy'] = comparisons.summary()
-        state['stereochemistry'] = stereo
-        if layout is None:
-            _write_json_atomic(state_path, state)
-        else:
-            layout.publish(state)
-        raise ConformerWorkflowError('RDKit did not generate any conformers')
-    _write_rdkit_conformers(records, rdkit_molecule, run_directory / 'generated', charge=charge, multiplicity=multiplicity, scftype=scftype)
-    if backend_top_n is None:
-        refinement_limit = max(int(top_n) * 5, int(top_n) + 20)
+    return records
+
+def _select_and_refine_conformers(run: ConformerRun, records: list[ConformerRecord]) -> ConformerSelection:
+    if run.request.backend_top_n is None:
+        refinement_limit = max(int(run.request.top_n) * 5, int(run.request.top_n) + 20)
     else:
-        refinement_limit = int(backend_top_n)
+        refinement_limit = int(run.request.backend_top_n)
     refinement_limit = min(refinement_limit, len(records))
-    backend_requested = bool(qc_params and qc_params.get('software'))
+    backend_requested = bool(
+        run.request.backend_parameters
+        and run.request.backend_parameters.get("software")
+    )
     if backend_requested:
-        retained_records = _select_refinement_records(records, refinement_limit, top_n, diversity_fraction, compactness_fraction, comparisons=comparisons)
-        refined_records = _refine_with_backend(retained_records, run_directory, qc_params, **{'v2': True})
-        selected_records = _select_unique_records(refined_records, min(int(top_n), len(refined_records)), request['final_dedup_rms'], comparisons=comparisons)
+        retained_records = _select_refinement_records(
+            records, refinement_limit, run.request, comparisons=run.comparisons
+        )
+        refined_records = _refine_with_backend(
+            retained_records,
+            run.directory,
+            run.request.backend_parameters,
+            **{"v2": True},
+        )
+        selected_records = _select_unique_records(
+            refined_records,
+            min(int(run.request.top_n), len(refined_records)),
+            run.state_request["final_dedup_rms"],
+            comparisons=run.comparisons,
+        )
         status = 'completed' if selected_records else 'completed_no_backend_success'
     else:
-        retained_records = _select_refinement_records(records, min(int(top_n), len(records)), top_n, diversity_fraction, compactness_fraction, comparisons=comparisons)
-        selected_records = _select_unique_records(retained_records, min(int(top_n), len(retained_records)), request['final_dedup_rms'], comparisons=comparisons)
+        retained_records = _select_refinement_records(
+            records,
+            min(int(run.request.top_n), len(records)),
+            run.request,
+            comparisons=run.comparisons,
+        )
+        selected_records = _select_unique_records(
+            retained_records,
+            min(int(run.request.top_n), len(retained_records)),
+            run.state_request["final_dedup_rms"],
+            comparisons=run.comparisons,
+        )
         status = 'completed'
-    selected_paths = _write_selected_conformers(selected_records, run_directory / 'results')
-    _write_summary(records, run_directory / 'summary.csv')
-    state = _build_state(status=status, request=request, selected_paths=selected_paths, records=records, source_format=source_format, backend_requested=backend_requested)
-    state['comparison_policy'] = comparisons.summary()
-    state['stereochemistry'] = stereo
-    if layout is None:
-        _write_json_atomic(state_path, state)
-    else:
-        layout.publish(state)
-    conformer_logger.info('Conformer workflow completed: generated=%d selected=%d backend=%s', len(records), len(selected_records), 'yes' if backend_requested else 'no')
-    return ConformerResult(workflow='conformer', status=status, run_directory=str(run_directory), state_path=str(state_path), selected_paths=tuple(selected_paths), metadata={'comparison_policy': comparisons.summary(), 'stereochemistry': stereo, 'source_format': source_format, 'generated_conformers': len(records), 'selected_conformers': len(selected_records), 'summary_path': str(run_directory / 'summary.csv'), 'backend_requested': backend_requested, 'seed_values': seed_values, 'backend_top_n': refinement_limit, 'diversity_fraction': float(diversity_fraction), 'compactness_fraction': float(compactness_fraction), 'use_random_coords': bool(use_random_coords), 'torsion_kicks': bool(torsion_kicks), 'torsion_rounds': int(torsion_rounds), 'torsion_mode': torsion_mode, 'torsion_kicks_per_conformer': int(torsion_kicks_per_conformer), 'torsion_max_bonds': int(torsion_max_bonds), 'torsion_dedup_rms': float(torsion_dedup_rms)})
+    return ConformerSelection(
+        selected_records, status, refinement_limit, backend_requested
+    )
 
-def conformer_search(input_spec, *, input_format='auto', num_conformers=150, top_n=10, backend_top_n=None, num_seeds=5, diversity_fraction=0.2, compactness_fraction=0.2, rms_threshold=0.25, use_random_coords=True, torsion_kicks=True, torsion_rounds=2, torsion_mode='random', torsion_kicks_per_conformer=6, torsion_max_bonds=3, torsion_dedup_rms=0.5, dedup_atom_mode='heavy', force_field='auto', seed=1, num_threads=0, max_iterations=200, charge=None, multiplicity=1, scftype='rhf', qc_params=None, root_directory=None):
-    """Run a fresh conformer search; existing v1/v2 runs remain nonresumable."""
-    arguments = dict(locals())
+def _publish_conformer_results(run: ConformerRun, records: list[ConformerRecord], selection: ConformerSelection) -> ConformerResult:
+    selected_records = selection.records
+    status = selection.status
+    refinement_limit = selection.refinement_limit
+    backend_requested = selection.backend_requested
+    selected_paths = _write_selected_conformers(
+        selected_records, run.directory / "results"
+    )
+    _write_summary(records, run.directory / "summary.csv")
+    _publish_conformer_state(run, status, records, selected_paths, backend_requested)
+    conformer_logger.info('Conformer workflow completed: generated=%d selected=%d backend=%s', len(records), len(selected_records), 'yes' if backend_requested else 'no')
+    return ConformerResult(
+        workflow="conformer",
+        status=status,
+        run_directory=str(run.directory),
+        state_path=str(run.state_path),
+        selected_paths=tuple(selected_paths),
+        metadata={
+            "comparison_policy": run.comparisons.summary(),
+            "stereochemistry": run.stereo,
+            "source_format": run.source_format,
+            "generated_conformers": len(records),
+            "selected_conformers": len(selected_records),
+            "summary_path": str(run.directory / "summary.csv"),
+            "backend_requested": backend_requested,
+            "seed_values": run.state_request["seed_values"],
+            "backend_top_n": refinement_limit,
+            "diversity_fraction": float(run.request.diversity_fraction),
+            "compactness_fraction": float(run.request.compactness_fraction),
+            "use_random_coords": bool(run.request.use_random_coords),
+            "torsion_kicks": bool(run.request.torsion_kicks),
+            "torsion_rounds": int(run.request.torsion_rounds),
+            "torsion_mode": run.request.torsion_mode,
+            "torsion_kicks_per_conformer": int(run.request.torsion_kicks_per_conformer),
+            "torsion_max_bonds": int(run.request.torsion_max_bonds),
+            "torsion_dedup_rms": float(run.request.torsion_dedup_rms),
+        },
+    )
+
+
+def run_conformer_search(request: ConformerRequest, *, root_directory=None) -> ConformerResult:
+    """Execute a validated conformer request with the established fresh-run contracts.
+
+    Geometry generation, stereochemistry, backend refinement, result artifacts
+    and nonresumable-run guards are identical to :func:`conformer_search`.
+    """
     from pyar.persistence import detect_version, RunLock
-    options = {key: value for key, value in arguments.items() if key not in {'input_spec', 'root_directory'}}
-    _build_conformer_request(input_spec, **options)
+
     root = Path.cwd() if root_directory is None else Path(root_directory).resolve()
     directory = root / 'conformers'
     detect_version(directory, 'conformer')
     root.mkdir(parents=True, exist_ok=True)
     with RunLock(directory):
         detect_version(directory, 'conformer')
-        return _conformer_search(**arguments)
+        run = _open_conformer_run(request, root)
+        records = _filter_conformer_stereo(run, _generate_conformer_records(run))
+        return _publish_conformer_results(
+            run, records, _select_and_refine_conformers(run, records)
+        )
+
+
+def conformer_search(
+    input_spec,
+    *,
+    input_format="auto",
+    num_conformers=150,
+    top_n=10,
+    backend_top_n=None,
+    num_seeds=5,
+    diversity_fraction=0.2,
+    compactness_fraction=0.2,
+    rms_threshold=0.25,
+    use_random_coords=True,
+    torsion_kicks=True,
+    torsion_rounds=2,
+    torsion_mode="random",
+    torsion_kicks_per_conformer=6,
+    torsion_max_bonds=3,
+    torsion_dedup_rms=0.5,
+    dedup_atom_mode="heavy",
+    force_field="auto",
+    seed=1,
+    num_threads=0,
+    max_iterations=200,
+    charge=None,
+    multiplicity=1,
+    scftype="rhf",
+    qc_params=None,
+    root_directory=None,
+):
+    """Build a conformer request once and execute a fresh, nonresumable run."""
+    options = dict(locals())
+    options.pop("root_directory")
+    options.pop("input_spec")
+    try:
+        request = ConformerRequest.from_options(input_spec, **options)
+    except ConformerRequestError as exc:
+        raise ConformerWorkflowError(str(exc)) from exc
+    return run_conformer_search(request, root_directory=root_directory)

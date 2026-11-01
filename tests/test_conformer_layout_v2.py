@@ -1,5 +1,6 @@
 """Real seeded RDKit compatibility and explicit v2 result discovery."""
 from pathlib import Path
+import inspect
 from unittest.mock import patch
 
 import pytest
@@ -17,7 +18,10 @@ def runs(tmp_path):
     pytest.importorskip('rdkit')
     options = dict(num_conformers=8, top_n=2, num_seeds=2, seed=13,
                    torsion_kicks=True, torsion_rounds=1, num_threads=1)
-    old = conformer._conformer_search('CCCC', root_directory=tmp_path / 'old', **options)
+    defaults = {name: parameter.default for name, parameter in inspect.signature(conformer.conformer_search).parameters.items()
+                if parameter.default is not inspect.Parameter.empty and name != 'root_directory'}
+    request = conformer.ConformerRequest.from_options('CCCC', **dict(defaults, **options))
+    old = conformer.run_conformer_search(request, root_directory=tmp_path / 'old')
     new = conformer.conformer_search('CCCC', root_directory=tmp_path / 'new', **options)
     return old, new, options
 
