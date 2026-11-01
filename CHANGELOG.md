@@ -4,6 +4,9 @@
 
 ### Breaking interface and format cleanup
 
+- Require Python 3.11 or newer. Remove Python 3.10 support, its CI jobs and
+  the `tomli` backport; TOML parsing now uses the standard library.
+
 - Remove the bundled AIMNet2 `.jpt` model from the source checkout, matching
   wheel/sdist installations. Set `PYAR_AIMNET2_MODEL` to an externally supplied
   compatible TorchScript model before using the AIMNet2 backends. Source runs
@@ -32,6 +35,16 @@
   Archive operational material outside the public source/manual.
 
 ### Fixed
+
+- Prefer explicitly labeled XYZ energies over trailing gradient norms or other
+  metadata when parsing structures and building energy tables.
+- Stop conformer searches (including `--check`) when input stereochemistry
+  cannot be verified; exclude generated/refined structures with unknown
+  configuration instead of treating perception failure as agreement.
+- Use an unrestricted Psi4 reference compatible with both DFT and correlated
+  open-shell methods, instead of classifying every non-HF method as DFT.
+- Validate the external MLatom installation directly after removal of the
+  `pyar.mlatom` re-export.
 
 - Pass each molecule's charge, multiplicity and SCF state centrally to every
   optimization backend without mutating caller settings. Exercise a charged

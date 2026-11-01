@@ -108,10 +108,11 @@ _REAL = r"[-+]?(?:(?:\d+\.\d*|\.\d+)(?:[EeDd][-+]?\d+)?|\d+[EeDd][-+]?\d+)"
 # xTB's "energy: -5.07 gnorm: ..." line. A free-text title ending in an integer
 # ("water 3", "conformer 12") is a label, not an energy.
 _TITLE_ENERGY_PATTERNS = (
+    # Explicit energy fields take priority over gnorm or other trailing metadata.
+    re.compile(rf"(?:\b[Ee]nergy\b|(?<![\w(])E(?![\w(]))\s*[=:]?\s*({_NUMBER})(?![\w.])"),
     re.compile(rf"^\s*({_NUMBER})\s*$"),
     re.compile(rf":\s*({_NUMBER})\s*$"),
     re.compile(rf"\s({_REAL})\s*$"),
-    re.compile(rf"(?:\b[Ee]nergy\b|(?<![\w(])E(?![\w(]))\s*[=:]?\s*({_NUMBER})(?![\w.])"),
 )
 _PYAR_ENERGY_SUFFIX = re.compile(rf"(?:\s*:\s*(?:{_NUMBER}|None))+\s*$")
 

@@ -71,12 +71,24 @@ def test_psi4_uses_settings_and_valid_open_shell_reference(tmp_path, monkeypatch
     radical = Molecule(['O', 'H'], [[0, 0, 0], [0, 0, .97]], name='oh', multiplicity=2)
     psi4.Psi4(radical, dict(method='PBE0', basis='def2-TZVP'))
     text = (tmp_path / 'trial_oh.in').read_text()
-    assert 'set basis def2-TZVP\nset reference uks\n' in text
+    assert 'set basis def2-TZVP\nset reference uhf\n' in text
     assert 'optimize("PBE0")' in text
     assert 'ECP' not in text and 'UKS' not in text
     psi4.Psi4(_water(), {})
     text = (tmp_path / 'trial_w.in').read_text()
     assert 'set basis def2-SVP\n' in text and 'reference' not in text and 'optimize("B97-D")' in text
+
+
+@pytest.mark.parametrize('method', ['HF', 'PBE0', 'MP2', 'MP3', 'CCSD'])
+def test_psi4_open_shell_reference_supports_dft_and_correlated_methods(tmp_path, monkeypatch, method):
+    from pyar.backends import psi4
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(psi4, 'require_executable', lambda *args: 'psi4')
+    radical = Molecule(['O', 'H'], [[0, 0, 0], [0, 0, .97]], name='oh', multiplicity=2)
+    psi4.Psi4(radical, dict(method=method, basis='def2-SVP'))
+    text = (tmp_path / 'trial_oh.in').read_text()
+    assert 'set reference uhf\n' in text
+    assert f'optimize("{method}")' in text
 
 
 def test_mopac_spin_keywords():

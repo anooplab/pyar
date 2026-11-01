@@ -29,14 +29,15 @@ psi4_logger = logging.getLogger("pyar.psi4")
 
 DEFAULT_METHOD = "B97-D"
 DEFAULT_BASIS = "def2-SVP"
-_WAVEFUNCTION_METHODS = {"hf", "scf"}
 
 
 def psi4_reference(method, multiplicity, scftype):
     """Return the Psi4 ``reference`` for an open-shell job, or None for closed shell."""
     if (multiplicity or 1) == 1 and str(scftype or "rhf").lower() in {"rhf", "rks"}:
         return None
-    return "uhf" if str(method).lower() in _WAVEFUNCTION_METHODS else "uks"
+    # Psi4 constructs the HF/KS functional from the requested method. UHF is
+    # valid for its unrestricted SCF driver and correlated wavefunction methods.
+    return "uhf"
 
 
 class Psi4(SF):

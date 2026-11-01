@@ -12,7 +12,8 @@ from pyar.workflows import conformer
 
 def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch):
     records = [conformer.ConformerRecord(1, i, float(i), 'converged', 'mmff',
-        name=f'candidate_{i}', molecule=Molecule(['H'], [[0., 0., 0.]], name=f'candidate_{i}'))
+        name=f'candidate_{i}', stereo_signature='test-graph',
+        molecule=Molecule(['H'], [[0., 0., 0.]], name=f'candidate_{i}'))
         for i in range(2)]
     calls = []
     def run(molecule, settings):
@@ -22,6 +23,7 @@ def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch)
         molecule.energy = -1.
         return True
     monkeypatch.setattr(conformer, 'optimise', run)
+    monkeypatch.setattr(conformer, 'stereo_signature', lambda *args: 'test-graph')
     selected = conformer._refine_with_backend(records, tmp_path, {'software': 'xtb'})
     assert calls == ['candidate_0', 'candidate_1']
     assert selected == [records[1]]
@@ -30,6 +32,17 @@ def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch)
 
 
 class ConformerWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        # This class supplies synthetic RDKit records to test orchestration.
+        # Real perception and its failures are exercised in test_conformer_stereo.
+        for name, value in (
+            ('validate_input_stereo', {'available': True, 'unspecified': [], 'reference': 'test-graph'}),
+            ('stereo_signature', 'test-graph'),
+        ):
+            boundary = mock.patch.object(conformer, name, return_value=value)
+            boundary.start()
+            self.addCleanup(boundary.stop)
+
     def _molecule_factory(self):
         def build_molecule(rdkit_molecule, conformer_id, *, name, seed, charge, multiplicity, scftype, energy):
             return Molecule(

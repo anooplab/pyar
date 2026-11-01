@@ -29,7 +29,8 @@ Practical notes
 * ``--method`` and ``--basis`` select the Psi4 method and basis; they default to
   ``B97-D`` and ``def2-SVP``. Psi4 attaches def2 effective core potentials itself.
 * Open-shell molecules (multiplicity above 1, or ``--scftype uhf``) run with
-  ``set reference uks``, or ``uhf`` for Hartree–Fock.
+  ``set reference uhf``. Psi4 derives the HF/DFT functional from the requested
+  method; this reference also supports open-shell correlated methods such as CCSD.
 * The current capability registry does not mark ``psi4`` as a registered
   energy-gradient provider for the geomeTRIC AFIR route.
 * Use a small validation case before relying on Psi4 outputs in a larger PyAR

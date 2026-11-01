@@ -192,3 +192,20 @@ def test_align_is_a_proper_rotation_that_keeps_handedness():
     tensor = moments_of_inertia_tensor(molecule)
     np.testing.assert_allclose(tensor, np.diag(np.diag(tensor)), atol=1e-10)
     assert np.all(np.diff(np.diag(tensor)) >= -1e-12)
+
+
+@pytest.mark.parametrize('title', [
+    'energy: -5.07 gnorm: 0.0001',
+    'energy: -5.07 gnorm: 1',
+    'E=-5.07 iteration 3.0',
+    'energy=-5.07 gnorm=0.0001',
+])
+def test_explicit_energy_takes_precedence_over_trailing_metadata(tmp_path, title):
+    from pyar.io.xyz import energy_from_title
+    from pyar.selection.reports import read_energy_from_xyz_file
+
+    path = tmp_path / 'structure.xyz'
+    path.write_text(f'1\n{title}\nH 0 0 0\n')
+    assert energy_from_title(title) == pytest.approx(-5.07)
+    assert parse_xyz(path)[-1] == pytest.approx(-5.07)
+    assert read_energy_from_xyz_file(path) == pytest.approx(-5.07)

@@ -234,13 +234,24 @@ def _assign_stereo_signatures(records, rdkit_molecule, reference):
         template = record.rdkit_molecule if record.rdkit_molecule is not None else rdkit_molecule
         conformer_id = record.source_conf_id if record.rdkit_conf_id is None else record.rdkit_conf_id
         record.stereo_signature = stereo_signature(template, conformer_coordinates(template, conformer_id))
-        if reference is not None and record.stereo_signature is not None and record.stereo_signature != reference:
+        if record.stereo_signature is None or record.stereo_signature != reference:
             rejected += 1
             continue
         kept.append(record)
     if rejected:
-        conformer_logger.warning('Discarded %d generated conformer(s) whose perceived stereochemistry differs from the input %s.', rejected, reference)
+        conformer_logger.warning('Discarded %d generated conformer(s) with unverifiable or inconsistent stereochemistry for input %s.', rejected, reference)
     return kept, rejected
+
+def validate_input_stereo(rdkit_molecule):
+    """Require verified, fully specified input configuration before generation."""
+    stereo = describe_input_stereo(rdkit_molecule)
+    if not stereo['available']:
+        raise ConformerWorkflowError('Cannot validate input stereochemistry: RDKit perception failed.')
+    if stereo['unspecified']:
+        raise ConformerWorkflowError(_unspecified_stereo_message(stereo['unspecified']))
+    if stereo['reference'] is None:
+        raise ConformerWorkflowError('Cannot establish an input stereochemistry reference.')
+    return stereo
 
 def _parent_record_name(record):
     """Return the stable name assigned to an embedded RDKit conformer."""
@@ -617,9 +628,9 @@ def _refine_one_record(record, backend_directory, run_directory, qc_params):
         record.backend_path = str(backend_result)
     if is_usable(status) and molecule.coordinates is not None:
         refined_signature = stereo_signature(record.rdkit_molecule, molecule.coordinates)
-        if record.stereo_signature is not None and refined_signature is not None and refined_signature != record.stereo_signature:
-            conformer_logger.warning('Backend refinement changed the stereochemistry of %s (%s -> %s); excluding it.', record.name, record.stereo_signature, refined_signature)
-            record.backend_status = 'stereo_changed'
+        if refined_signature is None or refined_signature != record.stereo_signature:
+            conformer_logger.warning('Backend stereochemistry of %s is unverifiable or changed (%s -> %s); excluding it.', record.name, record.stereo_signature, refined_signature)
+            record.backend_status = 'stereo_unverified' if refined_signature is None else 'stereo_changed'
             return False
         record.molecule = molecule
         if molecule.energy is not None:
@@ -704,9 +715,7 @@ def _conformer_search(input_spec, *, input_format='auto', num_conformers=150, to
     layout = ConformerLayout(run_directory, request)
     state_path = Path(workflow_state_path(str(run_directory)))
     rdkit_molecule, source_format = _load_rdkit_molecule(input_spec, request['input_format'], Chem, run_directory)
-    stereo = describe_input_stereo(rdkit_molecule)
-    if stereo['unspecified']:
-        raise ConformerWorkflowError(_unspecified_stereo_message(stereo['unspecified']))
+    stereo = validate_input_stereo(rdkit_molecule)
     records = []
     for seed_value in seed_values:
         try:

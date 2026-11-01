@@ -27,7 +27,10 @@ Each record in ``summary.csv`` and the run state carries a ``stereo_signature``
 (canonical isomeric SMILES) perceived from its 3D coordinates. Generated
 structures whose configuration differs from the input are discarded, and a
 backend refinement that changes the configuration is excluded with status
-``stereo_changed``.
+``stereo_changed``. If input stereo perception fails, both ``--check`` and
+execution stop. Generated structures with unverified configuration are discarded;
+backend refinements with failed perception are excluded as ``stereo_unverified``.
+An unavailable signature does not establish agreement with the input.
 
 Inspect ``conformers/results`` and its manifest for selected structures, with
 state and generation/refinement records in the run directory. Compare the

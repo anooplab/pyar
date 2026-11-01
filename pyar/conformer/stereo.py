@@ -44,7 +44,7 @@ def describe_input_stereo(rdkit_molecule):
             if element.specified != Chem.StereoSpecified.Specified
         ]
         reference = None if unspecified else Chem.MolToSmiles(Chem.RemoveHs(rdkit_molecule))
-    except Exception as exc:  # fakes in tests, or molecules RDKit cannot canonicalize
+    except Exception as exc:
         stereo_logger.debug('Stereo perception unavailable: %s', exc)
         return {'available': False, 'unspecified': [], 'reference': None}
     return {'available': True, 'unspecified': unspecified, 'reference': reference}
