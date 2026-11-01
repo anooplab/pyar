@@ -47,6 +47,10 @@
 
 ### Internal
 
+- Separate microsolvation step execution, candidate outcomes and durable MS4
+  proposal/evaluation/commit stages. Preserve checkpoint order, RNG state,
+  objective selection and physical-evaluation budget ownership.
+
 - Carry resolved scan and orientation contexts through native execution, evidence
   commitment, continuation and publication, retaining `ScanLayout` ownership.
 
