@@ -41,6 +41,9 @@
 
 ### Internal
 
+- Separate growth seed preparation, bounded retries, restart pickup, selection
+  and refinement using owned growth/selection policies and explicit directories.
+
 - Separate conformer run setup, seeded generation, stereochemistry, selection,
   refinement and publication around an explicit run context. Retain the existing
   keyword API, scientific settings, output formats and fresh-run guards.

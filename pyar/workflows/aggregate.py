@@ -24,6 +24,8 @@ import os
 import string
 from pathlib import Path
 from pyar.growth.errors import GrowthStopped
+from pyar.growth.policy import GrowthPolicy, FinalSelectionRun
+from dataclasses import replace
 
 from pyar.aggregation import AggregateRequest
 from pyar.state.aggregate import AggregateStateError
@@ -155,6 +157,10 @@ def _aggregate_v2(root, request, hm_orientations):
     site = None if request.site is None else list(request.site)
     final_connectivity_policy = (resolve_connectivity_policy_for_aggregate(molecules)
                                  if request.connectivity_policy == 'auto' else request.connectivity_policy)
+    policy = replace(
+        GrowthPolicy.from_aggregate_request(request, number_of_orientations),
+        connectivity_policy=final_connectivity_policy,
+    )
     monomers_to_be_added = []
     initial_id = 'ag'
     for molecule, label, size in zip(molecules, string.ascii_lowercase, request.aggregate_sizes):
@@ -190,21 +196,7 @@ def _aggregate_v2(root, request, hm_orientations):
             source_key = '{}_{:03d}'.format(ag_id, request.first_pathway + index)
             native = layout.path(f'pathways/pathway_{index:03d}/steps/step_{step:03d}/attempts/attempt_000/execution/{source_key}')
             native.mkdir(parents=True, exist_ok=True)
-            selected = add_one(
-                ag_id,
-                seeds,
-                monomer,
-                number_of_orientations,
-                qc_params,
-                request.maximum_number_of_seeds,
-                site,
-                connectivity_policy=final_connectivity_policy,
-                selection_feature=request.selection_feature,
-                selection_algorithm=request.selection_algorithm,
-                selection_distance=request.selection_distance,
-                selection_system_type=request.selection_system_type,
-                directory=native,
-            )
+            selected = add_one(ag_id, seeds, monomer, policy, directory=native)
             state.commit_step(index, step, selected, native, source_key)
             seeds = selected
             if not seeds:
@@ -215,13 +207,14 @@ def _aggregate_v2(root, request, hm_orientations):
     else:
         execution = layout.path('selection/attempts/attempt_000/execution')
         execution.mkdir(parents=True, exist_ok=True)
-        selected = _finalize_selected_geometries(aggregate_root=str(execution),
-            maximum_number_of_seeds=request.maximum_number_of_seeds,
-            algorithm=request.selection_algorithm, feature=request.selection_feature,
-            distance_metric=request.selection_distance, system_type=request.selection_system_type,
-            connectivity_policy=final_connectivity_policy,
-            energy_ranked=bool(request.backend_parameters.get('software')),
-            source_records=state.native_sources())
+        selected = _finalize_selected_geometries(
+            FinalSelectionRun(
+                execution,
+                state.native_sources(),
+                bool(request.backend_parameters.get("software")),
+            ),
+            policy,
+        )
         state.finish(selected)
     result = AggregateResult(workflow='aggregate', status=state.data['status'],
         run_directory=str(directory), state_path=str(state.state_file),

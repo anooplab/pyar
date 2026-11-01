@@ -14,6 +14,8 @@ from pyar.backends.subprocess_utils import run_command, run_output
 from pyar.directory_execution import run_in_directory
 from pyar.recovery.observations import capture_processes
 
+from pyar.growth.policy import GrowthPolicy, SelectionOptions
+
 
 def forbid_chdir(*args, **kwargs):
     pytest.fail("production attempted to change process cwd")
@@ -163,17 +165,7 @@ def test_single_stage_growth_owns_snapshots_outside_caller(tmp_path, monkeypatch
         service.clustering, "choose_geometries", lambda *args, **kwargs: [molecule]
     )
     before = set(caller.iterdir())
-    selected = service.add_one(
-        "aggregate",
-        [molecule],
-        molecule,
-        1,
-        {"software": "aimnet_2", "_two_layer_optimization": False},
-        1,
-        None,
-        connectivity_policy="off",
-        directory=directory,
-    )
+    selected = service.add_one('aggregate', [molecule], molecule, GrowthPolicy(1, {'software': 'aimnet_2', '_two_layer_optimization': False}, 1, None, 'off', SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True), directory=directory)
     assert selected == [molecule]
     assert (directory / "selected/result_candidate.xyz").is_file()
     assert (directory / "selected/README.txt").is_file()

@@ -1,6 +1,5 @@
 """Stop signals cannot be mistaken for a pool or commit a partial addition."""
 import importlib
-from pathlib import Path
 
 import pytest
 
@@ -9,6 +8,8 @@ from pyar.growth.errors import GrowthStopped
 from pyar.growth.request import GrowRequest
 from pyar.growth import service
 from pyar.persistence import read_json
+
+from pyar.growth.policy import GrowthPolicy, SelectionOptions
 
 
 def inputs():
@@ -19,7 +20,7 @@ def test_addition_stop_marker_raises_without_starting_work(tmp_path):
     (tmp_path/'stop').touch()
     seed, monomer = inputs()
     with pytest.raises(GrowthStopped):
-        service.add_one('addition', [seed], monomer, 1, {}, 1, None, directory=tmp_path)
+        service.add_one('addition', [seed], monomer, GrowthPolicy(1, {}, 1, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True), directory=tmp_path)
     assert sorted(path.name for path in tmp_path.iterdir()) == ['stop']
 
 

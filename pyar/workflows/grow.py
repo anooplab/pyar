@@ -1,6 +1,7 @@
 """Fixed-seed, repeated-addend growth using the shared addition engine."""
 from pathlib import Path
 from pyar.growth.errors import GrowthStopped
+from pyar.growth.policy import GrowthPolicy
 from pyar.growth.request import GrowRequest
 from pyar.growth.service import add_one, check_stop_signal
 from pyar.workflow_results import GrowResult
@@ -60,15 +61,7 @@ def _grow_v2(request, state):
                     f"grow_{step:03d}",
                     seeds,
                     request.monomer,
-                    request.number_of_orientations,
-                    qc,
-                    request.maximum_number_of_seeds,
-                    site,
-                    connectivity_policy=request.connectivity_policy,
-                    selection_feature=request.selection_feature,
-                    selection_algorithm=request.selection_algorithm,
-                    selection_distance=request.selection_distance,
-                    selection_system_type=request.selection_system_type,
+                    GrowthPolicy.from_grow_request(request, qc, site),
                     directory=execution,
                 )
             except GrowthStopped:

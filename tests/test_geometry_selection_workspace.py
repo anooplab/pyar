@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pyar.core.molecule import Molecule
 from pyar.growth import service
+from pyar.growth.policy import GrowthPolicy
 
 
 def test_geometry_only_growth_diagnostics_belong_to_explicit_directory(tmp_path):
@@ -11,8 +12,7 @@ def test_geometry_only_growth_diagnostics_belong_to_explicit_directory(tmp_path)
     seed = Molecule(['He'], [[0,0,0]], name='seed')
     monomer = Molecule(['Ne'], [[0,0,0]], name='monomer')
     directory = tmp_path/'addition'
-    pool = service.add_one('addition', [seed], monomer, 1, {}, 1, None,
-                            connectivity_policy='off', directory=directory)
+    pool = service.add_one('addition', [seed], monomer, GrowthPolicy(1, {}, 1, connectivity_policy='off'), directory=directory)
     assert pool
     assert (directory/'selection_diagnostics.json').is_file()
     assert (directory/'selected').is_dir()

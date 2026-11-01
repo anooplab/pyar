@@ -70,3 +70,16 @@ Mocked in-process scientific tests explicitly use ``inline_directory_worker``
 with test-only workspace adapters. Separate tests execute real child processes,
 parallel isolated workspaces and native xTB; mock fixtures do not establish
 external-backend scientific validity.
+
+Growth settings and stage ownership
+-----------------------------------
+
+Aggregation and fixed-addend growth construct a ``GrowthPolicy`` once for an
+addition. ``SelectionOptions`` owns its comparison/selection controls. The
+policy copies and freezes the outer backend-settings mapping; attempts receive
+ordinary parameter dictionaries with the existing loose/normal thresholds.
+``GrowthRun`` and ``SeedRun`` identify filesystem owners independently of those
+settings. Preparation, the unchanged ten-round retry budget, resumed selection,
+refinement and final composition-group publication have explicit stage outputs.
+``GrowthStopped`` belongs to the workflow owner; it never becomes a candidate
+pool or authorizes publication of a partial step.
