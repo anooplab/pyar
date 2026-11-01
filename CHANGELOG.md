@@ -9,6 +9,14 @@
   compatible TorchScript model before using the AIMNet2 backends. Source runs
   no longer discover a packaged model automatically. Move the calculator and
   optimizer adapters to `pyar.backends` and remove the unused `afir_aimnet.py`.
+  The old import path `pyar.AIMNet2.calculators.aimnet2ase` is now
+  `pyar.backends.aimnet2ase`; no compatibility shim is provided.
+- Remove the unused `pyar.mlatom` re-export module (import `mlatom` directly)
+  and the unimportable `pyar/backends/orca-afir.py`.
+- Remove the `solvate` install extra; use `pyar-chem[microsolvate]`.
+- The `orca-aiqm1` backend no longer points at a hard-coded wrapper path. Set
+  `PYAR_ORCA_AIQM1_PROGEXT` (or the `orca_aiqm1_progext` backend setting) to
+  the ORCA external-program wrapper.
 - Install one executable, `pyar`, with canonical task modules and specialist
   tools under subcommands. Remove standalone launchers and parser/import shims.
 - Reject older run/config generations; reproduce older work with its original
@@ -24,6 +32,36 @@
   sodium–water aggregate through native GFN2-xTB.
 - Rewrite trial XYZ input on every backend attempt so a repeated job name
   cannot reuse coordinates from an earlier request.
+- Log a warning when backend settings name a charge or multiplicity that
+  differs from the molecule's; the molecule's state is used. `Molecule` now
+  derives its default SCF type from the multiplicity (`uhf` above singlet)
+  unless one is set explicitly.
+- Choose aggregation addition orders with a seeded generator, in a stable
+  order, retrying duplicate draws, so fresh runs are reproducible.
+- Gaussian: the geomeTRIC gradient provider now feeds input on stdin, parses
+  the log from stdout, requests `NoSymm` and requires normal termination. The
+  native adapter now requests `Opt` and reads its own log; it remains disabled
+  in workflows until qualified against real Gaussian output.
+- Turbomole: refuse unsupported methods instead of silently using BP86, keep
+  the basis and functional on the Cartesian define retry, request the correct
+  number of unpaired electrons, detect abnormal define/ridft/rdgrad endings,
+  write a consistent AFIR gradient norm and report the unbiased SCF energy.
+  `xtb_turbo` also reports the unbiased energy.
+- Psi4 honours `--method`/`--basis` and writes a valid open-shell reference.
+  MOPAC requests the molecule's multiplicity with `UHF`.
+- Remove a fixed 90 s sleep from the MLatom AIQM1 adapter.
+- `Molecule.align` uses a proper rotation onto ascending principal moments, so
+  it can no longer mirror chiral structures.
+- XYZ titles yield an energy only for recognised labels (a bare number, a
+  `name: energy` suffix, a trailing real number or an `energy`/`E` label); a
+  title such as `water 3` no longer reads as an energy. Rewritten titles no
+  longer accumulate energy suffixes.
+- Conformer search records each structure's stereochemistry, warns about
+  unspecified stereo elements, discards generated structures that contradict
+  a fully specified input and excludes refinements that change the
+  configuration.
+- The `engra` alias for `engrad` still works but is no longer listed in
+  `pyar --help`.
 
 
 ### Added
