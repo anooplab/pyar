@@ -15,6 +15,11 @@
   and the unimportable `pyar/backends/orca-afir.py`.
 - Remove the `solvate` install extra; use `pyar-chem[microsolvate]`.
 - Remove the `engra` alias; use `pyar engrad` (or `pyar gradient`).
+- Conformer search stops when the input leaves any stereocentre or stereogenic
+  double bond unspecified, naming the elements; give the configuration in the
+  SMILES and search each stereoisomer separately. Each structure records its
+  perceived stereochemistry; generated structures that contradict the input
+  are discarded and refinements that change the configuration are excluded.
 - The `orca-aiqm1` backend no longer points at a hard-coded wrapper path. Set
   `PYAR_ORCA_AIQM1_PROGEXT` (or the `orca_aiqm1_progext` backend setting) to
   the ORCA external-program wrapper.
@@ -57,10 +62,6 @@
   `name: energy` suffix, a trailing real number or an `energy`/`E` label); a
   title such as `water 3` no longer reads as an energy. Rewritten titles no
   longer accumulate energy suffixes.
-- Conformer search records each structure's stereochemistry, warns about
-  unspecified stereo elements, discards generated structures that contradict
-  a fully specified input and excludes refinements that change the
-  configuration.
 
 
 ### Added

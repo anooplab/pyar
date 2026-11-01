@@ -1,10 +1,11 @@
 """Stereochemistry bookkeeping for conformer search.
 
 Conformers of one molecule must share its configuration. ETKDG enforces the
-stereo elements a SMILES specifies, but leaves unspecified ones random, and a
-backend optimisation can in principle invert a centre. These helpers perceive
-stereo from 3D coordinates and express it as a canonical isomeric SMILES so
-records can be compared, filtered and reported.
+stereo elements a SMILES specifies but would leave unspecified ones random, so
+the workflow refuses such input; a backend optimisation can in principle still
+invert a centre. These helpers perceive stereo from 3D coordinates and express
+it as a canonical isomeric SMILES so records can be compared, filtered and
+reported.
 """
 
 import logging
@@ -27,7 +28,7 @@ def describe_input_stereo(rdkit_molecule):
     """Return the input's stereo elements and, if fully specified, its reference signature.
 
     The result is a JSON-safe mapping with ``available`` (False when RDKit or a
-    real molecule is unavailable), ``unspecified`` (list of ``{type, atom}``)
+    real molecule is unavailable), ``unspecified`` (list of ``{type, atom, label}``)
     and ``reference`` (canonical isomeric SMILES, or None when any stereo
     element is unspecified).
     """
@@ -37,7 +38,8 @@ def describe_input_stereo(rdkit_molecule):
     try:
         elements = list(Chem.FindPotentialStereo(Chem.Mol(rdkit_molecule)))
         unspecified = [
-            {'type': str(element.type), 'atom': int(element.centeredOn)}
+            {'type': str(element.type), 'atom': int(element.centeredOn),
+             'label': _element_label(rdkit_molecule, element, Chem)}
             for element in elements
             if element.specified != Chem.StereoSpecified.Specified
         ]
@@ -46,6 +48,16 @@ def describe_input_stereo(rdkit_molecule):
         stereo_logger.debug('Stereo perception unavailable: %s', exc)
         return {'available': False, 'unspecified': [], 'reference': None}
     return {'available': True, 'unspecified': unspecified, 'reference': reference}
+
+
+def _element_label(molecule, element, Chem):
+    """Name a stereo element by 1-based atom numbers, e.g. ``C2 centre`` or ``C2=C3 bond``."""
+    def atom(index):
+        return f"{molecule.GetAtomWithIdx(int(index)).GetSymbol()}{int(index) + 1}"
+    if element.type == Chem.StereoType.Bond_Double:
+        bond = molecule.GetBondWithIdx(int(element.centeredOn))
+        return f"{atom(bond.GetBeginAtomIdx())}={atom(bond.GetEndAtomIdx())} double bond"
+    return f"{atom(element.centeredOn)} centre"
 
 
 def stereo_signature(template, coordinates):

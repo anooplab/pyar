@@ -16,15 +16,18 @@ file. XYZ input needs the documented OpenBabel conversion route; it does not
 encode all bonding/stereochemical information as reliably as a molecular format.
 Check inferred protonation, formal charge and stereochemistry before generation.
 
-Stereochemistry is tracked from the 3D coordinates. Each record in
-``summary.csv`` and the run state carries a ``stereo_signature`` (canonical
-isomeric SMILES), and the state's ``stereochemistry`` entry lists any
-unspecified stereo elements in the input. When the input specifies every stereo
-element, generated structures with a different configuration are discarded,
-and a backend refinement that changes the configuration is excluded with
-status ``stereo_changed``. When stereo elements are unspecified, PyAR warns and
-keeps the stereoisomers that ETKDG produces, labelled by their signatures; give
-explicit stereochemistry (for example ``C[C@H](O)CC``) to search one isomer.
+Every stereo element must be specified. If the input leaves a stereocentre or
+stereogenic double bond undefined (``CC(O)CC`` rather than ``C[C@H](O)CC``), the
+run stops before generation and names the undefined elements, because each
+structure would otherwise receive a random configuration and different
+stereoisomers would be mixed into one conformer set. Run each stereoisomer as
+its own search.
+
+Each record in ``summary.csv`` and the run state carries a ``stereo_signature``
+(canonical isomeric SMILES) perceived from its 3D coordinates. Generated
+structures whose configuration differs from the input are discarded, and a
+backend refinement that changes the configuration is excluded with status
+``stereo_changed``.
 
 Inspect ``conformers/results`` and its manifest for selected structures, with
 state and generation/refinement records in the run directory. Compare the

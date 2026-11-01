@@ -217,6 +217,15 @@ def _embed_and_rank_conformers(rdkit_molecule, AllChem, *, seed, num_conformers,
         records.append(ConformerRecord(seed=int(seed), source_conf_id=int(conformer_id), rdkit_energy=energy, rdkit_status='not_converged' if int(not_converged) else 'converged', force_field=selected_force_field, rdkit_molecule=rdkit_molecule, rdkit_conf_id=int(conformer_id), generation_stage='etkdg', generation_round=0))
     return sorted(records, key=lambda record: (record.rdkit_energy, record.source_conf_id))
 
+def _unspecified_stereo_message(unspecified):
+    """Explain which stereo elements are unspecified and how to name them."""
+    labels = ', '.join(element['label'] for element in unspecified)
+    return (f'Input stereochemistry is not fully specified ({labels}). Each '
+            'unspecified element would be chosen at random per structure, mixing '
+            'different stereoisomers into one conformer set. Give the configuration '
+            'in the SMILES, e.g. C[C@H](O)CC or C[C@@H](O)CC for a centre and C/C=C/C '
+            'or C/C=C\\C for a double bond, and run each stereoisomer separately.')
+
 def _assign_stereo_signatures(records, rdkit_molecule, reference):
     """Label records with their perceived stereo; drop those contradicting a fully specified input."""
     kept = []
@@ -697,7 +706,7 @@ def _conformer_search(input_spec, *, input_format='auto', num_conformers=150, to
     rdkit_molecule, source_format = _load_rdkit_molecule(input_spec, request['input_format'], Chem, run_directory)
     stereo = describe_input_stereo(rdkit_molecule)
     if stereo['unspecified']:
-        conformer_logger.warning('Input has %d unspecified stereo element(s) %s; generated structures may be different stereoisomers. Each record reports its stereo_signature; specify the stereochemistry to search one isomer.', len(stereo['unspecified']), stereo['unspecified'])
+        raise ConformerWorkflowError(_unspecified_stereo_message(stereo['unspecified']))
     records = []
     for seed_value in seed_values:
         try:

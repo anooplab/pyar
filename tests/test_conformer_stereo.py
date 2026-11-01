@@ -14,11 +14,25 @@ def _embedded(smiles, count=6):
     return molecule, ids
 
 
-def test_unspecified_centre_is_reported_without_reference():
-    molecule, _ = _embedded("CC(O)CC", 1)
+def test_unspecified_elements_are_reported_without_reference():
+    molecule, _ = _embedded("CC(O)C=CC", 1)
     stereo = describe_input_stereo(molecule)
     assert stereo['available'] and stereo['reference'] is None
-    assert [element['atom'] for element in stereo['unspecified']] == [1]
+    assert [element['label'] for element in stereo['unspecified']] == ['C2 centre', 'C4=C5 double bond']
+
+
+def test_conformer_search_stops_on_unspecified_stereochemistry(tmp_path):
+    with pytest.raises(conformer.ConformerWorkflowError, match=r'not fully specified \(C2 centre\)'):
+        conformer.conformer_search("CC(O)CC", num_conformers=4, top_n=2, num_seeds=1,
+                                   torsion_kicks=False, root_directory=str(tmp_path))
+    assert not list(tmp_path.rglob('*.xyz'))
+
+
+def test_conformer_search_accepts_specified_stereochemistry(tmp_path):
+    result = conformer.conformer_search("C[C@H](O)C[C@@H](C)Cl", num_conformers=6, top_n=2, num_seeds=1,
+                                        torsion_kicks=False, root_directory=str(tmp_path))
+    assert result.status == 'completed'
+    assert result.metadata['stereochemistry']['reference'] == 'C[C@H](O)C[C@@H](C)Cl'
 
 
 def test_specified_input_keeps_its_reference_through_embedding():
