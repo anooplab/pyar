@@ -349,8 +349,21 @@ def build_geometry(molecule, qc_params):
     raise ValueError(f"Unsupported software backend: {software}")
 
 
+def _warn_on_ignored_electronic_state(molecule, qc_params):
+    """Warn when caller settings name a state that differs from the molecule."""
+    for key in ('charge', 'multiplicity'):
+        supplied = qc_params.get(key)
+        if supplied is not None and supplied != getattr(molecule, key):
+            optimiser_logger.warning(
+                "Ignoring %s=%r in backend settings for %s; the molecule's %s=%r is used. "
+                "Set the electronic state on the Molecule instead.",
+                key, supplied, molecule.name, key, getattr(molecule, key),
+            )
+
+
 def optimise(molecule, qc_params):
     """Run one optimization using the molecule's electronic state."""
+    _warn_on_ignored_electronic_state(molecule, qc_params)
     qc_params = {
         **qc_params,
         'charge': molecule.charge,

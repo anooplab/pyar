@@ -58,3 +58,28 @@ def test_charged_aggregate_native_xtb(tmp_path, monkeypatch):
         assert sorted(symbols) == ['H', 'H', 'Na', 'O']
         assert np.isfinite(coordinates).all()
         assert energy is not None and np.isfinite(energy)
+
+
+def test_optimise_warns_when_settings_name_a_different_state(tmp_path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+    molecule = Molecule(['H', 'H'], [[0, 0, 0], [0, 0, .8]], name='cation', charge=1, multiplicity=2)
+    monkeypatch.setattr(optimiser, '_backend_cache_provenance', lambda params: None)
+    monkeypatch.setattr(optimiser, 'build_geometry',
+                        lambda molecule, parameters: SimpleNamespace(optimize=lambda: False))
+    from pyar.backend_errors import BackendExecutionError
+    with caplog.at_level('WARNING', logger='pyar.optimiser'), pytest.raises(BackendExecutionError):
+        optimiser.optimise(molecule, dict(software='xtb', charge=0, multiplicity=None))
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("Ignoring charge=0" in message for message in messages)
+    assert not any("multiplicity" in message for message in messages)
+
+
+def test_scftype_defaults_follow_multiplicity_unless_explicit():
+    radical = Molecule(['H'], [[0, 0, 0]], multiplicity=2)
+    assert radical.scftype == 'uhf'
+    radical.multiplicity = 1
+    assert radical.scftype == 'rhf'
+    explicit = Molecule(['H'], [[0, 0, 0]], multiplicity=2, scftype='rhf')
+    assert explicit.scftype == 'rhf'
+    assert explicit.copy().scftype == 'rhf'
+    assert Molecule(['H'], [[0, 0, 0]], multiplicity=3).copy().scftype == 'uhf'
