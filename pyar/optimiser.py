@@ -350,7 +350,14 @@ def build_geometry(molecule, qc_params):
 
 
 def optimise(molecule, qc_params):
-    """Run one optimization job and return the backend status object."""
+    """Run one optimization using the molecule's electronic state."""
+    qc_params = {
+        **qc_params,
+        'charge': molecule.charge,
+        'multiplicity': molecule.multiplicity,
+        'scftype': molecule.scftype,
+        'xtb_unpaired_electrons': molecule.multiplicity - 1,
+    }
     original_coordinates = (
         None if molecule.coordinates is None else np.asarray(molecule.coordinates, dtype=float).copy()
     )
