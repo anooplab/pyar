@@ -12,6 +12,7 @@
   "test_modern_utilities",
   "test_molecule",
   "test_neb",
+  "test_optimizer_input_state",
   "test_packaging_metadata",
   "test_persistence",
   "test_safe_recovery",
