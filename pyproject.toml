@@ -94,7 +94,6 @@ source = ["pyar"]
 omit = [
   "pyar/backends/aimnet2ase.py",
   "pyar/backends/aimnet2_ase_opt.py",
-  "pyar/mlatom/*",
 ]
 
 [tool.coverage.report]

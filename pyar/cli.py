@@ -71,7 +71,8 @@ _CHECK_COMMANDS = {
 _META_COMMANDS = {"run", "config", "profile", "info", "backends", "doctor", "install", "inspect", "benchmark"}
 _COMMAND_GROUPS = {
     "Structure exploration": ("conformer", "aggregate", "grow", "microsolvate", "optimize"),
-    "Fixed-geometry calculations": ("energy", "engrad", "gradient", "engra", "frequency"),
+    # `engra` remains an accepted alias for engrad but is not advertised.
+    "Fixed-geometry calculations": ("energy", "engrad", "gradient", "frequency"),
     "Reaction exploration": ("react", "scan-bond", "neb", "ts", "irc"),
     "Analysis and geometry": ("clustering", "energies", "compare", "identify", "orient", "deduplicate", "select", "split", "trace"),
     "Specialist tools": ("explore", "trial", "basin-memory", "similarity", "descriptor", "mlopt", "aimnet2-ase-opt", "benchmark"),
