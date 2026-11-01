@@ -80,15 +80,11 @@ def main(argv=None, *, prog=None):
     recoveries = []
     diagnostics = []
     for molecule in molecules:
-        molecule_settings = settings
-        if settings.get('_electronic_state_from_molecule'):
-            molecule_settings = {
-                **settings,
-                'charge': molecule.charge,
-                'multiplicity': molecule.multiplicity,
-                'scftype': molecule.scftype,
-                'xtb_unpaired_electrons': molecule.multiplicity - 1,
-            }
+        # Recovery constructs its own native request before calling an optimizer.
+        molecule_settings = {
+            **settings, 'charge': molecule.charge, 'multiplicity': molecule.multiplicity,
+            'scftype': molecule.scftype, 'xtb_unpaired_electrons': molecule.multiplicity - 1,
+        }
         try:
             if args.recovery in {'safe', 'guided'}:
                 from pyar.recovery.controller import run_recovery

@@ -46,7 +46,7 @@ def validate_settings(settings):
     # Unknown controls may carry hidden physical or restart semantics.
     allowed = {'software', 'geometry_optimizer', 'xtb_model', 'opt_target', 'charge', 'multiplicity',
         'scftype', 'xtb_unpaired_electrons', 'fragments', 'nprocs', 'opt_threshold', 'opt_cycles',
-        'scf_cycles', 'scf_threshold', 'method', 'basis', '_electronic_state_from_molecule',
+        'scf_cycles', 'scf_threshold', 'method', 'basis', 
         '_ore_safe', '_ore_evaluation_limit', '_ore_initial_trust', '_ore_recovery_action',
         'workflow_role', *forbidden}
     if set(settings) - allowed:

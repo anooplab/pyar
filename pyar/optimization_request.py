@@ -71,7 +71,6 @@ def resolve_settings(args):
         'opt_threshold': 'normal', 'opt_cycles': 100, 'scf_cycles': 1000,
         'scf_threshold': 'normal', 'method': None, 'basis': None,
         'custom_keywords': None, 'custom_keyword': None,
-        '_electronic_state_from_molecule': True,
     }
     if backend in {'orca', 'gaussian', 'turbomole', 'xtb_turbo'}:
         settings.update(method='BP86', basis='def2-SVP')

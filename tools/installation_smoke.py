@@ -21,7 +21,7 @@ def run(*arguments, expected=0, env=None, cwd=None):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=['core', 'aggregate', 'reaction', 'aimnet2', 'neb', 'ml', 'analysis', 'microsolvate', 'grow', 'solvate', 'conformer'])
+    parser.add_argument('mode', choices=['core', 'aggregate', 'reaction', 'aimnet2', 'neb', 'ml', 'analysis', 'microsolvate', 'grow', 'conformer'])
     mode = parser.parse_args().mode
     import pyar
     from pyar.dependencies import require_workflow
@@ -73,7 +73,7 @@ def main():
     workflow = 'conformer' if mode == 'aimnet2' else mode
     require_workflow(workflow)
     modules = {
-        'microsolvate': 'microsolvation', 'solvate': 'microsolvation',
+        'microsolvate': 'microsolvation': 'microsolvation',
         'grow': 'grow', 'reaction': 'reaction', 'aimnet2': 'conformer',
         'aggregate': 'aggregate', 'neb': 'scan_path', 'conformer': 'conformer',
     }
