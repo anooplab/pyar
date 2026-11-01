@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-import pickle
 import re
 import tempfile
 from pathlib import Path
 
 import numpy as np
 
-from pyar import __version__
 from pyar.core.molecule import Molecule
 
 STATE_VERSION = 2
@@ -35,16 +33,6 @@ def _json_value(value):
     return str(value)
 
 
-def _request_with_implicit_xtb_model(request):
-    """Use the historical g-xTB default when comparing restart requests."""
-    if not isinstance(request, dict):
-        return request
-    backend = request.get("backend_parameters")
-    if not isinstance(backend, dict) or backend.get("software") != "xtb" or "xtb_model" in backend:
-        return request
-    normalized = dict(request)
-    normalized["backend_parameters"] = {**backend, "xtb_model": "gxtb"}
-    return normalized
 
 
 def _safe_name(value):
@@ -52,7 +40,7 @@ def _safe_name(value):
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", str(value)).strip("_") or "molecule"
 
 
-class ReactionRunState:
+class ReactionStateBase:
     """Persist reaction workflow progress independently of optimizer objects."""
 
     def __init__(self, root_directory, data):
@@ -63,174 +51,14 @@ class ReactionRunState:
         self.state_file = self.reaction_directory / STATE_FILENAME
         self.data = data
 
-    @classmethod
-    def create(cls, root_directory, request, orientations, reactants, sampling=None):
-        """Create and persist state for a fresh reaction calculation."""
-        data = {
-            "version": STATE_VERSION,
-            "workflow": "reaction",
-            "package_version": __version__,
-            "status": "running",
-            "request": _json_value(request),
-            "gamma_schedule": [float(value) for value in request["gamma_schedule"]],
-            "current_cycle": 0,
-            "completed_cycles": [],
-            "completed_jobs": [],
-            "products": [],
-            "pending_orientations": [],
-            "current_survivors": [],
-            "input_reactants": [],
-            "next_snapshot": 0,
-        }
-        if sampling is not None:
-            data["sampling"] = _json_value(sampling)
-        state = cls(root_directory, data)
-        state.geometry_directory.mkdir(parents=True, exist_ok=True)
-        state.data["input_reactants"] = [
-            state._snapshot_molecule(molecule, "input")
-            for molecule in reactants
-        ]
-        state._replace_pending_orientations(orientations)
-        state.save()
-        return state
 
-    @classmethod
-    def load(cls, root_directory, expected_request):
-        """Load a current-format reaction state file and validate its request."""
-        state_file = Path(root_directory).resolve() / "reaction" / STATE_FILENAME
-        if (state_file.parent / 'layout.json').exists():
-            from pyar.state.reaction_v2 import ReactionRunStateV2
-            return ReactionRunStateV2.load(root_directory, expected_request)
-        if not state_file.is_file():
-            return None
-        try:
-            with state_file.open() as fp:
-                data = json.load(fp)
-        except (OSError, ValueError) as exc:
-            raise ReactionStateError(f"Could not read reaction state file {state_file}: {exc}") from exc
-        if data.get("version") != STATE_VERSION:
-            raise ReactionStateError(
-                f"Unsupported reaction state version {data.get('version')!r} in {state_file}"
-            )
-        state = cls(root_directory, data)
-        state.validate_request(expected_request)
-        if data.get("status") != "running":
-            raise ReactionStateError(
-                f"Reaction state in {state_file} is already {data.get('status')!r}; "
-                "start a new calculation in a new directory."
-            )
-        return state
 
-    @classmethod
-    def read_completed(cls, root_directory, expected_request):
-        """Read completed reaction evidence for downstream analysis, read-only.
 
-        Normal restart loading deliberately rejects terminal runs. Path
-        characterization consumes a completed discovery as immutable input,
-        so it has a separate entry point that cannot turn that state back into
-        a writable reaction restart.
-        """
-        state_file = Path(root_directory).resolve() / "reaction" / STATE_FILENAME
-        if (state_file.parent / 'layout.json').exists():
-            from pyar.state.reaction_v2 import ReactionRunStateV2
-            return ReactionRunStateV2.read_completed(root_directory, expected_request)
-        if not state_file.is_file():
-            return None
-        try:
-            with state_file.open(encoding="utf-8") as fp:
-                data = json.load(fp)
-        except (OSError, ValueError) as exc:
-            raise ReactionStateError(f"Could not read reaction state file {state_file}: {exc}") from exc
-        if data.get("version") != STATE_VERSION:
-            raise ReactionStateError(
-                f"Unsupported reaction state version {data.get('version')!r} in {state_file}"
-            )
-        state = cls(root_directory, data)
-        state.validate_request(expected_request)
-        if data.get("status") not in {"completed", "completed_products_found", "completed_no_products",
-                                      "completed_no_candidates"}:
-            raise ReactionStateError(
-                f"Reaction state in {state_file} is {data.get('status')!r}, not a completed discovery."
-            )
-        return state
-
-    @classmethod
-    def migrate_legacy(cls, root_directory, checkpoint, request, sampling=None):
-        """Convert an unambiguous legacy ``jobs.pkl`` checkpoint to JSON state."""
-        if request.get("backend_parameters", {}).get("reaction_energy_convention"):
-            raise ReactionStateError(
-                "Legacy reaction checkpoints do not identify physical energies; "
-                "start a new calculation in a new directory."
-            )
-        requested_schedule = [float(value) for value in request["gamma_schedule"]]
-        legacy_label_map = {}
-        for gamma in requested_schedule:
-            legacy_label = f"{int(gamma):04d}"
-            if legacy_label in legacy_label_map:
-                raise ReactionStateError(
-                    "Legacy jobs.pkl cannot be safely resumed: multiple requested "
-                    "gamma values share one old checkpoint label."
-                )
-            legacy_label_map[legacy_label] = gamma
-
-        remaining_schedule = []
-        for key in checkpoint:
-            label = str(key)
-            if label in legacy_label_map:
-                remaining_schedule.append(legacy_label_map[label])
-                continue
-            try:
-                numeric_key = float(key)
-            except (TypeError, ValueError) as exc:
-                raise ReactionStateError(
-                    f"Legacy jobs.pkl contains an unreadable gamma key: {key!r}"
-                ) from exc
-            if numeric_key not in requested_schedule:
-                raise ReactionStateError(
-                    "Legacy jobs.pkl does not match the requested gamma schedule."
-                )
-            remaining_schedule.append(numeric_key)
-
-        if not remaining_schedule:
-            raise ReactionStateError("Legacy jobs.pkl does not contain pending reaction cycles.")
-        start_index = requested_schedule.index(remaining_schedule[0])
-        if remaining_schedule != requested_schedule[start_index:]:
-            raise ReactionStateError(
-                "Legacy jobs.pkl does not describe a valid remaining gamma schedule."
-            )
-
-        data = {
-            "version": STATE_VERSION,
-            "workflow": "reaction",
-            "package_version": __version__,
-            "status": "running",
-            "request": _json_value(request),
-            "gamma_schedule": requested_schedule,
-            "current_cycle": start_index,
-            "completed_cycles": [
-                {"gamma": gamma, "status": "imported_completed"}
-                for gamma in requested_schedule[:start_index]
-            ],
-            "completed_jobs": [],
-            "products": [],
-            "pending_orientations": [],
-            "current_survivors": [],
-            "input_reactants": [],
-            "next_snapshot": 0,
-            "legacy_import": "jobs.pkl",
-        }
-        if sampling is not None:
-            data["sampling"] = _json_value(sampling)
-        state = cls(root_directory, data)
-        state.geometry_directory.mkdir(parents=True, exist_ok=True)
-        state._replace_pending_orientations(checkpoint[next(iter(checkpoint))])
-        state.save()
-        return state
 
     def validate_request(self, expected_request):
         """Fail clearly when a resume invocation changes scientific settings."""
-        saved = _request_with_implicit_xtb_model(self.data.get("request"))
-        expected = _request_with_implicit_xtb_model(_json_value(expected_request))
+        saved = self.data.get("request")
+        expected = _json_value(expected_request)
         if saved != expected:
             raise ReactionStateError(
                 "Existing reaction state does not match this invocation; "
@@ -268,19 +96,6 @@ class ReactionRunState:
         self._replace_current_survivors(current_survivors)
         self.save()
 
-    def record_product(self, job_name, gamma, inchi, smiles, path, trace_summary=None):
-        """Record and immediately persist one newly discovered product."""
-        product = {
-            "job_name": job_name,
-            "gamma": float(gamma),
-            "inchi": inchi,
-            "smiles": smiles,
-            "path": str(Path(path).resolve().relative_to(self.reaction_directory)),
-        }
-        if trace_summary:
-            product["trace_summary"] = _json_value(trace_summary)
-        self.data["products"].append(product)
-        self.save()
 
     def complete_cycle(self, gamma, next_orientations):
         """Mark a gamma cycle complete and snapshot candidates for the next cycle."""
@@ -290,11 +105,6 @@ class ReactionRunState:
         self.data["current_survivors"] = []
         self.save()
 
-    def finish(self, status="completed"):
-        """Persist terminal workflow state while retaining the run record."""
-        self.data["status"] = status
-        self.data["pending_orientations"] = []
-        self.save()
 
     def fail(self, error):
         """Persist a failed run without discarding pending orientation evidence."""
@@ -374,22 +184,3 @@ class ReactionRunState:
             scftype=reference.get("scftype", "rhf"),
             energy=reference.get("energy"),
         )
-
-
-def read_legacy_checkpoint(root_directory):
-    """Read a legacy ``jobs.pkl`` only for one-time migration to JSON state."""
-    checkpoint_file = Path(root_directory).resolve() / "jobs.pkl"
-    if not checkpoint_file.is_file():
-        return None
-    try:
-        with checkpoint_file.open("rb") as fp:
-            checkpoint = pickle.load(fp)
-    except Exception as exc:
-        raise ReactionStateError(
-            f"Could not read legacy reaction checkpoint {checkpoint_file}: {exc}"
-        ) from exc
-    if not isinstance(checkpoint, dict) or not checkpoint:
-        raise ReactionStateError(
-            f"Legacy reaction checkpoint {checkpoint_file} has no pending state."
-        )
-    return checkpoint

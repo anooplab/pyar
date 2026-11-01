@@ -11,7 +11,8 @@ from pyar import optimiser
 from pyar.backends import write_xyz
 from pyar.core.molecule import Molecule
 from pyar.selection.deduplication import remove_similar
-from pyar.state.reaction import ReactionRunState, ReactionStateError
+from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
+from pyar.state.reaction import ReactionStateError
 from pyar.workflows.reaction import build_reaction_request
 
 
@@ -88,5 +89,3 @@ def test_reaction_restart_preserves_physical_energy_and_rejects_old_convention(t
     state.save()
     with pytest.raises(ReactionStateError, match='does not match'):
         ReactionRunState.load(tmp_path, request)
-    with pytest.raises(ReactionStateError, match='do not identify physical energies'):
-        ReactionRunState.migrate_legacy(tmp_path, {'0100': [candidate]}, request)

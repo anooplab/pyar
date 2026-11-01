@@ -1,3 +1,5 @@
+from pyar.aggregation.layout_v2 import AggregateRunStateV2
+from pyar.persistence import detect_version
 """composition search; no input is a permanently privileged seed."""
 from pyar.persistence import LockError
 import argparse
@@ -11,9 +13,9 @@ from pyar.cli_inputs import (add_backend_arguments, add_fragment_arguments,
                                  add_selection_arguments, load_fragments, optional_backend,
                                  resolve_states, print_check)
 from pyar.optimization_request import preflight
-from pyar.state.aggregate import AggregateRunState, AggregateStateError
+from pyar.state.aggregate import AggregateStateError
 from pyar.workflows.aggregate import aggregate
-from pyar.growth.service import expand_formula_to_aggregate_inputs, read_old_path
+from pyar.growth.service import expand_formula_to_aggregate_inputs
 
 
 def build_parser(prog=None):
@@ -61,12 +63,8 @@ def resolve_request(args):
 
 
 def validate_restart(request):
-    state = AggregateRunState.load(Path.cwd(), request.to_state_dict())
-    directory = Path('aggregates')
-    if directory.exists() and not directory.is_dir():
-        raise ValueError('aggregates must be a directory')
-    if state is None and directory.is_dir() and any(directory.iterdir()) and not read_old_path():
-        raise AggregateStateError('Existing aggregates directory has no resumable state; start in a new directory.')
+    if detect_version(Path('aggregates'), 'aggregate') == 2:
+        AggregateRunStateV2.load(Path.cwd(), request.to_state_dict())
 
 
 def main(argv=None, *, prog=None):

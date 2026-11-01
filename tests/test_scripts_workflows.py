@@ -10,7 +10,7 @@ from unittest import mock
 import numpy as np
 
 from pyar.core.molecule import Molecule
-from pyar.reaction_state import ReactionStateError
+from pyar.state.reaction import ReactionStateError
 from pyar.workflow_results import ReactionResult
 
 
@@ -377,7 +377,8 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with self.assertRaisesRegex(ReactionStateError, "has no resumable state"):
+                from pyar.persistence import LayoutError
+                with self.assertRaisesRegex(LayoutError, "unrecognized"):
                     reactor.initialize_reaction_run(
                         reactant_a,
                         reactant_b,

@@ -34,9 +34,6 @@ class AggregateResult(WorkflowResult):
     """Structured result for aggregation runs."""
 
 
-@dataclass(frozen=True)
-class SolvationResult(WorkflowResult):
-    """Structured result for solvation runs."""
 
 
 @dataclass(frozen=True)

@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 import pytest
 from types import SimpleNamespace
@@ -14,6 +15,17 @@ def _xyz(path, atoms, coords):
     path.write_text(f"{len(atoms)}\nfixture\n" + "".join(
         f"{atom} {x} {y} {z}\n" for atom, (x, y, z) in zip(atoms, coords)))
     return path
+
+
+def _publish_completed_discovery(root, request_data, product):
+    from pyar.core.molecule import Molecule
+    from pyar.state.reaction_v2 import ReactionRunStateV2
+    molecule = Molecule.from_xyz(str(root / 'reaction' / product['path']))
+    state = ReactionRunStateV2.create(root, request_data, [], [molecule])
+    state.record_product(product['job_name'], product['gamma'], product['inchi'], product['smiles'],
+                         root / 'reaction' / product['path'], trace_summary=product['trace_summary'])
+    state.finish('completed_products_found')
+    return state
 
 
 def test_run_path_stages_reuses_cumulative_engine_and_unbiased_qc(tmp_path):
@@ -102,10 +114,7 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
                "path": "products/accepted.xyz", "inchi": "InChI=1/H2", "smiles": "[HH]",
                "trace_summary": {"candidate_ts_directory": str(candidates)}}
     request_data = {"backend_parameters": {"software": "xtb"}, "gamma_schedule": [100.0]}
-    (reaction / "state.json").write_text(json.dumps({
-        "version": 2, "workflow": "reaction", "status": "completed_products_found",
-        "request": request_data, "products": [product], "completed_jobs": [],
-    }))
+    _publish_completed_discovery(tmp_path, request_data, product)
     request = SimpleNamespace(restart_request=request_data,
                                qc_params={"software": "xtb", "xtb_model": "gfn2", "charge": 0,
                                           "multiplicity": 1, "scftype": "rhf", "nprocs": 1})
@@ -115,7 +124,7 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
             patch("pyar.workflows.reaction_characterization._persistent_transition_index", return_value=2), \
             patch("pyar.workflows.reaction_characterization.run_path_stages", return_value=mock_path) as run:
         result = characterize_reaction(tmp_path, request, "neb", options)
-        route_file = reaction / "pathways" / "product_001" / "route_001" / "pathway.json"
+        route_file = Path(result["selected_routes"][0]["directory"]) / "pathway.json"
         route = json.loads(route_file.read_text())
         assert route["reactant_geometry_source"] == "latest_valid_pre_transition_trace_frame"
         assert route["reactant_trace_step"] == 20
@@ -131,30 +140,9 @@ def test_characterization_uses_latest_reactant_trace_and_records_route(tmp_path)
         import numpy as np
         assert np.allclose(_xyz_data(run.call_args.kwargs["start"])[1],
                            _xyz_data(steps / "step_000020.xyz")[1])
-        # A failed run created by the earlier bridge version stored the
-        # waypoint at route_dir/ts_guess.xyz. Accept that read-only state and
-        # migrate the immutable input before resuming NEB.
-        old_waypoint = route_file.parent / "ts_guess.xyz"
-        new_waypoint = route_file.parent / "inputs" / "ts_guess.xyz"
-        old_waypoint.write_bytes(new_waypoint.read_bytes())
-        new_waypoint.unlink()
-        route.pop("pathway_input_files")
-        route_file.write_text(json.dumps(route, indent=2, sort_keys=True) + "\n")
-        # Identical reruns retain the same route files and invoke the engine in
-        # the same output directory, where NEB's own stage hashes govern reuse.
-        before = {path.relative_to(reaction): path.read_bytes() for path in (reaction / "pathways").rglob("*")
-                  if path.is_file()}
-        validate_characterization_restart(tmp_path, request, "neb",
-                                          dict(options, through="neb"))
-        after = {path.relative_to(reaction): path.read_bytes() for path in (reaction / "pathways").rglob("*")
-                 if path.is_file()}
-        assert before == after
-        characterize_reaction(tmp_path, request, "neb", options)
-        assert run.call_count == 2
-        resumed_route = json.loads(route_file.read_text())
-        assert resumed_route["pathway_input_files"]["ts_guess"] == "inputs/ts_guess.xyz"
-        assert run.call_args.kwargs["ts_guess"] == new_waypoint
-        assert run.call_args.kwargs["output"] == run.call_args_list[0].kwargs["output"]
+        before = {path.relative_to(reaction): path.read_bytes() for path in (reaction / 'characterization').rglob('*') if path.is_file()}
+        validate_characterization_restart(tmp_path, request, 'neb', dict(options, through='neb'))
+        assert before == {path.relative_to(reaction): path.read_bytes() for path in (reaction / 'characterization').rglob('*') if path.is_file()}
 
 
 @pytest.mark.parametrize("validation", ["matched", "exception", "missing-coordinates"])
@@ -182,10 +170,7 @@ def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_pa
                'inchi': 'product', 'smiles': 'product',
                'trace_summary': {'candidate_ts_directory': str(candidates)}}
     request_data = {'backend_parameters': {'software': 'xtb'}, 'gamma_schedule': [100.]}
-    (reaction / 'state.json').write_text(json.dumps({
-        'version': 2, 'workflow': 'reaction', 'status': 'completed_products_found',
-        'request': request_data, 'products': [product], 'completed_jobs': [],
-    }))
+    _publish_completed_discovery(tmp_path, request_data, product)
     fragments = [Molecule(['H', 'H'], [[0., 0., 0.], [1., 0., 0.]]),
                  Molecule(['He'], [[0., 0., 0.]])]
     for molecule in fragments:
@@ -222,7 +207,7 @@ def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_pa
         selected = result['selected_routes'][0]
         assert selected['association_status'] == 'association_endpoint_gate_failed'
         assert not selected['reactant_product_connection_confirmed']
-        report = json.loads((reaction / 'pathways/product_001/reaction_characterization.json').read_text())
+        report = json.loads((reaction / 'characterization/products/product_001/reaction_characterization.json').read_text())
         assert not report['connection_confirmed']
         assert not report['electronic_energetics']['validated']
         assert report['validated_reaction_path'] is None
@@ -236,7 +221,7 @@ def test_separated_reactant_mode_applies_fragment_reference_gate_to_route(tmp_pa
     selected = result['selected_routes'][0]
     assert selected['association_status'] == 'reaction_connected'
     assert selected['reactant_product_connection_confirmed']
-    report_path = reaction / 'pathways' / 'product_001' / 'reaction_characterization.json'
+    report_path = reaction / 'characterization' / 'products' / 'product_001' / 'reaction_characterization.json'
     report = json.loads(report_path.read_text())
     assert report['connection_confirmed']
     assert report['electronic_energetics']['validated'] is False  # mock omits physical-stage energies

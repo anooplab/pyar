@@ -986,22 +986,13 @@ def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
     if input_b is None and through not in (None, 'scan'):
         characterize_unique_products = True
     root = Path(output_dir).resolve()
-    def legacy(path):
-        validate_scan_restart(path, {})
-        if 'request_schema_version' in json.loads((path / 'request.json').read_text()):
-            raise ValueError('Incomplete v2 scan publication; recover explicitly')
-        return True
     arguments = (input_a, input_b, atoms, orientations, qc_params, output_dir,
                  scan_end, scan_step, scan_points, through, reaction_options)
-    version = detect_version(root, 'scan-bond', validate_v1=legacy)
-    if characterize_unique_products and version == 1:
-        raise ValueError('--characterize-unique-products requires a fresh or v2 scan-bond output directory')
-    if version == 1:
-        return _run_scan_bond(*arguments)
+    detect_version(root, 'scan-bond')
     # The sibling lock must be creatable before the run root; support nested
     # output paths while still taking the lock before inspecting/creating root.
     root.parent.mkdir(parents=True, exist_ok=True)
     with RunLock(root, recover_stale=recover_stale):
-        detect_version(root, 'scan-bond', validate_v1=legacy)
+        detect_version(root, 'scan-bond')
         return _run_scan_bond(*arguments, characterize_unique_products=characterize_unique_products,
                               _layout=ScanLayout(root))

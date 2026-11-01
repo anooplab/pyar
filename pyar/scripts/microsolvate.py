@@ -1,3 +1,5 @@
+from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2
+from pyar.persistence import detect_version
 """CLI for solute-centred first-shell microsolvation."""
 
 from pyar.persistence import LockError
@@ -9,7 +11,7 @@ from pyar.microsolvation import MicrosolvationRequest
 from pyar.microsolvation.surface import build_solute_surface
 from pyar.cli_inputs import add_backend_arguments, add_fragment_arguments, load_fragments, optional_backend, resolve_states
 from pyar.optimization_request import preflight
-from pyar.state.microsolvation import MicrosolvationRunState, MicrosolvationStateError
+from pyar.state.microsolvation import MicrosolvationStateError
 from pyar.workflows.microsolvation import microsolvate
 
 
@@ -102,7 +104,8 @@ def main(argv=None, *, prog=None):
         target_surface = surface.restrict(request.site)
         if not len(target_surface.points):
             raise ValueError("The selected solute atoms have no accessible surface points")
-        MicrosolvationRunState.load(args.output, request.to_state_dict())
+        if detect_version(args.output, 'microsolvation') == 2:
+            MicrosolvationRunStateV2.load(args.output, request.to_state_dict())
         qc = dict(request.backend_parameters)
         requirements = preflight(
             qc, [request.solute, request.solvent],

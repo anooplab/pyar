@@ -33,7 +33,7 @@ optimiser_logger = logging.getLogger('pyar.optimiser')
 SUCCESS_STATUSES = {True, 'converged'}
 CYCLE_EXCEEDED_STATUSES = {'CycleExceeded', 'cycle_exceeded', 'cycleexceeded'}
 RELEASE_CANDIDATE_STATUSES = {'ReleaseCandidate', 'release_candidate'}
-_OPTIMIZATION_CACHE_SCHEMA = 1
+_OPTIMIZATION_CACHE_SCHEMA = 2
 
 
 def _xtb_cache_provenance():

@@ -146,7 +146,7 @@ def test_legacy_reaction_exception_restores_process_working_directory(
     monkeypatch.setattr(reaction, "optimize_all", fail_after_gamma_chdir)
     try:
         with pytest.raises(
-            RuntimeError, match="injected after entering gamma directory"
+            ValueError, match="unsupported"
         ):
             reaction.react(
                 reactant_a,

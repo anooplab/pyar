@@ -45,6 +45,7 @@ def build_parser(prog=None):
     advanced.add_argument('--pathway-ts-source', choices=('highest-backend-energy', 'first-topology-change',
                               'pre-product', 'highest-total-energy'), default='highest-backend-energy',
                           help='Trace geometry used only as a NEB waypoint/TS guess')
+    advanced.add_argument('--xtb-model', choices=('gfn2', 'gxtb'))
     advanced.add_argument('--scftype', nargs='+', choices=('rhf', 'uhf'))
     for name in ('method', 'basis', 'opt-threshold'):
         advanced.add_argument('--'+name)
@@ -98,7 +99,7 @@ def main(argv=None, *, prog=None):
             if ((reaction_state_path.parent / 'discovery/commit.json').exists() or
                     raw_status in {'completed', 'completed_products_found', 'completed_no_products',
                                    'completed_no_candidates'}):
-                from pyar.state.reaction import ReactionRunState
+                from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
                 completed_state = ReactionRunState.read_completed(Path.cwd(), request.restart_request)
                 validate_characterization_restart(Path.cwd(), request, args.through,
                                                    dict(path_options, through=args.through,

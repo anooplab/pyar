@@ -33,7 +33,7 @@ class ConformerLayout:
         write_json(self.layout.path('inputs/metadata.json'), dict(inputs=self.input_refs, request=request), overwrite=False)
         write_json(self.root / 'state.json', dict(workflow_state_schema_version=4, workflow='conformer',
             run_id=self.run_id, status='running', request=request))
-        write_json(self.layout.marker, dict(format='pyar-run-layout', layout_version=2,
+        write_json(self.layout.marker, dict(format='pyar-run-layout', layout_version=2, pyar_series='1.6',
             workflow='conformer', run_id=self.run_id), overwrite=False)
 
     def capture(self, relative, role):

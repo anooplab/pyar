@@ -10,7 +10,7 @@ from pyar.workflows.scan_bond import run_scan_bond
 from pyar.persistence import LockError
 
 class ScanArgumentParser(argparse.ArgumentParser):
-    """Keep the legacy two-fragment -N requirement conditional on input count."""
+    """Validate the one-molecule or two-fragment input shape."""
 
     def parse_args(self, args=None, namespace=None):
         parsed = super().parse_args(args, namespace)

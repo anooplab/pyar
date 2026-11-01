@@ -6,7 +6,8 @@ import pytest
 
 from pyar.cli import main
 from pyar.reaction_request import resolve_reaction_request, validate_restart, preflight_reaction
-from pyar.state.reaction import ReactionRunState, ReactionStateError
+from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
+from pyar.state.reaction import ReactionStateError
 from pyar.workflow_results import ReactionResult
 
 

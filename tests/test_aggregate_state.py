@@ -1,108 +1,58 @@
-"""Tests for structured aggregation restart state."""
+"""Scientific request and integrity guards for supported aggregation state."""
+from copy import deepcopy
 
-import tempfile
-import unittest
-
-from pyar.aggregate_state import AggregateRunState, AggregateStateError
-
-
-class AggregateRunStateTests(unittest.TestCase):
-    def setUp(self):
-        self.request = {
-            "aggregate_sizes": [1, 2],
-            "orientations": 8,
-            "backend_parameters": {"software": "xtb"},
-            "maximum_number_of_seeds": 4,
-            "first_pathway": 0,
-            "number_of_pathways": 2,
-            "site": None,
-            "fragments": [{"atoms": ["C"], "coordinates": [[0.0, 0.0, 0.0]]}],
-        }
-        self.sampling = {
-            "direction_method": "fibonacci",
-            "rotation_method": "halton",
-            "number_of_orientations": 8,
-            "sequence_offset": 0,
-            "oversample_factor": 8,
-        }
-
-    def test_create_and_load_roundtrips_remaining_pathways(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = AggregateRunState.create(
-                tmpdir,
-                self.request,
-                ["abb", "bab"],
-                sampling=self.sampling,
-            )
-            state.complete_pathway("abb", ["ag_a_001_b_001_000/selected/result_one.xyz"])
-            loaded = AggregateRunState.load(tmpdir, self.request)
-
-        self.assertEqual(loaded.completed_pathway_count(), 1)
-        self.assertEqual(loaded.remaining_pathway_labels(), ["bab"])
-        self.assertEqual(loaded.data["sampling"], self.sampling)
-
-    def test_load_rejects_changed_request(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            AggregateRunState.create(tmpdir, self.request, ["abb"])
-            changed = {**self.request, "maximum_number_of_seeds": 5}
-
-            with self.assertRaisesRegex(AggregateStateError, "does not match"):
-                AggregateRunState.load(tmpdir, changed)
-
-    def test_unversioned_selection_policy_is_not_silently_upgraded(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            AggregateRunState.create(tmpdir, self.request, ["abb"])
-            changed = {**self.request, "selection_policy_version": 1}
-            with self.assertRaisesRegex(AggregateStateError, "unversioned selection policy"):
-                AggregateRunState.load(tmpdir, changed)
-
-    def test_previous_selection_policy_cannot_resume_under_current_policy(self):
-        from pyar.selection.policy import SELECTION_POLICY_VERSION
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            AggregateRunState.create(tmpdir, {**self.request, "selection_policy_version": SELECTION_POLICY_VERSION - 1}, ["abb"])
-            with self.assertRaisesRegex(AggregateStateError, "different or unversioned selection policy"):
-                AggregateRunState.load(tmpdir, {**self.request, "selection_policy_version": SELECTION_POLICY_VERSION})
-
-    def test_auto_and_hybrid_are_equivalent_within_the_same_policy_version(self):
-        request = {**self.request, "selection_policy_version": 1,
-                   "selection_algorithm": "hybrid", "selection_system_type": "auto"}
-        with tempfile.TemporaryDirectory() as tmpdir:
-            AggregateRunState.create(tmpdir, request, ["abb"])
-            loaded = AggregateRunState.load(tmpdir, {**request, "selection_algorithm": "auto"})
-            self.assertEqual(loaded.remaining_pathway_labels(), ["abb"])
-
-    def test_load_rejects_out_of_sequence_completed_pathways(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = AggregateRunState.create(tmpdir, self.request, ["abb", "bab"])
-            state.data["completed_pathways"] = [
-                {"index": 0, "label": "bab", "status": "completed", "selected_results": []}
-            ]
-            state.save()
-
-            with self.assertRaisesRegex(AggregateStateError, "out of sequence"):
-                AggregateRunState.load(tmpdir, self.request)
-
-    def test_finish_rejects_pending_pathways(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = AggregateRunState.create(tmpdir, self.request, ["abb"])
-
-            with self.assertRaisesRegex(AggregateStateError, "remain unfinished"):
-                state.finish([])
-
-    def test_finish_retains_results_and_prevents_completed_resume(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = AggregateRunState.create(tmpdir, self.request, ["abb"])
-            state.complete_pathway("abb", [])
-            state.finish(["selected/stoichiometry_CH2/result_final.xyz"])
-
-            self.assertEqual(
-                state.data["final_selected_results"],
-                ["selected/stoichiometry_CH2/result_final.xyz"],
-            )
-            with self.assertRaisesRegex(AggregateStateError, "already 'completed'"):
-                AggregateRunState.load(tmpdir, self.request)
+import pytest
+from pyar.aggregation.request import AggregateRequest
+from pyar.aggregation.layout_v2 import AggregateRunStateV2
+from pyar.state.aggregate import AggregateStateError
+from pyar.core.molecule import Molecule
+from pyar.persistence import read_json, write_json
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.fixture
+def state(tmp_path):
+    molecules = [Molecule(['C'], [[0, 0, 0]], name='a'), Molecule(['H'], [[0, 0, 0]], name='b')]
+    request = AggregateRequest(tuple(molecules), (1, 2), 2,
+                               backend_parameters={'software': 'xtb'}).to_state_dict()
+    state = AggregateRunStateV2.create(tmp_path, request, molecules, ['abb', 'bab'], {})
+    state.initialize_pathways()
+    return state
+
+
+def test_current_state_roundtrips_progress_read_only(state):
+    state.complete_pathway(0, 'abb')
+    before = state.state_file.read_bytes()
+    loaded = AggregateRunStateV2.load(state.root_directory, state.data['request'])
+    assert loaded.data['completed_pathways'] == [{'index': 0, 'label': 'abb', 'status': 'completed'}]
+    assert state.state_file.read_bytes() == before
+
+
+@pytest.mark.parametrize('key,value', [('maximum_number_of_seeds', 7), ('selection_policy_version', -1),
+                                      ('backend_parameters', {'software': 'orca'})])
+def test_scientific_request_change_rejected(state, key, value):
+    changed = deepcopy(state.data['request'])
+    changed[key] = value
+    with pytest.raises(AggregateStateError, match='does not match'):
+        AggregateRunStateV2.load(state.root_directory, changed)
+
+
+def test_out_of_sequence_progress_rejected(state):
+    state.complete_pathway(1, 'bab')
+    with pytest.raises(AggregateStateError, match='out of order'):
+        AggregateRunStateV2.load(state.root_directory, state.data['request'])
+
+
+def test_modified_input_rejected(state):
+    identity = read_json(state.aggregate_directory / 'request.json')
+    path = state.aggregate_directory / identity['inputs'][0]['path']
+    path.write_text('modified input')
+    with pytest.raises(AggregateStateError, match='checksum'):
+        AggregateRunStateV2.load(state.root_directory, state.data['request'])
+
+
+def test_completed_state_cannot_be_reopened(state):
+    record = read_json(state.state_file)
+    record['status'] = 'completed'
+    write_json(state.state_file, record)
+    with pytest.raises(AggregateStateError, match='already'):
+        AggregateRunStateV2.load(state.root_directory, state.data['request'])

@@ -140,7 +140,7 @@ def test_cluster_cli_report_tracks_the_selected_geometries(tmp_path, monkeypatch
 
 def test_workflow_positional_distance_argument_retains_its_original_slot():
     import inspect
-    from pyar.workflows._growth import add_one
+    from pyar.growth.service import add_one
 
     bound = inspect.signature(add_one).bind(
         "aggregate", [], None, 8, {}, 4, None, "off", "soap", "agglomerative", "cosine",

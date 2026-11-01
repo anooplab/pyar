@@ -236,7 +236,7 @@ def test_cli_dry_run_reports_legacy_geometry_limit(tmp_path, capsys):
 
 
 def test_workflow_selection_diagnostics_are_written_atomically(tmp_path, monkeypatch):
-    from pyar.workflows._growth import _write_growth_selection_diagnostics
+    from pyar.growth.service import _write_growth_selection_diagnostics
 
     monkeypatch.chdir(tmp_path)
     report = {"basin_memory": {"schema_version": 2, "distance_used": "graph-rmsd"}}

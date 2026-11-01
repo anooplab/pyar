@@ -9,10 +9,10 @@ from pyar.persistence import (ArtifactRef, RunLayout, detect_version, read_json,
 from pyar.growth.layout_v2 import copy_result
 from pyar.persistence.artifacts import validate_uuid
 from pyar.persistence.json_store import fsync_directory
-from pyar.state.reaction import ReactionRunState, ReactionStateError, _json_value
+from pyar.state.reaction import ReactionStateBase, ReactionStateError, _json_value
 
 
-class ReactionRunStateV2(ReactionRunState):
+class ReactionRunStateV2(ReactionStateBase):
     def __init__(self, root_directory, data):
         super().__init__(root_directory, data)
         self.state_directory = self.reaction_directory / 'checkpoints'
@@ -42,7 +42,7 @@ class ReactionRunStateV2(ReactionRunState):
         write_json(state.layout.path('request.json'), dict(request_schema_version=1, workflow='reaction',
             run_id=data['run_id'], scientific_request=data['request']), overwrite=False)
         state.save()
-        write_json(state.layout.marker, dict(format='pyar-run-layout', layout_version=2,
+        write_json(state.layout.marker, dict(format='pyar-run-layout', layout_version=2, pyar_series='1.6',
             workflow='reaction', run_id=data['run_id']), overwrite=False)
         return state
 
@@ -50,7 +50,8 @@ class ReactionRunStateV2(ReactionRunState):
     def load(cls, root_directory, expected_request, *, completed=False):
         directory = Path(root_directory).resolve() / 'reaction'
         try:
-            detect_version(directory, 'reaction')
+            if detect_version(directory, 'reaction') == 0:
+                return None
             state = cls(root_directory, read_json(directory / 'state.json'))
             if completed:
                 record = state.discovery_record()

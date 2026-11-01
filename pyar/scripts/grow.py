@@ -1,3 +1,5 @@
+from pyar.growth.layout_v2 import GrowRunStateV2
+from pyar.persistence import detect_version
 """fixed-seed growth interface; the workflow owns sequential growth."""
 from pyar.persistence import LockError
 import argparse
@@ -9,7 +11,7 @@ from pyar.cli_inputs import (add_backend_arguments, add_fragment_arguments,
                                  add_selection_arguments, load_fragments, optional_backend,
                                  resolve_states, print_check)
 from pyar.optimization_request import preflight
-from pyar.state.grow import GrowRunState, GrowStateError
+from pyar.state.grow import GrowStateError
 from pyar.workflows.grow import grow
 
 
@@ -44,7 +46,8 @@ def main(argv=None, *, prog=None):
         from pyar.dependencies import require_workflow
         require_workflow('grow')
         request = resolve_request(args)
-        GrowRunState.load(args.output, request.to_state_dict())
+        if detect_version(args.output, 'grow') == 2:
+            GrowRunStateV2.load(args.output, request.to_state_dict())
         qc = request.backend_parameters
         requirements = preflight(qc, [request.seed, request.monomer],
                                  check_example='pyar grow SEED.xyz MONOMER.xyz --count N --backend BACKEND --check') if qc else []

@@ -401,22 +401,15 @@ def test_scan_path_seed_is_forwarded_only_to_neb_stage(tmp_path, monkeypatch):
     assert (tmp_path / 'path/inputs/path_seed.xyz').is_file()
 
 
-def test_native_scan_outputs_match_legacy_and_legacy_routing_is_preserved(scan_run):
+def test_native_scan_outputs_and_supported_resume_are_immutable(scan_run):
     root, run, calls = scan_run
-    old = run(legacy=True)
     new = run()
-    for name in ('final_scan_path', 'trajectory_path', 'scan_profile_csv', 'scan_profile_json'):
-        assert Path(old['results'][0][name]).read_bytes() == Path(new['results'][0][name]).read_bytes()
-    args = read_json(root.with_name('legacy') / 'request.json')
-    assert 'request_schema_version' not in args
-    assert not (root.with_name('legacy') / 'layout.json').exists()
-    # Feed the persisted v1 request to the public router without converting it.
-    a, b = root.parent / 'a.xyz', root.parent / 'b.xyz'
-    result = workflow.run_scan_bond(a, b, (0, 0), 1, args['qc_params'], root.with_name('legacy'),
-                                    scan_end=1., scan_points=2, through='scan')
-    assert result['status'] == 'complete'
-    assert not (root.with_name('legacy') / 'layout.json').exists()
-    assert len(calls) == 2
+    evidence = {name: Path(new['results'][0][name]).read_bytes()
+                for name in ('final_scan_path', 'trajectory_path', 'scan_profile_csv', 'scan_profile_json')}
+    repeated = run()
+    assert repeated['status'] == 'complete'
+    assert evidence == {name: Path(repeated['results'][0][name]).read_bytes() for name in evidence}
+    assert len(calls) == 1
 
 
 def test_free_relaxation_commit_survives_progress_loss(scan_run, monkeypatch):

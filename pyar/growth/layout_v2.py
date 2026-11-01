@@ -146,7 +146,7 @@ class GrowRunStateV2:
         state.save()
         # Marker published last: partial unmarked initialization is rejected,
         # never mistaken for legacy state because it has no v1 version field.
-        write_json(directory / 'layout.json', dict(format='pyar-run-layout', layout_version=2,
+        write_json(directory / 'layout.json', dict(format='pyar-run-layout', layout_version=2, pyar_series='1.6',
                     workflow='grow', run_id=run_id), overwrite=False)
         return state
 

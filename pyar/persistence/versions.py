@@ -13,13 +13,8 @@ class LayoutError(ValueError):
     """Unknown, corrupt or ambiguous run metadata must not be mutated."""
 
 
-def detect_version(root, workflow, *, validate_v1=None, validate_v2=None):
-    """Return 0 (fresh), 1 (recognized legacy) or 2 (explicit new layout).
-
-    Validators are read-only callbacks owned by workflows. A v1 validator must
-    positively recognize and validate its records; filenames alone do not
-    suffice. V2 detection checks identity/format, not scientific stage gates.
-    """
+def detect_version(root, workflow, *, validate_v2=None):
+    """Return 0 (fresh) or 2 (supported layout); reject older run generations."""
     if workflow not in WORKFLOWS:
         raise LayoutError(f"Unsupported workflow: {workflow!r}")
     root = Path(root).resolve()
@@ -31,14 +26,12 @@ def detect_version(root, workflow, *, validate_v1=None, validate_v2=None):
     if not marker.exists():
         if not root.exists() or not any(root.iterdir()):
             return 0
-        if validate_v1 is not None and validate_v1(root):
-            return 1
-        raise LayoutError("Nonempty unrecognized run; use its original workflow or a fresh directory")
+        raise LayoutError("Unsupported older/unrecognized run; use its original PyAR environment or a fresh directory")
     try:
         data = read_json(marker)
         if (not isinstance(data, dict) or data.get("format") != "pyar-run-layout"
                 or type(data.get("layout_version")) is not int or data["layout_version"] != 2
-                or data.get("workflow") != workflow):
+                or data.get("workflow") != workflow or data.get("pyar_series") != "1.6"):
             raise ValueError("Unknown layout version/format or mismatched workflow")
         validate_uuid(data.get("run_id"))
         required = ["state.json"] if workflow == "conformer" else ["request.json"]

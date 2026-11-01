@@ -37,6 +37,6 @@ def build_parser(prog=None):
     return parser
 
 def workflow_options(args, qc_params):
-    """Shared mapping for legacy and interfaces to the canonical engine."""
+    """Translate canonical conformer options into a workflow request."""
     names = ('input_format', 'num_conformers', 'top_n', 'backend_top_n', 'num_seeds', 'diversity_fraction', 'compactness_fraction', 'rms_threshold', 'use_random_coords', 'torsion_kicks', 'torsion_mode', 'torsion_rounds', 'torsion_kicks_per_conformer', 'torsion_max_bonds', 'torsion_dedup_rms', 'dedup_atom_mode', 'force_field', 'seed', 'num_threads', 'max_iterations', 'charge', 'multiplicity', 'scftype')
     return {**{name: getattr(args, name) for name in names}, 'qc_params': qc_params}

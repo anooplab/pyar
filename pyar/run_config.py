@@ -21,7 +21,7 @@ except ModuleNotFoundError:  # Python 3.10, supported by pyar-chem.
 from dataclasses import asdict, dataclass, field
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 RUN_CONFIG_KIND = "pyar-run-config"
 RUN_RECORD_KIND = "pyar-run-record"
 PROFILE_KIND = "pyar-profile"

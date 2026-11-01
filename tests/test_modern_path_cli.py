@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pyar import cli, neb
+from pyar import cli as root_cli, neb
 from pyar.scripts import path_stage as cli
 
 
@@ -20,7 +20,7 @@ def endpoints(tmp_path, monkeypatch):
 def test_neb_runs_relax_and_neb_only(endpoints):
     relaxed = {key: True for key in neb._STAGE_GATES['relax']}
     with patch.object(cli, 'preflight', return_value=['xtb', 'geometric']), patch.object(cli, 'run_neb', side_effect=[relaxed, {'converged': True, 'interior_maximum': True}]) as engine:
-        cli.main(endpoints)
+        root_cli.main(endpoints)
     assert [call.kwargs['stage'] for call in engine.call_args_list] == ['relax', 'neb']
     assert all(call.kwargs['reuse'] is True for call in engine.call_args_list)
     assert engine.call_args.kwargs['method'] is None
@@ -29,7 +29,7 @@ def test_neb_runs_relax_and_neb_only(endpoints):
 
 def test_neb_stops_on_failed_endpoint_gate(endpoints):
     with patch.object(cli, 'preflight', return_value=[]), patch.object(cli, 'run_neb', return_value={}) as engine, pytest.raises(SystemExit) as exc:
-        cli.main(endpoints)
+        root_cli.main(endpoints)
     assert exc.value.code == 1
     assert engine.call_count == 1
     assert engine.call_args.kwargs['stage'] == 'relax'
@@ -44,7 +44,7 @@ def test_neb_path_seed_is_an_alternative_initializer_for_check(endpoints, capsys
     arguments = ['neb', 'a.xyz', 'b.xyz', '--path-seed', str(seed), '--backend', 'xtb', '--check']
     with patch.object(cli, 'preflight', return_value=['xtb', 'geometric']), \
             patch.object(cli, 'run_neb') as engine:
-        cli.main(arguments)
+        root_cli.main(arguments)
     assert 'Ready to run' in capsys.readouterr().out
     engine.assert_not_called()
 
@@ -52,9 +52,9 @@ def test_neb_path_seed_is_an_alternative_initializer_for_check(endpoints, capsys
 def test_neb_initializer_options_are_validated_before_execution(endpoints):
     with patch.object(cli, 'preflight', return_value=[]), patch.object(cli, 'run_neb') as engine:
         with pytest.raises(SystemExit):
-            cli.main(['neb', 'a.xyz', 'b.xyz', '--backend', 'xtb', '--check'])
+            root_cli.main(['neb', 'a.xyz', 'b.xyz', '--backend', 'xtb', '--check'])
         with pytest.raises(SystemExit):
-            cli.main(endpoints + ['--path-seed', 'guess.xyz', '--check'])
+            root_cli.main(endpoints + ['--path-seed', 'guess.xyz', '--check'])
         engine.assert_not_called()
 
 
@@ -62,7 +62,7 @@ def test_neb_initializer_options_are_validated_before_execution(endpoints):
 def test_check_validates_without_mutation(endpoints, options):
     before = set(Path('.').iterdir())
     with patch.object(cli, 'preflight', return_value=[]), patch.object(cli, 'run_neb') as engine, pytest.raises(SystemExit) as exc:
-        cli.main(endpoints + options + ['--check'])
+        root_cli.main(endpoints + options + ['--check'])
     assert exc.value.code == 2
     engine.assert_not_called()
     assert set(Path('.').iterdir()) == before
@@ -70,13 +70,13 @@ def test_check_validates_without_mutation(endpoints, options):
 
 def test_valid_check_and_output_alias(endpoints, capsys):
     with patch.object(cli, 'preflight', return_value=['xtb']), patch.object(cli, 'run_neb') as engine:
-        cli.main(endpoints + ['--check', '--json'])
+        root_cli.main(endpoints + ['--check', '--json'])
         assert json.loads(capsys.readouterr().out)['status'] == 'ready'
         Path('ts_guess.xyz').write_text(Path('guess.xyz').read_text())
         arguments = [*endpoints]
         arguments[arguments.index('guess.xyz')] = 'ts_guess.xyz'
         with pytest.raises(SystemExit):
-            cli.main(arguments + ['--output', '.', '--check'])
+            root_cli.main(arguments + ['--output', '.', '--check'])
         engine.assert_not_called()
     assert not Path('neb_run').exists()
 
@@ -93,9 +93,9 @@ def test_irc_check_verifies_artifact_hashes(endpoints):
                     inputs=[], artifacts=[geometry])
     before = {p: p.read_bytes() for p in root.iterdir()}
     with patch.object(cli, 'preflight', return_value=[]), patch.object(cli, 'run_neb') as engine:
-        cli.main(['irc', str(root), '--backend', 'xtb', '--check'])
+        root_cli.main(['irc', str(root), '--backend', 'xtb', '--check'])
         assert before == {p: p.read_bytes() for p in root.iterdir()}
         geometry.write_text(geometry.read_text().replace('0.74', '0.75'))
         with pytest.raises(SystemExit):
-            cli.main(['irc', str(root), '--backend', 'xtb', '--check'])
+            root_cli.main(['irc', str(root), '--backend', 'xtb', '--check'])
         engine.assert_not_called()

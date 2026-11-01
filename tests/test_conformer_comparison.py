@@ -252,8 +252,8 @@ def test_conformer_commands_forward_atom_mode():
 
     args = benchmark_command.argument_parse(["benchmark.json", "--dedup-atom-mode", "all"])
     assert benchmark_command._conformer_options(args)["dedup_atom_mode"] == "all"
-    assert command.argument_parse(["CCO"]).dedup_atom_mode == "heavy"
+    assert command.build_parser().parse_args(["CCO"]).dedup_atom_mode == "heavy"
     result = SimpleNamespace(status="completed", run_directory="run", selected_paths=())
-    with mock.patch.object(command, "conformer_search", return_value=result) as search:
+    with mock.patch.object(command.workflow, "conformer_search", return_value=result) as search:
         command.main(["CCO", "--dedup-atom-mode", "all"])
     assert search.call_args.kwargs["dedup_atom_mode"] == "all"

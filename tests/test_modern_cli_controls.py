@@ -49,7 +49,7 @@ def test_write_config_and_run_check_are_read_only(tmp_path, monkeypatch, capsys)
     assert "Place solvent candidates against that surface" in dry_run_output
     assert "No calculation or workflow output was created." in dry_run_output
     config = tomllib.loads(config_path.read_text())
-    assert config["schema_version"] == 1
+    assert config["schema_version"] == 2
     assert config["workflow"] == "microsolvate"
     assert "--count" in config["arguments"]
     assert config["arguments"][config["arguments"].index("--site-group") + 1] == "hydrogen=0"

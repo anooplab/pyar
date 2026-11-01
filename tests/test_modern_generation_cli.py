@@ -1,6 +1,4 @@
 """Modern wrappers preserve canonical generation workflows and read-only checks."""
-import importlib
-import json
 from pathlib import Path
 import subprocess
 import sys
@@ -11,7 +9,6 @@ import pytest
 
 from pyar import cli
 from pyar.scripts import aggregate as aggregate, grow as grow, conformer as conformer
-from pyar.state.aggregate import AggregateRunState
 from pyar.workflows import conformer as conformer_workflow
 
 
@@ -214,9 +211,10 @@ def test_aggregate_restart_read_only(inputs):
     args = aggregate.build_parser().parse_args(inputs)
     request = aggregate.resolve_request(args)
     Path('aggregates').mkdir()
-    AggregateRunState.create(Path.cwd(), request.to_state_dict(), ['ab'])
+    Path('aggregates/state.json').write_text('{"version": 1}')
     before = Path('aggregates/state.json').read_bytes()
-    cli.main(['aggregate', *inputs, '--check'])
+    with pytest.raises(SystemExit):
+        cli.main(['aggregate', *inputs, '--check'])
     assert Path('aggregates/state.json').read_bytes() == before
     with pytest.raises(SystemExit):
         cli.main(['aggregate', *inputs, '--size', '2', '1', '--check'])
