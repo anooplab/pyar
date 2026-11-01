@@ -14,9 +14,9 @@ from pyar.benchmarks.ts_optimizer import (
 from pyar.benchmarks.rgd1_tsopt import TIERS, prepare_rgd1_tsopt_manifest
 
 
-def argument_parse(argv=None):
+def argument_parse(argv=None, *, prog=None):
     parser = argparse.ArgumentParser(
-        prog="pyar-benchmark-ts",
+        prog=prog or "pyar benchmark ts",
         description="Run or collect paired PyAR transition-state optimizer benchmarks.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
@@ -55,7 +55,7 @@ def argument_parse(argv=None):
 
 
 def main(argv=None, *, prog=None):
-    args = argument_parse(argv)
+    args = argument_parse(argv, prog=prog)
     try:
         if args.command == "run":
             result = run_ts_optimizer_case(

@@ -33,7 +33,7 @@ def resolved_extra(extra):
     return result
 
 
-@pytest.mark.parametrize('workflow', ['aggregate', 'grow', 'microsolvate', 'solvate', 'conformer', 'reaction', 'neb'])
+@pytest.mark.parametrize('workflow', ['aggregate', 'grow', 'microsolvate', 'conformer', 'reaction', 'neb'])
 def test_workflow_installs_every_registered_python_requirement(workflow):
     requirements = resolved_extra(workflow)
     for module in dependencies.WORKFLOW_MODULES[workflow]:

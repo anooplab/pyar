@@ -267,23 +267,3 @@ def test_duplicate_names_fail(inputs, dependencies, tmp_path):
     bulk.assert_not_called()
 
 
-def test_legacy_optimizer_contract(inputs, capsys):
-    # Import only inside the temporary work directory: legacy logging stays legacy.
-    from pyar.scripts import optimiser as legacy
-    try:
-        with mock.patch('sys.argv', ['pyar-optimiser', *inputs, '--software', 'xtb']):
-            with pytest.raises(SystemExit) as exc:
-                legacy.main()
-        assert exc.value.code == 2
-        with mock.patch('sys.argv', ['pyar-optimiser', *inputs, '--software', 'xtb',
-                                    '--charge', '0', '--multiplicity', '1']):
-            with mock.patch.object(optimiser, 'bulk_optimize') as bulk:
-                legacy.main()
-        molecules, settings = bulk.call_args.args
-        assert len(molecules) == 2
-        assert settings['software'] == 'xtb'
-        assert settings['method'] == 'BP86' and settings['basis'] == 'def2-SVP'
-        assert '_electronic_state_from_molecule' not in settings
-    finally:
-        legacy.logger.removeHandler(legacy.handler)
-        legacy.handler.close()

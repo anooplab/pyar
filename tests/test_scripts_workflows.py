@@ -377,8 +377,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                from pyar.persistence import LayoutError
-                with self.assertRaisesRegex(LayoutError, "unrecognized"):
+                with self.assertRaisesRegex(ReactionStateError, "unrecognized"):
                     reactor.initialize_reaction_run(
                         reactant_a,
                         reactant_b,

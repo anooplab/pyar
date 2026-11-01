@@ -54,7 +54,7 @@ class TargetLayoutImportTests(unittest.TestCase):
         from importlib.util import find_spec
         for name in ('pyar.Molecule', 'pyar.molecule_geometry', 'pyar.molecule_io',
                      'pyar.orientation_sampling', 'pyar.trial_generation', 'pyar.aggregator',
-                     'pyar.reactor', 'pyar.modern_cli'):
+                     'pyar.reactor', 'pyar.modern_cli', 'pyar.scripts.optimiser'):
             with self.subTest(name=name):
                 self.assertIsNone(find_spec(name))
 

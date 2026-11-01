@@ -544,7 +544,6 @@ from pyar.selection.basin_memory import (  # noqa: E402
     _load_basin_registry,
     _persist_basin_registry,
     _stoichiometry_label,
-    migrate_basin_registry,
     record_selected_basins,
 )
 from pyar.selection.deduplication import (  # noqa: E402
