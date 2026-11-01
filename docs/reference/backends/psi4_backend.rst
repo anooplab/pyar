@@ -20,12 +20,16 @@ Example command
 
 .. code-block:: bash
 
-   pyar optimize structure.xyz -c 0 -m 1 --backend psi4
+   pyar optimize structure.xyz -c 0 -m 1 --backend psi4 --method B97-D --basis def2-SVP
 
 Practical notes
 ---------------
 
 * Psi4 must be installed separately.
+* ``--method`` and ``--basis`` select the Psi4 method and basis; they default to
+  ``B97-D`` and ``def2-SVP``. Psi4 attaches def2 effective core potentials itself.
+* Open-shell molecules (multiplicity above 1, or ``--scftype uhf``) run with
+  ``set reference uks``, or ``uhf`` for Hartree–Fock.
 * The current capability registry does not mark ``psi4`` as a registered
   energy-gradient provider for the geomeTRIC AFIR route.
 * Use a small validation case before relying on Psi4 outputs in a larger PyAR

@@ -46,10 +46,12 @@ class Gaussian(SF):
         basis = qc_params['basis']
         if basis.lower() == 'def2-svp':
             basis = 'def2SVP'
+        opt_cycles = qc_params.get('opt_cycles')
+        opt = f"Opt=(MaxCycles={int(opt_cycles)})" if opt_cycles else "Opt"
         self.keyword = f"%nprocshared={qc_params['nprocs']}\n" \
                        f"%chk=trial_{self.job_name}.chk\n" \
                        f"%mem=2GB\n" \
-                       f"# {qc_params['method']} {basis} " \
+                       f"# {qc_params['method']} {basis} {opt} " \
                        f"SCF=(MaxCycle={qc_params['scf_cycles']})"
 
     def prepare_input(self):
@@ -71,7 +73,10 @@ class Gaussian(SF):
             bool: ``True`` when Gaussian finishes normally, otherwise ``False``.
         """
         self.prepare_input()
-        exit_status = run_command([self.gaussian_executable, self.inp_file], stdout_path=self.out_file, stderr_path=self.out_file)
+        # Feed the input on stdin so the log reaches out_file; a file argument
+        # makes g16 write its own log beside the input instead.
+        exit_status = run_command([self.gaussian_executable], stdout_path=self.out_file,
+                                  stderr_path=self.out_file, stdin_path=self.inp_file)
         if exit_status == 0:
             with open(self.out_file, "r") as file_pointer:
                 this_line = file_pointer.readlines()
@@ -84,7 +89,7 @@ class Gaussian(SF):
                 if "SCF Done" in j:
                     check_2 = 1
 
-            if ("Normal termination" in this_line[-1]) and check_1 == 1 and check_2 == 1:
+            if this_line and ("Normal termination" in this_line[-1]) and check_1 == 1 and check_2 == 1:
                 self.energy = self.get_energy()
                 self.optimized_coordinates = self.get_coords()
                 backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,

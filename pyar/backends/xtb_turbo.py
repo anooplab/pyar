@@ -92,7 +92,7 @@ class XtbTurbo(SF):
 
             if turbomole.check_geometry_convergence():
                 xtb_turbo_logger.info("converged at cycle %d", cycle)
-                self.energy = turbomole.get_energy()
+                self.energy = energy  # unbiased xTB energy; the energy file carries the AFIR term
                 self.optimized_coordinates = bohr2angstrom(turbomole.get_coords())
                 backends.write_xyz(
                     self.atoms_list,
@@ -108,7 +108,7 @@ class XtbTurbo(SF):
         else:
             xtb_turbo_logger.info("cycle limit reached")
             status = "cycle_exceeded"
-            self.energy = turbomole.get_energy()
+            self.energy = energy
             self.optimized_coordinates = bohr2angstrom(turbomole.get_coords())
             return status
 

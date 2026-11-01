@@ -7,6 +7,23 @@ import numpy as np
 
 from pyar.backends import SF, require_executable, write_xyz
 
+EXTERNAL_PROGRAM_ENV = "PYAR_ORCA_AIQM1_PROGEXT"
+
+
+def _external_program(qc_params):
+    """Return the ORCA ``ProgExt`` wrapper supplied by the user, failing fast if absent."""
+    program = qc_params.get('orca_aiqm1_progext') or os.environ.get(EXTERNAL_PROGRAM_ENV)
+    if not program:
+        raise ValueError(
+            "The orca-aiqm1 backend needs the ORCA external-program wrapper that combines "
+            f"AIQM1 with the AFIR force. Set {EXTERNAL_PROGRAM_ENV} (or the "
+            "'orca_aiqm1_progext' backend setting) to its path."
+        )
+    if not os.path.isfile(program):
+        raise FileNotFoundError(f"orca-aiqm1 external program not found: {program}")
+    return os.path.abspath(program)
+
+
 class OrcaAIQM1(SF):
     def __init__(self, molecule, qc_params):
         super(OrcaAIQM1, self).__init__(molecule)
@@ -19,6 +36,7 @@ class OrcaAIQM1(SF):
         self.energy = 0.0
         self.gamma = qc_params.get('gamma', 0.0)
         self.index = qc_params.get('index', len(molecule.atoms_list))
+        self.external_program = _external_program(qc_params)
 
         # Prepare the ORCA input
         self.prepare_keyword(qc_params)
@@ -27,7 +45,7 @@ class OrcaAIQM1(SF):
         keyword = "! Extopt opt xyzfile"
         keyword += "\n%base \"external\""
         keyword += "\n%method"
-        keyword += "\n  ProgExt \"/scratch/20cy91r19/app/orca_6_0_0/combine.py\""
+        keyword += f"\n  ProgExt \"{self.external_program}\""
         keyword += f"\n  Ext_Params \"--force {self.gamma} --index {self.index}\""
         keyword += "\nend"
 

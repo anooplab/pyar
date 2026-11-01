@@ -301,7 +301,8 @@ class GaussianEnergyGradientProvider:
         keyword = f"%nprocshared={int(self.qc_params.get('nprocs', 1) or 1)}\n"
         keyword += f"%chk=trial_gaussian.chk\n"
         keyword += f"%mem=2GB\n"
-        keyword += f"# {method} {basis} Force SCF=(MaxCycle={int(self.qc_params.get('scf_cycles', 350) or 350)})"
+        # NoSymm keeps forces in the frame of the supplied coordinates.
+        keyword += f"# {method} {basis} Force NoSymm SCF=(MaxCycle={int(self.qc_params.get('scf_cycles', 350) or 350)})"
         if int(self.qc_params.get("multiplicity", 1) or 1) != 1:
             keyword += " guess=mix"
         return keyword
@@ -327,8 +328,11 @@ class GaussianEnergyGradientProvider:
             inp_path = tmpdir / "input.com"
 
             self._write_input(molecule, coordinates_angstrom, inp_path)
+            # With input on stdin g16 writes the log to stdout; a file argument
+            # would send it to input.log instead and leave stdout empty.
             proc = subp.run(
-                [gaussian_executable, str(inp_path)],
+                [gaussian_executable],
+                input=inp_path.read_text(),
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
@@ -340,6 +344,8 @@ class GaussianEnergyGradientProvider:
                     + (proc.stderr.strip() or proc.stdout.strip() or "unknown error")
                 )
             output_lines = (proc.stdout or "").splitlines()
+            if not any("Normal termination" in line for line in output_lines[-5:]):
+                raise RuntimeError("Gaussian energy/gradient evaluation did not terminate normally")
             energy_hartree = _read_gaussian_energy(output_lines)
             gradient_hartree_per_bohr = _read_gaussian_forces(output_lines, len(molecule.get_chemical_symbols()))
             return EnergyGradientResult(energy_hartree, gradient_hartree_per_bohr)

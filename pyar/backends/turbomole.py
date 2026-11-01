@@ -42,11 +42,8 @@ turbomole_logger = logging.getLogger('pyar.turbomole')
 
 
 def remove(file_name):
-    files = glob.glob(file_name)
-    for file in files:
-        if os.path.exists(file_name):
-            os.remove(file_name)
-    return
+    for file in glob.glob(file_name):
+        os.remove(file)
 
 
 def safe_rewrite_file(modified_data_groups, file_name):
@@ -74,6 +71,20 @@ def sed_inplace(pattern, replace_to, filename='control'):
     shutil.move(tmp_file.name, filename)
 
 
+# PyAR method names accepted by this adapter, mapped to Turbomole define names.
+TURBOMOLE_FUNCTIONALS = {'bp86': 'bp', 'b3lyp': 'b3-lyp'}
+
+
+def turbomole_functional(method):
+    """Return the define functional for ``method`` or refuse an unsupported one."""
+    try:
+        return TURBOMOLE_FUNCTIONALS[str(method).lower()]
+    except KeyError:
+        raise ValueError(
+            f"Turbomole adapter supports only {sorted(TURBOMOLE_FUNCTIONALS)}; got {method!r}"
+        ) from None
+
+
 class Turbomole(SF):
 
     def __init__(self, molecule, qc_params):
@@ -87,6 +98,7 @@ class Turbomole(SF):
         self.optimized_coordinates = None
         self.basis = qc_params['basis']
         self.method = qc_params['method']
+        self.functional = turbomole_functional(self.method)
         self.gamma = resolve_gamma(qc_params.get('gamma'))
 
     def optimize(self):
@@ -112,11 +124,7 @@ class Turbomole(SF):
         scf_conv = 6
         max_cycles = 200
         basis_set = self.basis
-        functional = 'bp'
-        if self.method.lower() == 'bp86':
-            functional = 'bp'
-        if self.method.lower() == 'b3lyp':
-            functional = 'b3-lyp'
+        functional = turbomole_functional(self.method)
 
         make_coord(self.atoms_list, self.start_coords)
         define_status = prepare_control(scf_conv=scf_conv,
@@ -128,7 +136,8 @@ class Turbomole(SF):
             turbomole_logger.debug('Initial Define failed, converting to cartesian coordinate')
             remove('control')
             define_status = prepare_control(scf_conv=scf_conv, coordinates='cartesian', charge=self.charge,
-                                            multiplicity=self.multiplicity)
+                                            multiplicity=self.multiplicity, basis=basis_set,
+                                            func=functional)
         if define_status is False:
             turbomole_logger.debug('Initial Define failed again. Quit')
             return 'UpdateFailed'
@@ -165,6 +174,9 @@ class Turbomole(SF):
             return 'SCFFailed'
 
         turbomole_logger.debug('First step: %s, %f' % (initial_status, initial_energy))
+        # The energy file is rewritten with the AFIR term for statpt; report the
+        # unbiased SCF energy from the last evaluation instead.
+        scf_energy = initial_energy
 
         for cycle in range(max_cycles):
             # Calculate Gradients
@@ -198,7 +210,7 @@ class Turbomole(SF):
             convergence_status = check_geometry_convergence()
             if convergence_status is True:
                 turbomole_logger.info('converged at %d' % cycle)
-                self.energy = get_energy()
+                self.energy = scf_energy
                 self.optimized_coordinates = bohr2angstrom(get_coords())
                 backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                                     self.job_name,
@@ -210,6 +222,7 @@ class Turbomole(SF):
             if scf_status is False:
                 turbomole_logger.critical('Energy evaluation failed in cycle %d' % cycle)
                 return 'SCFFailed'
+            scf_energy = energy
 
             with open('energy.dat', 'a') as fe:
                 # if gamma > 0.0:
@@ -222,7 +235,7 @@ class Turbomole(SF):
                                   "the gradient norms\n might be a good idea..."
                                   " (grep cycle gradient)" % max_cycles)
 
-            self.energy = get_energy()
+            self.energy = scf_energy
             self.optimized_coordinates = bohr2angstrom(get_coords())
             return 'CycleExceeded'
 
@@ -314,13 +327,10 @@ def run_single_point():
 
 def calc_energy():
     run_status = run_turbomole_module('ridft')
-    msg = {
-        line.strip()
-        for line in open('ridft.out').readlines()
-        if 'ended' in line
-    }
+    with open('ridft.out') as output:
+        msg = [line.strip() for line in output if 'ended' in line]
 
-    if run_status is False or 'abnormally' in msg:
+    if run_status is False or any('abnormally' in line for line in msg):
         turbomole_logger.debug(msg)
         turbomole_logger.debug('Check the the files in %s' % os.getcwd())
         return False, None
@@ -333,8 +343,9 @@ def calc_energy():
 
 def calc_gradients():
     run_status = run_turbomole_module('rdgrad')
-    msg = [line for line in open('rdgrad.out').readlines() if 'ended' in line]
-    if run_status is False or 'abnormally' in msg:
+    with open('rdgrad.out') as output:
+        msg = [line.strip() for line in output if 'ended' in line]
+    if run_status is False or any('abnormally' in line for line in msg):
         turbomole_logger.debug(msg)
         turbomole_logger.debug('Gradient calculation failed!')
         turbomole_logger.debug('Chcek files in %s' % os.getcwd())
@@ -421,8 +432,9 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
             fdefine.write("y\n")
             fdefine.write("%d\n" % charge)
             if multiplicity > 2:
+                # define's "u N" takes the number of unpaired electrons.
                 fdefine.write("n\n")
-                fdefine.write("u %d\n\n" % multiplicity)
+                fdefine.write("u %d\n\n" % (multiplicity - 1))
             else:
                 fdefine.write("y\n\n")
             fdefine.write("\n\n\n")
@@ -455,7 +467,8 @@ def prepare_control(basis="def2-SVP", func="b-p", ri="on",
                 turbomole_logger.debug("%s: %s\n" % (e.output, e.returncode))
                 return False
         with open(define_log_file) as fout:
-            if "define : all done" not in fout.read() or 'abnormally' in fout.read():
+            define_log = fout.read()
+            if "define : all done" not in define_log or 'abnormally' in define_log:
                 turbomole_logger.critical('Error in define')
                 return False
     return True
@@ -480,7 +493,7 @@ def add_tmole_key():
 
     if '$tmole' not in control:
         turbomole_logger.debug("Adding '$tmole' to control file")
-        new_control = re.sub('end', 'tmole\n$end', control)
+        new_control = re.sub(r'\$end\s*$', '$tmole\n$end\n', control)
 
         safe_rewrite_file(new_control, 'control')
 
@@ -502,7 +515,7 @@ def change_or_add_metfic_in_redund_inp(metric):
             new_control = re.sub('metric ' + str(metric), 'metric ' + str(metric - 1), control)
             break
     else:
-        new_control = re.sub('end', 'redund_inp\n    metric ' + str(metric - 1) + '\n$end', control)
+        new_control = re.sub(r'\$end\s*$', '$redund_inp\n    metric ' + str(metric - 1) + '\n$end\n', control)
 
     with open('control', 'w') as fc:
         fc.write(new_control)
@@ -686,8 +699,9 @@ def rewrite_turbomole_gradient(number_of_atoms, restraint_energy,
     """Rewrite new gradient file in turbomole format"""
 
     dft_grad = np.array(get_gradients(), dtype='float')
-    afir_grad = restraint_gradient
-    combined_gradients = dft_grad + afir_grad
+    # ``restraint_gradient`` is the AFIR force (-dE/dR), so subtract it, as
+    # the per-atom rows below do.
+    combined_gradients = dft_grad - np.asarray(restraint_gradient, dtype=float)
     combined_total_gradients = np.sqrt(np.sum(combined_gradients ** 2))
 
     with open('gradient', 'r') as gradient_file:
