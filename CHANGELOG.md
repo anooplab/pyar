@@ -47,6 +47,10 @@
 
 ### Fixed
 
+- Stop interrupted growth with `GrowthStopped`, handled by the owning workflow,
+  instead of passing the `StopIteration` class to aggregation selection. Retain
+  pending checkpoints for resume without committing partial additions.
+
 - Keep reaction OpenBabel identity diagnostics in the owning reaction/orientation
   workspace when executing without process-wide directory changes.
 

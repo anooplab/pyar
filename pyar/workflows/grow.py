@@ -1,5 +1,6 @@
 """Fixed-seed, repeated-addend growth using the shared addition engine."""
 from pathlib import Path
+from pyar.growth.errors import GrowthStopped
 from pyar.growth.request import GrowRequest
 from pyar.growth.service import add_one, check_stop_signal
 from pyar.workflow_results import GrowResult
@@ -54,21 +55,27 @@ def _grow_v2(request, state):
             qc.update(charge=seeds[0].charge + request.monomer.charge,
                       multiplicity=combine_multiplicity(seeds[0].multiplicity, request.monomer.multiplicity),
                       scftype='rhf' if seeds[0].scftype == request.monomer.scftype == 'rhf' else 'uhf')
-            selected = add_one(
-                f"grow_{step:03d}",
-                seeds,
-                request.monomer,
-                request.number_of_orientations,
-                qc,
-                request.maximum_number_of_seeds,
-                site,
-                connectivity_policy=request.connectivity_policy,
-                selection_feature=request.selection_feature,
-                selection_algorithm=request.selection_algorithm,
-                selection_distance=request.selection_distance,
-                selection_system_type=request.selection_system_type,
-                directory=execution,
-            )
+            try:
+                selected = add_one(
+                    f"grow_{step:03d}",
+                    seeds,
+                    request.monomer,
+                    request.number_of_orientations,
+                    qc,
+                    request.maximum_number_of_seeds,
+                    site,
+                    connectivity_policy=request.connectivity_policy,
+                    selection_feature=request.selection_feature,
+                    selection_algorithm=request.selection_algorithm,
+                    selection_distance=request.selection_distance,
+                    selection_system_type=request.selection_system_type,
+                    directory=execution,
+                )
+            except GrowthStopped:
+                status = 'stopped'
+                state.data['status'] = status
+                state.save()
+                break
             if selected is None or selected is StopIteration:
                 status = 'stopped'
                 state.data['status'] = status

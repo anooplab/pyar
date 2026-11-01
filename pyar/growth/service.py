@@ -11,6 +11,7 @@ import shutil
 import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
+from pyar.growth.errors import GrowthStopped
 
 import numpy as np
 
@@ -604,7 +605,7 @@ def add_one(
     directory = Path(directory or Path.cwd()).resolve()
     if check_stop_signal(directory=directory):
         aggregator_logger.info("Function: add_one")
-        return StopIteration
+        raise GrowthStopped(f"Growth stopped in {directory}")
     aggregator_logger.info(f"  Seed pool for {aggregate_id}: {len(seeds)} molecules")
     cwd = str(directory)
     connectivity_policy = (
@@ -634,7 +635,7 @@ def add_one(
         for seed_count, each_seed in enumerate(seeds):
             if check_stop_signal(directory=directory):
                 aggregator_logger.info("Function: add_one")
-                return
+                raise GrowthStopped(f"Growth stopped in {directory}")
             aggregator_logger.info(
                 "   Processing seed %03d/%03d",
                 seed_count + 1,
@@ -827,7 +828,7 @@ def add_one(
     for seed_count, each_seed in enumerate(seeds):
         if check_stop_signal(directory=directory):
             aggregator_logger.info("Function: add_one")
-            return
+            raise GrowthStopped(f"Growth stopped in {directory}")
         aggregator_logger.info(
             "   Processing seed %03d/%03d",
             seed_count + 1,

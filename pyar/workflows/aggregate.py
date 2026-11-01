@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 import string
 from pathlib import Path
+from pyar.growth.errors import GrowthStopped
 
 from pyar.aggregation import AggregateRequest
 from pyar.state.aggregate import AggregateStateError
@@ -132,7 +133,11 @@ def aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_nu
     detect_version(directory, 'aggregate')
     with RunLock(directory, recover_stale=recover_stale):
         detect_version(directory, 'aggregate')
-        return _aggregate_v2(root, request, hm_orientations)
+        try:
+            return _aggregate_v2(root, request, hm_orientations)
+        except GrowthStopped:
+            # Keep the pending checkpoint resumable; never publish a partial selection.
+            return stopped_workflow_result("aggregate", root)
 
 
 def _aggregate_v2(root, request, hm_orientations):
