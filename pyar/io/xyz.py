@@ -71,11 +71,7 @@ def parse_xyz(filename: str) -> Tuple[list, np.ndarray, str, str, Optional[float
         raise XYZParseError(f"{filename!r} is missing the title/comment line")
 
     mol_title = text[1].rstrip("\n")
-    energy_match = re.search(
-        r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][-+]?\d+)?\s*$",
-        mol_title,
-    )
-    energy = float(energy_match.group()) if energy_match else None
+    energy = energy_from_title(mol_title)
 
     geometry_lines = []
     for line in text[2:]:
@@ -105,6 +101,35 @@ def parse_xyz(filename: str) -> Tuple[list, np.ndarray, str, str, Optional[float
     return atoms_list, mol_coordinates, mol_name, mol_title, energy
 
 
+_NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[EeDd][-+]?\d+)?"
+_REAL = r"[-+]?(?:(?:\d+\.\d*|\.\d+)(?:[EeDd][-+]?\d+)?|\d+[EeDd][-+]?\d+)"
+# Recognized energy labels: a bare number, PyAR's "name: energy" suffix, a
+# trailing real number ("job -1.25"), or an explicit "energy"/"E" label such as
+# xTB's "energy: -5.07 gnorm: ..." line. A free-text title ending in an integer
+# ("water 3", "conformer 12") is a label, not an energy.
+_TITLE_ENERGY_PATTERNS = (
+    re.compile(rf"^\s*({_NUMBER})\s*$"),
+    re.compile(rf":\s*({_NUMBER})\s*$"),
+    re.compile(rf"\s({_REAL})\s*$"),
+    re.compile(rf"(?:\b[Ee]nergy\b|(?<![\w(])E(?![\w(]))\s*[=:]?\s*({_NUMBER})(?![\w.])"),
+)
+_PYAR_ENERGY_SUFFIX = re.compile(rf"(?:\s*:\s*(?:{_NUMBER}|None))+\s*$")
+
+
+def energy_from_title(title):
+    """Return the energy recorded in an XYZ title line, or None."""
+    for pattern in _TITLE_ENERGY_PATTERNS:
+        match = pattern.search(title)
+        if match:
+            return float(match.group(1).replace("D", "E").replace("d", "e"))
+    return None
+
+
+def title_without_energy(title):
+    """Strip a PyAR ``": energy"`` suffix so rewritten titles do not accumulate."""
+    return _PYAR_ENERGY_SUFFIX.sub("", str(title))
+
+
 def read_xyz(filename: str):
     """Read an XYZ file using PyAR's historical exit-on-error interface."""
     try:
@@ -116,7 +141,7 @@ def read_xyz(filename: str):
 
 def write_xyz(molecule, file_name):
     """Write a molecule and optional energy label in XYZ format."""
-    title = getattr(molecule, "title", getattr(molecule, "name", "Molecule"))
+    title = title_without_energy(getattr(molecule, "title", getattr(molecule, "name", "Molecule")))
     energy = getattr(molecule, "energy", 0.0)
     with open(file_name, "w") as fp:
         fp.write("{:3d}\n".format(molecule.number_of_atoms))

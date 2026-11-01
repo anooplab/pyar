@@ -80,18 +80,17 @@ def rotate_3d(molecule, angles):
 
 
 def align(molecule):
-    """Align ``molecule`` to its principal axes in place."""
+    """Rotate ``molecule`` in place onto its principal axes.
+
+    Axes are ordered by increasing moment of inertia. The transform is always a
+    proper rotation, so the handedness of chiral structures is preserved.
+    """
     move_to_centre_of_mass(molecule)
     moi = moments_of_inertia_tensor(molecule)
-    _, eigen_vectors = np.linalg.eig(moi)
-    transformed_coordinates = np.array(np.dot(molecule.coordinates, eigen_vectors))
-    order = [0, 1, 2]
-    for p in range(3):
-        for q in range(p + 1, 3):
-            if moi.item(p, p) < moi.item(q, q):
-                order[p], order[q] = order[q], order[p]
-    move_axes = np.zeros((3, 3))
-    for p in range(3):
-        move_axes[p][order[p]] = 1.0
-    molecule.coordinates = np.dot(transformed_coordinates, move_axes)
+    # eigh returns orthonormal eigenvectors of the symmetric tensor, sorted by
+    # ascending eigenvalue.
+    _, eigen_vectors = np.linalg.eigh(moi)
+    if np.linalg.det(eigen_vectors) < 0.0:
+        eigen_vectors[:, -1] *= -1.0
+    molecule.coordinates = np.dot(molecule.coordinates, eigen_vectors)
     return molecule

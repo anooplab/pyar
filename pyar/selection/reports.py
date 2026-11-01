@@ -63,26 +63,16 @@ def print_energy_table(molecules, stream=None, title=None):
 
 
 def read_energy_from_xyz_file(xyz_file):
-    """Return the trailing numeric energy token from an XYZ comment line."""
+    """Return the energy recorded in an XYZ comment line (see ``energy_from_title``)."""
     # Coordinate-only utilities may include numeric provenance, not energies.
     with open(xyz_file, "r") as fr:
         header = [fr.readline(), fr.readline()]
     if re.search(r"\benergy\s+unavailable\b", header[1], re.IGNORECASE):
         raise ValueError("XYZ explicitly declares energy unavailable")
-    try:
-        with open(xyz_file, "r") as fr:
-            lines = fr.readlines()
-            second_line = lines[1].strip()
-            energy_matches = re.findall(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", second_line)
-            if energy_matches:
-                energy = float(energy_matches[-1])
-            else:
-                raise ValueError("No numeric energy found")
-    except (IndexError, ValueError):
-        with open(xyz_file, "r") as fr:
-            comments_line = fr.readlines()[1].rstrip()
-            energy = float(re.split(r":|=|\s+", comments_line)[1])
-
+    from pyar.io.xyz import energy_from_title
+    energy = energy_from_title(header[1].rstrip("\n"))
+    if energy is None:
+        raise ValueError("No recognized energy label in the XYZ comment line")
     return energy
 
 
