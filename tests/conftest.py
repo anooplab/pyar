@@ -57,3 +57,10 @@ def inline_directory_worker(monkeypatch, request):
 
     monkeypatch.setattr('pyar.directory_execution.run_in_directory', execute)
     yield
+
+
+@pytest.fixture
+def deterministic_workflow_backend(monkeypatch):
+    """Shared recording backend; successful fake results are not science evidence."""
+    from workflow_golden_support import DeterministicBackend
+    return DeterministicBackend(monkeypatch)

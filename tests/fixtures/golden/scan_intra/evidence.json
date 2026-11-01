@@ -1,0 +1,1324 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "ceae91ef0635ccd2dc8a0789869f2f210040e6b7e5ba721989e799c094b1dc51",
+      "multiplicity": 1,
+      "name": "orientation_000",
+      "operation": "scan",
+      "settings": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "xtb_model": "gfn2"
+      },
+      "symbols": [
+        "H",
+        "H"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "e09582707b7e88932048e28a6f709ccff9ae35c28e6b704089af908c3606696f",
+      "multiplicity": 1,
+      "name": "relaxed",
+      "operation": "optimize",
+      "settings": {
+        "gamma": 0.0,
+        "geometry_optimizer": "geometric",
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "xtb_model": "gfn2"
+      },
+      "symbols": [
+        "H",
+        "H"
+      ]
+    }
+  ],
+  "files": {
+    ".scan.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/scan"
+    },
+    "OBabel.log": "1 molecule converted\n",
+    "first.xyz": {
+      "sha256": "4b2461d7ccab169bbd1682665841a33769c70d03bd4d263a99b89362ab3515f9",
+      "text": "  2\nno_name:0.0\nH      0.00000     0.00000     0.00000\nH      0.74000     0.00000     0.00000\n"
+    },
+    "scan/inputs/metadata.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/molecule.xyz",
+          "role": "input",
+          "sha256": "4b2461d7ccab169bbd1682665841a33769c70d03bd4d263a99b89362ab3515f9"
+        }
+      ]
+    },
+    "scan/inputs/molecule.xyz": {
+      "sha256": "4b2461d7ccab169bbd1682665841a33769c70d03bd4d263a99b89362ab3515f9",
+      "text": "  2\nno_name:0.0\nH      0.00000     0.00000     0.00000\nH      0.74000     0.00000     0.00000\n"
+    },
+    "scan/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "scan-bond"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/relax/.pyar_optimization_diagnostics/bond_scan_unbiased_relaxation-relaxed-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "relaxed",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "69004ee2-5bbd-556c-b93b-f1d84daf2c96",
+                "path": "result_relaxed.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "f6f28186-ebb4-54fd-b8e8-acc83fc34a47",
+                "path": "trial_relaxed.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "9edae1979b7bdf4946891cece1e5ad2ed776e7a5993ae56041a043dcf609fab1",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "69004ee2-5bbd-556c-b93b-f1d84daf2c96",
+                  "path": "result_relaxed.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "f6f28186-ebb4-54fd-b8e8-acc83fc34a47",
+                  "path": "trial_relaxed.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "9edae1979b7bdf4946891cece1e5ad2ed776e7a5993ae56041a043dcf609fab1",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "e0bedcefabda776d800d7536a6429444b8a7fff8558b6f2c4c46785721951da2"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  3.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "name": "relaxed",
+              "optimizer": "geometric",
+              "request_fingerprint": "e0bedcefabda776d800d7536a6429444b8a7fff8558b6f2c4c46785721951da2",
+              "scientific_fingerprint": "031d55b4c2bcd1f0c80c29c2a77c3154cc490dc529e419377edd24e44af0eee0",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0,
+                    1
+                  ]
+                ],
+                "gamma": 0.0,
+                "geometry_optimizer": "geometric",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "total_multiplicity": 1,
+                "total_multiplicity_source": "input_molecule",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "H",
+                "H"
+              ],
+              "target": "minimum",
+              "workflow_role": "bond_scan_unbiased_relaxation"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/scan/orientation_000/attempts/attempt_000/execution/relax/job_relaxed/geometric.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/scan/orientation_000/attempts/attempt_000/execution/relax/job_relaxed/geometric.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "bond_scan_unbiased_relaxation"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/relax/job_relaxed/result_relaxed.xyz": {
+      "sha256": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+      "text": "  2\nTitle: -2.0\nH      0.00000     0.00000     0.00000\nH      3.00000     0.00000     0.00000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/relax/job_relaxed/trial_relaxed.xyz": {
+      "sha256": "9edae1979b7bdf4946891cece1e5ad2ed776e7a5993ae56041a043dcf609fab1",
+      "text": "  2\nTitle: None\nH      0.00000     0.00000     0.00000\nH      3.00000     0.00000     0.00000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/result_relaxed.xyz": {
+      "sha256": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+      "text": "  2\nTitle: -2.0\nH      0.00000     0.00000     0.00000\nH      3.00000     0.00000     0.00000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz": {
+      "sha256": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f",
+      "text": "2\nimage=0 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH   3.00000000000000  0.00000000000000  0.00000000000000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/optimization_diagnostic.json": {
+      "automatic_recovery_attempted": false,
+      "exception_chain": [],
+      "gates": {
+        "atom_mapping": "passed",
+        "constraints": "passed",
+        "optimizer": "passed",
+        "physical_energy": "passed"
+      },
+      "reason": "OWNER_GATES_PASSED",
+      "recovery_stop_reason": "No certified restart contract for this stage",
+      "recovery_supported": false,
+      "restart_authority": false,
+      "schema_version": 1,
+      "stage_gate": "passed",
+      "workflow_role": "bond_scan_constrained"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv": "scan_index,frame_index,target_distance_angstrom,energy_hartree,relative_energy_kcal_mol,geometry_path\r\n1,0,0.74,-1.0,0.0,scan_trajectory.xyz\r\n2,1,1.8699999999999999,-1.0,0.0,scan_trajectory.xyz\r\n3,2,3.0,-1.0,0.0,scan_trajectory.xyz\r\n",
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json": {
+      "energy_source": "scan_summary.json",
+      "points": [
+        {
+          "energy_hartree": -1.0,
+          "frame_index": 0,
+          "geometry_path": "scan_trajectory.xyz",
+          "relative_energy_kcal_mol": 0.0,
+          "scan_index": 1,
+          "target_distance_angstrom": 0.74
+        },
+        {
+          "energy_hartree": -1.0,
+          "frame_index": 1,
+          "geometry_path": "scan_trajectory.xyz",
+          "relative_energy_kcal_mol": 0.0,
+          "scan_index": 2,
+          "target_distance_angstrom": 1.8699999999999999
+        },
+        {
+          "energy_hartree": -1.0,
+          "frame_index": 2,
+          "geometry_path": "scan_trajectory.xyz",
+          "relative_energy_kcal_mol": 0.0,
+          "scan_index": 3,
+          "target_distance_angstrom": 3.0
+        }
+      ],
+      "relative_energy_reference_scan_index": 1
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json": {
+      "atom_i": 0,
+      "atom_j": 1,
+      "end_distance_angstrom": 3.0,
+      "n_points": 3,
+      "start_distance_angstrom": 0.74
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json": {
+      "status": "success"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz": {
+      "sha256": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5",
+      "text": "2\nimage=0 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH   0.74000000000000  0.00000000000000  0.00000000000000\n2\nimage=1 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH   1.87000000000000  0.00000000000000  0.00000000000000\n2\nimage=2 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH   3.00000000000000  0.00000000000000  0.00000000000000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz": {
+      "sha256": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c",
+      "text": "  2\nhighest_scan_energy_scan_001:-1.0\nH      0.000000000000     0.000000000000     0.000000000000\nH      0.740000000000     0.000000000000     0.000000000000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json": {
+      "barrier_from_first_scan_point_kcal_mol": 0.0,
+      "candidate_files": {
+        "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+        "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+      },
+      "energy_source": "scan_summary.json",
+      "interpretation": "scan maximum candidate; not a confirmed transition state",
+      "maximum_energy_hartree": -1.0,
+      "maximum_frame_index": 0,
+      "maximum_is_internal": false,
+      "maximum_scan_index": 1,
+      "maximum_target_distance_angstrom": 0.74
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz": {
+      "sha256": "4ee041e3a5fbc78c32596cb2839ff1222a304ce832053b11f849a83393cad7ae",
+      "text": "  2\npost_maximum_scan_002:-1.0\nH      0.000000000000     0.000000000000     0.000000000000\nH      1.870000000000     0.000000000000     0.000000000000\n"
+    },
+    "scan/orientation_000/relax_commit.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000011",
+          "path": "orientation_000/start.xyz",
+          "role": "free-relaxation-evidence",
+          "sha256": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000012",
+          "path": "orientation_000/attempts/attempt_000/execution/result_relaxed.xyz",
+          "role": "free-relaxation-evidence",
+          "sha256": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000013",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+          "role": "free-relaxation-evidence",
+          "sha256": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000014",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+          "role": "free-relaxation-evidence",
+          "sha256": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000015",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+          "role": "free-relaxation-evidence",
+          "sha256": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000016",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+          "role": "free-relaxation-evidence",
+          "sha256": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000017",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json",
+          "role": "free-relaxation-evidence",
+          "sha256": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000018",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "role": "free-relaxation-evidence",
+          "sha256": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c"
+        }
+      ],
+      "orientation": 0,
+      "record_id": "00000000-0000-4000-8000-000000000019",
+      "result": {
+        "atoms": [
+          0,
+          1
+        ],
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "bond_threshold_angstrom": 0.8320000000000001,
+        "candidate_files": {
+          "highest_scan_energy": {
+            "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz"
+          },
+          "post_maximum": {
+            "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+          }
+        },
+        "completed_artifact_hashes": {
+          "attempts/attempt_000/execution/result_relaxed.xyz": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+          "attempts/attempt_000/execution/scan/final_scan.xyz": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f",
+          "attempts/attempt_000/execution/scan/scan_profile.csv": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b",
+          "attempts/attempt_000/execution/scan/scan_profile.json": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3",
+          "attempts/attempt_000/execution/scan/scan_trajectory.xyz": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5",
+          "attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c",
+          "attempts/attempt_000/execution/ts_candidates/metadata.json": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c",
+          "start.xyz": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+        },
+        "connectivity_rule": "distance < 1.3 * sum of covalent radii",
+        "discovery_status": "new_product",
+        "end_distance_angstrom": 3.0,
+        "endpoint_source": "user_explicit",
+        "energy_source": "scan_summary.json",
+        "final_scan_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz"
+        },
+        "identity_status": "success",
+        "initially_bonded": true,
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "intervals": 2,
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.74,
+        "n_points": 3,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "product_identity_changed": true,
+        "proposed_end_distance_angstrom": 1.74,
+        "reactant_identity": {
+          "inchi": "InChI=1S/H2/h1H",
+          "smiles": "[H][H]"
+        },
+        "reactant_product_connection_confirmed": false,
+        "relaxed_identity": {
+          "inchi": "InChI=1S/2H",
+          "smiles": "[H].[H]"
+        },
+        "relaxed_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/result_relaxed.xyz"
+        },
+        "safe_separation_threshold_angstrom": 1.28,
+        "scan_direction": "break",
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_request.json"
+        },
+        "scan_mode": "intramolecular",
+        "scan_output": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_summary.json"
+        },
+        "scan_points": 3,
+        "scan_profile_csv": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv"
+        },
+        "scan_profile_json": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json"
+        },
+        "scan_status": "success",
+        "start_distance_angstrom": 0.74,
+        "status": "scan_success_relax_success",
+        "step_angstrom": 1.13,
+        "target_bond_present_after_relaxation": false,
+        "target_change_achieved": true,
+        "target_contact_threshold_angstrom": 0.8320000000000001,
+        "target_distance_final_scan_angstrom": 3.0,
+        "target_distance_relaxed_angstrom": 3.0,
+        "target_distance_scan_end_angstrom": 3.0,
+        "target_distance_start_angstrom": 0.74,
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "trajectory_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz"
+        },
+        "ts_candidate_metadata": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+        }
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scan_commit_sha256": "f06b98989b98246e812ff5fd47991fa6c14d765f9b5ddbd129d74a7964382dec",
+      "stage_result_schema_version": 1,
+      "status": "completed"
+    },
+    "scan/orientation_000/result.json": {
+      "atoms": [
+        0,
+        1
+      ],
+      "barrier_from_first_scan_point_kcal_mol": 0.0,
+      "bond_threshold_angstrom": 0.8320000000000001,
+      "candidate_files": {
+        "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+        "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+      },
+      "characterization_reference": "products/product_57b688dd30f9/characterization",
+      "completed_artifact_hashes": {
+        "attempts/attempt_000/execution/result_relaxed.xyz": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+        "attempts/attempt_000/execution/scan/final_scan.xyz": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f",
+        "attempts/attempt_000/execution/scan/scan_profile.csv": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b",
+        "attempts/attempt_000/execution/scan/scan_profile.json": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3",
+        "attempts/attempt_000/execution/scan/scan_trajectory.xyz": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5",
+        "attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c",
+        "attempts/attempt_000/execution/ts_candidates/metadata.json": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c",
+        "start.xyz": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+      },
+      "connectivity_rule": "distance < 1.3 * sum of covalent radii",
+      "discovery_status": "new_product",
+      "end_distance_angstrom": 3.0,
+      "endpoint_source": "user_explicit",
+      "energy_source": "scan_summary.json",
+      "final_scan_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+      "identity_status": "success",
+      "initially_bonded": true,
+      "interpretation": "scan maximum candidate; not a confirmed transition state",
+      "intervals": 2,
+      "maximum_energy_hartree": -1.0,
+      "maximum_frame_index": 0,
+      "maximum_is_internal": false,
+      "maximum_scan_index": 1,
+      "maximum_target_distance_angstrom": 0.74,
+      "n_points": 3,
+      "optimization_diagnostics": {
+        "automatic_recovery_attempted": false,
+        "exception_chain": [],
+        "gates": {
+          "atom_mapping": "passed",
+          "constraints": "passed",
+          "optimizer": "passed",
+          "physical_energy": "passed"
+        },
+        "reason": "OWNER_GATES_PASSED",
+        "recovery_stop_reason": "No certified restart contract for this stage",
+        "recovery_supported": false,
+        "restart_authority": false,
+        "schema_version": 1,
+        "stage_gate": "passed",
+        "workflow_role": "bond_scan_constrained"
+      },
+      "orientation": 0,
+      "product_group_size": 1,
+      "product_id": "product_57b688dd30f9",
+      "product_identity_changed": true,
+      "product_role": "representative",
+      "proposed_end_distance_angstrom": 1.74,
+      "reactant_identity": {
+        "inchi": "InChI=1S/H2/h1H",
+        "smiles": "[H][H]"
+      },
+      "reactant_product_connection_confirmed": false,
+      "relaxed_identity": {
+        "inchi": "InChI=1S/2H",
+        "smiles": "[H].[H]"
+      },
+      "relaxed_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/result_relaxed.xyz",
+      "representative_orientation": 0,
+      "safe_separation_threshold_angstrom": 1.28,
+      "scan_direction": "break",
+      "scan_energy_source": "scan_summary.json",
+      "scan_input": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+      "scan_mode": "intramolecular",
+      "scan_output": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+      "scan_points": 3,
+      "scan_profile_csv": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+      "scan_profile_json": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+      "scan_status": "success",
+      "start_distance_angstrom": 0.74,
+      "status": "scan_success_relax_success",
+      "step_angstrom": 1.13,
+      "target_bond_present_after_relaxation": false,
+      "target_change_achieved": true,
+      "target_contact_threshold_angstrom": 0.8320000000000001,
+      "target_distance_final_scan_angstrom": 3.0,
+      "target_distance_relaxed_angstrom": 3.0,
+      "target_distance_scan_end_angstrom": 3.0,
+      "target_distance_start_angstrom": 0.74,
+      "total_multiplicity": 1,
+      "total_multiplicity_source": "input_molecule",
+      "trajectory_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+      "ts_candidate_metadata": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+    },
+    "scan/orientation_000/scan_commit.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "path": "orientation_000/start.xyz",
+          "role": "scan-evidence",
+          "sha256": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000005",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+          "role": "scan-evidence",
+          "sha256": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000006",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/optimization_diagnostic.json",
+          "role": "scan-evidence",
+          "sha256": "dbfa8b5da1b6db39c06ac9f6e1cbfdfe8dbbf439b4ed674fafc77dcc458f0804"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000007",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+          "role": "scan-evidence",
+          "sha256": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+          "role": "scan-evidence",
+          "sha256": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000009",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+          "role": "scan-evidence",
+          "sha256": "1a21db24cadeb3345c3d865cbdd07d50fc0c286925744e7b46004d4ec15f97d0"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000a",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+          "role": "scan-evidence",
+          "sha256": "912d0c07da7bdb22cdae025b96da26d01523aaab7362edb28544e3949deb369d"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000b",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+          "role": "scan-evidence",
+          "sha256": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000c",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000d",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json",
+          "role": "scan-maximum-candidate",
+          "sha256": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000e",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "4ee041e3a5fbc78c32596cb2839ff1222a304ce832053b11f849a83393cad7ae"
+        }
+      ],
+      "orientation": 0,
+      "physical_method": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "xtb_model": "gfn2"
+      },
+      "record_id": "00000000-0000-4000-8000-00000000000f",
+      "request_signature": "d23a7c6c313f2709768e8e190d76c6b448c9568928bce43b4634f4a979992ea9",
+      "result": {
+        "atoms": [
+          0,
+          1
+        ],
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "bond_threshold_angstrom": 0.8320000000000001,
+        "candidate_files": {
+          "highest_scan_energy": {
+            "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz"
+          },
+          "post_maximum": {
+            "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+          }
+        },
+        "connectivity_rule": "distance < 1.3 * sum of covalent radii",
+        "end_distance_angstrom": 3.0,
+        "endpoint_source": "user_explicit",
+        "energy_source": "scan_summary.json",
+        "final_scan_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz"
+        },
+        "initially_bonded": true,
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "intervals": 2,
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.74,
+        "n_points": 3,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "proposed_end_distance_angstrom": 1.74,
+        "safe_separation_threshold_angstrom": 1.28,
+        "scan_direction": "break",
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_request.json"
+        },
+        "scan_mode": "intramolecular",
+        "scan_output": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_summary.json"
+        },
+        "scan_points": 3,
+        "scan_profile_csv": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv"
+        },
+        "scan_profile_json": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json"
+        },
+        "scan_status": "success",
+        "start_distance_angstrom": 0.74,
+        "status": "scan_success",
+        "step_angstrom": 1.13,
+        "target_distance_final_scan_angstrom": 3.0,
+        "target_distance_scan_end_angstrom": 3.0,
+        "target_distance_start_angstrom": 0.74,
+        "trajectory_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz"
+        },
+        "ts_candidate_metadata": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+        }
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "stage_result_schema_version": 1,
+      "status": "completed"
+    },
+    "scan/orientation_000/start.xyz": {
+      "sha256": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8",
+      "text": "  2\norientation_000:0.0\nH      0.000000000000     0.000000000000     0.000000000000\nH      0.740000000000     0.000000000000     0.000000000000\n"
+    },
+    "scan/products/index.json": {
+      "format": "pyar-scan-product-registry",
+      "identity_unknown": [],
+      "ineligible_orientations": [],
+      "non_products": [],
+      "product_registry_schema_version": 1,
+      "products": [
+        {
+          "alternative_orientations": [],
+          "characterization_path": null,
+          "characterization_status": "not_started",
+          "identity": {
+            "inchi": "InChI=1S/2H",
+            "smiles": "[H].[H]",
+            "smiles_variants": [
+              "[H].[H]"
+            ]
+          },
+          "orientation_ids": [
+            0
+          ],
+          "product_id": "product_57b688dd30f9",
+          "product_record_path": "products/product_57b688dd30f9/product.json",
+          "product_record_sha256": "78a43880404e87f316de9684fac6ea4386daab2c7d5f6bd95a905b63c156519c",
+          "representative_orientation": 0,
+          "target_status": "target"
+        }
+      ],
+      "request_signature": "d23a7c6c313f2709768e8e190d76c6b448c9568928bce43b4634f4a979992ea9",
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "scan/products/product_57b688dd30f9/product.json": {
+      "alternative_orientations": [],
+      "identity": {
+        "inchi": "InChI=1S/2H",
+        "smiles": "[H].[H]",
+        "smiles_variants": [
+          "[H].[H]"
+        ]
+      },
+      "orientation_ids": [
+        0
+      ],
+      "product_id": "product_57b688dd30f9",
+      "product_schema_version": 1,
+      "representative_orientation": 0,
+      "representative_selection": {
+        "complete_validated_trace": true,
+        "scan_peak_delta_kcal_mol": 0.0,
+        "usable_internal_scan_maximum": false
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "sources": [
+        {
+          "orientation": 0,
+          "relax_commit_record_id": "00000000-0000-4000-8000-000000000019",
+          "relax_commit_sha256": "16cf0ba2cdbc8aab1e9c5180ac219f86d225882a5b54ccbb54dc5b193295dcfe",
+          "relaxation_artifacts": [
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000011",
+              "path": "orientation_000/start.xyz",
+              "role": "free-relaxation-evidence",
+              "sha256": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000012",
+              "path": "orientation_000/attempts/attempt_000/execution/result_relaxed.xyz",
+              "role": "free-relaxation-evidence",
+              "sha256": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000013",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+              "role": "free-relaxation-evidence",
+              "sha256": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000014",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+              "role": "free-relaxation-evidence",
+              "sha256": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000015",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+              "role": "free-relaxation-evidence",
+              "sha256": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000016",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+              "role": "free-relaxation-evidence",
+              "sha256": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000017",
+              "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json",
+              "role": "free-relaxation-evidence",
+              "sha256": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000018",
+              "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+              "role": "free-relaxation-evidence",
+              "sha256": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c"
+            }
+          ],
+          "scan_artifacts": [
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000004",
+              "path": "orientation_000/start.xyz",
+              "role": "scan-evidence",
+              "sha256": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000005",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+              "role": "scan-evidence",
+              "sha256": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000006",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/optimization_diagnostic.json",
+              "role": "scan-evidence",
+              "sha256": "dbfa8b5da1b6db39c06ac9f6e1cbfdfe8dbbf439b4ed674fafc77dcc458f0804"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000007",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+              "role": "scan-evidence",
+              "sha256": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000008",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+              "role": "scan-evidence",
+              "sha256": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000009",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+              "role": "scan-evidence",
+              "sha256": "1a21db24cadeb3345c3d865cbdd07d50fc0c286925744e7b46004d4ec15f97d0"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-00000000000a",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+              "role": "scan-evidence",
+              "sha256": "912d0c07da7bdb22cdae025b96da26d01523aaab7362edb28544e3949deb369d"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-00000000000b",
+              "path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+              "role": "scan-evidence",
+              "sha256": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-00000000000c",
+              "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+              "role": "scan-maximum-candidate",
+              "sha256": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-00000000000d",
+              "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json",
+              "role": "scan-maximum-candidate",
+              "sha256": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c"
+            },
+            {
+              "artifact_id": "00000000-0000-4000-8000-00000000000e",
+              "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz",
+              "role": "scan-maximum-candidate",
+              "sha256": "4ee041e3a5fbc78c32596cb2839ff1222a304ce832053b11f849a83393cad7ae"
+            }
+          ],
+          "scan_commit_record_id": "00000000-0000-4000-8000-00000000000f",
+          "scan_commit_sha256": "f06b98989b98246e812ff5fd47991fa6c14d765f9b5ddbd129d74a7964382dec"
+        }
+      ],
+      "target_status": "target",
+      "target_status_by_orientation": {
+        "0": "target"
+      }
+    },
+    "scan/request.json": {
+      "atoms_absolute": [
+        0,
+        1
+      ],
+      "atoms_local": [
+        0,
+        1
+      ],
+      "fragments": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        }
+      ],
+      "inputs": {
+        "molecule": "first.xyz"
+      },
+      "intramolecular_plan": {
+        "atoms": [
+          0,
+          1
+        ],
+        "bond_threshold_angstrom": 0.8320000000000001,
+        "connectivity_rule": "distance < 1.3 * sum of covalent radii",
+        "end_distance_angstrom": 3.0,
+        "endpoint_source": "user_explicit",
+        "initially_bonded": true,
+        "intervals": 2,
+        "n_points": 3,
+        "proposed_end_distance_angstrom": 1.74,
+        "safe_separation_threshold_angstrom": 1.28,
+        "scan_direction": "break",
+        "scan_mode": "intramolecular",
+        "start_distance_angstrom": 0.74,
+        "step_angstrom": 1.13
+      },
+      "orientation_definitions": [
+        {
+          "generation_error": null,
+          "molecule": {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          "orientation": 0,
+          "total_multiplicity": 1,
+          "total_multiplicity_source": "input_molecule"
+        }
+      ],
+      "orientations": 1,
+      "qc_params": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "xtb_model": "gfn2"
+      },
+      "reactant_identity": {
+        "inchi": "InChI=1S/H2/h1H",
+        "smiles": "[H][H]"
+      },
+      "reactant_identity_error": null,
+      "request_schema_version": 1,
+      "request_signature": "d23a7c6c313f2709768e8e190d76c6b448c9568928bce43b4634f4a979992ea9",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scan_end": 3.0,
+      "scan_mode": "intramolecular",
+      "scan_points": 3,
+      "scan_step": null,
+      "schema_version": 3,
+      "target_symbols": [
+        "H",
+        "H"
+      ],
+      "workflow": "scan-bond"
+    },
+    "scan/results/manifest.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000c",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c",
+          "source_record_id": "00000000-0000-4000-8000-00000000000f",
+          "validated_transition_state": false
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000e",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "4ee041e3a5fbc78c32596cb2839ff1222a304ce832053b11f849a83393cad7ae",
+          "source_record_id": "00000000-0000-4000-8000-00000000000f",
+          "validated_transition_state": false
+        }
+      ],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "scan-bond"
+    },
+    "scan/summary.csv": "atoms,barrier_from_first_scan_point_kcal_mol,bond_threshold_angstrom,candidate_files,characterization_reference,completed_artifact_hashes,connectivity_rule,discovery_status,end_distance_angstrom,endpoint_source,energy_source,final_scan_path,identity_status,initially_bonded,interpretation,intervals,maximum_energy_hartree,maximum_frame_index,maximum_is_internal,maximum_scan_index,maximum_target_distance_angstrom,n_points,optimization_diagnostics,orientation,product_group_size,product_id,product_identity_changed,product_role,proposed_end_distance_angstrom,reactant_identity,reactant_product_connection_confirmed,relaxed_identity,relaxed_path,representative_orientation,safe_separation_threshold_angstrom,scan_direction,scan_energy_source,scan_input,scan_mode,scan_output,scan_points,scan_profile_csv,scan_profile_json,scan_status,start_distance_angstrom,status,step_angstrom,target_bond_present_after_relaxation,target_change_achieved,target_contact_threshold_angstrom,target_distance_final_scan_angstrom,target_distance_relaxed_angstrom,target_distance_scan_end_angstrom,target_distance_start_angstrom,total_multiplicity,total_multiplicity_source,trajectory_path,ts_candidate_metadata\r\n\"[0, 1]\",0.0,0.8320000000000001,\"{'highest_scan_energy': '<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz', 'post_maximum': '<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz'}\",products/product_57b688dd30f9/characterization,\"{'start.xyz': '7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8', 'attempts/attempt_000/execution/result_relaxed.xyz': '078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f', 'attempts/attempt_000/execution/scan/final_scan.xyz': '047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f', 'attempts/attempt_000/execution/scan/scan_trajectory.xyz': '9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5', 'attempts/attempt_000/execution/scan/scan_profile.csv': 'ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b', 'attempts/attempt_000/execution/scan/scan_profile.json': '5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3', 'attempts/attempt_000/execution/ts_candidates/metadata.json': '22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c', 'attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz': '9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c'}\",distance < 1.3 * sum of covalent radii,new_product,3.0,user_explicit,scan_summary.json,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz,success,True,scan maximum candidate; not a confirmed transition state,2,-1.0,0,False,1,0.74,3,\"{'schema_version': 1, 'workflow_role': 'bond_scan_constrained', 'stage_gate': 'passed', 'gates': {'optimizer': 'passed', 'constraints': 'passed', 'atom_mapping': 'passed', 'physical_energy': 'passed'}, 'reason': 'OWNER_GATES_PASSED', 'exception_chain': [], 'automatic_recovery_attempted': False, 'recovery_supported': False, 'recovery_stop_reason': 'No certified restart contract for this stage', 'restart_authority': False}\",0,1,product_57b688dd30f9,True,representative,1.74,\"{'inchi': 'InChI=1S/H2/h1H', 'smiles': '[H][H]'}\",False,\"{'inchi': 'InChI=1S/2H', 'smiles': '[H].[H]'}\",<ROOT>/scan/orientation_000/attempts/attempt_000/execution/result_relaxed.xyz,0,1.28,break,scan_summary.json,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json,intramolecular,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json,3,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json,success,0.74,scan_success_relax_success,1.13,False,True,0.8320000000000001,3.0,3.0,3.0,0.74,1,input_molecule,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json\r\n",
+    "scan/summary.json": [
+      {
+        "atoms": [
+          0,
+          1
+        ],
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "bond_threshold_angstrom": 0.8320000000000001,
+        "candidate_files": {
+          "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+        },
+        "characterization_reference": "products/product_57b688dd30f9/characterization",
+        "completed_artifact_hashes": {
+          "attempts/attempt_000/execution/result_relaxed.xyz": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+          "attempts/attempt_000/execution/scan/final_scan.xyz": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f",
+          "attempts/attempt_000/execution/scan/scan_profile.csv": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b",
+          "attempts/attempt_000/execution/scan/scan_profile.json": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3",
+          "attempts/attempt_000/execution/scan/scan_trajectory.xyz": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5",
+          "attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c",
+          "attempts/attempt_000/execution/ts_candidates/metadata.json": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c",
+          "start.xyz": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+        },
+        "connectivity_rule": "distance < 1.3 * sum of covalent radii",
+        "discovery_status": "new_product",
+        "end_distance_angstrom": 3.0,
+        "endpoint_source": "user_explicit",
+        "energy_source": "scan_summary.json",
+        "final_scan_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+        "identity_status": "success",
+        "initially_bonded": true,
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "intervals": 2,
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.74,
+        "n_points": 3,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "product_group_size": 1,
+        "product_id": "product_57b688dd30f9",
+        "product_identity_changed": true,
+        "product_role": "representative",
+        "proposed_end_distance_angstrom": 1.74,
+        "reactant_identity": {
+          "inchi": "InChI=1S/H2/h1H",
+          "smiles": "[H][H]"
+        },
+        "reactant_product_connection_confirmed": false,
+        "relaxed_identity": {
+          "inchi": "InChI=1S/2H",
+          "smiles": "[H].[H]"
+        },
+        "relaxed_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/result_relaxed.xyz",
+        "representative_orientation": 0,
+        "safe_separation_threshold_angstrom": 1.28,
+        "scan_direction": "break",
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+        "scan_mode": "intramolecular",
+        "scan_output": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+        "scan_points": 3,
+        "scan_profile_csv": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+        "scan_profile_json": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+        "scan_status": "success",
+        "start_distance_angstrom": 0.74,
+        "status": "scan_success_relax_success",
+        "step_angstrom": 1.13,
+        "target_bond_present_after_relaxation": false,
+        "target_change_achieved": true,
+        "target_contact_threshold_angstrom": 0.8320000000000001,
+        "target_distance_final_scan_angstrom": 3.0,
+        "target_distance_relaxed_angstrom": 3.0,
+        "target_distance_scan_end_angstrom": 3.0,
+        "target_distance_start_angstrom": 0.74,
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "trajectory_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+        "ts_candidate_metadata": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+      }
+    ]
+  },
+  "result": {
+    "output_dir": "<ROOT>/scan",
+    "requested_through": "scan",
+    "results": [
+      {
+        "atoms": [
+          0,
+          1
+        ],
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "bond_threshold_angstrom": 0.8320000000000001,
+        "candidate_files": {
+          "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+        },
+        "characterization_reference": "products/product_57b688dd30f9/characterization",
+        "completed_artifact_hashes": {
+          "attempts/attempt_000/execution/result_relaxed.xyz": "078a061630b3ee5e4c8b1d5a897c9ec76067298d80ae70f50d0b7ad0758d005f",
+          "attempts/attempt_000/execution/scan/final_scan.xyz": "047ea1134366f069dd62f362865881e7e83e7cd9c6822302d0203e821fe6fe1f",
+          "attempts/attempt_000/execution/scan/scan_profile.csv": "ef55dd0db71a44daf29b06f1d83d4e326735461e4484d9f7aa8e5faadacd085b",
+          "attempts/attempt_000/execution/scan/scan_profile.json": "5a04d2d021bf76f0150aa286a399610f9770fcbeabbbf5230592556c575832b3",
+          "attempts/attempt_000/execution/scan/scan_trajectory.xyz": "9ad55c7a1bcf96ebdae067e4eaf3d05912eaa75032388c9570f489381f9024f5",
+          "attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz": "9403efdce3ac91b94b5c5d76a9b96c612a9b7150bdaa3b41b43f5a098dcf363c",
+          "attempts/attempt_000/execution/ts_candidates/metadata.json": "22a6ff2b7292088a129e178ab8fd751fa31a1a0e48915d6160ba4401977ee34c",
+          "start.xyz": "7b7e3222694f792843f4832ab30fab88b374729aca07fa0bfff79b707f617ef8"
+        },
+        "connectivity_rule": "distance < 1.3 * sum of covalent radii",
+        "discovery_status": "new_product",
+        "end_distance_angstrom": 3.0,
+        "endpoint_source": "user_explicit",
+        "energy_source": "scan_summary.json",
+        "final_scan_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+        "identity_status": "success",
+        "initially_bonded": true,
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "intervals": 2,
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.74,
+        "n_points": 3,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "product_group_size": 1,
+        "product_id": "product_57b688dd30f9",
+        "product_identity_changed": true,
+        "product_role": "representative",
+        "proposed_end_distance_angstrom": 1.74,
+        "reactant_identity": {
+          "inchi": "InChI=1S/H2/h1H",
+          "smiles": "[H][H]"
+        },
+        "reactant_product_connection_confirmed": false,
+        "relaxed_identity": {
+          "inchi": "InChI=1S/2H",
+          "smiles": "[H].[H]"
+        },
+        "relaxed_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/result_relaxed.xyz",
+        "representative_orientation": 0,
+        "safe_separation_threshold_angstrom": 1.28,
+        "scan_direction": "break",
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+        "scan_mode": "intramolecular",
+        "scan_output": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+        "scan_points": 3,
+        "scan_profile_csv": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+        "scan_profile_json": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+        "scan_status": "success",
+        "start_distance_angstrom": 0.74,
+        "status": "scan_success_relax_success",
+        "step_angstrom": 1.13,
+        "target_bond_present_after_relaxation": false,
+        "target_change_achieved": true,
+        "target_contact_threshold_angstrom": 0.8320000000000001,
+        "target_distance_final_scan_angstrom": 3.0,
+        "target_distance_relaxed_angstrom": 3.0,
+        "target_distance_scan_end_angstrom": 3.0,
+        "target_distance_start_angstrom": 0.74,
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "input_molecule",
+        "trajectory_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+        "ts_candidate_metadata": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+      }
+    ],
+    "scan_status": "scan_finished",
+    "status": "complete",
+    "workflow": "scan-bond"
+  }
+}

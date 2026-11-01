@@ -1,0 +1,1218 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "f61e23178abc783ac97073783492a64d740bac3f978d8856bad913b632852de6",
+      "multiplicity": 1,
+      "name": "000_000_grow_001",
+      "operation": "optimize",
+      "settings": {
+        "charge": 0,
+        "geometry_optimizer": "native",
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_threshold": "loose",
+        "scf_cycles": 1000,
+        "scf_threshold": "loose",
+        "scftype": "rhf",
+        "software": "xtb"
+      },
+      "symbols": [
+        "He",
+        "Ne"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "f61e23178abc783ac97073783492a64d740bac3f978d8856bad913b632852de6",
+      "multiplicity": 1,
+      "name": "000_000_grow_001",
+      "operation": "optimize",
+      "settings": {
+        "charge": 0,
+        "geometry_optimizer": "native",
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_threshold": "normal",
+        "scf_cycles": 1000,
+        "scf_threshold": "loose",
+        "scftype": "rhf",
+        "software": "xtb"
+      },
+      "symbols": [
+        "He",
+        "Ne"
+      ]
+    }
+  ],
+  "files": {
+    ".grow.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/grow"
+    },
+    "grow/inputs/metadata.json": {
+      "input_schema_version": 1,
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "seed",
+          "path": "inputs/seed.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "monomer",
+          "path": "inputs/monomer.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+          "title": "Title"
+        }
+      ],
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "grow/inputs/monomer.xyz": {
+      "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+      "text": "  1\nTitle: None\nNe     0.00000     0.00000     0.00000\n"
+    },
+    "grow/inputs/seed.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "grow/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "grow"
+    },
+    "grow/request.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/seed.xyz",
+          "role": "input",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "path": "inputs/monomer.xyz",
+          "role": "input",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952"
+        }
+      ],
+      "request_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "backend_parameters": {
+          "geometry_optimizer": "native",
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_threshold": "normal",
+          "scf_cycles": 1000,
+          "scf_threshold": "loose",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "count": 1,
+        "input_growth_metadata": [
+          {},
+          {}
+        ],
+        "maximum_number_of_seeds": 1,
+        "monomer": {
+          "atoms": [
+            "Ne"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "orientations": 2,
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "seed": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "workflow": "grow"
+    },
+    "grow/results/manifest.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000a",
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "path": "results/structure_000.xyz",
+          "rank": 0,
+          "role": "final-structure",
+          "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+          "source_artifact_id": "00000000-0000-4000-8000-000000000008",
+          "source_record_id": "00000000-0000-4000-8000-000000000009"
+        }
+      ],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "grow"
+    },
+    "grow/results/structure_000.xyz": {
+      "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+      "text": "  2\ntrial orientation 000_000_grow_001: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/state.json": {
+      "completed_steps": [
+        {
+          "selected_count": 1,
+          "selected_paths": [
+            "steps/step_001/selected/selected_000.xyz"
+          ],
+          "selection_mode": "energy-ranked",
+          "selection_sha256": "608e7f6003b37d0f65e4894c092f475a203f8aca7e6d74b3febc026e07293885",
+          "step": 1
+        }
+      ],
+      "current_seeds": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "charge": 0,
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "fragments": [
+            [
+              0
+            ],
+            [
+              1
+            ]
+          ],
+          "growth_metadata": {
+            "connectivity_policy_hint": "off"
+          },
+          "multiplicity": 1,
+          "name": "000_000_grow_001",
+          "path": "steps/step_001/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+          "title": "trial orientation 000_000_grow_001"
+        }
+      ],
+      "final_refs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000a",
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "path": "results/structure_000.xyz",
+          "rank": 0,
+          "role": "final-structure",
+          "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+          "source_artifact_id": "00000000-0000-4000-8000-000000000008",
+          "source_record_id": "00000000-0000-4000-8000-000000000009"
+        }
+      ],
+      "initial_seeds": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000005",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "seed",
+          "path": "steps/step_000/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        }
+      ],
+      "next_step": 2,
+      "request": {
+        "backend_parameters": {
+          "geometry_optimizer": "native",
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_threshold": "normal",
+          "scf_cycles": 1000,
+          "scf_threshold": "loose",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "count": 1,
+        "input_growth_metadata": [
+          {},
+          {}
+        ],
+        "maximum_number_of_seeds": 1,
+        "monomer": {
+          "atoms": [
+            "Ne"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "orientations": 2,
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "seed": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "status": "completed",
+      "workflow": "grow",
+      "workflow_state_schema_version": 2
+    },
+    "grow/steps/step_000/selected/selected_000.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/.pyar_optimization_diagnostics/growth_preselection-000_000_grow_001-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "000_000_grow_001",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "fa8ec63a-4f9e-581b-808e-7abe7b267329",
+                "path": "result_000_000_grow_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "1ff3a2ec-adbe-5dfd-a254-4bc96c03502a",
+                "path": "trial_000_000_grow_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "5dea42fff646072a2ea7f2fc191d35dff820a5ea23dff89897865fff0e0af427",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "fa8ec63a-4f9e-581b-808e-7abe7b267329",
+                  "path": "result_000_000_grow_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "1ff3a2ec-adbe-5dfd-a254-4bc96c03502a",
+                  "path": "trial_000_000_grow_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "5dea42fff646072a2ea7f2fc191d35dff820a5ea23dff89897865fff0e0af427",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "107f4c0e8efbc42deb17fea9cd91e162ff796f1082dd7b942a949406cbfe53ba"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -1.4060000000000001,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "name": "000_000_grow_001",
+              "optimizer": "native",
+              "request_fingerprint": "107f4c0e8efbc42deb17fea9cd91e162ff796f1082dd7b942a949406cbfe53ba",
+              "scientific_fingerprint": "420b71e619cee4373a2e806565a4d0cf1ba855ffea71c9e97218ef444c6e139c",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "geometry_optimizer": "native",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_cycles": 350,
+                "opt_threshold": "loose",
+                "scf_cycles": 1000,
+                "scf_threshold": "loose",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "Ne"
+              ],
+              "target": "minimum",
+              "workflow_role": "growth_preselection"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/grow/steps/step_001/attempts/attempt_000/execution/seed_000/job_000_000_grow_001/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/grow/steps/step_001/attempts/attempt_000/execution/seed_000/job_000_000_grow_001/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "growth_preselection"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/job_000_000_grow_001/result_000_000_grow_001.xyz": {
+      "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+      "text": "  2\ntrial orientation 000_000_grow_001: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/job_000_000_grow_001/trial_000_000_grow_001.xyz": {
+      "sha256": "5dea42fff646072a2ea7f2fc191d35dff820a5ea23dff89897865fff0e0af427",
+      "text": "  2\ntrial orientation 000_000_grow_001: None\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/monomer.xyz": {
+      "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+      "text": "  1\nTitle: None\nNe     0.00000     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/seed.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/trial_000_000_grow_001.xyz": {
+      "sha256": "5dea42fff646072a2ea7f2fc191d35dff820a5ea23dff89897865fff0e0af427",
+      "text": "  2\ntrial orientation 000_000_grow_001: None\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/seed_000/trial_vectors.dat": "1.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00\n",
+    "grow/steps/step_001/attempts/attempt_000/execution/selected/.pyar_optimization_diagnostics/growth_refinement-000_000_grow_001-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "000_000_grow_001",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "fa8ec63a-4f9e-581b-808e-7abe7b267329",
+                "path": "result_000_000_grow_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "787bc071-1aa0-5d26-bc32-e52f1539ff59",
+                "path": "trial_000_000_grow_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "fa8ec63a-4f9e-581b-808e-7abe7b267329",
+                  "path": "result_000_000_grow_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "787bc071-1aa0-5d26-bc32-e52f1539ff59",
+                  "path": "trial_000_000_grow_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "abc417b64f7b3cb94eeb839cb2de2b1cba0e4fbb5e910c301abccb421cb2219e"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -1.4060000000000001,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "name": "000_000_grow_001",
+              "optimizer": "native",
+              "request_fingerprint": "abc417b64f7b3cb94eeb839cb2de2b1cba0e4fbb5e910c301abccb421cb2219e",
+              "scientific_fingerprint": "dc4d1b2f127e4c443873c880d71017ea956d04572b420b0476c7ecfd048c3969",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "geometry_optimizer": "native",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_cycles": 350,
+                "opt_threshold": "normal",
+                "scf_cycles": 1000,
+                "scf_threshold": "loose",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "Ne"
+              ],
+              "target": "minimum",
+              "workflow_role": "growth_refinement"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/grow/steps/step_001/attempts/attempt_000/execution/selected/job_000_000_grow_001/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/grow/steps/step_001/attempts/attempt_000/execution/selected/job_000_000_grow_001/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "growth_refinement"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/selected/README.txt": "Selected geometries for stoichiometry HeNe\n============================================================\nSelection mode: two-stage\nStage 1: loose preselection\nStage 2: normal-threshold refinement\nBackend: xtb\nSelected geometries: 1\nConnectivity policy: off\n",
+    "grow/steps/step_001/attempts/attempt_000/execution/selected/job_000_000_grow_001/result_000_000_grow_001.xyz": {
+      "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+      "text": "  2\ntrial orientation 000_000_grow_001: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/selected/job_000_000_grow_001/trial_000_000_grow_001.xyz": {
+      "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+      "text": "  2\ntrial orientation 000_000_grow_001: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/selected/result_000_000_grow_001.xyz": {
+      "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+      "text": "  2\ntrial orientation 000_000_grow_001: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/selected/selection_diagnostics.json": {
+      "algorithm_fallbacks": [],
+      "algorithm_used": "not-run",
+      "basin_memory": {
+        "input_candidates": 1,
+        "output_candidates": 1,
+        "registry_path": "selected/basin_registry.json",
+        "schema_version": 2,
+        "status": "empty-registry"
+      },
+      "candidate_names": [
+        "000_000_grow_001"
+      ],
+      "candidate_paths": [
+        "000_000_grow_001"
+      ],
+      "distance_fallbacks": [],
+      "distance_metric": "euclidean",
+      "distance_requested": "euclidean",
+      "distance_units": null,
+      "distance_used": "not-run",
+      "feature_fallbacks": [],
+      "feature_requested": "distance-histogram",
+      "feature_used": null,
+      "input_count": 1,
+      "selected_count": 1,
+      "selected_names": [
+        "000_000_grow_001"
+      ],
+      "selection_algorithm_requested": "auto",
+      "selection_stage": "within-budget-after-filtering"
+    },
+    "grow/steps/step_001/attempts/attempt_000/execution/structural_analysis_preselection.json": {
+      "method": "coordinate-only-adjacency",
+      "stage": "pre-similarity-selection",
+      "structures": [
+        {
+          "cutoff_angstrom": null,
+          "input_parts": [
+            {
+              "component_count": 1,
+              "components": [
+                [
+                  0
+                ]
+              ],
+              "composition": {
+                "He": 1
+              },
+              "cutoff_angstrom": null,
+              "declared_fragment_count": 0,
+              "degrees": [
+                0
+              ],
+              "edges": [],
+              "geometric_component_pattern": "single-connected-component",
+              "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment",
+              "method": "coordinate-only-adjacency",
+              "model": "covalent-radii",
+              "name": "seed",
+              "natoms": 1,
+              "scale": 1.15
+            },
+            {
+              "component_count": 1,
+              "components": [
+                [
+                  0
+                ]
+              ],
+              "composition": {
+                "Ne": 1
+              },
+              "cutoff_angstrom": null,
+              "declared_fragment_count": 0,
+              "degrees": [
+                0
+              ],
+              "edges": [],
+              "geometric_component_pattern": "single-connected-component",
+              "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment",
+              "method": "coordinate-only-adjacency",
+              "model": "covalent-radii",
+              "name": "monomer",
+              "natoms": 1,
+              "scale": 1.15
+            }
+          ],
+          "input_to_output": {
+            "added_edges": [],
+            "input_component_count": 2,
+            "input_edge_count": 0,
+            "input_fragment_count": 2,
+            "output_component_count": 2,
+            "output_edge_count": 0,
+            "removed_edges": [],
+            "same_atom_count": true,
+            "same_atom_order": true,
+            "same_composition": true
+          },
+          "limitations": [
+            "No bond orders, charges, spin states, or fragment intent are inferred.",
+            "An edge change is a coordinate-threshold change, not proof of a chemical reaction."
+          ],
+          "method": "coordinate-only-adjacency",
+          "model": "covalent-radii",
+          "name": "000_000_grow_001",
+          "output": {
+            "component_count": 2,
+            "components": [
+              [
+                0
+              ],
+              [
+                1
+              ]
+            ],
+            "composition": {
+              "He": 1,
+              "Ne": 1
+            },
+            "cutoff_angstrom": null,
+            "declared_fragment_count": 2,
+            "degrees": [
+              0,
+              0
+            ],
+            "edges": [],
+            "geometric_component_pattern": "multiple-components",
+            "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment",
+            "method": "coordinate-only-adjacency",
+            "model": "covalent-radii",
+            "name": "000_000_grow_001",
+            "natoms": 2,
+            "scale": 1.15
+          },
+          "scale": 1.15
+        }
+      ]
+    },
+    "grow/steps/step_001/selected/selected_000.xyz": {
+      "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+      "text": "  2\ntrial orientation 000_000_grow_001: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.40600     0.00000     0.00000\n"
+    },
+    "grow/steps/step_001/selected/selection_diagnostics.json": {
+      "algorithm_fallbacks": [],
+      "algorithm_used": "not-run",
+      "basin_memory": {
+        "input_candidates": 1,
+        "output_candidates": 1,
+        "registry_path": "selected/basin_registry.json",
+        "schema_version": 2,
+        "status": "empty-registry"
+      },
+      "candidate_names": [
+        "000_000_grow_001"
+      ],
+      "candidate_paths": [
+        "000_000_grow_001"
+      ],
+      "distance_fallbacks": [],
+      "distance_metric": "euclidean",
+      "distance_requested": "euclidean",
+      "distance_units": null,
+      "distance_used": "not-run",
+      "feature_fallbacks": [],
+      "feature_requested": "distance-histogram",
+      "feature_used": null,
+      "input_count": 1,
+      "selected_count": 1,
+      "selected_names": [
+        "000_000_grow_001"
+      ],
+      "selection_algorithm_requested": "auto",
+      "selection_stage": "within-budget-after-filtering"
+    },
+    "grow/steps/step_001/selection.json": {
+      "physical_method": {
+        "geometry_optimizer": "native",
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_threshold": "normal",
+        "scf_cycles": 1000,
+        "scf_threshold": "loose",
+        "software": "xtb"
+      },
+      "record_id": "00000000-0000-4000-8000-000000000009",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "backend_parameters": {
+          "geometry_optimizer": "native",
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_threshold": "normal",
+          "scf_cycles": 1000,
+          "scf_threshold": "loose",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "count": 1,
+        "input_growth_metadata": [
+          {},
+          {}
+        ],
+        "maximum_number_of_seeds": 1,
+        "monomer": {
+          "atoms": [
+            "Ne"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "orientations": 2,
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "seed": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "scientific_settings": {
+        "backend_parameters": {
+          "geometry_optimizer": "native",
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_threshold": "normal",
+          "scf_cycles": 1000,
+          "scf_threshold": "loose",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "count": 1,
+        "input_growth_metadata": [
+          {},
+          {}
+        ],
+        "maximum_number_of_seeds": 1,
+        "monomer": {
+          "atoms": [
+            "Ne"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "orientations": 2,
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "seed": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "selected": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "charge": 0,
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "fragments": [
+            [
+              0
+            ],
+            [
+              1
+            ]
+          ],
+          "growth_metadata": {
+            "connectivity_policy_hint": "off"
+          },
+          "multiplicity": 1,
+          "name": "000_000_grow_001",
+          "path": "steps/step_001/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "ecd2a97884503e4fa971c5a551c607cc2774f423c25bb4965e8f163d0968940a",
+          "title": "trial orientation 000_000_grow_001"
+        }
+      ],
+      "selection_mode": "energy-ranked",
+      "stage": "grow-selection",
+      "stage_result_schema_version": 1,
+      "status": "completed",
+      "step": 1,
+      "upstream_sha256": null,
+      "validation": {
+        "survivor_budget": true
+      }
+    },
+    "grow/summary.json": {
+      "metadata": {
+        "backend": "xtb",
+        "completed_additions": 1,
+        "connectivity_policy": "off",
+        "layout_version": 2,
+        "maximum_number_of_seeds": 1,
+        "orientations_per_seed": 2,
+        "requested_additions": 1,
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "selection_policy": {
+          "selection_algorithm": "auto",
+          "selection_distance": "euclidean",
+          "selection_feature": "distance-histogram",
+          "selection_policy_version": 3,
+          "selection_system_type": "auto"
+        },
+        "stages": [
+          {
+            "selected_count": 1,
+            "selected_paths": [
+              "steps/step_001/selected/selected_000.xyz"
+            ],
+            "selection_mode": "energy-ranked",
+            "selection_sha256": "608e7f6003b37d0f65e4894c092f475a203f8aca7e6d74b3febc026e07293885",
+            "step": 1
+          }
+        ]
+      },
+      "run_directory": "<ROOT>/grow",
+      "selected_paths": [
+        "<ROOT>/grow/results/structure_000.xyz"
+      ],
+      "state_path": "<ROOT>/grow/state.json",
+      "status": "completed",
+      "workflow": "grow"
+    }
+  },
+  "result": {
+    "metadata": {
+      "backend": "xtb",
+      "completed_additions": 1,
+      "connectivity_policy": "off",
+      "layout_version": 2,
+      "maximum_number_of_seeds": 1,
+      "orientations_per_seed": 2,
+      "requested_additions": 1,
+      "sampling": {
+        "direction_method": "fibonacci",
+        "number_of_orientations": 2,
+        "oversample_factor": 8,
+        "rotation_method": "halton",
+        "sequence_offset": 0,
+        "use_angles": false
+      },
+      "selection_policy": {
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto"
+      },
+      "stages": [
+        {
+          "selected_count": 1,
+          "selected_paths": [
+            "steps/step_001/selected/selected_000.xyz"
+          ],
+          "selection_mode": "energy-ranked",
+          "selection_sha256": "608e7f6003b37d0f65e4894c092f475a203f8aca7e6d74b3febc026e07293885",
+          "step": 1
+        }
+      ]
+    },
+    "run_directory": "<ROOT>/grow",
+    "selected_paths": [
+      "<ROOT>/grow/results/structure_000.xyz"
+    ],
+    "state_path": "<ROOT>/grow/state.json",
+    "status": "completed",
+    "workflow": "grow"
+  }
+}

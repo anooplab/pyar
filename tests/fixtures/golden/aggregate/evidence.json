@@ -1,0 +1,1716 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "f61e23178abc783ac97073783492a64d740bac3f978d8856bad913b632852de6",
+      "multiplicity": 1,
+      "name": "000_000_ag_a_001_b_001",
+      "operation": "optimize",
+      "settings": {
+        "nprocs": 1,
+        "opt_threshold": "loose",
+        "software": "xtb"
+      },
+      "symbols": [
+        "Ne",
+        "He"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "f61e23178abc783ac97073783492a64d740bac3f978d8856bad913b632852de6",
+      "multiplicity": 1,
+      "name": "000_000_ag_a_001_b_001",
+      "operation": "optimize",
+      "settings": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "symbols": [
+        "Ne",
+        "He"
+      ]
+    }
+  ],
+  "files": {
+    ".aggregates.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/aggregates"
+    },
+    "aggregates/final_selection.json": {
+      "dependencies": {
+        "0": {
+          "0": "fb7d97d685a0748d5a89416834484cd25c58d155db818542f54040f5f80badf2",
+          "1": "30a7d5bdd248d7c1e6e7b6df51494a3cfe8cb1fc05e269009a8b2b8934082852"
+        }
+      },
+      "physical_method": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "record_id": "00000000-0000-4000-8000-00000000000d",
+      "requested_composition": {
+        "He": 1,
+        "Ne": 1
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "scientific_settings": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "selected": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000e",
+          "composition": {
+            "He": 1,
+            "Ne": 1
+          },
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "matches_requested_composition": true,
+          "path": "results/aggregate_000.xyz",
+          "rank": 0,
+          "role": "final-cross-path-selection",
+          "selection_name": "ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001",
+          "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+          "source_artifact_id": "00000000-0000-4000-8000-00000000000b",
+          "source_record_id": "00000000-0000-4000-8000-00000000000d"
+        }
+      ],
+      "stage_result_schema_version": 1,
+      "status": "completed"
+    },
+    "aggregates/inputs/component_000.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "aggregates/inputs/component_001.xyz": {
+      "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+      "text": "  1\nTitle: None\nNe     0.00000     0.00000     0.00000\n"
+    },
+    "aggregates/inputs/metadata.json": {
+      "input_schema_version": 1,
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "a",
+          "path": "inputs/component_000.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "b",
+          "path": "inputs/component_001.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+          "title": "Title"
+        }
+      ],
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "aggregates/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "aggregate"
+    },
+    "aggregates/pathways/pathway_000/pathway.json": {
+      "addition_sequence": [
+        "00000000-0000-4000-8000-000000000004",
+        "00000000-0000-4000-8000-000000000003"
+      ],
+      "composition": [
+        {
+          "component_artifact_id": "00000000-0000-4000-8000-000000000003",
+          "count": 1
+        },
+        {
+          "component_artifact_id": "00000000-0000-4000-8000-000000000004",
+          "count": 1
+        }
+      ],
+      "index": 0,
+      "label": "ba",
+      "pathway_id": "00000000-0000-4000-8000-000000000005",
+      "pathway_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      }
+    },
+    "aggregates/pathways/pathway_000/steps/step_000/selected/selected_000.xyz": {
+      "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+      "text": "  1\nTitle: None\nNe     0.00000     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_000/selection.json": {
+      "native_sources": [],
+      "pathway": 0,
+      "physical_method": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "record_id": "00000000-0000-4000-8000-000000000007",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "scientific_settings": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "selected": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000006",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "b",
+          "path": "pathways/pathway_000/steps/step_000/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+          "title": "Title"
+        }
+      ],
+      "stage_result_schema_version": 1,
+      "status": "completed",
+      "step": 0,
+      "upstream_sha256": null
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/.pyar_optimization_diagnostics/growth_preselection-000_000_ag_a_001_b_001-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "000_000_ag_a_001_b_001",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "ee9d2162-0e22-595b-b921-80310834d0a1",
+                "path": "result_000_000_ag_a_001_b_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "a16653f8-097b-5ab6-a5d8-29a0d281771d",
+                "path": "trial_000_000_ag_a_001_b_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "d8219168fcb26e722259110a1140d4537f444e9b1e5696068c7655c951a70f18",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "ee9d2162-0e22-595b-b921-80310834d0a1",
+                  "path": "result_000_000_ag_a_001_b_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "a16653f8-097b-5ab6-a5d8-29a0d281771d",
+                  "path": "trial_000_000_ag_a_001_b_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "d8219168fcb26e722259110a1140d4537f444e9b1e5696068c7655c951a70f18",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "57a289661f3319424cc9fd1591698cc50d1b24efac2e68c64f7809ec71224dd1"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -1.4060000000000001,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "name": "000_000_ag_a_001_b_001",
+              "optimizer": "native",
+              "request_fingerprint": "57a289661f3319424cc9fd1591698cc50d1b24efac2e68c64f7809ec71224dd1",
+              "scientific_fingerprint": "7d1858214021cb472365b6107c8310ac241bc65db96863b40307d32958864d3e",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_threshold": "loose",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "Ne",
+                "He"
+              ],
+              "target": "minimum",
+              "workflow_role": "growth_preselection"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/job_000_000_ag_a_001_b_001/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/job_000_000_ag_a_001_b_001/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "growth_preselection"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/job_000_000_ag_a_001_b_001/result_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/job_000_000_ag_a_001_b_001/trial_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "d8219168fcb26e722259110a1140d4537f444e9b1e5696068c7655c951a70f18",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: None\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/monomer.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/seed.xyz": {
+      "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+      "text": "  1\nTitle: None\nNe     0.00000     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/trial_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "d8219168fcb26e722259110a1140d4537f444e9b1e5696068c7655c951a70f18",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: None\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/seed_000/trial_vectors.dat": "1.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00\n",
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/.pyar_optimization_diagnostics/growth_refinement-000_000_ag_a_001_b_001-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "000_000_ag_a_001_b_001",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "ee9d2162-0e22-595b-b921-80310834d0a1",
+                "path": "result_000_000_ag_a_001_b_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "ae396946-3159-5e25-95fc-068fd51c09e3",
+                "path": "trial_000_000_ag_a_001_b_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "ee9d2162-0e22-595b-b921-80310834d0a1",
+                  "path": "result_000_000_ag_a_001_b_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "ae396946-3159-5e25-95fc-068fd51c09e3",
+                  "path": "trial_000_000_ag_a_001_b_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "729c81ce8529ca63e1aa6fd3fb3b5e62a6a6a9da369a2ebb1f427675d72c7252"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -1.4060000000000001,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "name": "000_000_ag_a_001_b_001",
+              "optimizer": "native",
+              "request_fingerprint": "729c81ce8529ca63e1aa6fd3fb3b5e62a6a6a9da369a2ebb1f427675d72c7252",
+              "scientific_fingerprint": "07beaeb5c8c5d65d5523961e55d677991cfca0162456b0e324faad50b43b7f5d",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "Ne",
+                "He"
+              ],
+              "target": "minimum",
+              "workflow_role": "growth_refinement"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/job_000_000_ag_a_001_b_001/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/job_000_000_ag_a_001_b_001/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "growth_refinement"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/README.txt": "Selected geometries for stoichiometry HeNe\n============================================================\nSelection mode: two-stage\nStage 1: loose preselection\nStage 2: normal-threshold refinement\nBackend: xtb\nSelected geometries: 1\nConnectivity policy: off\n",
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/job_000_000_ag_a_001_b_001/result_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/job_000_000_ag_a_001_b_001/trial_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/result_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/selected/selection_diagnostics.json": {
+      "algorithm_fallbacks": [],
+      "algorithm_used": "not-run",
+      "basin_memory": {
+        "input_candidates": 1,
+        "output_candidates": 1,
+        "registry_path": "selected/basin_registry.json",
+        "schema_version": 2,
+        "status": "empty-registry"
+      },
+      "candidate_names": [
+        "000_000_ag_a_001_b_001"
+      ],
+      "candidate_paths": [
+        "000_000_ag_a_001_b_001"
+      ],
+      "distance_fallbacks": [],
+      "distance_metric": "euclidean",
+      "distance_requested": "euclidean",
+      "distance_units": null,
+      "distance_used": "not-run",
+      "feature_fallbacks": [],
+      "feature_requested": "distance-histogram",
+      "feature_used": null,
+      "input_count": 1,
+      "selected_count": 1,
+      "selected_names": [
+        "000_000_ag_a_001_b_001"
+      ],
+      "selection_algorithm_requested": "auto",
+      "selection_stage": "within-budget-after-filtering"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/attempts/attempt_000/execution/ag_a_001_b_001_000/structural_analysis_preselection.json": {
+      "method": "coordinate-only-adjacency",
+      "stage": "pre-similarity-selection",
+      "structures": [
+        {
+          "cutoff_angstrom": null,
+          "input_parts": [
+            {
+              "component_count": 1,
+              "components": [
+                [
+                  0
+                ]
+              ],
+              "composition": {
+                "Ne": 1
+              },
+              "cutoff_angstrom": null,
+              "declared_fragment_count": 0,
+              "degrees": [
+                0
+              ],
+              "edges": [],
+              "geometric_component_pattern": "single-connected-component",
+              "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment",
+              "method": "coordinate-only-adjacency",
+              "model": "covalent-radii",
+              "name": "b",
+              "natoms": 1,
+              "scale": 1.15
+            },
+            {
+              "component_count": 1,
+              "components": [
+                [
+                  0
+                ]
+              ],
+              "composition": {
+                "He": 1
+              },
+              "cutoff_angstrom": null,
+              "declared_fragment_count": 0,
+              "degrees": [
+                0
+              ],
+              "edges": [],
+              "geometric_component_pattern": "single-connected-component",
+              "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment",
+              "method": "coordinate-only-adjacency",
+              "model": "covalent-radii",
+              "name": "a",
+              "natoms": 1,
+              "scale": 1.15
+            }
+          ],
+          "input_to_output": {
+            "added_edges": [],
+            "input_component_count": 2,
+            "input_edge_count": 0,
+            "input_fragment_count": 2,
+            "output_component_count": 2,
+            "output_edge_count": 0,
+            "removed_edges": [],
+            "same_atom_count": true,
+            "same_atom_order": true,
+            "same_composition": true
+          },
+          "limitations": [
+            "No bond orders, charges, spin states, or fragment intent are inferred.",
+            "An edge change is a coordinate-threshold change, not proof of a chemical reaction."
+          ],
+          "method": "coordinate-only-adjacency",
+          "model": "covalent-radii",
+          "name": "000_000_ag_a_001_b_001",
+          "output": {
+            "component_count": 2,
+            "components": [
+              [
+                0
+              ],
+              [
+                1
+              ]
+            ],
+            "composition": {
+              "He": 1,
+              "Ne": 1
+            },
+            "cutoff_angstrom": null,
+            "declared_fragment_count": 2,
+            "degrees": [
+              0,
+              0
+            ],
+            "edges": [],
+            "geometric_component_pattern": "multiple-components",
+            "interpretation": "geometric adjacency only; not a bond-order or chemical-identity assignment",
+            "method": "coordinate-only-adjacency",
+            "model": "covalent-radii",
+            "name": "000_000_ag_a_001_b_001",
+            "natoms": 2,
+            "scale": 1.15
+          },
+          "scale": 1.15
+        }
+      ]
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/selected/native_source_000.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/selected/selected_000.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/pathways/pathway_000/steps/step_001/selection.json": {
+      "native_sources": [
+        {
+          "artifact": {
+            "artifact_id": "00000000-0000-4000-8000-00000000000b",
+            "path": "pathways/pathway_000/steps/step_001/selected/native_source_000.xyz",
+            "role": "cross-path-selection-input",
+            "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4"
+          },
+          "source_key": "ag_a_001_b_001_000/selected/result_000_000_ag_a_001_b_001.xyz"
+        }
+      ],
+      "pathway": 0,
+      "physical_method": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "record_id": "00000000-0000-4000-8000-00000000000c",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "scientific_settings": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "selected": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000a",
+          "charge": 0,
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "fragments": [
+            [
+              0
+            ],
+            [
+              1
+            ]
+          ],
+          "growth_metadata": {
+            "connectivity_policy_hint": "off"
+          },
+          "multiplicity": 1,
+          "name": "000_000_ag_a_001_b_001",
+          "path": "pathways/pathway_000/steps/step_001/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+          "title": "trial orientation 000_000_ag_a_001_b_001"
+        }
+      ],
+      "stage_result_schema_version": 1,
+      "status": "completed",
+      "step": 1,
+      "upstream_sha256": "fb7d97d685a0748d5a89416834484cd25c58d155db818542f54040f5f80badf2"
+    },
+    "aggregates/request.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/component_000.xyz",
+          "role": "input",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "path": "inputs/component_001.xyz",
+          "role": "input",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952"
+        }
+      ],
+      "request_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "workflow": "aggregate"
+    },
+    "aggregates/results/aggregate_000.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/results/manifest.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000e",
+          "composition": {
+            "He": 1,
+            "Ne": 1
+          },
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "matches_requested_composition": true,
+          "path": "results/aggregate_000.xyz",
+          "rank": 0,
+          "role": "final-cross-path-selection",
+          "selection_name": "ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001",
+          "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+          "source_artifact_id": "00000000-0000-4000-8000-00000000000b",
+          "source_record_id": "00000000-0000-4000-8000-00000000000d"
+        }
+      ],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "aggregate"
+    },
+    "aggregates/selection/attempts/attempt_000/execution/selected/stoichiometry_HeNe/README.txt": "Selected geometries for stoichiometry HeNe\n============================================================\nStoichiometry: HeNe\nSelection mode: final cross-path clustering\nSource geometries: 1\nSelected geometries: 1\nAlgorithm: auto\nConnectivity policy: off\n",
+    "aggregates/selection/attempts/attempt_000/execution/selected/stoichiometry_HeNe/basin_registry.json": {
+      "entries": [
+        {
+          "descriptors": {
+            "geometry": {
+              "name": "element-pair-distance-histogram",
+              "parameters": {
+                "bins": 64,
+                "maximum_distance_angstrom": 12.0,
+                "normalization": "per-element-pair",
+                "species": [
+                  "He",
+                  "Ne"
+                ]
+              },
+              "values": [
+                0.5,
+                0.5,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "version": 1
+            }
+          },
+          "energy": -2.0,
+          "geometry": {
+            "atoms": [
+              "Ne",
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                -1.406,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          "geometry_id": "b0aab9ccdbff4f9833e01970a375d9f3771a069693c27c61becf960f520b4ca8",
+          "name": "ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001"
+        }
+      ],
+      "format": "pyar.basin-memory",
+      "schema_version": 2,
+      "stoichiometry": "HeNe"
+    },
+    "aggregates/selection/attempts/attempt_000/execution/selected/stoichiometry_HeNe/result_ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001.xyz": {
+      "sha256": "1caa5a5af5faf24dd37ad9fbf03abb8b1a60b929279b5d039f7c868c61b08be4",
+      "text": "  2\ntrial orientation 000_000_ag_a_001_b_001: -2.0\nNe     0.00000     0.00000     0.00000\nHe    -1.40600     0.00000     0.00000\n"
+    },
+    "aggregates/selection/attempts/attempt_000/execution/selected/stoichiometry_HeNe/selection_diagnostics.json": {
+      "algorithm_fallbacks": [],
+      "algorithm_used": "not-run",
+      "basin_memory": {
+        "input_candidates": 1,
+        "output_candidates": 1,
+        "registry_path": "selected/stoichiometry_HeNe/basin_registry.json",
+        "schema_version": 2,
+        "status": "empty-registry"
+      },
+      "candidate_names": [
+        "ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001"
+      ],
+      "candidate_paths": [
+        "ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001"
+      ],
+      "distance_fallbacks": [],
+      "distance_metric": "euclidean",
+      "distance_requested": "euclidean",
+      "distance_units": null,
+      "distance_used": "not-run",
+      "feature_fallbacks": [],
+      "feature_requested": "distance-histogram",
+      "feature_used": null,
+      "input_count": 1,
+      "selected_count": 1,
+      "selected_names": [
+        "ag_a_001_b_001_000_selected_result_000_000_ag_a_001_b_001"
+      ],
+      "selection_algorithm_requested": "auto",
+      "selection_stage": "within-budget-after-filtering"
+    },
+    "aggregates/state.json": {
+      "completed_pathways": [
+        {
+          "index": 0,
+          "label": "ba",
+          "status": "completed"
+        }
+      ],
+      "final_selected_results": [
+        "results/aggregate_000.xyz"
+      ],
+      "final_selection_sha256": "c85d2ac2afdd2d0a20aa6d45912ba23bdf5222cfafbaba7aac6df8bb7bc3fa3f",
+      "pathway_records": {
+        "0": "c7ad0d88fda52357de553a8e27b40189ca7d304710617f40cb39674a49ca5ac1"
+      },
+      "pathways": [
+        "ba"
+      ],
+      "request": {
+        "aggregate_sizes": [
+          1,
+          1
+        ],
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "connectivity_policy": "off",
+        "first_pathway": 0,
+        "fragments": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "fragment_definition": [],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          }
+        ],
+        "maximum_number_of_seeds": 1,
+        "number_of_pathways": 1,
+        "orientations": 2,
+        "selection_algorithm": "auto",
+        "selection_distance": "euclidean",
+        "selection_feature": "distance-histogram",
+        "selection_policy_version": 3,
+        "selection_system_type": "auto",
+        "site": null
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "sampling": {
+        "direction_method": "fibonacci",
+        "number_of_orientations": 2,
+        "oversample_factor": 8,
+        "rotation_method": "halton",
+        "sequence_offset": 0
+      },
+      "status": "completed",
+      "steps": {
+        "0": {
+          "0": "fb7d97d685a0748d5a89416834484cd25c58d155db818542f54040f5f80badf2",
+          "1": "30a7d5bdd248d7c1e6e7b6df51494a3cfe8cb1fc05e269009a8b2b8934082852"
+        }
+      },
+      "workflow": "aggregate",
+      "workflow_state_schema_version": 2
+    },
+    "aggregates/summary.json": {
+      "metadata": {
+        "completed_pathways": [
+          "ba"
+        ],
+        "connectivity_policy": "off",
+        "layout_version": 2,
+        "pathways": [
+          "ba"
+        ],
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0
+        }
+      },
+      "run_directory": "<ROOT>/aggregates",
+      "selected_paths": [
+        "results/aggregate_000.xyz"
+      ],
+      "state_path": "<ROOT>/aggregates/state.json",
+      "status": "completed",
+      "workflow": "aggregate"
+    }
+  },
+  "result": {
+    "metadata": {
+      "completed_pathways": [
+        "ba"
+      ],
+      "connectivity_policy": "off",
+      "layout_version": 2,
+      "pathways": [
+        "ba"
+      ],
+      "sampling": {
+        "direction_method": "fibonacci",
+        "number_of_orientations": 2,
+        "oversample_factor": 8,
+        "rotation_method": "halton",
+        "sequence_offset": 0
+      }
+    },
+    "run_directory": "<ROOT>/aggregates",
+    "selected_paths": [
+      "results/aggregate_000.xyz"
+    ],
+    "state_path": "<ROOT>/aggregates/state.json",
+    "status": "completed",
+    "workflow": "aggregate"
+  }
+}

@@ -1,0 +1,1879 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "468f4edcbc54d9371c19c9ab7bdb5802497de179b5a5080b09de2ad8e2de74b6",
+      "multiplicity": 1,
+      "name": "0100_000_geom",
+      "operation": "optimize",
+      "settings": {
+        "gamma": 100.0,
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "reaction_trace": false,
+        "release_job_name": "0100_000_geom",
+        "software": "xtb",
+        "trace_enabled": false
+      },
+      "symbols": [
+        "He",
+        "Ne"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "468f4edcbc54d9371c19c9ab7bdb5802497de179b5a5080b09de2ad8e2de74b6",
+      "multiplicity": 1,
+      "name": "relax",
+      "operation": "optimize",
+      "settings": {
+        "gamma": 0.0,
+        "geometry_optimizer": "native",
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_threshold": "normal",
+        "reaction_trace": false,
+        "software": "xtb",
+        "trace_enabled": false
+      },
+      "symbols": [
+        "He",
+        "Ne"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "8d0825d3acd8030814e93632c89b5ac907bee75941a4b7272f1ec176a6228a52",
+      "multiplicity": 1,
+      "name": "0100_001_geom",
+      "operation": "optimize",
+      "settings": {
+        "gamma": 100.0,
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "reaction_trace": false,
+        "release_job_name": "0100_001_geom",
+        "software": "xtb",
+        "trace_enabled": false
+      },
+      "symbols": [
+        "He",
+        "Ne"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "8d0825d3acd8030814e93632c89b5ac907bee75941a4b7272f1ec176a6228a52",
+      "multiplicity": 1,
+      "name": "relax",
+      "operation": "optimize",
+      "settings": {
+        "gamma": 0.0,
+        "geometry_optimizer": "native",
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_threshold": "normal",
+        "reaction_trace": false,
+        "software": "xtb",
+        "trace_enabled": false
+      },
+      "symbols": [
+        "He",
+        "Ne"
+      ]
+    }
+  ],
+  "files": {
+    ".reaction.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/reaction"
+    },
+    "reaction/OBabel.log": "1 molecule converted\n",
+    "reaction/checkpoints/geometries/000002_pending_000_geom.xyz": {
+      "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa",
+      "text": "  2\ntrial orientation 000_geom: None\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/checkpoints/geometries/000003_pending_001_geom.xyz": {
+      "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+      "text": "  2\ntrial orientation 001_geom: None\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/checkpoints/geometries/000004_pending_001_geom.xyz": {
+      "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+      "text": "  2\ntrial orientation 001_geom: None\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/checkpoints/geometries/000005_survivor_0100_000_geom.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/checkpoints/geometries/000006_survivor_0100_000_geom.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/checkpoints/geometries/000007_survivor_0100_001_geom.xyz": {
+      "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+      "text": "  2\ntrial orientation 001_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/checkpoints/geometries/000008_pending_0100_000_geom.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/commit.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000028",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/.pyar_optimization_diagnostics/reaction_afir_orientation-0100_000_geom-1.json",
+          "role": "discovery-evidence",
+          "sha256": "3a3c5c7a6257abe51c7fe1e947a54de8e3baa11cf0ec04218a01f6b7a6bba77b"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000029",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/.pyar_optimization_diagnostics/reaction_unbiased_relaxation-relax-1.json",
+          "role": "discovery-evidence",
+          "sha256": "c5f6b39245db1521378ce535cc2d50fcb17edb8f12b08fc14fb789be6905e251"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000002a",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/OBabel.log",
+          "role": "discovery-evidence",
+          "sha256": "d62a9897953e0ca42ee2240c501d3cd421fbeb8d1e0231b81a468b3b9401abff"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000002b",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_0100_000_geom/result_0100_000_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000002c",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_0100_000_geom/trial_0100_000_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000002d",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/result_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000002e",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/trial_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000002f",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/reactants_0100_000_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "3723f4847126c03ef7eab6e819a4eedb74a11ec9a68e0638295e87e986c4b7c1"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000030",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/result_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000031",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/trial_0100_000_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000032",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/trial_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000033",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/.pyar_optimization_diagnostics/reaction_afir_orientation-0100_001_geom-1.json",
+          "role": "discovery-evidence",
+          "sha256": "b11263e4d5bb4089f656058e590c805ccf32f8d1c6e3f5613918c8b19cd4fd6a"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000034",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/.pyar_optimization_diagnostics/reaction_unbiased_relaxation-relax-2.json",
+          "role": "discovery-evidence",
+          "sha256": "1ef8ddb94ce156bfb30e6339f238a49709f6e4317ee545c254f4a14c3c5b18b0"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000035",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/OBabel.log",
+          "role": "discovery-evidence",
+          "sha256": "d62a9897953e0ca42ee2240c501d3cd421fbeb8d1e0231b81a468b3b9401abff"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000036",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_0100_001_geom/result_0100_001_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000037",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_0100_001_geom/trial_0100_001_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000038",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/result_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000039",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/trial_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000003a",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/reactants_0100_001_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "bc6833833e575273ed548801d1374c94eb25c209284550c88585ad4830959925"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000003b",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/result_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000003c",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/trial_0100_001_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000003d",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/trial_relax.xyz",
+          "role": "discovery-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000003e",
+          "path": "discovery/cycles/cycle_000/cycle.json",
+          "role": "discovery-evidence",
+          "sha256": "c2e36d7d5f8e33d5e27b923d7dac34d48d395e56f6ae21679382ca6850716dfc"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000003f",
+          "path": "discovery/cycles/cycle_000/request.json",
+          "role": "discovery-evidence",
+          "sha256": "77b83afad8b70ae41ae9440074333b18b3b1736fab6db32e5eace08717e0f829"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000040",
+          "path": "discovery/initial/attempts/attempt_000/execution/trial_geometries/trial_000_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000041",
+          "path": "discovery/initial/attempts/attempt_000/execution/trial_geometries/trial_001_geom.xyz",
+          "role": "discovery-evidence",
+          "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000042",
+          "path": "discovery/initial/attempts/attempt_000/execution/trial_geometries/trial_vectors.dat",
+          "role": "discovery-evidence",
+          "sha256": "86bc7f6b30aac055b044384b4dda8ff7d0401bdcd2ebbc8205b7c16ef7d4b220"
+        }
+      ],
+      "completed_state": {
+        "completed_cycles": [
+          {
+            "gamma": 100.0,
+            "status": "completed"
+          }
+        ],
+        "completed_jobs": [
+          {
+            "gamma": 100.0,
+            "job_name": "0100_000_geom",
+            "status": "True"
+          },
+          {
+            "gamma": 100.0,
+            "job_name": "0100_001_geom",
+            "status": "True"
+          }
+        ],
+        "current_cycle": 1,
+        "current_survivors": [],
+        "cycle_records": {
+          "0": "c2e36d7d5f8e33d5e27b923d7dac34d48d395e56f6ae21679382ca6850716dfc"
+        },
+        "gamma_schedule": [
+          100.0
+        ],
+        "input_reactants": [
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000003",
+            "charge": 0,
+            "energy": null,
+            "energy_record": null,
+            "fragments": [],
+            "multiplicity": 1,
+            "name": "A",
+            "path": "inputs/reactant_a.xyz",
+            "role": "input",
+            "scftype": "rhf",
+            "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+            "title": "Title"
+          },
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000004",
+            "charge": 0,
+            "energy": null,
+            "energy_record": null,
+            "fragments": [],
+            "multiplicity": 1,
+            "name": "B",
+            "path": "inputs/reactant_b.xyz",
+            "role": "input",
+            "scftype": "rhf",
+            "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+            "title": "Title"
+          }
+        ],
+        "next_snapshot": 9,
+        "package_version": "1.6.0",
+        "pending_orientations": [],
+        "products": [],
+        "reactant_identity": {
+          "inchi": "InChI=1S/He.Ne",
+          "smiles": "[He].[Ne]"
+        },
+        "request": {
+          "backend_parameters": {
+            "nprocs": 1,
+            "opt_threshold": "normal",
+            "software": "xtb"
+          },
+          "bias_mode": "scheduled",
+          "gamma_schedule": [
+            100.0
+          ],
+          "orientations": 2,
+          "proximity_factor": 2.3,
+          "reactants": [
+            {
+              "atoms": [
+                "He"
+              ],
+              "charge": 0,
+              "coordinates": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "multiplicity": 1
+            },
+            {
+              "atoms": [
+                "Ne"
+              ],
+              "charge": 0,
+              "coordinates": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "multiplicity": 1
+            }
+          ],
+          "site": null
+        },
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "status": "completed",
+        "workflow": "reaction",
+        "workflow_state_schema_version": 3
+      },
+      "physical_settings": {
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "bias_mode": "scheduled",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 2,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          }
+        ],
+        "site": null
+      },
+      "products": [],
+      "record_id": "00000000-0000-4000-8000-000000000043",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "stage_result_schema_version": 1,
+      "status": "completed"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/.pyar_optimization_diagnostics/reaction_afir_orientation-0100_000_geom-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "0100_000_geom",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "134b847b-6b70-59fd-9fa9-5e5e3dd6d02a",
+                "path": "result_0100_000_geom.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "7eb067d0-2387-53c4-b493-9f833201afcf",
+                "path": "trial_0100_000_geom.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "134b847b-6b70-59fd-9fa9-5e5e3dd6d02a",
+                  "path": "result_0100_000_geom.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "7eb067d0-2387-53c4-b493-9f833201afcf",
+                  "path": "trial_0100_000_geom.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "adc5b0019d398b975aa0902cb1f00463a43136d677b8ec49d7dedba89314a009"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -1.1743304475316991,
+                  0.0,
+                  -0.6780000000000002
+                ]
+              ],
+              "name": "0100_000_geom",
+              "optimizer": "native",
+              "request_fingerprint": "adc5b0019d398b975aa0902cb1f00463a43136d677b8ec49d7dedba89314a009",
+              "scientific_fingerprint": "5e33fcffbbdc09bf1f5ba9bc8fe42d8eb5f43ca2ceec4c07d489beaf7cf29704",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": 100.0,
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_threshold": "normal",
+                "reaction_trace": false,
+                "release_job_name": "0100_000_geom",
+                "scftype": "rhf",
+                "software": "xtb",
+                "trace_enabled": false,
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "Ne"
+              ],
+              "target": "minimum",
+              "workflow_role": "reaction_afir_orientation"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "BACKEND_UNSUPPORTED",
+            "excerpt": null,
+            "line": null,
+            "message": "Independent numerical validation is unavailable for the selected route/objective",
+            "path": null,
+            "severity": "error",
+            "source": "capability"
+          },
+          {
+            "certainty": "observed",
+            "code": "RECOVERY_UNSUPPORTED",
+            "excerpt": null,
+            "line": null,
+            "message": "Diagnose-only route: accepted-frame, numerical convergence and restart compatibility are unverified",
+            "path": null,
+            "severity": "error",
+            "source": "capability"
+          }
+        ],
+        "exception_chain": [],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "BACKEND_UNSUPPORTED",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "reaction_afir_orientation"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/.pyar_optimization_diagnostics/reaction_unbiased_relaxation-relax-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "relax",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "e44db494-1011-56e1-b8f5-7a817720e58c",
+                "path": "result_relax.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "9b5385bc-e198-54d0-ba58-7bca6e79ff6b",
+                "path": "trial_relax.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "e44db494-1011-56e1-b8f5-7a817720e58c",
+                  "path": "result_relax.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "9b5385bc-e198-54d0-ba58-7bca6e79ff6b",
+                  "path": "trial_relax.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "85a3418fa7bcded03e144b4341457a582c785dd3deef3809ef5267c5e18b6d4e"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -1.1743304475316991,
+                  0.0,
+                  -0.6780000000000002
+                ]
+              ],
+              "name": "relax",
+              "optimizer": "native",
+              "request_fingerprint": "85a3418fa7bcded03e144b4341457a582c785dd3deef3809ef5267c5e18b6d4e",
+              "scientific_fingerprint": "ff6f7b02313840d1f9faa7866bb3a4a69ad4ee15c16b0a90234dbf777bdcf507",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": 0.0,
+                "geometry_optimizer": "native",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_cycles": 350,
+                "opt_threshold": "normal",
+                "reaction_trace": false,
+                "scftype": "rhf",
+                "software": "xtb",
+                "trace_enabled": false,
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "Ne"
+              ],
+              "target": "minimum",
+              "workflow_role": "reaction_unbiased_relaxation"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "reaction_unbiased_relaxation"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/OBabel.log": "1 molecule converted\n",
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_0100_000_geom/result_0100_000_geom.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_0100_000_geom/trial_0100_000_geom.xyz": {
+      "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa",
+      "text": "  2\ntrial orientation 000_geom: None\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/result_relax.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/trial_relax.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/reactants_0100_000_geom.xyz": {
+      "sha256": "3723f4847126c03ef7eab6e819a4eedb74a11ec9a68e0638295e87e986c4b7c1",
+      "text": "  2\ntrial orientation 000_geom: None\nHe     0.00000     0.00000     0.00000\nNe    98.82567     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/result_relax.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/trial_0100_000_geom.xyz": {
+      "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa",
+      "text": "  2\ntrial orientation 000_geom: None\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/trial_relax.xyz": {
+      "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+      "text": "  2\ntrial orientation 000_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/.pyar_optimization_diagnostics/reaction_afir_orientation-0100_001_geom-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "0100_001_geom",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "2a7797f6-004f-5197-8687-07a36c673dcf",
+                "path": "result_0100_001_geom.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "bf8e42c9-0f7f-5937-9828-7fb8b7968c1e",
+                "path": "trial_0100_001_geom.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "2a7797f6-004f-5197-8687-07a36c673dcf",
+                  "path": "result_0100_001_geom.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "bf8e42c9-0f7f-5937-9828-7fb8b7968c1e",
+                  "path": "trial_0100_001_geom.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "a8b1219e2e4ca92b6c104be70283d7908fb1546002e1371f6bddf2ca7d8fb599"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.86591472458966,
+                  -0.7932488195634544,
+                  0.6780000000000002
+                ]
+              ],
+              "name": "0100_001_geom",
+              "optimizer": "native",
+              "request_fingerprint": "a8b1219e2e4ca92b6c104be70283d7908fb1546002e1371f6bddf2ca7d8fb599",
+              "scientific_fingerprint": "d711ab09ea64b4c9ed589ff54c668c81e5ab31378873116d983b026e3a4cb8d6",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": 100.0,
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_threshold": "normal",
+                "reaction_trace": false,
+                "release_job_name": "0100_001_geom",
+                "scftype": "rhf",
+                "software": "xtb",
+                "trace_enabled": false,
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "Ne"
+              ],
+              "target": "minimum",
+              "workflow_role": "reaction_afir_orientation"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "BACKEND_UNSUPPORTED",
+            "excerpt": null,
+            "line": null,
+            "message": "Independent numerical validation is unavailable for the selected route/objective",
+            "path": null,
+            "severity": "error",
+            "source": "capability"
+          },
+          {
+            "certainty": "observed",
+            "code": "RECOVERY_UNSUPPORTED",
+            "excerpt": null,
+            "line": null,
+            "message": "Diagnose-only route: accepted-frame, numerical convergence and restart compatibility are unverified",
+            "path": null,
+            "severity": "error",
+            "source": "capability"
+          }
+        ],
+        "exception_chain": [],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not certified on this route",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "BACKEND_UNSUPPORTED",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "reaction_afir_orientation"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/.pyar_optimization_diagnostics/reaction_unbiased_relaxation-relax-2.json": {
+      "legacy_status": "success",
+      "molecule_name": "relax",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": false,
+        "provisional": true,
+        "reason": "Owner requires a legacy converged status",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "a3e987c5-463d-5cf7-af66-94229e08ce17",
+                "path": "result_relax.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "9ba43122-b324-55be-9f4e-c0d1ed654ad8",
+                "path": "trial_relax.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "a3e987c5-463d-5cf7-af66-94229e08ce17",
+                  "path": "result_relax.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "9ba43122-b324-55be-9f4e-c0d1ed654ad8",
+                  "path": "trial_relax.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "a05d65500930a1924343a8bbafba8d80c35d73dbf8815c4cf0726d9b75784862"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.86591472458966,
+                  -0.7932488195634544,
+                  0.6780000000000002
+                ]
+              ],
+              "name": "relax",
+              "optimizer": "native",
+              "request_fingerprint": "a05d65500930a1924343a8bbafba8d80c35d73dbf8815c4cf0726d9b75784862",
+              "scientific_fingerprint": "a2ad44c24543446b61d80b8973fdf9ee2fc1911c8d34f936d4819fb225988da2",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": 0.0,
+                "geometry_optimizer": "native",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_cycles": 350,
+                "opt_threshold": "normal",
+                "reaction_trace": false,
+                "scftype": "rhf",
+                "software": "xtb",
+                "trace_enabled": false,
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "Ne"
+              ],
+              "target": "minimum",
+              "workflow_role": "reaction_unbiased_relaxation"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner requires a legacy converged status",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "reaction_unbiased_relaxation"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/OBabel.log": "1 molecule converted\n",
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_0100_001_geom/result_0100_001_geom.xyz": {
+      "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+      "text": "  2\ntrial orientation 001_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_0100_001_geom/trial_0100_001_geom.xyz": {
+      "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+      "text": "  2\ntrial orientation 001_geom: None\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/result_relax.xyz": {
+      "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+      "text": "  2\ntrial orientation 001_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/trial_relax.xyz": {
+      "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+      "text": "  2\ntrial orientation 001_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/reactants_0100_001_geom.xyz": {
+      "sha256": "bc6833833e575273ed548801d1374c94eb25c209284550c88585ad4830959925",
+      "text": "  2\ntrial orientation 001_geom: None\nHe     0.00000     0.00000     0.00000\nNe   100.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/result_relax.xyz": {
+      "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+      "text": "  2\ntrial orientation 001_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/trial_0100_001_geom.xyz": {
+      "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+      "text": "  2\ntrial orientation 001_geom: None\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/trial_relax.xyz": {
+      "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3",
+      "text": "  2\ntrial orientation 001_geom: -2.0\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/cycles/cycle_000/cycle.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000010",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/.pyar_optimization_diagnostics/reaction_afir_orientation-0100_000_geom-1.json",
+          "role": "discovery-cycle-evidence",
+          "sha256": "3a3c5c7a6257abe51c7fe1e947a54de8e3baa11cf0ec04218a01f6b7a6bba77b"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000011",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/.pyar_optimization_diagnostics/reaction_unbiased_relaxation-relax-1.json",
+          "role": "discovery-cycle-evidence",
+          "sha256": "c5f6b39245db1521378ce535cc2d50fcb17edb8f12b08fc14fb789be6905e251"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000012",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/OBabel.log",
+          "role": "discovery-cycle-evidence",
+          "sha256": "d62a9897953e0ca42ee2240c501d3cd421fbeb8d1e0231b81a468b3b9401abff"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000013",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_0100_000_geom/result_0100_000_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000014",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_0100_000_geom/trial_0100_000_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000015",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/result_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000016",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/job_relax/trial_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000017",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/reactants_0100_000_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "3723f4847126c03ef7eab6e819a4eedb74a11ec9a68e0638295e87e986c4b7c1"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000018",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/result_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000019",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/trial_0100_000_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000001a",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_000_geom/trial_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000001b",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/.pyar_optimization_diagnostics/reaction_afir_orientation-0100_001_geom-1.json",
+          "role": "discovery-cycle-evidence",
+          "sha256": "b11263e4d5bb4089f656058e590c805ccf32f8d1c6e3f5613918c8b19cd4fd6a"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000001c",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/.pyar_optimization_diagnostics/reaction_unbiased_relaxation-relax-2.json",
+          "role": "discovery-cycle-evidence",
+          "sha256": "1ef8ddb94ce156bfb30e6339f238a49709f6e4317ee545c254f4a14c3c5b18b0"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000001d",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/OBabel.log",
+          "role": "discovery-cycle-evidence",
+          "sha256": "d62a9897953e0ca42ee2240c501d3cd421fbeb8d1e0231b81a468b3b9401abff"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000001e",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_0100_001_geom/result_0100_001_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000001f",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_0100_001_geom/trial_0100_001_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000020",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/result_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000021",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/job_relax/trial_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000022",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/reactants_0100_001_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "bc6833833e575273ed548801d1374c94eb25c209284550c88585ad4830959925"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000023",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/result_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000024",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/trial_0100_001_geom.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000025",
+          "path": "discovery/cycles/cycle_000/attempts/attempt_000/execution/gamma_0100/orientation_001_geom/trial_relax.xyz",
+          "role": "discovery-cycle-evidence",
+          "sha256": "9190d7806f79d46047c8093ea2df632df0dd2293a9a8effb55a9cafd488dabd3"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000026",
+          "path": "discovery/cycles/cycle_000/request.json",
+          "role": "discovery-cycle-evidence",
+          "sha256": "77b83afad8b70ae41ae9440074333b18b3b1736fab6db32e5eace08717e0f829"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000f",
+          "charge": 0,
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "fragments": [
+            [
+              0
+            ],
+            [
+              1
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "0100_000_geom",
+          "path": "checkpoints/geometries/000008_pending_0100_000_geom.xyz",
+          "role": "pending",
+          "scftype": "rhf",
+          "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+          "title": "trial orientation 000_geom"
+        }
+      ],
+      "checkpoint": {
+        "completed_cycles": [
+          {
+            "gamma": 100.0,
+            "status": "completed"
+          }
+        ],
+        "completed_jobs": [
+          {
+            "gamma": 100.0,
+            "job_name": "0100_000_geom",
+            "status": "True"
+          },
+          {
+            "gamma": 100.0,
+            "job_name": "0100_001_geom",
+            "status": "True"
+          }
+        ],
+        "current_cycle": 1,
+        "current_survivors": [],
+        "cycle_records": {},
+        "gamma_schedule": [
+          100.0
+        ],
+        "input_reactants": [
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000003",
+            "charge": 0,
+            "energy": null,
+            "energy_record": null,
+            "fragments": [],
+            "multiplicity": 1,
+            "name": "A",
+            "path": "inputs/reactant_a.xyz",
+            "role": "input",
+            "scftype": "rhf",
+            "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+            "title": "Title"
+          },
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000004",
+            "charge": 0,
+            "energy": null,
+            "energy_record": null,
+            "fragments": [],
+            "multiplicity": 1,
+            "name": "B",
+            "path": "inputs/reactant_b.xyz",
+            "role": "input",
+            "scftype": "rhf",
+            "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+            "title": "Title"
+          }
+        ],
+        "next_snapshot": 9,
+        "package_version": "1.6.0",
+        "pending_orientations": [
+          {
+            "artifact_id": "00000000-0000-4000-8000-00000000000f",
+            "charge": 0,
+            "energy": -2.0,
+            "energy_record": {
+              "convention": "physical_potential",
+              "unit": "hartree",
+              "value": -2.0
+            },
+            "fragments": [
+              [
+                0
+              ],
+              [
+                1
+              ]
+            ],
+            "multiplicity": 1,
+            "name": "0100_000_geom",
+            "path": "checkpoints/geometries/000008_pending_0100_000_geom.xyz",
+            "role": "pending",
+            "scftype": "rhf",
+            "sha256": "4d2beae985a7a5f50968ae9be5605c29224ecbb4668657c216005beb9a78693f",
+            "title": "trial orientation 000_geom"
+          }
+        ],
+        "products": [],
+        "reactant_identity": {
+          "inchi": "InChI=1S/He.Ne",
+          "smiles": "[He].[Ne]"
+        },
+        "request": {
+          "backend_parameters": {
+            "nprocs": 1,
+            "opt_threshold": "normal",
+            "software": "xtb"
+          },
+          "bias_mode": "scheduled",
+          "gamma_schedule": [
+            100.0
+          ],
+          "orientations": 2,
+          "proximity_factor": 2.3,
+          "reactants": [
+            {
+              "atoms": [
+                "He"
+              ],
+              "charge": 0,
+              "coordinates": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "multiplicity": 1
+            },
+            {
+              "atoms": [
+                "Ne"
+              ],
+              "charge": 0,
+              "coordinates": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              ],
+              "multiplicity": 1
+            }
+          ],
+          "site": null
+        },
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        },
+        "status": "running",
+        "workflow": "reaction",
+        "workflow_state_schema_version": 3
+      },
+      "cycle": 0,
+      "gamma": 100.0,
+      "record_id": "00000000-0000-4000-8000-000000000027",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "stage_result_schema_version": 1
+    },
+    "reaction/discovery/cycles/cycle_000/request.json": {
+      "cycle": 0,
+      "gamma": 100.0,
+      "physical_settings": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "reaction/discovery/initial/attempts/attempt_000/execution/trial_geometries/trial_000_geom.xyz": {
+      "sha256": "7913a975337f752521e421c40944ab2fbef229b505912159d4eff8ba15fbc3aa",
+      "text": "  2\ntrial orientation 000_geom: None\nHe     0.00000     0.00000     0.00000\nNe    -1.17433     0.00000    -0.67800\n"
+    },
+    "reaction/discovery/initial/attempts/attempt_000/execution/trial_geometries/trial_001_geom.xyz": {
+      "sha256": "32c0425946bcc3da800c017f05287a03c3fcf7aec5c919ec3886a0894b3164f5",
+      "text": "  2\ntrial orientation 001_geom: None\nHe     0.00000     0.00000     0.00000\nNe     0.86591    -0.79325     0.67800\n"
+    },
+    "reaction/discovery/initial/attempts/attempt_000/execution/trial_geometries/trial_vectors.dat": "8.6602540378443860e-01 0.0000000000000000e+00 5.0000000000000000e-01 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00\n-6.3858018037585529e-01 5.8499175484030541e-01 -5.0000000000000000e-01 0.0000000000000000e+00 0.0000000000000000e+00 0.0000000000000000e+00\n",
+    "reaction/inputs/metadata.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "multiplicity": 1,
+          "name": "A",
+          "path": "inputs/reactant_a.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "multiplicity": 1,
+          "name": "B",
+          "path": "inputs/reactant_b.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+          "title": "Title"
+        }
+      ]
+    },
+    "reaction/inputs/reactant_a.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "reaction/inputs/reactant_b.xyz": {
+      "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+      "text": "  1\nTitle: None\nNe     0.00000     0.00000     0.00000\n"
+    },
+    "reaction/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "reaction"
+    },
+    "reaction/request.json": {
+      "request_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "bias_mode": "scheduled",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 2,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          }
+        ],
+        "site": null
+      },
+      "workflow": "reaction"
+    },
+    "reaction/results/manifest.json": {
+      "artifacts": [],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "reaction"
+    },
+    "reaction/state.json": {
+      "completed_cycles": [
+        {
+          "gamma": 100.0,
+          "status": "completed"
+        }
+      ],
+      "completed_jobs": [
+        {
+          "gamma": 100.0,
+          "job_name": "0100_000_geom",
+          "status": "True"
+        },
+        {
+          "gamma": 100.0,
+          "job_name": "0100_001_geom",
+          "status": "True"
+        }
+      ],
+      "current_cycle": 1,
+      "current_survivors": [],
+      "cycle_records": {
+        "0": "c2e36d7d5f8e33d5e27b923d7dac34d48d395e56f6ae21679382ca6850716dfc"
+      },
+      "gamma_schedule": [
+        100.0
+      ],
+      "input_reactants": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "multiplicity": 1,
+          "name": "A",
+          "path": "inputs/reactant_a.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "multiplicity": 1,
+          "name": "B",
+          "path": "inputs/reactant_b.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "98c2ca1ebfc276412ce1c58bf6dc89beba7e736e2551ea4959fe0e4907d35952",
+          "title": "Title"
+        }
+      ],
+      "next_snapshot": 9,
+      "package_version": "1.6.0",
+      "pending_orientations": [],
+      "products": [],
+      "reactant_identity": {
+        "inchi": "InChI=1S/He.Ne",
+        "smiles": "[He].[Ne]"
+      },
+      "request": {
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "bias_mode": "scheduled",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 2,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "He"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "Ne"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          }
+        ],
+        "site": null
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "sampling": {
+        "direction_method": "fibonacci",
+        "number_of_orientations": 2,
+        "oversample_factor": 8,
+        "rotation_method": "halton",
+        "sequence_offset": 0,
+        "use_angles": false
+      },
+      "status": "completed",
+      "workflow": "reaction",
+      "workflow_state_schema_version": 3
+    },
+    "reaction/summary.json": {
+      "metadata": {
+        "gamma_schedule": [
+          100.0
+        ],
+        "product_directory": "<ROOT>/reaction/discovery/attempts/attempt_000/execution/products",
+        "products": [],
+        "remaining_orientations": 1,
+        "sampling": {
+          "direction_method": "fibonacci",
+          "number_of_orientations": 2,
+          "oversample_factor": 8,
+          "rotation_method": "halton",
+          "sequence_offset": 0,
+          "use_angles": false
+        }
+      },
+      "run_directory": "<ROOT>/reaction",
+      "selected_paths": [],
+      "state_path": "<ROOT>/reaction/state.json",
+      "status": "completed",
+      "workflow": "reaction"
+    }
+  },
+  "result": {
+    "metadata": {
+      "gamma_schedule": [
+        100.0
+      ],
+      "product_directory": "<ROOT>/reaction/discovery/attempts/attempt_000/execution/products",
+      "products": [],
+      "remaining_orientations": 1,
+      "sampling": {
+        "direction_method": "fibonacci",
+        "number_of_orientations": 2,
+        "oversample_factor": 8,
+        "rotation_method": "halton",
+        "sequence_offset": 0,
+        "use_angles": false
+      }
+    },
+    "run_directory": "<ROOT>/reaction",
+    "selected_paths": [],
+    "state_path": "<ROOT>/reaction/state.json",
+    "status": "completed",
+    "workflow": "reaction"
+  }
+}

@@ -1,0 +1,3328 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "91fd0bc403fdb9562c74c8d77900b8b645727e73df89291df4b8a9f14159bfa6",
+      "multiplicity": 1,
+      "name": "micro_10000_000",
+      "operation": "optimize",
+      "settings": {
+        "charge": 0,
+        "gamma": null,
+        "geometry_optimizer": "geometric",
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_target": "minimum",
+        "opt_threshold": "normal",
+        "scftype": "rhf",
+        "software": "xtb"
+      },
+      "symbols": [
+        "He",
+        "He"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "69b25f2f2eec3e1edbbb7f40f68c7f5f0a655dbc04b3ab80ed4fb917d15abe24",
+      "multiplicity": 1,
+      "name": "micro_10000_001",
+      "operation": "optimize",
+      "settings": {
+        "charge": 0,
+        "gamma": null,
+        "geometry_optimizer": "geometric",
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_target": "minimum",
+        "opt_threshold": "normal",
+        "scftype": "rhf",
+        "software": "xtb"
+      },
+      "symbols": [
+        "He",
+        "He"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "4cc357037c33bd85297db0830655e1feda96aeec0bc0c36296d1f0a638a23c26",
+      "multiplicity": 1,
+      "name": "ms4_00000",
+      "operation": "optimize",
+      "settings": {
+        "charge": 0,
+        "gamma": null,
+        "geometry_optimizer": "geometric",
+        "microsolvation_evaluation_budget_path": "<ROOT>/microsolvation/resampling/evaluation_counter.json",
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_target": "minimum",
+        "opt_threshold": "normal",
+        "scftype": "rhf",
+        "software": "xtb"
+      },
+      "symbols": [
+        "He",
+        "He"
+      ]
+    },
+    {
+      "charge": 0,
+      "coordinates_sha256": "320d6949cf80f35d75c96e652083a0be38099c206ed262d82dcb531de45b364b",
+      "multiplicity": 1,
+      "name": "ms4_00001",
+      "operation": "optimize",
+      "settings": {
+        "charge": 0,
+        "gamma": null,
+        "geometry_optimizer": "geometric",
+        "microsolvation_evaluation_budget_path": "<ROOT>/microsolvation/resampling/evaluation_counter.json",
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_target": "minimum",
+        "opt_threshold": "normal",
+        "scftype": "rhf",
+        "software": "xtb"
+      },
+      "symbols": [
+        "He",
+        "He"
+      ]
+    }
+  ],
+  "files": {
+    ".microsolvation.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/microsolvation"
+    },
+    "microsolvation/inputs/metadata.json": {
+      "input_schema_version": 1,
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "solute",
+          "path": "inputs/solute.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "charge": 0,
+          "energy": null,
+          "energy_record": null,
+          "fragments": [],
+          "growth_metadata": {},
+          "multiplicity": 1,
+          "name": "solvent",
+          "path": "inputs/solvent.xyz",
+          "role": "input",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "title": "Title"
+        }
+      ],
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "microsolvation/inputs/solute.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "microsolvation/inputs/solvent.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "microsolvation/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "microsolvation"
+    },
+    "microsolvation/request.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/solute.xyz",
+          "role": "input",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "path": "inputs/solvent.xyz",
+          "role": "input",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb"
+        }
+      ],
+      "request_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "backend_parameters": {
+          "geometry_optimizer": "geometric",
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "confinement": {
+          "mode": "none; finite-cluster objective"
+        },
+        "count": 1,
+        "maximum_number_of_seeds": 2,
+        "orientations": 2,
+        "placement_policy": {
+          "name": "solvent-cluster-growth-v1"
+        },
+        "resampling_policy": {
+          "collision_scale": 0.85,
+          "evaluation_budget": 20,
+          "moves": 2,
+          "name": "whole-cluster-perturbation-v1",
+          "rng": "numpy-PCG64",
+          "seed": 12,
+          "time_limit_seconds": 30.0
+        },
+        "sampling": {
+          "directions": "fibonacci",
+          "rotations": "halton"
+        },
+        "selection_policy": {
+          "cluster_energy_frontier_hartree": 0.005,
+          "energy_unit": "hartree",
+          "name": "objective-aware-v1",
+          "objective": "cluster",
+          "placement_score": "energy",
+          "prescreen_pool_multiplier": 4,
+          "ranking": null,
+          "unbiased_energy_frontier_hartree": null
+        },
+        "shell_policy": "reported-not-filtered-cluster-growth-v1",
+        "shell_tolerance_angstrom": 3.5,
+        "solute": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "solute_site_atoms": null,
+        "solvent": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "surface": {
+          "model": "vdw-probe-fibonacci-v1",
+          "points_per_atom": 8,
+          "probe_radius_angstrom": 1.4
+        }
+      },
+      "workflow": "microsolvation"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/execution/.pyar_optimization_diagnostics/microsolvation_unbiased_minimum-ms4_00000-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "ms4_00000",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "31ba34e6-b7e8-5901-8b8e-5c3ddc024710",
+                "path": "result_ms4_00000.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "e5b9618c-b7bc-541a-b2ea-f11e4b53f444",
+                "path": "trial_ms4_00000.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "31ba34e6-b7e8-5901-8b8e-5c3ddc024710",
+                  "path": "result_ms4_00000.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "e5b9618c-b7bc-541a-b2ea-f11e4b53f444",
+                  "path": "trial_ms4_00000.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "22f3dbe7be0be76ef5f16ae6bfbbce508aa79913202caccd8192a5be2b42f437"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -0.7676435913194245,
+                  2.3045296726404922,
+                  -1.6423401972989253
+                ]
+              ],
+              "name": "ms4_00000",
+              "optimizer": "geometric",
+              "request_fingerprint": "22f3dbe7be0be76ef5f16ae6bfbbce508aa79913202caccd8192a5be2b42f437",
+              "scientific_fingerprint": "fb62547b3f59d5f301425dc93f3787ff5d753fef24e1cc4de944715b8d5ad0e1",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": null,
+                "geometry_optimizer": "geometric",
+                "microsolvation_evaluation_budget_path": "<ROOT>/microsolvation/resampling/evaluation_counter.json",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_target": "minimum",
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "He"
+              ],
+              "target": "minimum",
+              "workflow_role": "microsolvation_unbiased_minimum"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/resampling/attempts/attempt_00000/execution/job_ms4_00000/geometric.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/resampling/attempts/attempt_00000/execution/job_ms4_00000/geometric.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "microsolvation_unbiased_minimum"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/execution/job_ms4_00000/result_ms4_00000.xyz": {
+      "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.76764     2.30453    -1.64234\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/execution/job_ms4_00000/trial_ms4_00000.xyz": {
+      "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.76764     2.30453    -1.64234\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/execution/ms4_00000_optimized.xyz": {
+      "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.76764     2.30453    -1.64234\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/optimized/selected_000.xyz": {
+      "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.76764     2.30453    -1.64234\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/proposal.json": {
+      "attempt": 0,
+      "move": {
+        "fragments": [
+          {
+            "fragment_index": 0,
+            "rotation": [
+              [
+                -0.4297630065057867,
+                0.515955053628853,
+                -0.7410088669334227
+              ],
+              [
+                -0.5283744874747981,
+                0.5217803559088263,
+                0.669750446937815
+              ],
+              [
+                0.732204998087866,
+                0.6793641459648176,
+                0.04837559253014034
+              ]
+            ],
+            "translation_angstrom": [
+              -0.5407135913194245,
+              -0.2812003273595074,
+              -0.5923401972989253
+            ]
+          }
+        ],
+        "move": "single-fragment-rigid",
+        "policy": "whole-cluster-perturbation-v1"
+      },
+      "rng_state_after": {
+        "bit_generator": "PCG64",
+        "has_uint32": 0,
+        "state": {
+          "inc": 141594020766391051164819261345714058667,
+          "state": 139950243259302947971072639685479802497
+        },
+        "uinteger": 0
+      },
+      "rng_state_before": {
+        "bit_generator": "PCG64",
+        "has_uint32": 0,
+        "state": {
+          "inc": 141594020766391051164819261345714058667,
+          "state": 287820662789174611121686965811335717241
+        },
+        "uinteger": 0
+      },
+      "source_artifact_id": "00000000-0000-4000-8000-000000000008"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/proposal/selected_000.xyz": {
+      "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.76764     2.30453    -1.64234\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00000/result.json": {
+      "attempt": 0,
+      "evaluations_used": 1,
+      "failures": [],
+      "optimized_candidate_artifact_id": "00000000-0000-4000-8000-00000000000d",
+      "pool_artifact_ids": [
+        "00000000-0000-4000-8000-00000000000e",
+        "00000000-0000-4000-8000-00000000000f"
+      ],
+      "status": "completed"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/execution/.pyar_optimization_diagnostics/microsolvation_unbiased_minimum-ms4_00001-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "ms4_00001",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "8d6b9bc4-9fe1-5c08-8ece-b39fe7fc827b",
+                "path": "result_ms4_00001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "1e68c1a3-bfb0-589e-a68d-68a7b1344095",
+                "path": "trial_ms4_00001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "8d6b9bc4-9fe1-5c08-8ece-b39fe7fc827b",
+                  "path": "result_ms4_00001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "1e68c1a3-bfb0-589e-a68d-68a7b1344095",
+                  "path": "trial_ms4_00001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "19c31122c8dd89a3b654870354d5191c8983c1c8d2f5bb1cb1c794139d74782d"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -0.5419745136196893,
+                  3.2024462997396914,
+                  -0.7419355918255233
+                ]
+              ],
+              "name": "ms4_00001",
+              "optimizer": "geometric",
+              "request_fingerprint": "19c31122c8dd89a3b654870354d5191c8983c1c8d2f5bb1cb1c794139d74782d",
+              "scientific_fingerprint": "de975fb11a75d474450fa516a4eaf51f55ff1d83b51751853d431b3ae601eeaf",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": null,
+                "geometry_optimizer": "geometric",
+                "microsolvation_evaluation_budget_path": "<ROOT>/microsolvation/resampling/evaluation_counter.json",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_target": "minimum",
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "He"
+              ],
+              "target": "minimum",
+              "workflow_role": "microsolvation_unbiased_minimum"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/resampling/attempts/attempt_00001/execution/job_ms4_00001/geometric.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/resampling/attempts/attempt_00001/execution/job_ms4_00001/geometric.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "microsolvation_unbiased_minimum"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/execution/job_ms4_00001/result_ms4_00001.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/execution/job_ms4_00001/trial_ms4_00001.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/execution/ms4_00001_optimized.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/optimized/selected_000.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/proposal.json": {
+      "attempt": 1,
+      "move": {
+        "fragments": [
+          {
+            "fragment_index": 0,
+            "rotation": [
+              [
+                0.6468495516237807,
+                0.24515421584316416,
+                0.7221392303555023
+              ],
+              [
+                -0.3079950500071191,
+                -0.78228198177462,
+                0.5414553999748131
+              ],
+              [
+                0.6976565822345735,
+                -0.5726554910634281,
+                -0.4305124641862039
+              ]
+            ],
+            "translation_angstrom": [
+              -0.31504451361968927,
+              0.6167162997396917,
+              0.3080644081744768
+            ]
+          }
+        ],
+        "move": "single-fragment-rigid",
+        "policy": "whole-cluster-perturbation-v1"
+      },
+      "rng_state_after": {
+        "bit_generator": "PCG64",
+        "has_uint32": 1,
+        "state": {
+          "inc": 141594020766391051164819261345714058667,
+          "state": 221917589948605366904037089820158456472
+        },
+        "uinteger": 3849619447
+      },
+      "rng_state_before": {
+        "bit_generator": "PCG64",
+        "has_uint32": 0,
+        "state": {
+          "inc": 141594020766391051164819261345714058667,
+          "state": 139950243259302947971072639685479802497
+        },
+        "uinteger": 0
+      },
+      "source_artifact_id": "00000000-0000-4000-8000-00000000000e"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/proposal/selected_000.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/resampling/attempts/attempt_00001/result.json": {
+      "attempt": 1,
+      "evaluations_used": 1,
+      "failures": [],
+      "optimized_candidate_artifact_id": "00000000-0000-4000-8000-000000000012",
+      "pool_artifact_ids": [
+        "00000000-0000-4000-8000-000000000013",
+        "00000000-0000-4000-8000-000000000014"
+      ],
+      "status": "completed"
+    },
+    "microsolvation/resampling/evaluation_counter.json": {
+      "deadline_epoch": "<TIME>",
+      "limit": 20,
+      "used": 2
+    },
+    "microsolvation/resampling/pools/pool_00000/selected_000.xyz": {
+      "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/resampling/pools/pool_00000/selected_001.xyz": {
+      "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.76764     2.30453    -1.64234\n"
+    },
+    "microsolvation/resampling/pools/pool_00001/selected_000.xyz": {
+      "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/resampling/pools/pool_00001/selected_001.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/resampling/summary.json": {
+      "attempt_outcomes": {
+        "completed": 2
+      },
+      "attempts": 2,
+      "evaluation_budget": 20,
+      "evaluations_used": 2,
+      "moves_requested": 2,
+      "record_id": "00000000-0000-4000-8000-00000000000a",
+      "schema_version": 1,
+      "seed": 12,
+      "selected_artifact_ids": [
+        "00000000-0000-4000-8000-000000000013",
+        "00000000-0000-4000-8000-000000000014"
+      ],
+      "status": "moves_exhausted"
+    },
+    "microsolvation/results/manifest.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000015",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "micro_10000_000",
+          "path": "results/structure_000.xyz",
+          "rank": 0,
+          "role": "final-cluster",
+          "scftype": "rhf",
+          "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "source_artifact_id": "00000000-0000-4000-8000-000000000013",
+          "source_record_id": "00000000-0000-4000-8000-00000000000a",
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000016",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.0,
+            "covered_points": 0,
+            "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+            "open_points": 8,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.0,
+            "whole_solute_covered_points": 0,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "ms4_00001",
+          "path": "results/structure_001.xyz",
+          "rank": 1,
+          "role": "final-cluster",
+          "scftype": "rhf",
+          "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "source_artifact_id": "00000000-0000-4000-8000-000000000014",
+          "source_record_id": "00000000-0000-4000-8000-00000000000a",
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        }
+      ],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "microsolvation"
+    },
+    "microsolvation/results/structure_000.xyz": {
+      "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/results/structure_001.xyz": {
+      "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.54197     3.20245    -0.74194\n"
+    },
+    "microsolvation/state.json": {
+      "completed_steps": [
+        {
+          "coverage": [
+            {
+              "confinement_mode": "reported-not-filtered-cluster-objective",
+              "coverage_fraction": 0.125,
+              "covered_points": 1,
+              "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+              "name": "micro_10000_000",
+              "open_points": 7,
+              "optimization_restraint_applied": false,
+              "shell_tolerance_angstrom": 3.5,
+              "shell_valid": true,
+              "site_atoms": null,
+              "solute_atom_count": 1,
+              "surface_points": 8,
+              "whole_solute_coverage_fraction": 0.125,
+              "whole_solute_covered_points": 1,
+              "whole_solute_surface_points": 8
+            }
+          ],
+          "selected_count": 1,
+          "selected_paths": [
+            "steps/step_001/selected/selected_000.xyz"
+          ],
+          "selected_references": [
+            {
+              "artifact_id": "00000000-0000-4000-8000-000000000008",
+              "charge": 0,
+              "coverage": {
+                "confinement_mode": "reported-not-filtered-cluster-objective",
+                "coverage_fraction": 0.125,
+                "covered_points": 1,
+                "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+                "open_points": 7,
+                "optimization_restraint_applied": false,
+                "shell_tolerance_angstrom": 3.5,
+                "shell_valid": true,
+                "site_atoms": null,
+                "solute_atom_count": 1,
+                "surface_points": 8,
+                "whole_solute_coverage_fraction": 0.125,
+                "whole_solute_covered_points": 1,
+                "whole_solute_surface_points": 8
+              },
+              "energy": -2.0,
+              "energy_record": {
+                "convention": "physical_potential",
+                "unit": "hartree",
+                "value": -2.0
+              },
+              "multiplicity": 1,
+              "name": "micro_10000_000",
+              "path": "steps/step_001/selected/selected_000.xyz",
+              "role": "selected",
+              "scftype": "rhf",
+              "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+              "solute_atom_indices": [
+                0
+              ],
+              "solvent_fragments": [
+                [
+                  1
+                ]
+              ],
+              "target_atom": 0,
+              "target_fragment": null,
+              "target_kind": "solute",
+              "title": "solute + 1 solvent molecule(s)"
+            }
+          ],
+          "selection": {
+            "adaptive_rmsd_threshold_angstrom": 0.05,
+            "cluster_energy_frontier_hartree": 0.005,
+            "comparison_diagnostics": [],
+            "coverage_frontier_fraction_tolerance": null,
+            "energy_ranked": true,
+            "energy_unit": "hartree",
+            "generated_count": 2,
+            "input_count": 2,
+            "maximum_number_of_seeds": 2,
+            "objective": "cluster",
+            "optimization_diagnostics": [
+              {
+                "backend_status": "True",
+                "converged": false,
+                "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_000-1.json",
+                "name": "micro_10000_000",
+                "owner_decision": {
+                  "accepted": true,
+                  "allow_incomplete": true,
+                  "provisional": true,
+                  "reason": "Owner permits incomplete results for subsequent workflow validation",
+                  "validated_converged": false
+                },
+                "stage": "unbiased_minimum",
+                "status": "INVALID_RESULT",
+                "workflow_accepted": false
+              },
+              {
+                "backend_status": "True",
+                "converged": false,
+                "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_001-1.json",
+                "name": "micro_10000_001",
+                "owner_decision": {
+                  "accepted": true,
+                  "allow_incomplete": true,
+                  "provisional": true,
+                  "reason": "Owner permits incomplete results for subsequent workflow validation",
+                  "validated_converged": false
+                },
+                "stage": "unbiased_minimum",
+                "status": "INVALID_RESULT",
+                "workflow_accepted": false
+              }
+            ],
+            "optimization_failures": [],
+            "optimized_count": 2,
+            "placement_score": "energy",
+            "prescreened_count": 2,
+            "rejected_outside_shell": 0,
+            "seeds_without_accessible_target_surface": 0,
+            "selected_count": 1,
+            "selection_basis": "fixed-composition-energy",
+            "selection_mode": "fixed-composition-energy-then-diversity",
+            "surface_saturated_at_placement": false,
+            "unbiased_energy_frontier_hartree": null,
+            "unique_count": 1
+          },
+          "solvent_count": 1,
+          "step": 1
+        }
+      ],
+      "coverage_history": [
+        [
+          {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "name": "micro_10000_000",
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          }
+        ]
+      ],
+      "current_seeds": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000013",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "micro_10000_000",
+          "path": "resampling/pools/pool_00001/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000014",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.0,
+            "covered_points": 0,
+            "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+            "open_points": 8,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.0,
+            "whole_solute_covered_points": 0,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "ms4_00001",
+          "path": "resampling/pools/pool_00001/selected_001.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        }
+      ],
+      "final_seeds": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000015",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "micro_10000_000",
+          "path": "results/structure_000.xyz",
+          "rank": 0,
+          "role": "final-cluster",
+          "scftype": "rhf",
+          "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "source_artifact_id": "00000000-0000-4000-8000-000000000013",
+          "source_record_id": "00000000-0000-4000-8000-00000000000a",
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000016",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.0,
+            "covered_points": 0,
+            "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+            "open_points": 8,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.0,
+            "whole_solute_covered_points": 0,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "ms4_00001",
+          "path": "results/structure_001.xyz",
+          "rank": 1,
+          "role": "final-cluster",
+          "scftype": "rhf",
+          "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "source_artifact_id": "00000000-0000-4000-8000-000000000014",
+          "source_record_id": "00000000-0000-4000-8000-00000000000a",
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        }
+      ],
+      "initial_seeds": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000005",
+          "charge": 0,
+          "coverage": {
+            "coverage_fraction": 0.0,
+            "covered_points": 0,
+            "open_points": 0,
+            "surface_points": 0,
+            "whole_solute_coverage_fraction": 0.0
+          },
+          "energy": null,
+          "energy_record": null,
+          "multiplicity": 1,
+          "name": "solute",
+          "path": "steps/step_000/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [],
+          "target_atom": null,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "Title"
+        }
+      ],
+      "next_step": 2,
+      "request": {
+        "backend_parameters": {
+          "geometry_optimizer": "geometric",
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "confinement": {
+          "mode": "none; finite-cluster objective"
+        },
+        "count": 1,
+        "maximum_number_of_seeds": 2,
+        "orientations": 2,
+        "placement_policy": {
+          "name": "solvent-cluster-growth-v1"
+        },
+        "resampling_policy": {
+          "collision_scale": 0.85,
+          "evaluation_budget": 20,
+          "moves": 2,
+          "name": "whole-cluster-perturbation-v1",
+          "rng": "numpy-PCG64",
+          "seed": 12,
+          "time_limit_seconds": 30.0
+        },
+        "sampling": {
+          "directions": "fibonacci",
+          "rotations": "halton"
+        },
+        "selection_policy": {
+          "cluster_energy_frontier_hartree": 0.005,
+          "energy_unit": "hartree",
+          "name": "objective-aware-v1",
+          "objective": "cluster",
+          "placement_score": "energy",
+          "prescreen_pool_multiplier": 4,
+          "ranking": null,
+          "unbiased_energy_frontier_hartree": null
+        },
+        "shell_policy": "reported-not-filtered-cluster-growth-v1",
+        "shell_tolerance_angstrom": 3.5,
+        "solute": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "solute_site_atoms": null,
+        "solvent": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "surface": {
+          "model": "vdw-probe-fibonacci-v1",
+          "points_per_atom": 8,
+          "probe_radius_angstrom": 1.4
+        }
+      },
+      "resampling": {
+        "attempt_outcomes": {
+          "completed": 2
+        },
+        "attempts": [
+          {
+            "attempt": 0,
+            "evaluations_used": 1,
+            "move": {
+              "fragments": [
+                {
+                  "fragment_index": 0,
+                  "rotation": [
+                    [
+                      -0.4297630065057867,
+                      0.515955053628853,
+                      -0.7410088669334227
+                    ],
+                    [
+                      -0.5283744874747981,
+                      0.5217803559088263,
+                      0.669750446937815
+                    ],
+                    [
+                      0.732204998087866,
+                      0.6793641459648176,
+                      0.04837559253014034
+                    ]
+                  ],
+                  "translation_angstrom": [
+                    -0.5407135913194245,
+                    -0.2812003273595074,
+                    -0.5923401972989253
+                  ]
+                }
+              ],
+              "move": "single-fragment-rigid",
+              "policy": "whole-cluster-perturbation-v1"
+            },
+            "optimization_diagnostics": [
+              {
+                "backend_status": "True",
+                "converged": false,
+                "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-ms4_00000-1.json",
+                "name": "ms4_00000",
+                "owner_decision": {
+                  "accepted": true,
+                  "allow_incomplete": true,
+                  "provisional": true,
+                  "reason": "Owner permits incomplete results for subsequent workflow validation",
+                  "validated_converged": false
+                },
+                "stage": "unbiased_minimum",
+                "status": "INVALID_RESULT",
+                "workflow_accepted": false
+              }
+            ],
+            "optimized_candidate": {
+              "artifact_id": "00000000-0000-4000-8000-00000000000d",
+              "charge": 0,
+              "coverage": {
+                "confinement_mode": "reported-not-filtered-cluster-objective",
+                "coverage_fraction": 0.125,
+                "covered_points": 1,
+                "max_solvent_center_to_surface_angstrom": 0.2986687966345925,
+                "open_points": 7,
+                "optimization_restraint_applied": false,
+                "shell_tolerance_angstrom": 3.5,
+                "shell_valid": true,
+                "site_atoms": null,
+                "solute_atom_count": 1,
+                "surface_points": 8,
+                "whole_solute_coverage_fraction": 0.125,
+                "whole_solute_covered_points": 1,
+                "whole_solute_surface_points": 8
+              },
+              "energy": -2.0,
+              "energy_record": {
+                "convention": "physical_potential",
+                "unit": "hartree",
+                "value": -2.0
+              },
+              "multiplicity": 1,
+              "name": "ms4_00000",
+              "path": "resampling/attempts/attempt_00000/optimized/selected_000.xyz",
+              "role": "resampling-candidate",
+              "scftype": "rhf",
+              "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+              "solute_atom_indices": [
+                0
+              ],
+              "solvent_fragments": [
+                [
+                  1
+                ]
+              ],
+              "target_atom": 0,
+              "target_fragment": null,
+              "target_kind": "solute",
+              "title": "solute + 1 solvent molecule(s)"
+            },
+            "pool_references": [
+              {
+                "artifact_id": "00000000-0000-4000-8000-00000000000e",
+                "charge": 0,
+                "coverage": {
+                  "confinement_mode": "reported-not-filtered-cluster-objective",
+                  "coverage_fraction": 0.125,
+                  "covered_points": 1,
+                  "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+                  "open_points": 7,
+                  "optimization_restraint_applied": false,
+                  "shell_tolerance_angstrom": 3.5,
+                  "shell_valid": true,
+                  "site_atoms": null,
+                  "solute_atom_count": 1,
+                  "surface_points": 8,
+                  "whole_solute_coverage_fraction": 0.125,
+                  "whole_solute_covered_points": 1,
+                  "whole_solute_surface_points": 8
+                },
+                "energy": -2.0,
+                "energy_record": {
+                  "convention": "physical_potential",
+                  "unit": "hartree",
+                  "value": -2.0
+                },
+                "multiplicity": 1,
+                "name": "micro_10000_000",
+                "path": "resampling/pools/pool_00000/selected_000.xyz",
+                "role": "selected",
+                "scftype": "rhf",
+                "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+                "solute_atom_indices": [
+                  0
+                ],
+                "solvent_fragments": [
+                  [
+                    1
+                  ]
+                ],
+                "target_atom": 0,
+                "target_fragment": null,
+                "target_kind": "solute",
+                "title": "solute + 1 solvent molecule(s)"
+              },
+              {
+                "artifact_id": "00000000-0000-4000-8000-00000000000f",
+                "charge": 0,
+                "coverage": {
+                  "confinement_mode": "reported-not-filtered-cluster-objective",
+                  "coverage_fraction": 0.125,
+                  "covered_points": 1,
+                  "max_solvent_center_to_surface_angstrom": 0.2986687966345925,
+                  "open_points": 7,
+                  "optimization_restraint_applied": false,
+                  "shell_tolerance_angstrom": 3.5,
+                  "shell_valid": true,
+                  "site_atoms": null,
+                  "solute_atom_count": 1,
+                  "surface_points": 8,
+                  "whole_solute_coverage_fraction": 0.125,
+                  "whole_solute_covered_points": 1,
+                  "whole_solute_surface_points": 8
+                },
+                "energy": -2.0,
+                "energy_record": {
+                  "convention": "physical_potential",
+                  "unit": "hartree",
+                  "value": -2.0
+                },
+                "multiplicity": 1,
+                "name": "ms4_00000",
+                "path": "resampling/pools/pool_00000/selected_001.xyz",
+                "role": "selected",
+                "scftype": "rhf",
+                "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+                "solute_atom_indices": [
+                  0
+                ],
+                "solvent_fragments": [
+                  [
+                    1
+                  ]
+                ],
+                "target_atom": 0,
+                "target_fragment": null,
+                "target_kind": "solute",
+                "title": "solute + 1 solvent molecule(s)"
+              }
+            ],
+            "proposal": {
+              "artifact_id": "00000000-0000-4000-8000-00000000000b",
+              "charge": 0,
+              "coverage": {
+                "confinement_mode": "reported-not-filtered-cluster-objective",
+                "coverage_fraction": 0.125,
+                "covered_points": 1,
+                "max_solvent_center_to_surface_angstrom": 0.2986687966345925,
+                "open_points": 7,
+                "optimization_restraint_applied": false,
+                "shell_tolerance_angstrom": 3.5,
+                "shell_valid": true,
+                "site_atoms": null,
+                "solute_atom_count": 1,
+                "surface_points": 8,
+                "whole_solute_coverage_fraction": 0.125,
+                "whole_solute_covered_points": 1,
+                "whole_solute_surface_points": 8
+              },
+              "energy": -2.0,
+              "energy_record": {
+                "convention": "physical_potential",
+                "unit": "hartree",
+                "value": -2.0
+              },
+              "multiplicity": 1,
+              "name": "micro_10000_000",
+              "path": "resampling/attempts/attempt_00000/proposal/selected_000.xyz",
+              "role": "resampling-proposal",
+              "scftype": "rhf",
+              "sha256": "95b086b8a2371cc3e334bac8afef1b2ad5740d0cb8e6f0b4139902782695b954",
+              "solute_atom_indices": [
+                0
+              ],
+              "solvent_fragments": [
+                [
+                  1
+                ]
+              ],
+              "target_atom": 0,
+              "target_fragment": null,
+              "target_kind": "solute",
+              "title": "solute + 1 solvent molecule(s)"
+            },
+            "rng_state_after": {
+              "bit_generator": "PCG64",
+              "has_uint32": 0,
+              "state": {
+                "inc": 141594020766391051164819261345714058667,
+                "state": 139950243259302947971072639685479802497
+              },
+              "uinteger": 0
+            },
+            "rng_state_before": {
+              "bit_generator": "PCG64",
+              "has_uint32": 0,
+              "state": {
+                "inc": 141594020766391051164819261345714058667,
+                "state": 287820662789174611121686965811335717241
+              },
+              "uinteger": 0
+            },
+            "selection": {
+              "adaptive_rmsd_threshold_angstrom": 0.05,
+              "cluster_energy_frontier_hartree": 0.005,
+              "comparison_diagnostics": [],
+              "coverage_frontier_fraction_tolerance": null,
+              "energy_ranked": true,
+              "energy_unit": "hartree",
+              "input_count": 2,
+              "maximum_number_of_seeds": 2,
+              "objective": "cluster",
+              "placement_score": "energy",
+              "selected_count": 2,
+              "selection_mode": "fixed-composition-energy-then-diversity",
+              "unbiased_energy_frontier_hartree": null,
+              "unique_count": 2
+            },
+            "status": "completed"
+          },
+          {
+            "attempt": 1,
+            "evaluations_used": 1,
+            "move": {
+              "fragments": [
+                {
+                  "fragment_index": 0,
+                  "rotation": [
+                    [
+                      0.6468495516237807,
+                      0.24515421584316416,
+                      0.7221392303555023
+                    ],
+                    [
+                      -0.3079950500071191,
+                      -0.78228198177462,
+                      0.5414553999748131
+                    ],
+                    [
+                      0.6976565822345735,
+                      -0.5726554910634281,
+                      -0.4305124641862039
+                    ]
+                  ],
+                  "translation_angstrom": [
+                    -0.31504451361968927,
+                    0.6167162997396917,
+                    0.3080644081744768
+                  ]
+                }
+              ],
+              "move": "single-fragment-rigid",
+              "policy": "whole-cluster-perturbation-v1"
+            },
+            "optimization_diagnostics": [
+              {
+                "backend_status": "True",
+                "converged": false,
+                "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-ms4_00001-1.json",
+                "name": "ms4_00001",
+                "owner_decision": {
+                  "accepted": true,
+                  "allow_incomplete": true,
+                  "provisional": true,
+                  "reason": "Owner permits incomplete results for subsequent workflow validation",
+                  "validated_converged": false
+                },
+                "stage": "unbiased_minimum",
+                "status": "INVALID_RESULT",
+                "workflow_accepted": false
+              }
+            ],
+            "optimized_candidate": {
+              "artifact_id": "00000000-0000-4000-8000-000000000012",
+              "charge": 0,
+              "coverage": {
+                "confinement_mode": "reported-not-filtered-cluster-objective",
+                "coverage_fraction": 0.0,
+                "covered_points": 0,
+                "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+                "open_points": 8,
+                "optimization_restraint_applied": false,
+                "shell_tolerance_angstrom": 3.5,
+                "shell_valid": true,
+                "site_atoms": null,
+                "solute_atom_count": 1,
+                "surface_points": 8,
+                "whole_solute_coverage_fraction": 0.0,
+                "whole_solute_covered_points": 0,
+                "whole_solute_surface_points": 8
+              },
+              "energy": -2.0,
+              "energy_record": {
+                "convention": "physical_potential",
+                "unit": "hartree",
+                "value": -2.0
+              },
+              "multiplicity": 1,
+              "name": "ms4_00001",
+              "path": "resampling/attempts/attempt_00001/optimized/selected_000.xyz",
+              "role": "resampling-candidate",
+              "scftype": "rhf",
+              "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+              "solute_atom_indices": [
+                0
+              ],
+              "solvent_fragments": [
+                [
+                  1
+                ]
+              ],
+              "target_atom": 0,
+              "target_fragment": null,
+              "target_kind": "solute",
+              "title": "solute + 1 solvent molecule(s)"
+            },
+            "pool_references": [
+              {
+                "artifact_id": "00000000-0000-4000-8000-000000000013",
+                "charge": 0,
+                "coverage": {
+                  "confinement_mode": "reported-not-filtered-cluster-objective",
+                  "coverage_fraction": 0.125,
+                  "covered_points": 1,
+                  "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+                  "open_points": 7,
+                  "optimization_restraint_applied": false,
+                  "shell_tolerance_angstrom": 3.5,
+                  "shell_valid": true,
+                  "site_atoms": null,
+                  "solute_atom_count": 1,
+                  "surface_points": 8,
+                  "whole_solute_coverage_fraction": 0.125,
+                  "whole_solute_covered_points": 1,
+                  "whole_solute_surface_points": 8
+                },
+                "energy": -2.0,
+                "energy_record": {
+                  "convention": "physical_potential",
+                  "unit": "hartree",
+                  "value": -2.0
+                },
+                "multiplicity": 1,
+                "name": "micro_10000_000",
+                "path": "resampling/pools/pool_00001/selected_000.xyz",
+                "role": "selected",
+                "scftype": "rhf",
+                "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+                "solute_atom_indices": [
+                  0
+                ],
+                "solvent_fragments": [
+                  [
+                    1
+                  ]
+                ],
+                "target_atom": 0,
+                "target_fragment": null,
+                "target_kind": "solute",
+                "title": "solute + 1 solvent molecule(s)"
+              },
+              {
+                "artifact_id": "00000000-0000-4000-8000-000000000014",
+                "charge": 0,
+                "coverage": {
+                  "confinement_mode": "reported-not-filtered-cluster-objective",
+                  "coverage_fraction": 0.0,
+                  "covered_points": 0,
+                  "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+                  "open_points": 8,
+                  "optimization_restraint_applied": false,
+                  "shell_tolerance_angstrom": 3.5,
+                  "shell_valid": true,
+                  "site_atoms": null,
+                  "solute_atom_count": 1,
+                  "surface_points": 8,
+                  "whole_solute_coverage_fraction": 0.0,
+                  "whole_solute_covered_points": 0,
+                  "whole_solute_surface_points": 8
+                },
+                "energy": -2.0,
+                "energy_record": {
+                  "convention": "physical_potential",
+                  "unit": "hartree",
+                  "value": -2.0
+                },
+                "multiplicity": 1,
+                "name": "ms4_00001",
+                "path": "resampling/pools/pool_00001/selected_001.xyz",
+                "role": "selected",
+                "scftype": "rhf",
+                "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+                "solute_atom_indices": [
+                  0
+                ],
+                "solvent_fragments": [
+                  [
+                    1
+                  ]
+                ],
+                "target_atom": 0,
+                "target_fragment": null,
+                "target_kind": "solute",
+                "title": "solute + 1 solvent molecule(s)"
+              }
+            ],
+            "proposal": {
+              "artifact_id": "00000000-0000-4000-8000-000000000010",
+              "charge": 0,
+              "coverage": {
+                "confinement_mode": "reported-not-filtered-cluster-objective",
+                "coverage_fraction": 0.0,
+                "covered_points": 0,
+                "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+                "open_points": 8,
+                "optimization_restraint_applied": false,
+                "shell_tolerance_angstrom": 3.5,
+                "shell_valid": true,
+                "site_atoms": null,
+                "solute_atom_count": 1,
+                "surface_points": 8,
+                "whole_solute_coverage_fraction": 0.0,
+                "whole_solute_covered_points": 0,
+                "whole_solute_surface_points": 8
+              },
+              "energy": -2.0,
+              "energy_record": {
+                "convention": "physical_potential",
+                "unit": "hartree",
+                "value": -2.0
+              },
+              "multiplicity": 1,
+              "name": "micro_10000_000",
+              "path": "resampling/attempts/attempt_00001/proposal/selected_000.xyz",
+              "role": "resampling-proposal",
+              "scftype": "rhf",
+              "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+              "solute_atom_indices": [
+                0
+              ],
+              "solvent_fragments": [
+                [
+                  1
+                ]
+              ],
+              "target_atom": 0,
+              "target_fragment": null,
+              "target_kind": "solute",
+              "title": "solute + 1 solvent molecule(s)"
+            },
+            "rng_state_after": {
+              "bit_generator": "PCG64",
+              "has_uint32": 1,
+              "state": {
+                "inc": 141594020766391051164819261345714058667,
+                "state": 221917589948605366904037089820158456472
+              },
+              "uinteger": 3849619447
+            },
+            "rng_state_before": {
+              "bit_generator": "PCG64",
+              "has_uint32": 0,
+              "state": {
+                "inc": 141594020766391051164819261345714058667,
+                "state": 139950243259302947971072639685479802497
+              },
+              "uinteger": 0
+            },
+            "selection": {
+              "adaptive_rmsd_threshold_angstrom": 0.05957739309483581,
+              "cluster_energy_frontier_hartree": 0.005,
+              "comparison_diagnostics": [],
+              "coverage_frontier_fraction_tolerance": null,
+              "energy_ranked": true,
+              "energy_unit": "hartree",
+              "input_count": 3,
+              "maximum_number_of_seeds": 2,
+              "objective": "cluster",
+              "placement_score": "energy",
+              "selected_count": 2,
+              "selection_mode": "fixed-composition-energy-then-diversity",
+              "unbiased_energy_frontier_hartree": null,
+              "unique_count": 3
+            },
+            "status": "completed"
+          }
+        ],
+        "current_references": [
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000013",
+            "charge": 0,
+            "coverage": {
+              "confinement_mode": "reported-not-filtered-cluster-objective",
+              "coverage_fraction": 0.125,
+              "covered_points": 1,
+              "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+              "open_points": 7,
+              "optimization_restraint_applied": false,
+              "shell_tolerance_angstrom": 3.5,
+              "shell_valid": true,
+              "site_atoms": null,
+              "solute_atom_count": 1,
+              "surface_points": 8,
+              "whole_solute_coverage_fraction": 0.125,
+              "whole_solute_covered_points": 1,
+              "whole_solute_surface_points": 8
+            },
+            "energy": -2.0,
+            "energy_record": {
+              "convention": "physical_potential",
+              "unit": "hartree",
+              "value": -2.0
+            },
+            "multiplicity": 1,
+            "name": "micro_10000_000",
+            "path": "resampling/pools/pool_00001/selected_000.xyz",
+            "role": "selected",
+            "scftype": "rhf",
+            "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+            "solute_atom_indices": [
+              0
+            ],
+            "solvent_fragments": [
+              [
+                1
+              ]
+            ],
+            "target_atom": 0,
+            "target_fragment": null,
+            "target_kind": "solute",
+            "title": "solute + 1 solvent molecule(s)"
+          },
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000014",
+            "charge": 0,
+            "coverage": {
+              "confinement_mode": "reported-not-filtered-cluster-objective",
+              "coverage_fraction": 0.0,
+              "covered_points": 0,
+              "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+              "open_points": 8,
+              "optimization_restraint_applied": false,
+              "shell_tolerance_angstrom": 3.5,
+              "shell_valid": true,
+              "site_atoms": null,
+              "solute_atom_count": 1,
+              "surface_points": 8,
+              "whole_solute_coverage_fraction": 0.0,
+              "whole_solute_covered_points": 0,
+              "whole_solute_surface_points": 8
+            },
+            "energy": -2.0,
+            "energy_record": {
+              "convention": "physical_potential",
+              "unit": "hartree",
+              "value": -2.0
+            },
+            "multiplicity": 1,
+            "name": "ms4_00001",
+            "path": "resampling/pools/pool_00001/selected_001.xyz",
+            "role": "selected",
+            "scftype": "rhf",
+            "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+            "solute_atom_indices": [
+              0
+            ],
+            "solvent_fragments": [
+              [
+                1
+              ]
+            ],
+            "target_atom": 0,
+            "target_fragment": null,
+            "target_kind": "solute",
+            "title": "solute + 1 solvent molecule(s)"
+          }
+        ],
+        "evaluation_budget": 20,
+        "evaluations_used": 2,
+        "numpy_version": "2.5.3",
+        "record_id": "00000000-0000-4000-8000-00000000000a",
+        "rng_algorithm": "PCG64",
+        "rng_state": {
+          "bit_generator": "PCG64",
+          "has_uint32": 1,
+          "state": {
+            "inc": 141594020766391051164819261345714058667,
+            "state": 221917589948605366904037089820158456472
+          },
+          "uinteger": 3849619447
+        },
+        "schema_version": 1,
+        "seed": 12,
+        "selected_references": [
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000013",
+            "charge": 0,
+            "coverage": {
+              "confinement_mode": "reported-not-filtered-cluster-objective",
+              "coverage_fraction": 0.125,
+              "covered_points": 1,
+              "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+              "open_points": 7,
+              "optimization_restraint_applied": false,
+              "shell_tolerance_angstrom": 3.5,
+              "shell_valid": true,
+              "site_atoms": null,
+              "solute_atom_count": 1,
+              "surface_points": 8,
+              "whole_solute_coverage_fraction": 0.125,
+              "whole_solute_covered_points": 1,
+              "whole_solute_surface_points": 8
+            },
+            "energy": -2.0,
+            "energy_record": {
+              "convention": "physical_potential",
+              "unit": "hartree",
+              "value": -2.0
+            },
+            "multiplicity": 1,
+            "name": "micro_10000_000",
+            "path": "resampling/pools/pool_00001/selected_000.xyz",
+            "role": "selected",
+            "scftype": "rhf",
+            "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+            "solute_atom_indices": [
+              0
+            ],
+            "solvent_fragments": [
+              [
+                1
+              ]
+            ],
+            "target_atom": 0,
+            "target_fragment": null,
+            "target_kind": "solute",
+            "title": "solute + 1 solvent molecule(s)"
+          },
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000014",
+            "charge": 0,
+            "coverage": {
+              "confinement_mode": "reported-not-filtered-cluster-objective",
+              "coverage_fraction": 0.0,
+              "covered_points": 0,
+              "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+              "open_points": 8,
+              "optimization_restraint_applied": false,
+              "shell_tolerance_angstrom": 3.5,
+              "shell_valid": true,
+              "site_atoms": null,
+              "solute_atom_count": 1,
+              "surface_points": 8,
+              "whole_solute_coverage_fraction": 0.0,
+              "whole_solute_covered_points": 0,
+              "whole_solute_surface_points": 8
+            },
+            "energy": -2.0,
+            "energy_record": {
+              "convention": "physical_potential",
+              "unit": "hartree",
+              "value": -2.0
+            },
+            "multiplicity": 1,
+            "name": "ms4_00001",
+            "path": "resampling/pools/pool_00001/selected_001.xyz",
+            "role": "selected",
+            "scftype": "rhf",
+            "sha256": "da5a5beacbc2fc0f34d5d656ca73e19bfc0e78de9ee09ee771f39edf9443a5fe",
+            "solute_atom_indices": [
+              0
+            ],
+            "solvent_fragments": [
+              [
+                1
+              ]
+            ],
+            "target_atom": 0,
+            "target_fragment": null,
+            "target_kind": "solute",
+            "title": "solute + 1 solvent molecule(s)"
+          }
+        ],
+        "started_at_epoch": "<TIME>",
+        "status": "moves_exhausted",
+        "time_limit_seconds": 30
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "selection_hashes": [
+        "3e606559ba9400051a8b41de9b3d0ab9d143bfd9852beeb9fa25eff688363349"
+      ],
+      "solute_atom_indices": [
+        0
+      ],
+      "solvent_fragments": [
+        [
+          1
+        ]
+      ],
+      "status": "completed",
+      "surface_sha256": "0ab5e1b2593c76e2e64201ba45edb0243c409893c96ad87e8eb6c7aa93167a3e",
+      "workflow": "microsolvation",
+      "workflow_state_schema_version": 2
+    },
+    "microsolvation/steps/step_000/selected/selected_000.xyz": {
+      "sha256": "8de3bc3a5e87b18aa16110c28024118440e33b9989dbe9d5c4b51866898e5beb",
+      "text": "  1\nTitle: None\nHe     0.00000     0.00000     0.00000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/.pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_000-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "micro_10000_000",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "96666c94-ea90-5665-937e-cddb9771e0da",
+                "path": "result_micro_10000_000.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "09ec901a-017b-566a-914b-afe2d87dc663",
+                "path": "trial_micro_10000_000.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "26c5ae60d92ae48ecc7f28c4a5cd5ee3665220b79dc1092fc0012580d4ecf15c",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "96666c94-ea90-5665-937e-cddb9771e0da",
+                  "path": "result_micro_10000_000.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "09ec901a-017b-566a-914b-afe2d87dc663",
+                  "path": "trial_micro_10000_000.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "26c5ae60d92ae48ecc7f28c4a5cd5ee3665220b79dc1092fc0012580d4ecf15c",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "e0f36d0fdc5b8acee679e61ee47b7802165efcf2c33f67d1dcf8c3e11f3fa7dd"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  -0.22692828458270592,
+                  2.585730758152587,
+                  -1.0499999999999998
+                ]
+              ],
+              "name": "micro_10000_000",
+              "optimizer": "geometric",
+              "request_fingerprint": "e0f36d0fdc5b8acee679e61ee47b7802165efcf2c33f67d1dcf8c3e11f3fa7dd",
+              "scientific_fingerprint": "e808ae058899ff81e8c0a20d3c24ab162c3ef2cc556d9d82f87c40ff8b9adf4f",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": null,
+                "geometry_optimizer": "geometric",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_target": "minimum",
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "He"
+              ],
+              "target": "minimum",
+              "workflow_role": "microsolvation_unbiased_minimum"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_000/geometric.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_000/geometric.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "microsolvation_unbiased_minimum"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/.pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_001-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "micro_10000_001",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "9dd1150a-37aa-5ea0-aa3e-c2fa3c292daf",
+                "path": "result_micro_10000_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "9816bc66a161cc1418aec5bb14de3f287b6ff0049fb4ddd8cc71b2206d788cc0",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "6ec742c7-3e89-5136-8343-a20a46f608a4",
+                "path": "trial_micro_10000_001.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "b3f8bad3ae231249069615e8cb2ca4a7c6bd10449791bc16b2a1005dde94f6d5",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "9dd1150a-37aa-5ea0-aa3e-c2fa3c292daf",
+                  "path": "result_micro_10000_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "9816bc66a161cc1418aec5bb14de3f287b6ff0049fb4ddd8cc71b2206d788cc0",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "6ec742c7-3e89-5136-8343-a20a46f608a4",
+                  "path": "trial_micro_10000_001.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "b3f8bad3ae231249069615e8cb2ca4a7c6bd10449791bc16b2a1005dde94f6d5",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "1b55124e5945ed99468682a91b171ef6a7fd061edb4b31ccec53da0ba970bc7e"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.5674299275698912,
+                  -2.1108110472749635,
+                  1.75
+                ]
+              ],
+              "name": "micro_10000_001",
+              "optimizer": "geometric",
+              "request_fingerprint": "1b55124e5945ed99468682a91b171ef6a7fd061edb4b31ccec53da0ba970bc7e",
+              "scientific_fingerprint": "779da45cd8ee9c4612a0178ce88468509dfe576c58eb572b612c93f95fde2cd8",
+              "settings": {
+                "charge": 0,
+                "fragments": [
+                  [
+                    0
+                  ],
+                  [
+                    1
+                  ]
+                ],
+                "gamma": null,
+                "geometry_optimizer": "geometric",
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_target": "minimum",
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "He",
+                "He"
+              ],
+              "target": "minimum",
+              "workflow_role": "microsolvation_unbiased_minimum"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_001/geometric.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_001/geometric.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "microsolvation_unbiased_minimum"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_000/result_micro_10000_000.xyz": {
+      "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_000/trial_micro_10000_000.xyz": {
+      "sha256": "26c5ae60d92ae48ecc7f28c4a5cd5ee3665220b79dc1092fc0012580d4ecf15c",
+      "text": "  2\nsolute + 1 solvent molecule(s): None\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_001/result_micro_10000_001.xyz": {
+      "sha256": "9816bc66a161cc1418aec5bb14de3f287b6ff0049fb4ddd8cc71b2206d788cc0",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe     0.56743    -2.11081     1.75000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/job_micro_10000_001/trial_micro_10000_001.xyz": {
+      "sha256": "b3f8bad3ae231249069615e8cb2ca4a7c6bd10449791bc16b2a1005dde94f6d5",
+      "text": "  2\nsolute + 1 solvent molecule(s): None\nHe     0.00000     0.00000     0.00000\nHe     0.56743    -2.11081     1.75000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/micro_10000_000.xyz": {
+      "sha256": "26c5ae60d92ae48ecc7f28c4a5cd5ee3665220b79dc1092fc0012580d4ecf15c",
+      "text": "  2\nsolute + 1 solvent molecule(s): None\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/micro_10000_000_optimized.xyz": {
+      "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/micro_10000_001.xyz": {
+      "sha256": "b3f8bad3ae231249069615e8cb2ca4a7c6bd10449791bc16b2a1005dde94f6d5",
+      "text": "  2\nsolute + 1 solvent molecule(s): None\nHe     0.00000     0.00000     0.00000\nHe     0.56743    -2.11081     1.75000\n"
+    },
+    "microsolvation/steps/step_001/attempts/attempt_000/execution/candidates/micro_10000_001_optimized.xyz": {
+      "sha256": "9816bc66a161cc1418aec5bb14de3f287b6ff0049fb4ddd8cc71b2206d788cc0",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe     0.56743    -2.11081     1.75000\n"
+    },
+    "microsolvation/steps/step_001/coverage.json": {
+      "coverage": [
+        {
+          "confinement_mode": "reported-not-filtered-cluster-objective",
+          "coverage_fraction": 0.125,
+          "covered_points": 1,
+          "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+          "name": "micro_10000_000",
+          "open_points": 7,
+          "optimization_restraint_applied": false,
+          "shell_tolerance_angstrom": 3.5,
+          "shell_valid": true,
+          "site_atoms": null,
+          "solute_atom_count": 1,
+          "surface_points": 8,
+          "whole_solute_coverage_fraction": 0.125,
+          "whole_solute_covered_points": 1,
+          "whole_solute_surface_points": 8
+        }
+      ],
+      "selected_count": 1,
+      "selected_paths": [
+        "steps/step_001/selected/selected_000.xyz"
+      ],
+      "selected_references": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "micro_10000_000",
+          "path": "steps/step_001/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        }
+      ],
+      "selection": {
+        "adaptive_rmsd_threshold_angstrom": 0.05,
+        "cluster_energy_frontier_hartree": 0.005,
+        "comparison_diagnostics": [],
+        "coverage_frontier_fraction_tolerance": null,
+        "energy_ranked": true,
+        "energy_unit": "hartree",
+        "generated_count": 2,
+        "input_count": 2,
+        "maximum_number_of_seeds": 2,
+        "objective": "cluster",
+        "optimization_diagnostics": [
+          {
+            "backend_status": "True",
+            "converged": false,
+            "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_000-1.json",
+            "name": "micro_10000_000",
+            "owner_decision": {
+              "accepted": true,
+              "allow_incomplete": true,
+              "provisional": true,
+              "reason": "Owner permits incomplete results for subsequent workflow validation",
+              "validated_converged": false
+            },
+            "stage": "unbiased_minimum",
+            "status": "INVALID_RESULT",
+            "workflow_accepted": false
+          },
+          {
+            "backend_status": "True",
+            "converged": false,
+            "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_001-1.json",
+            "name": "micro_10000_001",
+            "owner_decision": {
+              "accepted": true,
+              "allow_incomplete": true,
+              "provisional": true,
+              "reason": "Owner permits incomplete results for subsequent workflow validation",
+              "validated_converged": false
+            },
+            "stage": "unbiased_minimum",
+            "status": "INVALID_RESULT",
+            "workflow_accepted": false
+          }
+        ],
+        "optimization_failures": [],
+        "optimized_count": 2,
+        "placement_score": "energy",
+        "prescreened_count": 2,
+        "rejected_outside_shell": 0,
+        "seeds_without_accessible_target_surface": 0,
+        "selected_count": 1,
+        "selection_basis": "fixed-composition-energy",
+        "selection_mode": "fixed-composition-energy-then-diversity",
+        "surface_saturated_at_placement": false,
+        "unbiased_energy_frontier_hartree": null,
+        "unique_count": 1
+      },
+      "solvent_count": 1,
+      "step": 1
+    },
+    "microsolvation/steps/step_001/energy_prescreen.json": {
+      "candidates": [
+        {
+          "energy_hartree": null,
+          "error": "'Atoms' object has no attribute 'name'",
+          "name": "micro_10000_000",
+          "selected_for_optimization": true,
+          "status": "failed"
+        },
+        {
+          "energy_hartree": null,
+          "error": "'Atoms' object has no attribute 'name'",
+          "name": "micro_10000_001",
+          "selected_for_optimization": true,
+          "status": "failed"
+        }
+      ],
+      "energy_unit": "hartree",
+      "fixed_composition_per_step": true,
+      "method": {
+        "geometry_optimizer": "geometric",
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      }
+    },
+    "microsolvation/steps/step_001/selected/selected_000.xyz": {
+      "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+      "text": "  2\nsolute + 1 solvent molecule(s): -2.0\nHe     0.00000     0.00000     0.00000\nHe    -0.22693     2.58573    -1.05000\n"
+    },
+    "microsolvation/steps/step_001/selection.json": {
+      "physical_method": {
+        "geometry_optimizer": "geometric",
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "record_id": "00000000-0000-4000-8000-000000000009",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scientific_request": {
+        "backend_parameters": {
+          "geometry_optimizer": "geometric",
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "confinement": {
+          "mode": "none; finite-cluster objective"
+        },
+        "count": 1,
+        "maximum_number_of_seeds": 2,
+        "orientations": 2,
+        "placement_policy": {
+          "name": "solvent-cluster-growth-v1"
+        },
+        "resampling_policy": {
+          "collision_scale": 0.85,
+          "evaluation_budget": 20,
+          "moves": 2,
+          "name": "whole-cluster-perturbation-v1",
+          "rng": "numpy-PCG64",
+          "seed": 12,
+          "time_limit_seconds": 30.0
+        },
+        "sampling": {
+          "directions": "fibonacci",
+          "rotations": "halton"
+        },
+        "selection_policy": {
+          "cluster_energy_frontier_hartree": 0.005,
+          "energy_unit": "hartree",
+          "name": "objective-aware-v1",
+          "objective": "cluster",
+          "placement_score": "energy",
+          "prescreen_pool_multiplier": 4,
+          "ranking": null,
+          "unbiased_energy_frontier_hartree": null
+        },
+        "shell_policy": "reported-not-filtered-cluster-growth-v1",
+        "shell_tolerance_angstrom": 3.5,
+        "solute": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "solute_site_atoms": null,
+        "solvent": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "surface": {
+          "model": "vdw-probe-fibonacci-v1",
+          "points_per_atom": 8,
+          "probe_radius_angstrom": 1.4
+        }
+      },
+      "scientific_settings": {
+        "backend_parameters": {
+          "geometry_optimizer": "geometric",
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "confinement": {
+          "mode": "none; finite-cluster objective"
+        },
+        "count": 1,
+        "maximum_number_of_seeds": 2,
+        "orientations": 2,
+        "placement_policy": {
+          "name": "solvent-cluster-growth-v1"
+        },
+        "resampling_policy": {
+          "collision_scale": 0.85,
+          "evaluation_budget": 20,
+          "moves": 2,
+          "name": "whole-cluster-perturbation-v1",
+          "rng": "numpy-PCG64",
+          "seed": 12,
+          "time_limit_seconds": 30.0
+        },
+        "sampling": {
+          "directions": "fibonacci",
+          "rotations": "halton"
+        },
+        "selection_policy": {
+          "cluster_energy_frontier_hartree": 0.005,
+          "energy_unit": "hartree",
+          "name": "objective-aware-v1",
+          "objective": "cluster",
+          "placement_score": "energy",
+          "prescreen_pool_multiplier": 4,
+          "ranking": null,
+          "unbiased_energy_frontier_hartree": null
+        },
+        "shell_policy": "reported-not-filtered-cluster-growth-v1",
+        "shell_tolerance_angstrom": 3.5,
+        "solute": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "solute_site_atoms": null,
+        "solvent": {
+          "atoms": [
+            "He"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "fragment_definition": [],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        "surface": {
+          "model": "vdw-probe-fibonacci-v1",
+          "points_per_atom": 8,
+          "probe_radius_angstrom": 1.4
+        }
+      },
+      "selected": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "charge": 0,
+          "coverage": {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          },
+          "energy": -2.0,
+          "energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -2.0
+          },
+          "multiplicity": 1,
+          "name": "micro_10000_000",
+          "path": "steps/step_001/selected/selected_000.xyz",
+          "role": "selected",
+          "scftype": "rhf",
+          "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+          "solute_atom_indices": [
+            0
+          ],
+          "solvent_fragments": [
+            [
+              1
+            ]
+          ],
+          "target_atom": 0,
+          "target_fragment": null,
+          "target_kind": "solute",
+          "title": "solute + 1 solvent molecule(s)"
+        }
+      ],
+      "stage": "microsolvation-selection",
+      "stage_result_schema_version": 1,
+      "status": "completed",
+      "step": 1,
+      "step_record": {
+        "coverage": [
+          {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "name": "micro_10000_000",
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          }
+        ],
+        "selected_count": 1,
+        "selected_paths": [
+          "steps/step_001/selected/selected_000.xyz"
+        ],
+        "selected_references": [
+          {
+            "artifact_id": "00000000-0000-4000-8000-000000000008",
+            "charge": 0,
+            "coverage": {
+              "confinement_mode": "reported-not-filtered-cluster-objective",
+              "coverage_fraction": 0.125,
+              "covered_points": 1,
+              "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+              "open_points": 7,
+              "optimization_restraint_applied": false,
+              "shell_tolerance_angstrom": 3.5,
+              "shell_valid": true,
+              "site_atoms": null,
+              "solute_atom_count": 1,
+              "surface_points": 8,
+              "whole_solute_coverage_fraction": 0.125,
+              "whole_solute_covered_points": 1,
+              "whole_solute_surface_points": 8
+            },
+            "energy": -2.0,
+            "energy_record": {
+              "convention": "physical_potential",
+              "unit": "hartree",
+              "value": -2.0
+            },
+            "multiplicity": 1,
+            "name": "micro_10000_000",
+            "path": "steps/step_001/selected/selected_000.xyz",
+            "role": "selected",
+            "scftype": "rhf",
+            "sha256": "7c9956fb320f8114f2e662271c5c24e1aa93edf821756e1ba22212a48539b348",
+            "solute_atom_indices": [
+              0
+            ],
+            "solvent_fragments": [
+              [
+                1
+              ]
+            ],
+            "target_atom": 0,
+            "target_fragment": null,
+            "target_kind": "solute",
+            "title": "solute + 1 solvent molecule(s)"
+          }
+        ],
+        "selection": {
+          "adaptive_rmsd_threshold_angstrom": 0.05,
+          "cluster_energy_frontier_hartree": 0.005,
+          "comparison_diagnostics": [],
+          "coverage_frontier_fraction_tolerance": null,
+          "energy_ranked": true,
+          "energy_unit": "hartree",
+          "generated_count": 2,
+          "input_count": 2,
+          "maximum_number_of_seeds": 2,
+          "objective": "cluster",
+          "optimization_diagnostics": [
+            {
+              "backend_status": "True",
+              "converged": false,
+              "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_000-1.json",
+              "name": "micro_10000_000",
+              "owner_decision": {
+                "accepted": true,
+                "allow_incomplete": true,
+                "provisional": true,
+                "reason": "Owner permits incomplete results for subsequent workflow validation",
+                "validated_converged": false
+              },
+              "stage": "unbiased_minimum",
+              "status": "INVALID_RESULT",
+              "workflow_accepted": false
+            },
+            {
+              "backend_status": "True",
+              "converged": false,
+              "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_001-1.json",
+              "name": "micro_10000_001",
+              "owner_decision": {
+                "accepted": true,
+                "allow_incomplete": true,
+                "provisional": true,
+                "reason": "Owner permits incomplete results for subsequent workflow validation",
+                "validated_converged": false
+              },
+              "stage": "unbiased_minimum",
+              "status": "INVALID_RESULT",
+              "workflow_accepted": false
+            }
+          ],
+          "optimization_failures": [],
+          "optimized_count": 2,
+          "placement_score": "energy",
+          "prescreened_count": 2,
+          "rejected_outside_shell": 0,
+          "seeds_without_accessible_target_surface": 0,
+          "selected_count": 1,
+          "selection_basis": "fixed-composition-energy",
+          "selection_mode": "fixed-composition-energy-then-diversity",
+          "surface_saturated_at_placement": false,
+          "unbiased_energy_frontier_hartree": null,
+          "unique_count": 1
+        },
+        "solvent_count": 1,
+        "step": 1
+      },
+      "surface_sha256": "0ab5e1b2593c76e2e64201ba45edb0243c409893c96ad87e8eb6c7aa93167a3e",
+      "upstream_sha256": null,
+      "validation": {
+        "shell_filtered": false,
+        "survivor_budget": true
+      }
+    },
+    "microsolvation/steps/step_001/selection_diagnostics.json": {
+      "adaptive_rmsd_threshold_angstrom": 0.05,
+      "cluster_energy_frontier_hartree": 0.005,
+      "comparison_diagnostics": [],
+      "coverage_frontier_fraction_tolerance": null,
+      "energy_ranked": true,
+      "energy_unit": "hartree",
+      "generated_count": 2,
+      "input_count": 2,
+      "maximum_number_of_seeds": 2,
+      "objective": "cluster",
+      "optimization_diagnostics": [
+        {
+          "backend_status": "True",
+          "converged": false,
+          "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_000-1.json",
+          "name": "micro_10000_000",
+          "owner_decision": {
+            "accepted": true,
+            "allow_incomplete": true,
+            "provisional": true,
+            "reason": "Owner permits incomplete results for subsequent workflow validation",
+            "validated_converged": false
+          },
+          "stage": "unbiased_minimum",
+          "status": "INVALID_RESULT",
+          "workflow_accepted": false
+        },
+        {
+          "backend_status": "True",
+          "converged": false,
+          "diagnostic_path": ".pyar_optimization_diagnostics/microsolvation_unbiased_minimum-micro_10000_001-1.json",
+          "name": "micro_10000_001",
+          "owner_decision": {
+            "accepted": true,
+            "allow_incomplete": true,
+            "provisional": true,
+            "reason": "Owner permits incomplete results for subsequent workflow validation",
+            "validated_converged": false
+          },
+          "stage": "unbiased_minimum",
+          "status": "INVALID_RESULT",
+          "workflow_accepted": false
+        }
+      ],
+      "optimization_failures": [],
+      "optimized_count": 2,
+      "placement_score": "energy",
+      "prescreened_count": 2,
+      "rejected_outside_shell": 0,
+      "seeds_without_accessible_target_surface": 0,
+      "selected_count": 1,
+      "selection_basis": "fixed-composition-energy",
+      "selection_mode": "fixed-composition-energy-then-diversity",
+      "surface_saturated_at_placement": false,
+      "unbiased_energy_frontier_hartree": null,
+      "unique_count": 1
+    },
+    "microsolvation/summary.json": {
+      "coverage": [
+        {
+          "confinement_mode": "reported-not-filtered-cluster-objective",
+          "coverage_fraction": 0.125,
+          "covered_points": 1,
+          "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+          "open_points": 7,
+          "optimization_restraint_applied": false,
+          "shell_tolerance_angstrom": 3.5,
+          "shell_valid": true,
+          "site_atoms": null,
+          "solute_atom_count": 1,
+          "surface_points": 8,
+          "whole_solute_coverage_fraction": 0.125,
+          "whole_solute_covered_points": 1,
+          "whole_solute_surface_points": 8
+        },
+        {
+          "confinement_mode": "reported-not-filtered-cluster-objective",
+          "coverage_fraction": 0.0,
+          "covered_points": 0,
+          "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+          "open_points": 8,
+          "optimization_restraint_applied": false,
+          "shell_tolerance_angstrom": 3.5,
+          "shell_valid": true,
+          "site_atoms": null,
+          "solute_atom_count": 1,
+          "surface_points": 8,
+          "whole_solute_coverage_fraction": 0.0,
+          "whole_solute_covered_points": 0,
+          "whole_solute_surface_points": 8
+        }
+      ],
+      "requested_solvents": 1,
+      "selected_count": 2,
+      "status": "completed",
+      "workflow": "microsolvation"
+    },
+    "microsolvation/surface/initial_surface.json": {
+      "model": "vdw-probe-fibonacci-v1",
+      "normals": [
+        [
+          0.4841229182759271,
+          0.0,
+          0.875
+        ],
+        [
+          -0.5756083959600474,
+          0.5273044419500952,
+          0.625
+        ],
+        [
+          0.08104581592239497,
+          -0.923475270768781,
+          0.375
+        ],
+        [
+          0.603666717801552,
+          0.7873763355719433,
+          0.125
+        ],
+        [
+          -0.9769901230486042,
+          -0.17281579634244423,
+          -0.125
+        ],
+        [
+          0.7821820926083319,
+          -0.497560221483642,
+          -0.375
+        ],
+        [
+          -0.20265354556067544,
+          0.753861088312487,
+          -0.625
+        ],
+        [
+          -0.22313565385811115,
+          -0.42963412338560025,
+          -0.875
+        ]
+      ],
+      "parent_solute_atoms": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "points_angstrom": [
+        [
+          1.355544171172596,
+          0.0,
+          2.4499999999999997
+        ],
+        [
+          -1.6117035086881326,
+          1.4764524374602663,
+          1.75
+        ],
+        [
+          0.22692828458270592,
+          -2.585730758152587,
+          1.0499999999999998
+        ],
+        [
+          1.6902668098443456,
+          2.204653739601441,
+          0.35
+        ],
+        [
+          -2.7355723445360915,
+          -0.4838842297588438,
+          -0.35
+        ],
+        [
+          2.1901098593033295,
+          -1.3931686201541975,
+          -1.0499999999999998
+        ],
+        [
+          -0.5674299275698912,
+          2.1108110472749635,
+          -1.75
+        ],
+        [
+          -0.6247798308027112,
+          -1.2029755454796807,
+          -2.4499999999999997
+        ]
+      ],
+      "points_per_atom": 8,
+      "probe_radius_angstrom": 1.4,
+      "weights_angstrom2": [
+        12.315043202071989,
+        12.315043202071989,
+        12.315043202071989,
+        12.315043202071989,
+        12.315043202071989,
+        12.315043202071989,
+        12.315043202071989,
+        12.315043202071989
+      ]
+    }
+  },
+  "result": {
+    "metadata": {
+      "backend": "xtb",
+      "completed_solvents": 1,
+      "confinement": {
+        "mode": "none; finite-cluster objective"
+      },
+      "coverage_history": [
+        [
+          {
+            "confinement_mode": "reported-not-filtered-cluster-objective",
+            "coverage_fraction": 0.125,
+            "covered_points": 1,
+            "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+            "name": "micro_10000_000",
+            "open_points": 7,
+            "optimization_restraint_applied": false,
+            "shell_tolerance_angstrom": 3.5,
+            "shell_valid": true,
+            "site_atoms": null,
+            "solute_atom_count": 1,
+            "surface_points": 8,
+            "whole_solute_coverage_fraction": 0.125,
+            "whole_solute_covered_points": 1,
+            "whole_solute_surface_points": 8
+          }
+        ]
+      ],
+      "objective": "cluster",
+      "requested_solvents": 1,
+      "sampling": {
+        "directions": "fibonacci",
+        "rotations": "halton"
+      },
+      "selection_policy": {
+        "cluster_energy_frontier_hartree": 0.005,
+        "energy_unit": "hartree",
+        "name": "objective-aware-v1",
+        "objective": "cluster",
+        "placement_score": "energy",
+        "prescreen_pool_multiplier": 4,
+        "ranking": null,
+        "unbiased_energy_frontier_hartree": null
+      },
+      "solute_atom_indices": [
+        0
+      ],
+      "solvent_fragments": [
+        [
+          1
+        ]
+      ]
+    },
+    "run_directory": "<ROOT>/microsolvation",
+    "selected_paths": [
+      "<ROOT>/microsolvation/results/structure_000.xyz",
+      "<ROOT>/microsolvation/results/structure_001.xyz"
+    ],
+    "state_path": "<ROOT>/microsolvation/state.json",
+    "status": "completed",
+    "workflow": "microsolvation"
+  }
+}
