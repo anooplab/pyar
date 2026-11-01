@@ -7,10 +7,7 @@ from unittest.mock import patch
 import pytest
 from packaging.requirements import Requirement
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+import tomllib
 
 from pyar import dependencies
 
@@ -95,13 +92,11 @@ def test_aiqm1_preflights_gaussian_before_starting_its_subprocess():
     assert {'g16', 'xtb'} <= get_backend_capabilities('xtb-aiqm1').required_executables
 
 
-@pytest.mark.parametrize('python_version', [(3, 10), (3, 13)])
+@pytest.mark.parametrize('python_version', [(3, 11), (3, 13)])
 def test_doctor_optional_absence_is_informational(capsys, python_version):
     from pyar.scripts import cli_meta
 
     core = set(dependencies.CORE_MODULES)
-    if python_version < (3, 11):
-        core.add('tomli')
     with patch.object(cli_meta.sys, 'version_info', python_version), \
          patch.object(cli_meta, '_module_available', side_effect=lambda name: name in core), \
          patch.object(cli_meta.shutil, 'which', return_value=None):

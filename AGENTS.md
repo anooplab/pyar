@@ -26,7 +26,7 @@ Avoid editing generated artifacts such as `build/`, `pyar_chem.egg-info/`,
 
 ## Coding Style & Naming Conventions
 
-Use Python 3.10+ syntax and 4-space indentation. Prefer small, explicit
+Use Python 3.11+ syntax and 4-space indentation. Prefer small, explicit
 functions over broad side effects, especially in CLI and backend code. Keep
 module names lowercase with underscores. Classes use `CamelCase`; functions,
 variables, and tests use `snake_case`. `pyproject.toml` is the authoritative

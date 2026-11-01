@@ -117,7 +117,7 @@ def doctor(argv=None, *, prog="pyar doctor"):
     args = parser.parse_args(argv)
     checks = {}
     from pyar.dependencies import CORE_MODULES, PYTHON_REQUIREMENTS, EXTERNAL_PROGRAMS
-    core = (*CORE_MODULES, "tomli") if sys.version_info < (3, 11) else CORE_MODULES
+    core = CORE_MODULES
     for module in core:
         checks[f"python:{module}"] = {"ok": _module_available(module)}
     for module, requirement in PYTHON_REQUIREMENTS.items():

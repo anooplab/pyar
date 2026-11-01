@@ -1,6 +1,9 @@
 Using PyAR 1.6 after an older version
 =====================================
 
+PyAR 1.6 requires Python 3.11 or newer; Python 3.10 is no longer supported.
+Use a fresh environment with a supported interpreter.
+
 PyAR 1.6 is an intentionally breaking cleanup. The single executable is ``pyar``.
 Standalone commands such as ``pyar-react``, ``pyar-cli`` and ``pyar-neb`` and
 compatibility-only Python import paths are removed. Use the corresponding

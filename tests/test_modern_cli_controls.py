@@ -4,10 +4,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 import pytest
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10
-    import tomli as tomllib
+import tomllib
 
 from pyar import cli
 from pyar.run_config import PROFILE_KIND, resolve_run_spec, write_toml_document

@@ -14,10 +14,7 @@ from pathlib import Path
 import re
 import tempfile
 import warnings
-try:
-    import tomllib
-except ModuleNotFoundError:  # Python 3.10, supported by pyar-chem.
-    import tomli as tomllib
+import tomllib
 from dataclasses import asdict, dataclass, field
 
 

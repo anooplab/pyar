@@ -4,7 +4,7 @@ Install PyAR
 Choose an environment
 ---------------------
 
-PyAR requires Python 3.10 or newer. Use an isolated Python environment. Python 3.10–3.13 is the classified,
+PyAR requires Python 3.11 or newer. Use an isolated Python environment. Python 3.11–3.13 is the classified,
 CI-tested range. Python 3.11 is a convenient starting point. Linux is the primary
 command-line environment; on Windows use a Linux environment such as WSL.
 Commands below use a POSIX shell. Installation on your own macOS/WSL environment

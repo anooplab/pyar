@@ -25,7 +25,6 @@ PYTHON_REQUIREMENTS = {
     "numpy": PythonRequirement("numpy", ""),
     "scipy": PythonRequirement("scipy", ""),
     "networkx": PythonRequirement("networkx", ""),
-    "tomli": PythonRequirement("tomli", ""),
     "ase": PythonRequirement("ase", "geometric"),
     "dscribe": PythonRequirement("dscribe", "aggregate"),
     "hdbscan": PythonRequirement("hdbscan", "aggregate"),

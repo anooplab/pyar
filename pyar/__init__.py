@@ -23,10 +23,7 @@ __docformat__ = 'restructuredtext'
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
-    import tomli as tomllib
+import tomllib
 
 from pyar.core.molecule import Molecule
 

@@ -4,10 +4,7 @@ from pathlib import Path
 import sys
 from email.parser import BytesParser
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+import tomllib
 import tarfile
 import zipfile
 
