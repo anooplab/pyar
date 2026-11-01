@@ -102,7 +102,9 @@ class XtbInterfaceTests(unittest.TestCase):
         with temporary_cwd(), mock.patch.object(xtb, "require_executable", return_value="xtb"), \
                 mock.patch.object(xtb.subp, "check_call", side_effect=fake_run):
             runner = xtb.Xtb(self.molecule, {"opt_threshold": "normal"})
-            self.assertFalse(runner.optimize())
+            from pyar.backend_errors import BackendExecutionError
+            with self.assertRaises(BackendExecutionError):
+                runner.optimize()
 
     def test_xtb_native_wrapper_uses_explicit_reaction_model(self):
         from pyar.backends import xtb
@@ -146,9 +148,9 @@ class XtbInterfaceTests(unittest.TestCase):
                 mock.patch.object(xtb_turbo.turbomole, "update_coord", return_value=False), \
                 mock.patch.object(runner, "calculate_energy_gradient", return_value=(True, [], 1.0, np.zeros((5, 3)))), \
                 mock.patch.object(xtb_turbo.restraints, "isotropic", return_value=(0.0, np.zeros((5, 3)))) as isotropic:
-                status = runner.optimize()
-
-        self.assertEqual(status, "UpdateFailed")
+                from pyar.backend_errors import BackendGeometryError
+                with self.assertRaises(BackendGeometryError):
+                    runner.optimize()
         self.assertEqual(runner.gamma, 37.5)
         isotropic.assert_called_once()
         self.assertEqual(isotropic.call_args.args[-1], 37.5)

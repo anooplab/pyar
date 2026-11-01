@@ -1,4 +1,6 @@
 """ORCA followed by AIQM1 backend implementation."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import os
 import subprocess as subp
@@ -63,6 +65,7 @@ class OrcaAIQM1(SF):
                 f.write(f"{self.atoms_list[i]:3s} {coord[0]:10.7f} {coord[1]:10.7f} {coord[2]:10.7f}\n")
             f.write("*")
 
+    @backend_operation
     def optimize(self):
         self.prepare_input()
 
@@ -82,10 +85,10 @@ class OrcaAIQM1(SF):
                 else:
                     print("Error: OPTIMIZATION PROBABLY FAILED. CHECK THE .out FILE FOR PARTIAL OPTIMIZATION")
                     print(f"Location: {os.getcwd()}")
-                    return False
+                    raise BackendExecutionError("orca_aiqm1 optimization failed; inspect the retained backend output")
         else:
             print(f"Error: ORCA calculation failed with exit status {exit_status}")
-            return False
+            raise BackendExecutionError("orca_aiqm1 optimization failed; inspect the retained backend output")
 
     def get_energy(self):
         try:

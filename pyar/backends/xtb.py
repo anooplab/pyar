@@ -1,4 +1,6 @@
 """Pure xTB geometry optimization backend."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError, BackendSCFError
 import logging
 import os
 from pathlib import Path
@@ -57,6 +59,7 @@ class Xtb(SF):
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
+    @backend_operation
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
         """Execute xTB and return a success flag or failure status string."""
         if gamma is not None:
@@ -92,7 +95,7 @@ class Xtb(SF):
                 record_process(self.cmd, getattr(e, "returncode", None), exception=e)
                 xtb_logger.info('    Optimization failed')
                 xtb_logger.error(f'      {e}')
-                return False
+                raise BackendExecutionError("xtb optimization failed; inspect the retained backend output")
         from pyar.recovery.observations import record_process
         record_process(self.cmd, out)
 
@@ -102,14 +105,14 @@ class Xtb(SF):
                 check_xtb_output(output_text)
         except RuntimeError as exc:
             xtb_logger.error('%s', exc)
-            return False
+            raise BackendExecutionError("xtb optimization failed; inspect the retained backend output")
 
         lowered_output = output_text.lower()
         if any(marker in lowered_output for marker in (
             'scc failed to converge', 'scc convergence failed', 'scc not converged',
         )):
             xtb_logger.error('Current xTB run reported SCC nonconvergence')
-            return 'SCFFailed'
+            raise BackendSCFError("xtb: SCFFailed")
 
         if os.path.isfile('.xtboptok'):
             try:
@@ -123,7 +126,7 @@ class Xtb(SF):
                     raise ValueError('xTB result has invalid symbols, coordinates, or energy')
             except (OSError, ValueError, TypeError, XYZParseError) as exc:
                 xtb_logger.error('Invalid current xTB optimization result: %s', exc)
-                return False
+                raise BackendExecutionError("xtb optimization failed; inspect the retained backend output")
             write_xyz(self.atoms_list, coordinates, self.result_xyz_file,
                       job_name=self.job_name, energy=float(energy))
 
@@ -140,7 +143,7 @@ class Xtb(SF):
                     os.getcwd(),
                 )
             )
-            return 'SCFFailed'
+            raise BackendSCFError("xtb: SCFFailed")
 
         else:
             xtb_logger.info(
@@ -149,7 +152,7 @@ class Xtb(SF):
                     os.getcwd(),
                 )
             )
-            return False
+            raise BackendExecutionError("xtb optimization failed; inspect the retained backend output")
 
     @property
     def optimized_coordinates(self):

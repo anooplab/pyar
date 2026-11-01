@@ -16,6 +16,8 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import logging
 import os
@@ -77,6 +79,7 @@ class Orca(SF):
                     " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
             f1.write("*")
 
+    @backend_operation
     def optimize(self):
         """
         Optimize the current structure with ORCA.
@@ -104,27 +107,27 @@ class Orca(SF):
                     "orca did not terminate normally job=%s input=%s output=%s cwd=%s",
                     self.job_name, self.inp_file, self.out_file, os.getcwd(),
                 )
-                return False
+                raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
             if "THE OPTIMIZATION HAS CONVERGED" not in output_text:
                 orca_logger.error("orca did not report geometry convergence for %s", self.job_name)
-                return False
+                raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
 
             energy = self.get_energy()
             if energy is None or not np.isfinite(energy):
                 orca_logger.error("orca returned no finite final energy for %s", self.job_name)
-                return False
+                raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
             try:
                 symbols, coordinates, _name, _title, _xyz_energy = parse_xyz(output_xyz)
             except (OSError, XYZParseError) as exc:
                 orca_logger.error("orca returned no usable fresh geometry for %s: %s", self.job_name, exc)
-                return False
+                raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
             coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
             if symbols != list(self.atoms_list) or coordinates.shape != (self.number_of_atoms, 3):
                 orca_logger.error("orca geometry atom identities/order do not match input for %s", self.job_name)
-                return False
+                raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
             if not np.isfinite(coordinates).all():
                 orca_logger.error("orca returned nonfinite coordinates for %s", self.job_name)
-                return False
+                raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
 
             self.energy = float(energy)
             self.optimized_coordinates = coordinates
@@ -138,7 +141,7 @@ class Orca(SF):
             "orca command returned non-zero job=%s input=%s output=%s cwd=%s",
             self.job_name, self.inp_file, self.out_file, os.getcwd(),
         )
-        return False
+        raise BackendExecutionError("orca optimization failed; inspect the retained backend output")
 
     def get_energy(self):
         """

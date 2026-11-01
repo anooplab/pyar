@@ -7,6 +7,8 @@ the selected bias term when ``gamma`` is non-zero.
 """
 
 from __future__ import annotations
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendConvergenceError, OptimizationOutcome
 
 import json
 import logging
@@ -641,6 +643,7 @@ class Geometric(SF):
                 return _read_last_xyz(candidate)
         raise FileNotFoundError("geomeTRIC did not write a final XYZ file")
 
+    @backend_operation
     def optimize(self):
         """Run the geomeTRIC optimization loop."""
         state_path = Path(_GEOMETRIC_STATE_FILE)
@@ -738,9 +741,9 @@ class Geometric(SF):
                 "accepted geometry for unbiased relaxation: name=%s",
                 self.job_name,
             )
-            return "CycleExceeded"
+            raise BackendConvergenceError("geometric: CycleExceeded", usable_geometry=True)
         if state.get("optimization_status") == "release_candidate":
-            return "ReleaseCandidate"
+            return OptimizationOutcome.RELEASE_CANDIDATE
         if state.get("optimization_status") != "converged" and "Converged!" not in output_text:
             geometric_logger.error("geomeTRIC returned without explicit convergence evidence for %s", self.job_name)
             raise BackendExecutionError(

@@ -1,4 +1,6 @@
 """AIMNet2 backend implementation."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 from pyar.constants import EV_HARTREE_ROUNDED
 
 import logging
@@ -83,6 +85,7 @@ class Aimnet2(SF):
                 f1.write(
                     " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
 
+    @backend_operation
     def optimize(self):
         """
         :returns: True,
@@ -100,7 +103,7 @@ class Aimnet2(SF):
             except Exception as e:
                 Aimnet2_logger.info('    Optimization failed')
                 Aimnet2_logger.error(f"      {e}")
-                return False
+                raise BackendExecutionError("aimnet_2 optimization failed; inspect the retained backend output")
 
             write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                       job_name=self.job_name,

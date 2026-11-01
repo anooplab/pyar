@@ -16,6 +16,8 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import os
 import logging
@@ -50,6 +52,7 @@ class OBabel(SF):
         self.optimized_coordinates = []
         self.energy = 0.0
 
+    @backend_operation
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """Optimize the current structure with OpenBabel."""
 
@@ -63,7 +66,7 @@ class OBabel(SF):
                 "obabel optimization failed job=%s input=%s log=%s cwd=%s",
                 self.job_name, self.start_xyz_file, 'tmp.log', os.getcwd(),
             )
-            return False
+            raise BackendExecutionError("babel optimization failed; inspect the retained backend output")
         convert_status = run_command(
             [_obabel_executable(), "-ipdb", "tmp.pdb", "-oxyz"],
             stdout_path=self.result_xyz_file,
@@ -74,7 +77,7 @@ class OBabel(SF):
                 "obabel XYZ conversion failed job=%s input=%s log=%s cwd=%s",
                 self.job_name, 'tmp.pdb', 'OBabel.log', os.getcwd(),
             )
-            return False
+            raise BackendExecutionError("babel optimization failed; inspect the retained backend output")
         babel_logger.info(
             "obabel optimization completed job=%s input=%s result=%s tmp_pdb=%s",
             self.job_name, self.start_xyz_file, self.result_xyz_file, 'tmp.pdb',
@@ -85,7 +88,7 @@ class OBabel(SF):
                 "obabel energy was not available job=%s input=%s log=%s cwd=%s",
                 self.job_name, self.result_xyz_file, self.job_name + '.ene', os.getcwd(),
             )
-            return False
+            raise BackendExecutionError("babel optimization failed; inspect the retained backend output")
         self.optimized_coordinates = self.get_coords()
         return True
 

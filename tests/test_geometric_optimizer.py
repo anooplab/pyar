@@ -335,7 +335,10 @@ class GeometricOptimizerTests(unittest.TestCase):
                     return mock.Mock(returncode=1)
 
                 with mock.patch("pyar.backends.geometric.subp.run", side_effect=fake_run):
-                    self.assertEqual(geometry.optimize(), "CycleExceeded")
+                    from pyar.backend_errors import BackendConvergenceError
+                    with self.assertRaises(BackendConvergenceError) as error:
+                        geometry.optimize()
+                    self.assertTrue(error.exception.usable_geometry)
                 self.assertEqual(geometry.energy, -1.25)
             finally:
                 os.chdir(cwd)

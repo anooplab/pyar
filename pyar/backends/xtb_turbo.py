@@ -3,6 +3,8 @@
 The wrapper keeps the AFIR loop separate from the xTB command construction,
 which makes the module easier to test and document.
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendGeometryError, BackendSCFError, BackendConvergenceError
 
 import logging
 import os
@@ -58,6 +60,7 @@ class XtbTurbo(SF):
         self.energy = None
         self.optimized_coordinates = None
 
+    @backend_operation
     def optimize(self):
         """Run the AFIR optimization loop until convergence or failure."""
         max_cycles = 250
@@ -70,7 +73,7 @@ class XtbTurbo(SF):
             status, message, energy, gradients = self.calculate_energy_gradient()
             if status is False:
                 xtb_turbo_logger.critical("energy/gradient evaluation failed")
-                return "SCFFailed"
+                raise BackendSCFError("xtb_turbo: SCFFailed")
 
             afir_energy, afir_gradient = restraints.isotropic(
                 self.atoms_in_fragments,
@@ -88,7 +91,7 @@ class XtbTurbo(SF):
             if status is False:
                 xtb_turbo_logger.critical("coordinate update failed in cycle %d", cycle)
                 xtb_turbo_logger.critical("check the job in %s", os.getcwd())
-                return "UpdateFailed"
+                raise BackendGeometryError("xtb_turbo: UpdateFailed")
 
             if turbomole.check_geometry_convergence():
                 xtb_turbo_logger.info("converged at cycle %d", cycle)
@@ -110,7 +113,7 @@ class XtbTurbo(SF):
             status = "cycle_exceeded"
             self.energy = energy
             self.optimized_coordinates = bohr2angstrom(turbomole.get_coords())
-            return status
+            raise BackendConvergenceError("xtb_turbo: cycle limit reached", usable_geometry=True)
 
     def calculate_energy_gradient(self):
         """Run one xTB gradient evaluation and return status, message, energy, gradients."""

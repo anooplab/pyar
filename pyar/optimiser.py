@@ -25,7 +25,7 @@ import numpy as np
 from pyar import file_manager
 from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import normalize_backend_name, validate_backend_capability
-from pyar.backend_errors import BackendExecutionError
+from pyar.backend_errors import BackendExecutionError, BackendConvergenceError, OptimizationOutcome
 from pyar.io.xyz import XYZParseError, parse_xyz
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
@@ -438,7 +438,12 @@ def optimise(molecule, qc_params):
             }[cached_status]
 
         geometry = build_geometry(molecule, qc_params)
-        optimize_status = geometry.optimize()
+        try:
+            optimize_status = geometry.optimize()
+        except BackendConvergenceError as exc:
+            if not exc.usable_geometry:
+                raise
+            optimize_status = OptimizationOutcome.CYCLE_EXCEEDED
         normalized_status = _status_label(optimize_status)
         if is_usable(optimize_status):
             try:

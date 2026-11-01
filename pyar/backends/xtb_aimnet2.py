@@ -1,4 +1,6 @@
 """xTB followed by AIMNet2 refinement backend."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 from pyar.constants import EV_HARTREE_ROUNDED
 
 import logging
@@ -61,6 +63,7 @@ class XtbAimnet2(SF):
         """Validate AIMNet2 runtime assets before running jobs."""
         validate_aimnet2_runtime_assets()
 
+    @backend_operation
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
         # XTB optimization
         with open('xtb.out', 'w') as output_file_pointer:
@@ -69,14 +72,14 @@ class XtbAimnet2(SF):
             except Exception as e:
                 xtb_aimnet2_logger.info('    XTB optimization failed')
                 xtb_aimnet2_logger.error(f"      {e}")
-                return False
+                raise BackendExecutionError("xtb_aimnet2 optimization failed; inspect the retained backend output")
 
         if os.path.isfile('.xtboptok'):
             os.rename('xtbopt.xyz', self.xtb_optimized_xyz_file)
             os.remove('.xtboptok')
         else:
             xtb_aimnet2_logger.info('      XTB optimization failed')
-            return False
+            raise BackendExecutionError("xtb_aimnet2 optimization failed; inspect the retained backend output")
 
         # AIMNet2 optimization
         with open('aimnet2.out', 'w') as output_file_pointer:
@@ -85,7 +88,7 @@ class XtbAimnet2(SF):
             except Exception as e:
                 xtb_aimnet2_logger.info('    AIMNet2 optimization failed')
                 xtb_aimnet2_logger.error(f"      {e}")
-                return False
+                raise BackendExecutionError("xtb_aimnet2 optimization failed; inspect the retained backend output")
 
         write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                   job_name=self.job_name,
