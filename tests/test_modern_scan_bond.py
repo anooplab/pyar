@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from pyar import modern_cli
+from pyar import cli
 from pyar.scripts import scan_bond
 
 
@@ -20,14 +20,14 @@ def inputs(tmp_path, monkeypatch):
 
 @pytest.fixture
 def dependencies():
-    with mock.patch('pyar.cli.shutil.which', return_value='/bin/backend'):
+    with mock.patch('pyar.cli_validation.shutil.which', return_value='/bin/backend'):
         yield
 
 
 def test_help(capsys):
     for argv in [['--help'], ['scan-bond', '--help']]:
         with pytest.raises(SystemExit) as exc:
-            modern_cli.main(argv)
+            cli.main(argv)
         assert exc.value.code == 0
         text = capsys.readouterr().out
         assert 'scan-bond' in text
@@ -44,7 +44,7 @@ def test_help(capsys):
 @pytest.mark.parametrize('override, count', [([], 8), (['--orientations', '20'], 20), (['-N', '20'], 20)])
 def test_minimal_and_orientations(inputs, dependencies, override, count):
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        modern_cli.main([*inputs, '--backend', 'xtb', *override])
+        cli.main([*inputs, '--backend', 'xtb', *override])
     args = run.call_args.args
     assert args[:4] == ('a.xyz', 'b.xyz', [0, 1], count)
     assert args[4]['software'] == 'xtb' and args[4]['xtb_model'] == 'gfn2'
@@ -57,7 +57,7 @@ def test_minimal_and_orientations(inputs, dependencies, override, count):
 
 def test_intramolecular_parameters_omit_second_fragment_fields(inputs, dependencies):
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        modern_cli.main(['scan-bond', inputs[1], '--atoms', '0', '1', '--backend', 'xtb'])
+        cli.main(['scan-bond', inputs[1], '--atoms', '0', '1', '--backend', 'xtb'])
 
     parameters = run.call_args.args[4]
     assert parameters['charge_a'] == 0
@@ -70,7 +70,7 @@ def test_intramolecular_parameters_omit_second_fragment_fields(inputs, dependenc
 def test_invalid_atoms(inputs, dependencies, atoms, capsys):
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
         with pytest.raises(SystemExit):
-            modern_cli.main([*inputs[:3], '--atoms', *atoms, '--backend', 'xtb'])
+            cli.main([*inputs[:3], '--atoms', *atoms, '--backend', 'xtb'])
     run.assert_not_called()
     assert 'out of range for fragment' in capsys.readouterr().err
 
@@ -95,7 +95,7 @@ def test_invalid_atoms(inputs, dependencies, atoms, capsys):
 def test_invalid_request(inputs, dependencies, options):
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
         with pytest.raises(SystemExit) as exc:
-            modern_cli.main([*inputs, *options])
+            cli.main([*inputs, *options])
     assert exc.value.code != 0
     run.assert_not_called()
 
@@ -107,7 +107,7 @@ def test_invalid_input(inputs, dependencies, contents):
         Path('b.xyz').write_text(contents)
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
         with pytest.raises(SystemExit):
-            modern_cli.main([*inputs, '--backend', 'xtb'])
+            cli.main([*inputs, '--backend', 'xtb'])
     run.assert_not_called()
 
 
@@ -115,20 +115,20 @@ def test_electronic_inference_and_pair_overrides(inputs, dependencies):
     Path('b.xyz').write_text('1\nB\nH 0 0 0\n')
     base = [*inputs[:3], '--atoms', '1', '0', '--backend', 'xtb']
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        modern_cli.main(base)
+        cli.main(base)
         params = run.call_args.args[4]
         assert params['multiplicity_a'] == 1 and params['multiplicity_b'] == 2
-        modern_cli.main([*base, '--charge', '0', '-1'])
+        cli.main([*base, '--charge', '0', '-1'])
         params = run.call_args.args[4]
         assert params['charge_b'] == -1 and params['multiplicity_b'] == 1
-        modern_cli.main([*base, '--multiplicity', '1', '2'])
+        cli.main([*base, '--multiplicity', '1', '2'])
 
 
 def test_two_radical_fragments_keep_scan_scf_default(inputs, dependencies):
     for path in ['a.xyz', 'b.xyz']:
         Path(path).write_text('1\nH radical\nH 0 0 0\n')
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        modern_cli.main([*inputs[:3], '--atoms', '0', '0', '--backend', 'xtb'])
+        cli.main([*inputs[:3], '--atoms', '0', '0', '--backend', 'xtb'])
     params = run.call_args.args[4]
     assert params['multiplicity_a'] == params['multiplicity_b'] == 2
     assert params['scftype_a'] == params['scftype_b'] == 'rhf'
@@ -140,7 +140,7 @@ def test_check_no_calculation_or_mutations(inputs, dependencies, through, capsys
     with mock.patch.object(scan_bond, 'run_scan_bond') as run, mock.patch(
         'subprocess.Popen', side_effect=AssertionError('check must not launch programs')
     ):
-        modern_cli.main([*inputs, '--backend', 'xtb', '--through', through, '--check'])
+        cli.main([*inputs, '--backend', 'xtb', '--through', through, '--check'])
     run.assert_not_called()
     assert set(Path('.').iterdir()) == before
     assert 'Ready to run' in capsys.readouterr().out
@@ -148,7 +148,7 @@ def test_check_no_calculation_or_mutations(inputs, dependencies, through, capsys
 
 def test_dry_run_plan_lists_the_cumulative_scan_path_stages(inputs, dependencies, capsys):
     with mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        modern_cli.main([*inputs, '--backend', 'xtb', '--through', 'all', '--dry-run', '--json'])
+        cli.main([*inputs, '--backend', 'xtb', '--through', 'all', '--dry-run', '--json'])
     payload = json.loads(capsys.readouterr().out)
     assert payload['plan']['stages'] == [
         'Generate orientations', 'Run relaxed bond scans', 'Identify relaxed scan products',
@@ -165,28 +165,28 @@ def test_stage_optional_dependencies(inputs, dependencies):
     with mock.patch('pyar.neb._sella_api', side_effect=RuntimeError('install pyar-chem[sella]')), mock.patch(
         'pyar.neb._geodesic_api', side_effect=RuntimeError('install pyar-chem[geodesic]')
     ), mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        modern_cli.main([*inputs, '--backend', 'xtb', '--ts-optimizer', 'sella',
+        cli.main([*inputs, '--backend', 'xtb', '--ts-optimizer', 'sella',
                          '--interpolation', 'geodesic', '--check'])
         for options in [['--through', 'ts', '--ts-optimizer', 'sella'],
                         ['--through', 'neb', '--interpolation', 'geodesic']]:
             with pytest.raises(SystemExit):
-                modern_cli.main([*inputs, '--backend', 'xtb', *options, '--check'])
+                cli.main([*inputs, '--backend', 'xtb', *options, '--check'])
     run.assert_not_called()
 
 
 def test_missing_backend(inputs, capsys):
-    with mock.patch('pyar.cli.shutil.which', return_value=None), mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch('pyar.cli_validation.shutil.which', return_value=None), mock.patch.object(scan_bond, 'run_scan_bond') as run:
         with pytest.raises(SystemExit):
-            modern_cli.main([*inputs, '--backend', 'xtb', '--check'])
+            cli.main([*inputs, '--backend', 'xtb', '--check'])
     run.assert_not_called()
     assert 'xtb-docs.readthedocs.io' in capsys.readouterr().err
 
 
 def test_orca_scan_only_does_not_need_geometric(inputs, dependencies):
-    with mock.patch('pyar.cli.importlib.util.find_spec', return_value=None):
-        modern_cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--check'])
+    with mock.patch('pyar.cli_validation.importlib.util.find_spec', return_value=None):
+        cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--check'])
         with pytest.raises(SystemExit):
-            modern_cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--through', 'neb', '--check'])
+            cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--through', 'neb', '--check'])
 
 
 def test_wrapper_validation(inputs, dependencies, tmp_path):
@@ -196,44 +196,29 @@ def test_wrapper_validation(inputs, dependencies, tmp_path):
         if path == wrapper:
             wrapper.write_text('#!/bin/sh\nexit 0\n')
         with pytest.raises(SystemExit):
-            modern_cli.main([*base, str(path), '--check'])
+            cli.main([*base, str(path), '--check'])
     wrapper.chmod(0o755)
-    modern_cli.main([*base, str(wrapper), '--check'])
+    cli.main([*base, str(wrapper), '--check'])
     with pytest.raises(SystemExit):
-        modern_cli.main([*base, str(wrapper), '--through', 'all', '--check'])
+        cli.main([*base, str(wrapper), '--through', 'all', '--check'])
     with pytest.raises(SystemExit):
-        modern_cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--gxtb-wrapper', str(wrapper), '--check'])
+        cli.main([*inputs, '--backend', 'orca', '--method', 'XTB2', '--gxtb-wrapper', str(wrapper), '--check'])
 
 
-def test_legacy_parser_contract(inputs):
-    parser = scan_bond.build_parser()
-    with pytest.raises(SystemExit):
-        parser.parse_args(inputs[1:])
-    args = parser.parse_args([*inputs[1:], '-N', '1'])
-    assert args.software == 'orca' and args.multiplicity == [1]
-    assert not hasattr(args, 'check')
 
 
-def test_legacy_and_modern_share_scientific_arguments(inputs, dependencies):
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
-        scan_bond.main([*inputs[1:], '--software', 'xtb', '-N', '8', '--through', 'neb',
-                        '--images', '13', '--scan-points', '5', '--output', 'my_scan'])
-        legacy_args = run.call_args.args
-        modern_cli.main([*inputs, '--backend', 'xtb', '--through', 'neb',
-                         '--images', '13', '--scan-points', '5', '--output', 'my_scan'])
-        assert legacy_args == run.call_args.args
 
 
 def test_structured_failure_stays_nonzero(inputs, dependencies):
     with mock.patch.object(scan_bond, 'run_scan_bond', return_value={'status': 'failed', 'output_dir': 'scan_bond'}):
         with pytest.raises(SystemExit) as exc:
-            modern_cli.main([*inputs, '--backend', 'xtb'])
+            cli.main([*inputs, '--backend', 'xtb'])
     assert exc.value.code == 1
 
 
 def test_successful_workflow_is_not_an_exit_value(inputs, dependencies):
     with mock.patch.object(scan_bond, 'run_scan_bond', return_value={'status': 'complete', 'output_dir': 'scan_bond'}):
-        assert modern_cli.main([*inputs, '--backend', 'xtb']) is None
+        assert cli.main([*inputs, '--backend', 'xtb']) is None
 
 
 @pytest.mark.parametrize('state', ['missing', 'invalid', 'modified'])
@@ -245,7 +230,7 @@ def test_check_rejects_unusable_scan_output_before_config_write(inputs, state):
     before = {p: p.read_bytes() for p in root.iterdir()}
     with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(scan_bond, 'run_scan_bond') as engine:
         with pytest.raises(SystemExit) as exc:
-            modern_cli.main([*inputs, '--backend', 'xtb', '--check', '--write-config', 'run.toml'])
+            cli.main([*inputs, '--backend', 'xtb', '--check', '--write-config', 'run.toml'])
     assert exc.value.code == 2
     engine.assert_not_called()
     assert not Path('run.toml').exists()
@@ -258,7 +243,7 @@ def test_check_validates_saved_scan_request_without_sampling(inputs):
     from pyar.workflows import scan_bond as workflow
     # Capture the exact resolved fields published by the shared preflight helper.
     with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(workflow, 'validate_scan_restart') as validator:
-        modern_cli.main([*inputs, '--backend', 'xtb', '--check'])
+        cli.main([*inputs, '--backend', 'xtb', '--check'])
     request = dict(validator.call_args.args[1], orientation_definitions=[], reactant_identity=None,
                    reactant_identity_error=None)
     request['request_signature'] = hashlib.sha256(json.dumps(request, sort_keys=True, separators=(',', ':'), default=str).encode()).hexdigest()
@@ -266,9 +251,9 @@ def test_check_validates_saved_scan_request_without_sampling(inputs):
     (root / 'request.json').write_text(json.dumps(request))
     before = (root / 'request.json').read_bytes()
     with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(workflow, '_make_orientations') as sampling, mock.patch.object(scan_bond, 'run_scan_bond') as engine:
-        modern_cli.main([*inputs, '--backend', 'xtb', '--check'])
+        cli.main([*inputs, '--backend', 'xtb', '--check'])
         with pytest.raises(SystemExit):
-            modern_cli.main([*inputs, '--backend', 'xtb', '--orientations', '2', '--check'])
+            cli.main([*inputs, '--backend', 'xtb', '--orientations', '2', '--check'])
         sampling.assert_not_called()
         engine.assert_not_called()
     assert (root / 'request.json').read_bytes() == before
@@ -276,7 +261,7 @@ def test_check_validates_saved_scan_request_without_sampling(inputs):
 
 def test_stale_lock_recovery_is_explicit(inputs, dependencies):
     with mock.patch.object(scan_bond, 'run_scan_bond', return_value={}) as run:
-        modern_cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
+        cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
     assert run.call_args.kwargs == {'recover_stale': True}
 
 
@@ -284,6 +269,6 @@ def test_active_writer_error_is_actionable(inputs, dependencies, capsys):
     from pyar.persistence import LockError
     with mock.patch.object(scan_bond, 'run_scan_bond', side_effect=LockError('active writer')):
         with pytest.raises(SystemExit) as error:
-            modern_cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
+            cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
     assert error.value.code == 2
     assert 'active writer' in capsys.readouterr().err

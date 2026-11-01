@@ -1,0 +1,1707 @@
+pyar explore
+usage: pyar explore [-h] --formula FORMULA --pop POP seed_file monomer_file
+
+Generate geometries based on formula.
+
+positional arguments:
+  seed_file          XYZ file for the seed monomer.
+  monomer_file       XYZ file for the monomer.
+
+options:
+  -h, --help         show this help message and exit
+  --formula FORMULA  Target formula, e.g., C5H4.
+  --pop POP          Number of geometries to generate.
+
+pyar trial
+usage: python -m pyar [-h] -N n [-i FILE FILE] [--charge CHARGE]
+                      [--distance-scaling x.x] [--plot] [-best BEST BEST |
+                      --make-configurations | --make-composite |
+                      -make-sphere MAKE_SPHERE]
+
+Generate trial directions and trial molecular orientations.
+
+options:
+  -h, --help            show this help message and exit
+  -N n                  Number of trial directions/orientations to generate.
+  -i FILE FILE
+  --charge CHARGE
+  --distance-scaling x.x
+  --plot
+  -best BEST BEST
+  --make-configurations
+  --make-composite
+  -make-sphere MAKE_SPHERE
+
+pyar basin-memory
+usage: pyar basin-memory [-h] registry [registry ...]
+
+Inspect supported geometry-backed basin registries without modifying them.
+
+positional arguments:
+  registry    supported basin_registry.json file(s)
+
+options:
+  -h, --help  show this help message and exit
+
+pyar similarity
+usage: pyar similarity [-h] [-f FILES] [-t THRESHOLD]
+
+Grigoryan Springborg Similarity
+
+options:
+  -h, --help            show this help message and exit
+  -f, --files FILES
+  -t, --threshold THRESHOLD
+
+pyar descriptor
+usage: pyar descriptor [-h] files [files ...]
+
+Analyze molecular cluster XYZ files.
+
+positional arguments:
+  files       input coordinate files (supports wildcards)
+
+options:
+  -h, --help  show this help message and exit
+
+pyar mlopt
+usage: pyar mlopt [-h] [-c CHARGE] [-m MULTIPLICITY]
+                  input_molecule final_molecule
+
+Optimize a molecule using a specified model.
+
+positional arguments:
+  input_molecule        the path to the input molecule file
+  final_molecule        the path to the final molecule file
+
+options:
+  -h, --help            show this help message and exit
+  -c, --charge CHARGE   the charge of the molecule
+  -m, --multiplicity MULTIPLICITY
+                        the multiplicity of the molecule
+
+pyar aimnet2-ase-opt
+usage: pyar aimnet2-ase-opt [-h] [--charge CHARGE] [--traj TRAJ] [--fmax FMAX]
+                            model in_file out_file
+
+positional arguments:
+  model
+  in_file
+  out_file
+
+options:
+  -h, --help           show this help message and exit
+  --charge, -c CHARGE  Molecular charge (default: check molecule title for
+                       "charge: {int}" or get total charge from OpenBabel).
+  --traj TRAJ          Trajectory file
+  --fmax FMAX          Optimization threshold.
+
+pyar benchmark
+usage: pyar benchmark {clustering,conformer,orientations,ts}
+
+Run developer benchmark campaigns.
+
+positional arguments:
+  {clustering,conformer,orientations,ts}
+
+pyar run
+usage: pyar run [-h] [--check | --dry-run] [--json] file
+
+Run a saved calculation; task options override saved values
+
+positional arguments:
+  file
+
+options:
+  -h, --help  show this help message and exit
+  --check
+  --dry-run
+  --json
+
+pyar config
+usage: pyar config [-h] {create,validate} ...
+
+Create or validate versioned PyAR run configurations
+
+positional arguments:
+  {create,validate}
+    create           Create a reproducible config from a run record
+    validate         Validate a run configuration
+
+options:
+  -h, --help         show this help message and exit
+
+pyar profile
+usage: pyar profile [-h] {list,show,create,delete} ...
+
+Manage reusable partial PyAR methodology profiles
+
+positional arguments:
+  {list,show,create,delete}
+    list                List profiles
+    show                Show a profile
+    create              Create a profile from a run record
+    delete              Delete a named profile
+
+options:
+  -h, --help            show this help message and exit
+
+pyar info
+usage: pyar info [-h] [--json]
+
+Show PyAR installation information
+
+options:
+  -h, --help  show this help message and exit
+  --json
+
+pyar backends
+usage: pyar backends [-h] [--json] [backend]
+
+List registered PyAR backends and capabilities
+
+positional arguments:
+  backend     Inspect one backend, including local requirement availability
+
+options:
+  -h, --help  show this help message and exit
+  --json
+
+pyar doctor
+usage: pyar doctor [-h] [--all-backends] [--json]
+
+Check the PyAR installation
+
+options:
+  -h, --help      show this help message and exit
+  --all-backends  also check optional backend requirements
+  --json
+
+pyar install
+usage: pyar install [-h] {status} ...
+
+Inspect the current PyAR installation
+
+positional arguments:
+  {status}
+    status    List installed and missing requirements
+
+options:
+  -h, --help  show this help message and exit
+
+pyar inspect
+usage: pyar inspect [-h] [--json] run
+
+Inspect a PyAR run record or workflow state
+
+positional arguments:
+  run         run directory or pyar-run.toml
+
+options:
+  -h, --help  show this help message and exit
+  --json
+
+pyar conformer
+usage: pyar conformer [-h] [--input-format {auto,smiles,sdf,mol,xyz}]
+                      [--num-conformers NUM_CONFORMERS] [--top-n TOP_N]
+                      [--backend-top-n BACKEND_TOP_N] [--num-seeds NUM_SEEDS]
+                      [--diversity-fraction DIVERSITY_FRACTION]
+                      [--compactness-fraction COMPACTNESS_FRACTION]
+                      [--rms-threshold RMS_THRESHOLD]
+                      [--use-random-coords | --no-use-random-coords]
+                      [--torsion-kicks | --no-torsion-kicks]
+                      [--torsion-mode {random}]
+                      [--torsion-rounds TORSION_ROUNDS]
+                      [--torsion-kicks-per-conformer TORSION_KICKS_PER_CONFORMER]
+                      [--torsion-max-bonds TORSION_MAX_BONDS]
+                      [--torsion-dedup-rms TORSION_DEDUP_RMS]
+                      [--dedup-atom-mode {heavy,all}]
+                      [--force-field {auto,mmff,uff}] [--seed SEED]
+                      [--num-threads NUM_THREADS]
+                      [--max-iterations MAX_ITERATIONS] [-c CHARGE]
+                      [-m MULTIPLICITY] [--scftype SCFTYPE]
+                      [--backend BACKEND]
+                      [--geometry-optimizer {native,geometric}]
+                      [--method METHOD] [--basis BASIS] [--model MODEL]
+                      [--gxtb-wrapper GXTB_WRAPPER]
+                      [--custom-keywords CUSTOM_KEYWORDS]
+                      [--scf-threshold SCF_THRESHOLD]
+                      [--xtb-model {gfn2,gxtb}]
+                      [--opt-threshold {loose,normal,tight}] [--nprocs NPROCS]
+                      [--opt-cycles OPT_CYCLES] [--scf-cycles SCF_CYCLES]
+                      [--check] [--profile NAME] [--write-config FILE]
+                      [--dry-run] [--json] [-v] [-q] [--no-color]
+                      input
+
+Generate and optionally refine RDKit conformers.
+
+positional arguments:
+  input                 SMILES string, SDF/MOL file, or XYZ file
+
+options:
+  -h, --help            show this help message and exit
+  --input-format {auto,smiles,sdf,mol,xyz}
+                        Input format; auto treats existing .xyz/.sdf/.mol
+                        paths as files and other input as SMILES.
+  --num-conformers NUM_CONFORMERS
+  --top-n TOP_N
+  --backend-top-n BACKEND_TOP_N
+  --force-field {auto,mmff,uff}
+  --backend BACKEND     Optional backend refinement; omit for geometry-only
+                        generation
+  --check               Validate without embedding or creating a run directory
+
+Advanced generation controls:
+  --num-seeds NUM_SEEDS
+  --diversity-fraction DIVERSITY_FRACTION
+  --compactness-fraction COMPACTNESS_FRACTION
+                        Protected contact-rich folded-basin quota; matched by
+                        an open-basin quota for diversity.
+  --rms-threshold, --prune-rms-threshold RMS_THRESHOLD
+                        RDKit greedy prune RMS threshold; lower values keep
+                        more embedded conformers.
+  --use-random-coords, --no-use-random-coords
+                        Start RDKit embedding from random coordinates instead
+                        of distance geometry eigenvectors.
+  --torsion-kicks, --no-torsion-kicks
+                        Generate local torsion-perturbed conformers before
+                        backend refinement.
+  --torsion-mode {random}
+                        Use the stratified random torsion-kick sampler.
+  --torsion-rounds TORSION_ROUNDS
+  --torsion-kicks-per-conformer TORSION_KICKS_PER_CONFORMER
+  --torsion-max-bonds TORSION_MAX_BONDS
+  --torsion-dedup-rms TORSION_DEDUP_RMS
+  --dedup-atom-mode {heavy,all}
+                        Atoms scored by shared graph RMSD; full connectivity
+                        is always checked.
+  --seed SEED
+  --num-threads NUM_THREADS
+  --max-iterations MAX_ITERATIONS
+
+molecule:
+  -c, --charge CHARGE
+  -m, --multiplicity MULTIPLICITY
+  --scftype SCFTYPE
+
+Backend optimization overrides:
+  --geometry-optimizer {native,geometric}
+  --method METHOD
+  --basis BASIS
+  --model MODEL
+  --gxtb-wrapper GXTB_WRAPPER
+  --custom-keywords CUSTOM_KEYWORDS
+  --scf-threshold SCF_THRESHOLD
+  --xtb-model {gfn2,gxtb}
+  --opt-threshold {loose,normal,tight}
+  --nprocs NPROCS
+  --opt-cycles OPT_CYCLES
+  --scf-cycles SCF_CYCLES
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar aggregate
+usage: pyar aggregate [-h] [--size SIZE [SIZE ...]] [--formula FORMULA]
+                      [--backend BACKEND]
+                      [--geometry-optimizer {native,geometric}]
+                      [--method METHOD] [--basis BASIS] [--model MODEL]
+                      [--gxtb-wrapper GXTB_WRAPPER]
+                      [--custom-keywords CUSTOM_KEYWORDS]
+                      [--scf-threshold SCF_THRESHOLD]
+                      [--xtb-model {gfn2,gxtb}]
+                      [--opt-threshold {loose,normal,tight}] [--nprocs NPROCS]
+                      [--opt-cycles OPT_CYCLES] [--scf-cycles SCF_CYCLES]
+                      [--charge CHARGE [CHARGE ...]]
+                      [--multiplicity MULTIPLICITY [MULTIPLICITY ...]]
+                      [--scftype {rhf,uhf} [{rhf,uhf} ...]]
+                      [--orientations ORIENTATIONS]
+                      [--maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS]
+                      [--connectivity-policy {auto,off,prefer,strict}]
+                      [--selection-feature SELECTION_FEATURE]
+                      [--selection-algorithm SELECTION_ALGORITHM]
+                      [--selection-distance SELECTION_DISTANCE]
+                      [--selection-system-type SELECTION_SYSTEM_TYPE]
+                      [--site I J] [--check]
+                      [--number-of-pathways NUMBER_OF_PATHWAYS]
+                      [--recover-stale-lock] [--first-pathway FIRST_PATHWAY]
+                      [--profile NAME] [--write-config FILE] [--dry-run]
+                      [--json] [-v] [-q] [--no-color]
+                      [inputs ...]
+
+positional arguments:
+  inputs                XYZ files or existing element/formula input
+                        specifications
+
+options:
+  -h, --help            show this help message and exit
+  --size, --aggregate-size SIZE [SIZE ...]
+  --formula FORMULA     Expand a composition formula into atomic building
+                        blocks, not bonds
+  --backend BACKEND     Optional backend refinement; omit for geometry-only
+                        generation
+  --charge CHARGE [CHARGE ...]
+  --multiplicity MULTIPLICITY [MULTIPLICITY ...]
+  --scftype {rhf,uhf} [{rhf,uhf} ...]
+  --orientations, -N ORIENTATIONS
+  --maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS
+  --connectivity-policy {auto,off,prefer,strict}
+  --selection-feature SELECTION_FEATURE
+  --selection-algorithm SELECTION_ALGORITHM
+  --selection-distance SELECTION_DISTANCE
+  --selection-system-type SELECTION_SYSTEM_TYPE
+  --site I J            0-based sites in the original seed and incoming
+                        fragment (grow)
+  --check               Read-only validation; generate no structures
+  --number-of-pathways NUMBER_OF_PATHWAYS
+  --recover-stale-lock  Explicit stale v2 writer recovery; never breaks an
+                        active lock
+  --first-pathway FIRST_PATHWAY
+
+Backend optimization overrides:
+  --geometry-optimizer {native,geometric}
+  --method METHOD
+  --basis BASIS
+  --model MODEL
+  --gxtb-wrapper GXTB_WRAPPER
+  --custom-keywords CUSTOM_KEYWORDS
+  --scf-threshold SCF_THRESHOLD
+  --xtb-model {gfn2,gxtb}
+  --opt-threshold {loose,normal,tight}
+  --nprocs NPROCS
+  --opt-cycles OPT_CYCLES
+  --scf-cycles SCF_CYCLES
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar grow
+usage: pyar grow [-h] --count COUNT [--backend BACKEND]
+                 [--geometry-optimizer {native,geometric}] [--method METHOD]
+                 [--basis BASIS] [--model MODEL] [--gxtb-wrapper GXTB_WRAPPER]
+                 [--custom-keywords CUSTOM_KEYWORDS]
+                 [--scf-threshold SCF_THRESHOLD] [--xtb-model {gfn2,gxtb}]
+                 [--opt-threshold {loose,normal,tight}] [--nprocs NPROCS]
+                 [--opt-cycles OPT_CYCLES] [--scf-cycles SCF_CYCLES]
+                 [--charge CHARGE [CHARGE ...]]
+                 [--multiplicity MULTIPLICITY [MULTIPLICITY ...]]
+                 [--scftype {rhf,uhf} [{rhf,uhf} ...]]
+                 [--orientations ORIENTATIONS]
+                 [--maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS]
+                 [--connectivity-policy {auto,off,prefer,strict}]
+                 [--selection-feature SELECTION_FEATURE]
+                 [--selection-algorithm SELECTION_ALGORITHM]
+                 [--selection-distance SELECTION_DISTANCE]
+                 [--selection-system-type SELECTION_SYSTEM_TYPE] [--site I J]
+                 [--check] [--output OUTPUT] [--recover-stale-lock]
+                 [--profile NAME] [--write-config FILE] [--dry-run] [--json]
+                 [-v] [-q] [--no-color]
+                 seed monomer
+
+positional arguments:
+  seed
+  monomer
+
+options:
+  -h, --help            show this help message and exit
+  --count COUNT
+  --backend BACKEND     Optional backend refinement; omit for geometry-only
+                        generation
+  --charge CHARGE [CHARGE ...]
+  --multiplicity MULTIPLICITY [MULTIPLICITY ...]
+  --scftype {rhf,uhf} [{rhf,uhf} ...]
+  --orientations, -N ORIENTATIONS
+  --maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS
+  --connectivity-policy {auto,off,prefer,strict}
+  --selection-feature SELECTION_FEATURE
+  --selection-algorithm SELECTION_ALGORITHM
+  --selection-distance SELECTION_DISTANCE
+  --selection-system-type SELECTION_SYSTEM_TYPE
+  --site I J            0-based sites in the original seed and incoming
+                        fragment (grow)
+  --check               Read-only validation; generate no structures
+  --output OUTPUT
+  --recover-stale-lock  Explicitly recover stale v2 writer metadata; cannot
+                        break an active lock
+
+Backend optimization overrides:
+  --geometry-optimizer {native,geometric}
+  --method METHOD
+  --basis BASIS
+  --model MODEL
+  --gxtb-wrapper GXTB_WRAPPER
+  --custom-keywords CUSTOM_KEYWORDS
+  --scf-threshold SCF_THRESHOLD
+  --xtb-model {gfn2,gxtb}
+  --opt-threshold {loose,normal,tight}
+  --nprocs NPROCS
+  --opt-cycles OPT_CYCLES
+  --scf-cycles SCF_CYCLES
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar microsolvate
+usage: pyar microsolvate [-h] --count COUNT [--backend BACKEND]
+                         [--geometry-optimizer {native,geometric}]
+                         [--method METHOD] [--basis BASIS] [--model MODEL]
+                         [--gxtb-wrapper GXTB_WRAPPER]
+                         [--custom-keywords CUSTOM_KEYWORDS]
+                         [--scf-threshold SCF_THRESHOLD]
+                         [--xtb-model {gfn2,gxtb}]
+                         [--opt-threshold {loose,normal,tight}]
+                         [--nprocs NPROCS] [--opt-cycles OPT_CYCLES]
+                         [--scf-cycles SCF_CYCLES]
+                         [--charge CHARGE [CHARGE ...]]
+                         [--multiplicity MULTIPLICITY [MULTIPLICITY ...]]
+                         [--scftype {rhf,uhf} [{rhf,uhf} ...]]
+                         [--orientations ORIENTATIONS]
+                         [--maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS]
+                         [--site ATOM [ATOM ...]]
+                         [--site-group NAME=ATOM[,ATOM...]]
+                         [--contact-distance CONTACT_DISTANCE]
+                         [--surface-points-per-atom SURFACE_POINTS_PER_ATOM]
+                         [--probe-radius PROBE_RADIUS]
+                         [--shell-tolerance SHELL_TOLERANCE]
+                         [--objective {shell,cluster}]
+                         [--wall {none,outer-sphere,auto}]
+                         [--wall-radius WALL_RADIUS]
+                         [--wall-force-constant WALL_FORCE_CONSTANT]
+                         [--placement-score {geometric,energy}]
+                         [--resampling-moves RESAMPLING_MOVES]
+                         [--resampling-evaluation-budget RESAMPLING_EVALUATION_BUDGET]
+                         [--resampling-time-limit RESAMPLING_TIME_LIMIT]
+                         [--resampling-seed RESAMPLING_SEED] [--output OUTPUT]
+                         [--recover-stale-lock] [--check] [--profile NAME]
+                         [--write-config FILE] [--dry-run] [--json] [-v] [-q]
+                         [--no-color]
+                         solute solvent
+
+Build a bounded explicit solvent ensemble around the original solute surface.
+
+positional arguments:
+  solute                Original solute XYZ; remains the placement target
+  solvent               One solvent XYZ molecule to add repeatedly
+
+options:
+  -h, --help            show this help message and exit
+  --count COUNT         Number of solvent molecules to add
+  --backend BACKEND     Optional backend refinement; omit for geometry-only
+                        generation
+  --charge CHARGE [CHARGE ...]
+  --multiplicity MULTIPLICITY [MULTIPLICITY ...]
+  --scftype {rhf,uhf} [{rhf,uhf} ...]
+  --orientations, -N ORIENTATIONS
+  --maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS
+  --site ATOM [ATOM ...]
+                        0-based original-solute atom(s) whose accessible
+                        surface is targeted
+  --site-group NAME=ATOM[,ATOM...]
+                        Opt-in post-optimization contact group, e.g. donor=2,5
+                        (repeatable)
+  --contact-distance CONTACT_DISTANCE
+                        Explicit atom-pair contact cutoff in Angstrom;
+                        required with --site-group
+  --surface-points-per-atom SURFACE_POINTS_PER_ATOM
+                        Deterministic Fibonacci samples per solute atom
+  --probe-radius PROBE_RADIUS
+                        Probe expansion in Angstrom for the discretized vdW
+                        placement surface
+  --shell-tolerance SHELL_TOLERANCE
+                        Maximum solvent-centre distance from the target
+                        surface after relaxation (Angstrom)
+  --objective {shell,cluster}
+                        shell preserves surface coverage; cluster searches
+                        fixed-composition low-energy aggregates
+  --wall {none,outer-sphere,auto}
+                        wall mode: none, explicit outer-sphere, or auto after
+                        an unbiased shell escape
+  --wall-radius WALL_RADIUS
+                        outer-sphere radius in Angstrom; required with --wall
+                        outer-sphere (not auto)
+  --wall-force-constant WALL_FORCE_CONSTANT
+                        harmonic wall strength in hartree/Angstrom^2; required
+                        with --wall outer-sphere (not auto)
+  --placement-score {geometric,energy}
+                        Candidate selection basis; energy requires backend
+                        optimization (Hartree)
+  --resampling-moves RESAMPLING_MOVES
+                        Opt in to bounded whole-cluster perturbation after
+                        growth (0 disables MS4)
+  --resampling-evaluation-budget RESAMPLING_EVALUATION_BUDGET
+                        Maximum physical backend energy/gradient evaluations
+                        for MS4
+  --resampling-time-limit RESAMPLING_TIME_LIMIT
+                        Maximum MS4 wall time in seconds
+  --resampling-seed RESAMPLING_SEED
+                        Reproducible MS4 proposal seed
+  --output OUTPUT
+  --recover-stale-lock  Explicit stale v2 writer recovery; cannot break an
+                        active lock
+  --check               Validate request and preflight without creating files
+
+Backend optimization overrides:
+  --geometry-optimizer {native,geometric}
+  --method METHOD
+  --basis BASIS
+  --model MODEL
+  --gxtb-wrapper GXTB_WRAPPER
+  --custom-keywords CUSTOM_KEYWORDS
+  --scf-threshold SCF_THRESHOLD
+  --xtb-model {gfn2,gxtb}
+  --opt-threshold {loose,normal,tight}
+  --nprocs NPROCS
+  --opt-cycles OPT_CYCLES
+  --scf-cycles SCF_CYCLES
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar neb
+usage: pyar neb [-h] (--ts-guess TS_GUESS | --path-seed PATH_SEED)
+                --backend BACKEND [--method METHOD] [--basis BASIS]
+                [--xtb-model {gfn2,gxtb}] [--charge CHARGE]
+                [--multiplicity MULTIPLICITY] [--nprocs NPROCS]
+                [--output OUTPUT] [--check] [--images IMAGES]
+                [--interpolation {linear,idpp,geodesic}]
+                [--path-refinement {none,idpp,geodesic}]
+                [--path-seed-maximum-frame-index PATH_SEED_MAXIMUM_FRAME_INDEX]
+                [--max-cycles MAX_CYCLES] [--max-gradient MAX_GRADIENT]
+                [--average-gradient AVERAGE_GRADIENT] [--spring SPRING]
+                [--climb CLIMB] [--align] [--profile NAME]
+                [--write-config FILE] [--dry-run] [--json] [-v] [-q]
+                [--no-color]
+                start end
+
+Run a validated geomeTRIC reaction-path search between endpoint structures.
+
+positional arguments:
+  start
+  end
+
+options:
+  -h, --help            show this help message and exit
+  --ts-guess TS_GUESS   Initial waypoint geometry for the path
+  --path-seed PATH_SEED
+                        Multi-frame XYZ seed for NEB initialization
+  --backend BACKEND
+  --method METHOD
+  --basis BASIS
+  --xtb-model {gfn2,gxtb}
+  --charge CHARGE
+  --multiplicity MULTIPLICITY
+                        Infer singlet/doublet from electron parity when
+                        omitted
+  --nprocs NPROCS
+  --output OUTPUT
+  --check
+
+Advanced stage controls:
+  --images IMAGES
+  --interpolation {linear,idpp,geodesic}
+  --path-refinement {none,idpp,geodesic}
+                        Whole-path refinement used with --path-seed
+  --path-seed-maximum-frame-index PATH_SEED_MAXIMUM_FRAME_INDEX
+                        Optional constrained-scan maximum frame index for
+                        provenance
+  --max-cycles MAX_CYCLES
+  --max-gradient MAX_GRADIENT
+  --average-gradient AVERAGE_GRADIENT
+  --spring SPRING
+  --climb CLIMB
+  --align
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar ts
+usage: pyar ts [-h] --backend BACKEND [--method METHOD] [--basis BASIS]
+               [--xtb-model {gfn2,gxtb}] [--charge CHARGE]
+               [--multiplicity MULTIPLICITY] [--nprocs NPROCS]
+               [--output OUTPUT] [--check] [--ts-optimizer {geometric,sella}]
+               [--ts-max-cycles TS_MAX_CYCLES] [--ts-fmax TS_FMAX]
+               [--sella-fmax SELLA_FMAX] [--sella-internal-coordinates]
+               [--profile NAME] [--write-config FILE] [--dry-run] [--json]
+               [-v] [-q] [--no-color]
+               geometry
+
+Optimize and validate a transition-state geometry.
+
+positional arguments:
+  geometry              Initial TS guess geometry
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND
+  --method METHOD
+  --basis BASIS
+  --xtb-model {gfn2,gxtb}
+  --charge CHARGE
+  --multiplicity MULTIPLICITY
+                        Infer singlet/doublet from electron parity when
+                        omitted
+  --nprocs NPROCS
+  --output OUTPUT
+  --check
+
+Advanced stage controls:
+  --ts-optimizer {geometric,sella}
+  --ts-max-cycles TS_MAX_CYCLES
+  --ts-fmax TS_FMAX
+  --sella-fmax SELLA_FMAX
+  --sella-internal-coordinates
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar irc
+usage: pyar irc [-h] --backend BACKEND [--method METHOD] [--basis BASIS]
+                [--xtb-model {gfn2,gxtb}] [--charge CHARGE]
+                [--multiplicity MULTIPLICITY] [--nprocs NPROCS]
+                [--output OUTPUT] [--check] [--irc-max-cycles IRC_MAX_CYCLES]
+                [--profile NAME] [--write-config FILE] [--dry-run] [--json]
+                [-v] [-q] [--no-color]
+                run_directory
+
+Continue a validated transition-state run along both IRC directions.
+
+positional arguments:
+  run_directory         Existing run directory containing a validated TS
+                        frequency stage
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND
+  --method METHOD
+  --basis BASIS
+  --xtb-model {gfn2,gxtb}
+  --charge CHARGE
+  --multiplicity MULTIPLICITY
+                        Infer singlet/doublet from electron parity when
+                        omitted
+  --nprocs NPROCS
+  --output OUTPUT
+  --check
+
+Advanced stage controls:
+  --irc-max-cycles IRC_MAX_CYCLES
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar react
+usage: pyar react [-h] [--backend BACKEND] [--bias-max BIAS_MAX]
+                  [--orientations ORIENTATIONS] [--charge CHARGE [CHARGE ...]]
+                  [--multiplicity MULTIPLICITY [MULTIPLICITY ...]]
+                  [--through {react,neb,ts,frequency,irc,endpoints,endpoint-frequency,all}]
+                  [--reactant-reference-mode {minima,separated-reactants}]
+                  [--bias-potential {afir,softmin}]
+                  [--bias-controller {adaptive,fixed,scheduled}]
+                  [--recover-stale-lock] [--check] [--bias-min BIAS_MIN]
+                  [--softmin-beta SOFTMIN_BETA]
+                  [--geometry-optimizer {geometric,native}] [--site I J]
+                  [--proximity-factor PROXIMITY_FACTOR]
+                  [--pathway-ts-source {highest-backend-energy,first-topology-change,pre-product,highest-total-energy}]
+                  [--xtb-model {gfn2,gxtb}]
+                  [--scftype {rhf,uhf} [{rhf,uhf} ...]] [--method METHOD]
+                  [--basis BASIS] [--opt-threshold OPT_THRESHOLD]
+                  [--nprocs NPROCS] [--opt-cycles OPT_CYCLES]
+                  [--scf-cycles SCF_CYCLES]
+                  [--release-retry-limit RELEASE_RETRY_LIMIT]
+                  [--bias-alpha-min BIAS_ALPHA_MIN]
+                  [--bias-alpha-margin BIAS_ALPHA_MARGIN]
+                  [--bias-alpha-smoothing BIAS_ALPHA_SMOOTHING]
+                  [--bias-alpha-epsilon BIAS_ALPHA_EPSILON]
+                  [--bias-scheduled-alpha BIAS_SCHEDULED_ALPHA]
+                  [--release-margin-factor RELEASE_MARGIN_FACTOR]
+                  [--release-distance-fraction RELEASE_DISTANCE_FRACTION]
+                  [--images IMAGES] [--neb-max-cycles MAX_CYCLES]
+                  [--max-gradient MAX_GRADIENT]
+                  [--average-gradient AVERAGE_GRADIENT] [--spring SPRING]
+                  [--climb CLIMB] [--interpolation {linear,idpp,geodesic}]
+                  [--idpp-fmax IDPP_FMAX] [--idpp-steps IDPP_STEPS]
+                  [--geodesic-tol GEODESIC_TOL]
+                  [--geodesic-max-iter GEODESIC_MAX_ITER]
+                  [--product-relaxation-fmax PRODUCT_RELAXATION_FMAX]
+                  [--product-relaxation-max-steps PRODUCT_RELAXATION_MAX_STEPS]
+                  [--ts-max-cycles TS_MAX_CYCLES] [--ts-fmax TS_FMAX]
+                  [--sella-fmax SELLA_FMAX] [--irc-max-cycles IRC_MAX_CYCLES]
+                  [--endpoint-max-cycles ENDPOINT_MAX_CYCLES]
+                  [--imaginary-frequency-threshold IMAGINARY_FREQUENCY_THRESHOLD]
+                  [--irc-endpoint-rmsd-tolerance IRC_ENDPOINT_RMSD_TOLERANCE]
+                  [--ts-optimizer {geometric,sella}] [--align | --no-align]
+                  [--sella-internal-coordinates | --no-sella-internal-coordinates]
+                  [--profile NAME] [--write-config FILE] [--dry-run] [--json]
+                  [-v] [-q] [--no-color]
+                  XYZ XYZ
+
+reaction interface; the canonical workflow owns all reaction science.
+
+positional arguments:
+  XYZ
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND     Explicit physical energy/gradient backend
+  --bias-max BIAS_MAX   Required scientific bias ceiling (kJ/mol)
+  --orientations, -N ORIENTATIONS
+                        Trial orientations (default: 8)
+  --charge CHARGE [CHARGE ...]
+  --multiplicity MULTIPLICITY [MULTIPLICITY ...]
+  --through {react,neb,ts,frequency,irc,endpoints,endpoint-frequency,all}
+                        Continue each unique product through unbiased path
+                        validation (default: react only)
+  --reactant-reference-mode {minima,separated-reactants}
+                        Reactant-side energy and IRC reference policy
+  --bias-potential {afir,softmin}
+                        Default: afir
+  --bias-controller {adaptive,fixed,scheduled}
+                        Default: adaptive
+  --recover-stale-lock  Explicit stale v2 writer recovery; never breaks an
+                        active lock
+  --check               Validate both phases and restart; run no calculations
+
+Advanced reaction/backend overrides:
+  --bias-min BIAS_MIN   Required for fixed/scheduled; ignored for adaptive
+  --softmin-beta SOFTMIN_BETA
+  --geometry-optimizer {geometric,native}
+  --site I J            0-based fragment-local atom index in A and B
+  --proximity-factor PROXIMITY_FACTOR
+  --pathway-ts-source {highest-backend-energy,first-topology-change,pre-product,highest-total-energy}
+                        Trace geometry used only as a NEB waypoint/TS guess
+  --xtb-model {gfn2,gxtb}
+  --scftype {rhf,uhf} [{rhf,uhf} ...]
+  --method METHOD
+  --basis BASIS
+  --opt-threshold OPT_THRESHOLD
+  --nprocs NPROCS
+  --opt-cycles OPT_CYCLES
+  --scf-cycles SCF_CYCLES
+  --release-retry-limit RELEASE_RETRY_LIMIT
+  --bias-alpha-min BIAS_ALPHA_MIN
+  --bias-alpha-margin BIAS_ALPHA_MARGIN
+  --bias-alpha-smoothing BIAS_ALPHA_SMOOTHING
+  --bias-alpha-epsilon BIAS_ALPHA_EPSILON
+  --bias-scheduled-alpha BIAS_SCHEDULED_ALPHA
+  --release-margin-factor RELEASE_MARGIN_FACTOR
+  --release-distance-fraction RELEASE_DISTANCE_FRACTION
+
+Advanced unbiased path continuation options:
+  --images IMAGES
+  --neb-max-cycles, --max-cycles MAX_CYCLES
+  --max-gradient MAX_GRADIENT
+  --average-gradient AVERAGE_GRADIENT
+  --spring SPRING
+  --climb CLIMB
+  --interpolation {linear,idpp,geodesic}
+  --idpp-fmax IDPP_FMAX
+  --idpp-steps IDPP_STEPS
+  --geodesic-tol GEODESIC_TOL
+  --geodesic-max-iter GEODESIC_MAX_ITER
+  --product-relaxation-fmax PRODUCT_RELAXATION_FMAX
+  --product-relaxation-max-steps PRODUCT_RELAXATION_MAX_STEPS
+  --ts-max-cycles TS_MAX_CYCLES
+  --ts-fmax TS_FMAX
+  --sella-fmax SELLA_FMAX
+  --irc-max-cycles IRC_MAX_CYCLES
+  --endpoint-max-cycles ENDPOINT_MAX_CYCLES
+  --imaginary-frequency-threshold IMAGINARY_FREQUENCY_THRESHOLD
+  --irc-endpoint-rmsd-tolerance IRC_ENDPOINT_RMSD_TOLERANCE
+  --ts-optimizer {geometric,sella}
+  --align, --no-align
+  --sella-internal-coordinates, --no-sella-internal-coordinates
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar orient
+usage: pyar orient [-h] [--orientations ORIENTATIONS]
+                   [--distance-scale DISTANCE_SCALE]
+                   [--sequence-offset SEQUENCE_OFFSET] [--output OUTPUT]
+                   [--profile NAME] [--write-config FILE] [-v] [-q]
+                   [--no-color]
+                   A.xyz B.xyz
+
+Geometry-only encounter orientation command.
+
+positional arguments:
+  A.xyz
+  B.xyz
+
+options:
+  -h, --help            show this help message and exit
+  --orientations, -N ORIENTATIONS
+  --distance-scale DISTANCE_SCALE
+  --sequence-offset SEQUENCE_OFFSET
+  --output OUTPUT
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar deduplicate
+usage: pyar deduplicate [-h] [--rmsd-threshold RMSD_THRESHOLD]
+                        [--output OUTPUT] [--profile NAME]
+                        [--write-config FILE] [-v] [-q] [--no-color]
+                        xyz [xyz ...]
+
+Inspect unique geometries with PyAR's conservative graph-first policy.
+
+positional arguments:
+  xyz
+
+options:
+  -h, --help            show this help message and exit
+  --rmsd-threshold RMSD_THRESHOLD
+  --output OUTPUT
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar select
+usage: pyar select [-h] [--within WITHIN] [--top TOP] [--unique]
+                   [--rmsd-threshold RMSD_THRESHOLD] [--output OUTPUT]
+                   [--profile NAME] [--write-config FILE] [-v] [-q]
+                   [--no-color]
+                   xyz [xyz ...]
+
+Select stored-energy structures, with optional graph-first deduplication.
+
+positional arguments:
+  xyz
+
+options:
+  -h, --help            show this help message and exit
+  --within WITHIN       Inclusive energy window in kcal/mol
+  --top TOP
+  --unique
+  --rmsd-threshold RMSD_THRESHOLD
+  --output OUTPUT
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar identify
+usage: pyar identify [-h] [--charge CHARGE [CHARGE ...]]
+                     [--bond-scale BOND_SCALE] [--json] [--profile NAME]
+                     [--write-config FILE] [-v] [-q] [--no-color]
+                     xyz [xyz ...]
+
+Inspect XYZ composition, coordinate topology and optional perceived identity.
+
+positional arguments:
+  xyz
+
+options:
+  -h, --help            show this help message and exit
+  --charge CHARGE [CHARGE ...]
+                        One charge for all files or one per file
+  --bond-scale BOND_SCALE
+  --json
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar split
+usage: pyar split [-h] [--output OUTPUT] [--bond-scale BOND_SCALE]
+                  [--profile NAME] [--write-config FILE] [-v] [-q]
+                  [--no-color]
+                  complex.xyz
+
+Split coordinate-connected components; no bond orders or electronic states
+assigned.
+
+positional arguments:
+  complex.xyz
+
+options:
+  -h, --help            show this help message and exit
+  --output OUTPUT
+  --bond-scale BOND_SCALE
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar trace
+usage: pyar trace [-h] [--plot] [--plot-only]
+                  [--plot-directory PLOT_DIRECTORY] [--max-force MAX_FORCE]
+                  [--exclude-energy-outliers ROBUST_Z] [--profile NAME]
+                  [--write-config FILE] [-v] [-q] [--no-color]
+                  [path]
+
+Analyze a PyAR reaction trace, write the summary artifacts, and optionally
+generate PNG plots.
+
+positional arguments:
+  path                  Job directory or reaction_trace directory to analyze
+
+options:
+  -h, --help            show this help message and exit
+  --plot                Generate PNG plots from the trace after analysis
+  --plot-only           Generate PNG plots without rewriting summary artifacts
+  --plot-directory PLOT_DIRECTORY
+                        Directory for generated plots; defaults to
+                        <job>/trace_plots
+  --max-force MAX_FORCE
+                        Exclude candidates above this physical backend atomic
+                        force, or lacking it (Hartree/bohr)
+  --exclude-energy-outliers ROBUST_Z
+                        Exclude backend-energy outliers above this robust
+                        z-score (e.g. 3.5)
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar energies
+usage: pyar energies [-h] [--json] [--profile NAME] [--write-config FILE] [-v]
+                     [-q] [--no-color]
+                     xyz [xyz ...]
+
+Print a relative-energy table from one or more XYZ files.
+
+positional arguments:
+  xyz                  XYZ files to report in energy order
+
+options:
+  -h, --help           show this help message and exit
+  --json               Print machine-readable JSON
+
+Common execution controls:
+  --profile NAME       Apply methodology settings; explicit CLI values win
+  --write-config FILE  Save a validated configuration (refuses existing files)
+  -v, --verbose        Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet          Suppress workflow progress; preserve primary analysis
+                       data
+  --no-color           Plain output (currently the default)
+
+pyar compare
+usage: pyar compare [-h] [--charge Q [Q ...]] [--atom-mode {heavy,all}]
+                    [--bond-scale BOND_SCALE]
+                    [--maximum-mappings MAXIMUM_MAPPINGS]
+                    [--rmsd-threshold RMSD_THRESHOLD] [--json]
+                    [--profile NAME] [--write-config FILE] [-v] [-q]
+                    [--no-color]
+                    A.xyz B.xyz
+
+Compare XYZ coordinates and stored energies. ΔE = E(B) - E(A).
+
+positional arguments:
+  A.xyz
+  B.xyz
+
+options:
+  -h, --help            show this help message and exit
+  --charge Q [Q ...]    Charge for both structures, or A and B separately;
+                        otherwise assume neutral
+  --atom-mode {heavy,all}
+  --bond-scale BOND_SCALE
+                        Covalent-radius adjacency scale (default: 1.15)
+  --maximum-mappings MAXIMUM_MAPPINGS
+  --rmsd-threshold RMSD_THRESHOLD
+                        Explicit geometry equivalence threshold in Å (strictly
+                        below)
+  --json                Print machine-readable JSON
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar clustering
+usage: pyar clustering [-h] [-m {filter,cluster,labels,analyze}]
+                       [-a {auto,hdbscan,agglomerative,dbscan,optics,maxmin}]
+                       [-n MAXIMUM_NUMBER_OF_SEEDS]
+                       [--feature {auto,mbtr,soap,distance-histogram}]
+                       [--system-type {auto,molecular,isomers,atomic-cluster,molecular-aggregate,unknown}]
+                       [--distance {euclidean,manhattan,cosine,graph-rmsd,fragment-rmsd,soap-rematch}]
+                       [--distance-atom-mode {heavy,all}]
+                       [--soap-cutoff SOAP_CUTOFF]
+                       [--rematch-alpha REMATCH_ALPHA]
+                       [--maximum-mappings MAXIMUM_MAPPINGS]
+                       [--min-samples MIN_SAMPLES]
+                       [--min-cluster-size MIN_CLUSTER_SIZE] [--eps EPS]
+                       [--xi XI] [--labels-output LABELS_OUTPUT]
+                       [--report-output REPORT_OUTPUT]
+                       [--coordinate-model {covalent-radii,distance-cutoff,none}]
+                       [--bond-scale BOND_SCALE] [--bond-cutoff BOND_CUTOFF]
+                       [--structure-report STRUCTURE_REPORT] [--profile NAME]
+                       [--write-config FILE] [-v] [-q] [--no-color]
+                       input_files [input_files ...]
+
+positional arguments:
+  input_files           input xyz files for analysis
+
+options:
+  -h, --help            show this help message and exit
+  -m, --mode {filter,cluster,labels,analyze}
+  -a, --algorithm {auto,hdbscan,agglomerative,dbscan,optics,maxmin}
+                        cluster-label algorithm; maxmin uses auto clustering
+                        and trims cluster minima
+  -n, --maximum-number-of-seeds MAXIMUM_NUMBER_OF_SEEDS
+                        maximum number of geometries to keep
+  --feature {auto,mbtr,soap,distance-histogram}
+  --system-type {auto,molecular,isomers,atomic-cluster,molecular-aggregate,unknown}
+                        System class used by automatic feature selection; auto
+                        infers cautiously from XYZ geometry
+  --distance {euclidean,manhattan,cosine,graph-rmsd,fragment-rmsd,soap-rematch}
+  --distance-atom-mode {heavy,all}
+                        RMSD atoms: graph RMSD defaults to heavy; fragment
+                        RMSD to all
+  --soap-cutoff SOAP_CUTOFF
+                        Local SOAP cutoff in Angstrom (default: 5)
+  --rematch-alpha REMATCH_ALPHA
+                        Positive REMatch entropy parameter (default: 1)
+  --maximum-mappings MAXIMUM_MAPPINGS
+                        Bounded RMSD matching budget (default: 10000)
+  --min-samples MIN_SAMPLES
+  --min-cluster-size MIN_CLUSTER_SIZE
+  --eps EPS             DBSCAN radius in the units of the distance actually
+                        used
+  --xi XI               OPTICS steepness parameter
+  --labels-output LABELS_OUTPUT
+                        Write structure labels to this CSV file (labels mode)
+  --report-output REPORT_OUTPUT
+                        Write clustering labels and fallback provenance as
+                        JSON
+  --coordinate-model {covalent-radii,distance-cutoff,none}
+                        Adjacency model for analyze mode; uses coordinates
+                        only and assigns no bond orders or charges
+  --bond-scale BOND_SCALE
+                        Covalent-radius sum multiplier for coordinate-only
+                        adjacency (analyze mode)
+  --bond-cutoff BOND_CUTOFF
+                        Explicit adjacency cutoff in Angstrom for
+                        --coordinate-model distance-cutoff
+  --structure-report STRUCTURE_REPORT
+                        Write coordinate-only structure analysis as JSON
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar energy
+usage: pyar energy [-h] [--backend BACKEND] [--output OUTPUT] [--check]
+                   [-c CHARGE] [-m MULTIPLICITY] [--method METHOD]
+                   [--basis BASIS] [--xtb-model XTB_MODEL] [--model MODEL]
+                   [--solvent SOLVENT] [--solvent-model SOLVENT_MODEL]
+                   [--dispersion {none,D3BJ,D3ZERO,D4}] [--nprocs NPROCS]
+                   [--memory-mb MEMORY_MB] [--scf-cycles SCF_CYCLES]
+                   [--accuracy ACCURACY] [--profile NAME]
+                   [--write-config FILE] [--dry-run] [--json] [-v] [-q]
+                   [--no-color]
+                   XYZ [XYZ ...]
+
+Calculate energy for each fixed XYZ geometry independently.
+
+positional arguments:
+  XYZ
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND     Default: xtb; also orca, gaussian, turbomole,
+                        aimnet_2, ani
+  --output OUTPUT       New output root (default: energy)
+  --check               Preflight all inputs without calculations or output
+                        folders
+  -c, --charge CHARGE
+  -m, --multiplicity MULTIPLICITY
+                        Default: singlet/doublet from electron parity
+  --method METHOD
+  --basis BASIS
+  --xtb-model XTB_MODEL
+  --model MODEL
+  --solvent SOLVENT
+  --solvent-model SOLVENT_MODEL
+  --dispersion {none,D3BJ,D3ZERO,D4}
+                        Additional dispersion correction; default: none
+                        (intrinsic method terms remain)
+  --nprocs NPROCS
+  --memory-mb MEMORY_MB
+                        ORCA: per process; Gaussian: total (default: 2000 MB)
+  --scf-cycles SCF_CYCLES
+                        Maximum electronic iterations (default: 250)
+  --accuracy ACCURACY   xTB accuracy parameter (default: 0.1)
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar engrad
+usage: pyar engrad [-h] [--backend BACKEND] [--output OUTPUT] [--check]
+                   [-c CHARGE] [-m MULTIPLICITY] [--method METHOD]
+                   [--basis BASIS] [--xtb-model XTB_MODEL] [--model MODEL]
+                   [--solvent SOLVENT] [--solvent-model SOLVENT_MODEL]
+                   [--dispersion {none,D3BJ,D3ZERO,D4}] [--nprocs NPROCS]
+                   [--memory-mb MEMORY_MB] [--scf-cycles SCF_CYCLES]
+                   [--accuracy ACCURACY] [--profile NAME]
+                   [--write-config FILE] [--dry-run] [--json] [-v] [-q]
+                   [--no-color]
+                   XYZ [XYZ ...]
+
+Calculate engrad for each fixed XYZ geometry independently.
+
+positional arguments:
+  XYZ
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND     Default: xtb; also orca, gaussian, turbomole,
+                        aimnet_2, ani
+  --output OUTPUT       New output root (default: engrad)
+  --check               Preflight all inputs without calculations or output
+                        folders
+  -c, --charge CHARGE
+  -m, --multiplicity MULTIPLICITY
+                        Default: singlet/doublet from electron parity
+  --method METHOD
+  --basis BASIS
+  --xtb-model XTB_MODEL
+  --model MODEL
+  --solvent SOLVENT
+  --solvent-model SOLVENT_MODEL
+  --dispersion {none,D3BJ,D3ZERO,D4}
+                        Additional dispersion correction; default: none
+                        (intrinsic method terms remain)
+  --nprocs NPROCS
+  --memory-mb MEMORY_MB
+                        ORCA: per process; Gaussian: total (default: 2000 MB)
+  --scf-cycles SCF_CYCLES
+                        Maximum electronic iterations (default: 250)
+  --accuracy ACCURACY   xTB accuracy parameter (default: 0.1)
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar frequency
+usage: pyar frequency [-h] [--backend BACKEND] [--output OUTPUT] [--check]
+                      [-c CHARGE] [-m MULTIPLICITY] [--method METHOD]
+                      [--basis BASIS] [--xtb-model XTB_MODEL] [--model MODEL]
+                      [--solvent SOLVENT] [--solvent-model SOLVENT_MODEL]
+                      [--dispersion {none,D3BJ,D3ZERO,D4}] [--nprocs NPROCS]
+                      [--memory-mb MEMORY_MB] [--scf-cycles SCF_CYCLES]
+                      [--accuracy ACCURACY] [--step STEP]
+                      [--max-gradient MAX_GRADIENT]
+                      [--rms-gradient RMS_GRADIENT]
+                      [--imaginary-threshold IMAGINARY_THRESHOLD]
+                      [--profile NAME] [--write-config FILE] [--dry-run]
+                      [--json] [-v] [-q] [--no-color]
+                      XYZ [XYZ ...]
+
+Calculate frequency for each fixed XYZ geometry independently.
+
+positional arguments:
+  XYZ
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND     Default: xtb; also orca, gaussian, turbomole,
+                        aimnet_2, ani
+  --output OUTPUT       New output root (default: frequency)
+  --check               Preflight all inputs without calculations or output
+                        folders
+  -c, --charge CHARGE
+  -m, --multiplicity MULTIPLICITY
+                        Default: singlet/doublet from electron parity
+  --method METHOD
+  --basis BASIS
+  --xtb-model XTB_MODEL
+  --model MODEL
+  --solvent SOLVENT
+  --solvent-model SOLVENT_MODEL
+  --dispersion {none,D3BJ,D3ZERO,D4}
+                        Additional dispersion correction; default: none
+                        (intrinsic method terms remain)
+  --nprocs NPROCS
+  --memory-mb MEMORY_MB
+                        ORCA: per process; Gaussian: total (default: 2000 MB)
+  --scf-cycles SCF_CYCLES
+                        Maximum electronic iterations (default: 250)
+  --accuracy ACCURACY   xTB accuracy parameter (default: 0.1)
+  --step STEP           Central-difference displacement in bohr (default:
+                        0.005)
+  --max-gradient MAX_GRADIENT
+                        Stationarity maximum per-atom gradient, Eh/bohr
+  --rms-gradient RMS_GRADIENT
+                        Stationarity RMS per-atom gradient, Eh/bohr
+  --imaginary-threshold IMAGINARY_THRESHOLD
+                        Significant imaginary frequency magnitude, cm^-1
+                        (default: 20)
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar optimize
+usage: pyar optimize [-h] [--backend BACKEND] [--check]
+                     [--recovery {off,safe,guided}]
+                     [--recovery-max-attempts RECOVERY_MAX_ATTEMPTS]
+                     [--recovery-max-cycles RECOVERY_MAX_CYCLES]
+                     [--recovery-max-evaluations RECOVERY_MAX_EVALUATIONS]
+                     [--recovery-wall-seconds RECOVERY_WALL_SECONDS]
+                     [--recovery-resume] [--recovery-recover-lock] [-c CHARGE]
+                     [-m MULTIPLICITY] [--scftype {rhf,uhf}]
+                     [--geometry-optimizer {native,geometric}]
+                     [--opt-target {minimum,ts}] [--method METHOD]
+                     [--basis BASIS] [--custom-keywords CUSTOM_KEYWORDS]
+                     [--nprocs NPROCS] [--opt-cycles OPT_CYCLES]
+                     [--scf-cycles SCF_CYCLES]
+                     [--opt-threshold {loose,normal,tight}]
+                     [--scf-threshold {loose,normal,tight}] [--profile NAME]
+                     [--write-config FILE] [--dry-run] [--json] [-v] [-q]
+                     [--no-color]
+                     XYZ [XYZ ...]
+
+Optimize each supplied XYZ independently using the same computational
+settings.
+
+positional arguments:
+  XYZ
+
+options:
+  -h, --help            show this help message and exit
+  --backend BACKEND     Explicit computational backend, e.g. xtb or orca
+  --check               Validate the entire request without calculation
+  --recovery {off,safe,guided}
+                        Opt-in bounded recovery; guided may reset the
+                        geomeTRIC trust model (default: off)
+  --recovery-max-attempts RECOVERY_MAX_ATTEMPTS
+  --recovery-max-cycles RECOVERY_MAX_CYCLES
+  --recovery-max-evaluations RECOVERY_MAX_EVALUATIONS
+  --recovery-wall-seconds RECOVERY_WALL_SECONDS
+  --recovery-resume
+  --recovery-recover-lock
+                        Explicitly recover stale lock metadata after obtaining
+                        OS lock
+  -c, --charge CHARGE
+  -m, --multiplicity MULTIPLICITY
+                        Default: infer singlet/doublet from electron parity
+  --scftype {rhf,uhf}
+  --geometry-optimizer {native,geometric}
+                        Default: native, or geomeTRIC for Gaussian
+  --opt-target {minimum,ts}
+                        Only minimum optimization is supported by this command
+  --method METHOD
+  --basis BASIS
+  --custom-keywords CUSTOM_KEYWORDS
+  --nprocs NPROCS
+  --opt-cycles OPT_CYCLES
+  --scf-cycles SCF_CYCLES
+  --opt-threshold {loose,normal,tight}
+  --scf-threshold {loose,normal,tight}
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar scan-bond
+usage: pyar scan-bond [-h] --atoms I J [-N ORIENTATIONS]
+                      [--backend {xtb,aimnet_2,orca,gaussian}] [--check]
+                      [--method METHOD] [--xtb-model {gxtb,gfn2}]
+                      [--basis BASIS] [--gxtb-wrapper GXTB_WRAPPER]
+                      [--nprocs NPROCS] [--scf-cycles SCF_CYCLES]
+                      [--opt-cycles OPT_CYCLES]
+                      [--opt-threshold {loose,normal,tight}]
+                      [--scan-end SCAN_END] [--scan-step SCAN_STEP |
+                      --scan-points SCAN_POINTS] [-c CHARGE [CHARGE ...]]
+                      [-m MULTIPLICITY [MULTIPLICITY ...]]
+                      [--total-multiplicity TOTAL_MULTIPLICITY]
+                      [--scftype SCFTYPE [SCFTYPE ...]] [--output OUTPUT]
+                      [--recover-stale-lock]
+                      [--through {scan,neb,ts,frequency,irc,endpoints,endpoint-frequency,all}]
+                      [--characterize-unique-products] [--images IMAGES]
+                      [--neb-max-cycles MAX_CYCLES]
+                      [--max-gradient MAX_GRADIENT]
+                      [--average-gradient AVERAGE_GRADIENT] [--spring SPRING]
+                      [--climb CLIMB] [--align]
+                      [--interpolation {linear,idpp,geodesic}]
+                      [--idpp-fmax IDPP_FMAX] [--idpp-steps IDPP_STEPS]
+                      [--geodesic-tol GEODESIC_TOL]
+                      [--geodesic-max-iter GEODESIC_MAX_ITER]
+                      [--product-relaxation-fmax PRODUCT_RELAXATION_FMAX]
+                      [--product-relaxation-max-steps PRODUCT_RELAXATION_MAX_STEPS]
+                      [--ts-optimizer {geometric,sella}]
+                      [--ts-max-cycles TS_MAX_CYCLES] [--ts-fmax TS_FMAX]
+                      [--sella-fmax SELLA_FMAX] [--sella-internal-coordinates]
+                      [--irc-max-cycles IRC_MAX_CYCLES]
+                      [--endpoint-max-cycles ENDPOINT_MAX_CYCLES]
+                      [--imaginary-frequency-threshold IMAGINARY_FREQUENCY_THRESHOLD]
+                      [--irc-endpoint-rmsd-tolerance IRC_ENDPOINT_RMSD_TOLERANCE]
+                      [--profile NAME] [--write-config FILE] [--dry-run]
+                      [--json] [-v] [-q] [--no-color]
+                      XYZ [XYZ ...]
+
+Relaxed bond scan with optional NEB, TS, frequency, IRC and endpoint
+validation.
+
+positional arguments:
+  XYZ                   one molecule for an intramolecular scan, or fragment A
+                        and B XYZ files
+
+options:
+  -h, --help            show this help message and exit
+  --atoms I J           0-based atom indices in the molecule, or local to
+                        fragments A and B
+  -N, --orientations ORIENTATIONS
+  --backend {xtb,aimnet_2,orca,gaussian}
+  --check               Validate the complete requested path without
+                        calculation
+  --method METHOD       electronic-structure method (ORCA default: BP86)
+  --xtb-model {gxtb,gfn2}
+                        standalone xTB model (default: gfn2)
+  --basis BASIS         basis set; required for DFT methods, not used by xTB
+                        methods
+  --gxtb-wrapper GXTB_WRAPPER
+                        executable ORCA external-method wrapper (oet_gxtb) for
+                        --method g-xTB
+  --nprocs NPROCS
+  --scf-cycles SCF_CYCLES
+  --opt-cycles OPT_CYCLES
+  --opt-threshold {loose,normal,tight}
+  --scan-end SCAN_END
+  --scan-step SCAN_STEP
+  --scan-points SCAN_POINTS
+  -c, --charge CHARGE [CHARGE ...]
+  -m, --multiplicity MULTIPLICITY [MULTIPLICITY ...]
+  --total-multiplicity TOTAL_MULTIPLICITY
+                        total multiplicity of the combined A+B system
+                        (defaults to the historical coupling heuristic)
+  --scftype SCFTYPE [SCFTYPE ...]
+  --output OUTPUT
+  --recover-stale-lock  Explicit stale v2 writer recovery; never breaks an
+                        active lock
+  --through {scan,neb,ts,frequency,irc,endpoints,endpoint-frequency,all}
+                        last stage to execute; all includes endpoint
+                        frequencies (default: scan)
+  --characterize-unique-products
+                        after scan and free relaxation, run one scan-seeded
+                        path per unique product
+  --images IMAGES
+  --neb-max-cycles MAX_CYCLES
+  --max-gradient MAX_GRADIENT
+  --average-gradient AVERAGE_GRADIENT
+  --spring SPRING
+  --climb CLIMB
+  --align
+  --interpolation {linear,idpp,geodesic}
+  --idpp-fmax IDPP_FMAX
+  --idpp-steps IDPP_STEPS
+  --geodesic-tol GEODESIC_TOL
+  --geodesic-max-iter GEODESIC_MAX_ITER
+  --product-relaxation-fmax PRODUCT_RELAXATION_FMAX
+  --product-relaxation-max-steps PRODUCT_RELAXATION_MAX_STEPS
+  --ts-optimizer {geometric,sella}
+  --ts-max-cycles TS_MAX_CYCLES
+  --ts-fmax TS_FMAX
+  --sella-fmax SELLA_FMAX
+  --sella-internal-coordinates
+  --irc-max-cycles IRC_MAX_CYCLES
+  --endpoint-max-cycles ENDPOINT_MAX_CYCLES
+  --imaginary-frequency-threshold IMAGINARY_FREQUENCY_THRESHOLD
+  --irc-endpoint-rmsd-tolerance IRC_ENDPOINT_RMSD_TOLERANCE
+
+Common execution controls:
+  --profile NAME        Apply methodology settings; explicit CLI values win
+  --write-config FILE   Save a validated configuration (refuses existing
+                        files)
+  --dry-run             Preflight and display the resolved execution plan
+  --json                Emit a structured request/result; progress goes to
+                        stderr
+  -v, --verbose         Increase detail (-vv/-vvv for diagnostics)
+  -q, --quiet           Suppress workflow progress; preserve primary analysis
+                        data
+  --no-color            Plain output (currently the default)
+
+pyar benchmark conformer
+usage: pyar benchmark conformer [-h] [--num-conformers NUM_CONFORMERS]
+                                [--num-seeds NUM_SEEDS] [--top-n TOP_N]
+                                [--backend-top-n BACKEND_TOP_N]
+                                [--rms-hit-threshold RMS_HIT_THRESHOLD]
+                                [--energy-window ENERGY_WINDOW]
+                                [--output OUTPUT]
+                                [--diversity-fraction DIVERSITY_FRACTION]
+                                [--compactness-fraction COMPACTNESS_FRACTION]
+                                [--rms-threshold RMS_THRESHOLD]
+                                [--use-random-coords | --no-use-random-coords]
+                                [--torsion-kicks | --no-torsion-kicks]
+                                [--torsion-rounds TORSION_ROUNDS]
+                                [--torsion-mode {random}]
+                                [--torsion-kicks-per-conformer TORSION_KICKS_PER_CONFORMER]
+                                [--torsion-max-bonds TORSION_MAX_BONDS]
+                                [--torsion-dedup-rms TORSION_DEDUP_RMS]
+                                [--dedup-atom-mode {heavy,all}]
+                                [--force-field {auto,mmff,uff}] [--seed SEED]
+                                [--num-threads NUM_THREADS]
+                                [--max-iterations MAX_ITERATIONS]
+                                [--software {gaussian,mopac,obabel,orca,psi4,turbomole,xtb,xtb_turbo,mlatom_aiqm1,aimnet_2,aiqm1_mlatom,xtb-aimnet2,xtb-aiqm1}]
+                                [--geometry-optimizer {native,geometric}]
+                                [--opt-target {minimum,ts}] [-basis BASIS]
+                                [-method METHOD]
+                                [--opt-threshold OPT_THRESHOLD]
+                                [--opt-cycles OPT_CYCLES]
+                                [--scf-threshold SCF_THRESHOLD]
+                                [--scf-cycles SCF_CYCLES] [-nprocs NPROCS]
+                                [--custom-keywords CUSTOM_KEYWORDS]
+                                [-model MODEL]
+                                benchmark
+
+Benchmark pyar-conformer and classify missed-reference causes.
+
+positional arguments:
+  benchmark             JSON conformer benchmark specification
+
+options:
+  -h, --help            show this help message and exit
+  --num-conformers NUM_CONFORMERS
+  --num-seeds NUM_SEEDS
+  --top-n TOP_N
+  --backend-top-n BACKEND_TOP_N
+  --rms-hit-threshold RMS_HIT_THRESHOLD
+  --energy-window ENERGY_WINDOW
+                        Classify reference-like generated conformers outside
+                        this RDKit native force-field energy window as
+                        wrong_ranking.
+  --output OUTPUT
+
+conformer search:
+  --diversity-fraction DIVERSITY_FRACTION
+  --compactness-fraction COMPACTNESS_FRACTION
+                        Protected contact-rich folded-basin quota; matched by
+                        an open-basin quota for diversity.
+  --rms-threshold RMS_THRESHOLD
+  --use-random-coords, --no-use-random-coords
+  --torsion-kicks, --no-torsion-kicks
+  --torsion-rounds TORSION_ROUNDS
+  --torsion-mode {random}
+                        Use the stratified random torsion-kick sampler.
+  --torsion-kicks-per-conformer TORSION_KICKS_PER_CONFORMER
+  --torsion-max-bonds TORSION_MAX_BONDS
+  --torsion-dedup-rms TORSION_DEDUP_RMS
+  --dedup-atom-mode {heavy,all}
+                        Atoms scored by shared graph RMSD; full connectivity
+                        is always checked.
+  --force-field {auto,mmff,uff}
+  --seed SEED
+  --num-threads NUM_THREADS
+  --max-iterations MAX_ITERATIONS
+
+backend refinement:
+  --software {gaussian,mopac,obabel,orca,psi4,turbomole,xtb,xtb_turbo,mlatom_aiqm1,aimnet_2,aiqm1_mlatom,xtb-aimnet2,xtb-aiqm1}
+  --geometry-optimizer {native,geometric}
+  --opt-target {minimum,ts}
+  -basis, --basis BASIS
+  -method, --method METHOD
+  --opt-threshold OPT_THRESHOLD
+  --opt-cycles OPT_CYCLES
+  --scf-threshold SCF_THRESHOLD
+  --scf-cycles SCF_CYCLES
+  -nprocs, --nprocs NPROCS
+  --custom-keywords CUSTOM_KEYWORDS
+  -model, --model MODEL
+
+pyar benchmark clustering
+usage: pyar benchmark clustering [-h] [-a [ALGORITHMS ...]] [-N MAX_SEEDS]
+                                 [--show-selected]
+                                 [--feature {auto,mbtr,soap,distance-histogram}]
+                                 [--distance {euclidean,manhattan,cosine,graph-rmsd,fragment-rmsd,soap-rematch}]
+                                 paths [paths ...]
+
+Benchmark clustering algorithms on XYZ pools.
+
+positional arguments:
+  paths                 XYZ files or directories containing result_*.xyz files
+
+options:
+  -h, --help            show this help message and exit
+  -a, --algorithms [ALGORITHMS ...]
+                        Algorithms to benchmark
+  -N, --max-seeds MAX_SEEDS
+                        Maximum number of selected seeds
+  --show-selected       Print selected molecule names for each benchmark row
+  --feature {auto,mbtr,soap,distance-histogram}
+  --distance {euclidean,manhattan,cosine,graph-rmsd,fragment-rmsd,soap-rematch}
+
+pyar benchmark orientations
+usage: python -m pyar [-h] [-N NUMBER_OF_POINTS [NUMBER_OF_POINTS ...]]
+                      [-m {random,lhs,lhs_maximin,fibonacci,fibonacci_maximin} [{random,lhs,lhs_maximin,fibonacci,fibonacci_maximin} ...]]
+                      [-r REPEAT] [--evaluation-points EVALUATION_POINTS]
+                      [--oversample-factor OVERSAMPLE_FACTOR]
+
+Benchmark direction samplers for trial geometry generation.
+
+options:
+  -h, --help            show this help message and exit
+  -N, --number-of-points NUMBER_OF_POINTS [NUMBER_OF_POINTS ...]
+                        Numbers of direction samples to benchmark.
+  -m, --methods {random,lhs,lhs_maximin,fibonacci,fibonacci_maximin} [{random,lhs,lhs_maximin,fibonacci,fibonacci_maximin} ...]
+                        Sampling methods to compare.
+  -r, --repeat REPEAT   Repeats for randomized methods; deterministic methods
+                        repeat identically.
+  --evaluation-points EVALUATION_POINTS
+                        Dense reference directions used to approximate
+                        covering radius.
+  --oversample-factor OVERSAMPLE_FACTOR
+                        Candidate-pool multiplier for maximin methods.
+
+pyar benchmark ts
+usage: pyar benchmark ts [-h] {run,collect,prepare-rgd1} ...
+
+Run or collect paired PyAR transition-state optimizer benchmarks.
+
+positional arguments:
+  {run,collect,prepare-rgd1}
+    run                 run one independently scheduled case/optimizer job
+    collect             collect complete and incomplete paired jobs
+    prepare-rgd1        create a small manifest from an extracted RGD1-TSopt-
+                        GFN2 dataset
+
+options:
+  -h, --help            show this help message and exit

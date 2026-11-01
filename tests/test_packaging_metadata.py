@@ -15,11 +15,9 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
 
 
 class PackagingMetadataTests(unittest.TestCase):
-    def test_modern_and_legacy_entrypoints_are_declared(self):
+    def test_only_canonical_entrypoint_is_declared(self):
         scripts = tomllib.loads(Path("pyproject.toml").read_text())["project"]["scripts"]
-        self.assertEqual(scripts["pyar"], "pyar.modern_cli:main")
-        self.assertEqual(scripts["pyar-cli"], "pyar.cli:main")
-        self.assertEqual(scripts["pyar-clustering"], "pyar.scripts.clustering:main")
+        self.assertEqual(scripts, {"pyar": "pyar.cli:main"})
 
     def test_distribution_version_and_import_namespace(self):
         import pyar
@@ -43,27 +41,17 @@ class PackagingMetadataTests(unittest.TestCase):
     def test_conformer_entrypoint_and_extra_are_declared(self):
         metadata = tomllib.loads(Path("pyproject.toml").read_text())
 
-        self.assertEqual(
-            metadata["project"]["scripts"]["pyar-conformer"],
-            "pyar.scripts.conformer:main",
-        )
-        self.assertEqual(
-            metadata["project"]["scripts"]["pyar-conformer-benchmark"],
-            "pyar.scripts.conformer_benchmark:main",
-        )
-        self.assertEqual(
-            metadata["project"]["scripts"]["pyar-basin-memory"],
-            "pyar.scripts.basin_memory:main",
-        )
+        from pyar.cli import _COMMANDS
+        from pyar.scripts.benchmark import TASKS
+        self.assertIn("conformer", _COMMANDS)
+        self.assertIn("basin-memory", _COMMANDS)
+        self.assertIn("conformer", TASKS)
         self.assertIn("rdkit", metadata["project"]["optional-dependencies"]["conformer"])
         self.assertIn("conformer", metadata["project"]["optional-dependencies"]["all"][0])
 
     def test_ts_benchmark_entrypoint_is_declared(self):
-        metadata = tomllib.loads(Path("pyproject.toml").read_text())
-        self.assertEqual(
-            metadata["project"]["scripts"]["pyar-benchmark-ts"],
-            "pyar.scripts.ts_optimizer_benchmark:main",
-        )
+        from pyar.scripts.benchmark import TASKS
+        self.assertEqual(TASKS["ts"], "pyar.scripts.ts_optimizer_benchmark")
 
     def test_python310_declares_tomli_runtime_fallback(self):
         metadata = tomllib.loads(Path("pyproject.toml").read_text())

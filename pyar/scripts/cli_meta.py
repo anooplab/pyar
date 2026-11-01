@@ -1,4 +1,4 @@
-"""Modern CLI environment, backend, and run-inspection commands."""
+"""CLI environment, backend, and run-inspection commands."""
 
 from __future__ import annotations
 
@@ -200,7 +200,7 @@ def run_config(argv=None, *, prog="pyar run", verbosity=0, quiet=False):
     mode.add_argument("--dry-run", action="store_true")
     parser.add_argument('--json', action='store_true')
     args, overrides = parser.parse_known_args(argv)
-    from pyar.modern_cli import _COMMANDS, _META_COMMANDS, _command_parser, invoke
+    from pyar.cli import _COMMANDS, _META_COMMANDS, _command_parser, invoke
     from importlib import import_module
     try:
         config = load_toml_document(args.file, RUN_CONFIG_KIND)
@@ -248,7 +248,7 @@ def config(argv=None, *, prog="pyar config"):
     try:
         if args.action == "validate":
             data = load_toml_document(args.file, RUN_CONFIG_KIND)
-            from pyar.modern_cli import _CHECK_COMMANDS
+            from pyar.cli import _CHECK_COMMANDS
             if data['workflow'] not in _CHECK_COMMANDS:
                 raise ValueError("Read-only configuration validation is available for calculation workflows; use task help for inspection utilities")
             run_config([args.file, '--check'])
@@ -305,14 +305,14 @@ def profile(argv=None, *, prog="pyar profile"):
             return
         source = _load_run_record(args.source)
         workflow = source["workflow"]
-        from pyar.modern_cli import _COMMANDS
+        from pyar.cli import _COMMANDS
         if workflow not in _COMMANDS:
             raise ValueError(f"Cannot create a profile for unsupported workflow {workflow!r}")
         module = __import__(_COMMANDS[workflow][0], fromlist=["build_parser"])
         parser_builder = getattr(module, "build_parser", None)
         if parser_builder is None:
             raise ValueError(f"Workflow {workflow!r} does not expose a parser for profile extraction")
-        from pyar.modern_cli import _command_parser
+        from pyar.cli import _command_parser
         command_parser = _command_parser(workflow, module)
         profile_args = arguments_from_profile(source.get("effective", {}), command_parser, workflow=workflow)
         profile_values = profile_overrides_from_record(source)

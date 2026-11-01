@@ -56,10 +56,10 @@ jobs:
           name: tests-${{ matrix.python-version }}
           path: reports/
 
-      - name: Smoke-test CLI entry points
+      - name: Smoke-test canonical CLI
         run: |
-          pyar-cli --help
-          pyar-react --help
+          pyar --help
+          pyar react --help
 
   docs:
     name: Documentation
@@ -104,7 +104,7 @@ jobs:
         run: python -m pytest tests/test_neb.py -q
 
       - name: Check NEB CLI help
-        run: pyar-neb --help
+        run: pyar neb --help
 
   sella:
     name: Sella TS optimizer (py3.11)
@@ -128,7 +128,7 @@ jobs:
         run: python -m pytest tests/test_neb.py -q
 
       - name: Check NEB CLI help without loading Sella
-        run: pyar-neb --help
+        run: pyar neb --help
 
   installation:
     needs: archives

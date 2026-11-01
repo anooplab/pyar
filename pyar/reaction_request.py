@@ -15,7 +15,8 @@ from pyar.biases.controller import resolve_controller_policy
 from pyar.biases.softmin import resolve_softmin_beta
 from pyar.data.defualt_parameters import values as defaults
 from pyar.optimization_request import preflight
-from pyar.state.reaction import ReactionRunState, ReactionStateError
+from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
+from pyar.state.reaction import ReactionStateError
 from pyar.utility_io import load_structures, expand_charges
 from pyar.workflows import reaction as reaction_workflow
 
@@ -97,7 +98,7 @@ def resolve_reaction_request(input_files, options):
     from pyar.release import ReleaseTracker
     ReleaseTracker(distance_fraction=fraction)
     molecules = load_structures(input_files)
-    from pyar.cli import _infer_default_multiplicities, _validate_backend_spin_inputs
+    from pyar.cli_validation import _infer_default_multiplicities, _validate_backend_spin_inputs
     charges = expand_charges(option('charge', [0]), 2)
     multiplicities = None if option('multiplicity') is None else expand_charges(option('multiplicity'), 2)
     scftypes = expand_charges(option('scftype', ['rhf']), 2)
@@ -146,7 +147,9 @@ def resolve_reaction_request(input_files, options):
         raise ValueError('Standalone xTB singlet reactions require --scftype rhf')
     if backend == 'xtb':
         from pyar.backends.xtb_utils import canonical_xtb_model
-        settings['xtb_model'] = canonical_xtb_model()
+        settings['xtb_model'] = canonical_xtb_model(option('xtb_model'))
+    if backend != 'xtb' and option('xtb_model') is not None:
+        raise ValueError('--xtb-model requires --backend xtb')
     capabilities = get_backend_capabilities(backend)
     if not capabilities.supports_method_basis_options and (settings['method'] is not None or settings['basis'] is not None):
         raise ValueError(f'Backend {backend!r} does not support --method or --basis')
@@ -179,8 +182,10 @@ def resolve_reaction_request(input_files, options):
 
 def preflight_reaction(request):
     """Validate biased and unbiased requirements without constructing calculators."""
-    from pyar.cli import _workflow_requirement_messages
+    from pyar.cli_validation import _workflow_requirement_messages
     backend = request.qc_params['software']
+    from pyar.cli_validation import _preflight_xtb_model
+    _preflight_xtb_model(request.qc_params)
     example = f'pyar react A.xyz B.xyz --backend {backend} --bias-max {request.bias_max} --check'
     try:
         requirements = preflight(request.qc_params, request.reactants, check_example=example)

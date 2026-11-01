@@ -9,9 +9,9 @@ try:
 except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
-from pyar import modern_cli
+from pyar import cli
 from pyar.run_config import PROFILE_KIND, resolve_run_spec, write_toml_document
-from pyar.scripts import modern_microsolvate
+from pyar.scripts import microsolvate
 
 
 def _write_xyz(path, atoms, coords):
@@ -21,12 +21,12 @@ def _write_xyz(path, atoms, coords):
 
 
 def test_info_and_backends_produce_json(capsys):
-    modern_cli.main(["info", "--json"])
+    cli.main(["info", "--json"])
     info = json.loads(capsys.readouterr().out)
     assert info["name"] == "pyar-chem"
     assert info["version"]
 
-    modern_cli.main(["backends", "--json"])
+    cli.main(["backends", "--json"])
     backends = json.loads(capsys.readouterr().out)["backends"]
     assert backends["xtb"]["energy_gradient"] is True
 
@@ -39,7 +39,7 @@ def test_write_config_and_run_check_are_read_only(tmp_path, monkeypatch, capsys)
     monkeypatch.chdir(tmp_path)
     output = tmp_path / "microsolvation"
     config_path = tmp_path / "micro.toml"
-    modern_cli.main(["microsolvate", str(solute), str(solvent), "--count", "1",
+    cli.main(["microsolvate", str(solute), str(solvent), "--count", "1",
                      "--site-group", "hydrogen=0", "--contact-distance", "3.2",
                      "--output", str(output), "--write-config", str(config_path), "--dry-run"])
     assert not output.exists()
@@ -49,12 +49,12 @@ def test_write_config_and_run_check_are_read_only(tmp_path, monkeypatch, capsys)
     assert "Place solvent candidates against that surface" in dry_run_output
     assert "No calculation or workflow output was created." in dry_run_output
     config = tomllib.loads(config_path.read_text())
-    assert config["schema_version"] == 1
+    assert config["schema_version"] == 2
     assert config["workflow"] == "microsolvate"
     assert "--count" in config["arguments"]
     assert config["arguments"][config["arguments"].index("--site-group") + 1] == "hydrogen=0"
 
-    modern_cli.main(["run", str(config_path), "--check"])
+    cli.main(["run", str(config_path), "--check"])
     output_text = capsys.readouterr().out
     assert "Preflight: microsolvate" in output_text
     assert "Contact model: explicit 3.2 Å atom-pair cutoff" in output_text
@@ -158,7 +158,7 @@ def test_profile_precedence_and_profile_omits_run_specific_paths(tmp_path, monke
         kind=PROFILE_KIND, workflow="identify", arguments=["--json"],
         effective={"json": True},
     )
-    modern_cli.main(["identify", str(source), "--profile", "inspection"])
+    cli.main(["identify", str(source), "--profile", "inspection"])
     result = json.loads(capsys.readouterr().out)
     assert result["structures"][0]["atom_count"] == 2
 
@@ -212,12 +212,12 @@ def test_run_records_include_value_sources_and_failed_status(tmp_path, monkeypat
         started_run()
         raise ValueError("mock workflow failure")
 
-    fake_module = SimpleNamespace(build_parser=build_parser, modern_main=fail)
-    monkeypatch.setitem(modern_cli._COMMANDS, "optimize", ("fake.optimize", "fake"))
-    monkeypatch.setattr(modern_cli, "import_module", lambda name: fake_module)
+    fake_module = SimpleNamespace(build_parser=build_parser, main=fail)
+    monkeypatch.setitem(cli._COMMANDS, "optimize", ("fake.optimize", "fake"))
+    monkeypatch.setattr(cli, "import_module", lambda name: fake_module)
     monkeypatch.chdir(tmp_path)
     try:
-        modern_cli.main(["optimize", "molecule.xyz", "--backend", "xtb"])
+        cli.main(["optimize", "molecule.xyz", "--backend", "xtb"])
     except ValueError:
         pass
     else:
@@ -250,9 +250,9 @@ def test_run_record_failure_is_nonzero_and_json_distinguishes_scientific_success
         started_run()
         finished_run({'workflow': 'optimize', 'status': 'completed', 'input_count': 1})
 
-    fake_module = SimpleNamespace(build_parser=build_parser, modern_main=complete)
-    monkeypatch.setitem(modern_cli._COMMANDS, 'optimize', ('fake.optimize', 'fake'))
-    monkeypatch.setattr(modern_cli, 'import_module', lambda _name: fake_module)
+    fake_module = SimpleNamespace(build_parser=build_parser, main=complete)
+    monkeypatch.setitem(cli._COMMANDS, 'optimize', ('fake.optimize', 'fake'))
+    monkeypatch.setattr(cli, 'import_module', lambda _name: fake_module)
     monkeypatch.chdir(tmp_path)
 
     def fail_record(*args, **kwargs):
@@ -262,7 +262,7 @@ def test_run_record_failure_is_nonzero_and_json_distinguishes_scientific_success
 
     monkeypatch.setattr('pyar.run_config.write_toml_document', fail_record)
     try:
-        modern_cli.main(['optimize', 'input.xyz', '--json'])
+        cli.main(['optimize', 'input.xyz', '--json'])
     except OSError as exc:
         assert 'run provenance could not be written' in str(exc)
     else:
@@ -278,17 +278,17 @@ def test_run_record_failure_is_nonzero_and_json_distinguishes_scientific_success
 
 
 def test_all_remaining_workflow_commands_are_registered_lazily():
-    for command in ("solvate", "neb", "ts", "irc", "run", "config", "profile", "info",
+    for command in ("microsolvate", "neb", "ts", "irc", "run", "config", "profile", "info",
                     "backends", "doctor", "inspect"):
-        assert command in modern_cli._COMMANDS
+        assert command in cli._COMMANDS
     # Listing commands does not import optional scientific workflow packages.
-    parser = modern_cli.build_parser()
+    parser = cli.build_parser()
     assert parser.prog == "pyar"
 
 
 def test_dry_run_is_limited_to_commands_with_full_check_paths(capsys):
     try:
-        modern_cli.main(["identify", "structure.xyz", "--dry-run"])
+        cli.main(["identify", "structure.xyz", "--dry-run"])
     except SystemExit as exc:
         assert exc.code == 2
         assert "supported only for calculation workflows" in capsys.readouterr().err

@@ -48,7 +48,7 @@ class AggregateRunStateV2:
             ('artifact_id','role','path','sha256')} for ref in inputs]), overwrite=False)
         write_json(directory / 'inputs/metadata.json', dict(input_schema_version=1, run_id=run_id, inputs=inputs), overwrite=False)
         state.initialize_pathways()
-        write_json(directory / 'layout.json', dict(format='pyar-run-layout', layout_version=2,
+        write_json(directory / 'layout.json', dict(format='pyar-run-layout', layout_version=2, pyar_series='1.6',
             workflow='aggregate', run_id=run_id), overwrite=False)
         return state
 
@@ -154,7 +154,7 @@ class AggregateRunStateV2:
                 self.layout.path(relative)
                 snapshot = directory / f'native_source_{source_index:03d}.xyz'
                 copy_result(path, snapshot)
-                sources.append(dict(legacy_path=str(Path(logical_home) / path.relative_to(native)),
+                sources.append(dict(source_key=str(Path(logical_home) / path.relative_to(native)),
                     artifact=ArtifactRef.capture(self.aggregate_directory, snapshot.relative_to(self.aggregate_directory).as_posix(),
                                                 'cross-path-selection-input').to_dict()))
         previous = self.data['steps'].get(str(index), {}).get(str(step - 1)) if step else None
@@ -185,9 +185,9 @@ class AggregateRunStateV2:
             for step in steps:
                 for item in self.selection(int(index), int(step))['native_sources']:
                     path = ArtifactRef.from_dict(item['artifact']).verify(self.aggregate_directory)
-                    if item['legacy_path'] in sources.values():
+                    if item['source_key'] in sources.values():
                         raise AggregateStateError('Duplicate logical aggregation source')
-                    sources[path] = item['legacy_path']
+                    sources[path] = item['source_key']
         return sources
 
     def finish(self, selected):
@@ -199,7 +199,7 @@ class AggregateRunStateV2:
         for pathway, steps in self.data['steps'].items():
             for step in steps:
                 for item in self.selection(int(pathway), int(step))['native_sources']:
-                    key = str(Path(item['legacy_path']).with_suffix('')).replace(os.sep, '_')
+                    key = str(Path(item['source_key']).with_suffix('')).replace(os.sep, '_')
                     source_ids[key] = item['artifact']['artifact_id']
         refs = []
         for index, molecule in enumerate(selected):

@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pyar import modern_cli
+from pyar import cli
 from pyar.scripts.singlepoint import build_parser
 from pyar.singlepoint import request, native, service, vibrations, worker
 from pyar.singlepoint.io import validate_result
@@ -42,10 +42,10 @@ def test_batch_layout_and_json(geometries, harmonic, command, capsys):
     args = [command, *geometries, "--json"]
     if command == "frequency":
         with pytest.raises(SystemExit) as error:
-            modern_cli.main(args)
+            cli.main(args)
         assert error.value.code == 1
     else:
-        modern_cli.main(args)
+        cli.main(args)
     payload = json.loads(capsys.readouterr().out)
     result = payload["result"]
     assert result["input_count"] == 2
@@ -68,7 +68,7 @@ def test_batch_layout_and_json(geometries, harmonic, command, capsys):
 @pytest.mark.parametrize("command", ["energy", "engrad", "frequency"])
 def test_check_and_dry_run_no_writes(geometries, harmonic, command, capsys):
     before = set(Path.cwd().rglob("*"))
-    modern_cli.main([command, *geometries, "--dry-run", "--json"])
+    cli.main([command, *geometries, "--dry-run", "--json"])
     report = json.loads(capsys.readouterr().out)
     assert report["status"] == "ready"
     assert report["plan"]["backend"] == "xtb"
@@ -149,7 +149,7 @@ def test_duplicate_and_existing_output(geometries):
 def test_preflight_validates_all_inputs(geometries, harmonic):
     Path(geometries[1]).write_text("invalid\n")
     with pytest.raises(SystemExit):
-        modern_cli.main(["energy", *geometries])
+        cli.main(["energy", *geometries])
     assert not Path("energy").exists()
 
 
@@ -163,7 +163,7 @@ def test_partial_failure_continues_and_records(
 
     monkeypatch.setitem(native.EVALUATORS, "xtb", evaluate)
     with pytest.raises(SystemExit) as error:
-        modern_cli.main(["engrad", *geometries, "--json"])
+        cli.main(["engrad", *geometries, "--json"])
     assert error.value.code == 1
     report = json.loads(capsys.readouterr().out)["result"]
     assert report["status"] == "partial_failed"
@@ -173,8 +173,8 @@ def test_partial_failure_continues_and_records(
 
 
 def test_config_roundtrip(geometries, harmonic):
-    modern_cli.main(["engrad", *geometries, "--check", "--write-config", "engrad.toml"])
-    modern_cli.main(["run", "engrad.toml"])
+    cli.main(["engrad", *geometries, "--check", "--write-config", "engrad.toml"])
+    cli.main(["run", "engrad.toml"])
     assert Path("engrad/job_a/gradient.txt").is_file()
 
 
@@ -406,7 +406,7 @@ def test_profile_roundtrip(geometries, harmonic, monkeypatch):
         arguments=[],
         effective={"backend": "xtb", "xtb_model": "gfn2"},
     )
-    modern_cli.main(["engrad", *geometries, "--profile", "sp", "--check"])
+    cli.main(["engrad", *geometries, "--profile", "sp", "--check"])
     assert not Path("engrad").exists()
 
 

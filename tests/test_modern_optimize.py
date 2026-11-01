@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from pyar import modern_cli, optimiser
+from pyar import cli, optimiser
 from pyar.scripts import optimize
 from pyar import optimization_request as request
 from pyar.backend_errors import BackendExecutionError
@@ -22,14 +22,14 @@ def inputs(tmp_path, monkeypatch):
 
 @pytest.fixture
 def dependencies():
-    with mock.patch('pyar.cli.shutil.which', return_value='/bin/backend'):
+    with mock.patch('pyar.cli_validation.shutil.which', return_value='/bin/backend'):
         yield
 
 
 def test_help(capsys):
     for argv in [['--help'], ['optimize', '--help']]:
         with pytest.raises(SystemExit) as exc:
-            modern_cli.main(argv)
+            cli.main(argv)
         assert exc.value.code == 0
         text = capsys.readouterr().out
         assert 'optimize' in text
@@ -42,7 +42,7 @@ def test_help(capsys):
 
 def test_minimal_and_inferred_spin(inputs, dependencies):
     with mock.patch.object(optimiser, 'optimise', return_value=True) as optimize_one:
-        modern_cli.main(['optimize', *inputs, 'radical.xyz', '--backend', 'xtb'])
+        cli.main(['optimize', *inputs, 'radical.xyz', '--backend', 'xtb'])
     calls = optimize_one.call_args_list
     assert [call.args[0].name for call in calls] == ['a', 'b', 'radical']
     assert [call.args[1]['charge'] for call in calls] == [0, 0, 0]
@@ -59,7 +59,7 @@ def test_overrides_and_engine_electronic_state(inputs, dependencies):
         calls.append((mol, qc))
         return True
     with mock.patch.object(optimiser, 'optimise', side_effect=run):
-        modern_cli.main(['optimize', *inputs, '--backend', 'xtb', '--charge', '-1',
+        cli.main(['optimize', *inputs, '--backend', 'xtb', '--charge', '-1',
                          '--multiplicity', '2', '--opt-threshold', 'tight', '--nprocs', '4'])
     assert len(calls) == 2
     assert calls[0][1] == calls[1][1]
@@ -75,7 +75,7 @@ def test_check_no_mutations(inputs, dependencies, capsys):
     with mock.patch.object(optimiser, 'bulk_optimize') as bulk, mock.patch.object(
         optimize, 'preflight', wraps=request.preflight
     ) as preflight:
-        modern_cli.main(['optimize', *inputs, '--backend', 'xtb', '--check'])
+        cli.main(['optimize', *inputs, '--backend', 'xtb', '--check'])
     bulk.assert_not_called()
     preflight.assert_called_once()
     assert set(Path('.').iterdir()) == before
@@ -98,7 +98,7 @@ def test_check_no_mutations(inputs, dependencies, capsys):
 def test_invalid_settings_no_execution(inputs, dependencies, options):
     with mock.patch.object(optimiser, 'bulk_optimize') as bulk:
         with pytest.raises(SystemExit) as exc:
-            modern_cli.main(['optimize', *inputs, *options])
+            cli.main(['optimize', *inputs, *options])
     assert exc.value.code != 0
     bulk.assert_not_called()
 
@@ -109,17 +109,17 @@ def test_all_inputs_validated_before_execution(inputs, dependencies, contents):
         Path('bad.xyz').write_text(contents)
     with mock.patch.object(optimiser, 'bulk_optimize') as bulk:
         with pytest.raises(SystemExit):
-            modern_cli.main(['optimize', *inputs, 'bad.xyz', '--backend', 'xtb'])
+            cli.main(['optimize', *inputs, 'bad.xyz', '--backend', 'xtb'])
     bulk.assert_not_called()
 
 
 @pytest.mark.parametrize('check', [[], ['--check']])
 def test_missing_executable(inputs, check, capsys):
-    with mock.patch('pyar.cli.shutil.which', return_value=None), mock.patch.object(
+    with mock.patch('pyar.cli_validation.shutil.which', return_value=None), mock.patch.object(
         optimiser, 'bulk_optimize'
     ) as bulk:
         with pytest.raises(SystemExit):
-            modern_cli.main(['optimize', *inputs, '--backend', 'xtb', *check])
+            cli.main(['optimize', *inputs, '--backend', 'xtb', *check])
     bulk.assert_not_called()
     text = capsys.readouterr().err
     assert 'xtb-docs.readthedocs.io' in text and 'No calculations' in text
@@ -130,14 +130,14 @@ def test_import_broken_dependency(inputs, dependencies):
         with mock.patch('pyar.backends.aimnet2_assets.validate_aimnet2_runtime_assets'):
             with mock.patch.object(optimiser, 'bulk_optimize') as bulk:
                 with pytest.raises(SystemExit):
-                    modern_cli.main(['optimize', *inputs, '--backend', 'aimnet_2', '--check'])
+                    cli.main(['optimize', *inputs, '--backend', 'aimnet_2', '--check'])
     bulk.assert_not_called()
 
 
 def test_orca_composite_and_overrides(inputs, dependencies):
     from pyar.backends.orca_methods import orca_method_keywords
     with mock.patch.object(optimiser, 'optimise', return_value=True) as optimize_one:
-        modern_cli.main(['optimize', *inputs, '--backend', 'orca', '--method', 'r2scan-3c',
+        cli.main(['optimize', *inputs, '--backend', 'orca', '--method', 'r2scan-3c',
                          '--nprocs', '8', '--opt-cycles', '200'])
     settings = optimize_one.call_args.args[1]
     assert settings['basis'] is None
@@ -164,10 +164,10 @@ def test_optimization_status_and_provenance_are_truthful(
     with mock.patch.object(optimiser, 'optimise', side_effect=run_one):
         if failed:
             with pytest.raises(SystemExit) as exc:
-                modern_cli.main(['optimize', *inputs, '--backend', 'xtb', '--json'])
+                cli.main(['optimize', *inputs, '--backend', 'xtb', '--json'])
             assert exc.value.code == 1
         else:
-            modern_cli.main(['optimize', *inputs, '--backend', 'xtb', '--json'])
+            cli.main(['optimize', *inputs, '--backend', 'xtb', '--json'])
 
     output = capsys.readouterr()
     payload = json.loads(output.out)
@@ -212,7 +212,7 @@ def test_optimizer_failure_preserves_successful_result_artifact(inputs, dependen
 
     with mock.patch.object(optimiser, 'optimise', side_effect=run_one):
         with pytest.raises(SystemExit):
-            modern_cli.main(['optimize', *inputs, '--backend', 'xtb'])
+            cli.main(['optimize', *inputs, '--backend', 'xtb'])
     assert Path('job_a/result_a.xyz').read_text() == 'optimized geometry retained\n'
 
 
@@ -233,11 +233,11 @@ def test_xtb_spin_mapping_is_opt_in():
 
 
 def test_missing_python_requirement(inputs, dependencies, capsys):
-    with mock.patch('pyar.cli.importlib.util.find_spec', return_value=None), mock.patch.object(
+    with mock.patch('pyar.cli_validation.importlib.util.find_spec', return_value=None), mock.patch.object(
         optimiser, 'bulk_optimize'
     ) as bulk:
         with pytest.raises(SystemExit):
-            modern_cli.main(['optimize', *inputs, '--backend', 'xtb',
+            cli.main(['optimize', *inputs, '--backend', 'xtb',
                              '--geometry-optimizer', 'geometric', '--check'])
     bulk.assert_not_called()
     assert 'geometric' in capsys.readouterr().err
@@ -245,13 +245,13 @@ def test_missing_python_requirement(inputs, dependencies, capsys):
 
 def test_per_molecule_inference_reaches_engine(inputs, dependencies):
     with mock.patch.object(optimiser, 'optimise', return_value=True) as single:
-        modern_cli.main(['optimize', 'a.xyz', 'radical.xyz', '--backend', 'xtb'])
+        cli.main(['optimize', 'a.xyz', 'radical.xyz', '--backend', 'xtb'])
     assert [call.args[1]['multiplicity'] for call in single.call_args_list] == [1, 2]
 
 
 def test_backend_alias(inputs, dependencies):
     with mock.patch.object(optimiser, 'optimise', return_value=True) as single:
-        modern_cli.main(['optimize', *inputs, '--backend', 'g16'])
+        cli.main(['optimize', *inputs, '--backend', 'g16'])
     settings = single.call_args.args[1]
     assert settings['software'] == 'gaussian'
     assert settings['method'] == 'BP86'
@@ -263,27 +263,7 @@ def test_duplicate_names_fail(inputs, dependencies, tmp_path):
     (tmp_path / 'other' / 'a.xyz').write_text(Path('a.xyz').read_text())
     with mock.patch.object(optimiser, 'bulk_optimize') as bulk:
         with pytest.raises(SystemExit):
-            modern_cli.main(['optimize', 'a.xyz', 'other/a.xyz', '--backend', 'xtb'])
+            cli.main(['optimize', 'a.xyz', 'other/a.xyz', '--backend', 'xtb'])
     bulk.assert_not_called()
 
 
-def test_legacy_optimizer_contract(inputs, capsys):
-    # Import only inside the temporary work directory: legacy logging stays legacy.
-    from pyar.scripts import optimiser as legacy
-    try:
-        with mock.patch('sys.argv', ['pyar-optimiser', *inputs, '--software', 'xtb']):
-            with pytest.raises(SystemExit) as exc:
-                legacy.main()
-        assert exc.value.code == 2
-        with mock.patch('sys.argv', ['pyar-optimiser', *inputs, '--software', 'xtb',
-                                    '--charge', '0', '--multiplicity', '1']):
-            with mock.patch.object(optimiser, 'bulk_optimize') as bulk:
-                legacy.main()
-        molecules, settings = bulk.call_args.args
-        assert len(molecules) == 2
-        assert settings['software'] == 'xtb'
-        assert settings['method'] == 'BP86' and settings['basis'] == 'def2-SVP'
-        assert '_electronic_state_from_molecule' not in settings
-    finally:
-        legacy.logger.removeHandler(legacy.handler)
-        legacy.handler.close()

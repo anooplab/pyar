@@ -1081,7 +1081,9 @@ def test_stage_handoff_rejects_modified_artifacts_and_different_methods(tmp_path
     historical_summary["qc_params"].pop("xtb_model")
     historical_summary["qc_params"].update({"method": "BP86", "basis": "def2-SVP"})
     summary_path.write_text(json.dumps(historical_summary))
-    assert _load_stage(tmp_path, "ts", calculator)["ts_optimization_converged"]
+    with pytest.raises(ValueError, match="different backend"):
+        _load_stage(tmp_path, "ts", calculator)
+    _save_stage(tmp_path, "ts", {"ts_optimization_converged": True}, calculator, [], [geometry])
     parallel = SimpleNamespace(qc_params=dict(calculator.qc_params, nprocs=8))
     assert _load_stage(tmp_path, "ts", parallel)["ts_optimization_converged"]
     charged = SimpleNamespace(qc_params=dict(calculator.qc_params, charge=1))
@@ -2022,4 +2024,4 @@ def test_reaction_v2_discovery_to_validated_characterization(tmp_path, fake_path
     monkeypatch.chdir(legacy)
     old = workflow._react(*reactants, 100., 100., 1, settings, None, 2.3)
     assert (legacy / 'reaction' / old.selected_paths[0]).read_bytes() == selected.read_bytes()
-    assert not (legacy / 'reaction/layout.json').exists()
+    assert (legacy / 'reaction/layout.json').exists()

@@ -11,9 +11,10 @@ import pytest
 from pyar.core.molecule import Molecule
 from pyar.growth.request import GrowRequest
 from pyar.growth.layout_v2 import GrowRunStateV2
-from pyar.state.grow import GrowRunState, GrowStateError
+from pyar.growth.layout_v2 import GrowRunStateV2 as GrowRunState
+from pyar.state.grow import GrowStateError
 from pyar.persistence import read_json, sha256_file
-from pyar.scripts import modern_grow
+from pyar.scripts import grow
 
 workflow = importlib.import_module('pyar.workflows.grow')
 FIXTURE = Path(__file__).parent / 'data/run_layout_v1/grow_interrupted'
@@ -34,9 +35,9 @@ def addition(aid, seeds, monomer, *args, **kwargs):
 def test_mocked_science_matches_v1_and_final_outputs_are_immutable(tmp_path):
     req = request()
     with patch.object(workflow, 'add_one', side_effect=addition):
-        old = workflow._grow_v1(req, output=tmp_path / 'old')
         new = workflow.grow(req, output=tmp_path / 'new')
-    assert Path(old.selected_paths[0]).read_bytes() == Path(new.selected_paths[0]).read_bytes()
+    assert new.status == 'completed'
+    assert len(new.selected_paths) == 1
     selected = {p.relative_to(tmp_path / 'new'): p.read_bytes()
                 for p in (tmp_path / 'new/steps').rglob('*') if p.is_file()}
     result_bytes = Path(new.selected_paths[0]).read_bytes()
@@ -51,18 +52,14 @@ def test_mocked_science_matches_v1_and_final_outputs_are_immutable(tmp_path):
                         for p in (tmp_path / 'new/steps').rglob('*') if p.is_file()}
 
 
-def test_durable_v1_fixture_resumes_without_conversion(tmp_path):
+def test_old_fixture_is_rejected_without_mutation(tmp_path):
+    from pyar.persistence import LayoutError
     root = tmp_path / 'old'
     shutil.copytree(FIXTURE, root)
-    before = (root / 'step_001/selected/selected_000.xyz').read_bytes()
-    loaded = GrowRunState.load(root, request().to_state_dict())
-    assert loaded.data['next_step'] == 2
-    with patch.object(workflow, 'add_one', side_effect=addition) as engine:
-        result = workflow.grow(request(), output=root)
-    assert engine.call_count == 2
-    assert not (root / 'layout.json').exists()
-    assert before == (root / 'step_001/selected/selected_000.xyz').read_bytes()
-    assert Path(result.selected_paths[0]).parent == root / 'final'
+    before = {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+    with pytest.raises(LayoutError, match='original PyAR environment'):
+        workflow.grow(request(), output=root)
+    assert before == {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()}
 
 
 def test_committed_step_survives_crash_before_progress_commit(tmp_path, monkeypatch):
@@ -103,12 +100,12 @@ def test_preflight_completed_v2_is_read_only(tmp_path, monkeypatch, capsys):
     req.monomer.mol_to_xyz('monomer.xyz')
     # CLI resolution has additional state defaults; use the same CLI request
     # for both the direct workflow and its preflight.
-    args = modern_grow.build_parser().parse_args(['seed.xyz', 'monomer.xyz', '--count', '3'])
-    cli_req = modern_grow.resolve_request(args)
+    args = grow.build_parser().parse_args(['seed.xyz', 'monomer.xyz', '--count', '3'])
+    cli_req = grow.resolve_request(args)
     with patch.object(workflow, 'add_one', side_effect=addition):
         workflow.grow(cli_req)
     before = {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
-    from pyar.modern_cli import main
+    from pyar.cli import main
     main(['grow', 'seed.xyz', 'monomer.xyz', '--count', '3', '--check'])
     assert before == {p: p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
 

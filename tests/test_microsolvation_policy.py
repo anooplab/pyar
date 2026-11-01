@@ -9,7 +9,7 @@ from pyar.core.molecule import Molecule
 from pyar.microsolvation.placement import generate_microsolvation_candidates
 from pyar.microsolvation.request import MicrosolvationRequest
 from pyar.persistence import read_json
-from pyar.state.microsolvation import MicrosolvationRunState
+from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2 as MicrosolvationRunState
 from pyar.workflows.microsolvation import (
     _deduplicate_and_select, _energy_prescreen, _optimize_candidates, _quality_key, microsolvate,
 )

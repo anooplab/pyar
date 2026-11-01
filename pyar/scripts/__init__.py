@@ -4,7 +4,7 @@ Command line arguments in pyar
 
 * pyar-cli: the main cli for aggregation and reaction
 * pyar-clustering: cluster or filter the given molecules based on their similarity with each other.
-* pyar-energy-table: print a relative-energy table from one or more XYZ files.
+* pyar energies: print a relative-energy table from one or more XYZ files.
 * pyar-descriptor: compute compact cluster descriptors from XYZ files.
 * pyar-similarity: detect near-duplicate XYZ structures with the Grigoryan-Springborg metric.
 * pyar-trial-generation: generate trial geometries and orientation samples.

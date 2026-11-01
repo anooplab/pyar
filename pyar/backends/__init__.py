@@ -67,10 +67,10 @@ class SF(object):
         self.charge = molecule.charge
         self.multiplicity = molecule.multiplicity
         self.scftype = molecule.scftype
-        if not os.path.isfile(self.start_xyz_file):
-            write_xyz(self.atoms_list,
-                      molecule.coordinates, self.start_xyz_file,
-                      job_name=self.job_name)
+        # Every attempt owns its current input, even when the job name is reused.
+        write_xyz(self.atoms_list,
+                  molecule.coordinates, self.start_xyz_file,
+                  job_name=self.job_name)
 
 
 def write_xyz(atoms_list, coordinates, filename, job_name='no_name', energy=0.0, *, precision=5):

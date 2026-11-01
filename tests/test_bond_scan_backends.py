@@ -127,11 +127,13 @@ def test_continuation_stops_at_failed_scientific_gate(scan_continuation, monkeyp
 
 def test_cli_xtb_full_cycle_does_not_require_basis(tmp_path, monkeypatch):
     from pyar.scripts import scan_bond
+    # Execution is simulated below; this test covers dispatch/reporting, not discovery.
+    monkeypatch.setattr('pyar.scan_request.preflight_scan', lambda *args: [])
     path = tmp_path / "H.xyz"
     path.write_text("1\nH\nH 0 0 0\n")
     calls = []
     monkeypatch.setattr(scan_bond, "run_scan_bond", lambda *args: calls.append(args))
-    scan_bond.main([str(path), str(path), "--atoms", "0", "0", "-N", "1", "--software", "xtb",
+    scan_bond.main([str(path), str(path), "--atoms", "0", "0", "-N", "1", "--backend", "xtb",
                     "--through", "all", "--ts-optimizer", "sella"])
     assert calls[0][4]["xtb_model"] == "gfn2"
     assert calls[0][9] == "all"
@@ -207,13 +209,15 @@ def test_orca_hf_gradient_keyword_handles_exchange():
 
 def test_cli_reports_scientific_failure_with_nonzero_exit(tmp_path, monkeypatch, capsys):
     from pyar.scripts import scan_bond
+    # Execution is simulated below; this test covers dispatch/reporting, not discovery.
+    monkeypatch.setattr('pyar.scan_request.preflight_scan', lambda *args: [])
     path = tmp_path / 'H.xyz'
     path.write_text('1\nH\nH 0 0 0\n')
     monkeypatch.setattr(scan_bond, 'run_scan_bond', lambda *args: {
         'status': 'failed', 'output_dir': str(tmp_path),
         'results': [{'continuation_status': 'scientific_gate_failed', 'failed_stage': 'frequency'}]})
     with pytest.raises(SystemExit) as error:
-        scan_bond.main([str(path), str(path), '--atoms', '0', '0', '-N', '1', '--software', 'xtb', '--through', 'all'])
+        scan_bond.main([str(path), str(path), '--atoms', '0', '0', '-N', '1', '--backend', 'xtb', '--through', 'all'])
     assert error.value.code == 1
     assert 'failed through all' in capsys.readouterr().out
 

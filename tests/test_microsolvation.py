@@ -10,8 +10,9 @@ from pyar.microsolvation.placement import (
 )
 from pyar.microsolvation.request import MicrosolvationRequest
 from pyar.microsolvation.surface import build_solute_surface
-from pyar.scripts import modern_microsolvate
-from pyar.state.microsolvation import MicrosolvationRunState, MicrosolvationStateError
+from pyar.scripts import microsolvate as microsolvate_cli
+from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2 as MicrosolvationRunState
+from pyar.state.microsolvation import MicrosolvationStateError
 from pyar.workflows.microsolvation import microsolvate
 
 
@@ -390,8 +391,8 @@ def test_check_validates_without_creating_output_or_running_workflow(tmp_path, m
     _write_xyz(solvent_path, water())
     output = tmp_path / "microsolvation"
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(modern_microsolvate, "microsolvate", lambda *a, **k: pytest.fail("workflow called"))
-    modern_microsolvate.main([str(solute_path), str(solvent_path), "--count", "2", "--check", "--output", str(output)])
+    monkeypatch.setattr(microsolvate_cli, "microsolvate", lambda *a, **k: pytest.fail("workflow called"))
+    microsolvate_cli.main([str(solute_path), str(solvent_path), "--count", "2", "--check", "--output", str(output)])
     assert not output.exists()
     assert "no calculations were performed" in capsys.readouterr().out
 
@@ -400,10 +401,10 @@ def test_xtb_resolution_uses_modern_model_without_dft_defaults(tmp_path):
     solute_path, solvent_path = tmp_path / "methane.xyz", tmp_path / "water.xyz"
     _write_xyz(solute_path, methane())
     _write_xyz(solvent_path, water())
-    args = modern_microsolvate.build_parser().parse_args(
+    args = microsolvate_cli.build_parser().parse_args(
         [str(solute_path), str(solvent_path), "--count", "1", "--backend", "xtb"]
     )
-    resolved = modern_microsolvate.resolve_request(args)
+    resolved = microsolvate_cli.resolve_request(args)
     assert resolved.backend_parameters["software"] == "xtb"
     assert resolved.backend_parameters["xtb_model"] == "gfn2"
     assert resolved.backend_parameters["method"] is None

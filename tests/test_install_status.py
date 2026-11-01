@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pyar import modern_cli
+from pyar import cli
 from pyar.dependencies import CORE_MODULES
 from pyar.scripts import installation
 
@@ -26,7 +26,7 @@ def test_core_only_status_lists_missing_optional_requirements(tmp_path, monkeypa
          patch.object(installation, 'module_available', side_effect=lambda name: name in available), \
          patch.object(installation.shutil, 'which', return_value=None), \
          patch('subprocess.run', side_effect=AssertionError('status must not launch programs')):
-        modern_cli.main(['install', 'status', '--json'])
+        cli.main(['install', 'status', '--json'])
     result = json.loads(capsys.readouterr().out)
     assert result['ok']
     assert result['executable'] == installation.sys.executable
@@ -42,7 +42,7 @@ def test_core_only_status_lists_missing_optional_requirements(tmp_path, monkeypa
 def test_status_reports_installed_but_unavailable_package(capsys):
     with patch.object(installation, 'version', return_value='1.0'), \
          patch.object(installation, 'module_available', side_effect=lambda name: name != 'torch'):
-        modern_cli.main(['install', 'status'])
+        cli.main(['install', 'status'])
     output = capsys.readouterr().out
     assert 'Interpreter:' in output and 'Environment:' in output
     assert 'BROKEN     torch' in output
@@ -52,7 +52,7 @@ def test_status_reports_installed_but_unavailable_package(capsys):
 def test_missing_core_requirement_makes_status_fail(capsys):
     with patch.object(installation, 'module_available', side_effect=lambda name: name != 'scipy'):
         with pytest.raises(SystemExit) as error:
-            modern_cli.main(['install', 'status', '--json'])
+            cli.main(['install', 'status', '--json'])
     assert error.value.code == 1
     assert not json.loads(capsys.readouterr().out)['ok']
 
@@ -60,6 +60,6 @@ def test_missing_core_requirement_makes_status_fail(capsys):
 def test_only_status_is_supported():
     with patch.object(installation, 'installation_status') as inventory:
         with pytest.raises(SystemExit) as error:
-            modern_cli.main(['install', 'geometric'])
+            cli.main(['install', 'geometric'])
     assert error.value.code == 2
     inventory.assert_not_called()

@@ -7,7 +7,7 @@ from unittest import mock
 import numpy as np
 import pytest
 
-from pyar import modern_cli
+from pyar import cli
 from pyar.backends import write_xyz
 from pyar.backends.orca_scan import OrcaBondScanResult
 from pyar.core.molecule import Molecule
@@ -49,13 +49,13 @@ def test_explicit_grid_and_end_are_used_without_changing_start():
 def cli_case(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path('molecule.xyz').write_text('2\nH2\nH 0 0 0\nH .74 0 0\n')
-    monkeypatch.setattr('pyar.cli.shutil.which', lambda name: '/bin/backend')
+    monkeypatch.setattr('pyar.cli_validation.shutil.which', lambda name: '/bin/backend')
     return ['scan-bond', 'molecule.xyz', '--atoms', '0', '1', '--backend', 'xtb']
 
 
 def test_single_input_cli_infers_mode_and_does_not_duplicate_charge(cli_case):
     with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run:
-        modern_cli.main([*cli_case, '--charge', '-2'])
+        cli.main([*cli_case, '--charge', '-2'])
     args = run.call_args.args
     assert args[:4] == ('molecule.xyz', None, [0, 1], 1)
     assert args[4]['charge_a'] == -2
@@ -68,7 +68,7 @@ def test_single_input_preflight_is_readonly_and_shows_plan(cli_case, capsys):
     with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run, mock.patch(
         'subprocess.Popen', side_effect=AssertionError('preflight cannot launch a program')
     ):
-        modern_cli.main([*cli_case, '--check'])
+        cli.main([*cli_case, '--check'])
     run.assert_not_called()
     assert before == set(Path('.').iterdir())
     output = capsys.readouterr().out
@@ -78,7 +78,7 @@ def test_single_input_preflight_is_readonly_and_shows_plan(cli_case, capsys):
 
 def test_single_input_dry_run_records_the_proposed_plan(cli_case, capsys):
     with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run:
-        modern_cli.main([*cli_case, '--dry-run', '--json'])
+        cli.main([*cli_case, '--dry-run', '--json'])
     value = json.loads(capsys.readouterr().out)
     assert 'Plan intramolecular bond formation or breaking' in value['plan']['stages']
     assert 'Relax the scanned endpoint without constraints' in value['plan']['stages']
@@ -98,7 +98,7 @@ def test_legacy_single_input_does_not_require_fragment_orientation_count(cli_cas
 def test_single_input_invalid_requests_do_not_start(cli_case, options):
     with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run:
         with pytest.raises(SystemExit):
-            modern_cli.main([*cli_case, *options])
+            cli.main([*cli_case, *options])
     run.assert_not_called()
 
 

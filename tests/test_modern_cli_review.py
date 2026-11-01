@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from pyar import modern_cli
+from pyar import cli
 from pyar.run_config import (PROFILE_KIND, RUN_CONFIG_KIND, arguments_from_profile,
                              load_toml_document, resolve_run_spec, write_toml_document)
-from pyar.scripts import modern_grow
+from pyar.scripts import grow
 from pyar.workflow_results import GrowResult
 
 
@@ -27,17 +27,17 @@ def result(request, *, output):
 
 
 def test_saved_check_config_executes_and_cli_overrides_edited_values(fragments, capsys):
-    modern_cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
+    cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
     config = load_toml_document('run.toml', RUN_CONFIG_KIND)
     assert '--check' not in config['arguments']
     assert config['effective']['multiplicity'] == [1, 1]
     config['effective']['count'] = 2
     write_toml_document('edited.toml', kind=RUN_CONFIG_KIND, workflow='grow',
                         arguments=config['arguments'], effective=config['effective'])
-    with patch.object(modern_grow, 'grow', side_effect=result) as engine:
-        modern_cli.main(['run', 'edited.toml'])
+    with patch.object(grow, 'grow', side_effect=result) as engine:
+        cli.main(['run', 'edited.toml'])
         assert engine.call_args.args[0].count == 2
-        modern_cli.main(['run', 'edited.toml', '--count', '3'])
+        cli.main(['run', 'edited.toml', '--count', '3'])
         assert engine.call_args.args[0].count == 3
     records = list(Path('.pyar/runs').glob('*/pyar-run.toml'))
     assert len(records) == 2
@@ -50,8 +50,8 @@ def test_saved_check_config_executes_and_cli_overrides_edited_values(fragments, 
 
 def test_dry_run_json_has_actual_resolved_backend_and_no_writes(fragments, capsys):
     before = set(Path('.').iterdir())
-    with patch.object(modern_grow, 'preflight', return_value=['xtb']), patch.object(modern_grow, 'grow') as engine:
-        modern_cli.main(['grow', *fragments, '--count', '2', '--backend', 'xtb', '--dry-run', '--json'])
+    with patch.object(grow, 'preflight', return_value=['xtb']), patch.object(grow, 'grow') as engine:
+        cli.main(['grow', *fragments, '--count', '2', '--backend', 'xtb', '--dry-run', '--json'])
     value = json.loads(capsys.readouterr().out)
     backend = value['resolved']['scientific']['backend']
     assert backend['software'] == 'xtb'
@@ -64,23 +64,23 @@ def test_dry_run_json_has_actual_resolved_backend_and_no_writes(fragments, capsy
 
 
 def test_xtb_config_replays_without_injecting_unsupported_settings(fragments, capsys):
-    with patch.object(modern_grow, 'preflight', return_value=['xtb']):
-        modern_cli.main(['grow', *fragments, '--count', '2', '--backend', 'xtb', '--check', '--write-config', 'xtb.toml'])
-        modern_cli.main(['run', 'xtb.toml', '--check', '--json'])
+    with patch.object(grow, 'preflight', return_value=['xtb']):
+        cli.main(['grow', *fragments, '--count', '2', '--backend', 'xtb', '--check', '--write-config', 'xtb.toml'])
+        cli.main(['run', 'xtb.toml', '--check', '--json'])
     assert json.loads(capsys.readouterr().out.split('Ready to run.\n--check specified; no calculations were performed.\n')[-1])['status'] == 'ready'
 
 
 def test_preflight_failure_writes_neither_config_nor_run_record(fragments):
-    with patch.object(modern_grow, 'preflight', side_effect=ValueError('missing xtb')), pytest.raises(SystemExit):
-        modern_cli.main(['grow', *fragments, '--count', '1', '--backend', 'xtb', '--write-config', 'invalid.toml'])
+    with patch.object(grow, 'preflight', side_effect=ValueError('missing xtb')), pytest.raises(SystemExit):
+        cli.main(['grow', *fragments, '--count', '1', '--backend', 'xtb', '--write-config', 'invalid.toml'])
     assert not Path('invalid.toml').exists()
     assert not Path('.pyar').exists()
     assert not Path('grow').exists()
 
 
 def test_failure_after_start_is_recorded_even_for_parser_exit(fragments):
-    with patch.object(modern_grow, 'grow', side_effect=ValueError('backend failed')), pytest.raises(SystemExit):
-        modern_cli.main(['grow', *fragments, '--count', '1'])
+    with patch.object(grow, 'grow', side_effect=ValueError('backend failed')), pytest.raises(SystemExit):
+        cli.main(['grow', *fragments, '--count', '1'])
     path = next(Path('.pyar/runs').glob('*/pyar-run.toml'))
     record = load_toml_document(path, 'pyar-run-record')
     assert record['metadata']['status'] == 'failed'
@@ -108,7 +108,7 @@ def test_boolean_profile_required_options_and_cli_precedence():
 
 def test_option_values_after_delimiter_are_preserved(fragments, capsys):
     Path('--verbose').write_text('1\nenergy=-1\nHe 0 0 0\n')
-    modern_cli.main(['energies', '--json', '--', '--verbose'])
+    cli.main(['energies', '--json', '--', '--verbose'])
     assert json.loads(capsys.readouterr().out)['minimum'] == '--verbose'
 
 
@@ -116,21 +116,21 @@ def test_profile_list_is_read_only_and_creation_refuses_overwrite(fragments, mon
     from pyar.run_config import RUN_RECORD_KIND
 
     monkeypatch.setenv('XDG_CONFIG_HOME', str(Path('settings').resolve()))
-    modern_cli.main(['profile', 'list'])
+    cli.main(['profile', 'list'])
     assert not Path('settings').exists()
     record = 'record.toml'
     write_toml_document(record, kind='pyar-run-record', workflow='grow', arguments=[],
                         effective={'count': 2, 'orientations': 8})
-    modern_cli.main(['profile', 'create', 'careful', '--from', record])
+    cli.main(['profile', 'create', 'careful', '--from', record])
     target = Path('settings/pyar/profiles/careful.toml')
     before = target.read_bytes()
     with pytest.raises(SystemExit):
-        modern_cli.main(['profile', 'create', 'careful', '--from', record])
+        cli.main(['profile', 'create', 'careful', '--from', record])
     assert target.read_bytes() == before
     source = load_toml_document(record, RUN_RECORD_KIND)
     write_toml_document(record, kind=RUN_RECORD_KIND, workflow='grow', arguments=[],
                         effective={**source['effective'], 'count': 3}, overwrite=True)
-    modern_cli.main(['profile', 'create', 'careful', '--from', record, '--force'])
+    cli.main(['profile', 'create', 'careful', '--from', record, '--force'])
     assert load_toml_document(target, PROFILE_KIND)['effective']['count'] == 3
 
 
@@ -141,13 +141,13 @@ def test_config_force_is_the_only_overwrite_path(tmp_path):
     target = tmp_path / 'saved.toml'
     write_toml_document(record, kind=RUN_RECORD_KIND, workflow='grow', arguments=[],
                         effective={'count': 2})
-    modern_cli.main(['config', 'create', '--from', str(record), '--output', str(target)])
+    cli.main(['config', 'create', '--from', str(record), '--output', str(target)])
     with pytest.raises(SystemExit):
-        modern_cli.main(['config', 'create', '--from', str(record), '--output', str(target)])
+        cli.main(['config', 'create', '--from', str(record), '--output', str(target)])
     source = load_toml_document(record, RUN_RECORD_KIND)
     write_toml_document(record, kind=RUN_RECORD_KIND, workflow='grow', arguments=[],
                         effective={**source['effective'], 'count': 3}, overwrite=True)
-    modern_cli.main(['config', 'create', '--from', str(record), '--output', str(target), '--force'])
+    cli.main(['config', 'create', '--from', str(record), '--output', str(target), '--force'])
     assert load_toml_document(target, RUN_CONFIG_KIND)['effective']['count'] == 3
 
 
@@ -185,8 +185,8 @@ def test_no_abbreviation_can_override_profile_by_accident():
 
 
 def test_json_run_contains_result_without_console_exit_object(fragments, capsys):
-    with patch.object(modern_grow, 'grow', side_effect=result):
-        assert modern_cli.main(['grow', *fragments, '--count', '2', '--json']) is None
+    with patch.object(grow, 'grow', side_effect=result):
+        assert cli.main(['grow', *fragments, '--count', '2', '--json']) is None
     streams = capsys.readouterr()
     value = json.loads(streams.out)
     assert value['result']['status'] == 'completed'
@@ -197,17 +197,17 @@ def test_verbosity_does_not_leak_between_calls(fragments):
     import logging
     logger = logging.getLogger('pyar')
     old_level, old_handlers = logger.level, list(logger.handlers)
-    modern_cli.main(['-vv', 'grow', *fragments, '--count', '1', '--check'])
+    cli.main(['-vv', 'grow', *fragments, '--count', '1', '--check'])
     assert logger.level == old_level and logger.handlers == old_handlers
 
 
 def test_editable_toml_and_validation_reject_scientific_errors(fragments, capsys):
-    modern_cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
+    cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
     text = Path('run.toml').read_text()
     assert '[settings]' in text
     Path('run.toml').write_text(text.replace('"count" = 1', '"count" = 0'))
-    with patch.object(modern_grow, 'grow') as engine, pytest.raises(SystemExit):
-        modern_cli.main(['config', 'validate', 'run.toml'])
+    with patch.object(grow, 'grow') as engine, pytest.raises(SystemExit):
+        cli.main(['config', 'validate', 'run.toml'])
     engine.assert_not_called()
     assert not Path('grow').exists()
 
@@ -220,33 +220,33 @@ def test_latest_run_record_and_backend_detail(tmp_path, capsys):
         write_toml_document(tmp_path / name, kind=RUN_RECORD_KIND, workflow='grow', arguments=[], metadata={'status': status})
     os.utime(tmp_path / 'pyar-run.toml', ns=(1, 1))
     assert _load_run_record(tmp_path)['metadata']['status'] == 'completed'
-    modern_cli.main(['backends', 'xtb', '--json'])
+    cli.main(['backends', 'xtb', '--json'])
     value = json.loads(capsys.readouterr().out)
     assert list(value['backends']) == ['xtb']
     assert 'availability' in value['backends']['xtb']
 
 
 def test_quiet_run_config_does_not_restore_progress(fragments, capsys):
-    modern_cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
+    cli.main(['grow', *fragments, '--count', '1', '--check', '--write-config', 'run.toml'])
     capsys.readouterr()
-    with patch.object(modern_grow, 'grow', side_effect=result):
-        modern_cli.main(['run', 'run.toml', '--quiet'])
+    with patch.object(grow, 'grow', side_effect=result):
+        cli.main(['run', 'run.toml', '--quiet'])
     assert capsys.readouterr().out == ''
 
 
 def test_formula_profile_can_be_reused_with_new_building_blocks(tmp_path, monkeypatch, capsys):
-    from pyar.scripts import modern_aggregate
+    from pyar.scripts import aggregate
     from pyar.run_config import RUN_RECORD_KIND, profile_path
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path / 'config'))
-    original = vars(modern_aggregate.build_parser().parse_args(['--formula', 'He2']))
+    original = vars(aggregate.build_parser().parse_args(['--formula', 'He2']))
     write_toml_document('record.toml', kind=RUN_RECORD_KIND, workflow='aggregate',
                         arguments=['--formula', 'He2'], effective=original)
-    modern_cli.main(['profile', 'create', 'geometry', '--from', 'record.toml'])
+    cli.main(['profile', 'create', 'geometry', '--from', 'record.toml'])
     profile = load_toml_document(profile_path('geometry'), PROFILE_KIND)
     assert 'formula' not in profile['effective']
-    with patch.object(modern_aggregate, 'aggregate') as engine:
-        modern_cli.main(['aggregate', 'Ne', '--size', '2', '--profile', 'geometry', '--check'])
+    with patch.object(aggregate, 'aggregate') as engine:
+        cli.main(['aggregate', 'Ne', '--size', '2', '--profile', 'geometry', '--check'])
     engine.assert_not_called()
     assert 'Ready to run.' in capsys.readouterr().out
     assert not Path('aggregates').exists()
@@ -264,9 +264,9 @@ def test_profiles_exclude_analysis_artifact_paths():
 
 
 def test_saved_reaction_config_freezes_resolved_protocol(fragments, capsys):
-    from pyar.scripts import modern_react
-    with patch.object(modern_react, 'preflight_reaction', return_value=[]):
-        modern_cli.main(['react', *fragments, '--backend', 'xtb', '--bias-max', '100',
+    from pyar.scripts import react
+    with patch.object(react, 'preflight_reaction', return_value=[]):
+        cli.main(['react', *fragments, '--backend', 'xtb', '--bias-max', '100',
                          '--check', '--write-config', 'reaction.toml'])
         saved = load_toml_document('reaction.toml', RUN_CONFIG_KIND)
         effective = saved['effective']
@@ -275,16 +275,16 @@ def test_saved_reaction_config_freezes_resolved_protocol(fragments, capsys):
         assert effective['bias_potential'] == 'afir'
         assert effective['release_retry_limit'] is not None
         # Explicit frozen defaults must be accepted by the canonical resolver.
-        modern_cli.main(['run', 'reaction.toml', '--check'])
+        cli.main(['run', 'reaction.toml', '--check'])
     assert not Path('reaction').exists()
 
 
 def test_saved_growth_config_freezes_xtb_model_and_optimizer(fragments):
-    with patch.object(modern_grow, 'preflight', return_value=[]):
-        modern_cli.main(['grow', *fragments, '--count', '1', '--backend', 'xtb',
+    with patch.object(grow, 'preflight', return_value=[]):
+        cli.main(['grow', *fragments, '--count', '1', '--backend', 'xtb',
                          '--check', '--write-config', 'grow.toml'])
         effective = load_toml_document('grow.toml', RUN_CONFIG_KIND)['effective']
         assert effective['geometry_optimizer'] == 'native'
         assert effective['xtb_model'] == 'gfn2'
         assert effective['scf_threshold'] is None
-        modern_cli.main(['run', 'grow.toml', '--check'])
+        cli.main(['run', 'grow.toml', '--check'])

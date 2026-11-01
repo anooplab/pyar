@@ -52,7 +52,6 @@ WORKFLOW_MODULES = {
     "aggregate": _SELECTION,
     "grow": _SELECTION,
     "microsolvate": _SELECTION,
-    "solvate": _SELECTION,
     "conformer": ("rdkit",),
     "reaction": (*_SELECTION, "geometric"),
     "react": (*_SELECTION, "geometric"),

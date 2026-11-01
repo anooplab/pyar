@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from pyar.modern_cli import main
+from pyar.cli import main
 from pyar.selection.reports import HARTREE_TO_KCAL_MOL
 from pyar.structure_inspection import compare_structures
 from pyar.structure_comparison.models import ComparisonResult

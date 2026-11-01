@@ -33,7 +33,7 @@ def test_real_generation_selection_bytes_and_scientific_metadata_match(runs):
     assert len({row['conformer_id'] for row in generated}) == len(generated)
     assert all(row['rdkit_energy_record']['unit'] == 'kcal/mol' for row in generated)
     assert all(row['backend_energy_record'] is None for row in generated)
-    assert not (Path(old.run_directory) / 'layout.json').exists()
+    assert (Path(old.run_directory) / 'layout.json').exists()
     assert len(selected_artifacts(root)) == len(new.selected_paths)
 
 

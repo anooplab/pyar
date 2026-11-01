@@ -17,3 +17,20 @@ pyar-optimiser.log
 pyar-react.log
 pyar_explore.log
 AGEMTS.md
+
+# Local calculations, private reports and generated build evidence
+/reports/
+/.crapkit/
+/crapkit.toml
+/.pyar_optimization_diagnostics/
+/trial_*.xyz
+/job_*/
+/docs/_build/
+/build/
+/dist/
+/pyar_chem.egg-info/
+/.pytest_cache/
+/.ruff_cache/
+/.coverage*
+/benchmarks/clustering_scientific/runs/
+/benchmarks/clustering_scientific/review_20261002/

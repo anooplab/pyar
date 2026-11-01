@@ -48,23 +48,6 @@ def test_adaptive_initialization_uses_bias_max_as_single_schedule(tmp_path, monk
     assert state.data["gamma_schedule"] == [300.0]
 
 
-def test_main_cli_dispatches_adaptive_without_bias_min(monkeypatch):
-    import pyar.cli as cli
-
-    workflow = Mock()
-    cli_result = Mock(status="completed")
-    workflow.react.return_value = cli_result
-    monkeypatch.setattr(cli, "_log_workflow_result", Mock())
-    cli._run_reaction_workflow(
-        workflow,
-        {"bias_min": None, "bias_max": 300.0, "bias_controller": "adaptive"},
-        [object(), object()],
-        1,
-        {"software": "xtb"},
-        None,
-    )
-
-    assert workflow.react.call_args.args[2:4] == (None, 300.0)
 
 
 def test_adaptive_reaction_runs_one_named_cycle(tmp_path, monkeypatch):

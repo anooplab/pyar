@@ -1,7 +1,6 @@
 """Tests for structured reaction restart state."""
 
 import json
-import pickle
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,7 +8,8 @@ from pathlib import Path
 import numpy as np
 
 from pyar.core.molecule import Molecule
-from pyar.reaction_state import ReactionRunState, ReactionStateError, read_legacy_checkpoint
+from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
+from pyar.state.reaction import ReactionStateError
 from pyar.workflows import reaction as reaction_workflow
 
 
@@ -58,7 +58,7 @@ class ReactionRunStateTests(unittest.TestCase):
             with state.state_file.open() as fp:
                 raw_state = json.load(fp)
 
-        self.assertEqual(raw_state["version"], 2)
+        self.assertEqual(raw_state["workflow_state_schema_version"], 3)
         self.assertEqual(raw_state["gamma_schedule"], [100.0, 200.0])
         self.assertEqual(raw_state["sampling"], self.sampling)
         self.assertEqual(molecule.fragments, [[0], [1]])
@@ -92,51 +92,7 @@ class ReactionRunStateTests(unittest.TestCase):
             with self.assertRaisesRegex(ReactionStateError, "does not match"):
                 ReactionRunState.load(tmpdir, changed)
 
-    def test_load_accepts_missing_legacy_xtb_model_as_gxtb(self):
-        legacy_request = {**self.request, "backend_parameters": {"software": "xtb"}}
-        explicit_request = {
-            **legacy_request,
-            "backend_parameters": {"software": "xtb", "xtb_model": "gxtb"},
-        }
-        with tempfile.TemporaryDirectory() as tmpdir:
-            state = ReactionRunState.create(
-                tmpdir,
-                legacy_request,
-                [self.orientation],
-                (self.reactant_a, self.reactant_b),
-            )
 
-            resumed = ReactionRunState.load(tmpdir, explicit_request)
-
-            self.assertNotIn("xtb_model", resumed.data["request"]["backend_parameters"])
-            with state.state_file.open() as fp:
-                self.assertNotIn("xtb_model", json.load(fp)["request"]["backend_parameters"])
-
-            changed_model = {
-                **explicit_request,
-                "backend_parameters": {"software": "xtb", "xtb_model": "gfn2"},
-            }
-            with self.assertRaisesRegex(ReactionStateError, "does not match"):
-                ReactionRunState.load(tmpdir, changed_model)
-
-            changed_schedule = {**explicit_request, "gamma_schedule": [100.0, 300.0]}
-            with self.assertRaisesRegex(ReactionStateError, "does not match"):
-                ReactionRunState.load(tmpdir, changed_schedule)
-
-    def test_load_does_not_assume_gxtb_for_other_backends(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            ReactionRunState.create(
-                tmpdir,
-                self.request,
-                [self.orientation],
-                (self.reactant_a, self.reactant_b),
-            )
-            changed = {
-                **self.request,
-                "backend_parameters": {"software": "xtb_turbo", "xtb_model": "gxtb"},
-            }
-            with self.assertRaisesRegex(ReactionStateError, "does not match"):
-                ReactionRunState.load(tmpdir, changed)
 
     def test_record_job_and_complete_cycle_are_persisted(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -222,7 +178,7 @@ class ReactionRunStateTests(unittest.TestCase):
 
         self.assertEqual(
             loaded.data["products"][0]["trace_summary"]["candidate_ts_directory"],
-            "reaction/candidate_ts",
+            "discovery/products/product_001/sources/reaction/candidate_ts",
         )
 
     def test_missing_geometry_snapshot_reports_restart_state_error(self):
@@ -238,46 +194,12 @@ class ReactionRunStateTests(unittest.TestCase):
             pending_path = state.reaction_directory / state.data["pending_orientations"][0]["path"]
             pending_path.unlink()
 
-            with self.assertLogs("pyar.molecule", level="ERROR"):
-                with self.assertRaisesRegex(ReactionStateError, "Could not restore reaction geometry snapshot"):
-                    state.pending_molecules()
+            with self.assertRaisesRegex(ReactionStateError, "Invalid reaction snapshot"):
+                state.pending_molecules()
 
-    def test_legacy_import_maps_unambiguous_remaining_schedule(self):
-        legacy = {"0200": [self.orientation]}
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "reaction").mkdir()
-            state = ReactionRunState.migrate_legacy(
-                tmpdir,
-                legacy,
-                self.request,
-                sampling=self.sampling,
-            )
 
-        self.assertEqual(state.data["current_cycle"], 1)
-        self.assertEqual(state.remaining_gamma_schedule(), [200.0])
-        self.assertEqual(state.data["sampling"], self.sampling)
 
-    def test_legacy_import_rejects_collapsed_fractional_schedule(self):
-        request = {**self.request, "gamma_schedule": [0.1, 0.2]}
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "reaction").mkdir()
-            with self.assertRaisesRegex(ReactionStateError, "cannot be safely resumed"):
-                ReactionRunState.migrate_legacy(tmpdir, {"0000": [self.orientation]}, request)
 
-    def test_read_legacy_checkpoint_rejects_empty_state(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with Path(tmpdir, "jobs.pkl").open("wb") as fp:
-                pickle.dump({}, fp)
-
-            with self.assertRaisesRegex(ReactionStateError, "has no pending state"):
-                read_legacy_checkpoint(tmpdir)
-
-    def test_read_legacy_checkpoint_wraps_invalid_pickle_errors(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            Path(tmpdir, "jobs.pkl").write_bytes(b"not a pickle")
-
-            with self.assertRaisesRegex(ReactionStateError, "Could not read legacy reaction checkpoint"):
-                read_legacy_checkpoint(tmpdir)
 
 
 def test_reaction_product_decisions_use_explicit_run_registry():

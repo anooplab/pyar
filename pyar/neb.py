@@ -669,10 +669,9 @@ def _physical_settings(calculator):
 
 
 def _save_stage(output, stage, result, calculator, inputs, artifacts, dependencies=(), parameters=None):
-    result = dict(result, stage=stage, status="complete", schema_version=2,
+    result = dict(result, stage=stage, status="complete", schema_version=2, pyar_series="1.6",
                   qc_params=_physical_settings(calculator), dependencies=list(dependencies))
     result["parameters"] = dict(parameters or {})
-    result["legacy_parameters_unverified"] = False
     result["dependency_hashes"] = {
         dependency: _hash(output / f"{dependency}_summary.json") for dependency in dependencies
     }
@@ -693,19 +692,6 @@ def _validate_stage_backend(result, stage, calculator):
     """Check physical settings, including historical xTB provenance."""
     recorded_qc_params = result.get("qc_params", {})
     requested_qc_params = _physical_settings(calculator)
-    # Prior schema-2 xTB stages always ran the hard-coded --gxtb command.
-    # Preserve their reuse under the historical default while distinguishing
-    # them from explicitly requested GFN2-xTB stages.
-    if str(recorded_qc_params.get("software", "")).lower() == "xtb":
-        # Method/basis values appeared in pre-PR25 summaries even though the
-        # provider never used them. Normalize them away so compatible GFN2 and
-        # historical g-xTB artifacts remain reusable after provenance cleanup.
-        recorded_qc_params = dict(recorded_qc_params)
-        recorded_qc_params.pop("method", None)
-        recorded_qc_params.pop("basis", None)
-        if ("xtb_model" not in recorded_qc_params
-                and result.get("backend_model") == "g-xTB (--gxtb)"):
-            recorded_qc_params["xtb_model"] = "gxtb"
     if recorded_qc_params != requested_qc_params:
         raise ValueError(f"Stage {stage} used different backend or electronic-structure settings")
 
@@ -733,7 +719,7 @@ def _validate_stage_parameters(result, stage, expected_parameters, expected_geod
 
 def _load_stage(output, stage, calculator, visited=None, *,
                 expected_parameters=None, expected_by_stage=None,
-                reuse_legacy_summaries=False, expected_geodesic_version=None):
+                expected_geodesic_version=None):
     """Validate a stage, optionally migrating verified schema-1 summaries."""
     visited = set() if visited is None else visited
     if stage in visited:
@@ -744,14 +730,8 @@ def _load_stage(output, stage, calculator, visited=None, *,
         raise ValueError(f"Run --stage {stage} first; missing {path.name}")
     result = json.loads(path.read_text())
     schema_version = result.get("schema_version")
-    if result.get("status") != "complete" or schema_version not in {1, 2}:
+    if result.get("status") != "complete" or schema_version != 2 or result.get("pyar_series") != "1.6":
         raise ValueError(f"Stage {stage} is incomplete; rerun it")
-    if schema_version == 1 and not reuse_legacy_summaries:
-        raise ValueError(
-            f"Stage {stage} uses a legacy summary without stage-parameter provenance. "
-            "Pass --reuse-legacy-summaries to verify its artifacts and reuse it, "
-            "or rerun the stage."
-        )
     _validate_stage_backend(result, stage, calculator)
     for group in ("inputs", "artifacts"):
         for filename, digest in result[group].items():
@@ -768,7 +748,6 @@ def _load_stage(output, stage, calculator, visited=None, *,
             output, dependency, calculator, visited,
             expected_parameters=(expected_by_stage or {}).get(dependency),
             expected_by_stage=expected_by_stage,
-            reuse_legacy_summaries=(reuse_legacy_summaries or schema_version == 1),
             expected_geodesic_version=expected_geodesic_version,
         )
         # A schema-1 dependency may have been migrated during recursive
@@ -779,22 +758,7 @@ def _load_stage(output, stage, calculator, visited=None, *,
             raise ValueError(f"Stale {stage} dependency: {dependency}; rerun {stage}")
         if not _stage_gate_passed(upstream, dependency):
             raise ValueError(f"Stage {stage} depends on scientifically invalid {dependency}; rerun that stage")
-    if schema_version == 1:
-        # Legacy records have strong hashes for their numerical files and
-        # methods, but no stage-option record. Preserve that uncertainty rather
-        # than claiming the current CLI options produced these artifacts.
-        result.update(
-            schema_version=2,
-            parameters=None,
-            legacy_parameters_unverified=True,
-            legacy_reuse_authorized=True,
-            dependency_hashes={
-                dependency: _hash(output / f"{dependency}_summary.json")
-                for dependency in result["dependencies"]
-            },
-        )
-        _write_json(path, result)
-    elif expected_parameters is not None and not result.get("legacy_parameters_unverified"):
+    if expected_parameters is not None:
         _validate_stage_parameters(result, stage, expected_parameters, expected_geodesic_version)
     return result
 
@@ -1384,7 +1348,6 @@ def _execute_stage(stage, output, calculator, options):
             output, stage_name, calculator,
             expected_parameters=expected_by_stage[stage_name],
             expected_by_stage=expected_by_stage,
-            reuse_legacy_summaries=options["reuse_legacy_summaries"],
             expected_geodesic_version=options.get("geodesic_interpolate_version"),
         )
 
@@ -1685,7 +1648,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                           product_relaxation_max_steps=200, ts_max_cycles=200,
                           irc_max_cycles=200, imaginary_frequency_threshold=20.0,
                           irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
-                          endpoint_max_cycles=300, reuse_legacy_summaries=False,
+                          endpoint_max_cycles=300,
                           interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
                           geodesic_tol=0.002, geodesic_max_iter=15,
                           ts_optimizer="geometric", ts_fmax=None, sella_fmax=0.05,
@@ -1745,10 +1708,6 @@ def run_neb(start=None, end=None, ts_guess=None, **kwargs):
 def _build_parser():
     parser = argparse.ArgumentParser(prog="pyar-neb", description="Run unbiased geomeTRIC reaction-path stages.")
     parser.add_argument("--stage", choices=("all",) + STAGES + _SPLIT_ENDPOINT_STAGES, default="all")
-    parser.add_argument(
-        "--reuse-legacy-summaries", action="store_true",
-        help="verify and reuse schema-1 stage files; their original stage options were not recorded",
-    )
     parser.add_argument("--start", help="Reactant XYZ for all/relax")
     parser.add_argument("--end", help="Product XYZ for all/relax")
     parser.add_argument("--ts-guess", help="NEB waypoint for all/neb, or explicit guess for ts")
@@ -1811,7 +1770,7 @@ def main(argv=None):
     try:
         args = parser.parse_args(argv)
         from pyar.dependencies import require_workflow
-        from pyar.cli import _preflight_cli_requirements
+        from pyar.cli_validation import _preflight_cli_requirements
         require_workflow("neb")
         _preflight_cli_requirements("neb", args.software, "geometric")
         result = run_neb(**vars(args))

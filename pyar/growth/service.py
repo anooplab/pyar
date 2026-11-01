@@ -25,14 +25,13 @@ from pyar.optimiser import is_cycle_exceeded, is_success, optimise
 from pyar.backend_errors import BackendExecutionError
 from pyar.optimization_service import optimize_workflow_once
 from pyar.structure_comparison.coordinate_graph import analyze_growth_transition
-from pyar.workflow_results import AggregateResult, ReactionResult, SolvationResult
+from pyar.workflow_results import AggregateResult, ReactionResult
 
 aggregator_logger = logging.getLogger("pyar.workflows.aggregate")
 
 _WORKFLOW_RESULTS = {
     "aggregate": AggregateResult,
     "reaction": ReactionResult,
-    "solvation": SolvationResult,
 }
 
 _CONNECTIVITY_POLICIES = {"off", "prefer", "strict"}

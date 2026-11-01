@@ -39,7 +39,7 @@ def test_real_science_preserves_source_order_names_groups_and_geometry(tmp_path,
     select_pathways = workflow.select_pathways
     monkeypatch.setattr(workflow, 'select_pathways', lambda *args:
                         sorted(select_pathways(*args), key=workflow._format_path))
-    old = run(workflow._aggregate_v1, tmp_path / 'old')
+    old = run(workflow.aggregate, tmp_path / 'old')
     new = run(workflow.aggregate, tmp_path / 'new')
     assert old.status == new.status == 'completed'
     assert old.metadata['pathways'] == new.metadata['pathways']
@@ -50,7 +50,7 @@ def test_real_science_preserves_source_order_names_groups_and_geometry(tmp_path,
     assert len(manifest['artifacts']) == len(old.selected_paths)
     for artifact, raw in zip(manifest['artifacts'], old_bytes):
         assert (Path(new.run_directory) / artifact['path']).read_bytes() == raw
-    assert not (Path(old.run_directory) / 'layout.json').exists()
+    assert (Path(old.run_directory) / 'layout.json').exists()
     with workflow._working_directory(tmp_path / 'new'):
         with pytest.raises(AggregateStateError, match='already'):
             workflow.aggregate(inputs(), [1,2], 4, {}, 2, 0, 2, None,
@@ -89,8 +89,10 @@ def test_legacy_fixture_resumes_original_state_without_conversion(tmp_path):
     for molecule in molecules:
         molecule.fragments = [0]
     with workflow._working_directory(root), patch.object(workflow, 'add_one', return_value=[]) as engine:
-        result = workflow.aggregate(molecules, [1,1], 2, {'software':None}, 2, 0, 2, None)
-    assert result.status == 'completed' and engine.call_count == 1
+        from pyar.persistence import LayoutError
+        with pytest.raises(LayoutError, match='original PyAR'):
+            workflow.aggregate(molecules, [1,1], 2, {'software':None}, 2, 0, 2, None)
+    assert engine.call_count == 0
     assert not (root / 'aggregates/layout.json').exists()
 
 

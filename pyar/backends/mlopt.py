@@ -5,8 +5,8 @@ import argparse
 from pyar.optional_dependencies import optional_dependency_error
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Optimize a molecule using a specified model.')
+def main(argv=None, *, prog=None):
+    parser = argparse.ArgumentParser(prog=prog, description='Optimize a molecule using a specified model.')
     parser.add_argument('input_molecule', metavar='input_molecule', type=str,
                         help='the path to the input molecule file')
     parser.add_argument('-c', '--charge', type=int, default=0,
@@ -15,7 +15,7 @@ def main():
                         help='the multiplicity of the molecule')
     parser.add_argument('final_molecule', metavar='final_molecule', type=str,
                         help='the path to the final molecule file')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         import mlatom as ml

@@ -15,7 +15,7 @@ from pyar.persistence import (ArtifactRef, ArtifactError, RunLayout, RunLock, Lo
 
 def authorities(root, workflow="grow", run_id=None):
     run_id = run_id or str(uuid4())
-    write_json(root / "layout.json", {"format": "pyar-run-layout", "layout_version": 2,
+    write_json(root / "layout.json", {"format": "pyar-run-layout", "layout_version": 2, "pyar_series": "1.6",
                                       "workflow": workflow, "run_id": run_id})
     if workflow != "conformer":
         write_json(root / "request.json", {"request_schema_version": 1,
@@ -131,11 +131,9 @@ def test_legacy_detection_delegates_and_never_migrates(tmp_path):
     before = path.read_bytes()
     with pytest.raises(LayoutError, match="unrecognized"):
         detect_version(tmp_path, "scan-bond")
-    assert detect_version(tmp_path, "scan-bond", validate_v1=lambda root:
-                          read_json(root / "request.json")["request_signature"] == "legacy scan") == 1
     assert path.read_bytes() == before and not (tmp_path / "layout.json").exists()
     path.unlink()
-    write_json(tmp_path / "layout.json", {"format": "pyar-run-layout", "layout_version": 2,
+    write_json(tmp_path / "layout.json", {"format": "pyar-run-layout", "layout_version": 2, "pyar_series": "1.6",
                                          "workflow": "grow", "run_id": str(uuid4())})
     with pytest.raises(LayoutError, match="incomplete"):
         detect_version(tmp_path, "grow")

@@ -10,30 +10,11 @@ from unittest import mock
 import numpy as np
 
 from pyar.core.molecule import Molecule
-from pyar.reaction_state import ReactionStateError
+from pyar.state.reaction import ReactionStateError
 from pyar.workflow_results import ReactionResult
 
 
 class StandaloneWorkflowScriptTests(unittest.TestCase):
-    def test_react_rejects_zero_beta_before_starting_workflow(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.react")
-                arguments = SimpleNamespace(softmin_beta=0., input_files=["a.xyz", "b.xyz"])
-                with mock.patch.object(script, "argument_parse", return_value=arguments), \
-                        mock.patch.object(script.reaction_workflow, "react") as react:
-                    with self.assertRaisesRegex(SystemExit, "finite positive"):
-                        script.main()
-                react.assert_not_called()
-                with mock.patch.object(sys, "argv", ["pyar-react", "a.xyz", "b.xyz", "-N", "1",
-                                                     "--software", "xtb", "--softmin-beta", "0"]):
-                    with self.assertRaises(SystemExit) as error:
-                        script.argument_parse()
-                    self.assertEqual(error.exception.code, 2)
-            finally:
-                os.chdir(cwd)
 
     def _import_in_tempdir(self, module_name):
         sys.modules.pop(module_name, None)
@@ -62,266 +43,14 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         generator.assert_called_once_with(1, sequence_offset=3)
         self.assertIs(result, merged)
 
-    def test_react_uses_current_reactor_signature(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.react")
-                arguments = SimpleNamespace(
-                    input_files=["a.xyz", "b.xyz"],
-                    how_many_orientations="4",
-                    bias_min=0.1,
-                    bias_max=0.5,
-                    bias_potential="softmin",
-                    softmin_beta=2.5,
-                    bias_controller="adaptive",
-                    bias_alpha_min=0.001,
-                    bias_alpha_margin=0.002,
-                    bias_alpha_smoothing=1.0,
-                    bias_alpha_epsilon=1.0e-10,
-                    bias_scheduled_alpha=None,
-                    software="xtb",
-                    index=0,
-                )
-                with mock.patch.object(script, "argument_parse", return_value=arguments):
-                    with mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]):
-                        with mock.patch.object(script.reaction_workflow, "react") as react, \
-                             mock.patch('pyar.cli._preflight_cli_requirements') as preflight:
-                            script.main()
-            finally:
-                os.chdir(cwd)
 
-        react.assert_called_once()
-        preflight.assert_called_once_with('react', 'xtb', 'geometric')
-        self.assertEqual(len(react.call_args.args), 8)
-        self.assertEqual(react.call_args.args[-2:], (None, 2.3))
-        self.assertEqual(react.call_args.args[5]["softmin_beta"], 2.5)
-        self.assertEqual(react.call_args.args[5]["bias_controller"], "adaptive")
-        self.assertEqual(react.call_args.args[5]["bias_alpha_min"], 0.001)
-        self.assertEqual(react.call_args.args[5]["bias_alpha_margin"], 0.002)
-        self.assertEqual(react.call_args.args[5]["bias_alpha_smoothing"], 1.0)
-        self.assertEqual(react.call_args.args[5]["bias_alpha_epsilon"], 1.0e-10)
 
-    def test_react_reports_restart_state_error_cleanly(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.react")
-                arguments = SimpleNamespace(
-                    input_files=["a.xyz", "b.xyz"],
-                    how_many_orientations="4",
-                    bias_min=0.1,
-                    bias_max=0.5,
-                    bias_potential="afir",
-                    software="xtb",
-                    index=0,
-                )
-                with mock.patch.object(script, "argument_parse", return_value=arguments), \
-                    mock.patch('pyar.cli._preflight_cli_requirements'), \
-                    mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
-                    mock.patch.object(
-                        script.reaction_workflow,
-                        "react",
-                        side_effect=ReactionStateError("Restart geometry snapshot is unavailable"),
-                    ):
-                    with self.assertRaises(SystemExit) as context:
-                        script.main()
-            finally:
-                os.chdir(cwd)
 
-        self.assertEqual(str(context.exception), "Restart geometry snapshot is unavailable")
 
-    def test_react_selects_geometric_from_backend_capability(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.react")
-                arguments = SimpleNamespace(
-                    input_files=["a.xyz", "b.xyz"],
-                    how_many_orientations="4",
-                    bias_min=0.1,
-                    bias_max=0.5,
-                    bias_potential="afir",
-                    software="future_provider",
-                    geometry_optimizer=None,
-                    opt_target="minimum",
-                    index=0,
-                )
-                with mock.patch.object(script, "argument_parse", return_value=arguments), \
-                    mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
-                    mock.patch.object(script, "backend_supports_geometry_optimization", return_value=True) as supports, \
-                    mock.patch.object(script.reaction_workflow, "react") as react:
-                    script.main()
-            finally:
-                os.chdir(cwd)
 
-        supports.assert_called_once_with("future_provider")
-        self.assertEqual(react.call_args.args[5]["geometry_optimizer"], "geometric")
-        self.assertEqual(react.call_args.args[5]["method"], "BP86")
-        self.assertEqual(react.call_args.args[5]["basis"], "def2-SVP")
-        self.assertEqual(react.call_args.args[5]["scf_cycles"], 1000)
-        self.assertEqual(react.call_args.args[5]["nprocs"], 8)
 
-    def test_adaptive_reaction_rejects_backend_without_geometric_gradients(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.react")
-                arguments = SimpleNamespace(
-                    input_files=["a.xyz", "b.xyz"], how_many_orientations="1",
-                    bias_min=100.0, bias_max=100.0, bias_potential="afir",
-                    softmin_beta=1.0, bias_controller="adaptive", bias_alpha_min=None,
-                    bias_alpha_margin=None, bias_alpha_smoothing=None,
-                    bias_alpha_epsilon=None, bias_scheduled_alpha=None,
-                    software="mopac", geometry_optimizer=None, opt_target="minimum",
-                    method="PM7", basis="", scf_cycles=1000, nprocs=1, index=0,
-                )
-                with mock.patch.object(script, "argument_parse", return_value=arguments), \
-                        mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
-                        mock.patch.object(script.reaction_workflow, "react") as react:
-                    with self.assertRaisesRegex(SystemExit, "requires a registered Cartesian"):
-                        script.main()
-                react.assert_not_called()
-            finally:
-                os.chdir(cwd)
 
-    def test_conformer_script_calls_workflow(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.conformer")
-                result = SimpleNamespace(
-                    status="completed",
-                    run_directory=str(Path(tmpdir) / "conformers"),
-                    selected_paths=("conformers/selected/conf_0000.xyz",),
-                )
-                with mock.patch.object(script, "conformer_search", return_value=result) as search:
-                    script.main([
-                        "CCO",
-                        "--num-conformers", "5",
-                        "--top-n", "2",
-                        "--num-seeds", "3",
-                        "--backend-top-n", "7",
-                        "--diversity-fraction", "0.75",
-                        "--compactness-fraction", "0.25",
-                        "--prune-rms-threshold", "0.25",
-                        "--use-random-coords",
-                        "--torsion-rounds", "3",
-                        "--torsion-mode", "random",
-                        "--torsion-kicks-per-conformer", "6",
-                        "--torsion-max-bonds", "2",
-                        "--torsion-dedup-rms", "0.4",
-                    ])
-            finally:
-                os.chdir(cwd)
 
-        search.assert_called_once()
-        self.assertEqual(search.call_args.args[0], "CCO")
-        self.assertEqual(search.call_args.kwargs["num_conformers"], 5)
-        self.assertEqual(search.call_args.kwargs["top_n"], 2)
-        self.assertEqual(search.call_args.kwargs["num_seeds"], 3)
-        self.assertEqual(search.call_args.kwargs["backend_top_n"], 7)
-        self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.75)
-        self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.25)
-        self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
-        self.assertTrue(search.call_args.kwargs["use_random_coords"])
-        self.assertTrue(search.call_args.kwargs["torsion_kicks"])
-        self.assertEqual(search.call_args.kwargs["torsion_mode"], "random")
-        self.assertEqual(search.call_args.kwargs["torsion_rounds"], 3)
-        self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 6)
-        self.assertEqual(search.call_args.kwargs["torsion_max_bonds"], 2)
-        self.assertEqual(search.call_args.kwargs["torsion_dedup_rms"], 0.4)
-        self.assertIsNone(search.call_args.kwargs["qc_params"])
-
-    def test_conformer_script_uses_compact_defaults(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.conformer")
-                result = SimpleNamespace(
-                    status="completed",
-                    run_directory=str(Path(tmpdir) / "conformers"),
-                    selected_paths=("conformers/selected/conf_0000.xyz",),
-                )
-                with mock.patch.object(script, "conformer_search", return_value=result) as search:
-                    exit_code = script.main(["CCO"])
-            finally:
-                os.chdir(cwd)
-
-        self.assertIsNone(exit_code)
-        self.assertEqual(search.call_args.kwargs["num_seeds"], 5)
-        self.assertEqual(search.call_args.kwargs["diversity_fraction"], 0.2)
-        self.assertEqual(search.call_args.kwargs["compactness_fraction"], 0.2)
-        self.assertEqual(search.call_args.kwargs["rms_threshold"], 0.25)
-        self.assertTrue(search.call_args.kwargs["use_random_coords"])
-        self.assertTrue(search.call_args.kwargs["torsion_kicks"])
-        self.assertEqual(search.call_args.kwargs["torsion_mode"], "random")
-        self.assertEqual(search.call_args.kwargs["torsion_rounds"], 2)
-        self.assertEqual(search.call_args.kwargs["torsion_kicks_per_conformer"], 6)
-        self.assertEqual(search.call_args.kwargs["torsion_max_bonds"], 3)
-        self.assertEqual(search.call_args.kwargs["torsion_dedup_rms"], 0.5)
-
-    def test_conformer_script_can_disable_torsion_kicks(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.conformer")
-                result = SimpleNamespace(
-                    status="completed",
-                    run_directory=str(Path(tmpdir) / "conformers"),
-                    selected_paths=("conformers/selected/conf_0000.xyz",),
-                )
-                with mock.patch.object(script, "conformer_search", return_value=result) as search:
-                    script.main(["CCO", "--no-torsion-kicks"])
-            finally:
-                os.chdir(cwd)
-
-        self.assertFalse(search.call_args.kwargs["torsion_kicks"])
-
-    def test_conformer_script_preflights_backend_refinement(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.conformer")
-                result = SimpleNamespace(
-                    status="completed",
-                    run_directory=str(Path(tmpdir) / "conformers"),
-                    selected_paths=(),
-                )
-                with mock.patch("pyar.cli._preflight_cli_requirements") as preflight:
-                    with mock.patch.object(script, "conformer_search", return_value=result) as search:
-                        script.main(["CCO", "--software", "xtb"])
-            finally:
-                os.chdir(cwd)
-
-        preflight.assert_called_once_with("conformer", "xtb", "native")
-        self.assertEqual(search.call_args.kwargs["qc_params"]["software"], "xtb")
-
-    def test_conformer_script_reports_workflow_error_cleanly(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.conformer")
-                with mock.patch.object(
-                    script,
-                    "conformer_search",
-                    side_effect=script.ConformerWorkflowError("RDKit did not generate any conformers"),
-                ):
-                    with self.assertRaises(SystemExit) as context:
-                        script.main(["CCO"])
-            finally:
-                os.chdir(cwd)
-
-        self.assertEqual(str(context.exception), "RDKit did not generate any conformers")
 
     def test_reaction_trace_script_analyzes_and_plots(self):
         import json
@@ -412,35 +141,6 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
-    def test_react_rejects_geometric_backend_without_provider_before_run(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cwd = os.getcwd()
-            os.chdir(tmpdir)
-            try:
-                script = self._import_in_tempdir("pyar.scripts.react")
-                arguments = SimpleNamespace(
-                    input_files=["a.xyz", "b.xyz"],
-                    how_many_orientations="4",
-                    bias_min=0.1,
-                    bias_max=0.5,
-                    bias_potential="afir",
-                    software="mopac",
-                    geometry_optimizer="geometric",
-                    opt_target="minimum",
-                    index=0,
-                )
-                with mock.patch.object(script, "argument_parse", return_value=arguments), \
-                    mock.patch.object(script.Molecule, "from_xyz", side_effect=[object(), object()]), \
-                    mock.patch.object(script.reaction_workflow, "react") as react:
-                    with self.assertRaisesRegex(
-                        SystemExit,
-                        "does not expose Cartesian energy and gradients",
-                    ):
-                        script.main()
-            finally:
-                os.chdir(cwd)
-
-        react.assert_not_called()
 
     def test_reactor_handles_failed_optimization_without_copying_invalid_geometry(self):
         from pyar.workflows import reaction as reactor
@@ -677,7 +377,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             cwd = os.getcwd()
             os.chdir(tmpdir)
             try:
-                with self.assertRaisesRegex(ReactionStateError, "has no resumable state"):
+                with self.assertRaisesRegex(ReactionStateError, "unrecognized"):
                     reactor.initialize_reaction_run(
                         reactant_a,
                         reactant_b,

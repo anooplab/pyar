@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from pyar.core.molecule import Molecule
-from pyar.modern_cli import main
+from pyar.cli import main
 from pyar.structure_comparison.chemical_identity import (
     INSTALL_HINT, perceive_chemical_identity, resolve_charge,
 )

@@ -32,10 +32,10 @@ def _backend_qc_params(args):
     }
 
 
-def argument_parse(argv=None):
+def argument_parse(argv=None, *, prog=None):
     """Parse conformer benchmark CLI arguments."""
     parser = argparse.ArgumentParser(
-        prog="pyar-conformer-benchmark",
+        prog=prog or "pyar benchmark conformer",
         description="Benchmark pyar-conformer and classify missed-reference causes.",
     )
     parser.add_argument("benchmark", help="JSON conformer benchmark specification")
@@ -153,12 +153,12 @@ def _conformer_options(args):
     }
 
 
-def main(argv=None):
+def main(argv=None, *, prog=None):
     """Run conformer benchmark diagnosis from the command line."""
-    args = argument_parse(argv)
+    args = argument_parse(argv, prog=prog)
     qc_params = _backend_qc_params(args)
     if qc_params is not None:
-        from pyar.cli import _preflight_cli_requirements
+        from pyar.cli_validation import _preflight_cli_requirements
 
         _preflight_cli_requirements(
             "conformer-benchmark",

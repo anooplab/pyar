@@ -17,7 +17,7 @@ def _pair(values, label, count=2):
 
 
 def validate_inputs(args):
-    from pyar.cli import _infer_default_multiplicities, _validate_backend_spin_inputs
+    from pyar.cli_validation import _infer_default_multiplicities, _validate_backend_spin_inputs
     count = len(args.inputs)
     if count not in (1, 2):
         raise ValueError('Provide one molecule or two fragment XYZ files')

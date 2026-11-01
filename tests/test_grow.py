@@ -162,12 +162,13 @@ def test_invalid_spin():
 
 def test_nonempty_output_rejected(tmp_path):
     (tmp_path / 'unrelated').write_text('preserve')
-    with pytest.raises(GrowStateError, match='Non-empty'):
+    from pyar.persistence import LayoutError
+    with pytest.raises(LayoutError, match='unrecognized'):
         grow(GrowRequest(hydrogen(), hydrogen(), 1), output=tmp_path)
 
 
 def test_shared_engine_alias():
-    from pyar.workflows import _growth
+    from pyar.growth import service as _growth
     from pyar.growth import service
     assert _growth is service
     aggregate = importlib.import_module('pyar.workflows.aggregate')
@@ -181,16 +182,10 @@ def test_cli(tmp_path, monkeypatch, capsys):
     hydrogen('monomer').mol_to_xyz('monomer.xyz')
     result = main(['seed.xyz', 'monomer.xyz', '--count', '1', '-N', '4',
                    '--maximum-number-of-seeds', '2', '--connectivity-policy', 'off'])
-    assert result.status == 'completed'
+    assert result is None
+    assert list((tmp_path / 'grow').rglob('selected_*.xyz'))
     assert 'Growth completed' in capsys.readouterr().out
 
-
-def test_cli_dispatch(monkeypatch):
-    import pyar.cli
-    monkeypatch.setattr('sys.argv', ['pyar-cli', 'grow', '--help'])
-    with patch('pyar.scripts.grow.main') as main:
-        pyar.cli.main()
-    main.assert_called_once_with(['--help'])
 
 
 def test_all_survivors_feed_next_stage(tmp_path):
@@ -282,11 +277,3 @@ def test_legacy_solvation_can_preserve_unbounded_geometry_generation(tmp_path, m
         result = service.add_one('legacy', [hydrogen()], hydrogen(), 4, {}, 1, None,
                                  connectivity_policy='off', bound_geometry_only=False)
     assert result == pool
-
-
-def test_solvation_explicitly_keeps_legacy_geometry_policy(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    from pyar.workflows import solvation
-    with patch.object(solvation, 'add_one', return_value=[hydrogen()]) as engine:
-        solvation.solvate([hydrogen()], hydrogen('monomer'), 1, 4, {}, 1)
-    assert engine.call_args.kwargs['bound_geometry_only'] is False

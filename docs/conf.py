@@ -48,7 +48,7 @@ autodoc_mock_imports = [
 ]
 
 API_EXCLUDED_MODULES = {
-    "pyar",
+    "pyar", "pyar.__main__", "pyar.AIMNet2",
     "pyar.tests",
 }
 
@@ -127,7 +127,7 @@ def _write_generated_api(_app):
         group = parts[1] if len(parts) > 1 else "top-level modules"
         if group != current_group:
             current_group = group
-            title = group.replace("_", " ").title()
+            title = group.replace("_", " ").strip().title()
             lines.extend([title, "-" * len(title), ""])
         lines.extend([
             module,
@@ -145,4 +145,4 @@ def _write_generated_api(_app):
 
 def setup(app):
     """Register build-time documentation generation hooks."""
-    app.connect("builder-inited", _write_generated_api)
+    app.connect("builder-inited", _write_generated_api, priority=100)

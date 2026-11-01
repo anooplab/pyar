@@ -1,252 +1,60 @@
-PyAR Documentation
-==================
+PyAR: molecular structures and reaction exploration
+===================================================
 
-PyAR is a chemistry-focused structure-search package. It helps generate,
-optimise, select, and inspect plausible molecular structures before committing
-to higher-level electronic-structure calculations.
+Find candidate structures, calculate their properties, and examine the evidence
+behind a chemical interpretation. PyAR connects structure sampling and selection
+to electronic-structure programs and machine-learning potentials through one
+command: ``pyar``.
 
-PyAR is most useful when you want to:
-
-* explore low-energy cluster geometries for a set of fragments
-* search for products or close-contact reaction candidates between two
-  reactants
-* place solvent molecules or ligands around a central structure
-* scan a bond distance between two fragments as a simple reaction-coordinate
-  probe
-
-For most chemistry users, start with the task that matches your problem:
-
-* :doc:`quickstart` for a short first pass
-* :doc:`aggregate` for clusters, aggregates, and noncovalent complexes
-* :doc:`react` for AFIR-style product and close-contact searches
-* :doc:`bond_scan` for an ORCA relaxed bond-distance scan
-* :doc:`neb` for a product-validated geomeTRIC reaction path and TS guess
-* :doc:`grow` for generic sequential additions to a fixed seed
-* :doc:`microsolvate` for original-solute-centred first-shell sampling
-* :doc:`solvate` for the legacy compatibility workflow
-* :doc:`conformer` for RDKit-based conformer generation and refinement
-
-.. rubric:: Command-line reference
-
-See :doc:`cli_reference` for the installed command list.
-
-.. rubric:: Cite this work
-
-If you use PyAR in a project, start with :doc:`publications` and cite the
-paper that best matches your chemistry problem. The sections below show the
-most common mappings.
-
-Why chemists use PyAR
----------------------
-
-PyAR is useful when you want an automated way to generate and screen plausible
-structures before committing to higher-level electronic-structure work. In
-practice that means:
-
-* getting candidate low-energy geometries for clusters and complexes
-* finding plausible reaction products or prebiotic intermediates
-* exploring ligand addition or catalyst formation without hand-building every
-  guess structure
-* testing solvation and coordination growth around a central core
-* following a simple bond coordinate when you want a quick structural probe
-
-If you are a student or researcher, start with :doc:`quickstart`, then move to
-one of the chemistry task pages above. If you want examples of published uses,
-see :doc:`publications`.
-
-Which paper matches my problem?
--------------------------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 22 48
-
-   * - Chemistry problem
-     - Command/task
-     - Example publications
-   * - Noncovalent cluster growth and aggregation
-     - ``aggregate``
-     - [Nandi2017]_, [Khatun2019]_, [Sherpa2026]_
-   * - Prebiotic reaction discovery and bond rearrangement
-     - ``react``
-     - [Nandi2018]_, [Panda2024]_
-   * - Sequential ligand addition to a fixed seed
-     - ``grow``
-     - Retain selected structures at each addition stage
-   * - Microsolvation
-     - ``solvate``
-     - Use the established solvation workflow
-   * - Catalyst formation and sequential ligand addition
-     - ``react``
-     - [Roy2022]_
-   * - Chemical-space exploration of noncovalent clusters
-     - ``aggregate``
-     - [Giri2025]_
-
-Start here
-----------
-
-* :doc:`quickstart`
-* :doc:`first_run`
-* :doc:`aggregate`
-* :doc:`grow`
-* :doc:`microsolvate`
-* :doc:`conformer`
-* :doc:`react`
-* :doc:`bond_scan`
-* :doc:`neb`
-* :doc:`solvate`
-* :doc:`conformer`
-* :doc:`cli_reference`
-* :doc:`usage`
-* :doc:`publications`
-* :doc:`installation`
-* :doc:`external_programs`
-
-Tools and references
---------------------
-
-* :doc:`singlepoint`
-* :doc:`energy_table`
-* :doc:`molecule`
-* :doc:`orientation_sampling`
-* :doc:`backends`
-
-Backend guides
---------------
-
-* :doc:`backends`
-* :doc:`xtb`
-* :doc:`aimnet2_backend`
-* :doc:`orca_backend`
-* :doc:`gaussian_backend`
-* :doc:`mopac_backend`
-* :doc:`obabel_backend`
-* :doc:`psi4_backend`
-
-Developer and API details
--------------------------
-
-These pages are useful when you are modifying PyAR or trying to understand its
-internal design:
-
-* :doc:`workflows`
-* :doc:`reaction_optimization`
-* :doc:`api`
-* :doc:`reference`
-* :doc:`generated_api`
-* :doc:`architecture`
-* :doc:`migration`
-* :doc:`scientific_validation/index`
-
-How to cite PyAR
-----------------
-
-There is no single citation that covers every PyAR use case. In general:
-
-* cite the paper that best matches what you used
-* if you used more than one task, cite the relevant papers
-* use :doc:`publications` as the short list of chemistry-facing examples
-
-For a general citation, the two original papers that introduced the main build
-up and reaction-search ideas are [Nandi2017]_ and [Khatun2019]_.
-
-.. note::
-
-   If your work used AFIR-style reaction search, cluster growth, solvation, or
-   another specific application, also cite the corresponding paper from
-   :doc:`publications`.
-
-The fastest way to verify a local install is:
-
-.. code-block:: bash
-
-   pyar --help
-   pyar-cli --help
+Start with :doc:`user/installation`, then follow :doc:`user/first_calculation`.
+The first tutorial calculates, optimizes and checks a water molecule with xTB.
+It explains which output to read and what each calculation establishes.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Getting started
+   :caption: Learn PyAR
 
-   quickstart
-   first_run
-   installation
-   migration
-   usage
-   publications
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Chemistry tasks
-
-   singlepoint
-   aggregate
-   grow
-   react
-   bond_scan
-   neb
-   solvate
-   microsolvate
-   conformer
-   cli_reference
+   user/installation
+   user/first_calculation
+   user/workflow_chooser
+   user/input_and_settings
+   user/results
+   user/troubleshooting
 
 .. toctree::
    :maxdepth: 2
-   :caption: Tools and reference
+   :caption: Chemistry workflows
 
-   energy_table
-   molecule
-   orientation_sampling
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Backend guides
-
-   backends
-   external_programs
-   xtb
-   aimnet2_backend
-   orca_backend
-   gaussian_backend
-   mopac_backend
-   obabel_backend
-   psi4_backend
+   user/singlepoint
+   user/conformer
+   user/aggregate
+   user/grow
+   user/microsolvate
+   user/react
+   user/scan_bond
+   user/reaction_paths
+   user/analysis
+   user/configuration
+   user/restart
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developer documentation
+   :caption: Reference
 
-   workflows
-   reaction_optimization
-   optimization_diagnostics
-   optimization_recovery_safe
-   optimization_recovery_status
-   api
-   reference
-   generated_api
-   architecture
-   persistence
-   run_layout
-   scientific_validation/index
+   reference/cli
+   reference/tools
+   reference/backends
+   reference/formats
+   reference/citations
+   reference/upgrade
 
 .. toctree::
-   :hidden:
+   :maxdepth: 2
+   :caption: For developers
 
-   aggregation
-   reaction
-   solvation
-   migration_2_0
-   structure_identity_and_selection
-   modern_cli
+   developer/index
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Separate follow-up projects
-
-   optimization_recovery_r5_plan
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Release engineering
-
-   release_engineering/index
+PyAR generates and screens hypotheses about molecular structures. A low energy,
+a successful optimizer, a minimum, a transition state, and a connected reaction
+path establish different things. Each workflow guide describes the relevant
+acceptance checks and the evidence still needed for your research question.

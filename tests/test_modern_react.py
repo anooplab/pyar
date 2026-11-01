@@ -4,9 +4,10 @@ from unittest.mock import patch
 
 import pytest
 
-from pyar.modern_cli import main
+from pyar.cli import main
 from pyar.reaction_request import resolve_reaction_request, validate_restart, preflight_reaction
-from pyar.state.reaction import ReactionRunState, ReactionStateError
+from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
+from pyar.state.reaction import ReactionStateError
 from pyar.workflow_results import ReactionResult
 
 
@@ -26,7 +27,7 @@ def resolve(files, **kwargs):
 
 @pytest.fixture
 def workflow():
-    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb', 'geometric', 'obabel']), patch(
+    with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb', 'geometric', 'obabel']), patch(
             'pyar.workflows.reaction.react', return_value=ReactionResult(
                 'reaction', 'completed_no_products', 'reaction', 'reaction/state.json')) as run:
         yield run
@@ -163,8 +164,8 @@ def test_check_no_mutations(tmp_path, workflow, monkeypatch, capsys):
 def test_through_all_preflights_full_chain_without_mutations(tmp_path, monkeypatch, workflow):
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
-    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb']), patch(
-            'pyar.scripts.modern_react.preflight_path_request', return_value=['geometric', 'ase', 'sella']) as path_check:
+    with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb']), patch(
+            'pyar.scripts.react.preflight_path_request', return_value=['geometric', 'ase', 'sella']) as path_check:
         main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--through', 'all', '--check'])
     path_check.assert_called_once()
     assert path_check.call_args.args[1] == 'all'
@@ -176,8 +177,8 @@ def test_react_dry_run_reports_only_the_requested_cumulative_stages(
         tmp_path, monkeypatch, workflow, capsys):
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
-    with patch('pyar.scripts.modern_react.preflight_reaction', return_value=['xtb']), patch(
-            'pyar.scripts.modern_react.preflight_path_request', return_value=['geometric']) as path_check:
+    with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb']), patch(
+            'pyar.scripts.react.preflight_path_request', return_value=['geometric']) as path_check:
         main(['react', *files, '--backend', 'xtb', '--bias-max', '100',
               '--through', 'neb', '--dry-run', '--json'])
     payload = json.loads(capsys.readouterr().out)
@@ -198,8 +199,8 @@ def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, wo
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
     characterization = {'status': 'complete', 'selected_routes': [], 'preparation_failures': []}
-    with patch('pyar.scripts.modern_react.preflight_path_request', return_value=[]), patch(
-            'pyar.scripts.modern_react.characterize_reaction', return_value=characterization) as characterize:
+    with patch('pyar.scripts.react.preflight_path_request', return_value=[]), patch(
+            'pyar.scripts.react.characterize_reaction', return_value=characterization) as characterize:
         main(['react', *files, '--backend', 'xtb', '--bias-max', '100', '--through', 'neb'])
     assert workflow.called
     characterize.assert_called_once()
@@ -211,7 +212,7 @@ def test_through_calls_characterization_after_reaction(tmp_path, monkeypatch, wo
                                      ValueError('native relaxation unavailable')])
 def test_preflight_failure_no_work(tmp_path, monkeypatch, workflow, failure, capsys):
     monkeypatch.chdir(tmp_path)
-    with patch('pyar.scripts.modern_react.preflight_reaction', side_effect=failure):
+    with patch('pyar.scripts.react.preflight_reaction', side_effect=failure):
         with pytest.raises(SystemExit) as exc:
             main(['react', *inputs(tmp_path), '--backend', 'xtb', '--bias-max', '100', '--check'])
     assert exc.value.code == 2 and not workflow.called
@@ -222,7 +223,7 @@ def test_preflight_failure_no_work(tmp_path, monkeypatch, workflow, failure, cap
 def test_two_phase_preflight_and_identity(tmp_path):
     request = resolve(inputs(tmp_path))
     with patch('pyar.reaction_request.preflight', return_value=['xtb']) as check, patch(
-            'pyar.cli._workflow_requirement_messages', return_value=[]), patch(
+            'pyar.cli_validation._workflow_requirement_messages', return_value=[]), patch(
             'pyar.reaction_request.import_module'):
         requirements = preflight_reaction(request)
     assert check.call_count == 2
@@ -237,7 +238,7 @@ def test_real_missing_executable_requirement(tmp_path):
     request = resolve(inputs(tmp_path))
     import shutil
     actual_which = shutil.which
-    with patch('pyar.cli.shutil.which', side_effect=lambda name: None if name == 'xtb' else actual_which(name)):
+    with patch('pyar.cli_validation.shutil.which', side_effect=lambda name: None if name == 'xtb' else actual_which(name)):
         with pytest.raises(ValueError, match='xtb-docs'):
             preflight_reaction(request)
 
@@ -280,7 +281,7 @@ def test_missing_geometric_has_pyar_extra_guidance(tmp_path):
     request = resolve(inputs(tmp_path))
     import importlib.util
     find = importlib.util.find_spec
-    with patch('pyar.cli.importlib.util.find_spec', side_effect=lambda name: None if name == 'geometric' else find(name)):
+    with patch('pyar.cli_validation.importlib.util.find_spec', side_effect=lambda name: None if name == 'geometric' else find(name)):
         with pytest.raises(ValueError, match=r'pyar-chem\[reaction\]'):
             preflight_reaction(request)
 
@@ -288,7 +289,7 @@ def test_missing_geometric_has_pyar_extra_guidance(tmp_path):
 def test_missing_identity_executable(tmp_path):
     request = resolve(inputs(tmp_path))
     with patch('pyar.reaction_request.preflight', return_value=[]), patch(
-            'pyar.cli.shutil.which', return_value=None):
+            'pyar.cli_validation.shutil.which', return_value=None):
         with pytest.raises(ValueError, match='openbabel.org'):
             preflight_reaction(request)
 
@@ -296,7 +297,7 @@ def test_missing_identity_executable(tmp_path):
 def test_import_failure_prevents_execution(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     with patch('pyar.reaction_request.preflight', return_value=[]), patch(
-            'pyar.cli._workflow_requirement_messages', return_value=[]), patch(
+            'pyar.cli_validation._workflow_requirement_messages', return_value=[]), patch(
             'pyar.reaction_request.import_module', side_effect=ImportError('provider unavailable')), patch(
             'pyar.workflows.reaction.react') as run:
         with pytest.raises(SystemExit):
@@ -332,42 +333,8 @@ def test_invalid_xyz_before_directory_creation(tmp_path, workflow, monkeypatch):
     assert not workflow.called and not (tmp_path/'reaction').exists()
 
 
-def test_legacy_standalone_contract_unchanged(tmp_path, monkeypatch):
-    from importlib import import_module
-    import sys
-    monkeypatch.chdir(tmp_path)
-    legacy = import_module('pyar.scripts.react')
-    files = inputs(tmp_path)
-    with patch.object(sys, 'argv', ['pyar-react', *files, '--software', 'xtb', '--bias-max', '100']):
-        with pytest.raises(SystemExit):
-            legacy.argument_parse()  # -N is still required.
-    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software', 'xtb', '--bias-max', '100']):
-        args = legacy.argument_parse()
-        assert args.bias_controller is None
-        with pytest.raises(SystemExit, match='bias-min'):
-            legacy.main()  # No controller means legacy fixed, still requiring min.
-    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software', 'xtb', '--bias-min', '10', '--bias-max', '100']), patch(
-            'pyar.workflows.reaction.react') as run, patch('pyar.cli._preflight_cli_requirements') as preflight:
-        legacy.main()
-    preflight.assert_called_once_with('react', 'xtb', 'geometric')
-    assert run.call_args.args[2:5] == (10, 100, 8)
-    assert 'bias_controller' not in run.call_args.args[5]
 
 
-def test_legacy_standalone_missing_xtb_stops_before_workflow(tmp_path, monkeypatch):
-    from importlib import import_module
-    import sys
-
-    monkeypatch.chdir(tmp_path)
-    legacy = import_module('pyar.scripts.react')
-    files = inputs(tmp_path)
-    with patch.object(sys, 'argv', ['pyar-react', *files, '-N', '8', '--software',
-                                  'xtb', '--bias-min', '10', '--bias-max', '100']), \
-         patch('pyar.cli.shutil.which', side_effect=lambda name: None if name == 'xtb' else '/mock/' + name), \
-         patch('pyar.workflows.reaction.react') as run:
-        with pytest.raises(SystemExit, match="Missing executable 'xtb'"):
-            legacy.main()
-    run.assert_not_called()
 
 
 def test_stale_lock_recovery_is_explicit(tmp_path, monkeypatch, workflow):

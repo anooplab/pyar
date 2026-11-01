@@ -33,7 +33,7 @@ optimiser_logger = logging.getLogger('pyar.optimiser')
 SUCCESS_STATUSES = {True, 'converged'}
 CYCLE_EXCEEDED_STATUSES = {'CycleExceeded', 'cycle_exceeded', 'cycleexceeded'}
 RELEASE_CANDIDATE_STATUSES = {'ReleaseCandidate', 'release_candidate'}
-_OPTIMIZATION_CACHE_SCHEMA = 1
+_OPTIMIZATION_CACHE_SCHEMA = 2
 
 
 def _xtb_cache_provenance():
@@ -350,7 +350,14 @@ def build_geometry(molecule, qc_params):
 
 
 def optimise(molecule, qc_params):
-    """Run one optimization job and return the backend status object."""
+    """Run one optimization using the molecule's electronic state."""
+    qc_params = {
+        **qc_params,
+        'charge': molecule.charge,
+        'multiplicity': molecule.multiplicity,
+        'scftype': molecule.scftype,
+        'xtb_unpaired_electrons': molecule.multiplicity - 1,
+    }
     original_coordinates = (
         None if molecule.coordinates is None else np.asarray(molecule.coordinates, dtype=float).copy()
     )
@@ -514,18 +521,11 @@ def write_csv_file(csv_filename, energy_dict):
 
 def bulk_optimize(input_molecules, qc_params):
     """Optimize molecules and keep only usable results."""
-    # Modern requests resolve spin on every molecule, including mixed-parity pools.
-    # Keep the historical parameter path unchanged for existing callers.
     status_list = []
     backend_failures = []
     for each_mol in input_molecules:
-        parameters = ({
-            **qc_params, 'charge': each_mol.charge,
-            'multiplicity': each_mol.multiplicity, 'scftype': each_mol.scftype,
-            'xtb_unpaired_electrons': each_mol.multiplicity - 1,
-        } if qc_params.get('_electronic_state_from_molecule') else qc_params)
         try:
-            status_list.append(optimise(each_mol, parameters))
+            status_list.append(optimise(each_mol, qc_params))
         except BackendExecutionError as exc:
             status_list.append(None)
             backend_failures.append(f"{each_mol.name}: {exc}")

@@ -23,55 +23,7 @@ class MicrosolvationRunState:
         self.data = data
         self.path = self.directory / "state.json"
 
-    @classmethod
-    def load(cls, directory, request):
-        directory = Path(directory).resolve()
-        state_path = directory / "state.json"
-        if (directory / "layout.json").exists() or (directory / "layout.json").is_symlink():
-            from pyar.microsolvation.layout_v2 import MicrosolvationRunStateV2
-            return MicrosolvationRunStateV2.load(directory, request)
-        if not state_path.exists():
-            if directory.exists() and any(directory.iterdir()):
-                raise MicrosolvationStateError(
-                    f"Non-empty microsolvation directory without valid state: {directory}"
-                )
-            return None
-        try:
-            data = json.loads(state_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            raise MicrosolvationStateError(f"Cannot read microsolvation state {state_path}: {exc}") from exc
-        if data.get("version") != cls.VERSION or data.get("workflow") != "microsolvation":
-            raise MicrosolvationStateError(f"Unsupported microsolvation state format: {state_path}")
-        if data.get("request") != request:
-            raise MicrosolvationStateError(
-                "Microsolvation request differs from saved state; use the original settings or a fresh output directory"
-            )
-        state = cls(directory, data)
-        state.validate_progress()
-        return state
 
-    @classmethod
-    def create(cls, directory, request, initial_molecule):
-        directory = Path(directory).resolve()
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / "step_000" / "selected").mkdir(parents=True, exist_ok=True)
-        data = {
-            "version": cls.VERSION,
-            "workflow": "microsolvation",
-            "request": request,
-            "status": "running",
-            "next_step": 1,
-            "completed_steps": [],
-            "solute_atom_indices": list(range(len(initial_molecule))),
-            "solvent_fragments": [],
-            "coverage_history": [],
-            "current_seeds": [],
-        }
-        state = cls(directory, data)
-        data["current_seeds"] = state.snapshot_pool([initial_molecule], directory / "step_000" / "selected")
-        write_json(directory / "request.json", request)
-        state.save()
-        return state
 
     def validate_progress(self):
         steps = self.data.get("completed_steps")

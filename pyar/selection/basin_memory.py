@@ -1,15 +1,13 @@
 """Versioned geometry-backed memory for basin selection.
 
 Schema 2 stores representative XYZ geometries as the source of truth and a
-small versioned pair-distance descriptor for inspection/indexing. Legacy
-fingerprints are migrated as opaque data: their historical implementation
-could fall back to a different quantity, so they are never used to discard or
-rank current candidates without a geometry to compare.
+small versioned pair-distance descriptor for inspection/indexing. Unsupported
+registry schemas are rejected without rewriting. Geometry is required for
+scientific novelty decisions.
 """
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
@@ -39,7 +37,6 @@ __all__ = [
     "_load_basin_registry",
     "_persist_basin_registry",
     "_stoichiometry_label",
-    "migrate_basin_registry",
     "record_selected_basins",
 ]
 
@@ -115,79 +112,26 @@ def _valid_geometry(geometry):
     )
 
 
-def _migrate_entry(entry):
-    """Convert an unversioned entry while preserving its fingerprint exactly."""
-    if not isinstance(entry, dict):
-        return None
-    migrated = {key: value for key, value in entry.items() if key not in {"fingerprint", "legacy_descriptors"}}
-    if _valid_geometry(entry.get("geometry")):
-        migrated["geometry"] = entry["geometry"]
-    fingerprint = _entry_fingerprint(entry)
-    legacy = dict(entry.get("legacy_descriptors", {})) if isinstance(entry.get("legacy_descriptors"), dict) else {}
-    if fingerprint is not None and np.isfinite(fingerprint).all():
-        legacy["pyar-fingerprint-v1"] = {
-            "name": "pyar-fingerprint",
-            "version": 1,
-            "values": fingerprint.tolist(),
-            "source_uncertain": True,
-            "migration_note": "May be Coulomb eigenvalues or the historical numerical fallback; not comparable safely.",
-        }
-    if legacy:
-        migrated["legacy_descriptors"] = legacy
-    return migrated
 
 
 def _normalize_payload(payload):
-    """Return a validated schema-2 payload and migration metadata."""
-    if isinstance(payload, list):
-        raw_entries = payload
-        old_version = 1
-        stoichiometry = None
-    elif isinstance(payload, dict):
-        registry_format = payload.get("format")
-        if registry_format not in (None, REGISTRY_FORMAT):
-            raise BasinMemoryError(
-                f"Unrecognized basin registry format {registry_format!r}; preserving it unchanged."
-            )
-        old_version = payload.get("schema_version", payload.get("version", 1))
-        if isinstance(old_version, bool) or not isinstance(old_version, int):
-            raise BasinMemoryError(f"Invalid basin registry schema version: {old_version!r}")
-        if old_version > REGISTRY_VERSION:
-            raise BasinMemoryError(
-                f"Registry schema {old_version} is newer than supported schema {REGISTRY_VERSION}; preserving it unchanged."
-            )
-        if old_version < 1:
-            raise BasinMemoryError(f"Invalid basin registry schema version: {old_version!r}")
-        raw_entries = payload.get("entries")
-        stoichiometry = payload.get("stoichiometry")
-        if not isinstance(raw_entries, list):
-            raise BasinMemoryError("Basin registry 'entries' must be a list; preserving it unchanged.")
-    else:
-        raise BasinMemoryError("Basin registry must contain a JSON object or legacy list; preserving it unchanged.")
-
-    if any(not isinstance(entry, dict) for entry in raw_entries):
-        raise BasinMemoryError("Basin registry contains a non-object entry; preserving it unchanged.")
-    entries = []
-    migrated = old_version != REGISTRY_VERSION
-    for raw in raw_entries:
-        if "geometry" in raw and not _valid_geometry(raw["geometry"]):
-            raise BasinMemoryError("Basin registry contains malformed geometry; preserving it unchanged.")
-        if "fingerprint" in raw:
-            fingerprint = _entry_fingerprint(raw)
-            if fingerprint is None or not np.isfinite(fingerprint).all():
-                raise BasinMemoryError("Basin registry contains an invalid legacy fingerprint; preserving it unchanged.")
-        if old_version < REGISTRY_VERSION or "fingerprint" in raw:
-            entry = _migrate_entry(raw)
-            migrated = True
-        else:
-            entry = raw
-        entries.append(entry)
-    return {
-        "format": REGISTRY_FORMAT,
-        "schema_version": REGISTRY_VERSION,
-        "stoichiometry": stoichiometry,
-        "entries": entries,
-    }, migrated
+    """Validate the supported geometry-backed registry without migration."""
+    if not isinstance(payload, dict):
+        raise BasinMemoryError('Unsupported basin registry; use its original PyAR environment.')
+    version = payload.get('schema_version')
+    if (payload.get('format') != REGISTRY_FORMAT or type(version) is not int
+            or version != REGISTRY_VERSION):
+        raise BasinMemoryError('Unsupported basin registry schema; preserving it unchanged.')
+    entries = payload.get('entries')
+    if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+        raise BasinMemoryError('Basin registry entries must be objects; preserving it unchanged.')
+    for entry in entries:
+        if 'fingerprint' in entry or 'legacy_descriptors' in entry:
+            raise BasinMemoryError('Unsupported legacy basin descriptors; preserving registry unchanged.')
+        if 'geometry' in entry and not _valid_geometry(entry['geometry']):
+            raise BasinMemoryError('Basin registry contains malformed geometry; preserving it unchanged.')
+    return dict(format=REGISTRY_FORMAT, schema_version=REGISTRY_VERSION,
+                stoichiometry=payload.get('stoichiometry'), entries=entries), False
 
 
 def _read_payload(registry_path):
@@ -239,26 +183,6 @@ def _write_payload(registry_path, payload):
             os.unlink(temporary_path)
 
 
-def migrate_basin_registry(registry_path, *, dry_run=False):
-    """Explicitly migrate a legacy registry to schema 2 without losing vectors.
-
-    Old Coulomb/fallback vectors are retained as opaque, provenance-tagged
-    descriptors. Migration cannot recreate geometries that were never stored.
-    """
-    if not os.path.isfile(registry_path):
-        raise BasinMemoryError(f"Basin registry does not exist: {registry_path}")
-    payload, migrated = _read_payload(registry_path)
-    report = {
-        "path": str(registry_path),
-        "schema_version": REGISTRY_VERSION,
-        "changed": migrated,
-        "entries": len(payload["entries"]),
-        "entries_with_geometry": sum(_valid_geometry(entry.get("geometry")) for entry in payload["entries"]),
-        "entries_with_opaque_legacy_descriptor": sum(bool(entry.get("legacy_descriptors")) for entry in payload["entries"]),
-    }
-    if migrated and not dry_run:
-        _write_payload(registry_path, payload)
-    return report
 
 
 def _geometry_descriptor(molecule):
@@ -353,7 +277,7 @@ def _persist_basin_registry(registry_path, selected_molecules, existing_entries=
         raise ValueError("max_entries must be a positive integer")
     if existing_entries is None:
         existing_entries = _load_basin_registry(registry_path)
-    entries = [_migrate_entry(entry) for entry in existing_entries if isinstance(entry, dict)]
+    entries = [dict(entry) for entry in existing_entries if isinstance(entry, dict)]
     entries = [entry for entry in entries if entry is not None]
     from pyar.structure_comparison import GraphFirstDeduplicationComparator
 
@@ -583,21 +507,3 @@ def record_selected_basins(selected_molecules, output_root="selected"):
     registry_path = _basin_registry_path(selected_molecules[0], output_root=output_root)
     _persist_basin_registry(registry_path, selected_molecules)
     return registry_path
-
-
-def main(argv=None):
-    """Explicitly migrate basin registry files without deleting legacy data."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("registry", nargs="+", help="basin_registry.json file(s) to migrate")
-    parser.add_argument("--dry-run", action="store_true", help="report conversion without writing")
-    args = parser.parse_args(argv)
-    try:
-        reports = [migrate_basin_registry(path, dry_run=args.dry_run) for path in args.registry]
-    except BasinMemoryError as exc:
-        parser.error(str(exc))
-    for report in reports:
-        print(json.dumps(report, sort_keys=True))
-
-
-if __name__ == "__main__":
-    main()

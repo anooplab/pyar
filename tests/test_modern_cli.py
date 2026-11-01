@@ -9,7 +9,7 @@ from unittest import mock
 
 import pytest
 
-from pyar import __version__, modern_cli
+from pyar import __version__, cli
 from pyar.scripts import clustering
 
 
@@ -20,7 +20,7 @@ from pyar.scripts import clustering
 ])
 def test_help_and_version(argv, expected, capsys):
     with pytest.raises(SystemExit) as exc:
-        modern_cli.main(argv)
+        cli.main(argv)
     assert exc.value.code == 0
     output = capsys.readouterr().out
     assert expected in output
@@ -51,7 +51,7 @@ def xyz_files(tmp_path):
 def test_shared_execution_and_defaults(xyz_files, options, expected, capsys):
     calls = []
     outputs = []
-    for entry, prefix in [(clustering.main, []), (modern_cli.main, ["clustering"])]:
+    for entry, prefix in [(clustering.main, []), (cli.main, ["clustering"])]:
         with mock.patch.object(clustering.clustering, "choose_geometries",
                                side_effect=lambda molecules, **kwargs: molecules[:1]) as chooser:
             entry([*prefix, *xyz_files, *options])
@@ -82,14 +82,14 @@ def test_shared_execution_and_defaults(xyz_files, options, expected, capsys):
 ])
 def test_invalid_options(xyz_files, options, message, capsys):
     with pytest.raises(SystemExit) as exc:
-        modern_cli.main(["clustering", *xyz_files, *options])
+        cli.main(["clustering", *xyz_files, *options])
     assert exc.value.code != 0
     assert message in capsys.readouterr().err
 
 
 def test_too_few_inputs(xyz_files, capsys):
     with pytest.raises(SystemExit) as exc:
-        modern_cli.main(["clustering", xyz_files[0]])
+        cli.main(["clustering", xyz_files[0]])
     assert exc.value.code == 2
     assert "at least two" in capsys.readouterr().err
 
@@ -100,21 +100,21 @@ def test_missing_or_malformed_xyz(tmp_path, contents):
     if contents is not None:
         path.write_text(contents)
     with pytest.raises(SystemExit) as exc:
-        modern_cli.main(["clustering", str(path), str(path)])
+        cli.main(["clustering", str(path), str(path)])
     assert exc.value.code != 0
 
 
 @pytest.mark.parametrize("argv", [[], ["react"], ["clustering", "--unknown"]])
 def test_invalid_command(argv):
     with pytest.raises(SystemExit) as exc:
-        modern_cli.main(argv)
+        cli.main(argv)
     assert exc.value.code == 2
 
 
 def test_top_level_does_not_load_clustering():
     result = subprocess.run(
         [sys.executable, "-c",
-         "import sys; from pyar.modern_cli import build_parser; build_parser(); "
+         "import sys; from pyar.cli import build_parser; build_parser(); "
          "assert 'pyar.scripts.clustering' not in sys.modules; "
          "assert 'pyar.selection.clusterers' not in sys.modules"],
         capture_output=True, text=True,
@@ -128,7 +128,6 @@ def test_installed_entry_points():
         path=[sysconfig.get_path("purelib")]) if dist.metadata["Name"] == "pyar-chem")
     entries = {ep.name: ep.value for ep in distribution.entry_points
                if ep.group == "console_scripts"}
-    assert entries["pyar"] == "pyar.modern_cli:main"
-    assert entries["pyar-cli"] == "pyar.cli:main"
-    assert entries["pyar-clustering"] == "pyar.scripts.clustering:main"
+    assert entries["pyar"] == "pyar.cli:main"
+    assert entries == {"pyar": "pyar.cli:main"}
     assert not Path("pyar.py").exists()

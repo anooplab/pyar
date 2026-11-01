@@ -10,7 +10,6 @@ from uuid import uuid4
 
 from pyar.microsolvation.placement import assess_shell, generate_microsolvation_candidates
 from pyar.microsolvation.request import MicrosolvationRequest
-from pyar.state.microsolvation import MicrosolvationRunState
 from pyar.state.grow import write_json
 from pyar.workflow_results import MicrosolvationResult
 
@@ -190,7 +189,7 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                         raise
                     entry = {"name": candidate.name, "stage": stage,
                              "status": result.status.value,
-                             "legacy_status": str(status),
+                             "backend_status": str(status),
                              "converged": result.converged,
                              "workflow_accepted": result.workflow_accepted,
                              "owner_decision": candidate.optimization_owner_decision,
@@ -285,7 +284,7 @@ def _result(state):
             "solute_atom_indices": state.data["solute_atom_indices"],
             "solvent_fragments": state.data.get("solvent_fragments", []),
             "coverage_history": state.data.get("coverage_history", []),
-            "selection_policy": request.get("selection_policy", {"name": "legacy-shell-v1"}),
+            "selection_policy": request["selection_policy"],
             "sampling": request["sampling"],
             "backend": request["backend_parameters"].get("software"),
             "objective": request.get("selection_policy", {}).get("objective", "shell"),
@@ -294,170 +293,17 @@ def _result(state):
     )
 
 
-def _microsolvate_v1(request: MicrosolvationRequest, *, output="microsolvation"):
-    """Generate a bounded ensemble under the request's explicit objective."""
-    directory = Path(output).resolve()
-    payload = request.to_state_dict()
-    state = MicrosolvationRunState.load(directory, payload)
-    if state is None:
-        initial = request.solute.copy()
-        initial.solute_atom_indices = tuple(range(len(initial)))
-        initial.solvent_fragments = ()
-        initial.microsolvation_coverage = {
-            "surface_points": 0, "covered_points": 0, "open_points": 0,
-            "coverage_fraction": 0.0, "whole_solute_coverage_fraction": 0.0,
-        }
-        state = MicrosolvationRunState.create(directory, payload, initial)
-    if state.data["status"] == "completed":
-        return _result(state)
-    if state.data["status"] not in {"running", "stopped"}:
-        raise RuntimeError(f"Cannot resume microsolvation state in status {state.data['status']!r}")
-    from pyar.microsolvation.surface import build_solute_surface
-    initial_surface = build_solute_surface(
-        request.solute, points_per_atom=request.surface_points_per_atom,
-        probe_radius=request.probe_radius,
-    )
-    write_json(directory / "surface" / "initial_surface.json", {
-        "model": "vdw-probe-fibonacci-v1",
-        "points_per_atom": request.surface_points_per_atom,
-        "probe_radius_angstrom": request.probe_radius,
-        "points_angstrom": initial_surface.points.tolist(),
-        "parent_solute_atoms": initial_surface.parent_atoms.tolist(),
-        "normals": initial_surface.normals.tolist(),
-        "weights_angstrom2": initial_surface.weights.tolist(),
-    })
-    seeds = state.restore_pool()
-    state.data["status"] = "running"
-    for step in range(state.data["next_step"], request.count + 1):
-        stage = directory / f"step_{step:03d}"
-        candidate_directory = stage / "candidates"
-        candidate_directory.mkdir(parents=True, exist_ok=True)
-        candidates = []
-        generated_count = 0
-        shell_rejected = 0
-        target_rejected = 0
-        for seed_index, seed in enumerate(seeds):
-            try:
-                generated = generate_microsolvation_candidates(
-                    seed, request, step=step * 10000 + seed_index,
-                    solute_atom_count=len(request.solute),
-                )
-            except ValueError:
-                target_rejected += 1
-                continue
-            for candidate in generated:
-                generated_count += 1
-                coverage = assess_shell(candidate, request)
-                candidate.microsolvation_coverage = coverage
-                (candidate_directory / f"{candidate.name}.xyz").parent.mkdir(parents=True, exist_ok=True)
-                candidate.mol_to_xyz(str(candidate_directory / f"{candidate.name}.xyz"))
-                candidates.append(candidate)
-        prescreen_records = []
-        if request.placement_score == "energy":
-            candidates, prescreen_records = _energy_prescreen(candidates, request)
-            write_json(stage / "energy_prescreen.json", {
-                "method": request.backend_parameters,
-                "energy_unit": "hartree",
-                "fixed_composition_per_step": True,
-                "candidates": prescreen_records,
-            })
-        optimization_diagnostics = []
-        if request.backend_parameters.get("software"):
-            candidates, shell_rejected, optimized_count, optimization_failures = _optimize_candidates(
-                candidates, request, candidate_directory,
-                diagnostic_records=optimization_diagnostics)
-        elif request.objective == "shell":
-            retained = [candidate for candidate in candidates
-                        if candidate.microsolvation_coverage["shell_valid"]]
-            shell_rejected = len(candidates) - len(retained)
-            candidates = retained
-            optimized_count = 0
-            optimization_failures = []
-        else:
-            optimized_count = 0
-            optimization_failures = []
-        selected, diagnostics = _deduplicate_and_select(candidates, request.maximum_number_of_seeds, request)
-        diagnostics.update({
-            "selection_basis": ("fixed-composition-energy" if request.objective == "cluster" else
-                                "unbiased-post-relaxation-energy" if request.wall == "outer-sphere" else
-                                "geometry-only" if not request.backend_parameters.get("software") else
-                                "surface-quality-then-energy"),
-            "surface_saturated_at_placement": any(
-                getattr(candidate, "surface_saturated_at_placement", False) for candidate in candidates
-            ),
-            "generated_count": generated_count,
-            "prescreened_count": len(prescreen_records),
-            "optimized_count": optimized_count,
-            "optimization_failures": optimization_failures,
-            "optimization_diagnostics": optimization_diagnostics,
-            "rejected_outside_shell": shell_rejected,
-            "seeds_without_accessible_target_surface": target_rejected,
-        })
-        if request.wall != "none":
-            diagnostics["wall_candidate_outcomes"] = [
-                {
-                    "name": candidate.name,
-                    "wall_decision": getattr(candidate, "microsolvation_wall_decision", "not-run"),
-                    "wall_applied": getattr(candidate, "microsolvation_wall_applied", False),
-                    "wall_objective_energy_hartree": getattr(candidate, "microsolvation_wall_objective_energy", None),
-                    "wall_energy_hartree": getattr(candidate, "microsolvation_wall_energy", None),
-                    "wall_energy_max_hartree": getattr(candidate, "microsolvation_wall_energy_max", None),
-                    "wall_radius_angstrom": getattr(candidate, "microsolvation_wall_radius_angstrom", None),
-                    "wall_force_constant_hartree_per_angstrom2": getattr(
-                        candidate, "microsolvation_wall_force_constant", None),
-                    "unbiased_physical_energy_hartree": (
-                        None if candidate.energy is None else float(candidate.energy)),
-                    "shell_survived_unbiased_relaxation": bool(
-                        candidate.microsolvation_coverage.get("shell_valid", False)),
-                }
-                for candidate in candidates
-            ]
-        write_json(stage / "selection_diagnostics.json", diagnostics)
-        if not selected:
-            state.data["status"] = "no_candidates"
-            state.save()
-            break
-        state.complete_step(step, selected, diagnostics)
-        state.data["solute_atom_indices"] = list(selected[0].solute_atom_indices)
-        state.data["solvent_fragments"] = [list(part) for part in selected[0].solvent_fragments]
-        state.save()
-        seeds = selected
-    else:
-        state.data["status"] = "completed"
-    if state.data["status"] == "completed":
-        references = state.snapshot_pool(seeds, directory / "final")
-        state.data["final_seeds"] = references
-        write_json(directory / "final" / "summary.json", {
-            "workflow": "microsolvation",
-            "status": "completed",
-            "requested_solvents": request.count,
-            "selected_count": len(references),
-            "coverage": [reference["coverage"] for reference in references],
-            "selection_policy": request.to_state_dict().get("selection_policy", {"name": "legacy-shell-v1"}),
-        })
-    state.save()
-    return _result(state)
 
 
 def microsolvate(request: MicrosolvationRequest, *, output="microsolvation", recover_stale=False):
-    """Create fresh v2 runs and keep established v1 continuation unchanged."""
+    """Create or resume a supported microsolvation run."""
     from pyar.persistence import detect_version, RunLock
     directory = Path(output).resolve()
     payload = request.to_state_dict()
-    def legacy(root):
-        return MicrosolvationRunState.load(root, payload) is not None
-    version = detect_version(directory, 'microsolvation', validate_v1=legacy)
-    if version == 1:
-        if request.resampling_moves:
-            raise ValueError("whole-cluster resampling requires a fresh v2 microsolvation run")
-        return _microsolvate_v1(request, output=output)
+    detect_version(directory, 'microsolvation')
     directory.parent.mkdir(parents=True, exist_ok=True)
     with RunLock(directory, recover_stale=recover_stale):
-        version = detect_version(directory, 'microsolvation', validate_v1=legacy)
-        if version == 1:
-            if request.resampling_moves:
-                raise ValueError("whole-cluster resampling requires a fresh v2 microsolvation run")
-            return _microsolvate_v1(request, output=output)
+        detect_version(directory, 'microsolvation')
         return _microsolvate_v2(request, output=output)
 
 

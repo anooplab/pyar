@@ -52,13 +52,13 @@ def create_combined_descriptor(properties):
     return np.prod(normalized)
 
 
-def main(args=None):
+def main(args=None, *, prog=None):
     """Compute and write descriptors for one or more XYZ files."""
-    if args is None:
-        parser = argparse.ArgumentParser(description="Analyze molecular cluster XYZ files.")
+    if args is None or isinstance(args, (list, tuple)):
+        parser = argparse.ArgumentParser(prog=prog, description="Analyze molecular cluster XYZ files.")
         parser.add_argument("input_files", metavar='files', type=str, nargs='+',
                             help='input coordinate files (supports wildcards)')
-        args = parser.parse_args()
+        args = parser.parse_args(args)
     xyz_files = []
     for pattern in args.input_files:
         xyz_files.extend(glob.glob(pattern))

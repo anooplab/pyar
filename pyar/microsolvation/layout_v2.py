@@ -67,7 +67,7 @@ class MicrosolvationRunStateV2:
             workflow='microsolvation', scientific_request=request,
             inputs=[{key: ref[key] for key in ('artifact_id', 'role', 'path', 'sha256')} for ref in inputs]), overwrite=False)
         state.save()
-        write_json(directory / 'layout.json', dict(format='pyar-run-layout', layout_version=2,
+        write_json(directory / 'layout.json', dict(format='pyar-run-layout', layout_version=2, pyar_series='1.6',
             run_id=run_id, workflow='microsolvation'), overwrite=False)
         return state
 

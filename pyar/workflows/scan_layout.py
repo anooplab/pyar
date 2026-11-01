@@ -30,7 +30,7 @@ class ScanLayout:
             copy_result(Path(source), self.layout.path(relative))
             refs.append(ArtifactRef.capture(self.root, relative, 'input').to_dict())
         write_json(self.layout.path('inputs/metadata.json'), dict(inputs=refs), overwrite=False)
-        write_json(self.root / 'layout.json', dict(format='pyar-run-layout', layout_version=2,
+        write_json(self.root / 'layout.json', dict(format='pyar-run-layout', layout_version=2, pyar_series='1.6',
                    workflow='scan-bond', run_id=self.run_id), overwrite=False)
 
     def commit_path(self, index):

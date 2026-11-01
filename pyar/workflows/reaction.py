@@ -16,7 +16,6 @@ This module owns the AFIR reaction-search pipeline:
 The module is the canonical implementation behind the ``pyar-react``
 command-line entry point.
 """
-
 import logging
 import json
 import math
@@ -24,7 +23,6 @@ import os
 from pathlib import Path
 import shutil
 import sys
-
 import numpy as np
 import pyar.scan
 from pyar import file_manager
@@ -37,45 +35,21 @@ from pyar.optimization_service import optimize_workflow_once
 from pyar.sampling import trial_generator as trial_generation
 from pyar.workflow_results import ReactionResult
 from pyar import reaction_analysis
-from pyar.reaction_identity import (
-    molecule_identity_from_xyz,
-    reaction_product_changed,
-    separated_reactant_identity,
-    same_molecular_identity,
-    write_disconnected_reference,
-)
+from pyar.reaction_identity import molecule_identity_from_xyz, reaction_product_changed, separated_reactant_identity, same_molecular_identity, write_disconnected_reference
 from pyar.reaction_trace import infer_bonds
 from pyar.release import _inside_covalent_radius_sum
-from pyar.state.reaction import ReactionRunState, ReactionStateError, read_legacy_checkpoint
-from pyar.workflows._growth import (
-    sampling_configuration,
-    workflow_run_directory,
-    workflow_state_path,
-)
-
+from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
+from pyar.state.reaction import ReactionStateError
+from pyar.growth.service import sampling_configuration, workflow_run_directory, workflow_state_path
 reactor_logger = logging.getLogger('pyar.workflows.reaction')
-
 saved_product_identities = {}
 
-
 def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
-    """Run one legacy reaction optimization and persist observational ORE data."""
-    status, _diagnostic, _report = optimize_workflow_once(
-        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise,
-        allow_incomplete=workflow_role != 'reaction_unbiased_relaxation',
-    )
+    """Run one reaction optimization and persist observational ORE data."""
+    status, _diagnostic, _report = optimize_workflow_once(molecule, qc_params, workflow_role=workflow_role, optimizer=optimise, allow_incomplete=workflow_role != 'reaction_unbiased_relaxation')
     return status
 
-
-def _build_reaction_result(
-    workdir,
-    status,
-    product_dir,
-    run_state,
-    gamma_list,
-    orientations,
-    sampling,
-):
+def _build_reaction_result(workdir, status, product_dir, run_state, gamma_list, orientations, sampling):
     """Package the current reaction outcome as a structured result.
 
     The returned :class:`~pyar.workflow_results.ReactionResult` captures the
@@ -83,22 +57,7 @@ def _build_reaction_result(
     state, and the remaining orientation set so callers can inspect or report
     the result without parsing the on-disk state tree.
     """
-    return ReactionResult(
-        workflow="reaction",
-        status=status,
-        run_directory=workflow_run_directory(workdir, "reaction"),
-        state_path=workflow_state_path(workflow_run_directory(workdir, "reaction")),
-        selected_paths=(run_state.selected_paths() if run_state.data.get('workflow_state_schema_version') == 3
-                        else tuple(product["path"] for product in run_state.data.get("products", []))),
-        metadata={
-            "gamma_schedule": tuple(float(value) for value in gamma_list),
-            "products": tuple(run_state.data.get("products", [])),
-            "product_directory": product_dir,
-            "remaining_orientations": len(orientations),
-            "sampling": run_state.data.get("sampling", sampling),
-        },
-    )
-
+    return ReactionResult(workflow='reaction', status=status, run_directory=workflow_run_directory(workdir, 'reaction'), state_path=workflow_state_path(workflow_run_directory(workdir, 'reaction')), selected_paths=run_state.selected_paths() if run_state.data.get('workflow_state_schema_version') == 3 else tuple((product['path'] for product in run_state.data.get('products', []))), metadata={'gamma_schedule': tuple((float(value) for value in gamma_list)), 'products': tuple(run_state.data.get('products', [])), 'product_directory': product_dir, 'remaining_orientations': len(orientations), 'sampling': run_state.data.get('sampling', sampling)})
 
 def print_header(gamma_max, gamma_min, hm_orientations, software):
     """Log the fixed header used at the start of a reaction run.
@@ -107,12 +66,11 @@ def print_header(gamma_max, gamma_min, hm_orientations, software):
     caller a single place to confirm the gamma range, orientation count, and
     backend before the workflow begins mutating the working directory.
     """
-    reactor_logger.info("==================== PyAR Reaction Workflow ====================")
-    reactor_logger.info(f"Gamma range: {gamma_min} to {gamma_max}")
-    reactor_logger.info(f"Orientations: {hm_orientations}")
-    reactor_logger.info(f"Software: {software}")
-    reactor_logger.info("===============================================================")
-
+    reactor_logger.info('==================== PyAR Reaction Workflow ====================')
+    reactor_logger.info(f'Gamma range: {gamma_min} to {gamma_max}')
+    reactor_logger.info(f'Orientations: {hm_orientations}')
+    reactor_logger.info(f'Software: {software}')
+    reactor_logger.info('===============================================================')
 
 def with_gamma(qc_params, gamma):
     """Return a copy of ``qc_params`` with a specific AFIR gamma applied.
@@ -123,14 +81,10 @@ def with_gamma(qc_params, gamma):
     """
     updated_qc_params = dict(qc_params)
     updated_qc_params['gamma'] = gamma
-    trace_enabled = (
-        updated_qc_params.get("geometry_optimizer") == "geometric"
-        and float(gamma) != 0.0
-    )
-    updated_qc_params["trace_enabled"] = trace_enabled
-    updated_qc_params["reaction_trace"] = trace_enabled
+    trace_enabled = updated_qc_params.get('geometry_optimizer') == 'geometric' and float(gamma) != 0.0
+    updated_qc_params['trace_enabled'] = trace_enabled
+    updated_qc_params['reaction_trace'] = trace_enabled
     return updated_qc_params
-
 
 def without_afir_bias(qc_params):
     """Return parameters for unbiased physical relaxation.
@@ -142,24 +96,15 @@ def without_afir_bias(qc_params):
     trace settings are deliberately removed rather than merely disabled.
     """
     unbiased = dict(qc_params)
-    unbiased.setdefault("opt_cycles", defualt_parameters.values["opt_cycles"])
-    unbiased.setdefault("opt_threshold", defualt_parameters.values["opt_threshold"])
+    unbiased.setdefault('opt_cycles', defualt_parameters.values['opt_cycles'])
+    unbiased.setdefault('opt_threshold', defualt_parameters.values['opt_threshold'])
     unbiased['gamma'] = 0.0
     unbiased['geometry_optimizer'] = 'native'
     unbiased['trace_enabled'] = False
     unbiased['reaction_trace'] = False
-    for key in (
-        'bias_controller', 'bias_controller_restart', 'bias_alpha_min',
-        'bias_alpha_margin', 'bias_alpha_smoothing', 'bias_alpha_epsilon',
-        'bias_scheduled_alpha', 'bias_potential', 'softmin_beta',
-        'release_job_name', 'release_retry_attempt', 'release_retry_limit',
-        'release_margin_factor', 'release_alpha_critical_max', 'release_persistence',
-        'release_distance_fraction',
-        'release_bond_order_growth',
-    ):
+    for key in ('bias_controller', 'bias_controller_restart', 'bias_alpha_min', 'bias_alpha_margin', 'bias_alpha_smoothing', 'bias_alpha_epsilon', 'bias_scheduled_alpha', 'bias_potential', 'softmin_beta', 'release_job_name', 'release_retry_attempt', 'release_retry_limit', 'release_margin_factor', 'release_alpha_critical_max', 'release_persistence', 'release_distance_fraction', 'release_bond_order_growth'):
         unbiased.pop(key, None)
     return unbiased
-
 
 def build_gamma_schedule(gamma_min, gamma_max, steps=10):
     """Build the numeric AFIR gamma schedule used by the reaction workflow.
@@ -169,15 +114,14 @@ def build_gamma_schedule(gamma_min, gamma_max, steps=10):
     spaced values between the endpoints.
     """
     if not np.isfinite(gamma_min) or not np.isfinite(gamma_max):
-        raise ValueError("AFIR gamma limits must be finite numbers")
+        raise ValueError('AFIR gamma limits must be finite numbers')
     if gamma_min < 0.0 or gamma_max < 0.0:
-        raise ValueError("AFIR gamma limits must be non-negative")
+        raise ValueError('AFIR gamma limits must be non-negative')
     if gamma_max < gamma_min:
-        raise ValueError("AFIR maximum gamma must be greater than or equal to minimum gamma")
+        raise ValueError('AFIR maximum gamma must be greater than or equal to minimum gamma')
     if gamma_min == gamma_max:
         return np.asarray([float(gamma_min)])
     return np.linspace(gamma_min, gamma_max, num=steps, dtype=float)
-
 
 def format_gamma_id(gamma):
     """Format a gamma value for directory names and readable job labels.
@@ -187,17 +131,16 @@ def format_gamma_id(gamma):
     ``p``.
     """
     value = float(gamma)
-    sign = "m" if value < 0.0 else ""
-    magnitude = f"{abs(value):.12g}"
-    if "e" not in magnitude:
-        integer, separator, fraction = magnitude.partition(".")
+    sign = 'm' if value < 0.0 else ''
+    magnitude = f'{abs(value):.12g}'
+    if 'e' not in magnitude:
+        integer, separator, fraction = magnitude.partition('.')
         magnitude = integer.zfill(4)
         if separator:
-            magnitude = f"{magnitude}p{fraction}"
+            magnitude = f'{magnitude}p{fraction}'
     else:
-        magnitude = magnitude.replace(".", "p").replace("-", "m").replace("+", "")
-    return f"{sign}{magnitude}"
-
+        magnitude = magnitude.replace('.', 'p').replace('-', 'm').replace('+', '')
+    return f'{sign}{magnitude}'
 
 def _molecule_signature(molecule):
     """Return stable input geometry metadata used to validate restarts.
@@ -206,16 +149,9 @@ def _molecule_signature(molecule):
     validation can reject changed reactants before the workflow mutates the
     reaction directory.
     """
-    return {
-        "atoms": list(molecule.atoms_list),
-        "coordinates": np.asarray(molecule.coordinates, dtype=float).tolist(),
-        "charge": molecule.charge,
-        "multiplicity": molecule.multiplicity,
-    }
+    return {'atoms': list(molecule.atoms_list), 'coordinates': np.asarray(molecule.coordinates, dtype=float).tolist(), 'charge': molecule.charge, 'multiplicity': molecule.multiplicity}
 
-
-def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
-                           qc_params, site, proximity_factor):
+def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations, qc_params, site, proximity_factor):
     """Build the scientific request persisted with reaction restart state.
 
     The request captures the scientifically relevant inputs that must remain
@@ -224,45 +160,24 @@ def build_reaction_request(reactant_a, reactant_b, gamma_list, hm_orientations,
     reactants.
     """
     backend_parameters = dict(qc_params)
-    backend_parameters.pop("gamma", None)
-    if backend_parameters.get("geometry_optimizer") == "geometric":
-        # Prevent resuming survivors ranked with the legacy biased objective.
-        backend_parameters["reaction_energy_convention"] = "physical-v1"
-    return {
-        "gamma_schedule": [float(value) for value in gamma_list],
-        "bias_mode": "adaptive" if qc_params.get("bias_controller") == "adaptive" else "scheduled",
-        "orientations": int(hm_orientations),
-        "backend_parameters": backend_parameters,
-        "site": None if site is None else list(site),
-        "proximity_factor": float(proximity_factor),
-        "reactants": [
-            _molecule_signature(reactant_a),
-            _molecule_signature(reactant_b),
-        ],
-    }
-
+    backend_parameters.pop('gamma', None)
+    if backend_parameters.get('geometry_optimizer') == 'geometric':
+        backend_parameters['reaction_energy_convention'] = 'physical-v1'
+    return {'gamma_schedule': [float(value) for value in gamma_list], 'bias_mode': 'adaptive' if qc_params.get('bias_controller') == 'adaptive' else 'scheduled', 'orientations': int(hm_orientations), 'backend_parameters': backend_parameters, 'site': None if site is None else list(site), 'proximity_factor': float(proximity_factor), 'reactants': [_molecule_signature(reactant_a), _molecule_signature(reactant_b)]}
 
 def _restore_product_registry(run_state):
     """Restore saved product identities so resumed runs deduplicate correctly."""
-    registry = {
-        job_name: {"inchi": inchi, "smiles": smiles}
-        for job_name, (inchi, smiles) in run_state.saved_product_identities().items()
-    }
+    registry = {job_name: {'inchi': inchi, 'smiles': smiles} for job_name, (inchi, smiles) in run_state.saved_product_identities().items()}
     saved_product_identities.clear()
     saved_product_identities.update(registry)
     return registry
 
-
 def _ensure_reactant_identity(run_state, reactant_a, reactant_b):
     """Persist the original separated-reactant identity used for product gating."""
-    if "reactant_identity" not in run_state.data:
-        run_state.data["reactant_identity"] = separated_reactant_identity(
-            reactant_a,
-            reactant_b,
-        )
+    if 'reactant_identity' not in run_state.data:
+        run_state.data['reactant_identity'] = separated_reactant_identity(reactant_a, reactant_b)
         run_state.save()
-    return run_state.data["reactant_identity"]
-
+    return run_state.data['reactant_identity']
 
 def _is_known_product(identity, registry=None):
     """Return whether the product's canonical molecular identity is known.
@@ -271,17 +186,12 @@ def _is_known_product(identity, registry=None):
     products, so this check prevents emitting duplicate products when a run
     discovers the same structure through a different orientation or gamma.
     """
-    return any(
-        same_molecular_identity(identity, recorded_identity)
-        for recorded_identity in (saved_product_identities if registry is None else registry).values()
-    )
-
+    return any((same_molecular_identity(identity, recorded_identity) for recorded_identity in (saved_product_identities if registry is None else registry).values()))
 
 def _should_continue_after_product(optimized_molecules, registry=None):
     """Return whether the reaction loop should keep advancing gamma values."""
     products = saved_product_identities if registry is None else registry
     return len(optimized_molecules) == 0 and bool(products)
-
 
 def relax_without_afir_bias(molecule, qc_params):
     """Relax a bonded AFIR candidate on the unbiased physical objective.
@@ -290,189 +200,136 @@ def relax_without_afir_bias(molecule, qc_params):
     relaxation so callers can inspect the pre- and post-relaxation geometries
     if the optimization succeeds.
     """
-    software = qc_params.get("software")
-    if software is not None and not backend_supports_native_optimization(software):
-        raise ValueError(
-            f"Backend '{software}' does not advertise native optimization; "
-            "unbiased reaction relaxation cannot be performed safely."
-        )
+    software = qc_params.get('software')
+    if software is not None and (not backend_supports_native_optimization(software)):
+        raise ValueError(f"Backend '{software}' does not advertise native optimization; unbiased reaction relaxation cannot be performed safely.")
     original_name = molecule.name
-    release_attempt = int(qc_params.get("release_retry_attempt", 0))
+    release_attempt = int(qc_params.get('release_retry_attempt', 0))
     molecule.mol_to_xyz('trial_relax.xyz')
-    # Each retry starts from a newly biased geometry. Give it a distinct native
-    # optimization job name so the optimizer cannot return a cached relaxation
-    # from the preceding attempt.
     molecule.name = 'relax' if release_attempt == 0 else f'relax_attempt_{release_attempt}'
     try:
-        status = _optimize_with_diagnostics(
-            molecule, without_afir_bias(qc_params), "reaction_unbiased_relaxation"
-        )
+        status = _optimize_with_diagnostics(molecule, without_afir_bias(qc_params), 'reaction_unbiased_relaxation')
     finally:
         molecule.name = original_name
     if is_success(status):
         molecule.mol_to_xyz('result_relax.xyz')
     return status
 
-
 def _release_evidence(qc_params):
     """Read the latest accepted-step release evidence from the optimizer state."""
-    if qc_params.get("bias_controller") != "adaptive":
+    if qc_params.get('bias_controller') != 'adaptive':
         return None
-    job_name = qc_params.get("release_job_name")
-    state_path = os.path.join(f"job_{job_name}", "pyar_geometric_state.json") if job_name else "pyar_geometric_state.json"
+    job_name = qc_params.get('release_job_name')
+    state_path = os.path.join(f'job_{job_name}', 'pyar_geometric_state.json') if job_name else 'pyar_geometric_state.json'
     if not os.path.isfile(state_path):
         return None
     try:
         with open(state_path) as fp:
-            return json.load(fp).get("release")
+            return json.load(fp).get('release')
     except (OSError, ValueError):
-        reactor_logger.warning("Could not read adaptive release evidence from %s", state_path)
+        reactor_logger.warning('Could not read adaptive release evidence from %s', state_path)
         return None
-
 
 def _write_release_probe(pre_release, molecule, qc_params, status, evidence):
     """Persist the pre-release geometry and native free-relaxation outcome."""
-    attempt = int(qc_params.get("release_retry_attempt", 0))
-    pre_release_path = f"pre_release_attempt_{attempt}.xyz"
+    attempt = int(qc_params.get('release_retry_attempt', 0))
+    pre_release_path = f'pre_release_attempt_{attempt}.xyz'
     pre_release.mol_to_xyz(pre_release_path)
     optimized = is_success(status) and molecule.coordinates is not None
     coordinates = np.asarray(molecule.coordinates, dtype=float) if optimized else np.empty((0, 3))
     post_bonds = infer_bonds(molecule.atoms_list, coordinates) if optimized else set()
-    forming_pairs = {
-        tuple(pair) for pair in (evidence or {}).get("forming_pairs", [])
-    }
-    survived = bool(forming_pairs) and forming_pairs.issubset(post_bonds) and all(
-        _inside_covalent_radius_sum(pair, molecule.atoms_list, coordinates)
-        for pair in forming_pairs
-    )
-    post_distances = [
-        float(np.linalg.norm(coordinates[left] - coordinates[right]))
-        for left, right in sorted(forming_pairs)
-    ] if optimized else []
-    probe = {
-        "pre_release_geometry": pre_release_path,
-        "native_optimizer_used": True,
-        "release_attempt": attempt,
-        "bias_alpha_margin": qc_params.get("bias_alpha_margin"),
-        "free_relax_status": bool(is_success(status)),
-        "post_relax_connectivity": [list(pair) for pair in sorted(post_bonds)],
-        "post_relax_distance": post_distances,
-        "release_survived": bool(survived),
-        "release_state": "RELEASE_SURVIVED" if optimized and survived else "RELEASE_FAILED",
-    }
-    with open("release_probe.json", "w") as fp:
+    forming_pairs = {tuple(pair) for pair in (evidence or {}).get('forming_pairs', [])}
+    survived = bool(forming_pairs) and forming_pairs.issubset(post_bonds) and all((_inside_covalent_radius_sum(pair, molecule.atoms_list, coordinates) for pair in forming_pairs))
+    post_distances = [float(np.linalg.norm(coordinates[left] - coordinates[right])) for left, right in sorted(forming_pairs)] if optimized else []
+    probe = {'pre_release_geometry': pre_release_path, 'native_optimizer_used': True, 'release_attempt': attempt, 'bias_alpha_margin': qc_params.get('bias_alpha_margin'), 'free_relax_status': bool(is_success(status)), 'post_relax_connectivity': [list(pair) for pair in sorted(post_bonds)], 'post_relax_distance': post_distances, 'release_survived': bool(survived), 'release_state': 'RELEASE_SURVIVED' if optimized and survived else 'RELEASE_FAILED'}
+    with open('release_probe.json', 'w') as fp:
         json.dump(probe, fp, indent=2, sort_keys=True)
-    with open("release_attempts.jsonl", "a") as fp:
+    with open('release_attempts.jsonl', 'a') as fp:
         json.dump(probe, fp, sort_keys=True)
-        fp.write("\n")
-    state_path = os.path.join(f"job_{pre_release.name}", "pyar_geometric_state.json")
+        fp.write('\n')
+    state_path = os.path.join(f'job_{pre_release.name}', 'pyar_geometric_state.json')
     if os.path.isfile(state_path):
         try:
             with open(state_path) as fp:
                 state = json.load(fp)
-            release = dict(state.get("release") or {})
-            release["state"] = probe["release_state"]
-            release["reason"] = (
-                "native_free_relaxation_survived" if optimized and survived
-                else "native_free_relaxation_failed_or_dissociated"
-            )
-            release["release_attempt"] = probe["release_attempt"]
-            release["bias_alpha_margin"] = probe["bias_alpha_margin"]
-            state["release"] = release
-            temporary_path = state_path + ".tmp"
-            with open(temporary_path, "w") as fp:
+            release = dict(state.get('release') or {})
+            release['state'] = probe['release_state']
+            release['reason'] = 'native_free_relaxation_survived' if optimized and survived else 'native_free_relaxation_failed_or_dissociated'
+            release['release_attempt'] = probe['release_attempt']
+            release['bias_alpha_margin'] = probe['bias_alpha_margin']
+            state['release'] = release
+            temporary_path = state_path + '.tmp'
+            with open(temporary_path, 'w') as fp:
                 json.dump(state, fp, indent=2, sort_keys=True)
             os.replace(temporary_path, state_path)
         except (OSError, ValueError):
-            reactor_logger.warning("Could not update adaptive release state after free relaxation")
+            reactor_logger.warning('Could not update adaptive release state after free relaxation')
     return survived
-
 
 def _set_release_outcome(job_name, state_name, reason):
     """Persist the chemical identity decision after a successful free probe."""
-    state_path = os.path.join(f"job_{job_name}", "pyar_geometric_state.json")
+    state_path = os.path.join(f'job_{job_name}', 'pyar_geometric_state.json')
     try:
         with open(state_path) as fp:
             state = json.load(fp)
-        release = dict(state.get("release") or {})
+        release = dict(state.get('release') or {})
         release.update(state=state_name, reason=reason)
-        state["release"] = release
-        temporary_path = state_path + ".tmp"
-        with open(temporary_path, "w") as fp:
+        state['release'] = release
+        temporary_path = state_path + '.tmp'
+        with open(temporary_path, 'w') as fp:
             json.dump(state, fp, indent=2, sort_keys=True)
         os.replace(temporary_path, state_path)
     except (OSError, ValueError):
-        reactor_logger.warning("Could not persist chemical release outcome for %s", job_name)
-
+        reactor_logger.warning('Could not persist chemical release outcome for %s', job_name)
 
 def _write_release_retry_outcome(molecule, attempt, status, evidence, reason):
     """Add the final biased-retry result to the probe summary, preserving probe history."""
-    geometry_path = f"release_retry_geometry_attempt_{int(attempt)}.xyz"
+    geometry_path = f'release_retry_geometry_attempt_{int(attempt)}.xyz'
     molecule.mol_to_xyz(geometry_path)
     try:
-        with open("release_probe.json") as fp:
+        with open('release_probe.json') as fp:
             summary = json.load(fp)
     except (OSError, ValueError):
         summary = {}
-    summary.update(
-        retry_outcome="retry_not_candidate",
-        retry_attempt=int(attempt),
-        retry_optimization_status=str(status),
-        retry_geometry=geometry_path,
-        retry_reason=str(reason),
-        retry_evidence=evidence,
-    )
-    with open("release_probe.json", "w") as fp:
+    summary.update(retry_outcome='retry_not_candidate', retry_attempt=int(attempt), retry_optimization_status=str(status), retry_geometry=geometry_path, retry_reason=str(reason), retry_evidence=evidence)
+    with open('release_probe.json', 'w') as fp:
         json.dump(summary, fp, indent=2, sort_keys=True)
-
 
 def _prepare_release_retry(pre_release, qc_params, margin, attempt):
     """Restore the accepted checkpoint with a larger adaptive margin."""
-    checkpoint_path = os.path.join(f"job_{pre_release.name}", "pyar_bias_controller_state.json")
+    checkpoint_path = os.path.join(f'job_{pre_release.name}', 'pyar_bias_controller_state.json')
     if not os.path.isfile(checkpoint_path):
-        reactor_logger.warning("Cannot escalate release: controller checkpoint is missing")
+        reactor_logger.warning('Cannot escalate release: controller checkpoint is missing')
         return None
     try:
         with open(checkpoint_path) as fp:
             checkpoint = json.load(fp)
     except (OSError, ValueError) as exc:
-        reactor_logger.warning("Cannot escalate release: invalid controller checkpoint: %s", exc)
+        reactor_logger.warning('Cannot escalate release: invalid controller checkpoint: %s', exc)
         return None
-    configuration = checkpoint.get("configuration", {})
-    checkpoint_qc = dict(configuration.get("qc_params", {}))
-    checkpoint_qc["bias_alpha_margin"] = float(margin)
-    configuration["qc_params"] = checkpoint_qc
-    controller = checkpoint.get("controller", {})
-    controller_configuration = dict(controller.get("configuration", {}))
-    controller_configuration["safety_margin"] = float(margin)
-    controller["configuration"] = controller_configuration
-    checkpoint["configuration"] = configuration
-    checkpoint["controller"] = controller
-    # A failed unbiased probe is evidence that this contact is not yet a
-    # releasable product. Keep the accumulated bias load, but restart contact
-    # persistence at the saved geometry so the retry can continue driving
-    # rather than immediately re-raising the same candidate.
-    checkpoint.pop("release_tracker", None)
-    checkpoint["positions_angstrom"] = np.asarray(pre_release.coordinates, dtype=float).tolist()
+    configuration = checkpoint.get('configuration', {})
+    checkpoint_qc = dict(configuration.get('qc_params', {}))
+    checkpoint_qc['bias_alpha_margin'] = float(margin)
+    configuration['qc_params'] = checkpoint_qc
+    controller = checkpoint.get('controller', {})
+    controller_configuration = dict(controller.get('configuration', {}))
+    controller_configuration['safety_margin'] = float(margin)
+    controller['configuration'] = controller_configuration
+    checkpoint['configuration'] = configuration
+    checkpoint['controller'] = controller
+    checkpoint.pop('release_tracker', None)
+    checkpoint['positions_angstrom'] = np.asarray(pre_release.coordinates, dtype=float).tolist()
     try:
-        temporary_path = checkpoint_path + ".tmp"
-        with open(temporary_path, "w") as fp:
+        temporary_path = checkpoint_path + '.tmp'
+        with open(temporary_path, 'w') as fp:
             json.dump(checkpoint, fp, indent=2, sort_keys=True)
         os.replace(temporary_path, checkpoint_path)
     except OSError as exc:
-        reactor_logger.warning("Cannot write release retry checkpoint: %s", exc)
+        reactor_logger.warning('Cannot write release retry checkpoint: %s', exc)
         return None
     retry_params = dict(qc_params)
-    retry_params.update(
-        bias_alpha_margin=float(margin),
-        bias_controller_restart=True,
-        trace_mode="append",
-        release_retry_attempt=int(attempt),
-        adaptive_max_segments=8,
-        adaptive_suppress_release_candidate=True,
-    )
+    retry_params.update(bias_alpha_margin=float(margin), bias_controller_restart=True, trace_mode='append', release_retry_attempt=int(attempt), adaptive_max_segments=8, adaptive_suppress_release_candidate=True)
     return retry_params
-
 
 def _adaptive_release_probe(pre_release, molecule, qc_params, evidence):
     """Probe release, escalating only when the saved evidence supports retry."""
@@ -480,141 +337,78 @@ def _adaptive_release_probe(pre_release, molecule, qc_params, evidence):
     current_molecule = molecule
     current_params = dict(qc_params)
     current_evidence = evidence
-    attempts = int(current_params.get("release_retry_attempt", 0))
+    attempts = int(current_params.get('release_retry_attempt', 0))
     initial_attempts = attempts
-    retry_limit = int(current_params.get("release_retry_limit", 2))
-    margin_factor = float(current_params.get("release_margin_factor", 2.0))
+    retry_limit = int(current_params.get('release_retry_limit', 2))
+    margin_factor = float(current_params.get('release_margin_factor', 2.0))
     if retry_limit < 0 or not math.isfinite(margin_factor) or margin_factor <= 1.0:
-        raise ValueError("release retry limit must be non-negative and margin factor must exceed 1")
-
+        raise ValueError('release retry limit must be non-negative and margin factor must exceed 1')
     while True:
-        _set_release_outcome(
-            current_pre_release.name, "FREE_RELAX_PROBE", "native_free_relaxation_in_progress"
-        )
+        _set_release_outcome(current_pre_release.name, 'FREE_RELAX_PROBE', 'native_free_relaxation_in_progress')
         status = relax_without_afir_bias(current_molecule, current_params)
-        survived = _write_release_probe(
-            current_pre_release, current_molecule, current_params, status, current_evidence
-        )
+        survived = _write_release_probe(current_pre_release, current_molecule, current_params, status, current_evidence)
         if is_success(status) and survived:
-            return status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts
-
-        persistence = int((current_evidence or {}).get("persistence_counter", 0))
-        pair_keys = {
-            str(tuple(sorted(pair))) for pair in (current_evidence or {}).get("forming_pairs", [])
-        }
-        retry_supported = bool(
-            current_evidence
-            and current_evidence.get("state") == "CANDIDATE"
-            and pair_keys
-            and persistence >= int(current_params.get("release_persistence", 3))
-        )
+            return (status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts)
+        persistence = int((current_evidence or {}).get('persistence_counter', 0))
+        pair_keys = {str(tuple(sorted(pair))) for pair in (current_evidence or {}).get('forming_pairs', [])}
+        retry_supported = bool(current_evidence and current_evidence.get('state') == 'CANDIDATE' and pair_keys and (persistence >= int(current_params.get('release_persistence', 3))))
         if attempts >= retry_limit or not retry_supported:
-            return status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts
-
+            return (status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts)
         attempts += 1
-        old_margin = float(current_params.get("bias_alpha_margin") or 0.001)
+        old_margin = float(current_params.get('bias_alpha_margin') or 0.001)
         new_margin = old_margin * margin_factor
-        retry_params = _prepare_release_retry(
-            current_pre_release, current_params, new_margin, attempts
-        )
+        retry_params = _prepare_release_retry(current_pre_release, current_params, new_margin, attempts)
         if retry_params is None:
-            return status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts
-        reactor_logger.info(
-            "Release attempt %d failed; retrying from pre-release geometry with bias-alpha-margin=%s",
-            attempts,
-            new_margin,
-        )
+            return (status, current_molecule, current_pre_release, current_evidence, survived, attempts - initial_attempts)
+        reactor_logger.info('Release attempt %d failed; retrying from pre-release geometry with bias-alpha-margin=%s', attempts, new_margin)
         retry_molecule = current_pre_release.copy()
-        retry_status = _optimize_with_diagnostics(
-            retry_molecule, retry_params, "reaction_adaptive_release_retry"
-        )
+        retry_status = _optimize_with_diagnostics(retry_molecule, retry_params, 'reaction_adaptive_release_retry')
         if not is_usable(retry_status) or not retry_molecule.is_bonded():
             retry_evidence = _release_evidence(retry_params)
-            _write_release_retry_outcome(
-                retry_molecule, attempts, retry_status, retry_evidence,
-                "retry_optimization_failed_or_geometry_unbonded",
-            )
-            return retry_status, retry_molecule, current_pre_release, retry_evidence, False, attempts - initial_attempts
+            _write_release_retry_outcome(retry_molecule, attempts, retry_status, retry_evidence, 'retry_optimization_failed_or_geometry_unbonded')
+            return (retry_status, retry_molecule, current_pre_release, retry_evidence, False, attempts - initial_attempts)
         retry_evidence = _release_evidence(retry_params)
-        if not retry_evidence or retry_evidence.get("state") != "CANDIDATE":
-            _write_release_retry_outcome(
-                retry_molecule, attempts, retry_status, retry_evidence,
-                "release_evidence_not_candidate",
-            )
-            return retry_status, retry_molecule, current_pre_release, retry_evidence, False, attempts - initial_attempts
+        if not retry_evidence or retry_evidence.get('state') != 'CANDIDATE':
+            _write_release_retry_outcome(retry_molecule, attempts, retry_status, retry_evidence, 'release_evidence_not_candidate')
+            return (retry_status, retry_molecule, current_pre_release, retry_evidence, False, attempts - initial_attempts)
         current_pre_release = retry_molecule.copy()
         current_molecule = retry_molecule
         current_params = retry_params
         current_evidence = retry_evidence
 
-
 def _orientation_final_coordinate_path(gamma_directory, orientation_directory, job_name):
     """Return the existing coordinate artifact that represents this orientation."""
-    candidate_paths = (
-        os.path.join(orientation_directory, "result_relax.xyz"),
-        os.path.join(orientation_directory, "job_relax", "result_relax.xyz"),
-        os.path.join(
-            orientation_directory,
-            f"job_{job_name}",
-            f"result_{job_name}.xyz",
-        ),
-    )
+    candidate_paths = (os.path.join(orientation_directory, 'result_relax.xyz'), os.path.join(orientation_directory, 'job_relax', 'result_relax.xyz'), os.path.join(orientation_directory, f'job_{job_name}', f'result_{job_name}.xyz'))
     for candidate_path in candidate_paths:
         if os.path.exists(os.path.join(gamma_directory, candidate_path)):
             return candidate_path
-    return "unavailable"
+    return 'unavailable'
 
-
-def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations,
-                            qc_params, site, proximity_factor, *, _v2=False):
+def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor):
     """Prepare a reaction run and return the mutable workflow state.
 
     This function owns the restart contract for the reaction workflow. It
-    either resumes an existing reaction state, migrates a legacy checkpoint,
+    either resumes a supported reaction state,
     or creates a new ``reaction/`` tree with all trial geometries staged for
     the first gamma cycle.
     """
     current_workdir = os.getcwd()
-    adaptive_mode = qc_params.get("bias_controller") == "adaptive"
+    adaptive_mode = qc_params.get('bias_controller') == 'adaptive'
     if gamma_max is None:
-        raise ValueError("Adaptive reaction bias requires a finite --bias-max value")
+        raise ValueError('Adaptive reaction bias requires a finite --bias-max value')
     if adaptive_mode:
         if gamma_min is not None:
-            reactor_logger.warning(
-                "Ignoring --bias-min in adaptive mode; --bias-max is the single bias ceiling."
-            )
+            reactor_logger.warning('Ignoring --bias-min in adaptive mode; --bias-max is the single bias ceiling.')
         if not np.isfinite(gamma_max) or gamma_max < 0.0:
-            raise ValueError("AFIR gamma maximum must be a finite non-negative number")
+            raise ValueError('AFIR gamma maximum must be a finite non-negative number')
         requested_gamma_list = np.asarray([float(gamma_max)])
     else:
         if gamma_min is None:
-            raise ValueError("Fixed or scheduled reaction bias requires --bias-min")
+            raise ValueError('Fixed or scheduled reaction bias requires --bias-min')
         requested_gamma_list = build_gamma_schedule(gamma_min, gamma_max)
-    request = build_reaction_request(
-        reactant_a,
-        reactant_b,
-        requested_gamma_list,
-        hm_orientations,
-        qc_params,
-        site,
-        proximity_factor,
-    )
-    sampling = sampling_configuration(
-        number_of_orientations=int(hm_orientations),
-        use_angles=(site is None and getattr(reactant_b, "number_of_atoms", 0) > 1),
-    )
+    request = build_reaction_request(reactant_a, reactant_b, requested_gamma_list, hm_orientations, qc_params, site, proximity_factor)
+    sampling = sampling_configuration(number_of_orientations=int(hm_orientations), use_angles=site is None and getattr(reactant_b, 'number_of_atoms', 0) > 1)
     run_state = ReactionRunState.load(current_workdir, request)
-    if run_state is None:
-        legacy_checkpoint = read_legacy_checkpoint(current_workdir)
-        if legacy_checkpoint is not None:
-            run_state = ReactionRunState.migrate_legacy(
-                current_workdir, legacy_checkpoint, request, sampling=sampling
-            )
-            reactor_logger.warning(
-                "Imported legacy jobs.pkl into reaction/state.json; "
-                "legacy product deduplication history is unavailable."
-            )
-
     if run_state is not None:
         reactor_logger.info('Reaction state detected: resuming reaction workflow')
         _ensure_reactant_identity(run_state, reactant_a, reactant_b)
@@ -622,183 +416,95 @@ def initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_ori
         orientations_to_optimize = run_state.pending_molecules()
         os.chdir('reaction')
         cwd = os.getcwd()
-        product_dir = (f'{cwd}/discovery/attempts/attempt_000/execution/products'
-                       if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/products')
+        product_dir = f'{cwd}/discovery/attempts/attempt_000/execution/products' if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/products'
         _restore_product_registry(run_state)
-        return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
-
+        return (current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir)
     if os.path.isdir('reaction'):
-        raise ReactionStateError(
-            "Existing reaction directory has no resumable state; "
-            "preserve it and start in a new directory, or remove it explicitly."
-        )
+        raise ReactionStateError('Existing reaction directory has no resumable state; preserve it and start in a new directory, or remove it explicitly.')
     os.makedirs('reaction')
     os.chdir('reaction')
     cwd = os.getcwd()
-
     reactor_logger.info('Starting reaction workflow')
-    reactor_logger.info(
-        "Reaction config: orientations=%s gamma_min=%s gamma_max=%s site=%s proximity_factor=%s",
-        hm_orientations, gamma_min, gamma_max, site, proximity_factor,
-    )
-    reactor_logger.debug("Reaction qc_params=%s", qc_params)
+    reactor_logger.info('Reaction config: orientations=%s gamma_min=%s gamma_max=%s site=%s proximity_factor=%s', hm_orientations, gamma_min, gamma_max, site, proximity_factor)
+    reactor_logger.debug('Reaction qc_params=%s', qc_params)
     reactor_logger.debug(f'Current working directory: {cwd}')
-
     software = qc_params['software']
     print_header(gamma_max, gamma_min, hm_orientations, software)
-    product_dir = (f'{cwd}/discovery/attempts/attempt_000/execution/products'
-                   if _v2 else f'{cwd}/products')
+    product_dir = f'{cwd}/discovery/attempts/attempt_000/execution/products'
     reactor_logger.debug(f'Product directory: {product_dir}')
     file_manager.make_directories(product_dir)
-    trials = ('discovery/initial/attempts/attempt_000/execution/trial_geometries'
-              if _v2 else 'trial_geometries')
+    trials = 'discovery/initial/attempts/attempt_000/execution/trial_geometries'
     file_manager.make_directories(trials)
     os.chdir(trials)
     if site is None:
-        all_orientations = trial_generation.create_trial_geometries(
-            'geom',
-            reactant_a,
-            reactant_b,
-            hm_orientations,
-            site,
-        )
+        all_orientations = trial_generation.create_trial_geometries('geom', reactant_a, reactant_b, hm_orientations, site)
     else:
-        all_orientations = pyar.scan.generate_guess_for_bonding(
-            'geom',
-            reactant_a,
-            reactant_b,
-            site[0],
-            site[1],
-            hm_orientations,
-            d_scale=proximity_factor,
-        )
-
+        all_orientations = pyar.scan.generate_guess_for_bonding('geom', reactant_a, reactant_b, site[0], site[1], hm_orientations, d_scale=proximity_factor)
     os.chdir(cwd)
-
     gamma_list = requested_gamma_list
     orientations_to_optimize = all_orientations[:]
     state_class = ReactionRunState
-    if _v2:
-        from pyar.state.reaction_v2 import ReactionRunStateV2
-        state_class = ReactionRunStateV2
-    run_state = state_class.create(
-        current_workdir,
-        request,
-        orientations_to_optimize,
-        (reactant_a, reactant_b),
-        sampling=sampling,
-    )
+    from pyar.state.reaction_v2 import ReactionRunStateV2
+    state_class = ReactionRunStateV2
+    run_state = state_class.create(current_workdir, request, orientations_to_optimize, (reactant_a, reactant_b), sampling=sampling)
     _ensure_reactant_identity(run_state, reactant_a, reactant_b)
     _restore_product_registry(run_state)
-    return current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir
+    return (current_workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir)
 
-
-def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
-          site, proximity_factor, *, _v2=False):
+def _react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor):
     """Run the reaction-search workflow for two reactants.
 
     The workflow iterates over the gamma schedule, optimizes each orientation,
     records products and trace summaries, and returns a structured result that
     summarizes the final reaction state.
     """
-    sampling = sampling_configuration(
-        number_of_orientations=int(hm_orientations),
-        use_angles=(site is None and getattr(reactant_b, "number_of_atoms", 0) > 1),
-    )
-    workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir = initialize_reaction_run(
-        reactant_a,
-        reactant_b,
-        gamma_min,
-        gamma_max,
-        hm_orientations,
-        qc_params,
-        site,
-        proximity_factor,
-        **({"_v2": True} if _v2 else {}),
-    )
-    # initialize_reaction_run restores persisted products into this compatibility
-    # view; copy it once so this run owns subsequent identity decisions.
+    sampling = sampling_configuration(number_of_orientations=int(hm_orientations), use_angles=site is None and getattr(reactant_b, 'number_of_atoms', 0) > 1)
+    workdir, cwd, run_state, gamma_list, orientations_to_optimize, product_dir = initialize_reaction_run(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor, **{})
     product_registry = dict(saved_product_identities)
-
     for gamma in gamma_list:
-        adaptive_mode = qc_params.get("bias_controller") == "adaptive"
-        gamma_id = "adaptive" if adaptive_mode else format_gamma_id(gamma)
+        adaptive_mode = qc_params.get('bias_controller') == 'adaptive'
+        gamma_id = 'adaptive' if adaptive_mode else format_gamma_id(gamma)
         reactor_logger.info(f'Gamma cycle start: {gamma_id}')
-        gamma_home = (str(run_state.cycle_execution(gamma_id, gamma))
-                      if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/gamma_{gamma_id}')
+        gamma_home = str(run_state.cycle_execution(gamma_id, gamma)) if run_state.data.get('workflow_state_schema_version') == 3 else f'{cwd}/gamma_{gamma_id}'
         reactor_logger.info('Gamma cycle path: %s', os.path.relpath(gamma_home, workdir))
         if not os.path.exists(gamma_home):
             file_manager.make_directories(gamma_home)
         os.chdir(gamma_home)
-
         gamma_qc_params = with_gamma(qc_params, gamma)
         try:
-            optimized_molecules = optimize_all(
-                gamma_id,
-                orientations_to_optimize,
-                run_state,
-                product_dir,
-                gamma_qc_params,
-                product_registry=product_registry,
-            )
+            optimized_molecules = optimize_all(gamma_id, orientations_to_optimize, run_state, product_dir, gamma_qc_params, product_registry=product_registry)
         except BackendExecutionError as exc:
             run_state.fail(exc)
             os.chdir(workdir)
             raise
-
-        reactor_logger.info(
-            f"Gamma cycle optimized geometries: {len(optimized_molecules)}")
+        reactor_logger.info(f'Gamma cycle optimized geometries: {len(optimized_molecules)}')
         if len(optimized_molecules) == 0:
             run_state.complete_cycle(gamma, [])
             if _should_continue_after_product(optimized_molecules, product_registry):
-                reactor_logger.info(
-                    "Reaction search found %d unique product(s); continuing "
-                    "through the remaining gamma schedule.",
-                    len(product_registry),
-                )
+                reactor_logger.info('Reaction search found %d unique product(s); continuing through the remaining gamma schedule.', len(product_registry))
                 orientations_to_optimize = []
                 continue
             else:
-                reactor_logger.info("No orientations left for next gamma cycle.")
-                run_state.finish("completed_no_candidates")
-                result_status = "completed_no_candidates"
+                reactor_logger.info('No orientations left for next gamma cycle.')
+                run_state.finish('completed_no_candidates')
+                result_status = 'completed_no_candidates'
             os.chdir(workdir)
-            return _build_reaction_result(
-                workdir,
-                result_status,
-                product_dir,
-                run_state,
-                gamma_list,
-                orientations_to_optimize,
-                sampling,
-            )
+            return _build_reaction_result(workdir, result_status, product_dir, run_state, gamma_list, orientations_to_optimize, sampling)
         if len(optimized_molecules) == 1:
             orientations_to_optimize = optimized_molecules[:]
         else:
-            orientations_to_optimize = clustering.remove_similar(
-                optimized_molecules)
+            orientations_to_optimize = clustering.remove_similar(optimized_molecules)
         run_state.complete_cycle(gamma, orientations_to_optimize)
-        reactor_logger.info(f"Products found so far: {len(product_registry)}")
-        reactor_logger.info(f"Next cycle candidate geometries: {len(orientations_to_optimize)}")
-
-        reactor_logger.debug("the keys of the molecules for next gamma cycle")
+        reactor_logger.info(f'Products found so far: {len(product_registry)}')
+        reactor_logger.info(f'Next cycle candidate geometries: {len(orientations_to_optimize)}')
+        reactor_logger.debug('the keys of the molecules for next gamma cycle')
         for this_orientation in orientations_to_optimize:
-            reactor_logger.debug(f"{this_orientation.name}")
-
+            reactor_logger.debug(f'{this_orientation.name}')
     os.chdir(workdir)
-    terminal_status = "completed_products_found" if product_registry else "completed"
+    terminal_status = 'completed_products_found' if product_registry else 'completed'
     run_state.finish(terminal_status)
-    reactor_logger.info("Reaction workflow completed. State retained in reaction/state.json.")
-    return _build_reaction_result(
-        workdir,
-        terminal_status,
-        product_dir,
-        run_state,
-        gamma_list,
-        orientations_to_optimize,
-        sampling,
-    )
-
+    reactor_logger.info('Reaction workflow completed. State retained in reaction/state.json.')
+    return _build_reaction_result(workdir, terminal_status, product_dir, run_state, gamma_list, orientations_to_optimize, sampling)
 
 def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, product_registry=None):
     """Optimize all trial geometries for one gamma cycle.
@@ -810,16 +516,8 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, pr
     gamma = qc_param['gamma']
     cwd = os.getcwd()
     product_registry = saved_product_identities if product_registry is None else product_registry
-    table_of_optimized_molecules = (
-        run_state.current_survivor_molecules()
-        if run_state is not None
-        else []
-    )
-    reactant_identity = (
-        getattr(run_state, "data", {}).get("reactant_identity")
-        if run_state is not None
-        else None
-    )
+    table_of_optimized_molecules = run_state.current_survivor_molecules() if run_state is not None else []
+    reactant_identity = getattr(run_state, 'data', {}).get('reactant_identity') if run_state is not None else None
     pending_orientations = list(orientations)
     backend_failures = []
     successful_optimizations = 0
@@ -828,38 +526,18 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, pr
         """Persist the processed job and any orientations still pending."""
         pending_orientations.pop(0)
         if run_state is not None:
-            run_state.record_job(
-                job_name,
-                gamma,
-                status,
-                pending_orientations,
-                table_of_optimized_molecules,
-                identity=identity,
-                failure=failure,
-            )
-        reactor_logger.info(
-            "Orientation completed! status=%s final_coordinate=%s",
-            status,
-            _orientation_final_coordinate_path(
-                cwd,
-                orientations_home,
-                job_name,
-            ),
-        )
+            run_state.record_job(job_name, gamma, status, pending_orientations, table_of_optimized_molecules, identity=identity, failure=failure)
+        reactor_logger.info('Orientation completed! status=%s final_coordinate=%s', status, _orientation_final_coordinate_path(cwd, orientations_home, job_name))
 
     def record_backend_failure(job_name, exc):
-        failure = f"{type(exc).__name__}: {exc}"
+        failure = f'{type(exc).__name__}: {exc}'
         backend_failures.append((job_name, failure))
-        reactor_logger.exception(
-            "Backend job failed for orientation %s; continuing with remaining orientations",
-            job_name,
-        )
-        record_orientation_completion(job_name, "failed_backend", failure=failure)
-
+        reactor_logger.exception('Backend job failed for orientation %s; continuing with remaining orientations', job_name)
+        record_orientation_completion(job_name, 'failed_backend', failure=failure)
     for this_molecule in orientations:
         job_key = this_molecule.name
         reactor_logger.info(f'   Orientation: {job_key}')
-        o_key = f"_{job_key[-8:]}"
+        o_key = f'_{job_key[-8:]}'
         orientations_home = f'orientation{o_key}'
         file_manager.make_directories(orientations_home)
         os.chdir(orientations_home)
@@ -872,11 +550,9 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, pr
         write_disconnected_reference(this_molecule, reference_xyz_file_name)
         start_identity = molecule_identity_from_xyz(reference_xyz_file_name)
         orientation_qc_param = dict(qc_param)
-        orientation_qc_param["release_job_name"] = job_name
+        orientation_qc_param['release_job_name'] = job_name
         try:
-            status = _optimize_with_diagnostics(
-                this_molecule, orientation_qc_param, "reaction_afir_orientation"
-            )
+            status = _optimize_with_diagnostics(this_molecule, orientation_qc_param, 'reaction_afir_orientation')
         except BackendExecutionError as exc:
             record_backend_failure(job_name, exc)
             os.chdir(cwd)
@@ -886,37 +562,22 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, pr
         if is_usable(status):
             successful_optimizations += 1
             before_relax = this_molecule.copy()
-            reactor_logger.info("Energy E({}): {:12.7f}".format(job_name, this_molecule.energy))
-
+            reactor_logger.info('Energy E({}): {:12.7f}'.format(job_name, this_molecule.energy))
             if this_molecule.is_bonded():
                 evidence = _release_evidence(orientation_qc_param)
-                release_candidate = (
-                    evidence is not None and evidence.get("state") == "CANDIDATE"
-                )
-                if qc_param.get("bias_controller") == "adaptive" and not release_candidate:
-                    reactor_logger.info(
-                        "%s has contact but no conservative release candidate; retaining accepted geometry",
-                        job_name,
-                    )
+                release_candidate = evidence is not None and evidence.get('state') == 'CANDIDATE'
+                if qc_param.get('bias_controller') == 'adaptive' and (not release_candidate):
+                    reactor_logger.info('%s has contact but no conservative release candidate; retaining accepted geometry', job_name)
                     table_of_optimized_molecules.append(before_relax)
-                    record_orientation_completion(job_name, "contact_not_release_ready")
+                    record_orientation_completion(job_name, 'contact_not_release_ready')
                     os.chdir(cwd)
                     continue
-                reactor_logger.info("Close contacts detected; running unbiased relaxation (gamma=0.0)")
+                reactor_logger.info('Close contacts detected; running unbiased relaxation (gamma=0.0)')
                 release_survived = True
                 release_attempts = 0
                 try:
-                    if qc_param.get("bias_controller") == "adaptive":
-                        (
-                            status,
-                            this_molecule,
-                            before_relax,
-                            evidence,
-                            release_survived,
-                            release_attempts,
-                        ) = _adaptive_release_probe(
-                            before_relax, this_molecule, orientation_qc_param, evidence
-                        )
+                    if qc_param.get('bias_controller') == 'adaptive':
+                        status, this_molecule, before_relax, evidence, release_survived, release_attempts = _adaptive_release_probe(before_relax, this_molecule, orientation_qc_param, evidence)
                     else:
                         status = relax_without_afir_bias(this_molecule, qc_param)
                 except BackendExecutionError as exc:
@@ -925,146 +586,87 @@ def optimize_all(gamma_id, orientations, run_state, product_dir, qc_param, *, pr
                     os.chdir(cwd)
                     continue
                 if is_success(status):
-                    if qc_param.get("bias_controller") == "adaptive" and not release_survived:
-                        reactor_logger.info("Native free relaxation lost the forming connectivity")
+                    if qc_param.get('bias_controller') == 'adaptive' and (not release_survived):
+                        reactor_logger.info('Native free relaxation lost the forming connectivity')
                         table_of_optimized_molecules.append(before_relax)
-                        record_orientation_completion(job_name, "release_failed")
+                        record_orientation_completion(job_name, 'release_failed')
                         os.chdir(cwd)
                         continue
                     current_identity = molecule_identity_from_xyz('result_relax.xyz')
-                    current_inchi = current_identity["inchi"]
-                    current_smile = current_identity["smiles"]
-
+                    current_inchi = current_identity['inchi']
+                    current_smile = current_identity['smiles']
                     reactor_logger.info('Relaxation completed')
-                    reactor_logger.info("Checking product formation using SMILES and InChI")
-
+                    reactor_logger.info('Checking product formation using SMILES and InChI')
                     reactor_logger.info(f"Start SMILE: {start_identity['smiles']} Current SMILE: {current_smile}")
                     reactor_logger.info(f"Start InChi: {start_identity['inchi']} Current InChi: {current_inchi}")
-
                     reference_identity = reactant_identity or start_identity
                     if reactant_identity is not None:
-                        reactor_logger.info(
-                            f"Reactant SMILE: {reactant_identity['smiles']} Current SMILE: {current_smile}"
-                        )
-                        reactor_logger.info(
-                            f"Reactant InChi: {reactant_identity['inchi']} Current InChi: {current_inchi}"
-                        )
-
-                    # Product validity is determined against the original
-                    # separated reactants, not a distorted higher-gamma
-                    # survivor that may serialize differently.
+                        reactor_logger.info(f"Reactant SMILE: {reactant_identity['smiles']} Current SMILE: {current_smile}")
+                        reactor_logger.info(f"Reactant InChi: {reactant_identity['inchi']} Current InChi: {current_inchi}")
                     if not reaction_product_changed(reference_identity, current_identity):
-                        if qc_param.get("bias_controller") == "adaptive":
-                            _set_release_outcome(
-                                job_name, "RELEASE_FAILED", "relaxed_identity_matches_reactants"
-                            )
+                        if qc_param.get('bias_controller') == 'adaptive':
+                            _set_release_outcome(job_name, 'RELEASE_FAILED', 'relaxed_identity_matches_reactants')
                         table_of_optimized_molecules.append(before_relax)
                         reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
                     else:
-                        if qc_param.get("bias_controller") == "adaptive":
-                            _set_release_outcome(
-                                job_name, "PRODUCT_CONFIRMED", "free_relaxation_and_identity_changed"
-                            )
-                        reactor_logger.info(
-                            "Relaxed identity changed from the starting structure."
-                        )
-
-                        reactor_logger.info("Checking whether product is new")
+                        if qc_param.get('bias_controller') == 'adaptive':
+                            _set_release_outcome(job_name, 'PRODUCT_CONFIRMED', 'free_relaxation_and_identity_changed')
+                        reactor_logger.info('Relaxed identity changed from the starting structure.')
+                        reactor_logger.info('Checking whether product is new')
                         if _is_known_product(current_identity, product_registry):
-                            reactor_logger.info("Product matches an existing product; discarded")
-                            product_status = "duplicate_product"
+                            reactor_logger.info('Product matches an existing product; discarded')
+                            product_status = 'duplicate_product'
                         else:
-                            reactor_logger.info("New product detected; saving")
+                            reactor_logger.info('New product detected; saving')
                             product_registry[job_name] = current_identity
-                            # Preserve the legacy module-level view for existing
-                            # direct callers; this run's decisions use its own registry.
                             saved_product_identities[job_name] = current_identity
                             shutil.copy('result_relax.xyz', f'{product_dir}/{job_name}.xyz')
                             trace_directory = os.path.join(os.getcwd(), f'job_{job_name}')
                             trace_summary = None
                             try:
                                 trace_summary = reaction_analysis.analyse_reaction_trace(trace_directory)
-                                reactor_logger.info(
-                                    "Reaction trace analyzed for %s: %s",
-                                    job_name,
-                                    trace_summary["candidate_ts_directory"] if trace_summary else "no trace records",
-                                )
+                                reactor_logger.info('Reaction trace analyzed for %s: %s', job_name, trace_summary['candidate_ts_directory'] if trace_summary else 'no trace records')
                                 if trace_summary is not None:
-                                    reactor_logger.info(
-                                        "Trace candidates for %s: highest_backend=%s pre_product=%s first_topology_change=%s highest_total=%s",
-                                        job_name,
-                                        trace_summary.get("highest_backend_energy_index"),
-                                        trace_summary.get("pre_product_index"),
-                                        trace_summary.get("first_topology_change_index"),
-                                        trace_summary.get("highest_total_energy_index"),
-                                    )
+                                    reactor_logger.info('Trace candidates for %s: highest_backend=%s pre_product=%s first_topology_change=%s highest_total=%s', job_name, trace_summary.get('highest_backend_energy_index'), trace_summary.get('pre_product_index'), trace_summary.get('first_topology_change_index'), trace_summary.get('highest_total_energy_index'))
                             except Exception:
-                                reactor_logger.exception(
-                                    "Reaction trace analysis failed for %s", job_name
-                                )
+                                reactor_logger.exception('Reaction trace analysis failed for %s', job_name)
                             if run_state is not None:
-                                run_state.record_product(
-                                    job_name,
-                                    gamma,
-                                    current_inchi,
-                                    current_smile,
-                                    f'{product_dir}/{job_name}.xyz',
-                                    trace_summary=trace_summary,
-                                )
-                            product_status = "new_product"
+                                run_state.record_product(job_name, gamma, current_inchi, current_smile, f'{product_dir}/{job_name}.xyz', trace_summary=trace_summary)
+                            product_status = 'new_product'
                         os.chdir(cwd)
-                        record_orientation_completion(
-                            job_name, product_status,
-                            identity={"inchi": current_inchi, "smiles": current_smile},
-                        )
+                        record_orientation_completion(job_name, product_status, identity={'inchi': current_inchi, 'smiles': current_smile})
                         continue
                 elif is_cycle_exceeded(status):
                     table_of_optimized_molecules.append(before_relax)
                     reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
-                elif qc_param.get("bias_controller") == "adaptive":
+                elif qc_param.get('bias_controller') == 'adaptive':
                     table_of_optimized_molecules.append(before_relax)
-                    reactor_logger.info(
-                        "%s native free relaxation failed; preserving pre-release geometry",
-                        job_name,
-                    )
-
+                    reactor_logger.info('%s native free relaxation failed; preserving pre-release geometry', job_name)
             else:
                 table_of_optimized_molecules.append(this_molecule)
                 reactor_logger.info('No close contacts found')
                 reactor_logger.info(f'{job_name} kept for higher-gamma optimization')
-
         record_orientation_completion(job_name, status)
         os.chdir(cwd)
         sys.stdout.flush()
     if backend_failures and successful_optimizations == 0:
-        summary = "; ".join(f"{name}: {failure}" for name, failure in backend_failures)
-        raise BackendExecutionError(
-            f"All {len(backend_failures)} reaction orientation backend jobs failed: {summary}"
-        )
+        summary = '; '.join((f'{name}: {failure}' for name, failure in backend_failures))
+        raise BackendExecutionError(f'All {len(backend_failures)} reaction orientation backend jobs failed: {summary}')
     return table_of_optimized_molecules
 
-
-
-def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params,
-          site, proximity_factor, *, recover_stale=False):
+def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor, *, recover_stale=False):
     """Keep existing discovery formats and guard fresh v2 publication."""
     from pyar.persistence import detect_version, RunLock
-    from pyar.persistence.json_store import read_json
     root = Path.cwd().resolve()
     directory = root / 'reaction'
-    def legacy(path):
-        data = read_json(path / 'state.json')
-        return data.get('version') == 2 and data.get('workflow') == 'reaction'
     args = (reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_params, site, proximity_factor)
     try:
-        if ((root / 'jobs.pkl').exists() and not (directory / 'layout.json').exists()
-                and not (directory / 'state.json').exists()):
-            return _react(*args)
-        if detect_version(directory, 'reaction', validate_v1=legacy) == 1:
-            return _react(*args)
+        if (root / 'jobs.pkl').exists():
+            raise ValueError('Legacy jobs.pkl is unsupported in PyAR 1.6; use its original environment.')
+        detect_version(directory, 'reaction')
         with RunLock(directory, recover_stale=recover_stale):
-            detect_version(directory, 'reaction', validate_v1=legacy)
-            result = _react(*args, _v2=True)
+            detect_version(directory, 'reaction')
+            result = _react(*args)
             from pyar.persistence import write_json
             write_json(directory / 'summary.json', result.to_dict())
             return result
@@ -1074,7 +676,5 @@ def react(reactant_a, reactant_b, gamma_min, gamma_max, hm_orientations, qc_para
 def main():
     """Compatibility entry point retained for older imports and scripts."""
     return None
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

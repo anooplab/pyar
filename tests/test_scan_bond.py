@@ -316,7 +316,8 @@ def test_scan_bond_cli_requires_gxtb_wrapper_and_dft_basis(tmp_path, monkeypatch
     fragment_b = tmp_path / "B.xyz"
     fragment_a.write_text("1\nA\nH 0 0 0\n")
     fragment_b.write_text("1\nB\nH 1 0 0\n")
-    common = [str(fragment_a), str(fragment_b), "--atoms", "0", "0", "-N", "1"]
+    monkeypatch.setattr("pyar.scan_request.preflight_scan", lambda *args: [])
+    common = ["--backend", "orca", str(fragment_a), str(fragment_b), "--atoms", "0", "0", "-N", "1"]
 
     with pytest.raises(SystemExit):
         scan_bond.main(common + ["--method", "BP86"])

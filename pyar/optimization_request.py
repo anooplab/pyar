@@ -71,7 +71,6 @@ def resolve_settings(args):
         'opt_threshold': 'normal', 'opt_cycles': 100, 'scf_cycles': 1000,
         'scf_threshold': 'normal', 'method': None, 'basis': None,
         'custom_keywords': None, 'custom_keyword': None,
-        '_electronic_state_from_molecule': True,
     }
     if backend in {'orca', 'gaussian', 'turbomole', 'xtb_turbo'}:
         settings.update(method='BP86', basis='def2-SVP')
@@ -127,7 +126,7 @@ def resolve_settings(args):
 
 def load_inputs(args):
     # Reuse exactly the established PyAR parity inference/validation rules.
-    from pyar.cli import _infer_default_multiplicities, _validate_backend_spin_inputs
+    from pyar.cli_validation import _infer_default_multiplicities, _validate_backend_spin_inputs
     if args.multiplicity is not None and args.multiplicity < 1:
         raise ValueError('--multiplicity must be positive')
     molecules = []
@@ -162,7 +161,7 @@ def load_inputs(args):
 
 def preflight(settings, molecules, *, require_optimizer_executable=True, check_example=None):
     """Check only the selected route, without constructing a backend or writing files."""
-    from pyar.cli import _workflow_requirement_messages
+    from pyar.cli_validation import _workflow_requirement_messages
     backend = settings['software']
     optimizer = settings['geometry_optimizer']
     capabilities = get_backend_capabilities(backend)
