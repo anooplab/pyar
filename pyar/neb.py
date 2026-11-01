@@ -689,6 +689,48 @@ def _save_stage(output, stage, result, calculator, inputs, artifacts, dependenci
     return result
 
 
+def _validate_stage_backend(result, stage, calculator):
+    """Check physical settings, including historical xTB provenance."""
+    recorded_qc_params = result.get("qc_params", {})
+    requested_qc_params = _physical_settings(calculator)
+    # Prior schema-2 xTB stages always ran the hard-coded --gxtb command.
+    # Preserve their reuse under the historical default while distinguishing
+    # them from explicitly requested GFN2-xTB stages.
+    if str(recorded_qc_params.get("software", "")).lower() == "xtb":
+        # Method/basis values appeared in pre-PR25 summaries even though the
+        # provider never used them. Normalize them away so compatible GFN2 and
+        # historical g-xTB artifacts remain reusable after provenance cleanup.
+        recorded_qc_params = dict(recorded_qc_params)
+        recorded_qc_params.pop("method", None)
+        recorded_qc_params.pop("basis", None)
+        if ("xtb_model" not in recorded_qc_params
+                and result.get("backend_model") == "g-xTB (--gxtb)"):
+            recorded_qc_params["xtb_model"] = "gxtb"
+    if recorded_qc_params != requested_qc_params:
+        raise ValueError(f"Stage {stage} used different backend or electronic-structure settings")
+
+
+def _validate_stage_parameters(result, stage, expected_parameters, expected_geodesic_version):
+    """Verify recorded stage options and the requested geodesic version."""
+    recorded_parameters = result.get("parameters")
+    if stage == "neb" and isinstance(recorded_parameters, dict):
+        recorded_parameters = canonical_neb_parameters(recorded_parameters)
+    elif stage == "ts" and isinstance(recorded_parameters, dict):
+        recorded_parameters = canonical_ts_parameters(recorded_parameters)
+    parameters_match = recorded_parameters == expected_parameters
+    if not parameters_match:
+        raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
+    if (stage == "neb" and (expected_parameters.get("interpolation") == "geodesic"
+                             or expected_parameters.get("path_refinement") == "geodesic")):
+        recorded_version = result.get("geodesic_interpolate_version")
+        if (recorded_version is not None and expected_geodesic_version is not None
+                and recorded_version != expected_geodesic_version):
+            raise ValueError(
+                "Stage neb used geodesic-interpolate version "
+                f"{recorded_version}; installed version is {expected_geodesic_version}; rerun it"
+            )
+
+
 def _load_stage(output, stage, calculator, visited=None, *,
                 expected_parameters=None, expected_by_stage=None,
                 reuse_legacy_summaries=False, expected_geodesic_version=None):
@@ -710,23 +752,7 @@ def _load_stage(output, stage, calculator, visited=None, *,
             "Pass --reuse-legacy-summaries to verify its artifacts and reuse it, "
             "or rerun the stage."
         )
-    recorded_qc_params = result.get("qc_params", {})
-    requested_qc_params = _physical_settings(calculator)
-    # Prior schema-2 xTB stages always ran the hard-coded --gxtb command.
-    # Preserve their reuse under the historical default while distinguishing
-    # them from explicitly requested GFN2-xTB stages.
-    if str(recorded_qc_params.get("software", "")).lower() == "xtb":
-        # Method/basis values appeared in pre-PR25 summaries even though the
-        # provider never used them. Normalize them away so compatible GFN2 and
-        # historical g-xTB artifacts remain reusable after provenance cleanup.
-        recorded_qc_params = dict(recorded_qc_params)
-        recorded_qc_params.pop("method", None)
-        recorded_qc_params.pop("basis", None)
-        if ("xtb_model" not in recorded_qc_params
-                and result.get("backend_model") == "g-xTB (--gxtb)"):
-            recorded_qc_params["xtb_model"] = "gxtb"
-    if recorded_qc_params != requested_qc_params:
-        raise ValueError(f"Stage {stage} used different backend or electronic-structure settings")
+    _validate_stage_backend(result, stage, calculator)
     for group in ("inputs", "artifacts"):
         for filename, digest in result[group].items():
             if not Path(filename).is_file() or _hash(filename) != digest:
@@ -769,23 +795,7 @@ def _load_stage(output, stage, calculator, visited=None, *,
         )
         _write_json(path, result)
     elif expected_parameters is not None and not result.get("legacy_parameters_unverified"):
-        recorded_parameters = result.get("parameters")
-        if stage == "neb" and isinstance(recorded_parameters, dict):
-            recorded_parameters = canonical_neb_parameters(recorded_parameters)
-        elif stage == "ts" and isinstance(recorded_parameters, dict):
-            recorded_parameters = canonical_ts_parameters(recorded_parameters)
-        parameters_match = recorded_parameters == expected_parameters
-        if not parameters_match:
-            raise ValueError(f"Stage {stage} used different stage-specific parameters; rerun it")
-        if (stage == "neb" and (expected_parameters.get("interpolation") == "geodesic"
-                                 or expected_parameters.get("path_refinement") == "geodesic")):
-            recorded_version = result.get("geodesic_interpolate_version")
-            if (recorded_version is not None and expected_geodesic_version is not None
-                    and recorded_version != expected_geodesic_version):
-                raise ValueError(
-                    "Stage neb used geodesic-interpolate version "
-                    f"{recorded_version}; installed version is {expected_geodesic_version}; rerun it"
-                )
+        _validate_stage_parameters(result, stage, expected_parameters, expected_geodesic_version)
     return result
 
 
@@ -1115,6 +1125,239 @@ def _execute_irc_stage(output, calculator, options, frequency):
     return result, inputs, artifacts + ["irc_path.xyz"], ["frequency"]
 
 
+def _execute_relax_stage(output, calculator, options):
+    """Execute relax and return result, inputs, artifacts and dependencies."""
+    start_path, end_path = output / "reactant_relaxed.xyz", output / "product_relaxed.xyz"
+    start, end = options["start"], options["end"]
+    symbols, start_xyz, _ = read_xyz(start)
+    end_symbols, end_xyz, _ = read_xyz(end)
+    if symbols != end_symbols:
+        raise ValueError("Start and end atom count and ordered elements must match")
+    result = {}
+    for label, geometry, path in (("reactant", start_xyz, start_path), ("product", end_xyz, end_path)):
+        relaxed, energy, bonds = _relax_endpoint(
+            symbols, geometry, calculator, output, label,
+            options["product_relaxation_fmax"], options["product_relaxation_max_steps"],
+        )
+        _write_xyz_trajectory(path, symbols, [relaxed], [energy])
+        result.update({f"{label}_relaxation_converged": True,
+                       f"{label}_connectivity_survived_relaxation": True,
+                       f"{label}_energy_hartree": energy,
+                       f"{label}_bonds_zero_based": sorted(map(list, bonds))})
+    return (result, [start, end], [start_path.name, end_path.name], ())
+
+
+def _execute_neb_stage(output, calculator, options, load):
+    """Execute neb and return result, inputs, artifacts and dependencies."""
+    start_path, end_path = output / "reactant_relaxed.xyz", output / "product_relaxed.xyz"
+    from geometric.ase_engine import EngineASE
+    from geometric.molecule import Molecule
+    from geometric.neb import ElasticBand, OptimizeChain
+    from geometric.params import NEBParams
+
+    load("relax")
+    guess = options["ts_guess"]
+    path_seed = options["path_seed"]
+    seed_artifacts = []
+    initialization = {"initialization_source": "ts_guess"}
+    if path_seed is None:
+        symbols, frames = build_neb_images(
+            start_path, end_path, guess, options["images"],
+            interpolation=options["interpolation"],
+            idpp_fmax=options["idpp_fmax"],
+            idpp_steps=options["idpp_steps"],
+            geodesic_tol=options["geodesic_tol"],
+            geodesic_max_iter=options["geodesic_max_iter"],
+        )
+    else:
+        symbols, frames, initialization = build_neb_images_from_path_seed(
+            start_path, end_path, path_seed, options["images"],
+            path_refinement=options["path_refinement"] or "none",
+            idpp_fmax=options["idpp_fmax"], idpp_steps=options["idpp_steps"],
+            geodesic_tol=options["geodesic_tol"],
+            geodesic_max_iter=options["geodesic_max_iter"],
+            path_seed_maximum_frame_index=options["path_seed_maximum_frame_index"],
+        )
+        shutil.copyfile(path_seed, output / "path_seed_raw.xyz")
+        _write_xyz_frames(output / "path_seed_resampled.xyz", symbols, frames)
+        seed_artifacts.extend(["path_seed_raw.xyz", "path_seed_resampled.xyz"])
+    molecule = Molecule()
+    molecule.elem, molecule.xyzs = symbols, frames
+    engine = EngineASE(molecule, calculator)
+    params = NEBParams(images=options["images"], neb_maxcyc=options["max_cycles"],
+                       maxg=options["max_gradient"], avgg=options["average_gradient"],
+                       nebk=options["spring"], climb=options["climb"], align=options["align"],
+                       ncimg=1)
+    scratch = tempfile.mkdtemp(prefix="geometric_neb_", dir=output)
+    chain = ElasticBand(molecule, engine, scratch, params, plain=0)
+    try:
+        chain, cycles = OptimizeChain(chain, engine, params)
+    except BaseException:
+        from pyar.recovery.stages import preserve_band_observations
+        preserve_band_observations(output, symbols, chain)
+        raise
+    frames = [structure.M.xyzs[0].copy() for structure in chain.Structures]
+    energies = [float(structure.energy) for structure in chain.Structures]
+    climbing_state_available, climbing_activated, climber_indices = _geometric_climbing_state(chain)
+    candidate = _select_neb_ts_candidate(
+        frames, energies, climbing_activated=climbing_activated is True,
+        climber_indices=climber_indices,
+    )
+    highest = candidate["highest_energy_image_index"]
+    _write_xyz_trajectory(output / "neb_path.xyz", symbols, frames, energies)
+    artifacts = ["neb_path.xyz"]
+    selected = candidate["ts_guess_image_index"]
+    if selected is not None:
+        _write_xyz_trajectory(output / "ts_guess.xyz", symbols, [frames[selected]], [energies[selected]])
+        artifacts.append("ts_guess.xyz")
+    return ({
+        "converged": bool(chain.avgg <= options["average_gradient"] and chain.maxg <= options["max_gradient"]),
+        "images": len(frames), "cycles": int(cycles),
+        "climbing_image_state_available": climbing_state_available,
+        "climbing_image_activated": climbing_activated,
+        "climbing_image_indices": candidate["climbing_image_indices"],
+        "selected_climbing_image_index": candidate["selected_climbing_image_index"],
+        "requested_climbing_images": 1,
+        "interior_maximum": candidate["interior_maximum"],
+        "highest_energy_image_index": highest,
+        "ts_guess_image_index": selected,
+        "ts_guess_source": candidate["ts_guess_source"],
+        **initialization,
+        "highest_energy_hartree": energies[highest],
+        "average_rms_gradient_ev_per_angstrom": float(chain.avgg),
+        "maximum_rms_gradient_ev_per_angstrom": float(chain.maxg),
+    }, [start_path, end_path, path_seed or guess], seed_artifacts + artifacts, ["relax"])
+
+
+def _execute_frequency_stage(output, calculator, options, load):
+    """Execute frequency and return result, inputs, artifacts and dependencies."""
+    geometry_path = options["ts_geometry"]
+    dependencies = []
+    if geometry_path is None:
+        ts = load("ts")
+        if not ts["ts_optimization_converged"]:
+            raise ValueError("TS optimization did not converge; cannot validate a saddle")
+        geometry_path, dependencies = output / "ts_optimized.xyz", ["ts"]
+    symbols, geometry, _ = read_xyz(geometry_path)
+    result = _frequency(symbols, geometry, calculator, output, "ts", options["imaginary_frequency_threshold"])
+    _write_xyz_trajectory(output / "frequency_geometry.xyz", symbols,
+                          [result["evaluated_coordinates_angstrom"]], [result["energy_hartree"]])
+    return (result, [geometry_path], ["frequency_geometry.xyz", "ts_hessian.txt", "ts_frequencies.vdata"], dependencies)
+
+
+def _execute_endpoints_stage(stage, output, calculator, options, load):
+    """Execute endpoints and return result, inputs, artifacts and dependencies."""
+    start_path, end_path = output / "reactant_relaxed.xyz", output / "product_relaxed.xyz"
+    irc = load("irc")
+    if stage in _SPLIT_ENDPOINT_STAGES and not _stage_gate_passed(irc, "irc"):
+        raise ValueError("Endpoint stages require two converged IRC branches")
+    endpoint_relaxation = load("endpoint-relax") if stage == "endpoint-frequency" else None
+    if endpoint_relaxation is not None and not _stage_gate_passed(endpoint_relaxation, "endpoint-relax"):
+        raise ValueError("Cannot validate scientifically invalid endpoint-relax; rerun endpoint relaxation")
+    load("relax")
+    symbols, reactant, _ = read_xyz(start_path)
+    end_symbols, product, _ = read_xyz(end_path)
+    if symbols != end_symbols:
+        raise ValueError("Relaxed endpoint atom order differs")
+    result, observed, artifacts, inputs = {}, [], [], [start_path, end_path]
+    for direction in ("forward", "backward"):
+        path = output / f"irc_{direction}_endpoint.xyz"
+        branch_symbols, geometry, _ = read_xyz(path)
+        if symbols != branch_symbols:
+            raise ValueError("IRC atom order differs from relaxed endpoints")
+        label = f"irc_{direction}_relaxed"
+        if endpoint_relaxation is not None:
+            branch_symbols, final_geometry, final_energy = read_xyz(output / f"{label}.xyz")
+            if branch_symbols != symbols:
+                raise ValueError("Optimized IRC endpoint atom order differs")
+            frames, energies = [final_geometry], [final_energy]
+            converged = endpoint_relaxation[f"{direction}_optimization_converged"]
+        else:
+            frames, energies, converged = _optimize_geometry(
+                symbols, geometry, calculator, output, label, options["endpoint_max_cycles"],
+            )
+        # Topology is free to change here: classify the actual final minimum.
+        observed.append(frames[-1])
+        if endpoint_relaxation is None:
+            _write_xyz_trajectory(output / f"{label}.xyz", symbols, [frames[-1]], [energies[-1]])
+        result[f"{direction}_optimization_converged"] = converged
+        result[f"{direction}_topology_changed_on_relaxation"] = _bond_set(symbols, geometry) != _bond_set(symbols, frames[-1])
+        if stage == "endpoint-relax":
+            artifacts.extend([f"{label}.xyz", f"{label}_path.xyz"])
+            inputs.append(path)
+            continue
+        verification = _frequency(symbols, frames[-1], calculator, output, label,
+                                  options["imaginary_frequency_threshold"])
+        observed[-1] = np.asarray(verification["evaluated_coordinates_angstrom"])
+        verified_label = f"{label}_verified" if endpoint_relaxation is not None else label
+        _write_xyz_trajectory(output / f"{verified_label}.xyz", symbols, [observed[-1]], [verification["energy_hartree"]])
+        result[f"{direction}_frequency"] = verification
+        artifacts.extend([f"{verified_label}.xyz", f"{label}_hessian.txt", f"{label}_frequencies.vdata"])
+        if endpoint_relaxation is None:
+            artifacts.append(f"{label}_path.xyz")
+        inputs.append(path)
+    if stage == "endpoint-relax":
+        result["endpoint_frequencies_evaluated"] = False
+        result["reactant_product_connection_confirmed"] = False
+        return (result, inputs, artifacts, ["irc", "relax"])
+    result["endpoint_frequencies_evaluated"] = True
+    result.update(_match_endpoints(symbols, observed, [reactant, product], options["irc_endpoint_rmsd_tolerance"]))
+    result["endpoints_are_minima"] = all(
+        result[f"{direction}_optimization_converged"] and result[f"{direction}_frequency"]["minimum_confirmed"]
+        for direction in ("forward", "backward")
+    )
+    result["irc_converged"] = irc["irc_converged"]
+    distinct = (_bond_set(symbols, reactant) != _bond_set(symbols, product)
+                or _aligned_rmsd(reactant, product) > options["irc_endpoint_rmsd_tolerance"])
+    result["reference_endpoints_distinct"] = distinct
+    result["reactant_product_connection_confirmed"] = bool(
+        irc["irc_converged"] and result["endpoints_are_minima"] and distinct
+        and result["observed_endpoints_distinct"]
+        and result["irc_endpoint_connectivities_match"] and result["irc_endpoint_geometries_match"]
+    )
+    return (result, inputs, artifacts,
+                ["endpoint-relax", "relax"] if endpoint_relaxation is not None else ["irc", "relax"])
+
+
+def _publish_neb_stage(output, stage, calculator, options, result, inputs, artifacts, dependencies, *,
+                       stage_started, evaluation_count_start, optimizer_steps_start):
+    """Publish stage evidence with diagnostics from explicit execution counters."""
+    result = dict(result)
+    gate_passed = _stage_gate_passed(result, stage) if stage in _STAGE_GATES else None
+    from pyar.recovery.workflow import stage_diagnostic
+    gates = {key: result.get(key) for key in _STAGE_GATES.get(stage, ())}
+    gates['stage_requirements'] = gate_passed
+    if stage == 'ts':
+        gates.update(saddle_hessian=None, irc_connection=None)
+    result["optimization_diagnostics"] = stage_diagnostic(f'neb_{stage}', gates)
+    # Downstream chemistry gates can remain unknown after this stage passes.
+    result['optimization_diagnostics']['stage_gate'] = (
+        'passed' if gate_passed is True else 'failed' if gate_passed is False else 'not_assessed')
+    result.setdefault(
+        "backend_energy_gradient_evaluations",
+        getattr(calculator, "backend_energy_gradient_evaluations", 0) - evaluation_count_start,
+    )
+    optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
+    result.setdefault(
+        "optimizer_steps",
+        None if optimizer_steps_start is None or optimizer_steps_end is None
+        else optimizer_steps_end - optimizer_steps_start,
+    )
+    result.setdefault("wall_seconds", float(time.perf_counter() - stage_started))
+    if stage == "neb" and (options["interpolation"] == "geodesic"
+                            or options["path_refinement"] == "geodesic"):
+        result["geodesic_interpolate_version"] = options["geodesic_interpolate_version"]
+    parameters = (
+        canonical_neb_parameters({key: options[key] for key in _STAGE_OPTIONS["neb"]})
+        if stage == "neb"
+        else canonical_ts_parameters({key: options[key] for key in _STAGE_OPTIONS["ts"]})
+        if stage == "ts"
+        else {key: options[key] for key in _STAGE_OPTIONS[stage]}
+    )
+    return _save_stage(output, stage, result, calculator, inputs,
+                       [output / name for name in artifacts], dependencies, parameters)
+
+
 def _execute_stage(stage, output, calculator, options):
     """Execute a single stage; dependent results are checked before use."""
     stage_started = time.perf_counter()
@@ -1146,139 +1389,19 @@ def _execute_stage(stage, output, calculator, options):
         )
 
     def save(result, inputs=(), artifacts=(), dependencies=()):
-        result = dict(result)
-        gate_passed = _stage_gate_passed(result, stage) if stage in _STAGE_GATES else None
-        from pyar.recovery.workflow import stage_diagnostic
-        gates = {key: result.get(key) for key in _STAGE_GATES.get(stage, ())}
-        gates['stage_requirements'] = gate_passed
-        if stage == 'ts':
-            gates.update(saddle_hessian=None, irc_connection=None)
-        result["optimization_diagnostics"] = stage_diagnostic(f'neb_{stage}', gates)
-        # Downstream chemistry gates can remain unknown after this stage passes.
-        result['optimization_diagnostics']['stage_gate'] = (
-            'passed' if gate_passed is True else 'failed' if gate_passed is False else 'not_assessed')
-        result.setdefault(
-            "backend_energy_gradient_evaluations",
-            getattr(calculator, "backend_energy_gradient_evaluations", 0) - evaluation_count_start,
+        return _publish_neb_stage(
+            output, stage, calculator, options, result, inputs, artifacts, dependencies,
+            stage_started=stage_started, evaluation_count_start=evaluation_count_start,
+            optimizer_steps_start=optimizer_steps_start,
         )
-        optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
-        result.setdefault(
-            "optimizer_steps",
-            None if optimizer_steps_start is None or optimizer_steps_end is None
-            else optimizer_steps_end - optimizer_steps_start,
-        )
-        result.setdefault("wall_seconds", float(time.perf_counter() - stage_started))
-        if stage == "neb" and (options["interpolation"] == "geodesic"
-                                or options["path_refinement"] == "geodesic"):
-            result["geodesic_interpolate_version"] = options["geodesic_interpolate_version"]
-        parameters = (
-            canonical_neb_parameters({key: options[key] for key in _STAGE_OPTIONS["neb"]})
-            if stage == "neb"
-            else canonical_ts_parameters({key: options[key] for key in _STAGE_OPTIONS["ts"]})
-            if stage == "ts"
-            else {key: options[key] for key in _STAGE_OPTIONS[stage]}
-        )
-        return _save_stage(output, stage, result, calculator, inputs,
-                           [output / name for name in artifacts], dependencies, parameters)
 
-    start_path, end_path = output / "reactant_relaxed.xyz", output / "product_relaxed.xyz"
     if stage == "relax":
-        start, end = options["start"], options["end"]
-        symbols, start_xyz, _ = read_xyz(start)
-        end_symbols, end_xyz, _ = read_xyz(end)
-        if symbols != end_symbols:
-            raise ValueError("Start and end atom count and ordered elements must match")
-        result = {}
-        for label, geometry, path in (("reactant", start_xyz, start_path), ("product", end_xyz, end_path)):
-            relaxed, energy, bonds = _relax_endpoint(
-                symbols, geometry, calculator, output, label,
-                options["product_relaxation_fmax"], options["product_relaxation_max_steps"],
-            )
-            _write_xyz_trajectory(path, symbols, [relaxed], [energy])
-            result.update({f"{label}_relaxation_converged": True,
-                           f"{label}_connectivity_survived_relaxation": True,
-                           f"{label}_energy_hartree": energy,
-                           f"{label}_bonds_zero_based": sorted(map(list, bonds))})
-        return save(result, [start, end], [start_path.name, end_path.name])
+        result, inputs, artifacts, dependencies = _execute_relax_stage(output, calculator, options)
+        return save(result, inputs, artifacts, dependencies)
 
     if stage == "neb":
-        from geometric.ase_engine import EngineASE
-        from geometric.molecule import Molecule
-        from geometric.neb import ElasticBand, OptimizeChain
-        from geometric.params import NEBParams
-
-        load("relax")
-        guess = options["ts_guess"]
-        path_seed = options["path_seed"]
-        seed_artifacts = []
-        initialization = {"initialization_source": "ts_guess"}
-        if path_seed is None:
-            symbols, frames = build_neb_images(
-                start_path, end_path, guess, options["images"],
-                interpolation=options["interpolation"],
-                idpp_fmax=options["idpp_fmax"],
-                idpp_steps=options["idpp_steps"],
-                geodesic_tol=options["geodesic_tol"],
-                geodesic_max_iter=options["geodesic_max_iter"],
-            )
-        else:
-            symbols, frames, initialization = build_neb_images_from_path_seed(
-                start_path, end_path, path_seed, options["images"],
-                path_refinement=options["path_refinement"] or "none",
-                idpp_fmax=options["idpp_fmax"], idpp_steps=options["idpp_steps"],
-                geodesic_tol=options["geodesic_tol"],
-                geodesic_max_iter=options["geodesic_max_iter"],
-                path_seed_maximum_frame_index=options["path_seed_maximum_frame_index"],
-            )
-            shutil.copyfile(path_seed, output / "path_seed_raw.xyz")
-            _write_xyz_frames(output / "path_seed_resampled.xyz", symbols, frames)
-            seed_artifacts.extend(["path_seed_raw.xyz", "path_seed_resampled.xyz"])
-        molecule = Molecule()
-        molecule.elem, molecule.xyzs = symbols, frames
-        engine = EngineASE(molecule, calculator)
-        params = NEBParams(images=options["images"], neb_maxcyc=options["max_cycles"],
-                           maxg=options["max_gradient"], avgg=options["average_gradient"],
-                           nebk=options["spring"], climb=options["climb"], align=options["align"],
-                           ncimg=1)
-        scratch = tempfile.mkdtemp(prefix="geometric_neb_", dir=output)
-        chain = ElasticBand(molecule, engine, scratch, params, plain=0)
-        try:
-            chain, cycles = OptimizeChain(chain, engine, params)
-        except BaseException:
-            from pyar.recovery.stages import preserve_band_observations
-            preserve_band_observations(output, symbols, chain)
-            raise
-        frames = [structure.M.xyzs[0].copy() for structure in chain.Structures]
-        energies = [float(structure.energy) for structure in chain.Structures]
-        climbing_state_available, climbing_activated, climber_indices = _geometric_climbing_state(chain)
-        candidate = _select_neb_ts_candidate(
-            frames, energies, climbing_activated=climbing_activated is True,
-            climber_indices=climber_indices,
-        )
-        highest = candidate["highest_energy_image_index"]
-        _write_xyz_trajectory(output / "neb_path.xyz", symbols, frames, energies)
-        artifacts = ["neb_path.xyz"]
-        selected = candidate["ts_guess_image_index"]
-        if selected is not None:
-            _write_xyz_trajectory(output / "ts_guess.xyz", symbols, [frames[selected]], [energies[selected]])
-            artifacts.append("ts_guess.xyz")
-        return save({
-            "converged": bool(chain.avgg <= options["average_gradient"] and chain.maxg <= options["max_gradient"]),
-            "images": len(frames), "cycles": int(cycles),
-            "climbing_image_state_available": climbing_state_available,
-            "climbing_image_activated": climbing_activated,
-            "climbing_image_indices": candidate["climbing_image_indices"],
-            "selected_climbing_image_index": candidate["selected_climbing_image_index"],
-            "requested_climbing_images": 1,
-            "interior_maximum": candidate["interior_maximum"],
-            "highest_energy_image_index": highest,
-            "ts_guess_image_index": selected,
-            "ts_guess_source": candidate["ts_guess_source"],
-            **initialization,
-            "highest_energy_hartree": energies[highest],
-            "average_rms_gradient_ev_per_angstrom": float(chain.avgg),
-            "maximum_rms_gradient_ev_per_angstrom": float(chain.maxg),
-        }, [start_path, end_path, path_seed or guess], seed_artifacts + artifacts, ["relax"])
+        result, inputs, artifacts, dependencies = _execute_neb_stage(output, calculator, options, load)
+        return save(result, inputs, artifacts, dependencies)
 
     if stage == "ts":
         result, inputs, artifacts, dependencies = _execute_ts_stage(
@@ -1287,18 +1410,8 @@ def _execute_stage(stage, output, calculator, options):
         return save(result, inputs, artifacts, dependencies)
 
     if stage == "frequency":
-        geometry_path = options["ts_geometry"]
-        dependencies = []
-        if geometry_path is None:
-            ts = load("ts")
-            if not ts["ts_optimization_converged"]:
-                raise ValueError("TS optimization did not converge; cannot validate a saddle")
-            geometry_path, dependencies = output / "ts_optimized.xyz", ["ts"]
-        symbols, geometry, _ = read_xyz(geometry_path)
-        result = _frequency(symbols, geometry, calculator, output, "ts", options["imaginary_frequency_threshold"])
-        _write_xyz_trajectory(output / "frequency_geometry.xyz", symbols,
-                              [result["evaluated_coordinates_angstrom"]], [result["energy_hartree"]])
-        return save(result, [geometry_path], ["frequency_geometry.xyz", "ts_hessian.txt", "ts_frequencies.vdata"], dependencies)
+        result, inputs, artifacts, dependencies = _execute_frequency_stage(output, calculator, options, load)
+        return save(result, inputs, artifacts, dependencies)
 
     if stage == "irc":
         frequency = load("frequency")
@@ -1308,75 +1421,9 @@ def _execute_stage(stage, output, calculator, options):
         return save(result, inputs, artifacts, dependencies)
 
     if stage in {"endpoints", *_SPLIT_ENDPOINT_STAGES}:
-        irc = load("irc")
-        if stage in _SPLIT_ENDPOINT_STAGES and not _stage_gate_passed(irc, "irc"):
-            raise ValueError("Endpoint stages require two converged IRC branches")
-        endpoint_relaxation = load("endpoint-relax") if stage == "endpoint-frequency" else None
-        if endpoint_relaxation is not None and not _stage_gate_passed(endpoint_relaxation, "endpoint-relax"):
-            raise ValueError("Cannot validate scientifically invalid endpoint-relax; rerun endpoint relaxation")
-        load("relax")
-        symbols, reactant, _ = read_xyz(start_path)
-        end_symbols, product, _ = read_xyz(end_path)
-        if symbols != end_symbols:
-            raise ValueError("Relaxed endpoint atom order differs")
-        result, observed, artifacts, inputs = {}, [], [], [start_path, end_path]
-        for direction in ("forward", "backward"):
-            path = output / f"irc_{direction}_endpoint.xyz"
-            branch_symbols, geometry, _ = read_xyz(path)
-            if symbols != branch_symbols:
-                raise ValueError("IRC atom order differs from relaxed endpoints")
-            label = f"irc_{direction}_relaxed"
-            if endpoint_relaxation is not None:
-                branch_symbols, final_geometry, final_energy = read_xyz(output / f"{label}.xyz")
-                if branch_symbols != symbols:
-                    raise ValueError("Optimized IRC endpoint atom order differs")
-                frames, energies = [final_geometry], [final_energy]
-                converged = endpoint_relaxation[f"{direction}_optimization_converged"]
-            else:
-                frames, energies, converged = _optimize_geometry(
-                    symbols, geometry, calculator, output, label, options["endpoint_max_cycles"],
-                )
-            # Topology is free to change here: classify the actual final minimum.
-            observed.append(frames[-1])
-            if endpoint_relaxation is None:
-                _write_xyz_trajectory(output / f"{label}.xyz", symbols, [frames[-1]], [energies[-1]])
-            result[f"{direction}_optimization_converged"] = converged
-            result[f"{direction}_topology_changed_on_relaxation"] = _bond_set(symbols, geometry) != _bond_set(symbols, frames[-1])
-            if stage == "endpoint-relax":
-                artifacts.extend([f"{label}.xyz", f"{label}_path.xyz"])
-                inputs.append(path)
-                continue
-            verification = _frequency(symbols, frames[-1], calculator, output, label,
-                                      options["imaginary_frequency_threshold"])
-            observed[-1] = np.asarray(verification["evaluated_coordinates_angstrom"])
-            verified_label = f"{label}_verified" if endpoint_relaxation is not None else label
-            _write_xyz_trajectory(output / f"{verified_label}.xyz", symbols, [observed[-1]], [verification["energy_hartree"]])
-            result[f"{direction}_frequency"] = verification
-            artifacts.extend([f"{verified_label}.xyz", f"{label}_hessian.txt", f"{label}_frequencies.vdata"])
-            if endpoint_relaxation is None:
-                artifacts.append(f"{label}_path.xyz")
-            inputs.append(path)
-        if stage == "endpoint-relax":
-            result["endpoint_frequencies_evaluated"] = False
-            result["reactant_product_connection_confirmed"] = False
-            return save(result, inputs, artifacts, ["irc", "relax"])
-        result["endpoint_frequencies_evaluated"] = True
-        result.update(_match_endpoints(symbols, observed, [reactant, product], options["irc_endpoint_rmsd_tolerance"]))
-        result["endpoints_are_minima"] = all(
-            result[f"{direction}_optimization_converged"] and result[f"{direction}_frequency"]["minimum_confirmed"]
-            for direction in ("forward", "backward")
-        )
-        result["irc_converged"] = irc["irc_converged"]
-        distinct = (_bond_set(symbols, reactant) != _bond_set(symbols, product)
-                    or _aligned_rmsd(reactant, product) > options["irc_endpoint_rmsd_tolerance"])
-        result["reference_endpoints_distinct"] = distinct
-        result["reactant_product_connection_confirmed"] = bool(
-            irc["irc_converged"] and result["endpoints_are_minima"] and distinct
-            and result["observed_endpoints_distinct"]
-            and result["irc_endpoint_connectivities_match"] and result["irc_endpoint_geometries_match"]
-        )
-        return save(result, inputs, artifacts,
-                    ["endpoint-relax", "relax"] if endpoint_relaxation is not None else ["irc", "relax"])
+        result, inputs, artifacts, dependencies = _execute_endpoints_stage(stage, output, calculator, options, load)
+        return save(result, inputs, artifacts, dependencies)
+
     raise ValueError(f"Unknown stage: {stage}")
 
 
@@ -1397,24 +1444,17 @@ def validate_stage_input_paths(output, stage, *, start=None, end=None, ts_guess=
             raise ValueError("An input would be overwritten by this stage; use a new output directory")
 
 
-def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
-                          path_seed=None, path_refinement=None, path_seed_maximum_frame_index=None,
-                          max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
-                          nprocs=1, xtb_model="gfn2", max_gradient=0.05, average_gradient=0.025, spring=1.0,
-                          climb=0.5, align=False, product_relaxation_fmax=0.05,
-                          product_relaxation_max_steps=200, ts_max_cycles=200,
-                          irc_max_cycles=200, imaginary_frequency_threshold=20.0,
-                          irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
-                          endpoint_max_cycles=300, reuse_legacy_summaries=False,
-                          interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
-                          geodesic_tol=0.002, geodesic_max_iter=15,
-                          ts_optimizer="geometric", ts_fmax=None, sella_fmax=0.05,
-                          sella_internal_coordinates=False, backend_options=None, reuse=False):
-    from pyar.backends.geometric import PyarGeometricCalculator
-
-    options = dict(locals())
-    options["geodesic_interpolate_version"] = None
-    output = Path(output).resolve()
+def _validate_neb_route(options, output):
+    end = options["end"]
+    images = options["images"]
+    interpolation = options["interpolation"]
+    path_refinement = options["path_refinement"]
+    path_seed = options["path_seed"]
+    path_seed_maximum_frame_index = options["path_seed_maximum_frame_index"]
+    stage = options["stage"]
+    start = options["start"]
+    ts_geometry = options["ts_geometry"]
+    ts_guess = options["ts_guess"]
     if stage not in ("all",) + STAGES + _SPLIT_ENDPOINT_STAGES:
         raise ValueError(f"Unknown stage: {stage}")
     if stage in {"all", "relax"} and (start is None or end is None):
@@ -1459,6 +1499,22 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
         raise ValueError("--ts-geometry is supported only for ts and frequency stages")
     validate_stage_input_paths(output, stage, start=start, end=end, ts_guess=ts_guess,
                                path_seed=path_seed, ts_geometry=ts_geometry)
+
+
+def _validate_neb_controls(options, output):
+    geodesic_max_iter = options["geodesic_max_iter"]
+    geodesic_tol = options["geodesic_tol"]
+    idpp_fmax = options["idpp_fmax"]
+    idpp_steps = options["idpp_steps"]
+    interpolation = options["interpolation"]
+    path_refinement = options["path_refinement"]
+    path_seed = options["path_seed"]
+    sella_fmax = options["sella_fmax"]
+    sella_internal_coordinates = options["sella_internal_coordinates"]
+    stage = options["stage"]
+    ts_fmax = options["ts_fmax"]
+    ts_max_cycles = options["ts_max_cycles"]
+    ts_optimizer = options["ts_optimizer"]
     for key in ("max_cycles", "product_relaxation_max_steps", "ts_max_cycles", "irc_max_cycles", "endpoint_max_cycles", "nprocs", "multiplicity"):
         if not isinstance(options[key], int) or options[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
@@ -1491,6 +1547,23 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
             "sella_fmax": sella_fmax,
             "sella_internal_coordinates": sella_internal_coordinates,
         })
+
+
+def _validate_neb_request(options, output):
+    """Validate in public error order; normalize only path refinement/version."""
+    _validate_neb_route(options, output)
+    _validate_neb_controls(options, output)
+
+
+def _neb_calculator_settings(options):
+    backend_options = options["backend_options"]
+    basis = options["basis"]
+    charge = options["charge"]
+    method = options["method"]
+    multiplicity = options["multiplicity"]
+    nprocs = options["nprocs"]
+    software = options["software"]
+    xtb_model = options["xtb_model"]
     from pyar.backend_capabilities import get_backend_capabilities, normalize_backend_name
     canonical_backend = normalize_backend_name(str(software).lower())
     needs_dft_settings = get_backend_capabilities(canonical_backend).family == "dft_qc"
@@ -1515,42 +1588,121 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                 "total_multiplicity_source"
             )
         qc_params.update(backend_options)
+    return qc_params
+
+
+def _reuse_neb_stage(options, output, current, calculator):
+    end = options["end"]
+    path_seed = options["path_seed"]
+    stage = options["stage"]
+    start = options["start"]
+    ts_geometry = options["ts_geometry"]
+    ts_guess = options["ts_guess"]
+    expected = _canonical_expected_stage_parameters(options)
+    if stage not in {"all", "relax", "neb"}:
+        neb_summary_path = output / "neb_summary.json"
+        if neb_summary_path.is_file():
+            recorded_neb = json.loads(neb_summary_path.read_text(encoding="utf-8"))
+            recorded_parameters = recorded_neb.get("parameters") or {}
+            for key in ("path_refinement", "path_seed_maximum_frame_index"):
+                if key in recorded_parameters:
+                    expected["neb"][key] = recorded_parameters[key]
+            expected["neb"] = canonical_neb_parameters(expected["neb"])
+    if stage in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
+        expected["ts"] = None
+    try:
+        cached = _load_stage(output, current, calculator,
+                             expected_parameters=expected[current], expected_by_stage=expected,
+                             expected_geodesic_version=options.get("geodesic_interpolate_version"))
+    except (ValueError, KeyError, OSError, json.JSONDecodeError):
+        cached = None
+    if cached is not None:
+        requested_inputs = (
+            [start, end] if current == "relax"
+            else [path_seed or ts_guess] if current == "neb"
+            else [ts_geometry or ts_guess] if current == "ts" and stage != "all"
+            else [ts_geometry] if current == "frequency"
+            else []
+        )
+        # Valid old artifacts do not justify reusing a stage when the
+        # caller explicitly supplied a different starting structure.
+        if any(str(Path(path).resolve()) not in cached["inputs"]
+               for path in requested_inputs if path is not None):
+            cached = None
+    return cached
+
+
+def _execute_neb_stage_with_diagnostics(options, output, current, calculator, results):
+    stage = options["stage"]
+    _write_json(output / f"{current}_summary.json", {"stage": current, "status": "running"})
+    stage_started = time.perf_counter()
+    evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
+    optimizer_steps_start = getattr(calculator, "_pyar_optimizer_steps_total", None)
+    try:
+        # During all, the TS must consume the optimized NEB maximum, not the input waypoint.
+        current_options = dict(options)
+        if stage == "all" and current == "ts":
+            current_options["ts_guess"] = None
+        result = _execute_stage(current, output, calculator, current_options)
+    except BaseException as exc:
+        from pyar.recovery.workflow import stage_diagnostic
+        from pyar.recovery.stages import persist_stage_diagnostic
+        if hasattr(exc, 'ore_observed_path'):
+            from pyar.recovery.stages import preserve_path_observations
+            symbols, frames, energies = exc.ore_observed_path
+            preserve_path_observations(output, current, symbols, frames, energies)
+        evaluation_count_end = getattr(calculator, "backend_energy_gradient_evaluations", 0)
+        optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
+        stage_evaluations = (
+            evaluation_count_end - evaluation_count_start
+            if isinstance(evaluation_count_start, int) and isinstance(evaluation_count_end, int)
+            else None
+        )
+        persist_stage_diagnostic(output, {
+            "stage": current, "status": "failed", "error": str(exc),
+            "optimization_diagnostics": stage_diagnostic(
+                f'neb_{current}', {key: None for key in _STAGE_GATES.get(current, ())},
+                exception=exc),
+            "backend_energy_gradient_evaluations": stage_evaluations,
+            "optimizer_steps": (
+                None if optimizer_steps_start is None or optimizer_steps_end is None
+                else optimizer_steps_end - optimizer_steps_start
+            ),
+            "wall_seconds": float(time.perf_counter() - stage_started),
+        }, filename=f'{current}_summary.json')
+        if stage == "all":
+            persist_stage_diagnostic(output, dict(results, status="failed", failed_stage=current,
+                                                 error=str(exc)), filename='workflow_summary.json')
+        raise
+    return result
+
+
+def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", images=11,
+                          path_seed=None, path_refinement=None, path_seed_maximum_frame_index=None,
+                          max_cycles=100, method=None, basis=None, charge=0, multiplicity=1,
+                          nprocs=1, xtb_model="gfn2", max_gradient=0.05, average_gradient=0.025, spring=1.0,
+                          climb=0.5, align=False, product_relaxation_fmax=0.05,
+                          product_relaxation_max_steps=200, ts_max_cycles=200,
+                          irc_max_cycles=200, imaginary_frequency_threshold=20.0,
+                          irc_endpoint_rmsd_tolerance=0.5, stage="all", ts_geometry=None,
+                          endpoint_max_cycles=300, reuse_legacy_summaries=False,
+                          interpolation="linear", idpp_fmax=0.1, idpp_steps=100,
+                          geodesic_tol=0.002, geodesic_max_iter=15,
+                          ts_optimizer="geometric", ts_fmax=None, sella_fmax=0.05,
+                          sella_internal_coordinates=False, backend_options=None, reuse=False):
+    from pyar.backends.geometric import PyarGeometricCalculator
+
+    options = dict(locals())
+    options["geodesic_interpolate_version"] = None
+    output = Path(output).resolve()
+    _validate_neb_request(options, output)
+    qc_params = _neb_calculator_settings(options)
     calculator = PyarGeometricCalculator(qc_params=qc_params)
     stages = STAGES if stage == "all" else (stage,)
     results = {"reactant_product_connection_confirmed": False}
     for current in stages:
         if reuse and (output / f"{current}_summary.json").is_file():
-            expected = _canonical_expected_stage_parameters(options)
-            if stage not in {"all", "relax", "neb"}:
-                neb_summary_path = output / "neb_summary.json"
-                if neb_summary_path.is_file():
-                    recorded_neb = json.loads(neb_summary_path.read_text(encoding="utf-8"))
-                    recorded_parameters = recorded_neb.get("parameters") or {}
-                    for key in ("path_refinement", "path_seed_maximum_frame_index"):
-                        if key in recorded_parameters:
-                            expected["neb"][key] = recorded_parameters[key]
-                    expected["neb"] = canonical_neb_parameters(expected["neb"])
-            if stage in {"frequency", "irc", "endpoints", *_SPLIT_ENDPOINT_STAGES}:
-                expected["ts"] = None
-            try:
-                cached = _load_stage(output, current, calculator,
-                                     expected_parameters=expected[current], expected_by_stage=expected,
-                                     expected_geodesic_version=options.get("geodesic_interpolate_version"))
-            except (ValueError, KeyError, OSError, json.JSONDecodeError):
-                cached = None
-            if cached is not None:
-                requested_inputs = (
-                    [start, end] if current == "relax"
-                    else [path_seed or ts_guess] if current == "neb"
-                    else [ts_geometry or ts_guess] if current == "ts" and stage != "all"
-                    else [ts_geometry] if current == "frequency"
-                    else []
-                )
-                # Valid old artifacts do not justify reusing a stage when the
-                # caller explicitly supplied a different starting structure.
-                if any(str(Path(path).resolve()) not in cached["inputs"]
-                       for path in requested_inputs if path is not None):
-                    cached = None
+            cached = _reuse_neb_stage(options, output, current, calculator)
             if cached is not None:
                 if stage != "all":
                     return cached
@@ -1558,46 +1710,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
                 results["reactant_product_connection_confirmed"] = bool(
                     cached.get("reactant_product_connection_confirmed", False))
                 continue
-        _write_json(output / f"{current}_summary.json", {"stage": current, "status": "running"})
-        stage_started = time.perf_counter()
-        evaluation_count_start = getattr(calculator, "backend_energy_gradient_evaluations", 0)
-        optimizer_steps_start = getattr(calculator, "_pyar_optimizer_steps_total", None)
-        try:
-            # During all, the TS must consume the optimized NEB maximum, not the input waypoint.
-            current_options = dict(options)
-            if stage == "all" and current == "ts":
-                current_options["ts_guess"] = None
-            result = _execute_stage(current, output, calculator, current_options)
-        except BaseException as exc:
-            from pyar.recovery.workflow import stage_diagnostic
-            from pyar.recovery.stages import persist_stage_diagnostic
-            if hasattr(exc, 'ore_observed_path'):
-                from pyar.recovery.stages import preserve_path_observations
-                symbols, frames, energies = exc.ore_observed_path
-                preserve_path_observations(output, current, symbols, frames, energies)
-            evaluation_count_end = getattr(calculator, "backend_energy_gradient_evaluations", 0)
-            optimizer_steps_end = getattr(calculator, "_pyar_optimizer_steps_total", None)
-            stage_evaluations = (
-                evaluation_count_end - evaluation_count_start
-                if isinstance(evaluation_count_start, int) and isinstance(evaluation_count_end, int)
-                else None
-            )
-            persist_stage_diagnostic(output, {
-                "stage": current, "status": "failed", "error": str(exc),
-                "optimization_diagnostics": stage_diagnostic(
-                    f'neb_{current}', {key: None for key in _STAGE_GATES.get(current, ())},
-                    exception=exc),
-                "backend_energy_gradient_evaluations": stage_evaluations,
-                "optimizer_steps": (
-                    None if optimizer_steps_start is None or optimizer_steps_end is None
-                    else optimizer_steps_end - optimizer_steps_start
-                ),
-                "wall_seconds": float(time.perf_counter() - stage_started),
-            }, filename=f'{current}_summary.json')
-            if stage == "all":
-                persist_stage_diagnostic(output, dict(results, status="failed", failed_stage=current,
-                                                     error=str(exc)), filename='workflow_summary.json')
-            raise
+        result = _execute_neb_stage_with_diagnostics(options, output, current, calculator, results)
         results[current] = result
         if stage != "all":
             return result

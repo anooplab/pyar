@@ -22,6 +22,10 @@
 
 ### Changed
 
+- Separate NEB request validation, backend settings, cache adoption, stage
+  execution, failure receipts and evidence publication into private owners.
+  Retain stage schemas, scientific gates, execution order and restart contracts.
+
 - Separate bond-scan route validation, input preparation, signed request and
   restart recovery, orientation execution, and run finalization into private
   responsibility boundaries. Preserve existing scientific settings, public
