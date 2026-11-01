@@ -20,7 +20,9 @@ if __package__ in {None, ""}:
 
 from tools.measure_complexity import (
     MeasurementError,
+    VENDORED_AIMNET2_ADAPTERS,
     _named_functions,
+    _production_files,
     measure_complexity,
 )
 
@@ -98,7 +100,9 @@ def _changed_python_files(repo: Path, base_sha: str, head_sha: str) -> list[str]
     return sorted(
         path
         for path in output.splitlines()
-        if path.endswith(".py") and "AIMNet2" not in Path(path).parts
+        if path.endswith(".py")
+        and "AIMNet2" not in Path(path).parts
+        and path not in VENDORED_AIMNET2_ADAPTERS
     )
 
 
@@ -108,13 +112,7 @@ def _function_inventory(source_root: Path, rows: list[dict]) -> list[dict]:
         for row in rows
     }
     result = []
-    package = source_root / "pyar"
-    for path in sorted(package.rglob("*.py")):
-        if (
-            "AIMNet2" in path.relative_to(source_root).parts
-            or "__pycache__" in path.parts
-        ):
-            continue
+    for path in _production_files(source_root):
         relative = path.relative_to(source_root).as_posix()
         source = path.read_text(encoding="utf-8")
         module = ast.parse(source, filename=relative)

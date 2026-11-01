@@ -8,6 +8,37 @@ from types import SimpleNamespace
 import pytest
 
 
+@pytest.mark.parametrize('configured', [None, ''])
+def test_model_environment_is_required_even_with_local_model(tmp_path, monkeypatch, configured):
+    from pyar.backends import aimnet2_assets
+
+    # Neither a working-directory model nor the former package location is authority.
+    (tmp_path / 'aimnet2_wb97m-d3_0.jpt').write_text('unused placeholder')
+    monkeypatch.chdir(tmp_path)
+    if configured is None:
+        monkeypatch.delenv('PYAR_AIMNET2_MODEL', raising=False)
+    else:
+        monkeypatch.setenv('PYAR_AIMNET2_MODEL', configured)
+    assets = runpy.run_path(aimnet2_assets.__file__)
+    assert assets['MODEL_PATH'] == ''
+    assert Path(assets['SCRIPT_PATH']).is_file()
+    assert Path(assets['SCRIPT_PATH']).parent.name == 'backends'
+    assert assets['missing_aimnet2_assets']() == ['PYAR_AIMNET2_MODEL (unset)']
+    with pytest.raises(FileNotFoundError, match='Set PYAR_AIMNET2_MODEL'):
+        assets['validate_aimnet2_runtime_assets']()
+
+
+def test_missing_configured_model_is_rejected(tmp_path, monkeypatch):
+    from pyar.backends import aimnet2_assets
+
+    missing = tmp_path / 'missing.jpt'
+    monkeypatch.setenv('PYAR_AIMNET2_MODEL', str(missing))
+    assets = runpy.run_path(aimnet2_assets.__file__)
+    assert assets['missing_aimnet2_assets']() == [str(missing)]
+    with pytest.raises(FileNotFoundError, match='missing.jpt'):
+        assets['validate_aimnet2_runtime_assets']()
+
+
 def test_relative_model_path_survives_workflow_directory_change(tmp_path, monkeypatch):
     from pyar.backends import aimnet2_assets
 
@@ -21,14 +52,14 @@ def test_relative_model_path_survives_workflow_directory_change(tmp_path, monkey
     job.mkdir()
     monkeypatch.chdir(job)
     assert assets['MODEL_PATH'] == str(model)
-    assets['validate_aimnet2_runtime_assets'](include_script=False)
+    assets['validate_aimnet2_runtime_assets']()
 
 
 def test_explicit_charge_xyz_optimizer_preserves_all_frames(tmp_path, monkeypatch):
     pytest.importorskip('ase')
     from ase.calculators.calculator import Calculator
     from ase.io import read
-    from pyar.AIMNet2.calculators import aimnet2_ase_opt
+    from pyar.backends import aimnet2_ase_opt
 
     source, output = tmp_path / 'input.xyz', tmp_path / 'output.xyz'
     source.write_text('1\nfirst\nH 0 0 0\n1\nsecond\nHe 0 0 2\n')
@@ -51,7 +82,7 @@ def test_explicit_charge_xyz_optimizer_preserves_all_frames(tmp_path, monkeypatc
     )
     monkeypatch.setitem(sys.modules, 'torch', torch)
     monkeypatch.setitem(sys.modules,
-                        'pyar.AIMNet2.calculators.aimnet2ase',
+                        'pyar.backends.aimnet2ase',
                         SimpleNamespace(AIMNet2Calculator=calculator))
     monkeypatch.setattr(aimnet2_ase_opt, 'optimize', optimize)
     monkeypatch.setattr('sys.argv', ['pyar-aimnet2-ase-opt', '--charge', '1',

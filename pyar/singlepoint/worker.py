@@ -11,7 +11,7 @@ from pyar.singlepoint.io import write_json
 
 
 def aimnet_calculator(request):
-    from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+    from pyar.backends.aimnet2ase import AIMNet2Calculator
     from pyar.backends.aimnet_2 import load_default_aimnet2_model
 
     return AIMNet2Calculator(load_default_aimnet2_model(), charge=request["charge"])

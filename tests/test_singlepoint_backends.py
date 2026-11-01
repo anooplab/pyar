@@ -325,7 +325,7 @@ def test_aimnet_factory_without_loading_assets(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyar.backends.aimnet_2", fake_module)
     monkeypatch.setitem(
         sys.modules,
-        "pyar.AIMNet2.calculators.aimnet2ase",
+        "pyar.backends.aimnet2ase",
         SimpleNamespace(AIMNet2Calculator=lambda model, charge: (model, charge)),
     )
     assert worker.aimnet_calculator({"charge": 1}) == ("model", 1)

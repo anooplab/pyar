@@ -86,15 +86,14 @@ include-package-data = true
 include = ["pyar*"]
 
 [tool.setuptools.exclude-package-data]
-pyar = [
-  "AIMNet2/models/*.jpt",
-]
+"*" = ["*.jpt"]
 
 [tool.coverage.run]
 branch = true
 source = ["pyar"]
 omit = [
-  "pyar/AIMNet2/*",
+  "pyar/backends/aimnet2ase.py",
+  "pyar/backends/aimnet2_ase_opt.py",
   "pyar/mlatom/*",
 ]
 

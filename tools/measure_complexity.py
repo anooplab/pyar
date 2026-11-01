@@ -40,6 +40,14 @@ class MeasurementError(ValueError):
     """Raised when a complete source-bound inventory cannot be produced."""
 
 
+# These upstream adapters were previously excluded under pyar/AIMNet2/.
+# Keep the first-party measurement scope unchanged after moving the files.
+VENDORED_AIMNET2_ADAPTERS = (
+    "pyar/backends/aimnet2ase.py",
+    "pyar/backends/aimnet2_ase_opt.py",
+)
+
+
 def _production_files(source_root: Path) -> list[Path]:
     package_root = source_root / "pyar"
     if not package_root.is_dir():
@@ -48,6 +56,7 @@ def _production_files(source_root: Path) -> list[Path]:
         path
         for path in package_root.rglob("*.py")
         if "AIMNet2" not in path.relative_to(source_root).parts
+        and path.relative_to(source_root).as_posix() not in VENDORED_AIMNET2_ADAPTERS
         and "__pycache__" not in path.parts
     )
 
@@ -309,7 +318,11 @@ def measure_complexity(source_root: str | Path) -> tuple[list[dict], dict]:
         "cc_definition": "Radon cc_visit complexity for each named function or method",
         "function_identity": "file, qualified_name, line, end_line",
         "scope": "first-party pyar/**/*.py production functions and methods",
-        "exclusions": ["pyar/AIMNet2/**", "__pycache__/**"],
+        "exclusions": [
+            "pyar/AIMNet2/**",
+            *VENDORED_AIMNET2_ADAPTERS,
+            "__pycache__/**",
+        ],
         "function_count": len(rows),
         "isolated_segment_fallback_count": len(fallback_functions),
         "isolated_segment_fallback_functions": fallback_functions,

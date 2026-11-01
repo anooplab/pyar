@@ -123,7 +123,7 @@ def test_broken_workflow_dependency_is_reported_before_execution():
 @pytest.mark.parametrize('source', ['input.xyz', 'input.sdf'])
 def test_direct_aimnet_optimizer_missing_torch_is_an_actionable_exit(source):
     import builtins
-    from pyar.AIMNet2.calculators import aimnet2_ase_opt
+    from pyar.backends import aimnet2_ase_opt
 
     original_import = builtins.__import__
 

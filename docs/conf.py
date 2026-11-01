@@ -48,13 +48,12 @@ autodoc_mock_imports = [
 ]
 
 API_EXCLUDED_MODULES = {
-    "pyar", "pyar.__main__", "pyar.AIMNet2",
+    "pyar", "pyar.__main__",
     "pyar.tests",
 }
 
 API_EXCLUDED_PREFIXES = (
     "pyar.tests.",
-    "pyar.AIMNet2.",
     "pyar.backends.",
     "pyar.checkvalidity",
     "pyar.mlatom.",

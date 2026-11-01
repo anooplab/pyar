@@ -26,7 +26,7 @@ _COMMANDS = {
     "similarity": ("pyar.scripts.similarity", "Compare pools with Grigoryan–Springborg similarity"),
     "descriptor": ("pyar.scripts.descriptor", "Calculate cluster descriptors"),
     "mlopt": ("pyar.backends.mlopt", "Optimize with the MLatom AIQM1 driver"),
-    "aimnet2-ase-opt": ("pyar.AIMNet2.calculators.aimnet2_ase_opt", "Optimize with a supplied AIMNet2 model"),
+    "aimnet2-ase-opt": ("pyar.backends.aimnet2_ase_opt", "Optimize with a supplied AIMNet2 model"),
     "benchmark": ("pyar.scripts.benchmark", "Run developer benchmark campaigns"),
     "run": ("pyar.scripts.cli_meta", "Run a versioned PyAR task configuration"),
     "config": ("pyar.scripts.cli_meta", "Create or validate run configurations"),

@@ -120,7 +120,7 @@ def main():
                 '--selection-feature', 'distance-histogram', '--connectivity-policy', 'off', cwd=growth)
             assert json.loads((growth / 'grow/layout.json').read_text())['layout_version'] == 2
     elif mode == 'aimnet2':
-        from pyar.AIMNet2.calculators.aimnet2ase import AIMNet2Calculator
+        from pyar.backends.aimnet2ase import AIMNet2Calculator
         from pyar.backends.aimnet_2 import Aimnet2
         import rdkit
         import torch

@@ -38,12 +38,14 @@ def check(directory):
         assert any('LICENSE' in name for name in names), 'Missing license'
         assert any('THIRD_PARTY' in name for name in names), 'Missing third-party notices'
         for name in names:
+            assert not name.startswith('pyar/AIMNet2/'), name
             assert '__pycache__' not in name and not name.endswith(('.pyc', '.pyo', '.jpt', '.pt')), name
             assert name not in {'setup.py', 'build_backend.py', 'requirements.txt'}, name
             assert not name.startswith(('pyar/mlatom/MLatomF', 'pyar/mlatom/cs.so')), name
             if wheel:
                 assert not name.startswith(('tests/', 'tools/', 'benchmarks/', '.github/', 'docs/')), name
         required = {
+            'pyar/backends/aimnet2ase.py', 'pyar/backends/aimnet2_ase_opt.py',
             'pyar/dependencies.py', 'pyar/persistence/__init__.py',
             'pyar/growth/layout_v2.py', 'pyar/microsolvation/layout_v2.py',
             'pyar/aggregation/layout_v2.py', 'pyar/state/reaction_v2.py',

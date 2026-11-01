@@ -31,12 +31,36 @@ Reaction search:
 
    pyar react A.xyz B.xyz --orientations 8 --bias-max 1000 --backend aimnet_2
 
+Model setup
+-----------
+
+Install the Python runtime and select your external model:
+
+.. code-block:: bash
+
+   python -m pip install "pyar-chem[aimnet2]"
+   export PYAR_AIMNET2_MODEL="/absolute/path/to/aimnet2_wb97m-d3_0.jpt"
+   pyar install status
+   pyar optimize water.xyz --backend aimnet_2 --check
+
+Use the PyAR version/environment selected in :doc:`/user/installation`; the
+plain package command above selects the published version. Export the model
+path before the process starts. Relative paths are resolved at startup so
+workflow directory changes do not change the selected model. A successful
+``--check`` establishes asset/runtime availability, not numerical qualification.
+Retain the model source, version and checksum with calculation provenance.
+The standalone ``pyar aimnet2-ase-opt`` utility takes an explicit model argument;
+see :doc:`/reference/tools`.
+
 Practical notes
 ---------------
 
-* AIMNet2 model assets are not bundled into the ``pyar-chem`` wheel. If you
-  rely on them outside a source checkout, provide the model files separately
-  from the upstream project or another model-package source.
+* AIMNet2 models are not bundled in the source checkout, wheel or sdist.
+  Obtain the compatible ``aimnet2_wb97m-d3_0.jpt`` TorchScript model from the
+  `upstream AIMNet2 project <https://github.com/isayevlab/AIMNet2>`_ and set
+  ``PYAR_AIMNET2_MODEL`` before starting PyAR. Installing the Python extra does
+  not install model weights. Do not substitute a different model format or
+  Hamiltonian without establishing compatibility and scientific suitability.
 * AIMNet2 is a third-party project from the Isayev Lab and is MIT licensed
   upstream. See ``THIRD_PARTY_LICENSES/AIMNet2-LICENSE`` and
   ``THIRD_PARTY_LICENSES/AIMNet2-PROVENANCE.md``.

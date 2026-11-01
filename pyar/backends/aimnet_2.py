@@ -20,8 +20,8 @@ Aimnet2_logger = logging.getLogger('pyar.aimnet-2')
 
 try:
     import torch  # noqa: E402
-    from pyar.AIMNet2.calculators import aimnet2_ase_opt  # noqa: F401
-    from pyar.AIMNet2.calculators import aimnet2ase  # noqa: F401
+    from pyar.backends import aimnet2_ase_opt  # noqa: F401
+    from pyar.backends import aimnet2ase  # noqa: F401
 except ImportError as exc:
     module_name = getattr(exc, "name", None) or "torch"
     raise optional_dependency_error(module_name, feature="AIMNet2 backend", extra="aimnet2") from exc

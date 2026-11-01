@@ -2,7 +2,14 @@ import json
 import subprocess
 from pathlib import Path
 
-from tools.check_complexity_changes import analyze_complexity_change, main
+import pytest
+
+from tools.check_complexity_changes import (
+    ComplexityChangeError,
+    _function_inventory,
+    analyze_complexity_change,
+    main,
+)
 
 
 def _git(repo, *args):
@@ -41,6 +48,40 @@ def test_no_change_has_zero_decision_delta(tmp_path):
     assert report["changed_functions"] == {"modified": [], "added": [], "removed": []}
     assert report["status"] == "pass"
     assert "unavailable" in report["coverage_status"]
+
+
+def test_vendor_adapter_move_preserves_first_party_measurement_scope(tmp_path):
+    repo, _ = _repository(tmp_path, "def work(value):\n    return value\n")
+    old = repo / "pyar/AIMNet2/calculators"
+    old.mkdir(parents=True)
+    (old / "aimnet2ase.py").write_text("def vendor(value):\n    return value\n")
+    _git(repo, "add", "pyar")
+    _git(repo, "commit", "-qm", "vendor adapter")
+    base = _git(repo, "rev-parse", "HEAD")
+    (repo / "pyar/backends").mkdir()
+    _git(
+        repo,
+        "mv",
+        "pyar/AIMNet2/calculators/aimnet2ase.py",
+        "pyar/backends/aimnet2ase.py",
+    )
+    _git(repo, "commit", "-qm", "move vendor adapter")
+
+    report = analyze_complexity_change(
+        repo, base, _git(repo, "rev-parse", "HEAD"), enforce=True
+    )
+
+    assert report["base_function_count"] == report["head_function_count"] == 1
+    assert report["changed_files"] == []
+    assert report["status"] == "pass"
+
+
+def test_first_party_metric_omissions_still_fail(tmp_path):
+    repo, _ = _repository(tmp_path, "def work(value):\n    return value\n")
+    with pytest.raises(
+        ComplexityChangeError, match="No Radon metric for pyar/sample.py"
+    ):
+        _function_inventory(repo, [])
 
 
 def test_new_decision_requires_explicit_pr_reason_and_owner(tmp_path):
