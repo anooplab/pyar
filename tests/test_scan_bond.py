@@ -23,6 +23,8 @@ from pyar.workflows.scan_bond import (
     _run_scan_bond as run_scan_bond, scan_point_count,
 )
 
+from workspace_support import in_test_workspace
+
 
 def test_fragment_local_indices_are_merged_asymmetric():
     fragment_a = Molecule(["C"] * 5, np.zeros((5, 3)))
@@ -158,6 +160,7 @@ def test_orca_scan_input_and_recovery(tmp_path, monkeypatch):
     request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 2)
     scan_dir = tmp_path / "scan"
 
+    @in_test_workspace
     def fake_run(command, stdout_path=None, stderr_path=None):
         assert Path.cwd() == scan_dir
         Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
@@ -339,6 +342,7 @@ def test_orca_scan_rejects_incomplete_trajectory(tmp_path, monkeypatch):
     molecule = Molecule(["H", "H"], np.asarray([[0., 0., 0.], [2., 0., 0.]]))
     request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 3)
 
+    @in_test_workspace
     def fake_run(command, stdout_path=None, stderr_path=None):
         Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
         Path("scan.allxyz").write_text("2\nframe 1\nH 0 0 0\nH 2 0 0\n")
@@ -406,6 +410,7 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
 
     scan_calls = 0
 
+    @in_test_workspace
     def fake_optimise(molecule, qc_params):
         observed_multiplicities.append(("relax", molecule.multiplicity))
         molecule.coordinates = np.asarray([[0., 0., 0.], [target_distance, 0., 0.]])
@@ -525,6 +530,7 @@ def test_restart_reuses_completed_scan_after_relaxation_failure(tmp_path, monkey
         saved_scan.append(result)
         return result
 
+    @in_test_workspace
     def fake_optimise(molecule, qc_params):
         nonlocal relax_calls
         relax_calls += 1
@@ -614,6 +620,7 @@ def test_workflow_default_scan_end_is_0_8_times_covalent_radii(tmp_path, monkeyp
                                   input_path, output_path, "success", frames=frames,
                                   profile=profile)
 
+    @in_test_workspace
     def fake_optimise(molecule, qc_params):
         Path("job_relaxed").mkdir()
         write_xyz(molecule.atoms_list, molecule.coordinates,

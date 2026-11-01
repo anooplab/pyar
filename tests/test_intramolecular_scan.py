@@ -14,6 +14,8 @@ from pyar.core.molecule import Molecule
 from pyar.persistence import read_json, sha256_file
 from pyar.workflows.scan_bond import intramolecular_scan_plan, run_scan_bond
 
+from workspace_support import in_test_workspace
+
 
 @pytest.mark.parametrize('distance,direction', [(.74, 'break'), (2., 'form')])
 def test_automatic_plan_uses_current_distance_and_finite_grid(distance, direction):
@@ -139,6 +141,7 @@ def intramolecular_run(tmp_path, monkeypatch):
         controls['scan_result'] = result
         return result
 
+    @in_test_workspace
     def relax(molecule, settings):
         calls.append(('relax', molecule.charge, molecule.multiplicity, list(molecule.atoms_list)))
         if controls['relax_failure']:

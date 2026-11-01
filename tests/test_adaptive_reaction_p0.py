@@ -9,6 +9,8 @@ import pytest
 from pyar.core.molecule import Molecule
 from pyar.workflows import reaction
 
+from workspace_support import in_test_workspace
+
 
 def _reactants():
     return (
@@ -23,7 +25,7 @@ def test_adaptive_initialization_uses_bias_max_as_single_schedule(tmp_path, monk
     monkeypatch.setattr(
         reaction.trial_generation,
         "create_trial_geometries",
-        lambda *args: [],
+        lambda *args, **kwargs: [],
     )
     monkeypatch.setattr(
         reaction,
@@ -56,11 +58,10 @@ def test_adaptive_reaction_runs_one_named_cycle(tmp_path, monkeypatch):
     monkeypatch.setattr(
         reaction,
         "initialize_reaction_run",
-        lambda *args: (str(tmp_path), str(tmp_path), state, [250.0], [], str(tmp_path)),
+        lambda *args, **kwargs: (str(tmp_path), str(tmp_path), state, [250.0], [], str(tmp_path)),
     )
     optimize_all = Mock(return_value=[])
     monkeypatch.setattr(reaction, "optimize_all", optimize_all)
-    monkeypatch.setattr(reaction.os, "chdir", lambda *args: None)
 
     result = reaction._react(
         object(), object(), None, 250.0, 1,
@@ -77,6 +78,7 @@ def test_unbiased_relaxation_forces_native_and_removes_controller_state(monkeypa
     molecule = Molecule(["H"], np.zeros((1, 3)), name="candidate")
     captured = {}
 
+    @in_test_workspace
     def fake_optimise(candidate, params):
         captured.update(params)
         return True
@@ -113,6 +115,7 @@ def test_release_retry_uses_a_fresh_unbiased_relaxation_job(monkeypatch, tmp_pat
     job_names = []
     monkeypatch.chdir(tmp_path)
 
+    @in_test_workspace
     def fake_optimise(candidate, params):
         job_names.append(candidate.name)
         return True

@@ -13,6 +13,8 @@ from pyar.core.molecule import Molecule
 from pyar.state.reaction import ReactionStateError
 from pyar.workflow_results import ReactionResult
 
+from workspace_support import in_test_workspace
+
 
 class StandaloneWorkflowScriptTests(unittest.TestCase):
 
@@ -151,6 +153,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             name="000_geom",
         )
 
+        @in_test_workspace
         def fail_optimization(current, _params):
             current.coordinates = None
             current.energy = None
@@ -200,6 +203,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         )
         optimization_parameters = []
 
+        @in_test_workspace
         def succeed(current, params):
             optimization_parameters.append(dict(params))
             current.energy = -1.0

@@ -40,7 +40,6 @@ from pyar.growth.service import (
     sampling_configuration,
     _resolve_orientation_count,
     stopped_workflow_result,
-    _working_directory,
 )
 
 __all__ = [
@@ -139,6 +138,7 @@ def aggregate(molecules, aggregate_sizes, hm_orientations, qc_params, maximum_nu
 def _aggregate_v2(root, request, hm_orientations):
     from pyar.aggregation.layout_v2 import AggregateRunStateV2, verify_refs
     from pyar.persistence import RunLayout, write_json
+
     directory = root / 'aggregates'
     layout = RunLayout(directory, 'aggregate')
     payload = request.to_state_dict()
@@ -161,7 +161,9 @@ def _aggregate_v2(root, request, hm_orientations):
                     select_pathways(monomers_to_be_added, request.number_of_pathways))
         state = AggregateRunStateV2.create(root, payload, molecules,
                                           [_format_path(path) for path in pathways], sampling)
-    for index in range(len(state.data['completed_pathways']), len(state.data['pathways'])):
+    for index in range(
+        len(state.data["completed_pathways"]), len(state.data["pathways"])
+    ):
         label = state.data['pathways'][index]
         pathway = _pathway_from_label(monomers_to_be_added, label)
         ag_id = initial_id
@@ -183,30 +185,38 @@ def _aggregate_v2(root, request, hm_orientations):
             source_key = '{}_{:03d}'.format(ag_id, request.first_pathway + index)
             native = layout.path(f'pathways/pathway_{index:03d}/steps/step_{step:03d}/attempts/attempt_000/execution/{source_key}')
             native.mkdir(parents=True, exist_ok=True)
-            with _working_directory(native):
-                selected = add_one(ag_id, seeds, monomer, number_of_orientations,
-                    qc_params, request.maximum_number_of_seeds, site,
-                    connectivity_policy=final_connectivity_policy,
-                    selection_feature=request.selection_feature, selection_algorithm=request.selection_algorithm,
-                    selection_distance=request.selection_distance, selection_system_type=request.selection_system_type)
+            selected = add_one(
+                ag_id,
+                seeds,
+                monomer,
+                number_of_orientations,
+                qc_params,
+                request.maximum_number_of_seeds,
+                site,
+                connectivity_policy=final_connectivity_policy,
+                selection_feature=request.selection_feature,
+                selection_algorithm=request.selection_algorithm,
+                selection_distance=request.selection_distance,
+                selection_system_type=request.selection_system_type,
+                directory=native,
+            )
             state.commit_step(index, step, selected, native, source_key)
             seeds = selected
             if not seeds:
                 break
         state.complete_pathway(index, label)
-    if layout.path('final_selection.json').exists():
+    if layout.path("final_selection.json").exists():
         state.adopt_final()
     else:
         execution = layout.path('selection/attempts/attempt_000/execution')
         execution.mkdir(parents=True, exist_ok=True)
-        with _working_directory(execution):
-            selected = _finalize_selected_geometries(aggregate_root=str(execution),
-                maximum_number_of_seeds=request.maximum_number_of_seeds,
-                algorithm=request.selection_algorithm, feature=request.selection_feature,
-                distance_metric=request.selection_distance, system_type=request.selection_system_type,
-                connectivity_policy=final_connectivity_policy,
-                energy_ranked=bool(request.backend_parameters.get('software')),
-                source_records=state.native_sources())
+        selected = _finalize_selected_geometries(aggregate_root=str(execution),
+            maximum_number_of_seeds=request.maximum_number_of_seeds,
+            algorithm=request.selection_algorithm, feature=request.selection_feature,
+            distance_metric=request.selection_distance, system_type=request.selection_system_type,
+            connectivity_policy=final_connectivity_policy,
+            energy_ranked=bool(request.backend_parameters.get('software')),
+            source_records=state.native_sources())
         state.finish(selected)
     result = AggregateResult(workflow='aggregate', status=state.data['status'],
         run_directory=str(directory), state_path=str(state.state_file),

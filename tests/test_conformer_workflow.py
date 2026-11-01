@@ -9,6 +9,8 @@ from unittest import mock
 from pyar.core.molecule import Molecule
 from pyar.workflows import conformer
 
+from workspace_support import in_test_workspace
+
 
 def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch):
     records = [conformer.ConformerRecord(1, i, float(i), 'converged', 'mmff',
@@ -16,6 +18,7 @@ def test_refinement_continues_after_one_backend_exception(tmp_path, monkeypatch)
         molecule=Molecule(['H'], [[0., 0., 0.]], name=f'candidate_{i}'))
         for i in range(2)]
     calls = []
+    @in_test_workspace
     def run(molecule, settings):
         calls.append(molecule.name)
         if molecule.name == 'candidate_0':
@@ -230,6 +233,7 @@ class ConformerWorkflowTests(unittest.TestCase):
         ]
         optimized = []
 
+        @in_test_workspace
         def fake_optimise(molecule, qc_params):
             optimized.append(molecule.name)
             job_dir = Path(f"job_{molecule.name}")
@@ -617,6 +621,7 @@ class ConformerWorkflowTests(unittest.TestCase):
         ]
         selected_names = []
 
+        @in_test_workspace
         def fake_optimise(molecule, qc_params):
             selected_names.append(molecule.name)
             job_dir = Path(f"job_{molecule.name}")

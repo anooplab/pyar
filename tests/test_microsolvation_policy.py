@@ -14,6 +14,8 @@ from pyar.workflows.microsolvation import (
     _deduplicate_and_select, _energy_prescreen, _optimize_candidates, _quality_key, microsolvate,
 )
 
+from workspace_support import in_test_workspace
+
 
 def methane():
     return Molecule(["C", "H", "H", "H", "H"],
@@ -231,6 +233,7 @@ def test_auto_wall_optimizes_unbiased_first_and_only_rescues_escaped_candidate(
     candidate.name = "auto-escape" if escaped else "auto-contained"
     calls = []
 
+    @in_test_workspace
     def fake_optimize(molecule, parameters):
         calls.append((Path.cwd().name, "microsolvation_wall" in parameters))
         if len(calls) == 1 and escaped:
@@ -317,6 +320,7 @@ def test_cluster_v2_persists_non_shell_survivor_and_rejects_policy_change(tmp_pa
     monkeypatch.setattr("pyar.energy_gradient_providers.get_energy_gradient_provider",
                         lambda *_args, **_kwargs: Provider())
 
+    @in_test_workspace
     def optimize(molecule, _qc):
         if molecule.name.endswith("_000"):
             return False

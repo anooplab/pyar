@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import json
-import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -83,17 +82,6 @@ def _deduplicate_and_select(candidates, maximum_seeds, request):
     }
 
 
-def _working_directory(path):
-    class WorkingDirectory:
-        def __enter__(self):
-            Path(path).mkdir(parents=True, exist_ok=True)
-            self.old = os.getcwd()
-            os.chdir(path)
-
-        def __exit__(self, *_):
-            os.chdir(self.old)
-    return WorkingDirectory()
-
 
 def _energy_prescreen(candidates, request):
     """Score complete, fixed-composition candidates before expensive relaxations."""
@@ -145,8 +133,14 @@ def _energy_prescreen(candidates, request):
     return chosen, records
 
 
-def _optimize_candidates(candidates, request, candidate_directory, *, evaluation_budget_path=None,
-                        diagnostic_records=None):
+def _optimize_candidates(
+    candidates,
+    request,
+    candidate_directory,
+    *,
+    evaluation_budget_path=None,
+    diagnostic_records=None,
+):
     """Optimize the selected prescreen pool and apply objective-specific validity."""
     if not request.backend_parameters.get("software"):
         return list(candidates), 0, 0, []
@@ -165,7 +159,9 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
         try:
             from pyar.optimiser import is_usable
             from pyar.optimization_service import optimize_workflow_once
+
             candidate_diagnostics = []
+
             def relative_diagnostic(path):
                 if not path:
                     return None
@@ -173,30 +169,34 @@ def _optimize_candidates(candidates, request, candidate_directory, *, evaluation
                     return Path(path).resolve().relative_to(Path(candidate_directory).resolve()).as_posix()
                 except (OSError, ValueError):
                     return None
+
             def run_optimization(directory, parameters, stage):
-                with _working_directory(directory):
-                    try:
-                        status, result, report = optimize_workflow_once(
-                            candidate, parameters,
-                            workflow_role=f"microsolvation_{stage}", allow_incomplete=True)
-                    except Exception as exc:
-                        report = getattr(exc, 'ore_diagnostic_path', None)
-                        entry = {"name": candidate.name, "stage": stage,
-                                 "status": "exception", "diagnostic_path": relative_diagnostic(report),
-                                 "error": str(exc)[:500]}
-                        candidate_diagnostics.append(entry)
-                        diagnostic_records.append(entry)
-                        raise
+                try:
+                    status, result, report = optimize_workflow_once(
+                        candidate,
+                        parameters,
+                        workflow_role=f"microsolvation_{stage}",
+                        allow_incomplete=True,
+                        directory=directory,
+                    )
+                except Exception as exc:
+                    report = getattr(exc, 'ore_diagnostic_path', None)
                     entry = {"name": candidate.name, "stage": stage,
-                             "status": result.status.value,
-                             "backend_status": str(status),
-                             "converged": result.converged,
-                             "workflow_accepted": result.workflow_accepted,
-                             "owner_decision": candidate.optimization_owner_decision,
-                             "diagnostic_path": relative_diagnostic(report)}
+                             "status": "exception", "diagnostic_path": relative_diagnostic(report),
+                             "error": str(exc)[:500]}
                     candidate_diagnostics.append(entry)
                     diagnostic_records.append(entry)
-                    return status
+                    raise
+                entry = {"name": candidate.name, "stage": stage,
+                         "status": result.status.value,
+                         "backend_status": str(status),
+                         "converged": result.converged,
+                         "workflow_accepted": result.workflow_accepted,
+                         "owner_decision": candidate.optimization_owner_decision,
+                         "diagnostic_path": relative_diagnostic(report)}
+                candidate_diagnostics.append(entry)
+                diagnostic_records.append(entry)
+                return status
 
             wall_applied = request.wall == "outer-sphere"
             candidate.microsolvation_wall_decision = (

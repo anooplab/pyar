@@ -6,6 +6,7 @@ modules under :mod:`pyar.selection`.
 """
 
 import logging
+from pathlib import Path
 import os
 from numbers import Integral
 import numpy as np
@@ -94,13 +95,20 @@ def _prepare_selection_pool(
     system_type,
     algorithm,
     distance_options,
+    directory=None,
 ):
     """Filter candidates and load/apply the existing basin and connectivity policies."""
+    directory = Path(directory or Path.cwd()).resolve()
     pruned_molecules = remove_similar(molecules)
-    basin_registry_path = _basin_registry_path(
-        pruned_molecules[0],
-        group_by_stoichiometry=group_basin_by_stoichiometry,
-    ) if pruned_molecules and os.path.isdir('selected') else None
+    basin_registry_path = (
+        _basin_registry_path(
+            pruned_molecules[0],
+            group_by_stoichiometry=group_basin_by_stoichiometry,
+            output_root=str(directory / "selected"),
+        )
+        if pruned_molecules and (directory / "selected").is_dir()
+        else None
+    )
     write_path = basin_registry_path if persist_basin_memory else None
     basin_entries = []
     basin_memory_diagnostics = {"status": "disabled", "schema_version": 2}
@@ -122,17 +130,21 @@ def _prepare_selection_pool(
             )
             write_path = None
             basin_entries = []
-            basin_memory_diagnostics.update({
-                "status": "registry-unavailable-keep-all",
-                "registry_path": basin_registry_path,
-                "reason": str(exc),
-            })
+            basin_memory_diagnostics.update(
+                {
+                    "status": "registry-unavailable-keep-all",
+                    "registry_path": os.path.relpath(basin_registry_path, directory),
+                    "reason": str(exc),
+                }
+            )
         else:
-            basin_memory_diagnostics.update({
-                "status": "loaded" if basin_entries else "empty-registry",
-                "registry_path": basin_registry_path,
-                "schema_version": 2,
-            })
+            basin_memory_diagnostics.update(
+                {
+                    "status": "loaded" if basin_entries else "empty-registry",
+                    "registry_path": os.path.relpath(basin_registry_path, directory),
+                    "schema_version": 2,
+                }
+            )
     if apply_basin_memory and basin_entries:
         pruned_molecules = _apply_basin_memory(
             pruned_molecules,
@@ -167,6 +179,7 @@ def choose_geometries(
     system_type="auto",
     diagnostics=None,
     distance_options=None,
+    directory=None,
 ):
     list_of_molecules = list(list_of_molecules)
     if (isinstance(maximum_number_of_seeds, bool)
@@ -204,19 +217,21 @@ def choose_geometries(
         })
     cluster_logger.info(f'Seed selection on {len(list_of_molecules)} geometries using {algorithm}')
 
-    (pruned_molecules, write_path, basin_entries,
-     basin_memory_diagnostics) = _prepare_selection_pool(
-        list_of_molecules,
-        maximum_number_of_seeds,
-        persist_basin_memory=persist_basin_memory,
-        apply_basin_memory=apply_basin_memory,
-        group_basin_by_stoichiometry=group_basin_by_stoichiometry,
-        connectivity_policy=normalized_connectivity_policy,
-        feature=feature,
-        distance_metric=distance_metric,
-        system_type=system_type,
-        algorithm=cluster_algorithm,
-        distance_options=distance_options,
+    (pruned_molecules, write_path, basin_entries, basin_memory_diagnostics) = (
+        _prepare_selection_pool(
+            list_of_molecules,
+            maximum_number_of_seeds,
+            persist_basin_memory=persist_basin_memory,
+            apply_basin_memory=apply_basin_memory,
+            group_basin_by_stoichiometry=group_basin_by_stoichiometry,
+            connectivity_policy=normalized_connectivity_policy,
+            feature=feature,
+            distance_metric=distance_metric,
+            system_type=system_type,
+            algorithm=cluster_algorithm,
+            distance_options=distance_options,
+            directory=directory,
+        )
     )
 
     if diagnostics is not None:
@@ -268,7 +283,9 @@ def choose_geometries(
     labels = clustering_result.labels
     dt_scaled = standardize_features(clustering_result.feature_values)
     if clustering_result.feature_values.shape[1]:
-        _save_features_if_requested(clustering_result.feature_used, dt_scaled)
+        _save_features_if_requested(
+            clustering_result.feature_used, dt_scaled, directory=directory
+        )
 
     best_from_each_cluster = select_best_from_each_cluster(labels, pruned_molecules)
 
@@ -328,12 +345,12 @@ def _log_feature_result(feature_result):
         )
 
 
-def _save_features_if_requested(feature_name, values):
+def _save_features_if_requested(feature_name, values, *, directory=None):
     if os.environ.get("PYAR_SAVE_MBTR_FEATURES") != "1":
         return
     pd = _require_pandas()
     filename = "mbtr_features.csv" if feature_name == "mbtr" else f"{feature_name}_features.csv"
-    pd.DataFrame(values).to_csv(filename)
+    pd.DataFrame(values).to_csv(Path(directory or Path.cwd()) / filename)
 
 
 def _log_clustering_result(result):

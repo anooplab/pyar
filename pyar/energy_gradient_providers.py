@@ -76,7 +76,6 @@ class EnergyGradientResult:
 class EnergyGradientProvider(Protocol):
     """Provide a backend energy and Cartesian gradient."""
 
-    @backend_operation
     def evaluate(self, molecule, coordinates_bohr: np.ndarray) -> EnergyGradientResult:
         """Evaluate the backend objective in Bohr/Hartree units."""
 

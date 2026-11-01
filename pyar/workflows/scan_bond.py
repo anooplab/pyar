@@ -77,10 +77,14 @@ def intramolecular_scan_plan(molecule, atoms, scan_end=None, scan_step=None, sca
                 connectivity_rule='distance < 1.3 * sum of covalent radii')
 
 
-def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
+def _optimize_with_diagnostics(molecule, qc_params, workflow_role, *, directory=None):
     """Run one legacy scan optimization and persist observational ORE data."""
     status, _diagnostic, _report = optimize_workflow_once(
-        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise
+        molecule,
+        qc_params,
+        workflow_role=workflow_role,
+        optimizer=optimise,
+        directory=directory,
     )
     return status
 
@@ -186,20 +190,21 @@ def _relax_scan_endpoint(relaxed, qc_params, software, relax_dir, execution):
         relax_run_dir = relax_dir / f"retry_{retry_index:03d}"
         relax_run_dir.mkdir()
 
-    old_cwd = Path.cwd()
     try:
-        os.chdir(relax_run_dir)
         relax_status = _optimize_with_diagnostics(
             relaxed,
-            dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
+            dict(
+                qc_params,
+                geometry_optimizer="native" if software == "orca" else "geometric",
+                gamma=0.0,
+            ),
             "bond_scan_unbiased_relaxation",
+            directory=relax_run_dir,
         )
     except BackendExecutionError:
         raise
     except Exception as exc:
         return None, False, str(exc)
-    finally:
-        os.chdir(old_cwd)
 
     if not is_success(relax_status):
         return relax_status, False, None

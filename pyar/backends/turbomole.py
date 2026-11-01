@@ -105,16 +105,7 @@ class Turbomole(SF):
 
     @backend_operation
     def optimize(self):
-        """This is the python implementation  of jobex of turbomole
-
-        :returns: Union(True,
-                  'SCFFailed',
-                  'GradFailed',
-                  'UpdateFailed',
-                  'CycleExceeded',
-                  False)
-
-        """
+        """Optimize geometry; return True or raise a typed backend error."""
         # max_cycles = options['opt_cycles']
         # convergence = options['opt_threshold']
 
@@ -244,19 +235,7 @@ class Turbomole(SF):
 
     @backend_operation
     def run_turbomole_jobex(self, max_cycles=350):
-        """
-        Run a turbomole optimisation.
-
-        return one of the following:
-        True: converged
-        SCFFailed
-        GradFailed
-        UpdateFailed
-        CycleExceeded
-        False: unknown error or jebex execution error
-
-        :rtype: string or boolean
-        """
+        """Run jobex; raise typed SCF, gradient, geometry or convergence errors."""
         with open('jobex.out', 'w') as fj:
             try:
                 subp.check_call(['jobex', '-ri', '-c', str(max_cycles)], stdout=fj,

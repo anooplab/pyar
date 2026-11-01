@@ -32,6 +32,10 @@ from pyar.neb import (
     run_neb,
 )
 
+from workspace_support import in_test_workspace
+
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 DATA = Path(__file__).parent / "data" / "neb"
 
@@ -1153,6 +1157,7 @@ def fake_path_backend(monkeypatch):
     monkeypatch.setattr("pyar.backends.geometric.PyarGeometricCalculator",
                         lambda qc_params: SimpleNamespace(qc_params=qc_params))
 
+    @in_test_workspace
     def optimize(symbols, coordinates, calculator, output, label, max_cycles, **kwargs):
         calls.append(label)
         final = {"ts": guess, "irc_forward": hcn, "irc_backward": hnc}.get(label, coordinates)
@@ -1898,6 +1903,7 @@ def test_intramolecular_product_traces_all_path_gates_and_reuses_scan(tmp_path, 
              for d, e in zip(np.linspace(request.start_distance_angstrom, request.end_distance_angstrom, 3), energies)])
         numerical_calls.append(value)
         return value
+    @in_test_workspace
     def relax(molecule, settings):
         numerical_calls.append('relax')
         molecule.coordinates = product.copy()
@@ -1957,12 +1963,13 @@ def test_reaction_v2_discovery_to_validated_characterization(tmp_path, fake_path
     _, guess, _ = read_xyz(DATA / 'guess.xyz')
     reactants = [Molecule(symbols[:1], hcn[:1], name='a'), Molecule(symbols[1:], hcn[1:], name='b')]
     oriented = Molecule(symbols, hcn, name='geom_00000000', fragments=[[0], [1, 2]])
-    monkeypatch.setattr(workflow.trial_generation, 'create_trial_geometries', lambda *args: [oriented.copy()])
+    monkeypatch.setattr(workflow.trial_generation, 'create_trial_geometries', lambda *args, **kwargs: [oriented.copy()])
     original = dict(inchi='reactants', smiles='[H].CN')
     product = dict(inchi='product', smiles='NC')
     monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: original)
     monkeypatch.setattr(workflow, 'molecule_identity_from_xyz',
                         lambda path: product if Path(path).name == 'result_relax.xyz' else original)
+    @in_test_workspace
     def optimize(molecule, parameters):
         directory = Path(f'job_{molecule.name}')
         directory.mkdir(exist_ok=True)

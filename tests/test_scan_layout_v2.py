@@ -8,6 +8,8 @@ import pytest
 from pyar.core.molecule import Molecule
 from pyar.persistence import read_json, sha256_file, write_json
 
+from workspace_support import in_test_workspace
+
 workflow = importlib.import_module('pyar.workflows.scan_bond')
 
 
@@ -122,6 +124,7 @@ def test_scan_relaxation_uses_unbiased_retry_and_restores_cwd(tmp_path, monkeypa
     caller_cwd = Path.cwd()
     observations = []
 
+    @in_test_workspace
     def optimize(molecule, params, role):
         observations.append((Path.cwd(), params, role))
         target = Path('job_relaxed/result_relaxed.xyz')
@@ -146,6 +149,7 @@ def test_scan_relaxation_uses_unbiased_retry_and_restores_cwd(tmp_path, monkeypa
 def test_scan_relaxation_returns_generic_optimizer_error_and_restores_cwd(tmp_path, monkeypatch):
     caller_cwd = Path.cwd()
 
+    @in_test_workspace
     def optimize(*args):
         raise RuntimeError('optimizer failed')
 
@@ -164,6 +168,7 @@ def test_scan_relaxation_propagates_backend_error_and_restores_cwd(tmp_path, mon
 
     caller_cwd = Path.cwd()
 
+    @in_test_workspace
     def optimize(*args):
         raise BackendExecutionError('backend failed')
 
@@ -174,7 +179,7 @@ def test_scan_relaxation_propagates_backend_error_and_restores_cwd(tmp_path, mon
 
 
 def test_scan_relaxation_rejects_success_without_geometry(tmp_path, monkeypatch):
-    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: True)
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args, **kwargs: True)
     status, succeeded, error = workflow._relax_scan_endpoint(
         object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
     )
@@ -184,7 +189,7 @@ def test_scan_relaxation_rejects_success_without_geometry(tmp_path, monkeypatch)
 
 
 def test_scan_relaxation_preserves_non_success_status(tmp_path, monkeypatch):
-    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: False)
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args, **kwargs: False)
     assert workflow._relax_scan_endpoint(
         object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
     ) == (False, False, None)
@@ -266,6 +271,7 @@ def scan_run(tmp_path, monkeypatch):
     monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: None)
     monkeypatch.setattr('pyar.backends.orca_scan.require_executable', lambda *args: 'orca')
     calls = []
+    @in_test_workspace
     def execute(command, stdout_path=None, stderr_path=None):
         calls.append(command)
         Path(stdout_path).write_text('****ORCA TERMINATED NORMALLY****\n')
@@ -416,6 +422,7 @@ def test_free_relaxation_commit_survives_progress_loss(scan_run, monkeypatch):
     from pyar.backends import write_xyz
     root, run, calls = scan_run
     optimizations = []
+    @in_test_workspace
     def optimize(molecule, parameters):
         optimizations.append(parameters)
         destination = Path('job_relaxed/result_relaxed.xyz')
@@ -543,6 +550,7 @@ def test_v2_scan_products_are_grouped_deterministically_without_path_execution(t
         return OrcaBondScanResult(True, trajectory, final, frames[-1][1], scan_input,
                                   scan_output, 'success', frames=frames, profile=profile)
 
+    @in_test_workspace
     def fake_optimize(molecule, qc_params):
         orientation = next(int(part.rsplit('_', 1)[1]) for part in Path.cwd().parts
                            if part.startswith('orientation_'))
@@ -641,6 +649,7 @@ def test_unique_product_characterization_uses_one_scan_seeded_path_and_reuses_sc
     from pyar.backends import write_xyz
     root, run, scan_calls = scan_run
     relax_calls = []
+    @in_test_workspace
     def optimize(molecule, parameters):
         relax_calls.append(1)
         destination = Path('job_relaxed/result_relaxed.xyz')
@@ -694,6 +703,7 @@ def test_unique_product_characterization_uses_one_scan_seeded_path_and_reuses_sc
 def test_unique_product_mode_with_no_product_skips_path_service(scan_run, monkeypatch):
     from pyar.backends import write_xyz
     root, run, scan_calls = scan_run
+    @in_test_workspace
     def optimize(molecule, parameters):
         destination = Path('job_relaxed/result_relaxed.xyz')
         destination.parent.mkdir()
@@ -750,6 +760,7 @@ def test_recovered_orientation_adds_immutable_membership_and_preserves_old_path(
                                           'success', frames=frames, profile=profile)
         return cached[index]
 
+    @in_test_workspace
     def relax(molecule, params):
         index = next(int(part.rsplit('_', 1)[1]) for part in Path.cwd().parts
                      if part.startswith('orientation_'))

@@ -10,6 +10,8 @@ from pyar.backends.bond_scan import BondScanRequest, load_bond_scan_result, run_
 from pyar.core.molecule import Molecule
 from pyar.energy_gradient_providers import EnergyGradientResult
 
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 @pytest.mark.parametrize('single_molecule', [False, True])
 def test_real_geometric_scan_constrains_distance_and_relaxes_other_bonds(tmp_path, monkeypatch, single_molecule):

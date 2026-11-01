@@ -9,6 +9,8 @@ from pyar.conformer.layout_v2 import selected_artifacts
 from pyar.persistence import read_json
 from pyar.benchmarks.conformer import ConformerBenchmarkCase, diagnose_conformer_case
 
+from workspace_support import in_test_workspace
+
 
 @pytest.fixture
 def runs(tmp_path):
@@ -61,6 +63,7 @@ def test_v1_and_v2_remain_nonresumable_without_embedding(runs):
 def test_native_refinement_names_and_energy_units_are_preserved(tmp_path, monkeypatch):
     pytest.importorskip('rdkit')
     names = []
+    @in_test_workspace
     def optimize(molecule, parameters):
         names.append(molecule.name)
         molecule.energy = -1.25

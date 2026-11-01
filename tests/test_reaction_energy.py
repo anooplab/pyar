@@ -15,6 +15,8 @@ from pyar.state.reaction_v2 import ReactionRunStateV2 as ReactionRunState
 from pyar.state.reaction import ReactionStateError
 from pyar.workflows.reaction import build_reaction_request
 
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 def test_selection_and_cached_results_use_physical_energy(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

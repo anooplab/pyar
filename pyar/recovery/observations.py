@@ -56,3 +56,10 @@ def snapshot_artifacts(root):
             identity = str(uuid5(NAMESPACE_URL, 'pyar-ore-observation:' + relative + ':' + digest))
             refs.append(ArtifactRef(identity, 'diagnostic-evidence', relative, digest))
     return tuple(refs)
+
+
+def extend_process_records(records):
+    """Attach actual backend observations returned by an isolated worker."""
+    current = _processes.get()
+    if current is not None:
+        current.extend(records)

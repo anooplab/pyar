@@ -1,6 +1,7 @@
 """Trial geometry generation and merge helpers."""
 
 from __future__ import annotations
+from pathlib import Path
 
 import itertools
 import logging
@@ -238,13 +239,16 @@ def generate_points(number_of_orientations, sequence_offset=0):
     )
 
 
-def create_trial_geometries(molecule_id, seed, monomer, number_of_orientations, site):
+def create_trial_geometries(
+    molecule_id, seed, monomer, number_of_orientations, site, *, directory=None
+):
     """Generate and write merged trial geometries for one growth operation."""
+    directory = Path(directory or Path.cwd()).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
     if monomer.number_of_atoms == 1:
         proximity_factor = 1.2
     else:
         proximity_factor = 1.5
-
     trial_generation_logger.debug('Generating points')
     points_and_angles = generate_trial_vectors(
         number_of_orientations,
@@ -253,9 +257,8 @@ def create_trial_geometries(molecule_id, seed, monomer, number_of_orientations, 
         use_angles=monomer.number_of_atoms > 1,
     )
     trial_generation_logger.debug('Generated points')
-    write_trial_vectors(points_and_angles, 'trial_vectors.dat')
+    write_trial_vectors(points_and_angles, str(directory / "trial_vectors.dat"))
     trial_generation_logger.debug('generate orientations from points and angles')
-
     orientations = []
     filename_prefix = 'trial_'
     for counter, vector in enumerate(points_and_angles):
@@ -264,9 +267,8 @@ def create_trial_geometries(molecule_id, seed, monomer, number_of_orientations, 
         new_orientation.title = f'trial orientation {new_orientation_id}'
         new_orientation.name = new_orientation_id
         new_orientation_xyz_file = f'{filename_prefix}{new_orientation_id}.xyz'
-        new_orientation.mol_to_xyz(new_orientation_xyz_file)
+        new_orientation.mol_to_xyz(str(directory / new_orientation_xyz_file))
         orientations.append(new_orientation)
-
     return orientations
 
 

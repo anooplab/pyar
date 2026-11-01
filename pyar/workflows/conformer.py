@@ -21,7 +21,7 @@ from pyar.conformer.stereo import conformer_coordinates, describe_input_stereo, 
 from pyar.optimiser import _status_label, is_usable, optimise
 from pyar.optimization_service import optimize_workflow_once
 from pyar.workflow_results import ConformerResult
-from pyar.growth.service import _working_directory, workflow_run_directory, workflow_state_path
+from pyar.growth.service import workflow_run_directory, workflow_state_path
 conformer_logger = logging.getLogger('pyar.workflows.conformer')
 STATE_VERSION = 3
 
@@ -613,7 +613,14 @@ def _refine_one_record(record, backend_directory, run_directory, qc_params):
     """Run and record one backend refinement without changing selection policy."""
     molecule = record.molecule.copy()
     try:
-        status, diagnostic, diagnostic_path = optimize_workflow_once(molecule, qc_params, workflow_role='conformer_refinement', optimizer=optimise, allow_incomplete=True)
+        status, diagnostic, diagnostic_path = optimize_workflow_once(
+            molecule,
+            qc_params,
+            workflow_role="conformer_refinement",
+            optimizer=optimise,
+            allow_incomplete=True,
+            directory=backend_directory,
+        )
     except Exception as exc:
         record.backend_status = 'failed'
         record.backend_validation_status = 'FAILED_FINAL'
@@ -643,10 +650,9 @@ def _refine_with_backend(records, run_directory, qc_params, *, v2=False):
     backend_directory = run_directory / ('refinement/execution' if v2 else 'backend')
     backend_directory.mkdir(parents=True, exist_ok=True)
     refined = []
-    with _working_directory(backend_directory):
-        for record in records:
-            if _refine_one_record(record, backend_directory, run_directory, qc_params):
-                refined.append(record)
+    for record in records:
+        if _refine_one_record(record, backend_directory, run_directory, qc_params):
+            refined.append(record)
     return sorted(refined, key=lambda record: (float('inf') if record.backend_energy is None else record.backend_energy, record.rdkit_energy, record.seed, record.source_conf_id))
 
 def _write_selected_conformers(records, selected_directory):

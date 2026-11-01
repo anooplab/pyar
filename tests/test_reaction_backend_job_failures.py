@@ -52,7 +52,7 @@ def test_failed_orientation_is_recorded_and_remaining_jobs_continue(
     product_dir.mkdir()
     outcomes = iter([BackendExecutionError("backend rejected this geometry"), True])
 
-    def optimize(*_args):
+    def optimize(*_args, **_kwargs):
         outcome = next(outcomes)
         if isinstance(outcome, Exception):
             raise outcome
@@ -100,7 +100,7 @@ def test_all_failed_orientations_still_raise_backend_failure(tmp_path, monkeypat
         lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
     )
 
-    def fail_job(*_args):
+    def fail_job(*_args, **_kwargs):
         raise BackendExecutionError("backend is unavailable")
 
     monkeypatch.setattr(reaction, "_optimize_with_diagnostics", fail_job)

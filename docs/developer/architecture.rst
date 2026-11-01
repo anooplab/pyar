@@ -24,10 +24,49 @@ Recursive dependency/hash validation precedes acceptance of upstream evidence.
 Current persistence owns supported series/layout identity, lock ownership,
 immutable artifact references and workflow checkpoints. Derived reports are not
 restart authority. Atomic mutable publication is distinct from an immutable
-stage commit; neither creates a multi-file transaction by itself. Process-wide
-working directories remain a resource requiring exception-safe restoration;
-restoration does not make concurrent threads safe.
+stage commit; neither creates a multi-file transaction by itself. Workflow and optimization entry points pass explicit run directories; production
+code does not mutate the process working directory. Native command helpers use
+``cwd=`` and resolve redirected streams within that directory. Relative-file
+Python calculators and geomeTRIC execute in a child process whose directory is
+set at creation. Recovery captures the actual native process observations, not
+just the Python worker exit status.
 
 Keep scientific kernels and owner acceptance rules explicit. A helper is useful
 when it clarifies responsibility and dependencies. Moving branches between
 functions alone is not a reduction in aggregate scientific decisions.
+
+Scientific constants and backend errors
+---------------------------------------
+
+``pyar.constants`` owns radii, connectivity factors and unit conversion values.
+Different radius models and historical conversion precisions retain distinct
+names and exact values. Existing data modules re-export their original tables;
+centralization does not authorize replacing scientific profiles or thresholds.
+
+Backend ``optimize`` and energy/gradient ``evaluate`` operations raise
+``BackendExecutionError`` subclasses for failures: ``BackendSCFError``,
+``BackendGradientError``, ``BackendGeometryError``, ``BackendOutputError`` and
+``BackendConvergenceError``. Unexpected adapter exceptions retain their cause.
+A convergence error's ``usable_geometry`` flag records an incomplete-frame
+observation; it cannot certify convergence or chemistry. The optimization owner
+validates that frame before returning ``OptimizationOutcome.CYCLE_EXCEEDED``.
+The release-candidate enum likewise represents evidence for further validation.
+Their serialized values and current workflow result schemas remain unchanged.
+Internal predicates, optional metadata and low-level process return codes retain
+their ordinary contracts; they are not scientific success flags.
+
+Directory execution uses private one-shot IPC in an automatically removed,
+mode-0700 temporary directory. It never reads public pickle inputs or stores IPC
+as restart/cache authority. It returns result snapshots, typed exceptions,
+backend logs, native-process observations and sequential Python/NumPy RNG state.
+Model/calculator objects remain in the worker. Workers import the same source or
+installed package as their caller. Existing relative artifact references,
+scientific fingerprints and acceptance rules remain owned by their workflows.
+This removes shared CWD mutation; it does not make mutable workflow objects,
+registries or shared random streams safe for concurrent use. Process startup and
+IPC add overhead per optimization, scan or NEB invocation.
+
+Mocked in-process scientific tests explicitly use ``inline_directory_worker``
+with test-only workspace adapters. Separate tests execute real child processes,
+parallel isolated workspaces and native xTB; mock fixtures do not establish
+external-backend scientific validity.

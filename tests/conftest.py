@@ -41,3 +41,19 @@ def pytest_collection_modifyitems(items):
             )
         if name in REGRESSION_FILES:
             item.add_marker(pytest.mark.regression)
+
+
+@pytest.fixture
+def inline_directory_worker(monkeypatch, request):
+    """Keep patched scientific engines in-process; never used by native tests."""
+    if request.node.get_closest_marker('external_backend'):
+        yield
+        return
+    from workspace_support import working_directory
+
+    def execute(operation, *args, directory, **kwargs):
+        with working_directory(directory):
+            return operation(*args, **kwargs)
+
+    monkeypatch.setattr('pyar.directory_execution.run_in_directory', execute)
+    yield

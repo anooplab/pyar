@@ -1,3 +1,4 @@
+from pyar.backend_errors import BackendExecutionError
 import tempfile
 import unittest
 from pathlib import Path
@@ -117,7 +118,8 @@ class OpenBabelBackendTests(unittest.TestCase):
                     os.chdir(tmpdir)
                     try:
                         backend = OBabel(molecule)
-                        self.assertFalse(backend.optimize())
+                        with self.assertRaises(BackendExecutionError):
+                            backend.optimize()
                     finally:
                         os.chdir(cwd)
             finally:

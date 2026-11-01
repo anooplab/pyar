@@ -1,7 +1,7 @@
 """Fixed-seed, repeated-addend growth using the shared addition engine."""
 from pathlib import Path
 from pyar.growth.request import GrowRequest
-from pyar.growth.service import add_one, _working_directory, check_stop_signal
+from pyar.growth.service import add_one, check_stop_signal
 from pyar.workflow_results import GrowResult
 
 
@@ -25,12 +25,13 @@ def grow(request: GrowRequest, *, output="grow", recover_stale=False):
 def _grow_v2(request, state):
     from pyar.growth.layout_v2 import durable_pool, verify_refs
     from pyar.persistence import RunLayout, write_json as publish
+
     directory = state.directory
     seeds = verify_refs(state.data['current_seeds'], directory)
     status = state.data['status']
-    if status in {'running', 'stopped'}:
+    if status in {"running", "stopped"}:
         state.data['status'] = 'running'
-        for step in range(state.data['next_step'], request.count + 1):
+        for step in range(state.data["next_step"], request.count + 1):
             if state.selection_path(step).exists():
                 state.accept_step(step)
                 seeds = verify_refs(state.data['current_seeds'], directory)
@@ -48,19 +49,26 @@ def _grow_v2(request, state):
             execution.mkdir(parents=True, exist_ok=True)
             site = None if request.site is None else [[request.site[0]], [len(seeds[0]) + request.site[1]]]
             from pyar.molecule_merge import combine_multiplicity
+
             qc = dict(request.backend_parameters)
             qc.update(charge=seeds[0].charge + request.monomer.charge,
                       multiplicity=combine_multiplicity(seeds[0].multiplicity, request.monomer.multiplicity),
                       scftype='rhf' if seeds[0].scftype == request.monomer.scftype == 'rhf' else 'uhf')
-            with _working_directory(execution):
-                selected = add_one(f'grow_{step:03d}', seeds, request.monomer,
-                                   request.number_of_orientations, qc,
-                                   request.maximum_number_of_seeds, site,
-                                   connectivity_policy=request.connectivity_policy,
-                                   selection_feature=request.selection_feature,
-                                   selection_algorithm=request.selection_algorithm,
-                                   selection_distance=request.selection_distance,
-                                   selection_system_type=request.selection_system_type)
+            selected = add_one(
+                f"grow_{step:03d}",
+                seeds,
+                request.monomer,
+                request.number_of_orientations,
+                qc,
+                request.maximum_number_of_seeds,
+                site,
+                connectivity_policy=request.connectivity_policy,
+                selection_feature=request.selection_feature,
+                selection_algorithm=request.selection_algorithm,
+                selection_distance=request.selection_distance,
+                selection_system_type=request.selection_system_type,
+                directory=execution,
+            )
             if selected is None or selected is StopIteration:
                 status = 'stopped'
                 state.data['status'] = status
@@ -74,6 +82,7 @@ def _grow_v2(request, state):
             if not source.exists():
                 source = execution / 'selection_diagnostics.json'
             from pyar.persistence import read_json
+
             diagnostics = read_json(source) if source.exists() else dict(selection_mode=mode,
                 selected_count=len(selected), maximum_number_of_seeds=request.maximum_number_of_seeds)
             publish(stage / 'selected/selection_diagnostics.json', diagnostics)

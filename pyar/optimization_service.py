@@ -122,18 +122,19 @@ def inspect_optimization(request, directory, *, execution=None, exception=None):
                         exception=exception or exc, request=request, artifacts=artifacts)
     return _classify_observation(request, execution, exception, artifacts, trusted, observed)
 
-def optimize_once(molecule, qc_params):
-    """Execute one opt-in minimum optimization in the caller's current directory.
+def optimize_once(molecule, qc_params, *, directory=None):
+    """Execute one opt-in minimum optimization in its explicit workspace.
 
-    Uses the existing optimizer's cwd behavior, never adds a new chdir layer.
+    Defaults to the caller directory; backend files belong to its job directory.
     Refuses all existing job directories and obtains the existing RunLock. The
     caller molecule/settings remain untouched. No files are created on inspection.
     """
     from pyar import optimiser
+
     request = OptimizationRequest.from_molecule(molecule, qc_params)
     if _unsupported_request(request):
         return _invalid(FailureCode.BACKEND_UNSUPPORTED, 'R1 pilot does not validate selected route, target or physical controls', request=request)
-    root = Path.cwd() / ('job_' + request.name)
+    root = Path(directory or Path.cwd()).resolve() / ("job_" + request.name)
     if root.exists() or root.is_symlink():
         return _invalid(FailureCode.CHECKPOINT_INCOMPATIBLE, 'Existing job directory cannot be adopted by R1', request=request)
     original = None
@@ -148,7 +149,7 @@ def optimize_once(molecule, qc_params):
             with capture_processes() as processes:
                 started = perf_counter()
                 try:
-                    status = optimiser.optimise(candidate, params)
+                    status = optimiser.optimise(candidate, params, directory=directory)
                 except (Exception, SystemExit) as exc:
                     original = exc
             try:
@@ -161,8 +162,15 @@ def optimize_once(molecule, qc_params):
         return _invalid(FailureCode.EXEC_FAILED, str(exc), exception=original or exc, request=request)
 
 
-def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None,
-                           allow_incomplete=False):
+def optimize_workflow_once(
+    molecule,
+    qc_params,
+    *,
+    workflow_role,
+    optimizer=None,
+    allow_incomplete=False,
+    directory=None,
+):
     """Run a workflow-owned optimization once and persist independent ORE evidence.
 
     The owning workflow continues to decide whether a legacy incomplete status
@@ -187,7 +195,8 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
         # their incomplete request metadata cannot be treated as validated.
         request, request_error = None, exc
     request_name = request.name if request is not None else str(getattr(molecule, 'name', 'unnamed'))
-    execution_root = Path.cwd() / ('job_' + request_name)
+    work_directory = Path(directory or Path.cwd()).resolve()
+    execution_root = work_directory / ("job_" + request_name)
     fresh = not execution_root.exists() and not execution_root.is_symlink()
     original = None
     status = None
@@ -199,6 +208,7 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
                 if workflow_recovery is not None:
                     from pyar.recovery.controller import run_recovery
                     from pyar.recovery.policy import RecoveryPolicy
+
                     if not isinstance(workflow_recovery, dict):
                         raise ValueError('workflow_recovery must contain explicit bounded policy settings')
                     controls = dict(workflow_recovery)
@@ -208,8 +218,13 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
                     policy = RecoveryPolicy(**controls)
                     if policy.mode == 'off':
                         raise ValueError('Omit workflow_recovery to retain the legacy execution path')
-                    recovery_report = run_recovery(molecule, dict(qc_params, workflow_role=workflow_role),
-                                                   policy, resume=resume)
+                    recovery_report = run_recovery(
+                        molecule,
+                        dict(qc_params, workflow_role=workflow_role),
+                        policy,
+                        resume=resume,
+                        directory=work_directory,
+                    )
                     recovered = recovery_report.result
                     status = False
                     if recovered.converged and recovered.accepted_frame is not None:
@@ -219,7 +234,15 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
                         molecule.energy = frame.physical_energy_hartree
                         status = True
                 else:
-                    status = (optimizer or optimiser.optimise)(molecule, qc_params)
+                    status = (optimizer or optimiser.optimise)(
+                        molecule,
+                        qc_params,
+                        **(
+                            {"directory": work_directory}
+                            if directory is not None
+                            else {}
+                        ),
+                    )
             except Exception as exc:
                 original = exc
         elapsed = max(0., perf_counter() - started)
@@ -239,6 +262,7 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
         result = _invalid(FailureCode.INVALID_RESULT, str(exc), exception=original or exc,
                           request=request)
     from pyar.recovery.workflow import acceptance
+
     result, decision = acceptance(result, status, allow_incomplete=allow_incomplete)
     record = {
         'schema_version': 1,
@@ -250,7 +274,7 @@ def optimize_workflow_once(molecule, qc_params, *, workflow_role, optimizer=None
         'owner_decision': decision,
         'recovery': None if recovery_report is None else recovery_report.to_dict(),
     }
-    report = Path.cwd() / '.pyar_optimization_diagnostics' / f'{uuid4().hex}.json'
+    report = work_directory / ".pyar_optimization_diagnostics" / f"{uuid4().hex}.json"
     try:
         write_json(report, record, overwrite=False)
     except Exception as exc:

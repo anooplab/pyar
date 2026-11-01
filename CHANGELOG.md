@@ -36,6 +36,19 @@
 
 ### Fixed
 
+- Remove process-wide working-directory changes. Workflow/optimization calls
+  accept explicit run directories; native commands use subprocess `cwd`, and
+  relative-file Python calculators execute in isolated child processes. Preserve
+  artifact names, scientific fingerprints, native-process evidence and
+  sequential random-number progression.
+- Centralize scientific radius tables, bond factors and conversion profiles in
+  `pyar.constants`, retaining each original value and historical precision.
+- Backend optimization and energy/gradient failures now raise typed
+  `BackendExecutionError` subclasses instead of returning failure strings or
+  booleans. Direct adapter callers must catch these errors. Incomplete usable
+  frames and release candidates remain provisional workflow observations;
+  convergence and chemistry acceptance rules are unchanged.
+
 - Prefer explicitly labeled XYZ energies over trailing gradient norms or other
   metadata when parsing structures and building energy tables.
 - Stop conformer searches (including `--check`) when input stereochemistry

@@ -304,7 +304,7 @@ def test_off_api_runs_exactly_once_without_recovery_directory(molecule, settings
     import pyar.optimization_service as service
     calls = []
     expected = controller.OptimizationResult(Outcome.INVALID_RESULT, (), (), ())
-    monkeypatch.setattr(service, 'optimize_once', lambda *a: calls.append(a) or expected)
+    monkeypatch.setattr(service, 'optimize_once', lambda *a, **kwargs: calls.append(a) or expected)
     report = controller.run_recovery(molecule, settings)
     assert report.result is expected and len(calls) == 1
     assert not Path('job_h2').exists()

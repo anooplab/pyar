@@ -9,6 +9,8 @@ from unittest import mock
 from pyar.growth import service as aggregator
 from pyar.growth import service as growth
 
+from workspace_support import in_test_workspace
+
 aggregate_workflow = importlib.import_module("pyar.workflows.aggregate")
 
 
@@ -143,6 +145,7 @@ class AggregatorTests(unittest.TestCase):
         trial_b.energy = 1.0
         thresholds = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             thresholds.append(qc_params.get("opt_threshold"))
             return True
@@ -191,6 +194,7 @@ class AggregatorTests(unittest.TestCase):
         trial_b.energy = 1.0
         thresholds = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             thresholds.append(qc_params.get("opt_threshold"))
             return True
@@ -241,6 +245,7 @@ class AggregatorTests(unittest.TestCase):
         trial_b.energy = 1.0
         refined_names = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             if qc_params.get("opt_threshold") == "normal":
                 refined_names.append(molecule.name)
@@ -278,6 +283,7 @@ class AggregatorTests(unittest.TestCase):
         trial.energy = 0.0
         optimise_calls = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             optimise_calls.append(molecule.name)
             return "CycleExceeded"
@@ -314,6 +320,7 @@ class AggregatorTests(unittest.TestCase):
         trial.energy = 0.0
         optimise_calls = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             optimise_calls.append(molecule.name)
             return "CycleExceeded"
@@ -375,6 +382,7 @@ class AggregatorTests(unittest.TestCase):
         trial = DummyMolecule("trial", n_atoms=1)
         trial.energy = 0.0
 
+        @in_test_workspace
         def fail_during_refinement(molecule, qc_params):
             if qc_params.get("opt_threshold") == "normal":
                 raise RuntimeError("refinement failed")

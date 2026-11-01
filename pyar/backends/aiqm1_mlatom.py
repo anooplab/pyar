@@ -48,14 +48,7 @@ class AIQM1(SF):
 
     @backend_operation
     def optimize(self):
-        """
-        :returns: True,
-                  'SCFFailed',
-                  'GradFailed',
-                  'UpdateFailed',
-                  'CycleExceeded',
-                  False
-        """
+        """Optimize geometry; return True or raise a typed backend error."""
 
 
         with open('mlatom.out', 'w') as output_file_pointer:
