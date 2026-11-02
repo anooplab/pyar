@@ -61,7 +61,7 @@ class Xtb(SF):
 
     @backend_operation
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
-        """Execute xTB and return a success flag or failure status string."""
+        """Execute xTB; return accepted outcomes or raise typed backend failures."""
         if gamma is not None:
             xtb_logger.error('not implemented in this module. Use xtb_turbo')
 
