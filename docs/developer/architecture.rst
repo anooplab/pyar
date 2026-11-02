@@ -55,6 +55,15 @@ succeeded, it causes an invocation failure while retaining the scientific
 result. Response rendering follows stream/logger cleanup. Check and dry-run
 calls retain their read-only workflow behavior and existing output routing.
 
+The scan-bond adapter resolves input-mode defaults and backend options before
+continuation checks. It reuses ``scan_request`` input/capability validation and
+the workflow's signed-request and restart checks. Those checks finish before
+``prepared_run`` publishes the request or execution starts. A private prepared
+value carries the same invocation mapping and preflight evidence into reporting
+and execution; scientific settings remain owned by the existing services.
+Scan results are published before a structured failure produces its existing
+nonzero exit status. Lock errors retain their CLI diagnostic boundary.
+
 Scientific constants and backend errors
 ---------------------------------------
 
