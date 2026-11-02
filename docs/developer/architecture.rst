@@ -73,6 +73,14 @@ builds its canonical restart request. Private stage values carry resolved data;
 restart verification retain their existing owners. Resolution itself performs
 no backend calculations or state publication.
 
+Microsolvation request construction validates each molecule's geometry and
+state before moving to the next molecule. Sampling/surface checks precede the
+existing shallow backend-settings copy; objective/wall, placement, resampling
+and site checks follow in their established order. Every cumulative cluster
+state is checked with the shared multiplicity-combination rule and backend
+capabilities. These validation helpers operate on the existing frozen request;
+the public fields, defaults and serialized request remain unchanged.
+
 Scientific constants and backend errors
 ---------------------------------------
 
