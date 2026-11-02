@@ -245,6 +245,29 @@ def _report_physical_settings_compatible(
     return physical_compatible
 
 
+def _report_endpoint_assignment(
+    route_result, reference_mode, association, endpoint_stage
+):
+    "Resolve connection evidence using the existing association owner without fallback."
+    connected = bool(route_result.get("reactant_product_connection_confirmed"))
+    if reference_mode == "separated-reactants" or association:
+        # Association validation owns its assignment; never fall back to the
+        # native finite-encounter assignment after a missing or failed check.
+        assignment = association.get("reactant_product_assignment")
+        connected = (
+            connected
+            and route_result.get("status") == "complete"
+            and association.get("status") == "matched"
+            and association.get("reactant_product_connection_confirmed") is True
+            and isinstance(assignment, (list, tuple))
+            and len(assignment) == 2
+            and sorted(assignment) == [0, 1]
+        )
+    else:
+        assignment = endpoint_stage.get("endpoint_assignment")
+    return connected, assignment
+
+
 def build_reaction_characterization_report(inputs: CharacterizationInputs):
     """Build a report from explicit evidence; scientific acceptance stays gated."""
     route_root, product, provenance = (
@@ -270,18 +293,7 @@ def build_reaction_characterization_report(inputs: CharacterizationInputs):
     frequency = stage_results.get("frequency", {})
     association = path_result.get("association_endpoint_validation", {})
     scan_evidence_verified = _verify_scan_evidence(scan_evidence)
-    connected = bool(route_result.get("reactant_product_connection_confirmed"))
-    if reference_mode == "separated-reactants" or association:
-        # Association validation owns its assignment; never fall back to the
-        # native finite-encounter assignment after a missing or failed check.
-        assignment = association.get("reactant_product_assignment")
-        connected = (connected and route_result.get("status") == "complete"
-                     and association.get("status") == "matched"
-                     and association.get("reactant_product_connection_confirmed") is True
-                     and isinstance(assignment, (list, tuple)) and len(assignment) == 2
-                     and sorted(assignment) == [0, 1])
-    else:
-        assignment = endpoint_stage.get("endpoint_assignment")
+    connected, assignment = _report_endpoint_assignment(route_result, reference_mode, association, endpoint_stage)
     physical_compatible = _report_physical_settings_compatible(
         stage_results, reference_mode, reactant_reference
     )

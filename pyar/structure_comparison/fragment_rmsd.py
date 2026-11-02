@@ -36,6 +36,82 @@ class FragmentRMSDComparator:
         self.max_mappings = max_mappings
         self.max_fragment_permutations = max_fragment_permutations
 
+    def _score_fragment_placements(
+        self, first, second, components, groups, group_ids, mappings, metadata
+    ):
+        "Score bounded whole-structure rotation hypotheses without fitting fragments independently."
+        coordinates = [
+            np.asarray(molecule.coordinates, dtype=float) for molecule in (first, second)
+        ]
+        centered = [value - value.mean(axis=0) for value in coordinates]
+        selected = selected_atom_indices(first.atoms_list, self.atom_mode)
+        left_groups = [
+            [i for i, group in enumerate(groups[0]) if group == target]
+            for target in group_ids
+        ]
+        right_groups = [
+            [i for i, group in enumerate(groups[1]) if group == target]
+            for target in group_ids
+        ]
+        best = None
+        evaluated = 0
+        for group_orders in product(*(permutations(group) for group in right_groups)):
+            assignment = dict(
+                pair
+                for left, right in zip(left_groups, group_orders)
+                for pair in zip(left, right)
+            )
+            # Anchor fits cover the otherwise undetermined global orientation of
+            # a dimer's centre-to-centre axis. Other fragments are never fitted
+            # independently when the final placement is scored.
+            for anchor, left in enumerate(components[0]):
+                for anchor_order in mappings[anchor, assignment[anchor]]:
+                    evaluated += 1
+                    if evaluated > self.max_mappings:
+                        return ComparisonResult(
+                            True,
+                            None,
+                            None,
+                            self.method,
+                            metadata={
+                                **metadata,
+                                "reason": "rotation hypothesis limit",
+                                "comparison_complete": False,
+                            },
+                        )
+                    first_anchor = centered[0][left]
+                    second_anchor = centered[1][anchor_order]
+                    rotation = kabsch_rotation(
+                        first_anchor - first_anchor.mean(axis=0),
+                        second_anchor - second_anchor.mean(axis=0),
+                    )
+                    order = np.empty(len(coordinates[0]), dtype=int)
+                    for fragment, indices in enumerate(components[0]):
+                        options = mappings[fragment, assignment[fragment]]
+                        scored_indices = [index for index in indices if index in selected]
+                        offsets = [indices.index(index) for index in scored_indices]
+                        local_order = min(
+                            options,
+                            key=lambda option: np.sum(
+                                (
+                                    centered[0][scored_indices]
+                                    - centered[1][np.asarray(option)[offsets]] @ rotation
+                                )
+                                ** 2
+                            ),
+                        )
+                        order[indices] = local_order
+                    distance = kabsch_rmsd(
+                        coordinates[0][selected], coordinates[1][order[selected]]
+                    )
+                    best = distance if best is None else min(best, distance)
+        metadata.update(
+            fragment_count=len(components[0]),
+            rotation_hypotheses=evaluated,
+            comparison_complete=True,
+        )
+        return ComparisonResult(True, float(best), None, self.method, metadata=metadata)
+
     def compare(self, first, second):
         metadata = {"atom_mode": self.atom_mode, "bond_scale": self.bond_scale,
                     "distance_is_upper_bound": True}
@@ -92,41 +168,8 @@ class FragmentRMSDComparator:
                     orders.append([mapping[index] for index in left])
                 mappings[left_index, right_index] = orders
 
-        coordinates = [np.asarray(molecule.coordinates, dtype=float) for molecule in (first, second)]
-        centered = [value - value.mean(axis=0) for value in coordinates]
-        selected = selected_atom_indices(first.atoms_list, self.atom_mode)
-        left_groups = [[i for i, group in enumerate(groups[0]) if group == target] for target in group_ids]
-        right_groups = [[i for i, group in enumerate(groups[1]) if group == target] for target in group_ids]
-        best = None
-        evaluated = 0
-        for group_orders in product(*(permutations(group) for group in right_groups)):
-            assignment = dict(pair for left, right in zip(left_groups, group_orders) for pair in zip(left, right))
-            # Anchor fits cover the otherwise undetermined global orientation of
-            # a dimer's centre-to-centre axis. Other fragments are never fitted
-            # independently when the final placement is scored.
-            for anchor, left in enumerate(components[0]):
-                for anchor_order in mappings[anchor, assignment[anchor]]:
-                    evaluated += 1
-                    if evaluated > self.max_mappings:
-                        return ComparisonResult(True, None, None, self.method,
-                                                metadata={**metadata, "reason": "rotation hypothesis limit", "comparison_complete": False})
-                    first_anchor = centered[0][left]
-                    second_anchor = centered[1][anchor_order]
-                    rotation = kabsch_rotation(first_anchor - first_anchor.mean(axis=0),
-                                               second_anchor - second_anchor.mean(axis=0))
-                    order = np.empty(len(coordinates[0]), dtype=int)
-                    for fragment, indices in enumerate(components[0]):
-                        options = mappings[fragment, assignment[fragment]]
-                        scored_indices = [index for index in indices if index in selected]
-                        offsets = [indices.index(index) for index in scored_indices]
-                        local_order = min(options, key=lambda option: np.sum(
-                            (centered[0][scored_indices] - centered[1][np.asarray(option)[offsets]] @ rotation) ** 2))
-                        order[indices] = local_order
-                    distance = kabsch_rmsd(coordinates[0][selected], coordinates[1][order[selected]])
-                    best = distance if best is None else min(best, distance)
-        metadata.update(fragment_count=len(components[0]), rotation_hypotheses=evaluated,
-                        comparison_complete=True)
-        return ComparisonResult(True, float(best), None, self.method, metadata=metadata)
+        return self._score_fragment_placements(first, second, components, groups, group_ids, mappings, metadata)
+
 
 
 __all__ = ["FragmentRMSDComparator"]

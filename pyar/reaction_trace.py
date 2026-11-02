@@ -237,6 +237,91 @@ def _validate_optional_trace_scalars(record, record_index):
                 )
 
 
+def _normalize_trace_extensions(record, record_index, force_fields, normalized):
+    "Preserve optional trace fields and their existing schema checks."
+    if "backend_forces_hartree_per_bohr" in force_fields:
+        normalized["backend_forces_hartree_per_bohr"] = force_fields[
+            "backend_forces_hartree_per_bohr"
+        ].tolist()
+    if "bias_forces_hartree_per_bohr" in force_fields:
+        normalized["bias_forces_hartree_per_bohr"] = force_fields[
+            "bias_forces_hartree_per_bohr"
+        ].tolist()
+        normalized["afir_forces_hartree_per_bohr"] = force_fields[
+            "bias_forces_hartree_per_bohr"
+        ].tolist()
+    if "total_forces_hartree_per_bohr" in force_fields:
+        normalized["total_forces_hartree_per_bohr"] = force_fields[
+            "total_forces_hartree_per_bohr"
+        ].tolist()
+    if "collective_coordinate_bohr" in record:
+        normalized["collective_coordinate_bohr"] = float(
+            record["collective_coordinate_bohr"]
+        )
+    if "softmin_beta" in record:
+        normalized["softmin_beta"] = float(record["softmin_beta"])
+    if "contact_diagnostics" in record:
+        normalized["contact_diagnostics"] = record["contact_diagnostics"]
+    if "bias_controller" in record:
+        if not isinstance(record["bias_controller"], dict):
+            raise ValueError(
+                f"Trace record {record_index} field 'bias_controller' must be an object"
+            )
+        normalized["bias_controller"] = record["bias_controller"]
+    if "bias_parameters" in record:
+        normalized["bias_parameters"] = record["bias_parameters"]
+    for key in (
+        "accepted_step",
+        "segment_index",
+        "release_state",
+        "release_reason",
+        "release_evidence",
+        "forming_pairs",
+        "forming_pair_distance",
+        "normalized_distance",
+        "topology_change_state",
+        "persistence_counter",
+        "alpha",
+        "alpha_critical",
+        "alpha_target",
+        "bond_order_available",
+        "bond_order_scheme",
+        "bond_order_delta",
+        "bond_order_stabilized",
+        "comparable_bond_orders",
+    ):
+        if key in record:
+            normalized[key] = record[key]
+
+
+def _validate_trace_geometry(record, record_index):
+    "Validate ordered symbols and finite coordinates before force and bond evidence."
+    step_index = int(record["step_index"])
+    if step_index < 0:
+        raise ValueError(
+            f"Trace record {record_index} has negative step_index {step_index}"
+        )
+
+    symbols = record["symbols"]
+    if not isinstance(symbols, list) or not symbols:
+        raise ValueError(
+            f"Trace record {record_index} field 'symbols' must be a non-empty list"
+        )
+    normalized_symbols = [str(symbol) for symbol in symbols]
+
+    coordinates = np.asarray(record["coordinates_angstrom"], dtype=float)
+    if coordinates.ndim != 2 or coordinates.shape != (len(normalized_symbols), 3):
+        raise ValueError(
+            f"Trace record {record_index} field 'coordinates_angstrom' must have shape "
+            f"({len(normalized_symbols)}, 3); got {coordinates.shape!r}"
+        )
+    if not np.all(np.isfinite(coordinates)):
+        raise ValueError(
+            f"Trace record {record_index} field 'coordinates_angstrom' must contain finite values"
+        )
+    return step_index, normalized_symbols, coordinates
+
+
 def validate_trace_record(record, record_index):
     """Validate the structure of one trace record.
 
@@ -262,28 +347,7 @@ def validate_trace_record(record, record_index):
             f"Trace record {record_index} is missing required fields: {', '.join(missing)}"
         )
 
-    step_index = int(record["step_index"])
-    if step_index < 0:
-        raise ValueError(f"Trace record {record_index} has negative step_index {step_index}")
-
-    symbols = record["symbols"]
-    if not isinstance(symbols, list) or not symbols:
-        raise ValueError(
-            f"Trace record {record_index} field 'symbols' must be a non-empty list"
-        )
-    normalized_symbols = [str(symbol) for symbol in symbols]
-
-    coordinates = np.asarray(record["coordinates_angstrom"], dtype=float)
-    if coordinates.ndim != 2 or coordinates.shape != (len(normalized_symbols), 3):
-        raise ValueError(
-            f"Trace record {record_index} field 'coordinates_angstrom' must have shape "
-            f"({len(normalized_symbols)}, 3); got {coordinates.shape!r}"
-        )
-    if not np.all(np.isfinite(coordinates)):
-        raise ValueError(
-            f"Trace record {record_index} field 'coordinates_angstrom' must contain finite values"
-        )
-
+    step_index, normalized_symbols, coordinates = _validate_trace_geometry(record, record_index)
     _ensure_finite_scalar(record["backend_energy_hartree"], "backend_energy_hartree", record_index)
     if "bias_energy_hartree" not in record:
         raise ValueError(f"Trace record {record_index} is missing required key 'bias_energy_hartree'")
@@ -343,44 +407,7 @@ def validate_trace_record(record, record_index):
         ),
     }
 
-    if "backend_forces_hartree_per_bohr" in force_fields:
-        normalized["backend_forces_hartree_per_bohr"] = force_fields[
-            "backend_forces_hartree_per_bohr"
-        ].tolist()
-    if "bias_forces_hartree_per_bohr" in force_fields:
-        normalized["bias_forces_hartree_per_bohr"] = force_fields[
-            "bias_forces_hartree_per_bohr"
-        ].tolist()
-        normalized["afir_forces_hartree_per_bohr"] = force_fields[
-            "bias_forces_hartree_per_bohr"
-        ].tolist()
-    if "total_forces_hartree_per_bohr" in force_fields:
-        normalized["total_forces_hartree_per_bohr"] = force_fields[
-            "total_forces_hartree_per_bohr"
-        ].tolist()
-    if "collective_coordinate_bohr" in record:
-        normalized["collective_coordinate_bohr"] = float(record["collective_coordinate_bohr"])
-    if "softmin_beta" in record:
-        normalized["softmin_beta"] = float(record["softmin_beta"])
-    if "contact_diagnostics" in record:
-        normalized["contact_diagnostics"] = record["contact_diagnostics"]
-    if "bias_controller" in record:
-        if not isinstance(record["bias_controller"], dict):
-            raise ValueError(f"Trace record {record_index} field 'bias_controller' must be an object")
-        normalized["bias_controller"] = record["bias_controller"]
-    if "bias_parameters" in record:
-        normalized["bias_parameters"] = record["bias_parameters"]
-    for key in (
-        "accepted_step", "segment_index", "release_state", "release_reason",
-        "release_evidence", "forming_pairs", "forming_pair_distance",
-        "normalized_distance", "topology_change_state", "persistence_counter",
-        "alpha", "alpha_critical", "alpha_target", "bond_order_available",
-        "bond_order_scheme", "bond_order_delta", "bond_order_stabilized",
-        "comparable_bond_orders",
-    ):
-        if key in record:
-            normalized[key] = record[key]
-
+    _normalize_trace_extensions(record, record_index, force_fields, normalized)
     return normalized
 
 

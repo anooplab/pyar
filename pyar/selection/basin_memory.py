@@ -269,6 +269,38 @@ def _verified_duplicate(entry, geometry, comparator):
             and result.distance <= 1.0e-5)
 
 
+def _compact_registry_entries(entries, comparator):
+    "Remove only geometry-verified duplicates from the existing registry."
+    indexed_entries = {}
+    for entry in entries:
+        geometry = entry.get("geometry")
+        if (
+            _valid_geometry(geometry)
+            and _geometry_identity_signature(geometry) is not None
+        ):
+            indexed_entries.setdefault(
+                _geometry_identity_signature(geometry), []
+            ).append(entry)
+    compacted = []
+    for entry in entries:
+        geometry = entry.get("geometry")
+        signature = (
+            _geometry_identity_signature(geometry)
+            if _valid_geometry(geometry)
+            else None
+        )
+        if signature is not None and any(
+            candidate is not entry
+            and _verified_duplicate(candidate, geometry, comparator)
+            for candidate in indexed_entries[signature]
+            if candidate in compacted
+        ):
+            continue
+        compacted.append(entry)
+    entries = compacted
+    return entries
+
+
 def _persist_basin_registry(registry_path, selected_molecules, existing_entries=None, max_entries=200):
     """Atomically persist selected geometries and versioned descriptors."""
     if not registry_path or not selected_molecules:
@@ -282,21 +314,7 @@ def _persist_basin_registry(registry_path, selected_molecules, existing_entries=
     from pyar.structure_comparison import GraphFirstDeduplicationComparator
 
     comparator = GraphFirstDeduplicationComparator(threshold=1.0e-5, atom_mode="all")
-    indexed_entries = {}
-    for entry in entries:
-        geometry = entry.get("geometry")
-        if _valid_geometry(geometry) and _geometry_identity_signature(geometry) is not None:
-            indexed_entries.setdefault(_geometry_identity_signature(geometry), []).append(entry)
-    compacted = []
-    for entry in entries:
-        geometry = entry.get("geometry")
-        signature = _geometry_identity_signature(geometry) if _valid_geometry(geometry) else None
-        if signature is not None and any(
-                candidate is not entry and _verified_duplicate(candidate, geometry, comparator)
-                for candidate in indexed_entries[signature] if candidate in compacted):
-            continue
-        compacted.append(entry)
-    entries = compacted
+    entries = _compact_registry_entries(entries, comparator)
     seen_ids = {entry.get("geometry_id") for entry in entries if entry.get("geometry_id")}
     indexed_entries = {}
     for entry in entries:

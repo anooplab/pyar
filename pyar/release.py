@@ -48,6 +48,61 @@ class BondOrderTrajectory:
             dict(getattr(analysis, "metadata", {}) or {}),
         )
 
+    def _forming_pair_trends(self, forming_pairs):
+        "Compute growth and stabilization only from complete measured history."
+        deltas = {}
+        stabilized = {}
+        for pair in forming_pairs:
+            trajectory = self.history[pair]
+            complete_trajectory = all(value is not None for value in trajectory)
+            deltas[pair] = (
+                trajectory[-1] - trajectory[0]
+                if complete_trajectory and len(trajectory) >= 2
+                else None
+            )
+            recent = trajectory[-self.stabilization_window :]
+            stabilized[pair] = (
+                len(recent) >= self.stabilization_window
+                and all(value is not None for value in recent)
+                and max(value for value in recent if value is not None)
+                - min(value for value in recent if value is not None)
+                <= self.stabilization_tolerance
+            )
+        return deltas, stabilized
+
+    def _relevant_pairs(self, symbols, current_bonds, forming_pairs, fragment_indices):
+        "Include pre-contact cross-fragment baselines without interpreting omitted values as zeros."
+        fragment_membership = {}
+        for fragment, group in enumerate(fragment_indices or ()):
+            for atom in group:
+                fragment_membership[atom] = fragment
+        relevant_pairs = (
+            {
+                tuple(sorted((left, right)))
+                for left in range(len(symbols))
+                for right in range(left + 1, len(symbols))
+                if fragment_membership
+                and fragment_membership.get(left) != fragment_membership.get(right)
+            }
+            | current_bonds
+            | forming_pairs
+        )
+        return relevant_pairs
+
+    def _comparable_bond_orders(self, symbols, forming_pairs, current_bonds, values):
+        "Collect measured same-element reference bond orders."
+        comparable = {}
+        for pair in forming_pairs:
+            element_pair = tuple(sorted((str(symbols[pair[0]]), str(symbols[pair[1]]))))
+            comparable[pair] = []
+            for other in current_bonds - forming_pairs:
+                other_element_pair = tuple(
+                    sorted((str(symbols[other[0]]), str(symbols[other[1]])))
+                )
+                if other_element_pair == element_pair and other in values:
+                    comparable[pair].append(float(values[other]))
+        return comparable
+
     def observe(self, symbols, current_bonds, forming_pairs, analysis=None, fragment_indices=None):
         """Record bond orders for all relevant pairs at one accepted geometry."""
         available, scheme, raw_values, metadata = self._analysis_values(analysis)
@@ -69,45 +124,12 @@ class BondOrderTrajectory:
         forming_pairs = {tuple(sorted(pair)) for pair in forming_pairs}
         # Capture a pre-contact baseline for every cross-fragment pair.
         # Omitted printed values are unknown, not measured zeros.
-        fragment_membership = {}
-        for fragment, group in enumerate(fragment_indices or ()):
-            for atom in group:
-                fragment_membership[atom] = fragment
-        relevant_pairs = {
-            tuple(sorted((left, right)))
-            for left in range(len(symbols))
-            for right in range(left + 1, len(symbols))
-            if fragment_membership
-            and fragment_membership.get(left) != fragment_membership.get(right)
-        } | current_bonds | forming_pairs
+        relevant_pairs = self._relevant_pairs(symbols, current_bonds, forming_pairs, fragment_indices)
         for pair in relevant_pairs:
             value = values.get(pair)
             self.history.setdefault(pair, []).append(None if value is None else float(value))
-        deltas = {}
-        stabilized = {}
-        for pair in forming_pairs:
-            trajectory = self.history[pair]
-            complete_trajectory = all(value is not None for value in trajectory)
-            deltas[pair] = (
-                trajectory[-1] - trajectory[0]
-                if complete_trajectory and len(trajectory) >= 2 else None
-            )
-            recent = trajectory[-self.stabilization_window:]
-            stabilized[pair] = (
-                len(recent) >= self.stabilization_window
-                and all(value is not None for value in recent)
-                and max(value for value in recent if value is not None)
-                - min(value for value in recent if value is not None)
-                <= self.stabilization_tolerance
-            )
-        comparable = {}
-        for pair in forming_pairs:
-            element_pair = tuple(sorted((str(symbols[pair[0]]), str(symbols[pair[1]]))))
-            comparable[pair] = []
-            for other in current_bonds - forming_pairs:
-                other_element_pair = tuple(sorted((str(symbols[other[0]]), str(symbols[other[1]]))))
-                if other_element_pair == element_pair and other in values:
-                    comparable[pair].append(float(values[other]))
+        deltas, stabilized = self._forming_pair_trends(forming_pairs)
+        comparable = self._comparable_bond_orders(symbols, forming_pairs, current_bonds, values)
         self.last_diagnostics = {
             "available": True,
             "scheme": scheme,
@@ -315,6 +337,31 @@ class ReleaseTracker:
                                        for pair in evidence.get(key, ()))
             self.evidence = ReleaseEvidence(**evidence)
 
+    def _update_contact_history(self, forming_pairs, distances):
+        "Advance persistence and distance histories once for the accepted geometry."
+        for pair in list(self.pair_persistence):
+            if pair not in forming_pairs:
+                self.pair_persistence[pair] = 0
+        for pair in forming_pairs:
+            self.pair_persistence[pair] = self.pair_persistence.get(pair, 0) + 1
+            history = self.pair_distances.setdefault(pair, [])
+            history.append(distances[pair])
+            del history[: -self.stabilization_window]
+
+        persistent_pairs = {
+            pair
+            for pair in forming_pairs
+            if self.pair_persistence.get(pair, 0) >= self.persistence_required
+        }
+        stabilized_pairs = {
+            pair
+            for pair in persistent_pairs
+            if len(self.pair_distances.get(pair, [])) >= self.stabilization_window
+            and max(self.pair_distances[pair]) - min(self.pair_distances[pair])
+            <= self.distance_tolerance
+        }
+        return stabilized_pairs
+
     def observe_accepted(
         self,
         symbols,
@@ -346,24 +393,7 @@ class ReleaseTracker:
         distances = {
             pair: _pair_distance(pair, coordinates) for pair in forming_pairs
         }
-        for pair in list(self.pair_persistence):
-            if pair not in forming_pairs:
-                self.pair_persistence[pair] = 0
-        for pair in forming_pairs:
-            self.pair_persistence[pair] = self.pair_persistence.get(pair, 0) + 1
-            history = self.pair_distances.setdefault(pair, [])
-            history.append(distances[pair])
-            del history[:-self.stabilization_window]
-
-        persistent_pairs = {
-            pair for pair in forming_pairs
-            if self.pair_persistence.get(pair, 0) >= self.persistence_required
-        }
-        stabilized_pairs = {
-            pair for pair in persistent_pairs
-            if len(self.pair_distances.get(pair, [])) >= self.stabilization_window
-            and max(self.pair_distances[pair]) - min(self.pair_distances[pair]) <= self.distance_tolerance
-        }
+        stabilized_pairs = self._update_contact_history(forming_pairs, distances)
         resistance_low = (
             alpha_critical is not None
             and float(alpha_critical) <= self.alpha_critical_max

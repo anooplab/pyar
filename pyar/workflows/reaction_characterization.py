@@ -455,6 +455,46 @@ def _characterize_reaction(root, request, through, options):
         _characterize_product_route(run, number, product)
     return _finalize_reaction_characterization(run)
 
+def _verify_characterization_routes(existing, path_options, pathway_root):
+    "Verify saved route inputs and immutable stage artifacts before reuse."
+    for route in (existing or {}).get("routes", {}).values():
+        if route.get("path_options") != path_options:
+            raise ValueError("Pathway restart settings differ from this invocation")
+        directory = (
+            pathway_root
+            / "products"
+            / route.get("product_id", "")
+            / route.get("pathway_id", "")
+        )
+        route_file = directory / "pathway.json"
+        if not route_file.is_file():
+            raise ValueError(f"Pathway restart metadata is missing: {route_file}")
+        saved = json.loads(route_file.read_text(encoding="utf-8"))
+        from pyar.persistence import ArtifactRef, read_json
+
+        for commit in directory.glob("stages/*/attempts/attempt_*/commit.json"):
+            record = read_json(commit)
+            if record.get("status") != "completed":
+                raise ValueError("Invalid characterization stage commit")
+            for reference in record["artifacts"]:
+                ArtifactRef.from_dict(reference).verify(directory)
+        if saved.get("path_options") != path_options:
+            raise ValueError("Pathway stage settings differ from this invocation")
+        input_files = saved["pathway_input_files"]
+        for name, filename in input_files.items():
+            if name not in {"reactant", "product", "ts_guess"}:
+                raise ValueError(
+                    f"Unknown pathway input geometry role {name!r} in {route_file}"
+                )
+            artifact = directory / filename
+            if not artifact.is_file() or _sha256(artifact) != saved.get(
+                "prepared_geometry_sha256", {}
+            ).get(name):
+                raise ValueError(
+                    f"Pathway input geometry was changed or removed: {artifact}"
+                )
+
+
 def validate_characterization_restart(root, request, through, options):
     """Validate pathway provenance without creating or modifying any files."""
     state_path = _pathway_root(root) / 'pathways.json'
@@ -472,30 +512,7 @@ def validate_characterization_restart(root, request, through, options):
     path_options = {key: value for key, value in options.items() if key in {'pathway_ts_source', 'images', 'max_cycles', 'max_gradient', 'average_gradient', 'spring', 'climb', 'align', 'interpolation', 'idpp_fmax', 'idpp_steps', 'geodesic_tol', 'geodesic_max_iter', 'product_relaxation_fmax', 'product_relaxation_max_steps', 'ts_max_cycles', 'ts_optimizer', 'ts_fmax', 'sella_fmax', 'sella_internal_coordinates', 'irc_max_cycles', 'endpoint_max_cycles', 'imaginary_frequency_threshold', 'irc_endpoint_rmsd_tolerance', 'reactant_reference_mode'}}
     if path_options.get('reactant_reference_mode', 'minima') == 'minima':
         path_options.pop('reactant_reference_mode', None)
-    for route in (existing or {}).get('routes', {}).values():
-        if route.get('path_options') != path_options:
-            raise ValueError('Pathway restart settings differ from this invocation')
-        directory = pathway_root / 'products' / route.get('product_id', '') / route.get('pathway_id', '')
-        route_file = directory / 'pathway.json'
-        if not route_file.is_file():
-            raise ValueError(f'Pathway restart metadata is missing: {route_file}')
-        saved = json.loads(route_file.read_text(encoding='utf-8'))
-        from pyar.persistence import ArtifactRef, read_json
-        for commit in directory.glob('stages/*/attempts/attempt_*/commit.json'):
-            record = read_json(commit)
-            if record.get('status') != 'completed':
-                raise ValueError('Invalid characterization stage commit')
-            for reference in record['artifacts']:
-                ArtifactRef.from_dict(reference).verify(directory)
-        if saved.get('path_options') != path_options:
-            raise ValueError('Pathway stage settings differ from this invocation')
-        input_files = saved['pathway_input_files']
-        for name, filename in input_files.items():
-            if name not in {'reactant', 'product', 'ts_guess'}:
-                raise ValueError(f'Unknown pathway input geometry role {name!r} in {route_file}')
-            artifact = directory / filename
-            if not artifact.is_file() or _sha256(artifact) != saved.get('prepared_geometry_sha256', {}).get(name):
-                raise ValueError(f'Pathway input geometry was changed or removed: {artifact}')
+    _verify_characterization_routes(existing, path_options, pathway_root)
     for index, product in enumerate(reaction_state.data.get('products', []), start=1):
         product_key = f'product_{index:03d}'
         saved = (existing or {}).get('routes', {}).get(product_key, {})
