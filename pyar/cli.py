@@ -4,7 +4,11 @@ The command tree owns task discovery; each command owns its argument parser
 and execution. Command modules are imported only when their task is selected.
 """
 
+from __future__ import annotations
+
 import argparse
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable
 import io
 import json
 from contextlib import ExitStack, contextmanager, redirect_stdout
@@ -16,6 +20,10 @@ from pathlib import Path
 import uuid
 
 from pyar import __version__
+
+if TYPE_CHECKING:
+    from pyar.cli_runtime import RunObservation
+    from pyar.run_config import ResolvedRunSpec, RunSpec
 
 
 # Add future tasks here without importing their scientific dependencies at startup.
@@ -298,162 +306,350 @@ def _execution_json_payload(command, resolved, observation, *, checking, dry_run
     return payload
 
 
-def invoke(command, arguments, *, config_file=None, profile_values=None, source_overrides=None):
-    """Dispatch a task, observing its own validated request and actual result."""
-    from pyar.cli_runtime import observe_run
-    from pyar.run_config import (PROFILE_KIND, RUN_CONFIG_KIND, ResolvedRunSpec, RunSpec,
-                                 arguments_from_profile, build_execution_plan, load_toml_document,
-                                 profile_path, resolve_run_spec, without_execution_controls,
-                                 write_toml_document)
-    error_parser = argparse.ArgumentParser(prog=f'pyar {command}', add_help=False)
-    if command not in _COMMANDS:
-        error_parser.error(f'Unknown task: {command}')
-    args = list(arguments)
-    try:
-        args, verbosity = _verbosity(args)
-        args, quiet_long = _remove_option(args, '--quiet')
-        args, quiet_short = _remove_option(args, '-q')
-        args, _ = _remove_option(args, '--no-color')
-        quiet = bool(quiet_long or quiet_short)
-        if quiet and verbosity:
-            raise ValueError('--quiet and --verbose cannot be combined')
-    except ValueError as exc:
-        error_parser.error(str(exc))
-    if command in _META_COMMANDS:
-        module = import_module(_COMMANDS[command][0])
-        if command == "benchmark":
-            return module.main(args, prog="pyar benchmark")
-        function = {'run': module.run_config, 'config': module.config, 'profile': module.profile,
-                    'info': module.info, 'backends': module.backends, 'doctor': module.doctor,
-                    'inspect': module.inspect_run, 'install': module.install}[command]
-        if command == 'run':
-            return function(args, prog=f'pyar {command}', verbosity=verbosity, quiet=quiet)
-        with _logging(verbosity, quiet):
-            return function(args, prog=f'pyar {command}')
-    try:
-        args, profile_name = _remove_option(args, '--profile', takes_value=True)
-        args, config_path = _remove_option(args, '--write-config', takes_value=True)
-        args, dry_run = _remove_option(args, '--dry-run')
-        as_json = False
-        if command in _CHECK_COMMANDS:
-            args, as_json = _remove_option(args, '--json')
-        if dry_run and command not in _CHECK_COMMANDS:
-            raise ValueError('--dry-run is supported only for calculation workflows with --check')
-    except ValueError as exc:
-        error_parser.error(str(exc))
-    module = import_module(_COMMANDS[command][0])
-    parser = _command_parser(command, module)
-    option_part = args[:args.index('--')] if '--' in args else args
-    if any(token in {'-h', '--help'} for token in option_part) and parser is not None:
-        _add_shared_help(parser, dry_run=command in _CHECK_COMMANDS).print_help()
-        parser.exit()
-    profile_values = dict(profile_values or {})
-    try:
-        if profile_name:
-            profile = load_toml_document(profile_path(profile_name), PROFILE_KIND)
-            if profile['workflow'] != command:
-                raise ValueError(f"Profile {profile_name!r} is for {profile['workflow']!r}")
-            profile_values.update(profile['effective'])
-        if config_path and Path(config_path).expanduser().exists():
-            raise ValueError(f'Configuration already exists: {config_path}. Choose a new path.')
-    except (ValueError, OSError) as exc:
-        error_parser.error(str(exc))
-    if parser is not None:
-        request, resolved = resolve_run_spec(command, parser, args, profile_values=profile_values,
-                                             profile=profile_name, argument_source='config' if config_file else 'cli')
-    else:
-        request = RunSpec(command, tuple(args), profile_name)
-        resolved = ResolvedRunSpec(command, {}, {}, tuple(args))
-    if source_overrides:
-        resolved.value_sources.update(source_overrides)
-    execution = list(args)
-    if parser is not None:
-        applied = {key: value for key, value in profile_values.items() if resolved.value_sources.get(key) == 'profile'}
-        extra = arguments_from_profile(applied, parser, workflow=command, skip_defaults=False)
-        boundary = execution.index('--') if '--' in execution else len(execution)
-        execution[boundary:boundary] = extra
-    checking = bool(resolved.values.get('check') or dry_run)
-    if dry_run and not resolved.values.get('check'):
-        boundary = execution.index('--') if '--' in execution else len(execution)
-        execution.insert(boundary, '--check')
-    # Configs are calculation specifications, never permanently validation-only.
-    request = RunSpec(command, tuple(without_execution_controls(args)), profile_name)
-    saved_config = False
+@dataclass(frozen=True, slots=True)
+class _ConsoleControls:
+    arguments: list[str]
+    verbosity: int
+    quiet: bool
 
-    def save_config():
-        nonlocal saved_config
-        if not config_path or saved_config:
+
+@dataclass(frozen=True, slots=True)
+class _InvocationOptions:
+    command: str
+    console: _ConsoleControls
+    arguments: list[str]
+    profile_name: str | None
+    config_path: str | None
+    dry_run: bool
+    as_json: bool
+    config_file: str | Path | None
+    error_parser: argparse.ArgumentParser
+
+
+@dataclass(slots=True)
+class _ConfiguredInvocation:
+    """Own the evolving prepared request and its one-time config snapshot."""
+
+    options: _InvocationOptions
+    request: RunSpec
+    resolved: ResolvedRunSpec
+    execution: list[str]
+    checking: bool
+    saved_config: bool = False
+
+    def save_config(self):
+        from pyar.run_config import RUN_CONFIG_KIND, write_toml_document
+
+        path = self.options.config_path
+        if not path or self.saved_config:
             return
-        write_toml_document(config_path, kind=RUN_CONFIG_KIND, workflow=command,
-                            arguments=request.arguments, effective={**resolved.values, 'check': False} if 'check' in resolved.values else resolved.values,
-                            metadata={'profile': profile_name, 'value_sources': resolved.value_sources,
-                                      'resolved_request': resolved.scientific})
-        saved_config = True
-        print(f'Wrote run configuration: {Path(config_path).expanduser().resolve()}', file=sys.stderr)
+        write_toml_document(
+            path,
+            kind=RUN_CONFIG_KIND,
+            workflow=self.options.command,
+            arguments=self.request.arguments,
+            effective={**self.resolved.values, "check": False}
+            if "check" in self.resolved.values
+            else self.resolved.values,
+            metadata={
+                "profile": self.options.profile_name,
+                "value_sources": self.resolved.value_sources,
+                "resolved_request": self.resolved.scientific,
+            },
+        )
+        self.saved_config = True
+        print(
+            f"Wrote run configuration: {Path(path).expanduser().resolve()}",
+            file=sys.stderr,
+        )
 
-    def prepared(observation):
-        nonlocal resolved
-        values = dict(resolved.values)
-        sources = dict(resolved.value_sources)
+    def prepared(self, observation: RunObservation):
+        from pyar.run_config import ResolvedRunSpec
+
+        values = dict(self.resolved.values)
+        sources = dict(self.resolved.value_sources)
         for key, value in observation.options.items():
             if key not in values:
                 continue
-            if values[key] != value and sources.get(key) == 'default':
-                sources[key] = 'workflow-default'
+            if values[key] != value and sources.get(key) == "default":
+                sources[key] = "workflow-default"
             values[key] = value
-        resolved = ResolvedRunSpec(command, values, sources, request.arguments, observation.prepared)
-        save_config()
-
-    if command in {'neb', 'ts', 'irc'}:
-        entry = getattr(module, command)
-    else:
-        entry = module.main
-    result, failure, record_failure = None, None, None
-    provenance_only_failure = False
-    with observe_run(prepared) as observation, _logging(verbosity, quiet), ExitStack() as stack:
-        if as_json or (quiet and command in _CHECK_COMMANDS):
-            stack.enter_context(redirect_stdout(io.StringIO() if checking or quiet else sys.stderr))
-        try:
-            result = entry(execution, prog=f'pyar {command}')
-            if observation.result is None and result is not None:
-                observation.result = result.to_dict() if hasattr(result, 'to_dict') else result
-            save_config()
-        except BaseException as exc:
-            failure = exc
-        finally:
-            if observation.started and not checking:
-                try:
-                    _write_execution_record(command, request, resolved, observation, failure=failure, config_file=config_file)
-                except (OSError, ValueError) as exc:
-                    record_failure = exc
-                    message = (
-                        f'pyar {command}: calculation outputs were retained, but run provenance '
-                        f'could not be written: {exc}. Check directory permissions and free space.'
-                    )
-                    print(message, file=sys.stderr)
-                    if failure is None:
-                        provenance_only_failure = True
-                        failure = OSError(message)
-    plan = build_execution_plan(command, resolved) if dry_run and failure is None else None
-    if as_json:
-        payload = _execution_json_payload(
-            command,
-            resolved,
-            observation,
-            checking=checking,
-            dry_run=dry_run,
-            plan=plan,
-            failure=failure,
-            record_failure=record_failure,
-            provenance_only_failure=provenance_only_failure,
+        self.resolved = ResolvedRunSpec(
+            self.options.command,
+            values,
+            sources,
+            self.request.arguments,
+            observation.prepared,
         )
-        print(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False, default=str))
-    elif plan and not quiet:
-        _print_execution_plan(plan, resolved.scientific)
-    if failure is not None:
-        raise failure
-    return result
+        self.save_config()
 
 
-if __name__ == '__main__':
+@dataclass(slots=True)
+class _InvocationOutcome:
+    observation: RunObservation
+    result: object = None
+    failure: BaseException | None = None
+    record_failure: OSError | ValueError | None = None
+    provenance_only_failure: bool = False
+
+
+def _console_controls(arguments, error_parser):
+    try:
+        args, verbosity = _verbosity(arguments)
+        args, quiet_long = _remove_option(args, "--quiet")
+        args, quiet_short = _remove_option(args, "-q")
+        args, _ = _remove_option(args, "--no-color")
+        quiet = bool(quiet_long or quiet_short)
+        if quiet and verbosity:
+            raise ValueError("--quiet and --verbose cannot be combined")
+    except ValueError as exc:
+        error_parser.error(str(exc))
+    return _ConsoleControls(args, verbosity, quiet)
+
+
+def _invoke_meta_command(command, console):
+    module = import_module(_COMMANDS[command][0])
+    if command == "benchmark":
+        return module.main(console.arguments, prog="pyar benchmark")
+    function = {
+        "run": module.run_config,
+        "config": module.config,
+        "profile": module.profile,
+        "info": module.info,
+        "backends": module.backends,
+        "doctor": module.doctor,
+        "inspect": module.inspect_run,
+        "install": module.install,
+    }[command]
+    if command == "run":
+        return function(
+            console.arguments,
+            prog=f"pyar {command}",
+            verbosity=console.verbosity,
+            quiet=console.quiet,
+        )
+    with _logging(console.verbosity, console.quiet):
+        return function(console.arguments, prog=f"pyar {command}")
+
+
+def _workflow_options(command, console, error_parser, config_file):
+    try:
+        args, profile_name = _remove_option(
+            console.arguments, "--profile", takes_value=True
+        )
+        args, config_path = _remove_option(args, "--write-config", takes_value=True)
+        args, dry_run = _remove_option(args, "--dry-run")
+        as_json = False
+        if command in _CHECK_COMMANDS:
+            args, as_json = _remove_option(args, "--json")
+        if dry_run and command not in _CHECK_COMMANDS:
+            raise ValueError(
+                "--dry-run is supported only for calculation workflows with --check"
+            )
+    except ValueError as exc:
+        error_parser.error(str(exc))
+    return _InvocationOptions(
+        command,
+        console,
+        args,
+        profile_name,
+        config_path,
+        bool(dry_run),
+        bool(as_json),
+        config_file,
+        error_parser,
+    )
+
+
+def _load_invocation_profile(options, profile_values):
+    from pyar.run_config import PROFILE_KIND, load_toml_document, profile_path
+
+    values = dict(profile_values or {})
+    try:
+        if options.profile_name:
+            profile = load_toml_document(
+                profile_path(options.profile_name), PROFILE_KIND
+            )
+            if profile["workflow"] != options.command:
+                raise ValueError(
+                    f"Profile {options.profile_name!r} is for {profile['workflow']!r}"
+                )
+            values.update(profile["effective"])
+        if options.config_path and Path(options.config_path).expanduser().exists():
+            raise ValueError(
+                f"Configuration already exists: {options.config_path}. Choose a new path."
+            )
+    except (ValueError, OSError) as exc:
+        options.error_parser.error(str(exc))
+    return values
+
+
+def _execution_arguments(options, parser, resolved, profile_values):
+    from pyar.run_config import arguments_from_profile
+
+    execution = list(options.arguments)
+    if parser is not None:
+        applied = {
+            key: value
+            for key, value in profile_values.items()
+            if resolved.value_sources.get(key) == "profile"
+        }
+        extra = arguments_from_profile(
+            applied, parser, workflow=options.command, skip_defaults=False
+        )
+        boundary = execution.index("--") if "--" in execution else len(execution)
+        execution[boundary:boundary] = extra
+    checking = bool(resolved.values.get("check") or options.dry_run)
+    if options.dry_run and not resolved.values.get("check"):
+        boundary = execution.index("--") if "--" in execution else len(execution)
+        execution.insert(boundary, "--check")
+    return execution, checking
+
+
+def _configure_invocation(options, module, profile_values, source_overrides):
+    from pyar.run_config import (
+        ResolvedRunSpec,
+        RunSpec,
+        resolve_run_spec,
+        without_execution_controls,
+    )
+
+    command, args = options.command, options.arguments
+    parser = _command_parser(command, module)
+    option_part = args[: args.index("--")] if "--" in args else args
+    if any(token in {"-h", "--help"} for token in option_part) and parser is not None:
+        _add_shared_help(parser, dry_run=command in _CHECK_COMMANDS).print_help()
+        parser.exit()
+    values = _load_invocation_profile(options, profile_values)
+    if parser is not None:
+        _, resolved = resolve_run_spec(
+            command,
+            parser,
+            args,
+            profile_values=values,
+            profile=options.profile_name,
+            argument_source="config" if options.config_file else "cli",
+        )
+    else:
+        resolved = ResolvedRunSpec(command, {}, {}, tuple(args))
+    if source_overrides:
+        resolved.value_sources.update(source_overrides)
+    execution, checking = _execution_arguments(options, parser, resolved, values)
+    # Configs remain calculation specifications, never permanently validation-only.
+    request = RunSpec(
+        command, tuple(without_execution_controls(args)), options.profile_name
+    )
+    return _ConfiguredInvocation(options, request, resolved, execution, checking)
+
+
+def _record_invocation(run, outcome):
+    """Preserve the workflow failure when provenance publication also fails."""
+    try:
+        _write_execution_record(
+            run.options.command,
+            run.request,
+            run.resolved,
+            outcome.observation,
+            failure=outcome.failure,
+            config_file=run.options.config_file,
+        )
+    except (OSError, ValueError) as exc:
+        outcome.record_failure = exc
+        message = (
+            f"pyar {run.options.command}: calculation outputs were retained, but run provenance "
+            f"could not be written: {exc}. Check directory permissions and free space."
+        )
+        print(message, file=sys.stderr)
+        if outcome.failure is None:
+            outcome.provenance_only_failure = True
+            outcome.failure = OSError(message)
+
+
+def _execute_invocation(run, entry: Callable[..., object]):
+    from pyar.cli_runtime import observe_run
+
+    options, console = run.options, run.options.console
+    with (
+        observe_run(run.prepared) as observation,
+        _logging(console.verbosity, console.quiet),
+        ExitStack() as stack,
+    ):
+        outcome = _InvocationOutcome(observation)
+        if options.as_json or (console.quiet and options.command in _CHECK_COMMANDS):
+            stack.enter_context(
+                redirect_stdout(
+                    io.StringIO() if run.checking or console.quiet else sys.stderr
+                )
+            )
+        try:
+            outcome.result = entry(run.execution, prog=f"pyar {options.command}")
+            if observation.result is None and outcome.result is not None:
+                observation.result = (
+                    outcome.result.to_dict()
+                    if hasattr(outcome.result, "to_dict")
+                    else outcome.result
+                )
+            run.save_config()
+        except BaseException as exc:
+            outcome.failure = exc
+        finally:
+            if observation.started and not run.checking:
+                _record_invocation(run, outcome)
+    return outcome
+
+
+def _finish_invocation(run, outcome):
+    from pyar.run_config import build_execution_plan
+
+    options = run.options
+    plan = (
+        build_execution_plan(options.command, run.resolved)
+        if options.dry_run and outcome.failure is None
+        else None
+    )
+    if options.as_json:
+        payload = _execution_json_payload(
+            options.command,
+            run.resolved,
+            outcome.observation,
+            checking=run.checking,
+            dry_run=options.dry_run,
+            plan=plan,
+            failure=outcome.failure,
+            record_failure=outcome.record_failure,
+            provenance_only_failure=outcome.provenance_only_failure,
+        )
+        print(
+            json.dumps(payload, indent=2, sort_keys=True, allow_nan=False, default=str)
+        )
+    elif plan and not options.console.quiet:
+        _print_execution_plan(plan, run.resolved.scientific)
+    if outcome.failure is not None:
+        raise outcome.failure
+    return outcome.result
+
+
+def invoke(
+    command, arguments, *, config_file=None, profile_values=None, source_overrides=None
+):
+    """Resolve controls, observe task execution, then publish its existing response."""
+    # Preserve dependency import failures before command/control validation.
+    from pyar.cli_runtime import observe_run  # noqa: F401
+    from pyar import run_config  # noqa: F401
+
+    error_parser = argparse.ArgumentParser(prog=f"pyar {command}", add_help=False)
+    if command not in _COMMANDS:
+        error_parser.error(f"Unknown task: {command}")
+    console = _console_controls(list(arguments), error_parser)
+    if command in _META_COMMANDS:
+        return _invoke_meta_command(command, console)
+    options = _workflow_options(command, console, error_parser, config_file)
+    module = import_module(_COMMANDS[command][0])
+    run = _configure_invocation(options, module, profile_values, source_overrides)
+    entry = getattr(module, command) if command in {"neb", "ts", "irc"} else module.main
+    outcome = _execute_invocation(run, entry)
+    return _finish_invocation(run, outcome)
+
+
+if __name__ == "__main__":
     main()

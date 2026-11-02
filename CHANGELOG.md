@@ -50,6 +50,11 @@
 
 ### Internal
 
+- Separate CLI invocation controls, profile/configuration resolution, observed
+  execution and response publication. Give prepared-request updates and
+  one-time config saving a per-invocation owner while preserving error ordering,
+  output routing and provenance semantics.
+
 - Separate scan-product grouping and path-setting plans from immutable registry
   publication and gated path execution. Keep existing stage order, membership
   revisions, representative selection and artifact verification.

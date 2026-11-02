@@ -35,6 +35,26 @@ Keep scientific kernels and owner acceptance rules explicit. A helper is useful
 when it clarifies responsibility and dependencies. Moving branches between
 functions alone is not a reduction in aggregate scientific decisions.
 
+CLI invocation ownership
+------------------------
+
+``cli.invoke`` preserves the argument-based dispatch API and sequences console
+controls, task configuration, observed execution and response publication.
+Profiles and command arguments still use ``run_config`` resolution. Task
+adapters remain the owners of scientific requests and preflight checks.
+
+Each invocation owns its prepared request and a one-time configuration
+snapshot. Repeated preparation callbacks can update the request recorded in run
+provenance without overwriting that first saved configuration. Nested calls
+have separate invocation state and context-local execution observations.
+
+Execution captures workflow failures, including interrupts, so a started run
+can attempt provenance publication before the failure is re-raised. A handled
+provenance-write failure preserves an existing workflow failure; if the workflow
+succeeded, it causes an invocation failure while retaining the scientific
+result. Response rendering follows stream/logger cleanup. Check and dry-run
+calls retain their read-only workflow behavior and existing output routing.
+
 Scientific constants and backend errors
 ---------------------------------------
 
