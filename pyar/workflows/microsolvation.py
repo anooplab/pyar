@@ -855,17 +855,45 @@ def _propose_resampling(run):
     return ResamplingProposal(candidate, attempt, attempt_dir)
 
 
-def _evaluate_resampling(run, proposal):
+def _accept_resampling_candidate(run, proposal, accepted, expected_multiplicity):
+    """Preserve optimized evidence before applying the fixed-composition identity gate."""
     from pyar.microsolvation.perturbation import preserves_cluster_identity
+    state, request, root, record = run.state, run.request, run.root, run.record
+    attempt, attempt_dir = proposal.attempt, proposal.directory
+    attempt_index, candidates = attempt['attempt'], run.candidates
+    accepted.microsolvation_coverage = assess_shell(accepted, request)
+    candidate_refs = state.snapshot_pool([accepted], attempt_dir / "optimized")
+    candidate_refs[0]["role"] = "resampling-candidate"
+    attempt["optimized_candidate"] = candidate_refs[0]
+    # The fixed-composition topology is defined by immutable atom order and fragment partition.
+    if not preserves_cluster_identity(accepted, request, expected_multiplicity):
+        attempt["status"] = "rejected_identity"
+    else:
+        candidate_pool, diagnostics = _deduplicate_and_select(
+            candidates + [accepted], request.maximum_number_of_seeds, request
+        )
+        pool_refs = state.snapshot_pool(
+            candidate_pool, root / "pools" / f"pool_{attempt_index:05d}"
+        )
+        record["current_references"] = pool_refs
+        state.data["current_seeds"] = pool_refs
+        run.candidates = candidate_pool
+        run.seeds = candidate_pool
+        attempt.update(
+            status="completed", pool_references=pool_refs, selection=diagnostics
+        )
+
+
+def _evaluate_resampling(run, proposal):
     from pyar.persistence.json_store import read_json
 
-    state, request, root, record = run.state, run.request, run.root, run.record
+    request, record = run.request, run.record
     candidate, attempt, attempt_dir = (
         proposal.candidate,
         proposal.attempt,
         proposal.directory,
     )
-    counter_path, candidates = run.counter_path, run.candidates
+    counter_path = run.counter_path
     attempt_index = attempt["attempt"]
     candidate.name = f"ms4_{attempt_index:05d}"
     expected_multiplicity = candidate.multiplicity
@@ -883,28 +911,7 @@ def _evaluate_resampling(run, proposal):
     record["evaluations_used"] = used
     attempt["optimization_diagnostics"] = optimization_diagnostics
     if optimized:
-        accepted = optimized[0]
-        accepted.microsolvation_coverage = assess_shell(accepted, request)
-        candidate_refs = state.snapshot_pool([accepted], attempt_dir / "optimized")
-        candidate_refs[0]["role"] = "resampling-candidate"
-        attempt["optimized_candidate"] = candidate_refs[0]
-        # The fixed-composition topology is defined by immutable atom order and fragment partition.
-        if not preserves_cluster_identity(accepted, request, expected_multiplicity):
-            attempt["status"] = "rejected_identity"
-        else:
-            candidate_pool, diagnostics = _deduplicate_and_select(
-                candidates + [accepted], request.maximum_number_of_seeds, request
-            )
-            pool_refs = state.snapshot_pool(
-                candidate_pool, root / "pools" / f"pool_{attempt_index:05d}"
-            )
-            record["current_references"] = pool_refs
-            state.data["current_seeds"] = pool_refs
-            run.candidates = candidate_pool
-            run.seeds = candidate_pool
-            attempt.update(
-                status="completed", pool_references=pool_refs, selection=diagnostics
-            )
+        _accept_resampling_candidate(run, proposal, optimized[0], expected_multiplicity)
     elif failures and any(
         "budget" in str(item).lower() or "time limit" in str(item).lower()
         for item in failures
