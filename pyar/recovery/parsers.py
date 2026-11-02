@@ -134,6 +134,79 @@ def _geometric_steps(text):
     return steps
 
 
+def _validate_adaptive_checkpoint(request, state, coordinates, checkpoint):
+    "Validate accepted adaptive-controller provenance without granting restart authority."
+    value = read_json(checkpoint)
+    configuration = value["configuration"]
+    settings = request.settings
+    if settings.get("bias_controller") != "adaptive" or not settings.get("gamma"):
+        raise ValueError("No accepted adaptive-step contract for this request")
+    # Ask the existing owner to validate its numerical state, without
+    # changing any files, resuming optimization or granting restart support.
+    from pyar.biases.controller import BiasController
+    from pyar.biases.afir import alpha_from_gamma
+
+    controller = BiasController(
+        "adaptive",
+        alpha_min=settings.get("bias_alpha_min", 0.0),
+        safety_margin=settings.get("bias_alpha_margin"),
+        smoothing=settings.get("bias_alpha_smoothing", 1.0),
+        epsilon=settings.get("bias_alpha_epsilon", 1e-12),
+        scheduled_alpha=settings.get("bias_scheduled_alpha"),
+    )
+    controller.load_state_dict(value["controller"], alpha_from_gamma(settings["gamma"]))
+    if value["controller"] != state.get("bias_controller"):
+        raise ValueError("Accepted controller and evaluated-frame objectives disagree")
+    expected = request.settings
+    configured = configuration["qc_params"]
+    # Existing checkpoint intentionally omits these execution-only flags.
+    for key in (
+        "bias_controller_restart",
+        "trace_mode",
+        "release_retry_attempt",
+        "release_job_name",
+        "adaptive_max_segments",
+        "adaptive_suppress_release_candidate",
+    ):
+        expected.pop(key, None)
+    expected.pop("fragments", None)
+    if (
+        value["symbols"] != list(request.symbols)
+        or configured != expected
+        or configuration.get("fragment_indices") != request.settings.get("fragments")
+        or configuration.get("opt_target") != request.target
+        or not close_matrix(
+            matrix(value["positions_angstrom"], len(request.symbols)), coordinates
+        )
+    ):
+        raise ValueError("Incompatible accepted-controller checkpoint")
+
+
+def _read_geometric_state(request, path):
+    "Read the evaluated-frame state and verify objective identity."
+    state = read_json(path("pyar_geometric_state.json"))
+    if state.get("schema_version", 1) != 1:
+        raise ValueError("Unknown geomeTRIC state schema version")
+    if (
+        state.get("software") != request.backend
+        or state.get("opt_target") != request.target
+    ):
+        raise ValueError("geomeTRIC calculator identity does not match request")
+    if float(state.get("gamma", 0)) != float(request.settings.get("gamma") or 0):
+        raise ValueError("geomeTRIC bias objective does not match request")
+    if state.get("bias_potential", "afir") != request.settings.get(
+        "bias_potential", "afir"
+    ):
+        raise ValueError("geomeTRIC bias functional does not match request")
+    if float(state.get("softmin_beta", 1.0)) != float(
+        request.settings.get("softmin_beta", 1.0)
+    ):
+        raise ValueError("geomeTRIC bias beta does not match request")
+    if state.get("wall_configuration") != request.settings.get("microsolvation_wall"):
+        raise ValueError("geomeTRIC wall objective does not match request")
+    return state
+
+
 def _geometric(request, path):
     text = re.sub(r'\x1b\[[0-9;]*m', '', path('geometric.out').read_text())
     version = _version(r'geomeTRIC started\. Version:\s*(\d+\.\d+(?:\.\d+)?)', text, '1.1')
@@ -144,19 +217,7 @@ def _geometric(request, path):
         from .checkpoints import accepted_checkpoint
         frame, steps = accepted_checkpoint(request, path)
         return NativeObservation(version, False, False, True, False, frame, True, steps)
-    state = read_json(path('pyar_geometric_state.json'))
-    if state.get('schema_version', 1) != 1:
-        raise ValueError('Unknown geomeTRIC state schema version')
-    if state.get('software') != request.backend or state.get('opt_target') != request.target:
-        raise ValueError('geomeTRIC calculator identity does not match request')
-    if float(state.get('gamma', 0)) != float(request.settings.get('gamma') or 0):
-        raise ValueError('geomeTRIC bias objective does not match request')
-    if state.get('bias_potential', 'afir') != request.settings.get('bias_potential', 'afir'):
-        raise ValueError('geomeTRIC bias functional does not match request')
-    if float(state.get('softmin_beta', 1.0)) != float(request.settings.get('softmin_beta', 1.0)):
-        raise ValueError('geomeTRIC bias beta does not match request')
-    if state.get('wall_configuration') != request.settings.get('microsolvation_wall'):
-        raise ValueError('geomeTRIC wall objective does not match request')
+    state = _read_geometric_state(request, path)
     state_coordinates = matrix(state['positions_angstrom'], len(request.symbols))
     energy = finite_number(state['backend_energy_hartree'])
     effective = finite_number(state['total_energy_hartree'])
@@ -188,32 +249,7 @@ def _geometric(request, path):
     accepted = converged
     checkpoint = path('pyar_bias_controller_state.json')
     if not converged and checkpoint.exists():
-        value = read_json(checkpoint)
-        configuration = value['configuration']
-        settings = request.settings
-        if settings.get('bias_controller') != 'adaptive' or not settings.get('gamma'):
-            raise ValueError('No accepted adaptive-step contract for this request')
-        # Ask the existing owner to validate its numerical state, without
-        # changing any files, resuming optimization or granting restart support.
-        from pyar.biases.controller import BiasController
-        from pyar.biases.afir import alpha_from_gamma
-        controller = BiasController('adaptive', alpha_min=settings.get('bias_alpha_min', 0.),
-            safety_margin=settings.get('bias_alpha_margin'), smoothing=settings.get('bias_alpha_smoothing', 1.),
-            epsilon=settings.get('bias_alpha_epsilon', 1e-12), scheduled_alpha=settings.get('bias_scheduled_alpha'))
-        controller.load_state_dict(value['controller'], alpha_from_gamma(settings['gamma']))
-        if value['controller'] != state.get('bias_controller'):
-            raise ValueError('Accepted controller and evaluated-frame objectives disagree')
-        expected = request.settings
-        configured = configuration['qc_params']
-        # Existing checkpoint intentionally omits these execution-only flags.
-        for key in ('bias_controller_restart', 'trace_mode', 'release_retry_attempt', 'release_job_name', 'adaptive_max_segments', 'adaptive_suppress_release_candidate'):
-            expected.pop(key, None)
-        expected.pop('fragments', None)
-        if (value['symbols'] != list(request.symbols) or configured != expected
-                or configuration.get('fragment_indices') != request.settings.get('fragments')
-                or configuration.get('opt_target') != request.target
-                or not close_matrix(matrix(value['positions_angstrom'], len(request.symbols)), coordinates)):
-            raise ValueError('Incompatible accepted-controller checkpoint')
+        _validate_adaptive_checkpoint(request, state, coordinates, checkpoint)
         accepted = True
     if accepted:
         steps[-1] = replace(steps[-1], accepted=True)

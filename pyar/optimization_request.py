@@ -32,6 +32,69 @@ def unsupported_optimization_options(backend, optimizer, options):
     return unsupported
 
 
+def _resolve_model_controls(args, backend, settings):
+    "Resolve optional model assets without changing route defaults."
+    for name in ("model", "xtb_model", "gxtb_wrapper"):
+        value = getattr(args, name, None)
+        if value is None:
+            continue
+        if name == "model":
+            if unsupported_qc_options(backend, {"model"}):
+                raise ValueError(f"Backend {backend!r} does not support --model")
+            path = Path(value).expanduser().resolve()
+            if not path.is_file():
+                raise ValueError(f"Model file does not exist: {path}")
+            settings[name] = str(path)
+        elif name == "xtb_model":
+            from pyar.backends.xtb_utils import canonical_xtb_model
+
+            if backend != "xtb":
+                raise ValueError("--xtb-model is only valid for standalone xtb")
+            settings[name] = canonical_xtb_model(value)
+        else:
+            if backend != "orca":
+                raise ValueError("--gxtb-wrapper is only valid for ORCA g-xTB")
+            from pyar.backends.orca_methods import orca_method
+
+            if orca_method(settings["method"])[0] != "g-xTB":
+                raise ValueError("--gxtb-wrapper is only valid for ORCA --method g-xTB")
+            import os
+
+            path = Path(value).expanduser().resolve()
+            if not path.is_file() or not os.access(path, os.X_OK):
+                raise ValueError(
+                    "--gxtb-wrapper must point to an executable wrapper file"
+                )
+            settings[name] = str(path)
+
+
+def _resolve_orca_method(args, backend, optimizer, settings):
+    "Keep ORCA method/basis compatibility with its existing backend owner."
+    if backend == "orca":
+        from pyar.backends.orca_methods import (
+            orca_method,
+            orca_method_keywords,
+            orca_external_method_block,
+        )
+
+        method, is_xtb = orca_method(settings["method"])
+        builtin = method.lower() in {"r2scan-3c", "b97-3c", "pbeh-3c", "hf-3c"}
+        if is_xtb or builtin:
+            if args.basis is not None:
+                raise ValueError(
+                    "The selected ORCA method defines its own basis; omit --basis"
+                )
+            settings["basis"] = None
+        if builtin:
+            if optimizer == "geometric":
+                raise ValueError(
+                    "ORCA composite methods currently require --geometry-optimizer native"
+                )
+            settings["orca_builtin_method"] = True
+        orca_method_keywords(settings)
+        orca_external_method_block(settings)
+
+
 def resolve_settings(args):
     if not args.backend:
         raise ValueError('A backend is required.\nExample: pyar optimize *.xyz --backend xtb')
@@ -80,47 +143,8 @@ def resolve_settings(args):
         settings[name] = getattr(args, name)
     # Additional workflow callers expose model controls; bulk optimize's
     # existing parser and defaults are unchanged.
-    for name in ('model', 'xtb_model', 'gxtb_wrapper'):
-        value = getattr(args, name, None)
-        if value is None:
-            continue
-        if name == 'model':
-            if unsupported_qc_options(backend, {'model'}):
-                raise ValueError(f'Backend {backend!r} does not support --model')
-            path = Path(value).expanduser().resolve()
-            if not path.is_file():
-                raise ValueError(f'Model file does not exist: {path}')
-            settings[name] = str(path)
-        elif name == 'xtb_model':
-            from pyar.backends.xtb_utils import canonical_xtb_model
-            if backend != 'xtb':
-                raise ValueError('--xtb-model is only valid for standalone xtb')
-            settings[name] = canonical_xtb_model(value)
-        else:
-            if backend != 'orca':
-                raise ValueError('--gxtb-wrapper is only valid for ORCA g-xTB')
-            from pyar.backends.orca_methods import orca_method
-            if orca_method(settings['method'])[0] != 'g-xTB':
-                raise ValueError('--gxtb-wrapper is only valid for ORCA --method g-xTB')
-            import os
-            path = Path(value).expanduser().resolve()
-            if not path.is_file() or not os.access(path, os.X_OK):
-                raise ValueError('--gxtb-wrapper must point to an executable wrapper file')
-            settings[name] = str(path)
-    if backend == 'orca':
-        from pyar.backends.orca_methods import orca_method, orca_method_keywords, orca_external_method_block
-        method, is_xtb = orca_method(settings['method'])
-        builtin = method.lower() in {'r2scan-3c', 'b97-3c', 'pbeh-3c', 'hf-3c'}
-        if is_xtb or builtin:
-            if args.basis is not None:
-                raise ValueError('The selected ORCA method defines its own basis; omit --basis')
-            settings['basis'] = None
-        if builtin:
-            if optimizer == 'geometric':
-                raise ValueError('ORCA composite methods currently require --geometry-optimizer native')
-            settings['orca_builtin_method'] = True
-        orca_method_keywords(settings)
-        orca_external_method_block(settings)
+    _resolve_model_controls(args, backend, settings)
+    _resolve_orca_method(args, backend, optimizer, settings)
     return settings
 
 

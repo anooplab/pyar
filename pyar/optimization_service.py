@@ -40,6 +40,81 @@ def _unsupported_request(request):
             or (request.optimizer == 'native' and bool(settings.get('gamma') or settings.get('microsolvation_wall'))))
 
 
+def _observation_outcome(
+    trusted, observed, terminated, diagnostics, scf_failed, returncode, exception
+):
+    "Apply the existing ordered outcome policy to independently parsed evidence."
+    if not trusted:
+        status = Outcome.INVALID_RESULT
+    elif (
+        observed.converged
+        and observed.stationary
+        and observed.accepted
+        and terminated
+        and not diagnostics
+    ):
+        status = Outcome.CONVERGED
+    elif (
+        scf_failed
+        or any(d.code is FailureCode.USER_INPUT_INVALID for d in diagnostics)
+        or (returncode not in (None, 0) and not observed.limited)
+    ):
+        status = Outcome.FAILED_FINAL
+    elif observed.limited and observed.accepted and exception is None:
+        status = Outcome.INCOMPLETE_USABLE
+    elif observed.limited:
+        status = Outcome.FAILED_RECOVERABLE
+    else:
+        status = Outcome.INVALID_RESULT
+    return status
+
+
+def _observation_gates(observed, terminated, returncode, scf_failed, trusted):
+    "Report evidence on separate scientific acceptance axes."
+    gates = (
+        GateEvidence(
+            "backend",
+            GateState.PASSED
+            if terminated
+            else GateState.UNKNOWN
+            if returncode is None
+            else GateState.FAILED,
+            "Native termination and observed process return code",
+        ),
+        GateEvidence(
+            "scf",
+            GateState.FAILED if scf_failed else GateState.UNKNOWN,
+            "SCF errors parsed; electronic root identity is not independently proven",
+        ),
+        GateEvidence(
+            "optimizer",
+            GateState.PASSED if observed.converged else GateState.FAILED,
+            "Native optimizer convergence evidence",
+        ),
+        GateEvidence(
+            "stationarity",
+            GateState.PASSED if observed.stationary else GateState.FAILED,
+            "Measured gradients must meet original requested thresholds",
+        ),
+        GateEvidence(
+            "objective",
+            GateState.PASSED
+            if trusted and observed.frame is not None
+            else GateState.UNKNOWN,
+            "Frame-associated physical and effective energies validated separately",
+        ),
+        GateEvidence(
+            "constraints", GateState.NOT_APPLICABLE, "No physical constraints requested"
+        ),
+        GateEvidence(
+            "workflow",
+            GateState.UNKNOWN,
+            "Workflow-specific identity, Hessian and pathway gates remain owner-controlled",
+        ),
+    )
+    return gates
+
+
 def _classify_observation(request, execution, exception, artifacts, trusted, observed):
     """Classify parsed evidence without reading files or launching a backend."""
     processes = execution.processes if trusted else ()
@@ -62,27 +137,8 @@ def _classify_observation(request, execution, exception, artifacts, trusted, obs
     if exception is not None:
         diagnostics.append(FailureDiagnostic(FailureCode.EXEC_FAILED, 'legacy_adapter', str(exception)))
     scf_failed = any(d.code is FailureCode.CALC_SCF_MAX_STEPS for d in diagnostics)
-    gates = (
-        GateEvidence('backend', GateState.PASSED if terminated else GateState.UNKNOWN if returncode is None else GateState.FAILED, 'Native termination and observed process return code'),
-        GateEvidence('scf', GateState.FAILED if scf_failed else GateState.UNKNOWN, 'SCF errors parsed; electronic root identity is not independently proven'),
-        GateEvidence('optimizer', GateState.PASSED if observed.converged else GateState.FAILED, 'Native optimizer convergence evidence'),
-        GateEvidence('stationarity', GateState.PASSED if observed.stationary else GateState.FAILED, 'Measured gradients must meet original requested thresholds'),
-        GateEvidence('objective', GateState.PASSED if trusted and observed.frame is not None else GateState.UNKNOWN, 'Frame-associated physical and effective energies validated separately'),
-        GateEvidence('constraints', GateState.NOT_APPLICABLE, 'No physical constraints requested'),
-        GateEvidence('workflow', GateState.UNKNOWN, 'Workflow-specific identity, Hessian and pathway gates remain owner-controlled'),
-    )
-    if not trusted:
-        status = Outcome.INVALID_RESULT
-    elif observed.converged and observed.stationary and observed.accepted and terminated and not diagnostics:
-        status = Outcome.CONVERGED
-    elif scf_failed or any(d.code is FailureCode.USER_INPUT_INVALID for d in diagnostics) or (returncode not in (None, 0) and not observed.limited):
-        status = Outcome.FAILED_FINAL
-    elif observed.limited and observed.accepted and exception is None:
-        status = Outcome.INCOMPLETE_USABLE
-    elif observed.limited:
-        status = Outcome.FAILED_RECOVERABLE
-    else:
-        status = Outcome.INVALID_RESULT
+    gates = _observation_gates(observed, terminated, returncode, scf_failed, trusted)
+    status = _observation_outcome(trusted, observed, terminated, diagnostics, scf_failed, returncode, exception)
     if status is not Outcome.CONVERGED and not diagnostics:
         diagnostics.append(FailureDiagnostic(FailureCode.INVALID_RESULT, 'validator', 'Independent convergence validation failed'))
     attempt = OptimizationAttempt(1, execution, ((request.optimizer if request.optimizer == 'geometric' else request.backend, observed.version),), observed.steps, request, artifacts)

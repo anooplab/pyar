@@ -194,6 +194,141 @@ def _validate_and_commit_attempt(current, backend, result_path, commit_path, int
     return result
 
 
+def _prepare_recovery_records(root, request, policy, resume):
+    "Create or verify immutable run records while holding the run lock."
+    if root.exists() and not resume:
+        raise ValueError("Job directory appeared before execution")
+    recovery = safe_path(root, "recovery")
+    metadata_path = safe_path(recovery, "run.json")
+    if resume:
+        metadata = read_json(metadata_path)
+        _validate_run(metadata, request, policy)
+    else:
+        created = time.time()
+        metadata = dict(
+            schema_version=1,
+            request_fingerprint=request.request_fingerprint,
+            scientific_fingerprint=request.scientific_fingerprint,
+            policy=asdict(policy),
+            created_epoch=created,
+            deadline_epoch=created + policy.wall_seconds,
+        )
+        write_json(metadata_path, metadata, overwrite=False)
+        write_json(
+            safe_path(recovery, "request.json"), _encode(request), overwrite=False
+        )
+    # Raw/accepted artifacts, never outcome.json, authorize replay.
+    if read_json(safe_path(recovery, "request.json")) != _encode(request):
+        raise ValueError("Original request record changed")
+    return recovery, metadata
+
+
+def _attempt_intent(current, request, number, policy):
+    "Describe an attempt using the frozen action policy and original scientific identity."
+    action = current.settings.get(
+        "_ore_recovery_action", "cycle_extension" if number > 1 else "initial"
+    )
+    rationale = (
+        "Accepted energy and force residual improved"
+        if action == "cycle_extension"
+        else "Rollback one accepted step, rebuild the geomeTRIC Hessian and reduce initial trust radius after a measured plateau"
+        if action == "trust_hessian_restart"
+        else "Original request"
+    )
+    intent = dict(
+        schema_version=1,
+        number=number,
+        parent=number - 1 if number > 1 else None,
+        action=action,
+        rationale=rationale,
+        original_scientific_fingerprint=request.scientific_fingerprint,
+        request=_encode(current),
+    )
+    if policy.mode == "guided":
+        intent["recovery_action_policy_version"] = 2
+    return intent
+
+
+def _publish_recovery_report(report, root, request, recovery):
+    "Publish only validated convergence; derived outcome files never authorize restart."
+    last = report.result
+    if last.converged:
+        # Derived legacy filename, never restart authority. Only verified
+        # convergence may publish it; source native attempts remain immutable.
+        frame = last.accepted_frame
+        filename = safe_path(root, "result_" + request.name + ".xyz")
+        payload = (
+            f"{len(frame.symbols)}\n{frame.physical_energy_hartree:.16g}\n"
+            + "".join(
+                f"{s} {x:.12f} {y:.12f} {z:.12f}\n"
+                for s, (x, y, z) in zip(frame.symbols, frame.coordinates_angstrom)
+            )
+        )
+        if filename.exists() and filename.read_text() != payload:
+            raise ValueError("Existing final result differs from validated outcome")
+        if not filename.exists():
+            temporary = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", dir=root, prefix=".ore-final-", delete=False
+                ) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(payload)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, filename)
+                from pyar.persistence.json_store import fsync_directory
+
+                fsync_directory(root)
+            finally:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
+    write_json(safe_path(recovery, "outcome.json"), report.to_dict())
+    return report
+
+
+def _ensure_attempt_receipt(
+    directory, backend, result_path, commit_path, intent, metadata
+):
+    """Verify sealed receipts or execute once; never replay a started attempt."""
+    if commit_path.exists():
+        committed = read_json(commit_path)
+        if (
+            committed["intent"] != intent
+            or read_json(result_path) != committed["execution_result"]
+        ):
+            raise ValueError("Committed attempt changed")
+    elif not result_path.exists():
+        # A backend or worker.out means execution was started; never
+        # repeat it from a possibly stale/partial file on restart.
+        if backend.exists() or safe_path(directory, "worker.out").exists():
+            reason = "interrupted_attempt_without_receipt"
+            return reason, None
+        try:
+            code = _execute_attempt(
+                directory, max(0.001, metadata["deadline_epoch"] - time.time())
+            )
+        except subprocess.TimeoutExpired:
+            reason = "wall_budget_exhausted"
+            return reason, None
+        if code != 0 or not result_path.exists():
+            reason = "worker_failed_without_receipt"
+            return reason, code
+    return None, 0
+
+
+def _accepted_history(attempt, backend):
+    "Read committed accepted-step history for the already approved guided action."
+    accepted_paths = [
+        ref.path
+        for ref in attempt.artifacts
+        if ref.path.startswith("ore_accepted_") and ref.path.endswith(".json")
+    ]
+    accepted_frames = [read_json(safe_path(backend, path)) for path in accepted_paths]
+    accepted_frames.sort(key=lambda frame: frame["step"])
+    return accepted_frames
+
+
 def run_recovery(
     molecule,
     settings,
@@ -219,23 +354,7 @@ def run_recovery(
     )[0]
     root = safe_path(Path(directory or Path.cwd()).resolve(), "job_" + request.name)
     with RunLock(root, recover_stale=recover_lock):
-        if root.exists() and not resume:
-            raise ValueError('Job directory appeared before execution')
-        recovery = safe_path(root, 'recovery')
-        metadata_path = safe_path(recovery, 'run.json')
-        if resume:
-            metadata = read_json(metadata_path)
-            _validate_run(metadata, request, policy)
-        else:
-            created = time.time()
-            metadata = dict(schema_version=1, request_fingerprint=request.request_fingerprint,
-                scientific_fingerprint=request.scientific_fingerprint, policy=asdict(policy),
-                created_epoch=created, deadline_epoch=created+policy.wall_seconds)
-            write_json(metadata_path, metadata, overwrite=False)
-            write_json(safe_path(recovery, 'request.json'), _encode(request), overwrite=False)
-        # Raw/accepted artifacts, never outcome.json, authorize replay.
-        if read_json(safe_path(recovery, 'request.json')) != _encode(request):
-            raise ValueError('Original request record changed')
+        recovery, metadata = _prepare_recovery_records(root, request, policy, resume)
         attempts = []
         used_cycles, evaluations = 0, 0
         start, settings_next = request.coordinates_angstrom, request.settings
@@ -259,16 +378,7 @@ def run_recovery(
                 reason = 'duplicate_action_suppressed'
                 break
             signatures.add(signature)
-            action = current.settings.get('_ore_recovery_action',
-                'cycle_extension' if number > 1 else 'initial')
-            rationale = ('Accepted energy and force residual improved' if action == 'cycle_extension'
-                         else 'Rollback one accepted step, rebuild the geomeTRIC Hessian and reduce initial trust radius after a measured plateau'
-                         if action == 'trust_hessian_restart' else 'Original request')
-            intent = dict(schema_version=1, number=number, parent=number-1 if number>1 else None,
-                action=action, rationale=rationale,
-                original_scientific_fingerprint=request.scientific_fingerprint, request=_encode(current))
-            if policy.mode == 'guided':
-                intent['recovery_action_policy_version'] = 2
+            intent = _attempt_intent(current, request, number, policy)
             intent_path = safe_path(directory, 'input.json')
             if directory.exists():
                 if not resume or read_json(intent_path) != intent:
@@ -282,37 +392,16 @@ def run_recovery(
             backend = safe_path(directory, 'job_' + request.name)
             result_path = safe_path(directory, 'result.json')
             commit_path = safe_path(directory, 'commit.json')
-            if commit_path.exists():
-                committed = read_json(commit_path)
-                if committed['intent'] != intent or read_json(result_path) != committed['execution_result']:
-                    raise ValueError('Committed attempt changed')
-            elif not result_path.exists():
-                # A backend or worker.out means execution was started; never
-                # repeat it from a possibly stale/partial file on restart.
-                if backend.exists() or safe_path(directory, 'worker.out').exists():
-                    reason = 'interrupted_attempt_without_receipt'
-                    attempts.append(OptimizationAttempt(number, None, request=current,
-                        action=intent['action'], parent_number=intent['parent'],
-                        original_scientific_fingerprint=request.scientific_fingerprint))
-                    evaluations += remaining  # No receipt: charge entire reserved quota.
-                    break
-                try:
-                    code = _execute_attempt(directory, max(.001, metadata['deadline_epoch']-time.time()))
-                except subprocess.TimeoutExpired:
-                    reason = 'wall_budget_exhausted'
-                    attempts.append(OptimizationAttempt(number, None, request=current,
-                        action=intent['action'], parent_number=intent['parent'],
-                        original_scientific_fingerprint=request.scientific_fingerprint))
-                    evaluations += remaining
-                    break
-                if code != 0 or not result_path.exists():
-                    reason = 'worker_failed_without_receipt'
-                    attempts.append(OptimizationAttempt(number, None, request=current,
-                        action=intent['action'], parent_number=intent['parent'],
-                        original_scientific_fingerprint=request.scientific_fingerprint,
-                        worker_returncode=code))
-                    evaluations += remaining
-                    break
+            receipt_failure, worker_code = _ensure_attempt_receipt(
+                directory, backend, result_path, commit_path, intent, metadata)
+            if receipt_failure is not None:
+                reason = receipt_failure
+                attempts.append(OptimizationAttempt(number, None, request=current,
+                    action=intent['action'], parent_number=intent['parent'],
+                    original_scientific_fingerprint=request.scientific_fingerprint,
+                    worker_returncode=worker_code))
+                evaluations += remaining  # No receipt: charge the entire reserved quota.
+                break
             last = _validate_and_commit_attempt(current, backend, result_path, commit_path, intent)
             counter = safe_path(backend, 'ore_evaluations.json')
             observed_evaluations = read_json(counter)['used'] if counter.exists() else remaining
@@ -350,10 +439,7 @@ def run_recovery(
                 settings_next.pop('_ore_initial_trust', None)
                 settings_next.pop('_ore_recovery_action', None)
             else:
-                accepted_paths = [ref.path for ref in attempt.artifacts
-                                  if ref.path.startswith('ore_accepted_') and ref.path.endswith('.json')]
-                accepted_frames = [read_json(safe_path(backend, path)) for path in accepted_paths]
-                accepted_frames.sort(key=lambda frame: frame['step'])
+                accepted_frames = _accepted_history(attempt, backend)
                 if len(accepted_frames) < 2:
                     reason = 'insufficient_accepted_history_for_stabilization'
                     break
@@ -367,28 +453,4 @@ def run_recovery(
         last = replace(last, attempts=tuple(attempts))
         elapsed = max(0., time.time()-metadata['created_epoch'])
         report = RecoveryReport(last, policy, reason, used_cycles, evaluations, elapsed)
-        if last.converged:
-            # Derived legacy filename, never restart authority. Only verified
-            # convergence may publish it; source native attempts remain immutable.
-            frame = last.accepted_frame
-            filename = safe_path(root, 'result_' + request.name + '.xyz')
-            payload = f'{len(frame.symbols)}\n{frame.physical_energy_hartree:.16g}\n' + ''.join(
-                f'{s} {x:.12f} {y:.12f} {z:.12f}\n' for s,(x,y,z) in zip(frame.symbols,frame.coordinates_angstrom))
-            if filename.exists() and filename.read_text() != payload:
-                raise ValueError('Existing final result differs from validated outcome')
-            if not filename.exists():
-                temporary = None
-                try:
-                    with tempfile.NamedTemporaryFile(mode='w', dir=root, prefix='.ore-final-', delete=False) as stream:
-                        temporary = Path(stream.name)
-                        stream.write(payload)
-                        stream.flush()
-                        os.fsync(stream.fileno())
-                    os.replace(temporary, filename)
-                    from pyar.persistence.json_store import fsync_directory
-                    fsync_directory(root)
-                finally:
-                    if temporary is not None:
-                        temporary.unlink(missing_ok=True)
-        write_json(safe_path(recovery, 'outcome.json'), report.to_dict())
-        return report
+        return _publish_recovery_report(report, root, request, recovery)

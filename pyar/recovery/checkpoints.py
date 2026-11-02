@@ -8,17 +8,27 @@ from .models import GeometryFrame, StepObservation, matrix
 from .validation import close_matrix, finite_number
 
 
+def _verify_physical_evaluations(request, path):
+    "Require pinned Hamiltonian and native termination for every counted evaluation."
+    evaluations = read_json(path("ore_evaluations.json"))["used"]
+    if (
+        type(evaluations) is not int
+        or not 1 <= evaluations <= request.settings["_ore_evaluation_limit"]
+    ):
+        raise ValueError("Invalid physical evaluation count")
+    for number in range(1, evaluations + 1):
+        output = path(f"ore_backend_{number:06d}.out").read_text()
+        if (
+            not re.search(r"xtb version\s+6\.7\.1\b", output, re.I)
+            or not re.search(r"Hamiltonian\s+GFN2-xTB\b", output, re.I)
+            or re.search(r"SCC (?:failed|not converged)", output, re.I)
+            or "normal termination of xtb" not in output.lower()
+        ):
+            raise ValueError("Unverified physical backend evaluation")
+
+
 def accepted_checkpoint(request, path):
-    evaluations = read_json(path('ore_evaluations.json'))['used']
-    if type(evaluations) is not int or not 1 <= evaluations <= request.settings['_ore_evaluation_limit']:
-        raise ValueError('Invalid physical evaluation count')
-    for number in range(1, evaluations+1):
-        output = path(f'ore_backend_{number:06d}.out').read_text()
-        if (not re.search(r'xtb version\s+6\.7\.1\b', output, re.I)
-                or not re.search(r'Hamiltonian\s+GFN2-xTB\b', output, re.I)
-                or re.search(r'SCC (?:failed|not converged)', output, re.I)
-                or 'normal termination of xtb' not in output.lower()):
-            raise ValueError('Unverified physical backend evaluation')
+    _verify_physical_evaluations(request, path)
     manifest = read_json(path('ore_accepted.json'))
     files = manifest['files']
     if manifest.get('schema_version') != 1 or not isinstance(files, list) or not 1 <= len(files) <= 10001:

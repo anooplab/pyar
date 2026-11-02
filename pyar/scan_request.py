@@ -16,8 +16,50 @@ def _pair(values, label, count=2):
     return values
 
 
+def _resolve_scan_spin(args, molecules, charges, spins, scftypes, count):
+    "Resolve fragment and merged electronic states before scan controls."
+    from pyar.cli_validation import (
+        _infer_default_multiplicities,
+        _validate_backend_spin_inputs,
+    )
+
+    if spins is None:
+        spins = _infer_default_multiplicities(molecules, charges)
+    for index, mol in enumerate(molecules):
+        mol.multiplicity = spins[index]
+        # Preserve the scan's established SCF default. Fragment spins are
+        # combined by the workflow; two doublets may form a singlet, so a
+        # fragment-derived UHF default must not leak into that merged system.
+        mol.scftype = scftypes[index] if scftypes else "rhf"
+    try:
+        _validate_backend_spin_inputs(molecules)
+        merged = molecules[0] if count == 1 else molecules[0].merged_with(molecules[1])
+        if args.total_multiplicity is not None:
+            low = (
+                merged.multiplicity
+                if count == 1
+                else abs(molecules[0].multiplicity - molecules[1].multiplicity) + 1
+            )
+            high = (
+                merged.multiplicity
+                if count == 1
+                else molecules[0].multiplicity + molecules[1].multiplicity - 1
+            )
+            allowed = list(range(low, high + 1, 2))
+            if args.total_multiplicity not in allowed:
+                raise ValueError(
+                    f"total multiplicity {args.total_multiplicity} is incompatible with "
+                    f"input multiplicities {[m.multiplicity for m in molecules]}; "
+                    f"allowed total multiplicities are {allowed}"
+                )
+            merged.multiplicity = args.total_multiplicity
+        _validate_backend_spin_inputs([merged])
+    except SystemExit as exc:
+        raise ValueError(f"Invalid charge/multiplicity: {exc}") from exc
+    return spins, merged
+
+
 def validate_inputs(args):
-    from pyar.cli_validation import _infer_default_multiplicities, _validate_backend_spin_inputs
     count = len(args.inputs)
     if count not in (1, 2):
         raise ValueError('Provide one molecule or two fragment XYZ files')
@@ -48,31 +90,7 @@ def validate_inputs(args):
             molecules.append(mol)
         except (ValueError, KeyError) as exc:
             raise ValueError(f'{path}: {exc}') from exc
-    if spins is None:
-        spins = _infer_default_multiplicities(molecules, charges)
-    for index, mol in enumerate(molecules):
-        mol.multiplicity = spins[index]
-        # Preserve the scan's established SCF default. Fragment spins are
-        # combined by the workflow; two doublets may form a singlet, so a
-        # fragment-derived UHF default must not leak into that merged system.
-        mol.scftype = scftypes[index] if scftypes else 'rhf'
-    try:
-        _validate_backend_spin_inputs(molecules)
-        merged = molecules[0] if count == 1 else molecules[0].merged_with(molecules[1])
-        if args.total_multiplicity is not None:
-            low = merged.multiplicity if count == 1 else abs(molecules[0].multiplicity - molecules[1].multiplicity) + 1
-            high = merged.multiplicity if count == 1 else molecules[0].multiplicity + molecules[1].multiplicity - 1
-            allowed = list(range(low, high + 1, 2))
-            if args.total_multiplicity not in allowed:
-                raise ValueError(
-                    f'total multiplicity {args.total_multiplicity} is incompatible with '
-                    f'input multiplicities {[m.multiplicity for m in molecules]}; '
-                    f'allowed total multiplicities are {allowed}'
-                )
-            merged.multiplicity = args.total_multiplicity
-        _validate_backend_spin_inputs([merged])
-    except SystemExit as exc:
-        raise ValueError(f'Invalid charge/multiplicity: {exc}') from exc
+    spins, merged = _resolve_scan_spin(args, molecules, charges, spins, scftypes, count)
     if args.software == 'xtb' and merged.multiplicity == 1 and merged.scftype != 'rhf':
         raise ValueError('Standalone xTB singlet scans require --scftype rhf; spin is determined by multiplicity')
     args.multiplicity = spins

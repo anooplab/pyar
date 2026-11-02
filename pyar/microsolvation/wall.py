@@ -5,6 +5,39 @@ from __future__ import annotations
 import numpy as np
 
 
+def _validate_wall_inputs(
+    xyz, masses, solute, radius_angstrom, force_constant_hartree_per_angstrom2
+):
+    "Validate wall inputs before evaluating the unchanged Cartesian expression."
+    if xyz.ndim != 2 or xyz.shape[1] != 3 or masses.shape != (len(xyz),):
+        raise ValueError("coordinates and masses must have shapes (N, 3) and (N,)")
+    if (
+        not np.isfinite(xyz).all()
+        or not np.isfinite(masses).all()
+        or np.any(masses <= 0)
+    ):
+        raise ValueError("wall coordinates and positive masses must be finite")
+    if (
+        not len(solute)
+        or len(set(solute.tolist())) != len(solute)
+        or np.any(solute < 0)
+        or np.any(solute >= len(xyz))
+    ):
+        raise ValueError("solute atom indices must be distinct valid indices")
+    radius = float(radius_angstrom)
+    strength = float(force_constant_hartree_per_angstrom2)
+    if (
+        not np.isfinite(radius)
+        or radius <= 0
+        or not np.isfinite(strength)
+        or strength < 0
+    ):
+        raise ValueError(
+            "wall radius must be positive and strength finite and non-negative"
+        )
+    return radius, strength
+
+
 def outer_sphere_energy_gradient(coordinates_angstrom, masses, solute_indices, *, radius_angstrom,
                                  force_constant_hartree_per_angstrom2, solvent_fragments=None):
     """Return wall energy (Eh) and Cartesian gradient (Eh/Angstrom).
@@ -16,16 +49,7 @@ def outer_sphere_energy_gradient(coordinates_angstrom, masses, solute_indices, *
     xyz = np.asarray(coordinates_angstrom, dtype=float)
     masses = np.asarray(masses, dtype=float)
     solute = np.asarray(solute_indices, dtype=int)
-    if xyz.ndim != 2 or xyz.shape[1] != 3 or masses.shape != (len(xyz),):
-        raise ValueError("coordinates and masses must have shapes (N, 3) and (N,)")
-    if not np.isfinite(xyz).all() or not np.isfinite(masses).all() or np.any(masses <= 0):
-        raise ValueError("wall coordinates and positive masses must be finite")
-    if not len(solute) or len(set(solute.tolist())) != len(solute) or np.any(solute < 0) or np.any(solute >= len(xyz)):
-        raise ValueError("solute atom indices must be distinct valid indices")
-    radius = float(radius_angstrom)
-    strength = float(force_constant_hartree_per_angstrom2)
-    if not np.isfinite(radius) or radius <= 0 or not np.isfinite(strength) or strength < 0:
-        raise ValueError("wall radius must be positive and strength finite and non-negative")
+    radius, strength = _validate_wall_inputs(xyz, masses, solute, radius_angstrom, force_constant_hartree_per_angstrom2)
     solvent = np.setdiff1d(np.arange(len(xyz)), solute, assume_unique=False)
     gradient = np.zeros_like(xyz)
     if not len(solvent) or strength == 0:
