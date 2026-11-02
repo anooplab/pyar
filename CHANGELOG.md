@@ -50,6 +50,10 @@
 
 ### Internal
 
+- Separate scan-product grouping and path-setting plans from immutable registry
+  publication and gated path execution. Keep existing stage order, membership
+  revisions, representative selection and artifact verification.
+
 - Give reaction orientations explicit outcomes and separate release, product
   publication, association-reference checks and route-report stages. Report
   assembly consumes named evidence without changing scientific acceptance gates.

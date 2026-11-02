@@ -1,6 +1,7 @@
 """Scan-owned immutable records; native scan and path executors retain filenames."""
 from pyar.constants import HARTREE_KCAL_MOL_SCAN
 import hashlib
+from dataclasses import dataclass
 import json
 import math
 from pathlib import Path
@@ -9,6 +10,58 @@ from uuid import uuid4
 from pyar.persistence import ArtifactRef, RunLayout, read_json, write_json, sha256_file, fsync_artifacts
 from pyar.persistence.artifacts import validate_uuid
 from pyar.reaction_identity import same_molecular_identity
+
+
+@dataclass(frozen=True, slots=True)
+class RegistryPlan:
+    ordered: list
+    groups: list
+    unknown: list
+    non_products: list
+    ineligible: list
+
+
+def _plan_registry_updates(results, sources):
+    """Group verified evidence without filesystem writes or input mutation.
+
+    The derived existing index is deliberately not restart authority. Immutable
+    source and membership verification remain owned by ScanLayout.
+    """
+    ordered = sorted(results, key=lambda row: int(row.get("orientation", -1)))
+    groups = []
+    unknown = []
+    non_products = []
+    ineligible = []
+
+    for row in ordered:
+        index = int(row.get("orientation", -1))
+        if row.get("status") != "scan_success_relax_success":
+            ineligible.append({"orientation": index, "status": row.get("status")})
+            continue
+        committed, source = sources[index]
+        identity = committed.get("relaxed_identity") or {}
+        if committed.get("identity_status") != "success" or not identity.get("inchi"):
+            unknown.append((index, committed, source))
+            continue
+        if committed.get("product_identity_changed") is not True:
+            non_products.append({"orientation": index, "reason": "identity_unchanged"})
+            continue
+        match = next(
+            (
+                group
+                for group in groups
+                if same_molecular_identity(group["identity"], identity)
+            ),
+            None,
+        )
+        if match is None:
+            groups.append(
+                {"identity": identity, "members": [(index, committed, source)]}
+            )
+        else:
+            match["members"].append((index, committed, source))
+
+    return RegistryPlan(ordered, groups, unknown, non_products, ineligible)
 
 
 class ScanLayout:
@@ -247,23 +300,11 @@ class ScanLayout:
             write_json(revision, record, overwrite=False)
         return revision
 
-    def product_registry(self, results, request):
-        """Group successful relaxed scan products and rebuild the v2 registry.
-
-        Only changed, successfully identified products are grouped. Unknown
-        identities remain separate orientation records; unchanged reactants and
-        failed orientations remain visible in their own index sections.
-        """
-        ordered = sorted(results, key=lambda row: int(row.get('orientation', -1)))
-        groups = []
-        unknown = []
-        non_products = []
-        ineligible = []
-
-        for row in ordered:
+    def _registry_sources(self, results, request):
+        sources = {}
+        for row in sorted(results, key=lambda row: int(row.get('orientation', -1))):
             index = int(row.get('orientation', -1))
             if row.get('status') != 'scan_success_relax_success':
-                ineligible.append({"orientation": index, "status": row.get('status')})
                 continue
             source = self._product_sources(index, request)
             committed = source['relax_result']
@@ -274,20 +315,57 @@ class ScanLayout:
                             'relaxed_identity', 'target_bond_present_after_relaxation'):
                     if row.get(key) != committed.get(key):
                         raise ValueError(f"Orientation {index} result differs from its relaxation commit")
-            identity = committed.get('relaxed_identity') or {}
-            if committed.get('identity_status') != 'success' or not identity.get('inchi'):
-                unknown.append((index, committed, source))
-                continue
-            if committed.get('product_identity_changed') is not True:
-                non_products.append({"orientation": index, "reason": "identity_unchanged"})
-                continue
-            match = next((group for group in groups
-                          if same_molecular_identity(group['identity'], identity)), None)
-            if match is None:
-                groups.append({"identity": identity, "members": [(index, committed, source)]})
-            else:
-                match['members'].append((index, committed, source))
+            sources[index] = committed, source
+        return sources
 
+    def product_registry(self, results, request):
+        """Verify sources, plan identity groups and publish immutable membership."""
+        plan = _plan_registry_updates(results, self._registry_sources(results, request))
+        return self._apply_registry_updates(plan, request)
+
+    def _publish_product_group(self, group, product_id, inchi, request):
+        orientation_updates = {}
+        members = sorted(group['members'], key=lambda item: item[0])
+        product_record = self._product_record(product_id, inchi, members, request)
+        representative = product_record['representative_orientation']
+        orientation_ids = product_record['orientation_ids']
+        target_status = product_record['target_status']
+        by_orientation = {item[0]: item for item in members}
+
+        def record_for_members(orientation_ids):
+            if (not orientation_ids or orientation_ids != sorted(set(orientation_ids))
+                    or any(index not in by_orientation for index in orientation_ids)):
+                raise ValueError(f"Immutable scan product record changed: {product_id}")
+            return self._product_record(product_id, inchi,
+                [by_orientation[index] for index in orientation_ids], request)
+
+        product_path = self._write_immutable_product(
+            product_id, product_record, record_for_members=record_for_members)
+        entry = {
+            "product_id": product_id,
+            "identity": product_record['identity'],
+            "orientation_ids": orientation_ids,
+            "representative_orientation": representative,
+            "alternative_orientations": product_record['alternative_orientations'],
+            "target_status": target_status,
+            "characterization_status": "not_started",
+            "characterization_path": None,
+            "product_record_path": product_path.relative_to(self.root).as_posix(),
+            "product_record_sha256": sha256_file(product_path),
+        }
+        for index, _result, _source in members:
+            orientation_updates[index] = {
+                "product_id": product_id,
+                "product_group_size": len(members),
+                "product_role": "representative" if index == representative else "duplicate_route",
+                "representative_orientation": representative,
+                "characterization_reference": f"products/{product_id}/characterization",
+            }
+        return entry, orientation_updates
+
+    def _apply_registry_updates(self, plan, request):
+        ordered, groups, unknown = plan.ordered, plan.groups, plan.unknown
+        non_products, ineligible = plan.non_products, plan.ineligible
         product_entries = []
         orientation_updates = {}
         seen_ids = {}
@@ -299,42 +377,9 @@ class ScanLayout:
             if product_id in seen_ids and seen_ids[product_id] != inchi:
                 raise ValueError(f"InChI-derived product ID collision: {product_id}")
             seen_ids[product_id] = inchi
-            members = sorted(group['members'], key=lambda item: item[0])
-            product_record = self._product_record(product_id, inchi, members, request)
-            representative = product_record['representative_orientation']
-            orientation_ids = product_record['orientation_ids']
-            target_status = product_record['target_status']
-            by_orientation = {item[0]: item for item in members}
-
-            def record_for_members(orientation_ids):
-                if (not orientation_ids or orientation_ids != sorted(set(orientation_ids))
-                        or any(index not in by_orientation for index in orientation_ids)):
-                    raise ValueError(f"Immutable scan product record changed: {product_id}")
-                return self._product_record(product_id, inchi,
-                    [by_orientation[index] for index in orientation_ids], request)
-
-            product_path = self._write_immutable_product(
-                product_id, product_record, record_for_members=record_for_members)
-            product_entries.append({
-                "product_id": product_id,
-                "identity": product_record['identity'],
-                "orientation_ids": orientation_ids,
-                "representative_orientation": representative,
-                "alternative_orientations": product_record['alternative_orientations'],
-                "target_status": target_status,
-                "characterization_status": "not_started",
-                "characterization_path": None,
-                "product_record_path": product_path.relative_to(self.root).as_posix(),
-                "product_record_sha256": sha256_file(product_path),
-            })
-            for index, _result, _source in members:
-                orientation_updates[index] = {
-                    "product_id": product_id,
-                    "product_group_size": len(members),
-                    "product_role": "representative" if index == representative else "duplicate_route",
-                    "representative_orientation": representative,
-                    "characterization_reference": f"products/{product_id}/characterization",
-                }
+            entry, updates = self._publish_product_group(group, product_id, inchi, request)
+            product_entries.append(entry)
+            orientation_updates.update(updates)
 
         unknown_entries = []
         for index, result, source in unknown:
