@@ -4,8 +4,6 @@ The scientific workflow, controller, release gate and persisted request schema
 remain owned by their existing modules. This resolver accepts plain mappings.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from importlib import import_module
@@ -75,8 +73,8 @@ class _ReactionControls:
 
 @dataclass(frozen=True, slots=True)
 class _ResolvedReactants:
-    molecules: list[Molecule]
-    merged: Molecule
+    molecules: list["Molecule"]
+    merged: "Molecule"
     site: list[int] | None
 
 

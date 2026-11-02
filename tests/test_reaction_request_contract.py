@@ -244,3 +244,18 @@ def test_resolution_never_preflights_or_launches_a_backend(inputs, monkeypatch):
         inputs, dict(backend="xtb", bias_max=100)
     )
     assert request.restart_request == FIXTURE["cases"]["adaptive"]["restart_request"]
+
+
+def test_public_dataclass_preserves_runtime_field_types():
+    from dataclasses import fields
+
+    assert [(field.name, field.type) for field in fields(resolver.ReactionRequest)] == [
+        ("reactants", list),
+        ("qc_params", dict),
+        ("bias_min", float | None),
+        ("bias_max", float),
+        ("orientations", int),
+        ("site", list | None),
+        ("proximity_factor", float),
+        ("restart_request", dict),
+    ]
