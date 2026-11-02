@@ -153,6 +153,10 @@ def _normalize_qc_model(qc_model):
     return qc_model
 
 
+
+
+
+
 def _normalize_benchmark_settings(settings):
     "Normalize common paired-run settings without changing numerical defaults."
     settings = dict(settings)
@@ -585,6 +589,10 @@ def _hessian_metrics(run_directory, stage_names):
     }
 
 
+
+
+
+
 def _execute_benchmark_stages(
     base, settings, case, run_directory, input_paths, optimizer
 ):
@@ -892,70 +900,64 @@ def _pair_identity_matches(result, expected, run_manifest, case_id, optimizer):
     )
 
 
-def _paired_cost_differences(
-    identity_matches, geometric, sella, g_evals, s_evals, g_wall, s_wall
-):
-    """Withhold every paired cost delta unless identity and numeric evidence match."""
+
+
+
+
+def _paired_cost_difference(identity_matches, geometric, sella, key, *, floating=False):
+    """Compare one cost only for matched evidence with the original numeric types."""
+    if not identity_matches:
+        return None
+    left, right = geometric.get(key), sella.get(key)
+    numeric_types = (int, float) if floating else int
+    if not isinstance(left, numeric_types) or not isinstance(right, numeric_types):
+        return None
+    return float(left) - float(right) if floating else left - right
+
+
+def _paired_cost_differences(identity_matches, geometric, sella):
+    """Project all paired costs through the same evidence and type guards."""
     return {
-        "total_evaluation_difference_geometric_minus_sella": (
-            g_evals - s_evals
-            if identity_matches
-            and isinstance(g_evals, int)
-            and isinstance(s_evals, int)
-            else None
+        "total_evaluation_difference_geometric_minus_sella": _paired_cost_difference(
+            identity_matches,
+            geometric,
+            sella,
+            "total_backend_energy_gradient_evaluations",
+            floating=False,
         ),
-        "ts_wall_difference_seconds_geometric_minus_sella": (
-            float(g_wall) - float(s_wall)
-            if identity_matches
-            and isinstance(g_wall, (int, float))
-            and isinstance(s_wall, (int, float))
-            else None
+        "ts_wall_difference_seconds_geometric_minus_sella": _paired_cost_difference(
+            identity_matches, geometric, sella, "ts_wall_seconds", floating=True
         ),
-        "ts_evaluation_difference_geometric_minus_sella": (
-            geometric.get("ts_backend_energy_gradient_evaluations")
-            - sella.get("ts_backend_energy_gradient_evaluations")
-            if identity_matches
-            and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
-            and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int)
-            else None
+        "ts_evaluation_difference_geometric_minus_sella": _paired_cost_difference(
+            identity_matches,
+            geometric,
+            sella,
+            "ts_backend_energy_gradient_evaluations",
+            floating=False,
         ),
-        "validation_evaluation_difference_geometric_minus_sella": (
-            geometric.get("validation_backend_energy_gradient_evaluations")
-            - sella.get("validation_backend_energy_gradient_evaluations")
-            if identity_matches
-            and isinstance(
-                geometric.get("validation_backend_energy_gradient_evaluations"), int
-            )
-            and isinstance(
-                sella.get("validation_backend_energy_gradient_evaluations"), int
-            )
-            else None
+        "validation_evaluation_difference_geometric_minus_sella": _paired_cost_difference(
+            identity_matches,
+            geometric,
+            sella,
+            "validation_backend_energy_gradient_evaluations",
+            floating=False,
         ),
-        "validation_wall_difference_seconds_geometric_minus_sella": (
-            float(geometric.get("validation_wall_seconds"))
-            - float(sella.get("validation_wall_seconds"))
-            if identity_matches
-            and isinstance(geometric.get("validation_wall_seconds"), (int, float))
-            and isinstance(sella.get("validation_wall_seconds"), (int, float))
-            else None
+        "validation_wall_difference_seconds_geometric_minus_sella": _paired_cost_difference(
+            identity_matches, geometric, sella, "validation_wall_seconds", floating=True
         ),
-        "validation_hessian_evaluation_difference_geometric_minus_sella": (
-            geometric.get("validation_hessian_evaluations")
-            - sella.get("validation_hessian_evaluations")
-            if identity_matches
-            and isinstance(geometric.get("validation_hessian_evaluations"), int)
-            and isinstance(sella.get("validation_hessian_evaluations"), int)
-            else None
+        "validation_hessian_evaluation_difference_geometric_minus_sella": _paired_cost_difference(
+            identity_matches,
+            geometric,
+            sella,
+            "validation_hessian_evaluations",
+            floating=False,
         ),
-        "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
-            float(geometric.get("validation_hessian_wall_seconds"))
-            - float(sella.get("validation_hessian_wall_seconds"))
-            if identity_matches
-            and isinstance(
-                geometric.get("validation_hessian_wall_seconds"), (int, float)
-            )
-            and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float))
-            else None
+        "validation_hessian_wall_difference_seconds_geometric_minus_sella": _paired_cost_difference(
+            identity_matches,
+            geometric,
+            sella,
+            "validation_hessian_wall_seconds",
+            floating=True,
         ),
     }
 
@@ -969,10 +971,6 @@ def _paired_result_row(expected, run_manifest, geometric, sella):
     )
     g_success = bool(geometric and geometric.get("outcome") in SUCCESS_OUTCOMES)
     s_success = bool(sella and sella.get("outcome") in SUCCESS_OUTCOMES)
-    g_evals = None if not geometric else geometric.get("total_backend_energy_gradient_evaluations")
-    s_evals = None if not sella else sella.get("total_backend_energy_gradient_evaluations")
-    g_wall = None if not geometric else geometric.get("ts_wall_seconds")
-    s_wall = None if not sella else sella.get("ts_wall_seconds")
     return {
         "case_id": case_id,
         "difficulty": expected["difficulty"],
@@ -983,7 +981,7 @@ def _paired_result_row(expected, run_manifest, geometric, sella):
         "geometric_success": g_success,
         "sella_success": s_success,
         "discordant_success": g_success != s_success if identity_matches else None,
-        **_paired_cost_differences(identity_matches, geometric, sella, g_evals, s_evals, g_wall, s_wall),
+        **_paired_cost_differences(identity_matches, geometric, sella),
         "pair_status": "paired" if identity_matches else "incomplete_or_mismatched",
     }
 

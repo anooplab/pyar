@@ -253,3 +253,62 @@ def test_wall_force_matches_finite_differences_and_zero_total_force(length):
             assert gradient[atom, axis] == pytest.approx(
                 (upper - lower) / 2e-5, abs=1e-11
             )
+
+
+@pytest.mark.parametrize("left", [1, 2.5, None, "2", True])
+@pytest.mark.parametrize("right", [1, 2.5, None, "2", True])
+@pytest.mark.parametrize("matched", [False, True])
+def test_paired_costs_require_matching_identity_and_original_numeric_types(
+    monkeypatch, left, right, matched
+):
+    from pyar.benchmarks import ts_optimizer as benchmark
+
+    fields = {
+        "total_backend_energy_gradient_evaluations": (
+            "total_evaluation_difference_geometric_minus_sella",
+            False,
+        ),
+        "ts_wall_seconds": ("ts_wall_difference_seconds_geometric_minus_sella", True),
+        "ts_backend_energy_gradient_evaluations": (
+            "ts_evaluation_difference_geometric_minus_sella",
+            False,
+        ),
+        "validation_backend_energy_gradient_evaluations": (
+            "validation_evaluation_difference_geometric_minus_sella",
+            False,
+        ),
+        "validation_wall_seconds": (
+            "validation_wall_difference_seconds_geometric_minus_sella",
+            True,
+        ),
+        "validation_hessian_evaluations": (
+            "validation_hessian_evaluation_difference_geometric_minus_sella",
+            False,
+        ),
+        "validation_hessian_wall_seconds": (
+            "validation_hessian_wall_difference_seconds_geometric_minus_sella",
+            True,
+        ),
+    }
+    monkeypatch.setattr(benchmark, "_pair_identity_matches", lambda *_: matched)
+    geometric = {key: left for key in fields}
+    sella = {key: right for key in fields}
+    geometric["outcome"] = sella["outcome"] = "validated_first_order_saddle"
+    row = benchmark._paired_result_row(
+        {"case_id": "case", "difficulty": "fixture", "ts_guess_sha256": "hash"},
+        {},
+        geometric,
+        sella,
+    )
+    for _key, (column, floating) in fields.items():
+        accepted = (int, float) if floating else int
+        eligible = (
+            matched and isinstance(left, accepted) and isinstance(right, accepted)
+        )
+        expected = (
+            (float(left) - float(right) if floating else left - right)
+            if eligible
+            else None
+        )
+        assert row[column] == expected, column
+    assert row["pair_status"] == ("paired" if matched else "incomplete_or_mismatched")
