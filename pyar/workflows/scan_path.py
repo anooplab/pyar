@@ -213,12 +213,11 @@ def _prepare_path_stages(run):
 
 
 def _execute_path_stage(prepared, stage):
-    from pyar.neb import run_neb, _stage_gate_passed
+    from pyar.neb import run_neb
 
     layout, start, end = prepared.layout, prepared.start, prepared.end
     ts_guess, path_seed = prepared.ts_guess, prepared.path_seed
     base, seed_options = prepared.parameters, prepared.seed_options
-    association_endpoint_mode = prepared.association_mode
     if layout is not None:
         layout.verify(stage)
     result = run_neb(
@@ -230,6 +229,13 @@ def _execute_path_stage(prepared, stage):
         **(seed_options if stage == "neb" else {}),
         **base,
     )
+    return result
+
+
+def _path_stage_gate(prepared, stage, result):
+    from pyar.neb import _stage_gate_passed
+
+    association_endpoint_mode = prepared.association_mode
     gate_passed = _stage_gate_passed(result, stage)
     if association_endpoint_mode and stage == "endpoint-frequency":
         # Keep the IRC, endpoint optimization/frequency, and distinct
@@ -245,7 +251,7 @@ def _execute_path_stage(prepared, stage):
             )
         )
         result["association_endpoint_prerequisites_passed"] = gate_passed
-    return result, gate_passed
+    return gate_passed
 
 
 def _run_path_stages(run: PathStageRun):
@@ -262,8 +268,9 @@ def _run_path_stages(run: PathStageRun):
         results["path_layout_root"] = str(layout.root)
     for stage in _CONTINUATION[: last + 1]:
         try:
-            result, gate_passed = _execute_path_stage(prepared, stage)
+            result = _execute_path_stage(prepared, stage)
             results[stage] = result
+            gate_passed = _path_stage_gate(prepared, stage, result)
             if not gate_passed:
                 results.update(status="scientific_gate_failed", failed_stage=stage)
                 return results

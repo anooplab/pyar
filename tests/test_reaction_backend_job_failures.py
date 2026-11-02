@@ -164,3 +164,27 @@ def test_legacy_reaction_exception_restores_process_working_directory(
 
     assert observed_directory == tmp_path
     os.chdir(original_directory)
+
+
+def test_product_identity_error_is_not_misclassified_as_optimizer_failure(tmp_path, monkeypatch):
+    """The native-operation catch must not swallow later product-evidence failures."""
+    molecule = DummyMolecule('orientation_00000001')
+    monkeypatch.setattr(molecule, 'is_bonded', lambda: True)
+    monkeypatch.setattr(reaction, 'write_disconnected_reference', lambda *_: None)
+    monkeypatch.setattr(reaction, '_optimize_with_diagnostics', lambda *a, **k: True)
+    monkeypatch.setattr(reaction, 'relax_without_afir_bias', lambda *a, **k: True)
+    calls = []
+
+    def identity(path, **kwargs):
+        calls.append(Path(path).name)
+        if Path(path).name == 'result_relax.xyz':
+            raise BackendExecutionError('identity evidence failed')
+        return {'inchi': 'reactants', 'smiles': 'reactants'}
+
+    monkeypatch.setattr(reaction, 'molecule_identity_from_xyz', identity)
+    state = DummyRunState()
+    with pytest.raises(BackendExecutionError, match='^identity evidence failed$'):
+        reaction.optimize_all('0001', [molecule], state, str(tmp_path),
+                              {'gamma': 1.}, directory=tmp_path)
+    assert calls[-1] == 'result_relax.xyz'
+    assert state.jobs == []

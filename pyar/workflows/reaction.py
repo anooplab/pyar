@@ -785,6 +785,24 @@ def _release_reaction_orientation(run, job, before_relax, evidence):
         status = relax_without_afir_bias(
             molecule, run.parameters, directory=job.directory
         )
+    return ReactionRelease(status, molecule, before_relax, release_survived)
+
+
+@dataclass(frozen=True, slots=True)
+class ReactionRelease:
+    status: object
+    molecule: object
+    before_relax: object
+    survived: bool
+
+
+def _interpret_reaction_release(run, job, release):
+    status, molecule, before_relax, release_survived = (
+        release.status,
+        release.molecule,
+        release.before_relax,
+        release.survived,
+    )
     if is_success(status):
         if run.parameters.get("bias_controller") == "adaptive" and not release_survived:
             reactor_logger.info('Native free relaxation lost the forming connectivity')
@@ -829,9 +847,10 @@ def _execute_reaction_orientation(run, job):
         )
     reactor_logger.info('Close contacts detected; running unbiased relaxation (gamma=0.0)')
     try:
-        return _release_reaction_orientation(run, job, before_relax, evidence)
+        release = _release_reaction_orientation(run, job, before_relax, evidence)
     except BackendExecutionError as exc:
         return _reaction_backend_failure(job, exc)
+    return _interpret_reaction_release(run, job, release)
 
 
 def optimize_all(

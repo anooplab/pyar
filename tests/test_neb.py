@@ -1,3 +1,4 @@
+from pyar.reaction_request import ReactionRequest
 from pathlib import Path
 from importlib.util import find_spec
 import json
@@ -2029,6 +2030,6 @@ def test_reaction_v2_discovery_to_validated_characterization(tmp_path, fake_path
     legacy = tmp_path / 'legacy'
     legacy.mkdir()
     monkeypatch.chdir(legacy)
-    old = workflow._react(*reactants, 100., 100., 1, settings, None, 2.3)
+    old = workflow._react(ReactionRequest(reactants, settings, 100., 100., 1, None, 2.3, {}))
     assert (legacy / 'reaction' / old.selected_paths[0]).read_bytes() == selected.read_bytes()
     assert (legacy / 'reaction/layout.json').exists()

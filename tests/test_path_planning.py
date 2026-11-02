@@ -43,3 +43,22 @@ def test_registry_plan_keeps_unknown_unchanged_and_failed_separate():
     assert plan.non_products == [{'orientation':2, 'reason':'identity_unchanged'}]
     assert plan.ineligible == [{'orientation':4, 'status':'scan_failed'}]
     assert (rows, sources) == before
+
+
+def test_gate_exception_retains_native_result_without_accepting_stage(tmp_path, monkeypatch):
+    import pyar.neb as neb
+    from pyar.workflows.scan_path import run_path_stages
+    native = {'status': 'complete', 'evidence': 'native-result'}
+    monkeypatch.setattr(neb, 'run_neb', lambda **kwargs: native)
+
+    def invalid_gate(result, stage):
+        raise ValueError('malformed scientific gate evidence')
+
+    monkeypatch.setattr(neb, '_stage_gate_passed', invalid_gate)
+    result = run_path_stages(start='start.xyz', end='end.xyz', ts_guess='guess.xyz',
+        output=tmp_path, qc_params={'software':'xtb'}, through='neb', options={})
+    assert result['relax'] is native
+    assert result['status'] == 'failed'
+    assert result['failed_stage'] == 'relax'
+    assert result['completed_stages'] == []
+    assert result['error'] == 'malformed scientific gate evidence'
