@@ -228,19 +228,109 @@ def _read_wall_provenance(candidate, candidate_directory, qc):
         ) from exc
 
 
-def _optimize_one(
-    candidate,
-    request,
-    candidate_directory,
-    *,
-    evaluation_budget_path=None,
-    diagnostic_records,
-):
+@dataclass(frozen=True, slots=True)
+class CandidateSearch:
+    status: object
+    wall_applied: bool
+    failures: list
+
+
+def _wall_search_and_release(candidate, run, qc, wall_policy):
+    from pyar.optimiser import is_usable
+    request, candidate_directory = run.request, run.directory
+    failures = []
+    qc["microsolvation_wall"] = {
+        "solute_atom_count": len(request.solute),
+        "solvent_fragments": [
+            list(fragment) for fragment in candidate.solvent_fragments
+        ],
+        "radius_angstrom": float(
+            wall_policy["radius_angstrom"]
+            if request.wall == "auto"
+            else request.wall_radius
+        ),
+        "force_constant_hartree_per_angstrom2": float(
+            wall_policy["force_constant_hartree_per_angstrom2"]
+            if request.wall == "auto"
+            else request.wall_force_constant
+        ),
+    }
+    status = _run_candidate_optimization(
+        run, candidate, candidate_directory / "wall_search", qc, "wall_search"
+    )
+    if not is_usable(status) or candidate.coordinates is None:
+        failures.append(
+            {
+                "name": candidate.name,
+                "stage": "wall_search",
+                "status": str(status or "no coordinates"),
+            }
+        )
+        return CandidateSearch(None, True, failures)
+    _read_wall_provenance(candidate, candidate_directory, qc)
+    qc.pop("microsolvation_wall")
+    status = _run_candidate_optimization(
+        run,
+        candidate,
+        candidate_directory / "unbiased_relaxation",
+        qc,
+        "unbiased_relaxation",
+    )
+    return CandidateSearch(status, True, failures)
+
+
+def _search_candidate(candidate, run, qc, wall_policy):
+    from pyar.optimiser import is_usable
+    request, candidate_directory = run.request, run.directory
     failures = []
     auto_shell_policy = request.wall == "auto" and request.objective == "shell"
-    wall_policy = (
-        request.to_state_dict().get("confinement", {}) if request.wall != "none" else {}
+    wall_applied = request.wall == "outer-sphere"
+    candidate.microsolvation_wall_decision = (
+        "applied-explicitly"
+        if wall_applied
+        else "not-applicable-cluster-objective"
+        if request.wall == "auto" and request.objective == "cluster"
+        else "not-requested"
+        if request.wall == "none"
+        else "awaiting-unbiased-shell-check"
     )
+    if auto_shell_policy:
+        status = _run_candidate_optimization(
+            run, candidate, candidate_directory, qc, "unbiased_screen"
+        )
+        if not is_usable(status) or candidate.coordinates is None:
+            failures.append(
+                {
+                    "name": candidate.name,
+                    "stage": "unbiased_screen",
+                    "status": str(status or "no coordinates"),
+                }
+            )
+            return CandidateSearch(None, wall_applied, failures)
+        initial_coverage = assess_shell(candidate, request)
+        from pyar.microsolvation.wall_policy import should_apply_automatic_wall
+
+        wall_applied = should_apply_automatic_wall(request, initial_coverage)
+        candidate.microsolvation_wall_decision = (
+            "applied-after-shell-escape"
+            if wall_applied
+            else "not-applied-unbiased-geometry-shell-valid"
+        )
+    elif not wall_applied:
+        status = _run_candidate_optimization(
+            run, candidate, candidate_directory, qc, "unbiased_minimum"
+        )
+    if wall_applied:
+        return _wall_search_and_release(candidate, run, qc, wall_policy)
+    return CandidateSearch(status, wall_applied, failures)
+
+
+def _optimize_one(candidate, run):
+    request, candidate_directory = run.request, run.directory
+    evaluation_budget_path = run.budget_path
+    candidate_diagnostics = run.candidate_diagnostics
+    wall_policy = request.to_state_dict().get("confinement", {}) if request.wall != "none" else {}
+    failures = []
     qc = dict(request.backend_parameters)
     qc.update(
         charge=candidate.charge,
@@ -254,89 +344,10 @@ def _optimize_one(
     try:
         from pyar.optimiser import is_usable
 
-        candidate_diagnostics = []
-        run = CandidateOptimization(
-            request,
-            candidate_directory,
-            evaluation_budget_path,
-            diagnostic_records,
-            candidate_diagnostics,
-        )
-
-        wall_applied = request.wall == "outer-sphere"
-        candidate.microsolvation_wall_decision = (
-            "applied-explicitly"
-            if wall_applied
-            else "not-applicable-cluster-objective"
-            if request.wall == "auto" and request.objective == "cluster"
-            else "not-requested"
-            if request.wall == "none"
-            else "awaiting-unbiased-shell-check"
-        )
-        if auto_shell_policy:
-            status = _run_candidate_optimization(
-                run, candidate, candidate_directory, qc, "unbiased_screen"
-            )
-            if not is_usable(status) or candidate.coordinates is None:
-                failures.append(
-                    {
-                        "name": candidate.name,
-                        "stage": "unbiased_screen",
-                        "status": str(status or "no coordinates"),
-                    }
-                )
-                return CandidateOutcome(None, 0, failures)
-            initial_coverage = assess_shell(candidate, request)
-            from pyar.microsolvation.wall_policy import should_apply_automatic_wall
-
-            wall_applied = should_apply_automatic_wall(request, initial_coverage)
-            candidate.microsolvation_wall_decision = (
-                "applied-after-shell-escape"
-                if wall_applied
-                else "not-applied-unbiased-geometry-shell-valid"
-            )
-        elif not wall_applied:
-            status = _run_candidate_optimization(
-                run, candidate, candidate_directory, qc, "unbiased_minimum"
-            )
-        if wall_applied:
-            qc["microsolvation_wall"] = {
-                "solute_atom_count": len(request.solute),
-                "solvent_fragments": [
-                    list(fragment) for fragment in candidate.solvent_fragments
-                ],
-                "radius_angstrom": float(
-                    wall_policy["radius_angstrom"]
-                    if request.wall == "auto"
-                    else request.wall_radius
-                ),
-                "force_constant_hartree_per_angstrom2": float(
-                    wall_policy["force_constant_hartree_per_angstrom2"]
-                    if request.wall == "auto"
-                    else request.wall_force_constant
-                ),
-            }
-            status = _run_candidate_optimization(
-                run, candidate, candidate_directory / "wall_search", qc, "wall_search"
-            )
-            if not is_usable(status) or candidate.coordinates is None:
-                failures.append(
-                    {
-                        "name": candidate.name,
-                        "stage": "wall_search",
-                        "status": str(status or "no coordinates"),
-                    }
-                )
-                return CandidateOutcome(None, 0, failures)
-            _read_wall_provenance(candidate, candidate_directory, qc)
-            qc.pop("microsolvation_wall")
-            status = _run_candidate_optimization(
-                run,
-                candidate,
-                candidate_directory / "unbiased_relaxation",
-                qc,
-                "unbiased_relaxation",
-            )
+        search = _search_candidate(candidate, run, qc, wall_policy)
+        if search.failures:
+            return CandidateOutcome(None, 0, search.failures)
+        status, wall_applied = search.status, search.wall_applied
         if not is_usable(status) or candidate.coordinates is None:
             failures.append(
                 {"name": candidate.name, "status": str(status or "no coordinates")}
@@ -377,13 +388,8 @@ def _optimize_candidates(
         return list(candidates), 0, 0, []
     diagnostics = [] if diagnostic_records is None else diagnostic_records
     outcomes = [
-        _optimize_one(
-            candidate,
-            request,
-            candidate_directory,
-            evaluation_budget_path=evaluation_budget_path,
-            diagnostic_records=diagnostics,
-        )
+        _optimize_one(candidate, CandidateOptimization(
+            request, candidate_directory, evaluation_budget_path, diagnostics, []))
         for candidate in candidates
     ]
     return (
