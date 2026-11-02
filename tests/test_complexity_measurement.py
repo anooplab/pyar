@@ -303,3 +303,49 @@ def test_reconciliation_does_not_collapse_property_accessors():
     assert result["matched_function_count"] == 2
     assert result["unchanged_function_count"] == 2
     assert result["ambiguous_identity_groups"] == []
+
+
+def _independent_radon_decisions(node):
+    """Count Radon 6 rules directly from AST, without its visitor or block index."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return 0  # Independent code objects are measured separately.
+    if isinstance(node, ast.Assert):
+        return 1  # Radon does not descend into the assertion expression.
+    increment = 0
+    if isinstance(node, ast.Try):
+        increment = len(node.handlers) + bool(node.orelse)
+    elif isinstance(node, ast.BoolOp):
+        increment = len(node.values) - 1
+    elif isinstance(node, (ast.If, ast.IfExp)):
+        increment = 1
+    elif isinstance(node, (ast.For, ast.While, ast.AsyncFor)):
+        increment = 1 + bool(node.orelse)
+    elif isinstance(node, ast.comprehension):
+        increment = 1 + len(node.ifs)
+    elif isinstance(node, ast.Match):
+        wildcard = any(getattr(case.pattern, "pattern", False) is None for case in node.cases)
+        increment = max(0, len(node.cases) - wildcard)
+    return increment + sum(_independent_radon_decisions(child) for child in ast.iter_child_nodes(node))
+
+
+def test_production_inventory_matches_independent_counts_and_stays_below_30():
+    """Enforce the owner-requested function limit without class-average dilution."""
+    root = Path(__file__).resolve().parents[1]
+    rows, _ = measure_complexity(root)
+    parsed = {}
+    violations = []
+    for row in rows:
+        filename = row["file"]
+        if filename not in parsed:
+            parsed[filename] = ast.parse((root / filename).read_text())
+        function = next(
+            node for node in ast.walk(parsed[filename])
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.lineno == row["line"]
+        )
+        independent = 1 + sum(_independent_radon_decisions(node) for node in function.body)
+        identity = f"{filename}::{row['qualified_name']}"
+        assert row["cc_radon"] == independent, identity
+        if independent >= 30:
+            violations.append((identity, independent))
+    assert not violations, violations

@@ -50,6 +50,12 @@
 
 ### Internal
 
+- Separate validation, evidence interpretation, reporting and execution ownership
+  across remaining complexity hotspots. Preserve scientific formulas, decision
+  precedence, immutable restart/cache evidence and command/output contracts.
+  Check every first-party production function against the requested Radon CC <30
+  limit using an independently counted AST inventory.
+
 - Separate microsolvation request validation into molecule, sampling/surface,
   objective/wall, resampling, site and cumulative electronic-state checks. Keep
   normalization order, backend-copy ownership and restart serialization intact.
