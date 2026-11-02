@@ -41,47 +41,37 @@ def _sha256(path):
     return digest.hexdigest()
 
 
-def _read_dataset(dataset_dir):
-    root = Path(dataset_dir).expanduser().resolve()
-    manifest_path = root / "manifest.tsv"
-    settings_path = root / "settings.json"
-    if not manifest_path.is_file() or not settings_path.is_file():
-        raise TSOptimizerBenchmarkError(
-            "dataset directory must contain manifest.tsv and settings.json"
-        )
-    try:
-        settings = json.loads(settings_path.read_text(encoding="utf-8"))
-        with manifest_path.open(newline="", encoding="utf-8") as stream:
-            reader = csv.DictReader(stream, delimiter="\t")
-            if not reader.fieldnames or set(reader.fieldnames) != MANIFEST_FIELDS:
-                raise TSOptimizerBenchmarkError(
-                    "RGD1 manifest.tsv has an unexpected header"
-                )
-            rows = list(reader)
-    except (OSError, json.JSONDecodeError, csv.Error) as exc:
-        raise TSOptimizerBenchmarkError(f"cannot read RGD1 dataset metadata: {exc}") from exc
-
+def _validate_reference_protocol(settings):
+    "Require the published reference protocol without relaxing model or unit checks."
     if not isinstance(settings, dict) or settings.get("method") != "GFN2-xTB":
         raise TSOptimizerBenchmarkError("dataset settings.json must describe GFN2-xTB")
-    if (settings.get("charge") != 0 or settings.get("unpaired_electrons") != 0
-            or settings.get("implementation") != "tblite 0.6.0"
-            or settings.get("electronic_temperature_K") != 300
-            or settings.get("scf_accuracy") != 0.01
-            or settings.get("solvation") != "none (gas phase)"
-            or not isinstance(settings.get("units"), dict)
-            or settings["units"].get("xyz") != "Angstrom"
-            or settings["units"].get("energy") != "Hartree"):
+    if (
+        settings.get("charge") != 0
+        or settings.get("unpaired_electrons") != 0
+        or settings.get("implementation") != "tblite 0.6.0"
+        or settings.get("electronic_temperature_K") != 300
+        or settings.get("scf_accuracy") != 0.01
+        or settings.get("solvation") != "none (gas phase)"
+        or not isinstance(settings.get("units"), dict)
+        or settings["units"].get("xyz") != "Angstrom"
+        or settings["units"].get("energy") != "Hartree"
+    ):
         raise TSOptimizerBenchmarkError(
             "settings.json differs from the published GFN2-xTB, neutral-singlet reference protocol"
         )
+
+
+def _group_reference_rows(rows):
+    "Validate and group tier metadata in manifest order."
     grouped = defaultdict(dict)
     atom_counts = {}
     charges = {}
     for line_number, row in enumerate(rows, start=2):
         case_id, tier = row.get("id", ""), row.get("tier", "")
         if not case_id or any(
-                c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
-                for c in case_id):
+            c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+            for c in case_id
+        ):
             raise TSOptimizerBenchmarkError(
                 f"invalid RGD1 case identifier at manifest line {line_number}"
             )
@@ -102,19 +92,28 @@ def _read_dataset(dataset_dir):
             raise TSOptimizerBenchmarkError(
                 f"invalid numeric value in RGD1 manifest line {line_number}"
             ) from exc
-        if (n_atoms < 1 or charge != 0 or not all(
-                math.isfinite(value) for value in (alpha, beta, total_rmsd, overlap))):
+        if (
+            n_atoms < 1
+            or charge != 0
+            or not all(
+                math.isfinite(value) for value in (alpha, beta, total_rmsd, overlap)
+            )
+        ):
             raise TSOptimizerBenchmarkError(
                 f"invalid geometry metadata in RGD1 manifest line {line_number}"
             )
-        if (not math.isclose(alpha, TIER_ALPHA_ANGSTROM[tier], abs_tol=1e-9)
-                or not math.isclose(beta, 0.12, abs_tol=1e-9)):
+        if not math.isclose(
+            alpha, TIER_ALPHA_ANGSTROM[tier], abs_tol=1e-9
+        ) or not math.isclose(beta, 0.12, abs_tol=1e-9):
             raise TSOptimizerBenchmarkError(
                 f"unexpected displacement parameters for {case_id}/{tier}"
             )
         if case_id in atom_counts and (
-                atom_counts[case_id] != n_atoms or charges[case_id] != charge):
-            raise TSOptimizerBenchmarkError(f"inconsistent metadata for RGD1 case {case_id}")
+            atom_counts[case_id] != n_atoms or charges[case_id] != charge
+        ):
+            raise TSOptimizerBenchmarkError(
+                f"inconsistent metadata for RGD1 case {case_id}"
+            )
         atom_counts[case_id], charges[case_id] = n_atoms, charge
         grouped[case_id][tier] = {
             **row,
@@ -125,6 +124,31 @@ def _read_dataset(dataset_dir):
             "total_rmsd_A": total_rmsd,
             "react_overlap": overlap,
         }
+    return grouped, atom_counts
+
+
+def _read_dataset(dataset_dir):
+    root = Path(dataset_dir).expanduser().resolve()
+    manifest_path = root / "manifest.tsv"
+    settings_path = root / "settings.json"
+    if not manifest_path.is_file() or not settings_path.is_file():
+        raise TSOptimizerBenchmarkError(
+            "dataset directory must contain manifest.tsv and settings.json"
+        )
+    try:
+        settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        with manifest_path.open(newline="", encoding="utf-8") as stream:
+            reader = csv.DictReader(stream, delimiter="\t")
+            if not reader.fieldnames or set(reader.fieldnames) != MANIFEST_FIELDS:
+                raise TSOptimizerBenchmarkError(
+                    "RGD1 manifest.tsv has an unexpected header"
+                )
+            rows = list(reader)
+    except (OSError, json.JSONDecodeError, csv.Error) as exc:
+        raise TSOptimizerBenchmarkError(f"cannot read RGD1 dataset metadata: {exc}") from exc
+
+    _validate_reference_protocol(settings)
+    grouped, atom_counts = _group_reference_rows(rows)
     if not grouped:
         raise TSOptimizerBenchmarkError("RGD1 manifest.tsv contains no cases")
     for case_id, tiers in grouped.items():

@@ -75,54 +75,68 @@ def build_parser(prog=None):
     return parser
 
 
-def main(argv=None, *, prog=None):
-    """Cluster or filter the provided XYZ pool and print the selected files."""
-    parser = build_parser(prog=prog)
-    args = parser.parse_args(argv)
-    if args.mode == 'labels' and args.algorithm == 'maxmin':
-        parser.error('maxmin selects a subset and does not assign cluster labels')
-    if args.report_output and args.mode not in {'cluster', 'labels'}:
-        parser.error('--report-output is available in cluster and labels modes')
-    if args.labels_output and args.mode != 'labels':
-        parser.error('--labels-output is available in labels mode')
-    if args.structure_report and args.mode != 'analyze':
-        parser.error('--structure-report is available in analyze mode')
+def _validate_clustering_invocation(args, parser):
+    "Validate command options before loading geometries or starting selection."
+    if args.mode == "labels" and args.algorithm == "maxmin":
+        parser.error("maxmin selects a subset and does not assign cluster labels")
+    if args.report_output and args.mode not in {"cluster", "labels"}:
+        parser.error("--report-output is available in cluster and labels modes")
+    if args.labels_output and args.mode != "labels":
+        parser.error("--labels-output is available in labels mode")
+    if args.structure_report and args.mode != "analyze":
+        parser.error("--structure-report is available in analyze mode")
     algorithm_options = {
-        'min_samples': args.min_samples,
-        'min_cluster_size': args.min_cluster_size,
-        'eps': args.eps,
-        'xi': args.xi,
+        "min_samples": args.min_samples,
+        "min_cluster_size": args.min_cluster_size,
+        "eps": args.eps,
+        "xi": args.xi,
     }
-    distance_options = {key: value for key, value in {
-        'atom_mode': args.distance_atom_mode, 'soap_cutoff': args.soap_cutoff,
-        'rematch_alpha': args.rematch_alpha, 'max_mappings': args.maximum_mappings,
-    }.items() if value is not None}
-    if args.mode in {'cluster', 'labels'}:
+    distance_options = {
+        key: value
+        for key, value in {
+            "atom_mode": args.distance_atom_mode,
+            "soap_cutoff": args.soap_cutoff,
+            "rematch_alpha": args.rematch_alpha,
+            "max_mappings": args.maximum_mappings,
+        }.items()
+        if value is not None
+    }
+    if args.mode in {"cluster", "labels"}:
         try:
             validate_clustering_options(
-                'auto' if args.algorithm == 'maxmin' else args.algorithm,
-                args.maximum_number_of_seeds, args.distance, algorithm_options,
+                "auto" if args.algorithm == "maxmin" else args.algorithm,
+                args.maximum_number_of_seeds,
+                args.distance,
+                algorithm_options,
             )
             from pyar.selection.structural_distances import validate_distance_options
+
             validate_distance_options(distance_options)
         except ValueError as exc:
             parser.error(str(exc))
     input_files = args.input_files
     if (
-        args.mode == 'analyze'
-        and args.coordinate_model == 'distance-cutoff'
+        args.mode == "analyze"
+        and args.coordinate_model == "distance-cutoff"
         and args.bond_cutoff is None
     ):
-        parser.error('--coordinate-model distance-cutoff requires --bond-cutoff')
+        parser.error("--coordinate-model distance-cutoff requires --bond-cutoff")
     if (
-        args.mode == 'analyze'
-        and args.coordinate_model != 'distance-cutoff'
+        args.mode == "analyze"
+        and args.coordinate_model != "distance-cutoff"
         and args.bond_cutoff is not None
     ):
-        parser.error('--bond-cutoff requires --coordinate-model distance-cutoff')
-    if len(input_files) < 2 and args.mode not in {'filter', 'analyze'}:
-        parser.error('cluster and labels modes require at least two input files')
+        parser.error("--bond-cutoff requires --coordinate-model distance-cutoff")
+    if len(input_files) < 2 and args.mode not in {"filter", "analyze"}:
+        parser.error("cluster and labels modes require at least two input files")
+    return algorithm_options, distance_options, input_files
 
+
+def main(argv=None, *, prog=None):
+    """Cluster or filter the provided XYZ pool and print the selected files."""
+    parser = build_parser(prog=prog)
+    args = parser.parse_args(argv)
+    algorithm_options, distance_options, input_files = _validate_clustering_invocation(args, parser)
     mols = []
     for each_file in input_files:
         mol = Molecule.from_xyz(each_file)
@@ -221,6 +235,10 @@ def main(argv=None, *, prog=None):
         title="Selected pool energies:",
     )
     print(' '.join(one.name + '.xyz' for one in selected))
+
+
+
+
 
 
 if __name__ == '__main__':

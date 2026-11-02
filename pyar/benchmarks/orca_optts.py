@@ -165,6 +165,115 @@ def _xtb_version(executable):
     return line
 
 
+def _validate_native_saddle(
+    spec,
+    case,
+    run_directory,
+    copied,
+    optimized_path,
+    optimizer_converged,
+    parsed,
+    ts_summary,
+):
+    "Validate native optimizer evidence through the existing PyAR frequency and connection gates."
+    outcome = parsed["failure_class"] or "optimizer_not_converged"
+    failure_stage = "ts"
+    frequency_result = endpoint_result = None
+    base = _stage_arguments(spec, case, run_directory)
+    if optimizer_converged:
+        outcome = "converged_not_stationary"
+        failure_stage = "frequency"
+        try:
+            frequency_result = run_neb(
+                ts_geometry=optimized_path,
+                stage="frequency",
+                **base,
+            )
+            if frequency_result.get("stationary") is True:
+                if frequency_result.get("first_order_saddle_confirmed") is True:
+                    outcome = "validated_first_order_saddle"
+                    if case.reactant and case.product:
+                        failure_stage = "relax"
+                        run_neb(
+                            start=copied["reactant"],
+                            end=copied["product"],
+                            stage="relax",
+                            **base,
+                        )
+                        failure_stage = "irc"
+                        run_neb(stage="irc", **base)
+                        failure_stage = "endpoints"
+                        endpoint_result = run_neb(
+                            start=copied["reactant"],
+                            end=copied["product"],
+                            stage="endpoints",
+                            **base,
+                        )
+                        outcome = (
+                            "reaction_connected_success"
+                            if endpoint_result.get(
+                                "reactant_product_connection_confirmed"
+                            )
+                            is True
+                            else "first_order_saddle_wrong_connection"
+                        )
+                else:
+                    outcome = "stationary_not_first_order_saddle"
+        except Exception as exc:
+            outcome = {
+                "frequency": "frequency_exception",
+                "relax": "endpoint_relaxation_exception",
+                "irc": "irc_exception",
+                "endpoints": "endpoint_validation_exception",
+            }.get(failure_stage, "orca_validation_exception")
+            ts_summary["validation_error"] = f"{type(exc).__name__}: {exc}"
+    return outcome, failure_stage, frequency_result, endpoint_result
+
+
+def _resolve_native_executables(orca_executable, xtb_executable):
+    "Verify that native execution and PyAR validation use the same selected xTB executable."
+    orca_executable = orca_executable or shutil.which("orca")
+    xtb_executable = xtb_executable or shutil.which("xtb")
+    if not orca_executable or not Path(orca_executable).is_file():
+        raise TSOptimizerBenchmarkError(
+            "ORCA executable not found; pass --orca-executable"
+        )
+    if not xtb_executable or not Path(xtb_executable).is_file():
+        raise TSOptimizerBenchmarkError(
+            "xTB executable not found; pass --xtb-executable"
+        )
+    provider_xtb = shutil.which("xtb")
+    if (
+        not provider_xtb
+        or Path(provider_xtb).resolve() != Path(xtb_executable).resolve()
+    ):
+        raise TSOptimizerBenchmarkError(
+            "--xtb-executable must match xtb on PATH, which PyAR uses for validation; "
+            "put the selected executable on PATH before running this benchmark"
+        )
+    xtb_version = _xtb_version(xtb_executable)
+    return orca_executable, xtb_executable, xtb_version
+
+
+def _read_native_optimized_geometry(optimized_path, symbols):
+    """Validate ordered atoms without mistaking an optimizer flag for valid geometry."""
+    geometry_available = optimized_path.is_file()
+    geometry_error = None
+    final_geometry = None
+    if geometry_available:
+        try:
+            final_geometry = read_xyz(optimized_path)
+            final_symbols, final_coordinates, final_comment = final_geometry
+            if final_symbols != symbols:
+                raise ValueError(
+                    "optimized geometry atom identities/order differ from input"
+                )
+        except (OSError, ValueError) as exc:
+            geometry_available = False
+            geometry_error = str(exc)
+    return geometry_available, geometry_error, final_geometry
+
+
 def run_orca_optts_case(
     benchmark, *, case_id, output, orca_executable=None, xtb_executable=None,
     match_ts_fmax=False,
@@ -178,20 +287,7 @@ def run_orca_optts_case(
     case = next((item for item in spec.cases if item.id == case_id), None)
     if case is None:
         raise TSOptimizerBenchmarkError(f"unknown case id: {case_id}")
-    orca_executable = orca_executable or shutil.which("orca")
-    xtb_executable = xtb_executable or shutil.which("xtb")
-    if not orca_executable or not Path(orca_executable).is_file():
-        raise TSOptimizerBenchmarkError("ORCA executable not found; pass --orca-executable")
-    if not xtb_executable or not Path(xtb_executable).is_file():
-        raise TSOptimizerBenchmarkError("xTB executable not found; pass --xtb-executable")
-    provider_xtb = shutil.which("xtb")
-    if not provider_xtb or Path(provider_xtb).resolve() != Path(xtb_executable).resolve():
-        raise TSOptimizerBenchmarkError(
-            "--xtb-executable must match xtb on PATH, which PyAR uses for validation; "
-            "put the selected executable on PATH before running this benchmark"
-        )
-    xtb_version = _xtb_version(xtb_executable)
-
+    orca_executable, xtb_executable, xtb_version = _resolve_native_executables(orca_executable, xtb_executable)
     run_directory = Path(output).resolve() / "cases" / case.id / "orca_optts"
     result_path = run_directory / "benchmark_result.json"
     if result_path.exists():
@@ -229,16 +325,7 @@ def run_orca_optts_case(
     output_path.write_text(output_text, encoding="utf-8")
     parsed = parse_orca_optts_output(output_text, returncode)
     optimized_path = run_directory / "orca_optts.xyz"
-    geometry_available = optimized_path.is_file()
-    geometry_error = None
-    if geometry_available:
-        try:
-            final_symbols, final_coordinates, final_comment = read_xyz(optimized_path)
-            if final_symbols != symbols:
-                raise ValueError("optimized geometry atom identities/order differ from input")
-        except (OSError, ValueError) as exc:
-            geometry_available = False
-            geometry_error = str(exc)
+    geometry_available, geometry_error, final_geometry = _read_native_optimized_geometry(optimized_path, symbols)
     if parsed["optimizer_converged"] and not geometry_available:
         parsed["failure_class"] = "optimized_geometry_invalid" if geometry_error else "optimized_geometry_missing"
     optimizer_converged = parsed["optimizer_converged"] and geometry_available
@@ -262,52 +349,10 @@ def run_orca_optts_case(
     }
 
     runtime = _runtime_payload(spec.qc_model)
-    outcome = parsed["failure_class"] or "optimizer_not_converged"
-    failure_stage = "ts"
-    frequency_result = endpoint_result = None
-    base = _stage_arguments(spec, case, run_directory)
-    if optimizer_converged:
-        outcome = "converged_not_stationary"
-        failure_stage = "frequency"
-        try:
-            frequency_result = run_neb(
-                ts_geometry=optimized_path, stage="frequency",
-                **base,
-            )
-            if frequency_result.get("stationary") is True:
-                if frequency_result.get("first_order_saddle_confirmed") is True:
-                    outcome = "validated_first_order_saddle"
-                    if case.reactant and case.product:
-                        failure_stage = "relax"
-                        run_neb(
-                            start=copied["reactant"], end=copied["product"], stage="relax",
-                            **base,
-                        )
-                        failure_stage = "irc"
-                        run_neb(stage="irc", **base)
-                        failure_stage = "endpoints"
-                        endpoint_result = run_neb(
-                            start=copied["reactant"], end=copied["product"], stage="endpoints",
-                            **base,
-                        )
-                        outcome = (
-                            "reaction_connected_success"
-                            if endpoint_result.get("reactant_product_connection_confirmed") is True
-                            else "first_order_saddle_wrong_connection"
-                        )
-                else:
-                    outcome = "stationary_not_first_order_saddle"
-        except Exception as exc:
-            outcome = {
-                "frequency": "frequency_exception",
-                "relax": "endpoint_relaxation_exception",
-                "irc": "irc_exception",
-                "endpoints": "endpoint_validation_exception",
-            }.get(failure_stage, "orca_validation_exception")
-            ts_summary["validation_error"] = f"{type(exc).__name__}: {exc}"
-
+    outcome, failure_stage, frequency_result, endpoint_result = _validate_native_saddle(spec, case, run_directory, copied, optimized_path, optimizer_converged, parsed, ts_summary)
     reference_rmsd = energy_difference = None
     if geometry_available:
+        final_symbols, final_coordinates, final_comment = final_geometry
         if final_symbols == reference_symbols:
             reference_rmsd = _aligned_rmsd(reference_coordinates, final_coordinates)
         energy_match = re.search(r"\bE\s+([-+0-9.Ee]+)", final_comment)

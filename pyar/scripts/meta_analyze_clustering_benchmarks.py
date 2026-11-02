@@ -80,6 +80,94 @@ def _feature_roc_auc(molecules, basin_ids, feature, system_type="conformers"):
     return auc, result.name, list(result.fallbacks), distances
 
 
+def _pair_confusion_metrics(labels, basin_ids):
+    "Count same-basin pair outcomes, treating noise records as separate candidates."
+    tp = fp = fn = tn = 0
+    for left in range(len(labels)):
+        for right in range(left + 1, len(labels)):
+            same_basin = basin_ids[left] == basin_ids[right]
+            # Noise records are deliberately treated as separate retained candidates.
+            same_cluster = (
+                labels[left] >= 0
+                and labels[right] >= 0
+                and labels[left] == labels[right]
+            )
+            if same_basin and same_cluster:
+                tp += 1
+            elif not same_basin and same_cluster:
+                fp += 1
+            elif same_basin:
+                fn += 1
+            else:
+                tn += 1
+    metrics = _binary_metrics(tp, fp, fn, tn)
+    return metrics
+
+
+def _aggregate_condition_metrics(condition_rows):
+    "Aggregate available per-system condition metrics in the existing iteration order."
+    macro_rows = []
+    for algorithm in ALGORITHMS:
+        for feature in FEATURES:
+            rows = [
+                row
+                for row in condition_rows
+                if row["algorithm_requested"] == algorithm
+                and row["feature_requested"] == feature
+            ]
+            if not rows:
+                continue
+            macro_rows.append(
+                {
+                    "algorithm_requested": algorithm,
+                    "feature_requested": feature,
+                    "macro_sensitivity": _mean_available(
+                        row["sensitivity"] for row in rows
+                    ),
+                    "macro_specificity": _mean_available(
+                        row["specificity"] for row in rows
+                    ),
+                    "macro_precision": _mean_available(
+                        row["precision"] for row in rows
+                    ),
+                    "macro_false_positive_rate": _mean_available(
+                        row["false_positive_rate"] for row in rows
+                    ),
+                    "macro_false_discovery_rate": _mean_available(
+                        row["false_discovery_rate"] for row in rows
+                    ),
+                    "macro_miss_rate": _mean_available(
+                        row["miss_rate"] for row in rows
+                    ),
+                    "macro_f1": _mean_available(row["f1"] for row in rows),
+                    "macro_seed_budget_basin_efficiency": _mean_available(
+                        row["seed_budget_basin_efficiency"] for row in rows
+                    ),
+                    "per_dataset": {
+                        row["dataset"]: {
+                            key: row[key]
+                            for key in (
+                                "sensitivity",
+                                "specificity",
+                                "precision",
+                                "false_positive_rate",
+                                "false_discovery_rate",
+                                "miss_rate",
+                                "f1",
+                                "seed_budget_basin_efficiency",
+                                "tp",
+                                "fp",
+                                "fn",
+                                "tn",
+                            )
+                        }
+                        for row in rows
+                    },
+                }
+            )
+    return macro_rows
+
+
 def analyze_conformers(run_root: Path, data_root: Path):
     confusion_rows, auc_rows, condition_rows = [], [], []
     for dataset in CONFORMERS:
@@ -124,22 +212,7 @@ def analyze_conformers(run_root: Path, data_root: Path):
             labels = np.asarray(condition["diagnostics"]["labels"], dtype=int)
             if labels.shape != basin_ids.shape:
                 raise ValueError(f"Cluster and reference labels are misaligned for {dataset}")
-            tp = fp = fn = tn = 0
-            for left in range(len(labels)):
-                for right in range(left + 1, len(labels)):
-                    same_basin = basin_ids[left] == basin_ids[right]
-                    # Noise records are deliberately treated as separate retained candidates.
-                    same_cluster = (labels[left] >= 0 and labels[right] >= 0
-                                    and labels[left] == labels[right])
-                    if same_basin and same_cluster:
-                        tp += 1
-                    elif not same_basin and same_cluster:
-                        fp += 1
-                    elif same_basin:
-                        fn += 1
-                    else:
-                        tn += 1
-            metrics = _binary_metrics(tp, fp, fn, tn)
+            metrics = _pair_confusion_metrics(labels, basin_ids)
             unique_basin_capacity = min(report["seed_budget"], report["reference_basin_count"])
             budget_efficiency = _safe_divide(condition["basins_retained"], unique_basin_capacity)
             row = {
@@ -160,39 +233,7 @@ def analyze_conformers(run_root: Path, data_root: Path):
             confusion_rows.append(row)
             condition_rows.append(row)
 
-    macro_rows = []
-    for algorithm in ALGORITHMS:
-        for feature in FEATURES:
-            rows = [row for row in condition_rows
-                    if row["algorithm_requested"] == algorithm
-                    and row["feature_requested"] == feature]
-            if not rows:
-                continue
-            macro_rows.append({
-                "algorithm_requested": algorithm,
-                "feature_requested": feature,
-                "macro_sensitivity": _mean_available(row["sensitivity"] for row in rows),
-                "macro_specificity": _mean_available(row["specificity"] for row in rows),
-                "macro_precision": _mean_available(row["precision"] for row in rows),
-                "macro_false_positive_rate": _mean_available(row["false_positive_rate"] for row in rows),
-                "macro_false_discovery_rate": _mean_available(row["false_discovery_rate"] for row in rows),
-                "macro_miss_rate": _mean_available(row["miss_rate"] for row in rows),
-                "macro_f1": _mean_available(row["f1"] for row in rows),
-                "macro_seed_budget_basin_efficiency": _mean_available(
-                    row["seed_budget_basin_efficiency"] for row in rows
-                ),
-                "per_dataset": {
-                    row["dataset"]: {
-                        key: row[key] for key in (
-                            "sensitivity", "specificity", "precision", "false_positive_rate",
-                            "false_discovery_rate",
-                            "miss_rate", "f1", "seed_budget_basin_efficiency",
-                            "tp", "fp", "fn", "tn",
-                        )
-                    } for row in rows
-                },
-            })
-
+    macro_rows = _aggregate_condition_metrics(condition_rows)
     auc_macro_rows = []
     for feature in FEATURES:
         rows = [row for row in auc_rows if row["feature_requested"] == feature]
@@ -473,6 +514,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     output_dir = args.output if args.output.is_absolute() else args.repository_root / args.output
     build_meta_analysis(args.repository_root, output_dir)
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

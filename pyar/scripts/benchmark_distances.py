@@ -20,6 +20,62 @@ from pyar.selection.policy import SELECTION_POLICY_VERSION
 from pyar.structure_comparison.coordinate_graph import infer_coordinate_graph
 
 
+def _read_dataset_frames(lines):
+    "Read complete geometry frames and reject duplicate identities."
+    frames, index = {}, 0
+    while index < len(lines):
+        natoms = int(lines[index])
+        identifier = lines[index + 1].removeprefix("structure_id=")
+        rows = [line.split() for line in lines[index + 2 : index + 2 + natoms]]
+        coordinates = np.asarray([[float(value) for value in row[1:]] for row in rows])
+        if (
+            natoms < 1
+            or len(rows) != natoms
+            or coordinates.shape != (natoms, 3)
+            or not np.isfinite(coordinates).all()
+        ):
+            raise ValueError(f"Invalid geometry {identifier}")
+        if identifier in frames:
+            raise ValueError(f"Repeated geometry id {identifier}")
+        frames[identifier] = SimpleNamespace(
+            name=identifier,
+            atoms_list=[row[0] for row in rows],
+            coordinates=coordinates,
+        )
+        index += natoms + 2
+    return frames
+
+
+def _verify_rigid_witnesses(pool, identifiers, frames):
+    "Independently verify stored rigid rotations, permutations, labels and coordinates."
+    for witness in pool["rigid_transform_witnesses"]:
+        if witness["first"] not in identifiers or witness["second"] not in identifiers:
+            raise ValueError("Transformation witness is outside its pool")
+        first, second = frames[witness["first"]], frames[witness["second"]]
+        rotation = np.asarray(witness["rotation"])
+        order = np.asarray(witness["order"])
+        if not np.allclose(
+            rotation.T @ rotation, np.eye(3), atol=1e-10
+        ) or not np.isclose(np.linalg.det(rotation), 1):
+            raise ValueError("Witness must specify a proper rigid rotation")
+        if sorted(order.tolist()) != list(range(len(first.atoms_list))):
+            raise ValueError("Witness atom order must be a permutation")
+        if np.asarray(first.atoms_list)[order].tolist() != second.atoms_list:
+            raise ValueError("Witness permutation does not preserve element labels")
+        if not np.allclose(
+            first.coordinates[order] @ rotation + witness["translation"],
+            second.coordinates,
+            atol=2e-10,
+            rtol=0,
+        ):
+            raise ValueError(
+                "Stored geometry violates its independent transformation witness"
+            )
+        families = {record["id"]: record["family"] for record in pool["records"]}
+        if families[witness["first"]] != families[witness["second"]]:
+            raise ValueError("Rigid copies must have the same family label")
+
+
 def load_dataset(manifest_path):
     """Validate stored geometries and independent transformation witnesses."""
     manifest_path = Path(manifest_path)
@@ -28,19 +84,7 @@ def load_dataset(manifest_path):
         raise ValueError("Unsupported clustering-distance dataset schema")
     xyz = manifest_path.parent / manifest["structures_file"]
     lines = xyz.read_text().splitlines()
-    frames, index = {}, 0
-    while index < len(lines):
-        natoms = int(lines[index])
-        identifier = lines[index + 1].removeprefix("structure_id=")
-        rows = [line.split() for line in lines[index + 2:index + 2 + natoms]]
-        coordinates = np.asarray([[float(value) for value in row[1:]] for row in rows])
-        if natoms < 1 or len(rows) != natoms or coordinates.shape != (natoms, 3) or not np.isfinite(coordinates).all():
-            raise ValueError(f"Invalid geometry {identifier}")
-        if identifier in frames:
-            raise ValueError(f"Repeated geometry id {identifier}")
-        frames[identifier] = SimpleNamespace(name=identifier, atoms_list=[row[0] for row in rows],
-                                             coordinates=coordinates)
-        index += natoms + 2
+    frames = _read_dataset_frames(lines)
     referenced = set()
     for pool in manifest["pools"]:
         identifiers = [record["id"] for record in pool["records"]]
@@ -67,24 +111,7 @@ def load_dataset(manifest_path):
             if not np.isfinite(record["energy"]):
                 raise ValueError("Ranking energies must be finite")
             frames[record["id"]].energy = record["energy"]
-        for witness in pool["rigid_transform_witnesses"]:
-            if witness["first"] not in identifiers or witness["second"] not in identifiers:
-                raise ValueError("Transformation witness is outside its pool")
-            first, second = frames[witness["first"]], frames[witness["second"]]
-            rotation = np.asarray(witness["rotation"])
-            order = np.asarray(witness["order"])
-            if not np.allclose(rotation.T @ rotation, np.eye(3), atol=1e-10) or not np.isclose(np.linalg.det(rotation), 1):
-                raise ValueError("Witness must specify a proper rigid rotation")
-            if sorted(order.tolist()) != list(range(len(first.atoms_list))):
-                raise ValueError("Witness atom order must be a permutation")
-            if np.asarray(first.atoms_list)[order].tolist() != second.atoms_list:
-                raise ValueError("Witness permutation does not preserve element labels")
-            if not np.allclose(first.coordinates[order] @ rotation + witness["translation"],
-                               second.coordinates, atol=2e-10, rtol=0):
-                raise ValueError("Stored geometry violates its independent transformation witness")
-            families = {record["id"]: record["family"] for record in pool["records"]}
-            if families[witness["first"]] != families[witness["second"]]:
-                raise ValueError("Rigid copies must have the same family label")
+        _verify_rigid_witnesses(pool, identifiers, frames)
         if pool["system_type"] == "molecular-aggregate":
             import networkx as nx
             for identifier in identifiers:
@@ -180,6 +207,14 @@ def main(argv=None):
         report = run_benchmark(args.manifest, output=args.output)
         print(f"Validated {report['audit']['geometry_count']} geometries; {len(report['results'])} comparisons")
         print(f"Report: {args.output}")
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

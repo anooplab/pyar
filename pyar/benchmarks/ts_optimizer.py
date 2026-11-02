@@ -153,6 +153,170 @@ def _normalize_qc_model(qc_model):
     return qc_model
 
 
+def _normalize_benchmark_settings(settings):
+    "Normalize common paired-run settings without changing numerical defaults."
+    settings = dict(settings)
+    allowed_settings = {
+        "ts_fmax",
+        "ts_max_cycles",
+        "imaginary_frequency_threshold",
+        "irc_max_cycles",
+        "endpoint_max_cycles",
+        "product_relaxation_fmax",
+        "product_relaxation_max_steps",
+        "irc_endpoint_rmsd_tolerance",
+        "sella_internal_coordinates",
+    }
+    unsupported_settings = set(settings) - allowed_settings
+    if unsupported_settings:
+        raise TSOptimizerBenchmarkError(
+            "unsupported settings key(s): " + ", ".join(sorted(unsupported_settings))
+        )
+    if "ts_fmax" not in settings or "ts_max_cycles" not in settings:
+        raise TSOptimizerBenchmarkError(
+            "settings must define common ts_fmax and ts_max_cycles for paired runs"
+        )
+    settings["ts_fmax"] = _require_number(
+        settings["ts_fmax"], "settings.ts_fmax", positive=True
+    )
+    cycles = settings["ts_max_cycles"]
+    if isinstance(cycles, bool) or not isinstance(cycles, int) or cycles < 1:
+        raise TSOptimizerBenchmarkError(
+            "settings.ts_max_cycles must be a positive integer"
+        )
+    if "sella_internal_coordinates" in settings and not isinstance(
+        settings["sella_internal_coordinates"], bool
+    ):
+        raise TSOptimizerBenchmarkError(
+            "settings.sella_internal_coordinates must be a boolean"
+        )
+    settings.setdefault("imaginary_frequency_threshold", 20.0)
+    settings["imaginary_frequency_threshold"] = _require_number(
+        settings["imaginary_frequency_threshold"],
+        "settings.imaginary_frequency_threshold",
+        positive=True,
+    )
+    settings.setdefault("irc_max_cycles", 200)
+    settings.setdefault("endpoint_max_cycles", 300)
+    settings.setdefault("product_relaxation_fmax", 0.05)
+    settings.setdefault("product_relaxation_max_steps", 200)
+    settings.setdefault("irc_endpoint_rmsd_tolerance", 0.5)
+    for key in (
+        "irc_max_cycles",
+        "endpoint_max_cycles",
+        "product_relaxation_max_steps",
+    ):
+        if (
+            isinstance(settings[key], bool)
+            or not isinstance(settings[key], int)
+            or settings[key] < 1
+        ):
+            raise TSOptimizerBenchmarkError(
+                f"settings.{key} must be a positive integer"
+            )
+    for key in ("product_relaxation_fmax", "irc_endpoint_rmsd_tolerance"):
+        settings[key] = _require_number(settings[key], f"settings.{key}", positive=True)
+    return settings
+
+
+def _load_benchmark_cases(raw_cases, manifest_path):
+    "Load ordered cases and verify endpoint atom identity before execution."
+    if not isinstance(raw_cases, list) or not raw_cases:
+        raise TSOptimizerBenchmarkError(
+            "benchmark manifest must define a non-empty cases list"
+        )
+    root = manifest_path.parent
+    cases = []
+    seen_ids = set()
+    for index, raw_case in enumerate(raw_cases):
+        if not isinstance(raw_case, dict):
+            raise TSOptimizerBenchmarkError(f"case {index} must be an object")
+        case_id = _required_text(raw_case, "id", f"case {index}")
+        if case_id in seen_ids:
+            raise TSOptimizerBenchmarkError(f"duplicate case id: {case_id}")
+        if case_id in {".", ".."} or any(
+            char
+            not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-"
+            for char in case_id
+        ):
+            raise TSOptimizerBenchmarkError(
+                f"case id {case_id!r} may contain only letters, numbers, period, underscore, and hyphen"
+            )
+        seen_ids.add(case_id)
+        reactant_raw, product_raw = raw_case.get("reactant"), raw_case.get("product")
+        if (reactant_raw is None) != (product_raw is None):
+            raise TSOptimizerBenchmarkError(
+                f"case {case_id!r} must provide both reactant and product endpoints, or neither"
+            )
+        charge = raw_case.get("charge", 0)
+        multiplicity = raw_case.get("multiplicity", 1)
+        if isinstance(charge, bool) or not isinstance(charge, int):
+            raise TSOptimizerBenchmarkError(
+                f"case {case_id!r} charge must be an integer"
+            )
+        if (
+            isinstance(multiplicity, bool)
+            or not isinstance(multiplicity, int)
+            or multiplicity < 1
+        ):
+            raise TSOptimizerBenchmarkError(
+                f"case {case_id!r} multiplicity must be a positive integer"
+            )
+        reference_energy = raw_case.get("reference_energy_hartree")
+        if reference_energy is not None:
+            reference_energy = _require_number(
+                reference_energy, f"case {case_id!r} reference_energy_hartree"
+            )
+        seed = raw_case.get("seed")
+        if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
+            raise TSOptimizerBenchmarkError(f"case {case_id!r} seed must be an integer")
+        perturbation = raw_case.get("perturbation")
+        if perturbation is not None and not isinstance(perturbation, dict):
+            raise TSOptimizerBenchmarkError(
+                f"case {case_id!r} perturbation must be an object"
+            )
+        cases.append(
+            TSOptimizerCase(
+                id=case_id,
+                ts_guess=_resolve_input(
+                    raw_case.get("ts_guess"), root, case_id, "ts_guess", required=True
+                ),
+                reference_ts=_resolve_input(
+                    raw_case.get("reference_ts"),
+                    root,
+                    case_id,
+                    "reference_ts",
+                    required=True,
+                ),
+                reactant=_resolve_input(
+                    reactant_raw, root, case_id, "reactant", required=False
+                ),
+                product=_resolve_input(
+                    product_raw, root, case_id, "product", required=False
+                ),
+                charge=charge,
+                multiplicity=multiplicity,
+                difficulty=str(
+                    raw_case.get("difficulty", "unspecified") or "unspecified"
+                ),
+                reference_energy_hartree=reference_energy,
+                seed=seed,
+                perturbation=perturbation,
+            )
+        )
+        case = cases[-1]
+        ordered_symbols, _, _ = read_xyz(case.ts_guess)
+        for label in ("reference_ts", "reactant", "product"):
+            geometry_path = getattr(case, label)
+            if geometry_path is not None:
+                symbols, _, _ = read_xyz(geometry_path)
+                if symbols != ordered_symbols:
+                    raise TSOptimizerBenchmarkError(
+                        f"case {case.id!r} {label} must preserve the ordered atoms of ts_guess"
+                    )
+    return cases
+
+
 def load_ts_optimizer_benchmark(path):
     """Load and validate a JSON manifest for paired geometric/Sella runs."""
     manifest_path = Path(path).expanduser().resolve()
@@ -183,107 +347,8 @@ def load_ts_optimizer_benchmark(path):
         raise TSOptimizerBenchmarkError("source must define a non-empty 'doi' or 'url'")
     qc_model = _normalize_qc_model(qc_model)
 
-    settings = dict(settings)
-    allowed_settings = {
-        "ts_fmax", "ts_max_cycles", "imaginary_frequency_threshold", "irc_max_cycles",
-        "endpoint_max_cycles", "product_relaxation_fmax", "product_relaxation_max_steps",
-        "irc_endpoint_rmsd_tolerance", "sella_internal_coordinates",
-    }
-    unsupported_settings = set(settings) - allowed_settings
-    if unsupported_settings:
-        raise TSOptimizerBenchmarkError(
-            "unsupported settings key(s): " + ", ".join(sorted(unsupported_settings))
-        )
-    if "ts_fmax" not in settings or "ts_max_cycles" not in settings:
-        raise TSOptimizerBenchmarkError(
-            "settings must define common ts_fmax and ts_max_cycles for paired runs"
-        )
-    settings["ts_fmax"] = _require_number(settings["ts_fmax"], "settings.ts_fmax", positive=True)
-    cycles = settings["ts_max_cycles"]
-    if isinstance(cycles, bool) or not isinstance(cycles, int) or cycles < 1:
-        raise TSOptimizerBenchmarkError("settings.ts_max_cycles must be a positive integer")
-    if "sella_internal_coordinates" in settings and not isinstance(
-        settings["sella_internal_coordinates"], bool
-    ):
-        raise TSOptimizerBenchmarkError("settings.sella_internal_coordinates must be a boolean")
-    settings.setdefault("imaginary_frequency_threshold", 20.0)
-    settings["imaginary_frequency_threshold"] = _require_number(
-        settings["imaginary_frequency_threshold"],
-        "settings.imaginary_frequency_threshold", positive=True,
-    )
-    settings.setdefault("irc_max_cycles", 200)
-    settings.setdefault("endpoint_max_cycles", 300)
-    settings.setdefault("product_relaxation_fmax", 0.05)
-    settings.setdefault("product_relaxation_max_steps", 200)
-    settings.setdefault("irc_endpoint_rmsd_tolerance", 0.5)
-    for key in ("irc_max_cycles", "endpoint_max_cycles", "product_relaxation_max_steps"):
-        if isinstance(settings[key], bool) or not isinstance(settings[key], int) or settings[key] < 1:
-            raise TSOptimizerBenchmarkError(f"settings.{key} must be a positive integer")
-    for key in ("product_relaxation_fmax", "irc_endpoint_rmsd_tolerance"):
-        settings[key] = _require_number(settings[key], f"settings.{key}", positive=True)
-
-    if not isinstance(raw_cases, list) or not raw_cases:
-        raise TSOptimizerBenchmarkError("benchmark manifest must define a non-empty cases list")
-    root = manifest_path.parent
-    cases = []
-    seen_ids = set()
-    for index, raw_case in enumerate(raw_cases):
-        if not isinstance(raw_case, dict):
-            raise TSOptimizerBenchmarkError(f"case {index} must be an object")
-        case_id = _required_text(raw_case, "id", f"case {index}")
-        if case_id in seen_ids:
-            raise TSOptimizerBenchmarkError(f"duplicate case id: {case_id}")
-        if case_id in {".", ".."} or any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-" for char in case_id):
-            raise TSOptimizerBenchmarkError(
-                f"case id {case_id!r} may contain only letters, numbers, period, underscore, and hyphen"
-            )
-        seen_ids.add(case_id)
-        reactant_raw, product_raw = raw_case.get("reactant"), raw_case.get("product")
-        if (reactant_raw is None) != (product_raw is None):
-            raise TSOptimizerBenchmarkError(
-                f"case {case_id!r} must provide both reactant and product endpoints, or neither"
-            )
-        charge = raw_case.get("charge", 0)
-        multiplicity = raw_case.get("multiplicity", 1)
-        if isinstance(charge, bool) or not isinstance(charge, int):
-            raise TSOptimizerBenchmarkError(f"case {case_id!r} charge must be an integer")
-        if isinstance(multiplicity, bool) or not isinstance(multiplicity, int) or multiplicity < 1:
-            raise TSOptimizerBenchmarkError(f"case {case_id!r} multiplicity must be a positive integer")
-        reference_energy = raw_case.get("reference_energy_hartree")
-        if reference_energy is not None:
-            reference_energy = _require_number(
-                reference_energy, f"case {case_id!r} reference_energy_hartree"
-            )
-        seed = raw_case.get("seed")
-        if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
-            raise TSOptimizerBenchmarkError(f"case {case_id!r} seed must be an integer")
-        perturbation = raw_case.get("perturbation")
-        if perturbation is not None and not isinstance(perturbation, dict):
-            raise TSOptimizerBenchmarkError(f"case {case_id!r} perturbation must be an object")
-        cases.append(TSOptimizerCase(
-            id=case_id,
-            ts_guess=_resolve_input(raw_case.get("ts_guess"), root, case_id, "ts_guess", required=True),
-            reference_ts=_resolve_input(raw_case.get("reference_ts"), root, case_id, "reference_ts", required=True),
-            reactant=_resolve_input(reactant_raw, root, case_id, "reactant", required=False),
-            product=_resolve_input(product_raw, root, case_id, "product", required=False),
-            charge=charge,
-            multiplicity=multiplicity,
-            difficulty=str(raw_case.get("difficulty", "unspecified") or "unspecified"),
-            reference_energy_hartree=reference_energy,
-            seed=seed,
-            perturbation=perturbation,
-        ))
-        case = cases[-1]
-        ordered_symbols, _, _ = read_xyz(case.ts_guess)
-        for label in ("reference_ts", "reactant", "product"):
-            geometry_path = getattr(case, label)
-            if geometry_path is not None:
-                symbols, _, _ = read_xyz(geometry_path)
-                if symbols != ordered_symbols:
-                    raise TSOptimizerBenchmarkError(
-                        f"case {case.id!r} {label} must preserve the ordered atoms of ts_guess"
-                    )
-
+    settings = _normalize_benchmark_settings(settings)
+    cases = _load_benchmark_cases(raw_cases, manifest_path)
     return TSOptimizerBenchmark(
         name=name, source=dict(source), qc_model=dict(qc_model), settings=settings,
         cases=tuple(cases), manifest_path=str(manifest_path),
@@ -520,6 +585,132 @@ def _hessian_metrics(run_directory, stage_names):
     }
 
 
+def _execute_benchmark_stages(
+    base, settings, case, run_directory, input_paths, optimizer
+):
+    "Execute and classify the existing TS/frequency/IRC stages without broadening success."
+    stages = {}
+    outcome = "optimizer_exception"
+    failure_stage = "ts"
+    error = None
+    ts_result = None
+    frequency_result = None
+    endpoint_result = None
+    try:
+        ts_result = run_neb(
+            ts_geometry=input_paths["ts_guess"],
+            stage="ts",
+            ts_optimizer=optimizer,
+            ts_fmax=settings["ts_fmax"],
+            ts_max_cycles=settings["ts_max_cycles"],
+            **base,
+        )
+        stages["ts"] = ts_result
+        if ts_result.get("ts_optimization_converged") is not True:
+            outcome = "optimizer_not_converged"
+        else:
+            failure_stage = "frequency"
+            frequency_result = run_neb(
+                ts_geometry=run_directory / "ts_optimized.xyz",
+                stage="frequency",
+                **base,
+            )
+            stages["frequency"] = frequency_result
+            if frequency_result.get("stationary") is not True:
+                outcome = "converged_not_stationary"
+            elif frequency_result.get("first_order_saddle_confirmed") is not True:
+                outcome = "stationary_not_first_order_saddle"
+            elif case.reactant is None:
+                outcome = "validated_first_order_saddle"
+            else:
+                failure_stage = "relax"
+                run_neb(
+                    start=input_paths["reactant"],
+                    end=input_paths["product"],
+                    stage="relax",
+                    **base,
+                )
+                stages["relax"] = json.loads(
+                    (run_directory / "relax_summary.json").read_text(encoding="utf-8")
+                )
+                failure_stage = "irc"
+                run_neb(stage="irc", **base)
+                stages["irc"] = json.loads(
+                    (run_directory / "irc_summary.json").read_text(encoding="utf-8")
+                )
+                failure_stage = "endpoints"
+                endpoint_result = run_neb(
+                    start=input_paths["reactant"],
+                    end=input_paths["product"],
+                    stage="endpoints",
+                    **base,
+                )
+                stages["endpoints"] = endpoint_result
+                outcome = (
+                    "reaction_connected_success"
+                    if endpoint_result.get("reactant_product_connection_confirmed")
+                    is True
+                    else "first_order_saddle_wrong_connection"
+                )
+    except Exception as exc:  # Keep the failed job as an analyzable result.
+        error = f"{type(exc).__name__}: {exc}"
+        outcome = {
+            "ts": "optimizer_exception",
+            "frequency": "frequency_exception",
+            "relax": "endpoint_relaxation_exception",
+            "irc": "irc_exception",
+            "endpoints": "endpoint_validation_exception",
+        }.get(failure_stage, "optimizer_exception")
+    return (
+        stages,
+        outcome,
+        failure_stage,
+        error,
+        ts_result,
+        frequency_result,
+        endpoint_result,
+    )
+
+
+def _copy_benchmark_inputs(case, output_root, run_directory):
+    "Verify immutable input hashes before and after copying the benchmark geometries."
+    inputs = {
+        "ts_guess": _sha256(case.ts_guess),
+        "reference_ts": _sha256(case.reference_ts),
+    }
+    if case.reactant:
+        inputs["reactant"] = _sha256(case.reactant)
+        inputs["product"] = _sha256(case.product)
+    run_manifest = json.loads(
+        (output_root / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    expected_run = next(
+        item for item in run_manifest["expected_runs"] if item["case_id"] == case.id
+    )
+    if inputs != expected_run["input_hashes"]:
+        raise TSOptimizerBenchmarkError(
+            f"case {case.id!r} input files changed after the benchmark run manifest was created; "
+            "choose a fresh output directory"
+        )
+    run_directory.mkdir(parents=True, exist_ok=True)
+    input_paths = {}
+    for label, input_path in (
+        ("ts_guess", case.ts_guess),
+        ("reference_ts", case.reference_ts),
+        ("reactant", case.reactant),
+        ("product", case.product),
+    ):
+        if input_path is not None:
+            copied_path = run_directory / f"input_{label}.xyz"
+            shutil.copy2(input_path, copied_path)
+            input_paths[label] = copied_path
+            if _sha256(copied_path) != inputs[label]:
+                raise TSOptimizerBenchmarkError(
+                    f"case {case.id!r} input {label} changed while being copied; choose a fresh output directory"
+                )
+    return inputs, input_paths
+
+
 def _run_ts_optimizer_case_locked(benchmark, *, case_id, optimizer, output):
     """Run one optimizer for one manifest case and retain all workflow files."""
     spec = benchmark if isinstance(benchmark, TSOptimizerBenchmark) else load_ts_optimizer_benchmark(benchmark)
@@ -546,30 +737,7 @@ def _run_ts_optimizer_case_locked(benchmark, *, case_id, optimizer, output):
             f"run directory already contains partial or uncollected artifacts: {run_directory}; "
             "choose a fresh output directory to preserve raw runs"
         )
-    inputs = {"ts_guess": _sha256(case.ts_guess), "reference_ts": _sha256(case.reference_ts)}
-    if case.reactant:
-        inputs["reactant"] = _sha256(case.reactant)
-        inputs["product"] = _sha256(case.product)
-    run_manifest = json.loads((output_root / "run_manifest.json").read_text(encoding="utf-8"))
-    expected_run = next(item for item in run_manifest["expected_runs"] if item["case_id"] == case.id)
-    if inputs != expected_run["input_hashes"]:
-        raise TSOptimizerBenchmarkError(
-            f"case {case.id!r} input files changed after the benchmark run manifest was created; "
-            "choose a fresh output directory"
-        )
-    run_directory.mkdir(parents=True, exist_ok=True)
-    input_paths = {}
-    for label, input_path in (("ts_guess", case.ts_guess), ("reference_ts", case.reference_ts),
-                              ("reactant", case.reactant), ("product", case.product)):
-        if input_path is not None:
-            copied_path = run_directory / f"input_{label}.xyz"
-            shutil.copy2(input_path, copied_path)
-            input_paths[label] = copied_path
-            if _sha256(copied_path) != inputs[label]:
-                raise TSOptimizerBenchmarkError(
-                    f"case {case.id!r} input {label} changed while being copied; choose a fresh output directory"
-                )
-
+    inputs, input_paths = _copy_benchmark_inputs(case, output_root, run_directory)
     guess_symbols, _, _ = read_xyz(input_paths["ts_guess"])
     reference_symbols, reference_coordinates, _ = read_xyz(input_paths["reference_ts"])
     if guess_symbols != reference_symbols:
@@ -580,70 +748,7 @@ def _run_ts_optimizer_case_locked(benchmark, *, case_id, optimizer, output):
     base = _stage_arguments(spec, case, run_directory)
     runtime = _runtime_payload(spec.qc_model)
     settings = spec.settings
-    stages = {}
-    outcome = "optimizer_exception"
-    failure_stage = "ts"
-    error = None
-    ts_result = None
-    frequency_result = None
-    endpoint_result = None
-    try:
-        ts_result = run_neb(
-            ts_geometry=input_paths["ts_guess"], stage="ts", ts_optimizer=optimizer,
-            ts_fmax=settings["ts_fmax"], ts_max_cycles=settings["ts_max_cycles"],
-            **base,
-        )
-        stages["ts"] = ts_result
-        if ts_result.get("ts_optimization_converged") is not True:
-            outcome = "optimizer_not_converged"
-        else:
-            failure_stage = "frequency"
-            frequency_result = run_neb(
-                ts_geometry=run_directory / "ts_optimized.xyz", stage="frequency",
-                **base,
-            )
-            stages["frequency"] = frequency_result
-            if frequency_result.get("stationary") is not True:
-                outcome = "converged_not_stationary"
-            elif frequency_result.get("first_order_saddle_confirmed") is not True:
-                outcome = "stationary_not_first_order_saddle"
-            elif case.reactant is None:
-                outcome = "validated_first_order_saddle"
-            else:
-                failure_stage = "relax"
-                run_neb(
-                    start=input_paths["reactant"], end=input_paths["product"], stage="relax",
-                    **base,
-                )
-                stages["relax"] = json.loads(
-                    (run_directory / "relax_summary.json").read_text(encoding="utf-8")
-                )
-                failure_stage = "irc"
-                run_neb(stage="irc", **base)
-                stages["irc"] = json.loads(
-                    (run_directory / "irc_summary.json").read_text(encoding="utf-8")
-                )
-                failure_stage = "endpoints"
-                endpoint_result = run_neb(
-                    start=input_paths["reactant"], end=input_paths["product"], stage="endpoints",
-                    **base,
-                )
-                stages["endpoints"] = endpoint_result
-                outcome = (
-                    "reaction_connected_success"
-                    if endpoint_result.get("reactant_product_connection_confirmed") is True
-                    else "first_order_saddle_wrong_connection"
-                )
-    except Exception as exc:  # Keep the failed job as an analyzable result.
-        error = f"{type(exc).__name__}: {exc}"
-        outcome = {
-            "ts": "optimizer_exception",
-            "frequency": "frequency_exception",
-            "relax": "endpoint_relaxation_exception",
-            "irc": "irc_exception",
-            "endpoints": "endpoint_validation_exception",
-        }.get(failure_stage, "optimizer_exception")
-
+    stages, outcome, failure_stage, error, ts_result, frequency_result, endpoint_result = _execute_benchmark_stages(base, settings, case, run_directory, input_paths, optimizer)
     ts_summary = _read_summary(run_directory, "ts")
     reference_rmsd = None
     energy_difference = None
@@ -787,6 +892,74 @@ def _pair_identity_matches(result, expected, run_manifest, case_id, optimizer):
     )
 
 
+def _paired_cost_differences(
+    identity_matches, geometric, sella, g_evals, s_evals, g_wall, s_wall
+):
+    """Withhold every paired cost delta unless identity and numeric evidence match."""
+    return {
+        "total_evaluation_difference_geometric_minus_sella": (
+            g_evals - s_evals
+            if identity_matches
+            and isinstance(g_evals, int)
+            and isinstance(s_evals, int)
+            else None
+        ),
+        "ts_wall_difference_seconds_geometric_minus_sella": (
+            float(g_wall) - float(s_wall)
+            if identity_matches
+            and isinstance(g_wall, (int, float))
+            and isinstance(s_wall, (int, float))
+            else None
+        ),
+        "ts_evaluation_difference_geometric_minus_sella": (
+            geometric.get("ts_backend_energy_gradient_evaluations")
+            - sella.get("ts_backend_energy_gradient_evaluations")
+            if identity_matches
+            and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
+            and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int)
+            else None
+        ),
+        "validation_evaluation_difference_geometric_minus_sella": (
+            geometric.get("validation_backend_energy_gradient_evaluations")
+            - sella.get("validation_backend_energy_gradient_evaluations")
+            if identity_matches
+            and isinstance(
+                geometric.get("validation_backend_energy_gradient_evaluations"), int
+            )
+            and isinstance(
+                sella.get("validation_backend_energy_gradient_evaluations"), int
+            )
+            else None
+        ),
+        "validation_wall_difference_seconds_geometric_minus_sella": (
+            float(geometric.get("validation_wall_seconds"))
+            - float(sella.get("validation_wall_seconds"))
+            if identity_matches
+            and isinstance(geometric.get("validation_wall_seconds"), (int, float))
+            and isinstance(sella.get("validation_wall_seconds"), (int, float))
+            else None
+        ),
+        "validation_hessian_evaluation_difference_geometric_minus_sella": (
+            geometric.get("validation_hessian_evaluations")
+            - sella.get("validation_hessian_evaluations")
+            if identity_matches
+            and isinstance(geometric.get("validation_hessian_evaluations"), int)
+            and isinstance(sella.get("validation_hessian_evaluations"), int)
+            else None
+        ),
+        "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
+            float(geometric.get("validation_hessian_wall_seconds"))
+            - float(sella.get("validation_hessian_wall_seconds"))
+            if identity_matches
+            and isinstance(
+                geometric.get("validation_hessian_wall_seconds"), (int, float)
+            )
+            and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float))
+            else None
+        ),
+    }
+
+
 def _paired_result_row(expected, run_manifest, geometric, sella):
     """Build one comparable row, withholding deltas for mismatched evidence."""
     case_id = expected["case_id"]
@@ -810,46 +983,7 @@ def _paired_result_row(expected, run_manifest, geometric, sella):
         "geometric_success": g_success,
         "sella_success": s_success,
         "discordant_success": g_success != s_success if identity_matches else None,
-        "total_evaluation_difference_geometric_minus_sella": (
-            g_evals - s_evals if identity_matches and isinstance(g_evals, int)
-            and isinstance(s_evals, int) else None
-        ),
-        "ts_wall_difference_seconds_geometric_minus_sella": (
-            float(g_wall) - float(s_wall) if identity_matches
-            and isinstance(g_wall, (int, float)) and isinstance(s_wall, (int, float)) else None
-        ),
-        "ts_evaluation_difference_geometric_minus_sella": (
-            geometric.get("ts_backend_energy_gradient_evaluations")
-            - sella.get("ts_backend_energy_gradient_evaluations")
-            if identity_matches and isinstance(geometric.get("ts_backend_energy_gradient_evaluations"), int)
-            and isinstance(sella.get("ts_backend_energy_gradient_evaluations"), int) else None
-        ),
-        "validation_evaluation_difference_geometric_minus_sella": (
-            geometric.get("validation_backend_energy_gradient_evaluations")
-            - sella.get("validation_backend_energy_gradient_evaluations")
-            if identity_matches and isinstance(geometric.get("validation_backend_energy_gradient_evaluations"), int)
-            and isinstance(sella.get("validation_backend_energy_gradient_evaluations"), int) else None
-        ),
-        "validation_wall_difference_seconds_geometric_minus_sella": (
-            float(geometric.get("validation_wall_seconds"))
-            - float(sella.get("validation_wall_seconds"))
-            if identity_matches
-            and isinstance(geometric.get("validation_wall_seconds"), (int, float))
-            and isinstance(sella.get("validation_wall_seconds"), (int, float)) else None
-        ),
-        "validation_hessian_evaluation_difference_geometric_minus_sella": (
-            geometric.get("validation_hessian_evaluations")
-            - sella.get("validation_hessian_evaluations")
-            if identity_matches and isinstance(geometric.get("validation_hessian_evaluations"), int)
-            and isinstance(sella.get("validation_hessian_evaluations"), int) else None
-        ),
-        "validation_hessian_wall_difference_seconds_geometric_minus_sella": (
-            float(geometric.get("validation_hessian_wall_seconds"))
-            - float(sella.get("validation_hessian_wall_seconds"))
-            if identity_matches
-            and isinstance(geometric.get("validation_hessian_wall_seconds"), (int, float))
-            and isinstance(sella.get("validation_hessian_wall_seconds"), (int, float)) else None
-        ),
+        **_paired_cost_differences(identity_matches, geometric, sella, g_evals, s_evals, g_wall, s_wall),
         "pair_status": "paired" if identity_matches else "incomplete_or_mismatched",
     }
 
