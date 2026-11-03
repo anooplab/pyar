@@ -17,13 +17,14 @@ def write_disconnected_reference(molecule, path, separation=100.0):
     reference.mol_to_xyz(path)
 
 
-def molecule_identity_from_xyz(xyzfile):
+def molecule_identity_from_xyz(xyzfile, *, directory=None):
     """Return the OpenBabel identity for an XYZ file."""
-    result = OpenBabelIdentityProvider().identify(xyzfile)
+    options = {'directory': directory} if directory is not None else {}
+    result = OpenBabelIdentityProvider().identify(xyzfile, **options)
     return {"inchi": result.inchi, "smiles": result.smiles}
 
 
-def separated_reactant_identity(reactant_a, reactant_b):
+def separated_reactant_identity(reactant_a, reactant_b, *, directory=None):
     """Return the identity of the original reactants as separated fragments."""
     reference = reactant_a + reactant_b
     handle = tempfile.NamedTemporaryFile(suffix=".xyz", delete=False)
@@ -31,7 +32,8 @@ def separated_reactant_identity(reactant_a, reactant_b):
     handle.close()
     try:
         write_disconnected_reference(reference, reference_path)
-        return molecule_identity_from_xyz(reference_path)
+        options = {'directory': directory} if directory is not None else {}
+        return molecule_identity_from_xyz(reference_path, **options)
     finally:
         try:
             os.unlink(reference_path)

@@ -113,7 +113,7 @@ def _write_input(path, atoms, coordinates, charge, multiplicity, scftype, qc_par
 
 def load_orca_bond_scan_result(molecule, request, directory, *, publish=True):
     """Recover and validate a completed scan from its retained ORCA files."""
-    directory = Path(directory)
+    directory = Path(directory).resolve()
     input_path = directory / "scan.inp"
     output_path = directory / "scan.out"
     trajectory_path = directory / "scan.allxyz"
@@ -175,7 +175,7 @@ def load_orca_bond_scan_result(molecule, request, directory, *, publish=True):
 
 def run_orca_bond_scan(molecule, request, directory, qc_params):
     """Run one ORCA relaxed scan and recover its final trajectory frame."""
-    directory = Path(directory)
+    directory = Path(directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
     input_path = directory / "scan.inp"
     output_path = directory / "scan.out"
@@ -187,12 +187,8 @@ def run_orca_bond_scan(molecule, request, directory, qc_params):
         executable = require_executable("orca", "ORCA")
     except FileNotFoundError:
         return OrcaBondScanResult(False, None, None, None, input_path, output_path, "orca_missing")
-    old_cwd = Path.cwd()
-    try:
-        os.chdir(directory)
-        status = run_command([executable, input_path.name], stdout_path=output_path.name, stderr_path=output_path.name)
-    finally:
-        os.chdir(old_cwd)
+    status = run_command([executable, input_path.name], stdout_path=output_path.name,
+                         stderr_path=output_path.name, cwd=directory)
     if status != 0:
         return OrcaBondScanResult(False, None, None, None, input_path, output_path, "orca_failed")
     return load_orca_bond_scan_result(molecule, request, directory)

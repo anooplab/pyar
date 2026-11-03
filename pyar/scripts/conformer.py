@@ -72,6 +72,7 @@ def main(argv=None, *, prog=None):
     args = parser.parse_args(argv)
     try:
         from pyar.dependencies import require_workflow
+
         require_workflow('conformer')
         request, options, molecule = resolve_request(args)
         qc = dict(request.backend_parameters)
@@ -88,9 +89,15 @@ def main(argv=None, *, prog=None):
                         ('Multiplicity', request.multiplicity)])
             return
         started_run()
-        result = workflow.conformer_search(args.input, **options)
-    except (ValueError, OSError, ImportError, ConformerRequestError,
-            workflow.ConformerWorkflowError, BackendExecutionError) as exc:
+        result = workflow.run_conformer_search(request)
+    except (
+        ValueError,
+        OSError,
+        ImportError,
+        ConformerRequestError,
+        workflow.ConformerWorkflowError,
+        BackendExecutionError,
+    ) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Conformer search {result.status}.\nSelected conformers: {len(result.selected_paths)}\nRun directory: {result.run_directory}')

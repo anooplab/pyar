@@ -17,6 +17,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendConvergenceError, BackendExecutionError, BackendGeometryError, BackendGradientError, BackendSCFError
 import datetime
 import glob
 import logging
@@ -101,17 +103,9 @@ class Turbomole(SF):
         self.functional = turbomole_functional(self.method)
         self.gamma = resolve_gamma(qc_params.get('gamma'))
 
+    @backend_operation
     def optimize(self):
-        """This is the python implementation  of jobex of turbomole
-
-        :returns: Union(True,
-                  'SCFFailed',
-                  'GradFailed',
-                  'UpdateFailed',
-                  'CycleExceeded',
-                  False)
-
-        """
+        """Optimize geometry; return True or raise a typed backend error."""
         # max_cycles = options['opt_cycles']
         # convergence = options['opt_threshold']
 
@@ -140,7 +134,7 @@ class Turbomole(SF):
                                             func=functional)
         if define_status is False:
             turbomole_logger.debug('Initial Define failed again. Quit')
-            return 'UpdateFailed'
+            raise BackendGeometryError("turbomole: UpdateFailed")
 
         if self.gamma is None:
             return self.run_turbomole_jobex(max_cycles=max_cycles)
@@ -148,7 +142,7 @@ class Turbomole(SF):
         # Test for Turbomole input
         if not os.path.isfile('control'):
             turbomole_logger.critical("Turbomole control file should exist")
-            return False
+            raise BackendExecutionError("turbomole optimization failed; inspect the retained backend output")
 
         with open('not.converged', 'w') as fp:
             fp.write('$convcrit\n')
@@ -171,7 +165,7 @@ class Turbomole(SF):
         initial_status, initial_energy = calc_energy()
         if initial_status is False:
             turbomole_logger.warning('Initial energy evaluation failed.')
-            return 'SCFFailed'
+            raise BackendSCFError("turbomole: SCFFailed")
 
         turbomole_logger.debug('First step: %s, %f' % (initial_status, initial_energy))
         # The energy file is rewritten with the AFIR term for statpt; report the
@@ -183,7 +177,7 @@ class Turbomole(SF):
             gradient_status = calc_gradients()
             if gradient_status is False:
                 turbomole_logger.error('Gradient evaluation failed in cycle %d' % cycle)
-                return 'GradFailed'
+                raise BackendGradientError("turbomole: GradFailed")
 
             for line in open('gradient').readlines():
                 if 'cycle' in line:
@@ -205,7 +199,7 @@ class Turbomole(SF):
             if update_status is False:
                 turbomole_logger.critical('Coordinate update failed in cycle %d' % cycle)
                 turbomole_logger.critical('Check the job in %s' % os.getcwd())
-                return 'UpdateFailed'
+                raise BackendGeometryError("turbomole: UpdateFailed")
 
             convergence_status = check_geometry_convergence()
             if convergence_status is True:
@@ -221,7 +215,7 @@ class Turbomole(SF):
             scf_status, energy = calc_energy()
             if scf_status is False:
                 turbomole_logger.critical('Energy evaluation failed in cycle %d' % cycle)
-                return 'SCFFailed'
+                raise BackendSCFError("turbomole: SCFFailed")
             scf_energy = energy
 
             with open('energy.dat', 'a') as fe:
@@ -237,22 +231,11 @@ class Turbomole(SF):
 
             self.energy = scf_energy
             self.optimized_coordinates = bohr2angstrom(get_coords())
-            return 'CycleExceeded'
+            raise BackendConvergenceError("turbomole: CycleExceeded", usable_geometry=True)
 
+    @backend_operation
     def run_turbomole_jobex(self, max_cycles=350):
-        """
-        Run a turbomole optimisation.
-
-        return one of the following:
-        True: converged
-        SCFFailed
-        GradFailed
-        UpdateFailed
-        CycleExceeded
-        False: unknown error or jebex execution error
-
-        :rtype: string or boolean
-        """
+        """Run jobex; raise typed SCF, gradient, geometry or convergence errors."""
         with open('jobex.out', 'w') as fj:
             try:
                 subp.check_call(['jobex', '-ri', '-c', str(max_cycles)], stdout=fj,
@@ -260,36 +243,36 @@ class Turbomole(SF):
             except subp.CalledProcessError as e:
                 turbomole_logger.debug('jobex failed, check %s/jobex.out'
                                        % os.getcwd())
-                return False
+                raise BackendExecutionError("turbomole optimization failed; inspect the retained backend output")
 
         if os.path.isfile('GEO_OPT_FAILED'):
             message = open('GEO_OPT_FAILED').read()
             if 'ERROR: Module' in message:
                 turbomole_logger.debug('Error in module!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
-                return False
+                raise BackendExecutionError("turbomole optimization failed; inspect the retained backend output")
             elif 'ERROR in statpt step,' in message:
                 turbomole_logger.debug('Statpt failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
-                return 'UpdateFailed'
+                raise BackendGeometryError("turbomole: UpdateFailed")
             elif 'ERROR in relax step,' in message:
                 turbomole_logger.debug('Relax failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
-                return 'UpdateFailed'
+                raise BackendGeometryError("turbomole: UpdateFailed")
             elif 'ERROR: your energy calculation did not converge !!,' in message:
                 turbomole_logger.debug('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
-                return 'SCFFailed'
+                raise BackendSCFError("turbomole: SCFFailed")
             elif 'ERROR in dscf step' in message:
                 turbomole_logger.debug('SCF failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
-                return 'SCFFailed'
+                raise BackendSCFError("turbomole: SCFFailed")
             elif 'ERROR in gradient step' in message:
                 turbomole_logger.debug('Gradient failed!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
-                return 'GradientFailed'
+                raise BackendGradientError("turbomole: GradientFailed")
             elif 'OPTIMIZATION DID NOT CONVERGE' in message:
                 turbomole_logger.debug('Geometry did not converge in %d cycles.\ncheck %s' % (max_cycles, os.getcwd()))
                 self.energy = get_energy()
                 self.optimized_coordinates = bohr2angstrom(get_coords())
-                return 'CycleExceeded'
+                raise BackendConvergenceError("turbomole: CycleExceeded", usable_geometry=True)
             else:
                 turbomole_logger.debug('Unknown Error!\n chcek the files in %s' % os.getcwd())
-                return False
+                raise BackendExecutionError("turbomole optimization failed; inspect the retained backend output")
 
         elif os.path.isfile('GEO_OPT_CONVERGED'):
 

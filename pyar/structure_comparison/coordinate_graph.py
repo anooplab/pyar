@@ -7,6 +7,7 @@ identity assignment.
 """
 
 from __future__ import annotations
+from pyar.constants import GRAPH_BOND_FACTOR
 
 from collections import Counter
 
@@ -16,7 +17,7 @@ import numpy as np
 from pyar.data import new_atomic_data
 
 
-def infer_coordinate_graph(molecule, *, model="covalent-radii", scale=1.15, cutoff=None):
+def infer_coordinate_graph(molecule, *, model="covalent-radii", scale=GRAPH_BOND_FACTOR, cutoff=None):
     """Infer an element-labelled adjacency graph from XYZ coordinates only.
 
     ``covalent-radii`` connects atom pairs within ``scale`` times the sum of
@@ -65,7 +66,7 @@ def infer_coordinate_graph(molecule, *, model="covalent-radii", scale=1.15, cuto
     return graph
 
 
-def analyze_coordinate_structure(molecule, *, model="covalent-radii", scale=1.15, cutoff=None):
+def analyze_coordinate_structure(molecule, *, model="covalent-radii", scale=GRAPH_BOND_FACTOR, cutoff=None):
     """Return a JSON-ready, charge- and bond-order-free structure summary."""
     graph = infer_coordinate_graph(molecule, model=model, scale=scale, cutoff=cutoff)
     components = [sorted(int(index) for index in component) for component in nx.connected_components(graph)]
@@ -102,7 +103,7 @@ def analyze_coordinate_structure(molecule, *, model="covalent-radii", scale=1.15
 
 
 def compare_coordinate_structures(
-    before, after, *, model="covalent-radii", scale=1.15, cutoff=None
+    before, after, *, model="covalent-radii", scale=GRAPH_BOND_FACTOR, cutoff=None
 ):
     """Compare coordinate-derived summaries without assuming atom mapping.
 
@@ -136,7 +137,7 @@ def compare_coordinate_structures(
 
 
 def analyze_growth_transition(
-    input_parts, output, *, model="covalent-radii", scale=1.15, cutoff=None
+    input_parts, output, *, model="covalent-radii", scale=GRAPH_BOND_FACTOR, cutoff=None
 ):
     """Summarize a growth step as input fragment graphs versus product graph."""
     input_parts = list(input_parts)

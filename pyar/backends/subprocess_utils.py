@@ -26,14 +26,17 @@ def _open_shared(stack, cache, path, mode):
     return cache[path]
 
 
-def run_command(command, stdout_path=None, stderr_path=None, stdin_path=None):
+def run_command(command, stdout_path=None, stderr_path=None, stdin_path=None, *, cwd=None):
     """Run a command and return its exit status.
 
     When stdout and stderr should go to the same file, pass the same path for
     both arguments.
     """
     command = _normalize_command(command)
-    cwd = os.getcwd()
+    cwd = os.path.abspath(cwd or os.getcwd())
+    stdout_path = os.path.join(cwd, stdout_path) if stdout_path is not None else None
+    stderr_path = os.path.join(cwd, stderr_path) if stderr_path is not None else None
+    stdin_path = os.path.join(cwd, stdin_path) if stdin_path is not None else None
     logger.debug(
         "running command=%s cwd=%s stdout=%s stderr=%s stdin=%s",
         command, cwd, stdout_path, stderr_path, stdin_path,
@@ -43,7 +46,7 @@ def run_command(command, stdout_path=None, stderr_path=None, stdin_path=None):
         stdout = _open_shared(stack, files, stdout_path, "w")
         stderr = _open_shared(stack, files, stderr_path, "w")
         stdin = _open_shared(stack, files, stdin_path, "r")
-        proc = subp.Popen(command, stdout=stdout, stderr=stderr, stdin=stdin)
+        proc = subp.Popen(command, stdout=stdout, stderr=stderr, stdin=stdin, cwd=cwd)
         proc.communicate()
         from pyar.recovery.observations import record_process
         record_process(command, proc.returncode)
@@ -57,7 +60,7 @@ def run_command(command, stdout_path=None, stderr_path=None, stdin_path=None):
         return proc.returncode
 
 
-def run_output(command, stderr_path=None):
+def run_output(command, stderr_path=None, *, cwd=None):
     """Run a command and return its stdout bytes.
 
     Raises:
@@ -65,12 +68,13 @@ def run_output(command, stderr_path=None):
             status.
     """
     command = _normalize_command(command)
-    cwd = os.getcwd()
+    cwd = os.path.abspath(cwd or os.getcwd())
+    stderr_path = os.path.join(cwd, stderr_path) if stderr_path is not None else None
     logger.debug("running command for output=%s cwd=%s stderr=%s", command, cwd, stderr_path)
     with ExitStack() as stack:
         files = {}
         stderr = _open_shared(stack, files, stderr_path, "w")
-        proc = subp.Popen(command, stdout=subp.PIPE, stderr=stderr)
+        proc = subp.Popen(command, stdout=subp.PIPE, stderr=stderr, cwd=cwd)
         stdout, _ = proc.communicate()
         if proc.returncode != 0:
             logger.error(

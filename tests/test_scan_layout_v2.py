@@ -8,7 +8,23 @@ import pytest
 from pyar.core.molecule import Molecule
 from pyar.persistence import read_json, sha256_file, write_json
 
+from workspace_support import in_test_workspace
+
 workflow = importlib.import_module('pyar.workflows.scan_bond')
+
+
+def _load_scan(orientation, request, directory, settings, *, software, previous_result, committed):
+    """Arrange only the run/orientation fields used by the loader boundary."""
+    from types import SimpleNamespace
+    run = SimpleNamespace(qc_params=settings, route=SimpleNamespace(software=software))
+    task = SimpleNamespace(molecule=orientation, paths=SimpleNamespace(scan_dir=directory),
+        recovered=workflow._RecoveredOrientation(previous_result, committed, False))
+    return workflow._load_or_execute_scan(run, task, request)
+
+
+def _legacy_scan_call(*args, **kwargs):
+    bound = workflow._SCAN_SIGNATURE.bind(*args, **kwargs)
+    return workflow._run_scan_bond(workflow._scan_options(bound.arguments))
 
 
 @pytest.mark.parametrize(
@@ -50,7 +66,7 @@ def test_scan_loader_reuses_valid_cached_result(tmp_path, monkeypatch):
     monkeypatch.setattr(stages, 'scan_diagnostic', lambda *args: {'stage_gate': 'passed'})
     monkeypatch.setattr(stages, 'run_scan_once', lambda *args: pytest.fail('cached scan was rerun'))
 
-    result, error = workflow._load_or_execute_scan(
+    result, error = _load_scan(
         object(), object(), tmp_path, {}, software='orca',
         previous_result={'scan_status': 'success'}, committed=None,
     )
@@ -73,7 +89,7 @@ def test_scan_loader_reexecutes_invalid_cache_but_rejects_invalid_commit(tmp_pat
         return valid
 
     monkeypatch.setattr(stages, 'run_scan_once', run)
-    result, error = workflow._load_or_execute_scan(
+    result, error = _load_scan(
         object(), object(), tmp_path, {}, software='orca',
         previous_result={'scan_status': 'success'}, committed=None,
     )
@@ -84,7 +100,7 @@ def test_scan_loader_reexecutes_invalid_cache_but_rejects_invalid_commit(tmp_pat
     calls.clear()
     monkeypatch.setattr(workflow, 'load_orca_bond_scan_result', lambda *args, **kwargs: None)
     with pytest.raises(ValueError, match='Committed scan no longer passes'):
-        workflow._load_or_execute_scan(
+        _load_scan(
             object(), object(), tmp_path, {}, software='orca',
             previous_result={'scan_status': 'success'}, committed={'status': 'committed'},
         )
@@ -98,14 +114,14 @@ def test_scan_executor_preserves_backend_errors_and_returns_other_errors(tmp_pat
     failure = BackendExecutionError('native output invalid')
     monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(failure))
     with pytest.raises(BackendExecutionError, match='native output invalid'):
-        workflow._load_or_execute_scan(
+        _load_scan(
             object(), object(), tmp_path, {}, software='xtb',
             previous_result=None, committed=None,
         )
 
     ordinary_error = RuntimeError('recoverable scan exception')
     monkeypatch.setattr(stages, 'run_scan_once', lambda *args: (_ for _ in ()).throw(ordinary_error))
-    result, error = workflow._load_or_execute_scan(
+    result, error = _load_scan(
         object(), object(), tmp_path, {}, software='xtb',
         previous_result=None, committed=None,
     )
@@ -122,6 +138,7 @@ def test_scan_relaxation_uses_unbiased_retry_and_restores_cwd(tmp_path, monkeypa
     caller_cwd = Path.cwd()
     observations = []
 
+    @in_test_workspace
     def optimize(molecule, params, role):
         observations.append((Path.cwd(), params, role))
         target = Path('job_relaxed/result_relaxed.xyz')
@@ -146,6 +163,7 @@ def test_scan_relaxation_uses_unbiased_retry_and_restores_cwd(tmp_path, monkeypa
 def test_scan_relaxation_returns_generic_optimizer_error_and_restores_cwd(tmp_path, monkeypatch):
     caller_cwd = Path.cwd()
 
+    @in_test_workspace
     def optimize(*args):
         raise RuntimeError('optimizer failed')
 
@@ -164,6 +182,7 @@ def test_scan_relaxation_propagates_backend_error_and_restores_cwd(tmp_path, mon
 
     caller_cwd = Path.cwd()
 
+    @in_test_workspace
     def optimize(*args):
         raise BackendExecutionError('backend failed')
 
@@ -174,7 +193,7 @@ def test_scan_relaxation_propagates_backend_error_and_restores_cwd(tmp_path, mon
 
 
 def test_scan_relaxation_rejects_success_without_geometry(tmp_path, monkeypatch):
-    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: True)
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args, **kwargs: True)
     status, succeeded, error = workflow._relax_scan_endpoint(
         object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
     )
@@ -184,7 +203,7 @@ def test_scan_relaxation_rejects_success_without_geometry(tmp_path, monkeypatch)
 
 
 def test_scan_relaxation_preserves_non_success_status(tmp_path, monkeypatch):
-    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args: False)
+    monkeypatch.setattr(workflow, '_optimize_with_diagnostics', lambda *args, **kwargs: False)
     assert workflow._relax_scan_endpoint(
         object(), {}, 'xtb', tmp_path / 'relax', tmp_path,
     ) == (False, False, None)
@@ -266,6 +285,7 @@ def scan_run(tmp_path, monkeypatch):
     monkeypatch.setattr(workflow, 'separated_reactant_identity', lambda *args: None)
     monkeypatch.setattr('pyar.backends.orca_scan.require_executable', lambda *args: 'orca')
     calls = []
+    @in_test_workspace
     def execute(command, stdout_path=None, stderr_path=None):
         calls.append(command)
         Path(stdout_path).write_text('****ORCA TERMINATED NORMALLY****\n')
@@ -275,7 +295,7 @@ def scan_run(tmp_path, monkeypatch):
     monkeypatch.setattr('pyar.backends.orca_scan.run_command', execute)
     root = tmp_path / 'scan'
     def run(through='scan', legacy=False, **options):
-        function = workflow._run_scan_bond if legacy else workflow.run_scan_bond
+        function = _legacy_scan_call if legacy else workflow.run_scan_bond
         target = root.with_name('legacy') if legacy else root
         return function(a, b, (0, 0), 1, {'software':'orca', 'method':'BP86', 'basis':'def2-SVP'},
                                       target, scan_end=1., scan_points=2, through=through, **options)
@@ -416,6 +436,7 @@ def test_free_relaxation_commit_survives_progress_loss(scan_run, monkeypatch):
     from pyar.backends import write_xyz
     root, run, calls = scan_run
     optimizations = []
+    @in_test_workspace
     def optimize(molecule, parameters):
         optimizations.append(parameters)
         destination = Path('job_relaxed/result_relaxed.xyz')
@@ -543,6 +564,7 @@ def test_v2_scan_products_are_grouped_deterministically_without_path_execution(t
         return OrcaBondScanResult(True, trajectory, final, frames[-1][1], scan_input,
                                   scan_output, 'success', frames=frames, profile=profile)
 
+    @in_test_workspace
     def fake_optimize(molecule, qc_params):
         orientation = next(int(part.rsplit('_', 1)[1]) for part in Path.cwd().parts
                            if part.startswith('orientation_'))
@@ -641,6 +663,7 @@ def test_unique_product_characterization_uses_one_scan_seeded_path_and_reuses_sc
     from pyar.backends import write_xyz
     root, run, scan_calls = scan_run
     relax_calls = []
+    @in_test_workspace
     def optimize(molecule, parameters):
         relax_calls.append(1)
         destination = Path('job_relaxed/result_relaxed.xyz')
@@ -694,6 +717,7 @@ def test_unique_product_characterization_uses_one_scan_seeded_path_and_reuses_sc
 def test_unique_product_mode_with_no_product_skips_path_service(scan_run, monkeypatch):
     from pyar.backends import write_xyz
     root, run, scan_calls = scan_run
+    @in_test_workspace
     def optimize(molecule, parameters):
         destination = Path('job_relaxed/result_relaxed.xyz')
         destination.parent.mkdir()
@@ -750,6 +774,7 @@ def test_recovered_orientation_adds_immutable_membership_and_preserves_old_path(
                                           'success', frames=frames, profile=profile)
         return cached[index]
 
+    @in_test_workspace
     def relax(molecule, params):
         index = next(int(part.rsplit('_', 1)[1]) for part in Path.cwd().parts
                      if part.startswith('orientation_'))

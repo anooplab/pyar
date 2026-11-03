@@ -47,11 +47,11 @@ def prepare_request(molecule, settings, policy):
     return request
 
 
-def preflight_recovery(molecules, settings, policy, *, resume=False):
+def preflight_recovery(molecules, settings, policy, *, resume=False, directory=None):
     """No directories, locks, files, backend construction or subprocess execution."""
     requests = [prepare_request(mol, settings, policy) for mol in molecules]
     for request in requests:
-        root = safe_path(Path.cwd(), 'job_' + request.name)
+        root = safe_path(Path(directory or Path.cwd()).resolve(), "job_" + request.name)
         if root.exists():
             if not resume:
                 raise ValueError('Existing job directory; use explicit --recovery-resume for an ORE run')
@@ -146,9 +146,17 @@ def _validated_result(request, directory, value):
 
 def _execute_attempt(directory, timeout):
     """Walltime cap covers the complete process group, including backend children."""
-    with (directory / 'worker.out').open('x') as stream:
-        process = subprocess.Popen([sys.executable, '-m', 'pyar.recovery.worker'], cwd=directory,
-            stdout=stream, stderr=subprocess.STDOUT, start_new_session=True)
+    from pyar.directory_execution import worker_environment
+
+    with (directory / "worker.out").open("x") as stream:
+        process = subprocess.Popen(
+            [sys.executable, "-m", "pyar.recovery.worker"],
+            cwd=directory,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+            env=worker_environment(),
+        )
         try:
             return process.wait(timeout=timeout)
         except BaseException:
@@ -186,12 +194,30 @@ def _validate_and_commit_attempt(current, backend, result_path, commit_path, int
     return result
 
 
-def run_recovery(molecule, settings, policy=RecoveryPolicy(), *, resume=False, recover_lock=False):
-    if policy.mode == 'off':
+def run_recovery(
+    molecule,
+    settings,
+    policy=RecoveryPolicy(),
+    *,
+    resume=False,
+    recover_lock=False,
+    directory=None,
+):
+    if policy.mode == "off":
         from pyar.optimization_service import optimize_once
-        return RecoveryReport(optimize_once(molecule, settings), policy, 'recovery_off', 0, 0, 0.)
-    request = preflight_recovery([molecule], settings, policy, resume=resume)[0]
-    root = safe_path(Path.cwd(), 'job_' + request.name)
+
+        return RecoveryReport(
+            optimize_once(molecule, settings, directory=directory),
+            policy,
+            "recovery_off",
+            0,
+            0,
+            0.0,
+        )
+    request = preflight_recovery(
+        [molecule], settings, policy, resume=resume, directory=directory
+    )[0]
+    root = safe_path(Path(directory or Path.cwd()).resolve(), "job_" + request.name)
     with RunLock(root, recover_stale=recover_lock):
         if root.exists() and not resume:
             raise ValueError('Job directory appeared before execution')

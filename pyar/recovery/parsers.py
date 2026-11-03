@@ -3,6 +3,7 @@
 Only documented success/limit/error markers are classified. Unknown versions or
 incomplete evidence cannot certify convergence. No remedy is selected here.
 """
+from pyar.constants import BOHR_ANGSTROM_CODATA, HARTREE_EV
 from dataclasses import dataclass, replace
 import math
 import re
@@ -174,7 +175,7 @@ def _geometric(request, path):
     if not steps or abs(steps[-1].effective_energy_hartree - effective) > 5.1e-8:
         raise ValueError('Missing matching optimizer energy/gradient observation')
     # CODATA unit conversion; tolerate the optimizer log's four-digit rounding.
-    gradient_norms = [math.sqrt(sum(x*x for x in force)) * 0.529177210903 / 27.211386245988 for force in forces]
+    gradient_norms = [math.sqrt(sum(x*x for x in force)) * BOHR_ANGSTROM_CODATA / HARTREE_EV for force in forces]
     actual_rms = math.sqrt(sum(g*g for g in gradient_norms) / len(gradient_norms))
     actual_max = max(gradient_norms)
     if not all(math.isclose(actual, logged, rel_tol=6e-4, abs_tol=6e-8) for actual,logged in

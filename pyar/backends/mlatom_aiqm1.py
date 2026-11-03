@@ -1,4 +1,6 @@
 """MLatom AIQM1 backend implementation."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import logging  # noqa: F401
 import numpy as np
@@ -49,6 +51,7 @@ class MlatomAiqm1(SF):
 
 
 
+    @backend_operation
     def optimize(self):
         self.prepare_input()
         try:
@@ -66,7 +69,7 @@ class MlatomAiqm1(SF):
             # Check if the file exists
             if not os.path.isfile(self.out_file):
                 mlatom_logger.info("Error: File does not exist.")
-                return None
+                raise BackendExecutionError("mlatom_aiqm1 optimization failed; inspect the retained backend output")
 
             file_pointer = open(self.out_file, "r")
             this_line = file_pointer.readlines()
@@ -90,11 +93,11 @@ class MlatomAiqm1(SF):
                 mlatom_logger.info("Error: OPTIMIZATION PROBABLY FAILED.")
                 mlatom_logger.info("Last line in log file: {}".format(this_line[-1]))
                 mlatom_logger.info("Location: {}".format(os.getcwd()))
-                return None
+                raise BackendExecutionError("mlatom_aiqm1 optimization failed; inspect the retained backend output")
 
         except Exception as e:
             mlatom_logger.info('    Optimization failed: %s', e)
-            return None
+            raise BackendExecutionError("mlatom_aiqm1 optimization failed; inspect the retained backend output")
 
 
 

@@ -6,6 +6,8 @@ import random
 import shutil
 from unittest.mock import patch
 
+from workspace_support import working_directory
+
 import numpy as np
 import pytest
 
@@ -25,7 +27,7 @@ def inputs():
 
 def run(function, directory, **extra):
     directory.mkdir()
-    with workflow._working_directory(directory):
+    with working_directory(directory):
         random.seed(21); np.random.seed(21)
         return function(inputs(), [1,2], 4, {}, 2, 0, 2, None,
                         connectivity_policy='off', selection_feature='distance-histogram', **extra)
@@ -51,7 +53,7 @@ def test_real_science_preserves_source_order_names_groups_and_geometry(tmp_path,
     for artifact, raw in zip(manifest['artifacts'], old_bytes):
         assert (Path(new.run_directory) / artifact['path']).read_bytes() == raw
     assert (Path(old.run_directory) / 'layout.json').exists()
-    with workflow._working_directory(tmp_path / 'new'):
+    with working_directory(tmp_path / 'new'):
         with pytest.raises(AggregateStateError, match='already'):
             workflow.aggregate(inputs(), [1,2], 4, {}, 2, 0, 2, None,
                 connectivity_policy='off', selection_feature='distance-histogram')
@@ -67,7 +69,7 @@ def test_interrupted_path_reuses_verified_addition(tmp_path, monkeypatch):
         if len(calls) == 2:
             raise RuntimeError('interrupt second addition')
         return original(*args, **kwargs)
-    with workflow._working_directory(root):
+    with working_directory(root):
         monkeypatch.setattr(workflow, 'add_one', interrupt)
         with pytest.raises(RuntimeError, match='second addition'):
             workflow.aggregate(inputs(), [1,2], 4, {}, 2, 0, 2, None,
@@ -88,7 +90,7 @@ def test_legacy_fixture_resumes_original_state_without_conversion(tmp_path):
     molecules = [Molecule(['H'], [[0,0,0]], name=name) for name in ('input_a','input_b')]
     for molecule in molecules:
         molecule.fragments = [0]
-    with workflow._working_directory(root), patch.object(workflow, 'add_one', return_value=[]) as engine:
+    with working_directory(root), patch.object(workflow, 'add_one', return_value=[]) as engine:
         from pyar.persistence import LayoutError
         with pytest.raises(LayoutError, match='original PyAR'):
             workflow.aggregate(molecules, [1,1], 2, {'software':None}, 2, 0, 2, None)
@@ -121,7 +123,7 @@ def test_final_commit_can_be_adopted_after_progress_crash_without_reselection(tm
             failed.append(True)
             raise OSError('crash after final selection commit')
         save(state)
-    with workflow._working_directory(root):
+    with working_directory(root):
         monkeypatch.setattr(AggregateRunStateV2, 'save', crash)
         with pytest.raises(OSError, match='final selection'):
             workflow.aggregate(inputs(), [1,2], 4, {}, 2, 0, 2, None,

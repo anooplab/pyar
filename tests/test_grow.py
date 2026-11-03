@@ -13,6 +13,8 @@ from pyar.growth.service import select_geometry_only
 from pyar.state.grow import GrowStateError
 from pyar.workflows.grow import grow
 
+from pyar.growth.policy import GrowthPolicy, SelectionOptions
+
 workflow = importlib.import_module('pyar.workflows.grow')
 
 
@@ -86,7 +88,7 @@ def test_incompatible_restart(change, tmp_path):
 def test_geometry_service_bounded_without_energy(tmp_path, monkeypatch, distance):
     monkeypatch.chdir(tmp_path)
     pool = [Molecule(['H', 'H'], [[0, 0, 0], [0, 0, 1 + i]], name=str(i)) for i in range(8)]
-    result = select_geometry_only(pool, 3, feature='distance-histogram', distance=distance)
+    result = select_geometry_only(pool, GrowthPolicy(maximum_number_of_seeds=3, selection=SelectionOptions(feature='distance-histogram', distance=distance)))
     assert len(result) <= 3
     assert all(m.energy is None for m in pool)
     assert json.loads(Path('selection_diagnostics.json').read_text())['energy_ranked'] is False
@@ -201,14 +203,15 @@ def test_cumulative_electronic_states_reach_shared_engine(tmp_path):
     seed = Molecule(['H'], [[0, 0, 0]], name='seed', multiplicity=2)
     monomer = Molecule(['H'], [[0, 0, 0]], name='addend', charge=-1)
     request = GrowRequest(seed, monomer, 2, backend_parameters={'software': 'xtb', 'xtb_model': 'gfn2'})
-    def engine(aid, seeds, monomer, orientations, qc, *args, **kwargs):
+    def engine(aid, seeds, monomer, policy, *args, **kwargs):
+        qc = policy.qc_params
         result = added(seeds[0], monomer, 1)
         result.charge, result.multiplicity = qc['charge'], qc['multiplicity']
         return [result]
     with patch.object(workflow, 'add_one', side_effect=engine) as call:
         grow(request, output=tmp_path / 'grow')
-    assert [item.args[4]['charge'] for item in call.call_args_list] == [-1, -2]
-    assert all(item.args[4]['multiplicity'] == 2 for item in call.call_args_list)
+    assert [item.args[3].qc_params['charge'] for item in call.call_args_list] == [-1, -2]
+    assert all(item.args[3].qc_params['multiplicity'] == 2 for item in call.call_args_list)
     assert 'method' not in request.backend_parameters and 'basis' not in request.backend_parameters
 
 
@@ -233,7 +236,7 @@ def test_failed_comparison_conservatively_retains_geometry(tmp_path, monkeypatch
     monkeypatch.chdir(tmp_path)
     from pyar.structure_comparison import GraphFirstDeduplicationComparator
     with patch.object(GraphFirstDeduplicationComparator, 'compare', side_effect=RuntimeError('mapping failed')):
-        assert len(select_geometry_only([hydrogen('a'), hydrogen('b')], 3)) == 2
+        assert len(select_geometry_only([hydrogen('a'), hydrogen('b')], GrowthPolicy(maximum_number_of_seeds=3))) == 2
 
 
 def test_snapshot_tampering_rejects_restart(tmp_path):
@@ -274,6 +277,5 @@ def test_legacy_solvation_can_preserve_unbounded_geometry_generation(tmp_path, m
     from pyar.growth import service
     pool = [hydrogen(str(i)) for i in range(4)]
     with patch.object(service, 'generate_orientations', return_value=iter(pool)):
-        result = service.add_one('legacy', [hydrogen()], hydrogen(), 4, {}, 1, None,
-                                 connectivity_policy='off', bound_geometry_only=False)
+        result = service.add_one('legacy', [hydrogen()], hydrogen(), GrowthPolicy(4, {}, 1, None, 'off', SelectionOptions('auto', 'auto', 'euclidean', 'auto'), False))
     assert result == pool

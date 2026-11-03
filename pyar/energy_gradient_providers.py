@@ -1,6 +1,7 @@
 """Energy and gradient providers for geomeTRIC-compatible backends."""
 
 from __future__ import annotations
+from pyar.backend_errors import backend_operation
 
 import subprocess as subp
 import tempfile
@@ -141,6 +142,7 @@ class XtbEnergyGradientProvider:
         self.qc_params["xtb_model"] = self.xtb_model
         self._gxtb_support_by_executable = {}
 
+    @backend_operation
     def evaluate(self, molecule, coordinates_bohr):
         xtb_executable = require_executable("xtb", "xTB")
         if self.xtb_model == "gxtb":
@@ -231,6 +233,7 @@ class Aimnet2EnergyGradientProvider:
     def __init__(self, qc_params=None):
         self.qc_params = dict(qc_params or {})
 
+    @backend_operation
     def evaluate(self, molecule, coordinates_bohr):
         from pyar.backends.aimnet2ase import AIMNet2Calculator
         from pyar.backends.aimnet_2 import load_default_aimnet2_model
@@ -317,6 +320,7 @@ class GaussianEnergyGradientProvider:
                 fp.write(f" {symbol:>3}  {coord[0]:10.7f}  {coord[1]:10.7f} {coord[2]:10.7f}\n")
             fp.write("\n")
 
+    @backend_operation
     def evaluate(self, molecule, coordinates_bohr):
         """Run one Gaussian force job and parse the resulting gradient."""
         gaussian_executable = require_executable("g16", "Gaussian")
@@ -427,6 +431,7 @@ class OrcaEnergyGradientProvider:
                 fp.write(f" {symbol:>3}  {coord[0]:10.7f}  {coord[1]:10.7f} {coord[2]:10.7f}\n")
             fp.write("*\n")
 
+    @backend_operation
     def evaluate(self, molecule, coordinates_bohr):
         """Run one ORCA single-point calculation and parse its gradient."""
         orca_executable = require_executable("orca", "ORCA")

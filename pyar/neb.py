@@ -1,6 +1,7 @@
 """Unbiased geomeTRIC reaction-path stages with validated artifact handoff."""
 
 from __future__ import annotations
+from pyar.constants import BOND_DISTANCE_FACTOR
 
 import argparse
 import hashlib
@@ -591,7 +592,7 @@ def _validate_geodesic_options(tol, max_iter):
         raise ValueError("geodesic_max_iter must be a positive integer")
 
 
-def _bond_set(symbols, coordinates, scale=1.3):
+def _bond_set(symbols, coordinates, scale=BOND_DISTANCE_FACTOR):
     from pyar.data.new_atomic_data import covalent_radius
 
     return {
@@ -1685,7 +1686,7 @@ def _run_neb_in_directory(start, end, ts_guess, *, software, output="neb_run", i
 
 
 def run_neb(start=None, end=None, ts_guess=None, **kwargs):
-    """Isolate backend artifacts in output and restore cwd even on failure."""
+    """Isolate backend artifacts in a process-owned output directory."""
     stage = kwargs.get("stage", "all")
     path_seed = kwargs.get("path_seed")
     if stage in {"all", "neb"} and (ts_guess is None) == (path_seed is None):
@@ -1697,12 +1698,11 @@ def run_neb(start=None, end=None, ts_guess=None, **kwargs):
     if kwargs.get("ts_geometry") is not None:
         kwargs["ts_geometry"] = Path(kwargs["ts_geometry"]).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    previous = Path.cwd()
-    try:
-        os.chdir(output)
-        return _run_neb_in_directory(*paths, output=output, **kwargs)
-    finally:
-        os.chdir(previous)
+    from pyar.directory_execution import run_in_directory
+
+    return run_in_directory(
+        _run_neb_in_directory, *paths, output=output, directory=output, **kwargs
+    )
 
 
 def _build_parser():

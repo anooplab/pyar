@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
@@ -207,11 +208,60 @@ def _electronic_energetics(gates_passed, assignment, endpoint_stage, frequency,
     return energies
 
 
-def build_reaction_characterization_report(*, route_root, product, provenance,
-                                           path_result, route_result, alternatives,
-                                           reference_mode="minima", reactant_reference=None,
-                                           discovery=None, scan_evidence=None):
-    """Build a JSON-safe report; validated energetics require compatible gates."""
+@dataclass(frozen=True, slots=True)
+class CharacterizationInputs:
+    route_root: object
+    product: dict
+    provenance: dict
+    path_result: dict
+    route_result: dict
+    alternatives: list
+    reference_mode: str = "minima"
+    reactant_reference: dict | None = None
+    discovery: dict | None = None
+    scan_evidence: dict | None = None
+
+
+def _report_physical_settings_compatible(
+    stage_results, reference_mode, reactant_reference
+):
+    """Compare the existing stage/reference Hamiltonian fields without defaults drift."""
+    physical = [stage.get("qc_params") for stage in stage_results.values() if stage.get("qc_params")]
+    physical_compatible = bool(physical) and all(item == physical[0] for item in physical[1:])
+    if reference_mode == "separated-reactants" and reactant_reference:
+        reference_method = reactant_reference.get("request", {}).get("physical_method", {})
+        if physical:
+            stage_method = physical[0]
+            keys = ("software", "method", "basis", "xtb_model")
+            ref_settings = {key: reference_method.get(key) for key in keys}
+            stage_settings = {key: stage_method.get(key) for key in keys}
+            if str(ref_settings.get("software", "")).lower() == "xtb":
+                from pyar.backends.xtb_utils import canonical_xtb_model
+                ref_settings["xtb_model"] = canonical_xtb_model(ref_settings.get("xtb_model"))
+                stage_settings["xtb_model"] = canonical_xtb_model(stage_settings.get("xtb_model"))
+                ref_settings["method"] = stage_settings["method"] = None
+                ref_settings["basis"] = stage_settings["basis"] = None
+            physical_compatible = physical_compatible and ref_settings == stage_settings
+    return physical_compatible
+
+
+def build_reaction_characterization_report(inputs: CharacterizationInputs):
+    """Build a report from explicit evidence; scientific acceptance stays gated."""
+    route_root, product, provenance = (
+        inputs.route_root,
+        inputs.product,
+        inputs.provenance,
+    )
+    path_result, route_result, alternatives = (
+        inputs.path_result,
+        inputs.route_result,
+        inputs.alternatives,
+    )
+    reference_mode, reactant_reference = (
+        inputs.reference_mode,
+        inputs.reactant_reference,
+    )
+    discovery, scan_evidence = inputs.discovery, inputs.scan_evidence
     route_root = Path(route_root).resolve()
     execution = Path(path_result.get("execution_directory", route_root)).resolve()
     (stage_results, artifacts, evaluation_counts, optimizer_steps,
@@ -232,22 +282,9 @@ def build_reaction_characterization_report(*, route_root, product, provenance,
                      and sorted(assignment) == [0, 1])
     else:
         assignment = endpoint_stage.get("endpoint_assignment")
-    physical = [stage.get("qc_params") for stage in stage_results.values() if stage.get("qc_params")]
-    physical_compatible = bool(physical) and all(item == physical[0] for item in physical[1:])
-    if reference_mode == "separated-reactants" and reactant_reference:
-        reference_method = reactant_reference.get("request", {}).get("physical_method", {})
-        if physical:
-            stage_method = physical[0]
-            keys = ("software", "method", "basis", "xtb_model")
-            ref_settings = {key: reference_method.get(key) for key in keys}
-            stage_settings = {key: stage_method.get(key) for key in keys}
-            if str(ref_settings.get("software", "")).lower() == "xtb":
-                from pyar.backends.xtb_utils import canonical_xtb_model
-                ref_settings["xtb_model"] = canonical_xtb_model(ref_settings.get("xtb_model"))
-                stage_settings["xtb_model"] = canonical_xtb_model(stage_settings.get("xtb_model"))
-                ref_settings["method"] = stage_settings["method"] = None
-                ref_settings["basis"] = stage_settings["basis"] = None
-            physical_compatible = physical_compatible and ref_settings == stage_settings
+    physical_compatible = _report_physical_settings_compatible(
+        stage_results, reference_mode, reactant_reference
+    )
     saddle = frequency.get("first_order_saddle_confirmed") is True
     irc_ok = stage_results.get("irc", {}).get("irc_converged") is True
     endpoints_ok = endpoint_stage.get("endpoints_are_minima") is True

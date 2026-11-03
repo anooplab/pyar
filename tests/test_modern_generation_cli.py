@@ -46,11 +46,11 @@ assert not any(m in sys.modules for m in ['rdkit', 'ase', 'geometric', 'torch', 
 
 
 def test_minimal_aggregate(inputs):
-    with patch.object(aggregate, 'aggregate', return_value=result()) as engine, patch.object(aggregate, 'preflight') as preflight:
+    with patch.object(aggregate, 'run_aggregate', return_value=result()) as engine, patch.object(aggregate, 'preflight') as preflight:
         cli.main(['aggregate', *inputs])
-    args = engine.call_args.args
-    assert args[1:7] == ([1, 1], 8, {}, 8, 0, 10)
-    assert [m.charge for m in args[0]] == [0, 0]
+    request = engine.call_args.args[0]
+    assert (request.aggregate_sizes, request.orientations, request.backend_parameters, request.maximum_number_of_seeds, request.first_pathway, request.number_of_pathways) == ((1, 1), 8, {}, 8, 0, 10)
+    assert [m.charge for m in request.molecules] == [0, 0]
     preflight.assert_not_called()
 
 
@@ -58,9 +58,9 @@ def test_minimal_aggregate(inputs):
                                              (['C', 'H', '--size', '1', '4'], [1, 4]),
                                              (['--formula', 'CH4'], [1, 4])])
 def test_aggregate_compositions(inputs, arguments, sizes):
-    with patch.object(aggregate, 'aggregate', return_value=result()) as engine:
+    with patch.object(aggregate, 'run_aggregate', return_value=result()) as engine:
         cli.main(['aggregate', *arguments])
-    assert engine.call_args.args[1] == sizes
+    assert list(engine.call_args.args[0].aggregate_sizes) == sizes
 
 
 @pytest.mark.parametrize('arguments', [['a.xyz'], ['a.xyz', 'b.xyz', '--size', '2'],
@@ -68,7 +68,7 @@ def test_aggregate_compositions(inputs, arguments, sizes):
     ['a.xyz', 'b.xyz', '--orientations', '0'], ['a.xyz', 'b.xyz', '--selection-feature', 'invalid'],
     ['a.xyz', 'b.xyz', '--site', '-1', '0']])
 def test_aggregate_invalid(inputs, arguments):
-    with patch.object(aggregate, 'aggregate') as engine, pytest.raises(SystemExit) as exc:
+    with patch.object(aggregate, 'run_aggregate') as engine, pytest.raises(SystemExit) as exc:
         cli.main(['aggregate', *arguments])
     assert exc.value.code != 0
     engine.assert_not_called()
@@ -80,14 +80,15 @@ def test_selection_passthrough(inputs):
                '--connectivity-policy', 'off', '--selection-feature', 'distance-histogram',
                '--selection-algorithm', 'agglomerative', '--selection-distance', 'graph-rmsd',
                '--selection-system-type', 'molecular']
-    with patch.object(aggregate, 'aggregate', return_value=result()) as engine:
+    with patch.object(aggregate, 'run_aggregate', return_value=result()) as engine:
         cli.main(['aggregate', *inputs, *options])
-    assert engine.call_args.args[4:7] == (3, 1, 2)
-    assert engine.call_args.args[8:] == ('off', 'distance-histogram', 'agglomerative', 'graph-rmsd', 'molecular')
+    request = engine.call_args.args[0]
+    assert (request.maximum_number_of_seeds, request.first_pathway, request.number_of_pathways) == (3, 1, 2)
+    assert (request.connectivity_policy, request.selection_feature, request.selection_algorithm, request.selection_distance, request.selection_system_type) == ('off', 'distance-histogram', 'agglomerative', 'graph-rmsd', 'molecular')
 
 
 def test_minimal_grow(inputs):
-    with patch.object(grow, 'grow', return_value=result()) as engine, patch.object(grow, 'preflight') as preflight:
+    with patch.object(grow, 'run_grow', return_value=result()) as engine, patch.object(grow, 'preflight') as preflight:
         cli.main(['grow', *inputs, '--count', '4'])
     request = engine.call_args.args[0]
     assert (request.count, request.number_of_orientations, request.maximum_number_of_seeds) == (4, 8, 12)
@@ -98,7 +99,7 @@ def test_minimal_grow(inputs):
 
 @pytest.mark.parametrize('charges, states', [(['-1'], [-1, -1]), (['0', '-1'], [0, -1])])
 def test_grow_states_and_output(inputs, charges, states):
-    with patch.object(grow, 'grow', return_value=result()) as engine:
+    with patch.object(grow, 'run_grow', return_value=result()) as engine:
         cli.main(['grow', *inputs, '--count', '4', '--charge', *charges, '--output', 'custom', '--site', '0', '0'])
     request = engine.call_args.args[0]
     assert [request.seed.charge, request.monomer.charge] == states
@@ -110,7 +111,7 @@ def test_grow_states_and_output(inputs, charges, states):
 @pytest.mark.parametrize('options', [['--count', '0'], ['--count', '-1'], ['--count', '1', '--site', '0', '1'],
     ['--count', '1', '--multiplicity', '2'], ['--count', '1', '--charge', '0', '0', '0']])
 def test_grow_invalid(inputs, options):
-    with patch.object(grow, 'grow') as engine, pytest.raises(SystemExit) as exc:
+    with patch.object(grow, 'run_grow') as engine, pytest.raises(SystemExit) as exc:
         cli.main(['grow', *inputs, *options])
     assert exc.value.code != 0
     engine.assert_not_called()
@@ -120,12 +121,11 @@ def test_grow_invalid(inputs, options):
 @pytest.mark.parametrize('command', ['aggregate', 'grow', 'conformer'])
 def test_backend_policy(inputs, command):
     arguments = {'aggregate': inputs, 'grow': [*inputs, '--count', '4'], 'conformer': ['CCO']}[command]
-    module, target = {'aggregate': (aggregate, 'aggregate'), 'grow': (grow, 'grow'),
-                      'conformer': (conformer_workflow, 'conformer_search')}[command]
+    module, target = {'aggregate': (aggregate, 'run_aggregate'), 'grow': (grow, 'run_grow'),
+                      'conformer': (conformer_workflow, 'run_conformer_search')}[command]
     with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(module, target, return_value=result()) as engine:
         cli.main([command, *arguments, '--backend', 'xtb'])
-    qc = (engine.call_args.args[3] if command == 'aggregate' else engine.call_args.args[0].backend_parameters
-          if command == 'grow' else engine.call_args.kwargs['qc_params'])
+    qc = engine.call_args.args[0].backend_parameters
     assert qc['software'] == 'xtb' and qc['xtb_model'] == 'gfn2'
     assert qc['method'] is None and qc['basis'] is None
 
@@ -133,8 +133,8 @@ def test_backend_policy(inputs, command):
 @pytest.mark.parametrize('command', ['aggregate', 'grow', 'conformer'])
 def test_check_no_side_effects(inputs, command):
     arguments = {'aggregate': inputs, 'grow': [*inputs, '--count', '4'], 'conformer': ['CCO']}[command]
-    module, target = {'aggregate': (aggregate, 'aggregate'), 'grow': (grow, 'grow'),
-                      'conformer': (conformer_workflow, 'conformer_search')}[command]
+    module, target = {'aggregate': (aggregate, 'run_aggregate'), 'grow': (grow, 'run_grow'),
+                      'conformer': (conformer_workflow, 'run_conformer_search')}[command]
     before = set(Path('.').iterdir())
     with patch.object(module, target) as engine:
         cli.main([command, *arguments, '--check'])
@@ -144,7 +144,7 @@ def test_check_no_side_effects(inputs, command):
 
 def test_grow_check_exits_before_workflow(inputs):
     before = set(Path('.').iterdir())
-    with patch.object(grow, 'grow') as engine:
+    with patch.object(grow, 'run_grow') as engine:
         result = cli.main(['grow', *inputs, '--count', '4', '--check'])
     assert result is None
     engine.assert_not_called()
@@ -162,33 +162,33 @@ def test_backend_missing_fails_before_run(inputs, command, capsys):
 
 
 def test_conformer_defaults(inputs):
-    with patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch.object(conformer_workflow, 'run_conformer_search', return_value=result()) as engine:
         cli.main(['conformer', 'CCO'])
-    options = engine.call_args.kwargs
+    options = engine.call_args.args[0].to_state_dict()
     expected = dict(num_conformers=150, top_n=10, num_seeds=5, diversity_fraction=.2, compactness_fraction=.2,
                     rms_threshold=.25, use_random_coords=True, torsion_kicks=True, torsion_rounds=2,
                     torsion_kicks_per_conformer=6, torsion_max_bonds=3, torsion_dedup_rms=.5,
                     dedup_atom_mode='heavy', force_field='auto', seed=1, max_iterations=200)
     assert {key: options[key] for key in expected} == expected
-    assert options['qc_params'] is None
+    assert options['backend_parameters'] == {}
 
 
 def test_conformer_advanced_and_charged_input(inputs):
-    with patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch.object(conformer_workflow, 'run_conformer_search', return_value=result()) as engine:
         cli.main(['conformer', '[NH4+]', '--num-conformers', '20', '--num-seeds', '2', '--top-n', '3',
                          '--no-use-random-coords', '--no-torsion-kicks', '--torsion-rounds', '0', '--seed', '9'])
-    options = engine.call_args.kwargs
+    options = engine.call_args.args[0].to_state_dict()
     assert options['charge'] == 1 and options['multiplicity'] == 1
     assert (options['num_conformers'], options['num_seeds'], options['top_n'], options['seed']) == (20, 2, 3, 9)
     assert not options['torsion_kicks'] and not options['use_random_coords']
 
 
 def test_conformer_odd_spin_backend(inputs):
-    with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(conformer_workflow, 'conformer_search', return_value=result()) as engine:
+    with patch('pyar.cli_validation.shutil.which', return_value='/bin/xtb'), patch.object(conformer_workflow, 'run_conformer_search', return_value=result()) as engine:
         cli.main(['conformer', '[CH3]', '--backend', 'xtb'])
-    options = engine.call_args.kwargs
+    options = engine.call_args.args[0].to_state_dict()
     assert options['multiplicity'] == 2 and options['scftype'] == 'uhf'
-    assert options['qc_params']['xtb_unpaired_electrons'] == 1
+    assert options['backend_parameters']['xtb_unpaired_electrons'] == 1
     with pytest.raises(SystemExit):
         cli.main(['conformer', '[CH3]', '--multiplicity', '1', '--check'])
 
@@ -273,14 +273,14 @@ def test_conformer_check_never_embeds(inputs):
     ['--backend', 'orca', '--method', 'g-xTB', '--gxtb-wrapper', 'missing'],
     ['--backend', 'orca', '--gxtb-wrapper', 'unused']])
 def test_backend_settings_rejected(inputs, options):
-    with patch.object(grow, 'grow') as engine, pytest.raises(SystemExit):
+    with patch.object(grow, 'run_grow') as engine, pytest.raises(SystemExit):
         cli.main(['grow', *inputs, '--count', '1', *options])
     engine.assert_not_called()
     assert not Path('grow').exists()
 
 
 def test_missing_input_all_validated(inputs):
-    with patch.object(aggregate, 'aggregate') as engine, pytest.raises(SystemExit):
+    with patch.object(aggregate, 'run_aggregate') as engine, pytest.raises(SystemExit):
         cli.main(['aggregate', *inputs, 'missing.xyz'])
     engine.assert_not_called()
     assert not Path('aggregates').exists()

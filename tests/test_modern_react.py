@@ -28,7 +28,7 @@ def resolve(files, **kwargs):
 @pytest.fixture
 def workflow():
     with patch('pyar.scripts.react.preflight_reaction', return_value=['xtb', 'geometric', 'obabel']), patch(
-            'pyar.workflows.reaction.react', return_value=ReactionResult(
+            'pyar.workflows.reaction.run_reaction', return_value=ReactionResult(
                 'reaction', 'completed_no_products', 'reaction', 'reaction/state.json')) as run:
         yield run
 
@@ -37,17 +37,17 @@ def test_minimal_defaults_and_native_state(tmp_path, monkeypatch, workflow, caps
     files = inputs(tmp_path)
     monkeypatch.chdir(tmp_path)
     main(['react', *files, '--backend', 'xtb', '--bias-max', '100'])
-    args = workflow.call_args.args
-    settings = args[5]
-    assert args[2:5] == (None, 100, 8)
-    assert args[6:] == (None, 2.3)
+    request, = workflow.call_args.args
+    settings = request.qc_params
+    assert (request.bias_min, request.bias_max, request.orientations) == (None, 100, 8)
+    assert (request.site, request.proximity_factor) == (None, 2.3)
     assert settings['bias_controller'] == 'adaptive' and settings['bias_potential'] == 'afir'
     assert settings['geometry_optimizer'] == 'geometric' and settings['software'] == 'xtb'
     assert settings['method'] is None and settings['basis'] is None
     assert settings['xtb_model'] == 'gfn2'
     assert settings['charge'] == 0 and settings['multiplicity'] == 1  # Two doublets combine to a singlet.
     assert settings['trace_enabled']
-    assert all(m.multiplicity == 2 for m in args[:2])
+    assert all(m.multiplicity == 2 for m in request.reactants)
     assert 'Products found: 0' in capsys.readouterr().out
 
 
@@ -299,7 +299,7 @@ def test_import_failure_prevents_execution(tmp_path, monkeypatch, capsys):
     with patch('pyar.reaction_request.preflight', return_value=[]), patch(
             'pyar.cli_validation._workflow_requirement_messages', return_value=[]), patch(
             'pyar.reaction_request.import_module', side_effect=ImportError('provider unavailable')), patch(
-            'pyar.workflows.reaction.react') as run:
+            'pyar.workflows.reaction.run_reaction') as run:
         with pytest.raises(SystemExit):
             main(['react', *inputs(tmp_path), '--backend', 'xtb', '--bias-max', '100'])
     assert not run.called and not (tmp_path/'reaction').exists()

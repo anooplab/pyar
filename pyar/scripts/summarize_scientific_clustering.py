@@ -1,6 +1,7 @@
 """Aggregate persistent scientific clustering benchmark run reports."""
 
 from __future__ import annotations
+from pyar.constants import HARTREE_KCAL_MOL_SCAN
 
 import argparse
 import json
@@ -174,7 +175,7 @@ def summarize(runs: list[Path], output: Path):
             for window in (1.0, 3.0, 6.0):
                 in_window = {
                     basin_id for basin_id, energy in basin_energy.items()
-                    if (energy - global_minimum) * 627.509474 <= window
+                    if (energy - global_minimum) * HARTREE_KCAL_MOL_SCAN <= window
                 }
                 retained = len(in_window & selected_basins)
                 energy_window_retention[f"{window:.1f}"] = {

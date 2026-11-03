@@ -1,4 +1,5 @@
 """Validate the version-pinned driver's accepted-frame observations, read-only."""
+from pyar.constants import BOHR_ANGSTROM_CODATA, HARTREE_EV
 import math
 import re
 
@@ -42,7 +43,7 @@ def accepted_checkpoint(request, path):
         if previous == -1 and (index != 0 or not close_matrix(positions, request.coordinates_angstrom)):
             raise ValueError('Checkpoint initial frame does not match request')
         energy = finite_number(value['energy_hartree'])
-        forces = tuple(tuple(-x*27.211386245988/.529177210903 for x in row) for row in gradients)
+        forces = tuple(tuple(-x*HARTREE_EV/BOHR_ANGSTROM_CODATA for x in row) for row in gradients)
         last_frame = GeometryFrame(request.symbols, positions, energy, energy, forces, (filename,))
         trust = value.get('trust_radius_bohr')
         if trust is not None:

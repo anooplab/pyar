@@ -7,6 +7,8 @@ import pytest
 
 from pyar import neb
 
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 @pytest.mark.parametrize('stage', ['all', 'relax'])
 @pytest.mark.parametrize('exception_type', [RuntimeError, KeyboardInterrupt])

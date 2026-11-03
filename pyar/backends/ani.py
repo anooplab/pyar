@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """TorchANI-based ANI backend and CLI wrapper."""
+from pyar.backend_errors import backend_operation
 
 import argparse
 import logging
@@ -29,7 +30,10 @@ except ImportError:  # pragma: no cover - optional runtime dependency
     torchani = None
 
 
-class ANICalculationFailed(Exception):
+from pyar.backend_errors import BackendExecutionError
+
+
+class ANICalculationFailed(BackendExecutionError):
     """Raised when an ANI model lookup, evaluation, or workflow step fails."""
 
 
@@ -104,6 +108,7 @@ class ANIInterface:
         """Attach the requested ANI calculator to the loaded structure."""
         self.atoms.calc = ANI(self.atoms.get_chemical_symbols(), model=model)
 
+    @backend_operation
     def optimize(self, model="ANI-1x", fmax=1e-3, trajectory="optimization.traj"):
         """Run an ASE geometry optimization and return the final energy."""
         try:

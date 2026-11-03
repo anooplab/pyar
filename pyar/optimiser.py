@@ -25,7 +25,7 @@ import numpy as np
 from pyar import file_manager
 from pyar.core.molecule import Molecule
 from pyar.backend_capabilities import normalize_backend_name, validate_backend_capability
-from pyar.backend_errors import BackendExecutionError
+from pyar.backend_errors import BackendExecutionError, BackendConvergenceError, OptimizationOutcome
 from pyar.io.xyz import XYZParseError, parse_xyz
 
 optimiser_logger = logging.getLogger('pyar.optimiser')
@@ -148,7 +148,7 @@ def _archive_unverified_cache(result_path, metadata_path):
     """Move an unverified result aside before the backend writes a fresh one."""
     if not result_path.exists() and not metadata_path.exists():
         return
-    archive = Path("stale_cache")
+    archive = result_path.parent / "stale_cache"
     archive.mkdir(exist_ok=True)
     suffix = 0
     while (archive / f"attempt_{suffix:03d}").exists():
@@ -160,10 +160,13 @@ def _archive_unverified_cache(result_path, metadata_path):
             shutil.move(str(path), str(target / path.name))
 
 
-def _verified_cache(molecule, request_digest, backend_provenance, *, geometric=False):
+def _verified_cache(
+    molecule, request_digest, backend_provenance, *, geometric=False, directory=None
+):
     """Return a verified cached status/result, or archive and reject it."""
-    result_path = Path(f"result_{molecule.name}.xyz")
-    metadata_path = Path("optimization_cache.json")
+    directory = Path(directory or Path.cwd())
+    result_path = directory / f"result_{molecule.name}.xyz"
+    metadata_path = directory / "optimization_cache.json"
     if not result_path.exists():
         return None
     try:
@@ -196,7 +199,9 @@ def _verified_cache(molecule, request_digest, backend_provenance, *, geometric=F
             and status in {"converged", "cycle_exceeded", "release_candidate"}
         )
         if geometric:
-            state = json.loads(Path("pyar_geometric_state.json").read_text(encoding="utf-8"))
+            state = json.loads(
+                (directory / "pyar_geometric_state.json").read_text(encoding="utf-8")
+            )
             state_status = state.get("optimization_status")
             state_coordinates = np.asarray(state["positions_angstrom"], dtype=float)
             state_energy = float(state["backend_energy_hartree"])
@@ -221,9 +226,18 @@ def _verified_cache(molecule, request_digest, backend_provenance, *, geometric=F
     return status, cached_energy, coordinates
 
 
-def _write_optimization_cache(molecule, request_digest, status, backend_provenance, *, geometric=False):
+def _write_optimization_cache(
+    molecule,
+    request_digest,
+    status,
+    backend_provenance,
+    *,
+    geometric=False,
+    directory=None,
+):
     """Atomically record a successful or explicitly provisional optimizer result."""
-    result_path = Path(f"result_{molecule.name}.xyz")
+    directory = Path(directory or Path.cwd())
+    result_path = directory / f"result_{molecule.name}.xyz"
     try:
         symbols, coordinates, _name, _title, energy = parse_xyz(result_path)
         coordinates = np.asarray(coordinates, dtype=float).reshape((-1, 3))
@@ -243,9 +257,9 @@ def _write_optimization_cache(molecule, request_digest, status, backend_provenan
             else "converged"
         ),
         }
-        temporary = Path("optimization_cache.json.tmp")
+        temporary = directory / "optimization_cache.json.tmp"
         temporary.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
-        temporary.replace("optimization_cache.json")
+        temporary.replace(directory / "optimization_cache.json")
     except (OSError, ValueError, TypeError, XYZParseError) as exc:
         raise BackendExecutionError(f"Could not validate optimization result for cache: {exc}") from exc
 
@@ -361,7 +375,32 @@ def _warn_on_ignored_electronic_state(molecule, qc_params):
             )
 
 
-def optimise(molecule, qc_params):
+def _backend_job(molecule, qc_params):
+    """Execute a single adapter inside its process-owned job directory."""
+    from types import SimpleNamespace
+
+    geometry = build_geometry(molecule, qc_params)
+    try:
+        status = geometry.optimize()
+    except BackendConvergenceError as exc:
+        if not exc.usable_geometry:
+            raise
+        status = OptimizationOutcome.CYCLE_EXCEEDED
+    return SimpleNamespace(
+        status=status,
+        optimized_coordinates=getattr(geometry, "optimized_coordinates", None),
+        energy=getattr(geometry, "energy", None),
+        atoms_list=getattr(geometry, "atoms_list", molecule.atoms_list),
+    )
+
+
+def _execute_backend(molecule, qc_params, *, directory):
+    from pyar.directory_execution import run_in_directory
+
+    return run_in_directory(_backend_job, molecule, qc_params, directory=directory)
+
+
+def optimise(molecule, qc_params, *, directory=None):
     """Run one optimization using the molecule's electronic state."""
     _warn_on_ignored_electronic_state(molecule, qc_params)
     qc_params = {
@@ -379,17 +418,16 @@ def optimise(molecule, qc_params):
     original_optimized_coordinates = getattr(molecule, "optimized_coordinates", None)
     if original_optimized_coordinates is not None:
         original_optimized_coordinates = np.asarray(original_optimized_coordinates, dtype=float).copy()
-    cwd = os.getcwd()
+    cwd = str(Path(directory or Path.cwd()).resolve())
     if molecule.name == '':
         molecule.name = 'Opt job'
-    job_dir = f'job_{molecule.name}'
+    job_dir = Path(cwd) / f"job_{molecule.name}"
     if not os.path.exists(job_dir):
         file_manager.make_directories(job_dir)
     final_coordinate_path = os.path.relpath(
         os.path.join(job_dir, f"result_{molecule.name}.xyz"),
         cwd,
     )
-    os.chdir(job_dir)
     software = qc_params.get('software', 'unknown')
     try:
         gamma = qc_params.get('gamma', None)
@@ -419,7 +457,8 @@ def optimise(molecule, qc_params):
             molecule,
             request_digest if not force_geometric_restart else None,
             backend_provenance,
-            geometric=qc_params.get('geometry_optimizer') == 'geometric',
+            geometric=qc_params.get("geometry_optimizer") == "geometric",
+            directory=job_dir,
         )
         if cached is not None:
             cached_status, molecule.energy, molecule.coordinates = cached
@@ -433,12 +472,12 @@ def optimise(molecule, qc_params):
             optimiser_logger.info(f'     {molecule.name:35s}: {molecule.energy:15.6f}')
             return {
                 "converged": True,
-                "cycle_exceeded": "CycleExceeded",
-                "release_candidate": "ReleaseCandidate",
+                "cycle_exceeded": OptimizationOutcome.CYCLE_EXCEEDED,
+                "release_candidate": OptimizationOutcome.RELEASE_CANDIDATE,
             }[cached_status]
 
-        geometry = build_geometry(molecule, qc_params)
-        optimize_status = geometry.optimize()
+        geometry = _execute_backend(molecule, qc_params, directory=job_dir)
+        optimize_status = geometry.status
         normalized_status = _status_label(optimize_status)
         if is_usable(optimize_status):
             try:
@@ -467,7 +506,8 @@ def optimise(molecule, qc_params):
                         request_digest,
                         optimize_status,
                         backend_provenance,
-                        geometric=qc_params.get('geometry_optimizer') == 'geometric',
+                        geometric=qc_params.get("geometry_optimizer") == "geometric",
+                        directory=job_dir,
                     )
                 except BackendExecutionError as exc:
                     # A valid calculator result remains valid if cache bookkeeping fails.
@@ -494,7 +534,7 @@ def optimise(molecule, qc_params):
                 else 'xtb.out' if software == 'xtb' else None
             )
             output_hint = (
-                f"; see {os.path.join(os.getcwd(), output_file)}" if output_file else ""
+                f"; see {os.path.join(job_dir, output_file)}" if output_file else ""
             )
             raise BackendExecutionError(
                 f"{software} optimization failed for {molecule.name}: "
@@ -520,8 +560,6 @@ def optimise(molecule, qc_params):
         raise BackendExecutionError(
             f"{software} optimization crashed for {molecule.name}: {exc}"
         ) from exc
-    finally:
-        os.chdir(cwd)
 
 
 def write_csv_file(csv_filename, energy_dict):

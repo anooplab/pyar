@@ -10,6 +10,8 @@ from pyar import optimiser
 from pyar.core.molecule import Molecule
 from pyar.io.xyz import parse_xyz
 
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 def test_optimise_uses_molecule_state_without_mutating_parameters(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

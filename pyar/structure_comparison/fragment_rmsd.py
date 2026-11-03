@@ -4,6 +4,7 @@ Fragment connectivity comes from coordinates, independently for each geometry.
 No original growth-fragment assignment is trusted after chemical reactions.
 Distances are valid mapped RMSD upper bounds, not guaranteed global minima.
 """
+from pyar.constants import GRAPH_BOND_FACTOR
 
 from itertools import permutations, product
 from math import factorial, prod
@@ -21,7 +22,7 @@ class FragmentRMSDComparator:
 
     method = "fragment-matched-global-kabsch-rmsd-upper-bound"
 
-    def __init__(self, *, atom_mode="all", bond_scale=1.15, max_mappings=10000,
+    def __init__(self, *, atom_mode="all", bond_scale=GRAPH_BOND_FACTOR, max_mappings=10000,
                  max_fragment_permutations=720):
         if atom_mode not in {"all", "heavy"}:
             raise ValueError("atom_mode must be 'all' or 'heavy'")

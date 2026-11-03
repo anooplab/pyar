@@ -43,23 +43,23 @@ def test_help(capsys):
 
 @pytest.mark.parametrize('override, count', [([], 8), (['--orientations', '20'], 20), (['-N', '20'], 20)])
 def test_minimal_and_orientations(inputs, dependencies, override, count):
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         cli.main([*inputs, '--backend', 'xtb', *override])
-    args = run.call_args.args
-    assert args[:4] == ('a.xyz', 'b.xyz', [0, 1], count)
-    assert args[4]['software'] == 'xtb' and args[4]['xtb_model'] == 'gfn2'
-    assert args[4]['method'] is None and args[4]['basis'] is None
-    assert args[4]['charge_a'] == args[4]['charge_b'] == 0
-    assert args[4]['multiplicity_a'] == args[4]['multiplicity_b'] == 1
-    assert args[9] == 'scan'
-    assert args[6:9] == (None, None, None)
+    request = run.call_args.args[0]
+    assert (request['input_a'], request['input_b'], request['atoms'], request['orientations']) == ('a.xyz', 'b.xyz', [0, 1], count)
+    assert request['qc_params']['software'] == 'xtb' and request['qc_params']['xtb_model'] == 'gfn2'
+    assert request['qc_params']['method'] is None and request['qc_params']['basis'] is None
+    assert request['qc_params']['charge_a'] == request['qc_params']['charge_b'] == 0
+    assert request['qc_params']['multiplicity_a'] == request['qc_params']['multiplicity_b'] == 1
+    assert request['through'] == 'scan'
+    assert (request['scan_end'], request['scan_step'], request['scan_points']) == (None, None, None)
 
 
 def test_intramolecular_parameters_omit_second_fragment_fields(inputs, dependencies):
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         cli.main(['scan-bond', inputs[1], '--atoms', '0', '1', '--backend', 'xtb'])
 
-    parameters = run.call_args.args[4]
+    parameters = run.call_args.args[0]['qc_params']
     assert parameters['charge_a'] == 0
     assert parameters['multiplicity_a'] == 1
     assert parameters['scftype_a'] == 'rhf'
@@ -68,7 +68,7 @@ def test_intramolecular_parameters_omit_second_fragment_fields(inputs, dependenc
 
 @pytest.mark.parametrize('atoms', [['-1', '0'], ['2', '0'], ['0', '-1'], ['0', '2']])
 def test_invalid_atoms(inputs, dependencies, atoms, capsys):
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         with pytest.raises(SystemExit):
             cli.main([*inputs[:3], '--atoms', *atoms, '--backend', 'xtb'])
     run.assert_not_called()
@@ -93,7 +93,7 @@ def test_invalid_atoms(inputs, dependencies, atoms, capsys):
     ['--backend', 'orca', '--method', 'XTB2', '--xtb-model', 'gxtb'],
 ])
 def test_invalid_request(inputs, dependencies, options):
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         with pytest.raises(SystemExit) as exc:
             cli.main([*inputs, *options])
     assert exc.value.code != 0
@@ -105,7 +105,7 @@ def test_invalid_input(inputs, dependencies, contents):
     Path('b.xyz').unlink()
     if contents is not None:
         Path('b.xyz').write_text(contents)
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         with pytest.raises(SystemExit):
             cli.main([*inputs, '--backend', 'xtb'])
     run.assert_not_called()
@@ -114,12 +114,12 @@ def test_invalid_input(inputs, dependencies, contents):
 def test_electronic_inference_and_pair_overrides(inputs, dependencies):
     Path('b.xyz').write_text('1\nB\nH 0 0 0\n')
     base = [*inputs[:3], '--atoms', '1', '0', '--backend', 'xtb']
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         cli.main(base)
-        params = run.call_args.args[4]
+        params = run.call_args.args[0]['qc_params']
         assert params['multiplicity_a'] == 1 and params['multiplicity_b'] == 2
         cli.main([*base, '--charge', '0', '-1'])
-        params = run.call_args.args[4]
+        params = run.call_args.args[0]['qc_params']
         assert params['charge_b'] == -1 and params['multiplicity_b'] == 1
         cli.main([*base, '--multiplicity', '1', '2'])
 
@@ -127,9 +127,9 @@ def test_electronic_inference_and_pair_overrides(inputs, dependencies):
 def test_two_radical_fragments_keep_scan_scf_default(inputs, dependencies):
     for path in ['a.xyz', 'b.xyz']:
         Path(path).write_text('1\nH radical\nH 0 0 0\n')
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         cli.main([*inputs[:3], '--atoms', '0', '0', '--backend', 'xtb'])
-    params = run.call_args.args[4]
+    params = run.call_args.args[0]['qc_params']
     assert params['multiplicity_a'] == params['multiplicity_b'] == 2
     assert params['scftype_a'] == params['scftype_b'] == 'rhf'
 
@@ -137,7 +137,7 @@ def test_two_radical_fragments_keep_scan_scf_default(inputs, dependencies):
 @pytest.mark.parametrize('through', ['scan', 'neb', 'ts', 'frequency', 'irc', 'endpoints', 'all'])
 def test_check_no_calculation_or_mutations(inputs, dependencies, through, capsys):
     before = set(Path('.').iterdir())
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run, mock.patch(
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run, mock.patch(
         'subprocess.Popen', side_effect=AssertionError('check must not launch programs')
     ):
         cli.main([*inputs, '--backend', 'xtb', '--through', through, '--check'])
@@ -147,7 +147,7 @@ def test_check_no_calculation_or_mutations(inputs, dependencies, through, capsys
 
 
 def test_dry_run_plan_lists_the_cumulative_scan_path_stages(inputs, dependencies, capsys):
-    with mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         cli.main([*inputs, '--backend', 'xtb', '--through', 'all', '--dry-run', '--json'])
     payload = json.loads(capsys.readouterr().out)
     assert payload['plan']['stages'] == [
@@ -164,7 +164,7 @@ def test_dry_run_plan_lists_the_cumulative_scan_path_stages(inputs, dependencies
 def test_stage_optional_dependencies(inputs, dependencies):
     with mock.patch('pyar.neb._sella_api', side_effect=RuntimeError('install pyar-chem[sella]')), mock.patch(
         'pyar.neb._geodesic_api', side_effect=RuntimeError('install pyar-chem[geodesic]')
-    ), mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    ), mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         cli.main([*inputs, '--backend', 'xtb', '--ts-optimizer', 'sella',
                          '--interpolation', 'geodesic', '--check'])
         for options in [['--through', 'ts', '--ts-optimizer', 'sella'],
@@ -175,7 +175,7 @@ def test_stage_optional_dependencies(inputs, dependencies):
 
 
 def test_missing_backend(inputs, capsys):
-    with mock.patch('pyar.cli_validation.shutil.which', return_value=None), mock.patch.object(scan_bond, 'run_scan_bond') as run:
+    with mock.patch('pyar.cli_validation.shutil.which', return_value=None), mock.patch.object(scan_bond, 'run_scan_bond_request') as run:
         with pytest.raises(SystemExit):
             cli.main([*inputs, '--backend', 'xtb', '--check'])
     run.assert_not_called()
@@ -210,14 +210,14 @@ def test_wrapper_validation(inputs, dependencies, tmp_path):
 
 
 def test_structured_failure_stays_nonzero(inputs, dependencies):
-    with mock.patch.object(scan_bond, 'run_scan_bond', return_value={'status': 'failed', 'output_dir': 'scan_bond'}):
+    with mock.patch.object(scan_bond, 'run_scan_bond_request', return_value={'status': 'failed', 'output_dir': 'scan_bond'}):
         with pytest.raises(SystemExit) as exc:
             cli.main([*inputs, '--backend', 'xtb'])
     assert exc.value.code == 1
 
 
 def test_successful_workflow_is_not_an_exit_value(inputs, dependencies):
-    with mock.patch.object(scan_bond, 'run_scan_bond', return_value={'status': 'complete', 'output_dir': 'scan_bond'}):
+    with mock.patch.object(scan_bond, 'run_scan_bond_request', return_value={'status': 'complete', 'output_dir': 'scan_bond'}):
         assert cli.main([*inputs, '--backend', 'xtb']) is None
 
 
@@ -228,7 +228,7 @@ def test_check_rejects_unusable_scan_output_before_config_write(inputs, state):
     if state != 'missing':
         (root / 'request.json').write_text('invalid JSON' if state == 'invalid' else json.dumps({'request_signature': 'wrong'}))
     before = {p: p.read_bytes() for p in root.iterdir()}
-    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(scan_bond, 'run_scan_bond') as engine:
+    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(scan_bond, 'run_scan_bond_request') as engine:
         with pytest.raises(SystemExit) as exc:
             cli.main([*inputs, '--backend', 'xtb', '--check', '--write-config', 'run.toml'])
     assert exc.value.code == 2
@@ -250,7 +250,7 @@ def test_check_validates_saved_scan_request_without_sampling(inputs):
     root = Path('scan_bond'); root.mkdir()
     (root / 'request.json').write_text(json.dumps(request))
     before = (root / 'request.json').read_bytes()
-    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(workflow, '_make_orientations') as sampling, mock.patch.object(scan_bond, 'run_scan_bond') as engine:
+    with mock.patch('pyar.scan_request.preflight_scan', return_value=[]), mock.patch.object(workflow, '_make_orientations') as sampling, mock.patch.object(scan_bond, 'run_scan_bond_request') as engine:
         cli.main([*inputs, '--backend', 'xtb', '--check'])
         with pytest.raises(SystemExit):
             cli.main([*inputs, '--backend', 'xtb', '--orientations', '2', '--check'])
@@ -260,14 +260,14 @@ def test_check_validates_saved_scan_request_without_sampling(inputs):
 
 
 def test_stale_lock_recovery_is_explicit(inputs, dependencies):
-    with mock.patch.object(scan_bond, 'run_scan_bond', return_value={}) as run:
+    with mock.patch.object(scan_bond, 'run_scan_bond_request', return_value={}) as run:
         cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
     assert run.call_args.kwargs == {'recover_stale': True}
 
 
 def test_active_writer_error_is_actionable(inputs, dependencies, capsys):
     from pyar.persistence import LockError
-    with mock.patch.object(scan_bond, 'run_scan_bond', side_effect=LockError('active writer')):
+    with mock.patch.object(scan_bond, 'run_scan_bond_request', side_effect=LockError('active writer')):
         with pytest.raises(SystemExit) as error:
             cli.main([*inputs, '--backend', 'xtb', '--recover-stale-lock'])
     assert error.value.code == 2

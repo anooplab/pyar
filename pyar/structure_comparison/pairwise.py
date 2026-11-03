@@ -1,4 +1,5 @@
 """Reusable molecular pairwise analysis, independent of file/reporting layers."""
+from pyar.constants import GRAPH_BOND_FACTOR
 
 from collections import Counter
 
@@ -7,7 +8,7 @@ from pyar.structure_comparison.coordinate_graph import compare_coordinate_struct
 from pyar.structure_comparison.graph_rmsd import GraphRMSDComparator
 
 
-def compare_structures(first, second, *, atom_mode="heavy", bond_scale=1.15,
+def compare_structures(first, second, *, atom_mode="heavy", bond_scale=GRAPH_BOND_FACTOR,
                        maximum_mappings=10000, rmsd_threshold=None, charges=None,
                        known_charges=None):
     """Compare validated Molecules with independent coordinate/chemical evidence.

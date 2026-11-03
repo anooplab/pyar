@@ -1,6 +1,8 @@
 """Relaxed bond scans and optional validated reaction-path continuation."""
 
 from __future__ import annotations
+from pyar.constants import BOND_DISTANCE_FACTOR
+from pyar.constants import HARTREE_KCAL_MOL_SCAN
 
 import csv
 import hashlib
@@ -13,6 +15,9 @@ import warnings
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Mapping
+from types import MappingProxyType
+import inspect
 
 import numpy as np
 
@@ -36,7 +41,7 @@ from pyar.reaction_identity import (
 from pyar.sampling.trial_generator import generate_trial_vectors, merge_two_molecules
 
 DEFAULT_SCAN_END_FACTOR = 0.8
-TARGET_CONTACT_FACTOR = 1.3
+TARGET_CONTACT_FACTOR = BOND_DISTANCE_FACTOR
 INTRAMOLECULAR_FORM_FACTOR = 1.05
 INTRAMOLECULAR_BREAK_FACTOR = 2.5
 INTRAMOLECULAR_SAFE_FACTOR = 2.0
@@ -75,10 +80,14 @@ def intramolecular_scan_plan(molecule, atoms, scan_end=None, scan_step=None, sca
                 connectivity_rule='distance < 1.3 * sum of covalent radii')
 
 
-def _optimize_with_diagnostics(molecule, qc_params, workflow_role):
+def _optimize_with_diagnostics(molecule, qc_params, workflow_role, *, directory=None):
     """Run one legacy scan optimization and persist observational ORE data."""
     status, _diagnostic, _report = optimize_workflow_once(
-        molecule, qc_params, workflow_role=workflow_role, optimizer=optimise
+        molecule,
+        qc_params,
+        workflow_role=workflow_role,
+        optimizer=optimise,
+        directory=directory,
     )
     return status
 
@@ -118,6 +127,7 @@ def _publish_derived_report(path, text):
     write_bytes_atomic(path, text.encode(locale.getpreferredencoding(False)))
 
 
+# Keep this explicit publication boundary stable; its artifact-ownership contract is independently tested.
 def _save_orientation_result(directory, result, *, qc_params, intramolecular,
                              completed_artifacts, layout):
     """Persist the derived orientation report and update its layout record."""
@@ -140,37 +150,45 @@ def _save_orientation_result(directory, result, *, qc_params, intramolecular,
     )
 
 
-def _load_or_execute_scan(orientation, request, scan_dir, qc_params, *, software,
-                          previous_result, committed):
+def _load_or_execute_scan(run, task, request):
     """Reuse a valid scan or execute once, preserving committed-scan guards."""
     from pyar.backends.bond_scan import load_bond_scan_result, run_bond_scan
     from pyar.recovery.stages import scan_diagnostic
 
     scan = None
-    if previous_result and previous_result.get("scan_status") == "success":
-        if software == "orca":
+    if (
+        task.recovered.previous_result
+        and task.recovered.previous_result.get("scan_status") == "success"
+    ):
+        if run.route.software == "orca":
             loader = load_orca_bond_scan_result
-            loader_options = {"publish": False} if committed is not None else {}
+            loader_options = (
+                {"publish": False} if task.recovered.committed is not None else {}
+            )
         else:
             loader = load_bond_scan_result
             loader_options = {}
-        scan = loader(orientation, request, scan_dir, **loader_options)
+        scan = loader(task.molecule, request, task.paths.scan_dir, **loader_options)
     if scan is not None and scan.success:
-        if scan_diagnostic(orientation, request, scan)["stage_gate"] != "passed":
+        if scan_diagnostic(task.molecule, request, scan)["stage_gate"] != "passed":
             scan.success = False
             scan.status = "scan_validation_failed"
-    if committed is not None and (scan is None or not scan.success):
+    if task.recovered.committed is not None and (scan is None or not scan.success):
         raise ValueError("Committed scan no longer passes native scan validation")
     if scan is None or not scan.success:
-        runner = run_orca_bond_scan if software == "orca" else run_bond_scan
+        runner = run_orca_bond_scan if run.route.software == "orca" else run_bond_scan
         try:
             from pyar.recovery.stages import run_scan_once
-            scan = run_scan_once(runner, orientation, request, scan_dir, qc_params)
+
+            scan = run_scan_once(
+                runner, task.molecule, request, task.paths.scan_dir, run.qc_params
+            )
         except BackendExecutionError:
             raise
         except Exception as exc:
             return None, exc
     return scan, None
+
 
 
 def _relax_scan_endpoint(relaxed, qc_params, software, relax_dir, execution):
@@ -184,20 +202,21 @@ def _relax_scan_endpoint(relaxed, qc_params, software, relax_dir, execution):
         relax_run_dir = relax_dir / f"retry_{retry_index:03d}"
         relax_run_dir.mkdir()
 
-    old_cwd = Path.cwd()
     try:
-        os.chdir(relax_run_dir)
         relax_status = _optimize_with_diagnostics(
             relaxed,
-            dict(qc_params, geometry_optimizer="native" if software == "orca" else "geometric", gamma=0.0),
+            dict(
+                qc_params,
+                geometry_optimizer="native" if software == "orca" else "geometric",
+                gamma=0.0,
+            ),
             "bond_scan_unbiased_relaxation",
+            directory=relax_run_dir,
         )
     except BackendExecutionError:
         raise
     except Exception as exc:
         return None, False, str(exc)
-    finally:
-        os.chdir(old_cwd)
 
     if not is_success(relax_status):
         return relax_status, False, None
@@ -241,44 +260,74 @@ def _fragment_signature(molecule):
 
 
 
-def scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms, orientations,
-                        qc_params, scan_end=None, scan_step=None, scan_points=None):
+def scan_request_fields(options: Mapping, fragment_a, fragment_b):
     """Scientific request fields that can be validated without sampling or jobs."""
     if fragment_b is None:
-        if orientations != 1:
+        if options["orientations"] != 1:
             raise ValueError('Intramolecular scans use the input geometry and require one orientation')
-        plan = intramolecular_scan_plan(fragment_a, atoms, scan_end, scan_step, scan_points)
-        total = qc_params.get('total_multiplicity')
+        plan = intramolecular_scan_plan(
+            fragment_a,
+            options["atoms"],
+            options["scan_end"],
+            options["scan_step"],
+            options["scan_points"],
+        )
+        total = options["qc_params"].get("total_multiplicity")
         if total is not None and total != fragment_a.multiplicity:
             raise ValueError('Intramolecular total multiplicity must equal the input molecule multiplicity')
-        return dict(schema_version=3, scan_mode='intramolecular',
-                    inputs={'molecule': str(input_a)}, fragments=[_fragment_signature(fragment_a)],
-                    atoms_local=list(map(int, atoms)), atoms_absolute=list(map(int, atoms)),
-                    target_symbols=[fragment_a.atoms_list[int(i)] for i in atoms],
-                    qc_params=dict(qc_params, total_multiplicity=fragment_a.multiplicity,
-                                   total_multiplicity_source='input_molecule'), orientations=1,
-                    scan_end=scan_end, scan_step=scan_step, scan_points=scan_points,
-                    intramolecular_plan=plan)
-    local_i, local_j = map(int, atoms)
+        return dict(
+            schema_version=3,
+            scan_mode="intramolecular",
+            inputs={"molecule": str(options["input_a"])},
+            fragments=[_fragment_signature(fragment_a)],
+            atoms_local=list(map(int, options["atoms"])),
+            atoms_absolute=list(map(int, options["atoms"])),
+            target_symbols=[fragment_a.atoms_list[int(i)] for i in options["atoms"]],
+            qc_params=dict(
+                options["qc_params"],
+                total_multiplicity=fragment_a.multiplicity,
+                total_multiplicity_source="input_molecule",
+            ),
+            orientations=1,
+            scan_end=options["scan_end"],
+            scan_step=options["scan_step"],
+            scan_points=options["scan_points"],
+            intramolecular_plan=plan,
+        )
+    local_i, local_j = map(int, options["atoms"])
     total_multiplicity, spin_source = _resolve_total_multiplicity(
-        fragment_a, fragment_b, qc_params.get("total_multiplicity"), warn=False
+        fragment_a,
+        fragment_b,
+        options["qc_params"].get("total_multiplicity"),
+        warn=False,
     )
-    spin_source = qc_params.get("total_multiplicity_source", spin_source)
-    request_qc_params = dict(qc_params, total_multiplicity=total_multiplicity,
-                             total_multiplicity_source=spin_source)
+    spin_source = options["qc_params"].get("total_multiplicity_source", spin_source)
+    request_qc_params = dict(
+        options["qc_params"],
+        total_multiplicity=total_multiplicity,
+        total_multiplicity_source=spin_source,
+    )
     absolute_i, absolute_j = absolute_target_indices(fragment_a, local_i, local_j)
     target_radii = fragment_a.covalent_radius[local_i] + fragment_b.covalent_radius[local_j]
     return {
         "schema_version": 2,
-        "inputs": {"A": str(input_a), "B": str(input_b)},
+        "inputs": {"A": str(options["input_a"]), "B": str(options["input_b"])},
         "fragments": [_fragment_signature(fragment_a), _fragment_signature(fragment_b)],
-        "atoms_local": [local_i, local_j], "atoms_absolute": [absolute_i, absolute_j],
-        "target_symbols": [fragment_a.atoms_list[local_i], fragment_b.atoms_list[local_j]],
-        "qc_params": request_qc_params, "orientations": int(orientations),
-        "scan_end": scan_end, "scan_step": scan_step, "scan_points": scan_points,
+        "atoms_local": [local_i, local_j],
+        "atoms_absolute": [absolute_i, absolute_j],
+        "target_symbols": [
+            fragment_a.atoms_list[local_i],
+            fragment_b.atoms_list[local_j],
+        ],
+        "qc_params": request_qc_params,
+        "orientations": int(options["orientations"]),
+        "scan_end": options["scan_end"],
+        "scan_step": options["scan_step"],
+        "scan_points": options["scan_points"],
         "default_scan_end_factor": DEFAULT_SCAN_END_FACTOR,
         "default_scan_end_angstrom": DEFAULT_SCAN_END_FACTOR * target_radii,
     }
+
 
 
 def validate_scan_restart(output_dir, request):
@@ -351,7 +400,7 @@ def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxsca
             "frame_index": frame_index,
             "target_distance_angstrom": point["target_distance_angstrom"],
             "energy_hartree": point["energy_hartree"],
-            "relative_energy_kcal_mol": (point["energy_hartree"] - first_energy) * 627.509474,
+            "relative_energy_kcal_mol": (point["energy_hartree"] - first_energy) * HARTREE_KCAL_MOL_SCAN,
             "geometry_path": "scan_trajectory.xyz",
         })
     csv_path = directory / "scan_profile.csv"
@@ -390,7 +439,7 @@ def _write_scan_profile(directory, frames, profile, energy_source="scan.relaxsca
         "maximum_frame_index": maximum_frame,
         "maximum_target_distance_angstrom": profile[maximum_frame]["target_distance_angstrom"],
         "maximum_energy_hartree": maximum_energy,
-        "barrier_from_first_scan_point_kcal_mol": (maximum_energy - first_energy) * 627.509474,
+        "barrier_from_first_scan_point_kcal_mol": (maximum_energy - first_energy) * HARTREE_KCAL_MOL_SCAN,
         "maximum_is_internal": 0 < maximum_frame < len(profile) - 1,
         "candidate_files": candidate_files,
         "interpretation": "scan maximum candidate; not a confirmed transition state",
@@ -483,52 +532,68 @@ class _ScanRoute:
     continue_individual_paths: bool
 
 
-def _validate_scan_route(input_b, orientations, qc_params, scan_end, scan_step,
-                         scan_points, through, reaction_options,
-                         characterize_unique_products):
+def _validate_scan_route(options: Mapping):
     """Validate the requested route before reading molecules or allocating a run."""
     from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
     from pyar.workflows.scan_path import validate_continuation
 
-    software = normalize_backend_name(qc_params.get("software", "orca"))
+    software = normalize_backend_name(options["qc_params"].get("software", "orca"))
     if software not in supported_geometry_backends():
         raise ValueError(f"scan-bond requires an energy/gradient backend; unsupported: {software}")
-    settings = dict(qc_params, software=software)
+    settings = dict(options["qc_params"], software=software)
     if software == "xtb":
         from pyar.backends.xtb_utils import canonical_xtb_model
         settings["xtb_model"] = canonical_xtb_model(settings.get("xtb_model"))
-    if characterize_unique_products and through in (None, "scan"):
+    if options["characterize_unique_products"] and options["through"] in (None, "scan"):
         raise ValueError("unique-product characterization requires through='neb' or a later stage")
-    if characterize_unique_products and (reaction_options or {}).get("interpolation") == "geodesic":
+    if (
+        options["characterize_unique_products"]
+        and (options["reaction_options"] or {}).get("interpolation") == "geodesic"
+    ):
         raise ValueError("unique-product path-seed characterization does not support geodesic interpolation")
-    if through is not None:
-        validate_continuation(through, reaction_options or {})
-        if software == "orca" and through != "scan":
+    if options["through"] is not None:
+        validate_continuation(options["through"], options["reaction_options"] or {})
+        if software == "orca" and options["through"] != "scan":
             from pyar.backends.orca_methods import orca_method
+
             if orca_method(settings.get("method", "BP86"))[0] == "g-xTB":
                 raise ValueError("ORCA external g-xTB supports native scanning only; "
                                  "use software=xtb, xtb_model=gxtb for continuation")
-    if isinstance(orientations, bool) or int(orientations) != orientations or orientations < 1:
+    if (
+        isinstance(options["orientations"], bool)
+        or int(options["orientations"]) != options["orientations"]
+        or options["orientations"] < 1
+    ):
         raise ValueError("orientation count must be a positive integer")
-    if scan_end is not None and (not math.isfinite(float(scan_end)) or scan_end <= 0):
+    if options["scan_end"] is not None and (
+        not math.isfinite(float(options["scan_end"])) or options["scan_end"] <= 0
+    ):
         raise ValueError("scan end distance must be finite and positive")
-    if scan_step is not None and (not math.isfinite(float(scan_step)) or scan_step <= 0):
+    if options["scan_step"] is not None and (
+        not math.isfinite(float(options["scan_step"])) or options["scan_step"] <= 0
+    ):
         raise ValueError("scan step must be finite and positive")
-    if scan_points is not None and (int(scan_points) != scan_points or scan_points < 2):
+    if options["scan_points"] is not None and (
+        int(options["scan_points"]) != options["scan_points"]
+        or options["scan_points"] < 2
+    ):
         raise ValueError("scan points must be an integer >= 2")
-    if scan_step is not None and scan_points is not None:
+    if options["scan_step"] is not None and options["scan_points"] is not None:
         raise ValueError("--scan-step and --scan-points cannot be used together")
-    intramolecular = input_b is None
-    if intramolecular and int(orientations) != 1:
+    intramolecular = options["input_b"] is None
+    if intramolecular and int(options["orientations"]) != 1:
         raise ValueError('Intramolecular scans require one orientation; no fragment placement is performed')
-
     route = _ScanRoute(
         software=software,
         intramolecular=intramolecular,
-        relax_in_orientation=through is None or characterize_unique_products or intramolecular,
-        continue_individual_paths=through not in (None, "scan") and not characterize_unique_products,
+        relax_in_orientation=options["through"] is None
+        or options["characterize_unique_products"]
+        or intramolecular,
+        continue_individual_paths=options["through"] not in (None, "scan")
+        and (not options["characterize_unique_products"]),
     )
     return route, settings
+
 
 
 @dataclass(slots=True)
@@ -546,23 +611,27 @@ class _PreparedScan:
     orientation_items: list[tuple[int, Molecule | None, str | None]]
 
 
-def _prepare_intramolecular_inputs(input_a, atoms, qc_params, scan_end,
-                                   scan_step, scan_points):
+def _prepare_intramolecular_inputs(options, qc_params):
     """Prepare the unplaced input and identify it before allocating a run."""
-    fragment_a = Molecule.from_xyz(input_a)
+    fragment_a = Molecule.from_xyz(options["input_a"])
     fragment_a.charge = int(qc_params.get('charge_a', qc_params.get('charge', fragment_a.charge)))
     fragment_a.multiplicity = int(qc_params.get('multiplicity_a', qc_params.get('multiplicity', fragment_a.multiplicity)))
     fragment_a.scftype = qc_params.get('scftype_a', qc_params.get('scftype', fragment_a.scftype))
     fragment_a.fragments = [list(range(fragment_a.number_of_atoms))]
-    intra_plan = intramolecular_scan_plan(fragment_a, atoms, scan_end, scan_step, scan_points)
-    absolute_i, absolute_j = map(int, atoms)
+    intra_plan = intramolecular_scan_plan(
+        fragment_a,
+        options["atoms"],
+        options["scan_end"],
+        options["scan_step"],
+        options["scan_points"],
+    )
+    absolute_i, absolute_j = map(int, options["atoms"])
     total_multiplicity = fragment_a.multiplicity
     if qc_params.get('total_multiplicity') not in (None, total_multiplicity):
         raise ValueError('Intramolecular total multiplicity must equal the input molecule multiplicity')
     qc_params.update(total_multiplicity=total_multiplicity, total_multiplicity_source='input_molecule')
     target_radii = fragment_a.covalent_radius[absolute_i] + fragment_a.covalent_radius[absolute_j]
-    # Product identity must be available before creating the run directory.
-    reactant_identity = molecule_identity_from_xyz(input_a)
+    reactant_identity = molecule_identity_from_xyz(options["input_a"])
     if not reactant_identity or not reactant_identity.get('inchi'):
         raise ValueError('Intramolecular input identity is unavailable; no scan was started')
     orientation = fragment_a.copy()
@@ -574,6 +643,7 @@ def _prepare_intramolecular_inputs(input_a, atoms, qc_params, scan_end,
         intramolecular_plan=intra_plan, reactant_identity=reactant_identity,
         reactant_identity_error=None, orientation_items=[(0, orientation, None)],
     )
+
 
 
 def _prepare_fragment_inputs(input_a, input_b, atoms, orientations, qc_params):
@@ -627,9 +697,9 @@ def _prepare_fragment_inputs(input_a, input_b, atoms, orientations, qc_params):
     )
 
 
-def _establish_scan_request(root, input_a, input_b, atoms, orientations, qc_params,
-                            scan_end, scan_step, scan_points, prepared, layout):
-    """Return the saved signed request that authorizes this run and its commits."""
+def _establish_scan_request(options, route, qc_params, prepared, layout):
+    """Return the run with the signed request authorizing its commits."""
+    root = Path(options["output_dir"]).resolve()
     fragment_a, fragment_b = prepared.fragment_a, prepared.fragment_b
     orientation_items = prepared.orientation_items
     total_multiplicity = qc_params['total_multiplicity']
@@ -642,13 +712,14 @@ def _establish_scan_request(root, input_a, input_b, atoms, orientations, qc_para
          "generation_error": generation_error}
         for index, orientation, generation_error in orientation_items
     ]
-    request = scan_request_fields(input_a, input_b, fragment_a, fragment_b, atoms,
-                                  orientations, qc_params, scan_end, scan_step, scan_points)
+    request = scan_request_fields(
+        dict(options, qc_params=qc_params), fragment_a, fragment_b
+    )
     request.update(orientation_definitions=orientation_definitions,
                    reactant_identity=prepared.reactant_identity,
                    reactant_identity_error=prepared.reactant_identity_error)
     signature_payload = json.dumps(request, sort_keys=True, separators=(",", ":"), default=str)
-    request["request_signature"] = hashlib.sha256(signature_payload.encode("utf-8")).hexdigest()
+    request['request_signature'] = hashlib.sha256(signature_payload.encode('utf-8')).hexdigest()
     if layout is not None:
         request.pop('request_signature')
         request.update(request_schema_version=1, workflow='scan-bond', run_id=layout.run_id)
@@ -669,8 +740,13 @@ def _establish_scan_request(root, input_a, input_b, atoms, orientations, qc_para
         request_temp.write_text(json.dumps(request, indent=2, sort_keys=True, default=str))
         request_temp.replace(request_path)
     if layout is not None:
-        layout.initialize((input_a,) if prepared.fragment_b is None else (input_a, input_b))
-    return request
+        layout.initialize(
+            (options["input_a"],)
+            if prepared.fragment_b is None
+            else (options["input_a"], options["input_b"])
+        )
+    return ScanRun(options, root, route, prepared, qc_params, request, layout)
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -738,22 +814,52 @@ def _recover_orientation(paths, index, request, layout):
     return _RecoveredOrientation(previous_result, committed, complete)
 
 
-def _commit_scan_evidence(index, request, scan, result, n_points, scan_dir,
-                          directory, execution, software, committed, layout):
+@dataclass(frozen=True, slots=True)
+class ScanRun:
+    """Resolved run state; signed requests remain owned by ScanLayout."""
+    options: Mapping
+    root: Path
+    route: _ScanRoute
+    prepared: _PreparedScan
+    qc_params: dict
+    request: dict
+    layout: object | None
+
+
+@dataclass(frozen=True, slots=True)
+class ScanOrientation:
+    index: int
+    molecule: Molecule | None
+    generation_error: str | None
+    paths: _OrientationPaths
+    recovered: _RecoveredOrientation
+
+
+def _commit_scan_evidence(run, task, scan, result, n_points):
     """Check the returned grid and publish its existing profile and v2 commit."""
     if len(scan.frames or []) != n_points or len(scan.profile or []) != n_points:
         raise ValueError(
             f"scan returned {len(scan.frames or [])} geometries and "
             f"{len(scan.profile or [])} energies; expected {n_points} points"
         )
-    if committed is not None:
-        result.update(committed)
+    if task.recovered.committed is not None:
+        result.update(task.recovered.committed)
     else:
-        result.update(_write_scan_profile(
-            scan_dir, scan.frames, scan.profile,
-            "scan.relaxscanact.dat" if software == "orca" else "scan_summary.json"))
-    if layout is not None:
-        layout.commit(index, request, result, directory, execution)
+        result.update(
+            _write_scan_profile(
+                task.paths.scan_dir,
+                scan.frames,
+                scan.profile,
+                "scan.relaxscanact.dat"
+                if run.route.software == "orca"
+                else "scan_summary.json",
+            )
+        )
+    if run.layout is not None:
+        run.layout.commit(
+            task.index, run.request, result, task.paths.directory, task.paths.execution
+        )
+
 
 
 def _record_relaxed_product(result, relaxed, execution, prepared, intramolecular):
@@ -791,208 +897,277 @@ def _record_relaxed_product(result, relaxed, execution, prepared, intramolecular
             result["identity_error"] = str(exc)
 
 
-def _execute_scan_orientation(index, orientation, generation_error, paths, recovered, *,
-                              prepared, route, qc_params, request, scan_end,
-                              scan_step, scan_points, through, layout):
-    """Advance one orientation to a terminal result without publishing its report."""
-    directory, execution = paths.directory, paths.execution
-    scan_dir, relax_dir = paths.scan_dir, paths.relax_dir
-    previous_result, committed = recovered.previous_result, recovered.committed
-    absolute_i, absolute_j = prepared.absolute_atoms
-    default_scan_end = prepared.default_scan_end
-    intra_plan = prepared.intramolecular_plan
-    intramolecular = route.intramolecular
-    software = route.software
-    if recovered.complete:
-        return previous_result
-    if orientation is None:
-        result = {"orientation": index, "status": "scan_failed",
-                  "scan_status": "orientation_generation_failed",
-                  "error": generation_error}
-        return result
-    if committed is None:
-        write_xyz(orientation.atoms_list, orientation.coordinates, directory / "start.xyz", job_name=orientation.name, precision=12)
-    start_distance = _distance(orientation.coordinates, absolute_i, absolute_j)
-    end_distance = float(scan_end if scan_end is not None else default_scan_end)
+@dataclass(frozen=True, slots=True)
+class ScanExecution:
+    scan: object | None
+    result: dict
+    request: OrcaBondScanRequest | None
+
+
+def _prepare_scan_start(run, task):
+    if task.recovered.committed is None:
+        write_xyz(task.molecule.atoms_list, task.molecule.coordinates,
+                  task.paths.directory / 'start.xyz', job_name=task.molecule.name, precision=12)
+    start = _distance(task.molecule.coordinates, *run.prepared.absolute_atoms)
+    end = float(run.options['scan_end'] if run.options['scan_end'] is not None else run.prepared.default_scan_end)
+    return start, end
+
+
+def _execute_native_orientation_scan(run, task):
+    start, end = _prepare_scan_start(run, task)
     try:
-        n_points = scan_point_count(start_distance, end_distance, scan_step, scan_points)
+        points = scan_point_count(start, end, run.options['scan_step'], run.options['scan_points'])
     except ValueError as exc:
-        result = {"status": "scan_failed", "error": str(exc), "orientation": index}
-        return result
-    request_model = OrcaBondScanRequest(absolute_i, absolute_j, start_distance, end_distance, n_points)
-    scan, scan_error = _load_or_execute_scan(
-        orientation, request_model, scan_dir, qc_params, software=software,
-        previous_result=previous_result, committed=committed,
-    )
+        return ScanExecution(None, {'status':'scan_failed', 'error':str(exc), 'orientation':task.index}, None)
+    first,second = run.prepared.absolute_atoms
+    request_model = OrcaBondScanRequest(first, second, start, end, points)
+    scan, error = _load_or_execute_scan(run, task, request_model)
+    return _interpret_orientation_scan(run, task, request_model, scan, error)
+
+
+def _interpret_orientation_scan(run, task, request_model, scan, scan_error):
+    start_distance = request_model.start_distance_angstrom
+    end_distance = request_model.end_distance_angstrom
+    n_points = request_model.n_points
+    intramolecular = run.route.intramolecular
+    intra_plan = run.prepared.intramolecular_plan
+    absolute_i, absolute_j = run.prepared.absolute_atoms
     if scan_error is not None:
-        result = {"orientation": index, "status": "scan_failed", "scan_status": "exception",
-                  "error": str(scan_error), "target_distance_start_angstrom": start_distance,
-                  "target_distance_scan_end_angstrom": end_distance, "scan_points": n_points}
-        return result
-    result = {"orientation": index, "status": "scan_failed", "scan_status": scan.status,
-              "target_distance_start_angstrom": start_distance, "target_distance_scan_end_angstrom": end_distance,
-              "scan_points": n_points, "scan_input": str(scan.input_path), "scan_output": str(scan.output_path)}
+        result = {'orientation': task.index, 'status': 'scan_failed', 'scan_status': 'exception', 'error': str(scan_error), 'target_distance_start_angstrom': start_distance, 'target_distance_scan_end_angstrom': end_distance, 'scan_points': n_points}
+        return ScanExecution(None, result, request_model)
+    result = {'orientation': task.index, 'status': 'scan_failed', 'scan_status': scan.status, 'target_distance_start_angstrom': start_distance, 'target_distance_scan_end_angstrom': end_distance, 'scan_points': n_points, 'scan_input': str(scan.input_path), 'scan_output': str(scan.output_path)}
     from pyar.recovery.stages import scan_diagnostic
-    result['optimization_diagnostics'] = scan_diagnostic(orientation, request_model, scan)
+    result['optimization_diagnostics'] = scan_diagnostic(task.molecule, request_model, scan)
     if intramolecular:
         result.update(intra_plan)
-        result['orientation'] = index
+        result['orientation'] = task.index
     if not scan.success:
+        return ScanExecution(None, result, request_model)
+    result.update({'scan_status': 'success', 'trajectory_path': str(scan.trajectory_path), 'final_scan_path': str(scan.final_geometry_path), 'target_distance_final_scan_angstrom': _distance(scan.final_coordinates, absolute_i, absolute_j)})
+    return ScanExecution(scan, result, request_model)
+
+
+def _relax_orientation_product(run, task, execution):
+    orientation, scan, result = task.molecule, execution.scan, execution.result
+    relaxed = Molecule(orientation.atoms_list, scan.final_coordinates, name='relaxed',
+        fragments=orientation.fragments, charge=orientation.charge,
+        multiplicity=orientation.multiplicity, scftype=orientation.scftype)
+    _, succeeded, error = _relax_scan_endpoint(relaxed, run.qc_params, run.route.software,
+                                              task.paths.relax_dir, task.paths.execution)
+    if error is not None:
+        result['status'] = 'scan_success_relax_failed'
+        result['error'] = error
         return result
-    result.update({"scan_status": "success", "trajectory_path": str(scan.trajectory_path),
-                   "final_scan_path": str(scan.final_geometry_path),
-                   "target_distance_final_scan_angstrom": _distance(scan.final_coordinates, absolute_i, absolute_j)})
-    try:
-        _commit_scan_evidence(
-            index, request, scan, result, n_points, scan_dir, directory,
-            execution, software, committed, layout,
-        )
-    except Exception as exc:
-        result["status"] = "scan_success_analysis_failed"
-        result["error"] = str(exc)
-        return result
-    if not route.relax_in_orientation:
-        result["status"] = "scan_success"
-        result["requested_through"] = through
-        return result
-    relaxed = Molecule(orientation.atoms_list, scan.final_coordinates, name="relaxed",
-                       fragments=orientation.fragments, charge=orientation.charge,
-                       multiplicity=orientation.multiplicity, scftype=orientation.scftype)
-    _, relaxation_succeeded, relax_error = _relax_scan_endpoint(
-        relaxed, qc_params, software, relax_dir, execution,
-    )
-    if relax_error is not None:
-        result["status"] = "scan_success_relax_failed"
-        result["error"] = relax_error
-        return result
-    if relaxation_succeeded:
-        _record_relaxed_product(result, relaxed, execution, prepared, intramolecular)
+    if succeeded:
+        _record_relaxed_product(result, relaxed, task.paths.execution,
+                                 run.prepared, run.route.intramolecular)
     else:
-        result["status"] = "scan_success_relax_failed"
+        result['status'] = 'scan_success_relax_failed'
     return result
 
 
-def _finalize_scan(root, request, route, results, qc_params, through,
-                   reaction_options, characterize_unique_products, layout,
-                   continue_scan_paths):
-    """Publish continuation, grouping and summaries in their established order."""
-    intramolecular = route.intramolecular
-    if route.continue_individual_paths:
-        continue_scan_paths(root.resolve(), results, qc_params, through, reaction_options or {})
-    if layout is not None:
-        layout.product_registry(results, request)
-        if characterize_unique_products:
-            if through in (None, "scan"):
-                raise ValueError("--characterize-unique-products requires --through neb or a later stage")
-            from pyar.workflows.scan_path import characterize_scan_products
-            characterization = characterize_scan_products(
-                root.resolve(), request, qc_params, through,
-                reaction_options or {}, layout,
+def _execute_scan_orientation(run: ScanRun, task: ScanOrientation):
+    """Advance native evidence, commitment and optional unbiased relaxation."""
+    if task.recovered.complete:
+        return task.recovered.previous_result
+    if task.molecule is None:
+        return dict(orientation=task.index, status='scan_failed',
+                    scan_status='orientation_generation_failed', error=task.generation_error)
+    native = _execute_native_orientation_scan(run, task)
+    if native.scan is None:
+        return native.result
+    try:
+        _commit_scan_evidence(run, task, native.scan, native.result, native.request.n_points)
+    except Exception as exc:
+        native.result['status'] = 'scan_success_analysis_failed'
+        native.result['error'] = str(exc)
+        return native.result
+    if not run.route.relax_in_orientation:
+        native.result['status'] = 'scan_success'
+        native.result['requested_through'] = run.options['through']
+        return native.result
+    return _relax_orientation_product(run, task, native)
+
+
+
+
+def _finalize_scan(run: ScanRun, results, continue_scan_paths):
+    """Keep continuation, product publication and summary ownership explicit."""
+    if run.route.continue_individual_paths:
+        continue_scan_paths(
+            run.root.resolve(),
+            results,
+            run.qc_params,
+            run.options["through"],
+            run.options["reaction_options"] or {},
+        )
+    if run.layout is not None:
+        run.layout.product_registry(results, run.request)
+        if run.options["characterize_unique_products"]:
+            _characterize_scan_results(run, results)
+        run.layout.manifest(results)
+    return _publish_scan_summary(run, results)
+
+
+def _characterize_scan_results(run, results):
+    intramolecular = run.route.intramolecular
+    if run.options["through"] in (None, "scan"):
+        raise ValueError("--characterize-unique-products requires --through neb or a later stage")
+    from pyar.workflows.scan_path import characterize_scan_products
+
+    characterization = characterize_scan_products(
+        run.root.resolve(),
+        run.request,
+        run.qc_params,
+        run.options["through"],
+        run.options["reaction_options"] or {},
+        run.layout,
+    )
+    for result in results:
+        if result.get("product_role") == "representative":
+            product_route = characterization.get(result['product_id'], {})
+            result["continuation_status"] = product_route.get("status", "not_started")
+            if intramolecular:
+                result['reactant_product_connection_confirmed'] = bool(
+                    product_route.get('path_result', {}).get('reactant_product_connection_confirmed', False))
+            _publish_derived_report(
+                run.root
+                / f"orientation_{int(result['orientation']):03d}"
+                / "result.json",
+                json.dumps(result, indent=2, sort_keys=True, default=str),
             )
-            for result in results:
-                if result.get("product_role") == "representative":
-                    product_route = characterization.get(result['product_id'], {})
-                    result["continuation_status"] = product_route.get("status", "not_started")
-                    if intramolecular:
-                        result['reactant_product_connection_confirmed'] = bool(
-                            product_route.get('path_result', {}).get('reactant_product_connection_confirmed', False))
-                    _publish_derived_report(
-                        root / f"orientation_{int(result['orientation']):03d}" / "result.json",
-                        json.dumps(result, indent=2, sort_keys=True, default=str),
-                    )
-                elif intramolecular:
-                    result['continuation_status'] = ('not_started_no_new_product'
-                        if result.get('product_identity_changed') is False else 'blocked_by_product_identity')
-        layout.manifest(results)
+        elif intramolecular:
+            result['continuation_status'] = ('not_started_no_new_product'
+                if result.get('product_identity_changed') is False else 'blocked_by_product_identity')
+
+def _publish_scan_summary(run, results):
+    intramolecular = run.route.intramolecular
     _publish_derived_report(
-        root / "summary.json", json.dumps(results, indent=2, sort_keys=True, default=str),
+        run.root / "summary.json",
+        json.dumps(results, indent=2, sort_keys=True, default=str),
     )
     with io.StringIO(newline="") as handle:
         fields = sorted({key for result in results for key in result})
         writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader(); writer.writerows(results)
-        _publish_derived_report(root / "summary.csv", handle.getvalue())
+        writer.writeheader()
+        writer.writerows(results)
+        _publish_derived_report(run.root / "summary.csv", handle.getvalue())
     product_index = (
-        json.loads((root / "products/index.json").read_text())
-        if characterize_unique_products else None
+        json.loads((run.root / "products/index.json").read_text())
+        if run.options["characterize_unique_products"]
+        else None
     )
     complete = _scan_completion_status(
-        results, through, intramolecular, characterize_unique_products, product_index,
+        results,
+        run.options["through"],
+        intramolecular,
+        run.options["characterize_unique_products"],
+        product_index,
     )
-    return {"workflow": "scan-bond", "output_dir": str(root), "results": results,
-            "status": "complete" if complete else "failed", "requested_through": through,
-            "scan_status": ("scan_finished" if all(row.get("scan_status") == "success" for row in results)
-                            else "scan_incomplete")}
+    return {
+        "workflow": "scan-bond",
+        "output_dir": str(run.root),
+        "results": results,
+        "status": "complete" if complete else "failed",
+        "requested_through": run.options["through"],
+        "scan_status": "scan_finished"
+        if all((row.get("scan_status") == "success" for row in results))
+        else "scan_incomplete",
+    }
 
 
-def _run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
-                  scan_end=None, scan_step=None, scan_points=None, through=None, reaction_options=None,
-                  *, characterize_unique_products=False, _layout=None):
-    """Run a scan, optionally continuing through a named reaction-path stage.
 
-    ``through=None`` preserves the original Python scan-plus-relaxation API.
-    Explicit ``through="scan"`` performs only the constrained scan for two
-    fragments. Single-molecule scans always release the constraint and identify
-    the relaxed product; later stages require an identified changed product.
-    """
+
+def _run_scan_bond(options: Mapping, *, _layout=None):
+    """Prepare once and advance ordered orientation contexts under their owner."""
     from pyar.workflows.scan_path import continue_scan_paths
 
-    route, qc_params = _validate_scan_route(
-        input_b, orientations, qc_params, scan_end, scan_step, scan_points,
-        through, reaction_options, characterize_unique_products,
-    )
-    intramolecular = route.intramolecular
-    if intramolecular:
-        prepared = _prepare_intramolecular_inputs(
-            input_a, atoms, qc_params, scan_end, scan_step, scan_points,
+    route, qc_params = _validate_scan_route(options)
+    prepared = (
+        _prepare_intramolecular_inputs(options, qc_params)
+        if route.intramolecular
+        else _prepare_fragment_inputs(
+            options["input_a"],
+            options["input_b"],
+            options["atoms"],
+            options["orientations"],
+            qc_params,
         )
-    else:
-        prepared = _prepare_fragment_inputs(
-            input_a, input_b, atoms, orientations, qc_params,
-        )
-    orientation_items = prepared.orientation_items
-    root = Path(output_dir).resolve()
-    request = _establish_scan_request(
-        root, input_a, input_b, atoms, orientations, qc_params,
-        scan_end, scan_step, scan_points, prepared, _layout,
     )
+    run = _establish_scan_request(options, route, qc_params, prepared, _layout)
     results = []
-    for index, orientation, generation_error in orientation_items:
-        paths = _orientation_paths(root, index, _layout)
-        recovered = _recover_orientation(paths, index, request, _layout)
-        result = _execute_scan_orientation(
-            index, orientation, generation_error, paths, recovered,
-            prepared=prepared, route=route, qc_params=qc_params, request=request,
-            scan_end=scan_end, scan_step=scan_step, scan_points=scan_points,
-            through=through, layout=_layout,
-        )
+    for index, molecule, error in prepared.orientation_items:
+        paths = _orientation_paths(run.root, index, run.layout)
+        recovered = _recover_orientation(paths, index, run.request, run.layout)
+        task = ScanOrientation(index, molecule, error, paths, recovered)
+        result = _execute_scan_orientation(run, task)
         _save_orientation_result(
-            paths.directory, result, qc_params=qc_params, intramolecular=intramolecular,
-            completed_artifacts=paths.completed_artifacts, layout=_layout,
+            paths.directory,
+            result,
+            qc_params=run.qc_params,
+            intramolecular=route.intramolecular,
+            completed_artifacts=paths.completed_artifacts,
+            layout=run.layout,
         )
         results.append(result)
-    return _finalize_scan(
-        root, request, route, results, qc_params, through, reaction_options,
-        characterize_unique_products, _layout, continue_scan_paths,
-    )
+    return _finalize_scan(run, results, continue_scan_paths)
 
 
-def run_scan_bond(input_a, input_b, atoms, orientations, qc_params, output_dir,
-                  scan_end=None, scan_step=None, scan_points=None, through=None,
-                  reaction_options=None, *, characterize_unique_products=False, recover_stale=False):
-    """Route existing v1 scans unchanged and guard fresh v2 scan publication."""
+
+def run_scan_bond(
+    input_a,
+    input_b,
+    atoms,
+    orientations,
+    qc_params,
+    output_dir,
+    scan_end=None,
+    scan_step=None,
+    scan_points=None,
+    through=None,
+    reaction_options=None,
+    *,
+    characterize_unique_products=False,
+    recover_stale=False,
+):
+    """Preserve the keyword API and delegate one immutable invocation mapping."""
+    options = dict(locals())
+    options.pop("recover_stale")
+    return run_scan_bond_request(options, recover_stale=recover_stale)
+
+
+_SCAN_SIGNATURE = inspect.signature(run_scan_bond)
+
+
+def _scan_options(options: Mapping):
+    """Bind invocation fields against the existing public signature once."""
+    if "recover_stale" in options:
+        raise TypeError(
+            "Pass recover_stale as an execution argument, not a scan request field"
+        )
+    bound = _SCAN_SIGNATURE.bind(**options)
+    bound.apply_defaults()
+    bound.arguments.pop("recover_stale")
+    return MappingProxyType(dict(bound.arguments))
+
+
+def run_scan_bond_request(request: Mapping, *, recover_stale=False):
+    """Execute scan invocation settings, retaining signed-request/layout authority.
+
+    The mapping contains the same keyword fields as ``run_scan_bond``, excluding
+    ``recover_stale``. It is copied before execution; stored manifests and signed
+    requests are never accepted in place of the original scientific inputs.
+    """
     from pyar.persistence import detect_version, RunLock
     from pyar.workflows.scan_layout import ScanLayout
-    if input_b is None and through not in (None, 'scan'):
-        characterize_unique_products = True
-    root = Path(output_dir).resolve()
-    arguments = (input_a, input_b, atoms, orientations, qc_params, output_dir,
-                 scan_end, scan_step, scan_points, through, reaction_options)
+
+    options = dict(_scan_options(request))
+    if options["input_b"] is None and options["through"] not in (None, "scan"):
+        options["characterize_unique_products"] = True
+    options = MappingProxyType(options)
+    root = Path(options["output_dir"]).resolve()
     detect_version(root, 'scan-bond')
-    # The sibling lock must be creatable before the run root; support nested
-    # output paths while still taking the lock before inspecting/creating root.
     root.parent.mkdir(parents=True, exist_ok=True)
     with RunLock(root, recover_stale=recover_stale):
         detect_version(root, 'scan-bond')
-        return _run_scan_bond(*arguments, characterize_unique_products=characterize_unique_products,
-                              _layout=ScanLayout(root))
+        return _run_scan_bond(options, _layout=ScanLayout(root))

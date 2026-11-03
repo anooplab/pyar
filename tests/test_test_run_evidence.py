@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timedelta, timezone
+import os
 from pathlib import Path
 import subprocess
 import xml.etree.ElementTree as ET
@@ -132,10 +134,15 @@ def test_malformed_report_is_recorded_as_incomplete_evidence(tmp_path, monkeypat
     assert manifest["evidence_complete"] is False
     assert manifest["junit"]["valid"] is False
     assert manifest["coverage"]["valid"] is False
-    assert sum(
-        message.startswith(("JUnit report is invalid:", "coverage report is invalid:"))
-        for message in manifest["evidence_errors"]
-    ) == 2
+    assert (
+        sum(
+            message.startswith(
+                ("JUnit report is invalid:", "coverage report is invalid:")
+            )
+            for message in manifest["evidence_errors"]
+        )
+        == 2
+    )
 
 
 @pytest.mark.parametrize("bad_xml", ["", "<testsuite", "<not-junit/>"])
@@ -144,3 +151,59 @@ def test_junit_summary_rejects_invalid_or_missing_suite(tmp_path, bad_xml):
     report.write_text(bad_xml, encoding="utf-8")
     with pytest.raises((ET.ParseError, ValueError)):
         evidence._junit_summary(report)
+
+
+@pytest.mark.parametrize(
+    "mtime_offset, coverage_offset, expected_errors",
+    [(0, 0.5, 0), (-1, 0.5, 2), (2, 0.5, 2), (0, -1, 1), (0, 2, 1)],
+)
+def test_report_mtimes_use_filesystem_clock_and_reject_stale_or_future_files(
+    tmp_path, monkeypatch, mtime_offset, coverage_offset, expected_errors
+):
+    # A coarse filesystem tick may precede the wall-clock start for a fresh file.
+    tick = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    wall_times = iter([tick + timedelta(microseconds=500), tick + timedelta(seconds=1)])
+    filesystem_times = iter([tick, tick + timedelta(seconds=1)])
+    monkeypatch.setattr(evidence, "_utc_now", lambda: next(wall_times))
+    monkeypatch.setattr(
+        evidence, "_filesystem_timestamp", lambda path: next(filesystem_times)
+    )
+    monkeypatch.setattr(evidence, "_git_sha", lambda root: "source-sha")
+
+    def fake_subprocess(command, *, cwd, **kwargs):
+        junit = cwd / next(
+            arg.split("=", 1)[1] for arg in command if arg.startswith("--junitxml=")
+        )
+        coverage = cwd / next(
+            arg.split("--cov-report=json:", 1)[1]
+            for arg in command
+            if arg.startswith("--cov-report=json:")
+        )
+        _write_junit(junit, declared=1, testcase_count=1)
+        coverage.write_text(
+            json.dumps(
+                {
+                    "meta": {
+                        "timestamp": (
+                            tick + timedelta(seconds=coverage_offset)
+                        ).isoformat(),
+                        "version": "7.16.1",
+                        "branch_coverage": True,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        mtime = (tick + timedelta(seconds=mtime_offset)).timestamp()
+        for path in (junit, coverage):
+            os.utime(path, (mtime, mtime))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(evidence.subprocess, "run", fake_subprocess)
+    expected_exit = 2 if expected_errors else 0
+    assert evidence.run(tmp_path, tmp_path / "runs", []) == expected_exit
+    manifest_path = next((tmp_path / "runs").glob("*/manifest.json"))
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["evidence_complete"] is (expected_exit == 0)
+    assert manifest["artifact_mtime_interval"]["clock"] == "report_filesystem"
+    assert len(manifest["evidence_errors"]) == expected_errors

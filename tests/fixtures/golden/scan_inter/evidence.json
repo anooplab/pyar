@@ -1,0 +1,617 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "4fd4593be3eb10b25802bc0cf265b8cdbc95a1e9dfdd7363bd2fa1f220afe44c",
+      "multiplicity": 1,
+      "name": "orientation_000",
+      "operation": "scan",
+      "settings": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "historical_heuristic",
+        "xtb_model": "gfn2"
+      },
+      "symbols": [
+        "H",
+        "H"
+      ]
+    }
+  ],
+  "files": {
+    ".scan.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/scan"
+    },
+    "OBabel.log": "1 molecule converted\n",
+    "first.xyz": {
+      "sha256": "000f2b3b372b5954f822134186ddd3fae93426067163ac90203c89c7143bc1e4",
+      "text": "  1\nno_name:0.0\nH      0.00000     0.00000     0.00000\n"
+    },
+    "scan/inputs/fragment_a.xyz": {
+      "sha256": "000f2b3b372b5954f822134186ddd3fae93426067163ac90203c89c7143bc1e4",
+      "text": "  1\nno_name:0.0\nH      0.00000     0.00000     0.00000\n"
+    },
+    "scan/inputs/fragment_b.xyz": {
+      "sha256": "000f2b3b372b5954f822134186ddd3fae93426067163ac90203c89c7143bc1e4",
+      "text": "  1\nno_name:0.0\nH      0.00000     0.00000     0.00000\n"
+    },
+    "scan/inputs/metadata.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/fragment_a.xyz",
+          "role": "input",
+          "sha256": "000f2b3b372b5954f822134186ddd3fae93426067163ac90203c89c7143bc1e4"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000004",
+          "path": "inputs/fragment_b.xyz",
+          "role": "input",
+          "sha256": "000f2b3b372b5954f822134186ddd3fae93426067163ac90203c89c7143bc1e4"
+        }
+      ]
+    },
+    "scan/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "scan-bond"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz": {
+      "sha256": "d4c4c737e7f87d0a9103d278120ccb30f20f34fe1f77c9371004b6b739a47a3d",
+      "text": "2\nimage=0 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH  -1.00000000000000  0.00000000000000  0.00000000000000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/optimization_diagnostic.json": {
+      "automatic_recovery_attempted": false,
+      "exception_chain": [],
+      "gates": {
+        "atom_mapping": "passed",
+        "constraints": "passed",
+        "optimizer": "passed",
+        "physical_energy": "passed"
+      },
+      "reason": "OWNER_GATES_PASSED",
+      "recovery_stop_reason": "No certified restart contract for this stage",
+      "recovery_supported": false,
+      "restart_authority": false,
+      "schema_version": 1,
+      "stage_gate": "passed",
+      "workflow_role": "bond_scan_constrained"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv": "scan_index,frame_index,target_distance_angstrom,energy_hartree,relative_energy_kcal_mol,geometry_path\r\n1,0,0.96,-1.0,0.0,scan_trajectory.xyz\r\n2,1,0.98,-1.0,0.0,scan_trajectory.xyz\r\n3,2,1.0,-1.0,0.0,scan_trajectory.xyz\r\n",
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json": {
+      "energy_source": "scan_summary.json",
+      "points": [
+        {
+          "energy_hartree": -1.0,
+          "frame_index": 0,
+          "geometry_path": "scan_trajectory.xyz",
+          "relative_energy_kcal_mol": 0.0,
+          "scan_index": 1,
+          "target_distance_angstrom": 0.96
+        },
+        {
+          "energy_hartree": -1.0,
+          "frame_index": 1,
+          "geometry_path": "scan_trajectory.xyz",
+          "relative_energy_kcal_mol": 0.0,
+          "scan_index": 2,
+          "target_distance_angstrom": 0.98
+        },
+        {
+          "energy_hartree": -1.0,
+          "frame_index": 2,
+          "geometry_path": "scan_trajectory.xyz",
+          "relative_energy_kcal_mol": 0.0,
+          "scan_index": 3,
+          "target_distance_angstrom": 1.0
+        }
+      ],
+      "relative_energy_reference_scan_index": 1
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json": {
+      "atom_i": 0,
+      "atom_j": 1,
+      "end_distance_angstrom": 1.0,
+      "n_points": 3,
+      "start_distance_angstrom": 0.96
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json": {
+      "status": "success"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz": {
+      "sha256": "07e2cf67db702d022d06206fdfb63b4b465cce8e2a2cf9388fdf2570b1205590",
+      "text": "2\nimage=0 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH  -0.96000000000000  0.00000000000000  0.00000000000000\n2\nimage=1 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH  -0.98000000000000  0.00000000000000  0.00000000000000\n2\nimage=2 energy_hartree=-1.00000000000000\nH   0.00000000000000  0.00000000000000  0.00000000000000\nH  -1.00000000000000  0.00000000000000  0.00000000000000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz": {
+      "sha256": "372a7e345b1ec72958649feb5694da38b4ee6bffd36422a3e5d30cc8bf3963fa",
+      "text": "  2\nhighest_scan_energy_scan_001:-1.0\nH      0.000000000000     0.000000000000     0.000000000000\nH     -0.960000000000     0.000000000000     0.000000000000\n"
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json": {
+      "barrier_from_first_scan_point_kcal_mol": 0.0,
+      "candidate_files": {
+        "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+        "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+      },
+      "energy_source": "scan_summary.json",
+      "interpretation": "scan maximum candidate; not a confirmed transition state",
+      "maximum_energy_hartree": -1.0,
+      "maximum_frame_index": 0,
+      "maximum_is_internal": false,
+      "maximum_scan_index": 1,
+      "maximum_target_distance_angstrom": 0.96
+    },
+    "scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz": {
+      "sha256": "e22bb6d7bb2c5d166ec3f9725bd68b01b0c2f799487508219cca42f9d02b01ef",
+      "text": "  2\npost_maximum_scan_002:-1.0\nH      0.000000000000     0.000000000000     0.000000000000\nH     -0.980000000000     0.000000000000     0.000000000000\n"
+    },
+    "scan/orientation_000/result.json": {
+      "barrier_from_first_scan_point_kcal_mol": 0.0,
+      "candidate_files": {
+        "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+        "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+      },
+      "energy_source": "scan_summary.json",
+      "final_scan_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+      "interpretation": "scan maximum candidate; not a confirmed transition state",
+      "maximum_energy_hartree": -1.0,
+      "maximum_frame_index": 0,
+      "maximum_is_internal": false,
+      "maximum_scan_index": 1,
+      "maximum_target_distance_angstrom": 0.96,
+      "optimization_diagnostics": {
+        "automatic_recovery_attempted": false,
+        "exception_chain": [],
+        "gates": {
+          "atom_mapping": "passed",
+          "constraints": "passed",
+          "optimizer": "passed",
+          "physical_energy": "passed"
+        },
+        "reason": "OWNER_GATES_PASSED",
+        "recovery_stop_reason": "No certified restart contract for this stage",
+        "recovery_supported": false,
+        "restart_authority": false,
+        "schema_version": 1,
+        "stage_gate": "passed",
+        "workflow_role": "bond_scan_constrained"
+      },
+      "orientation": 0,
+      "requested_through": "scan",
+      "scan_energy_source": "scan_summary.json",
+      "scan_input": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+      "scan_output": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+      "scan_points": 3,
+      "scan_profile_csv": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+      "scan_profile_json": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+      "scan_status": "success",
+      "status": "scan_success",
+      "target_distance_final_scan_angstrom": 1.0,
+      "target_distance_scan_end_angstrom": 1.0,
+      "target_distance_start_angstrom": 0.96,
+      "total_multiplicity": 1,
+      "total_multiplicity_source": "historical_heuristic",
+      "trajectory_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+      "ts_candidate_metadata": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+    },
+    "scan/orientation_000/scan_commit.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000005",
+          "path": "orientation_000/start.xyz",
+          "role": "scan-evidence",
+          "sha256": "e43a694b5898be3cd44512f1f7dab09a7d31d7714472a37ff093e7577e5b44c6"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000006",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+          "role": "scan-evidence",
+          "sha256": "d4c4c737e7f87d0a9103d278120ccb30f20f34fe1f77c9371004b6b739a47a3d"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000007",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/optimization_diagnostic.json",
+          "role": "scan-evidence",
+          "sha256": "dbfa8b5da1b6db39c06ac9f6e1cbfdfe8dbbf439b4ed674fafc77dcc458f0804"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+          "role": "scan-evidence",
+          "sha256": "232264cf00fa469377eb2ec710f2e5c38920a05e3dbfe64525c1597651580c28"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000009",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+          "role": "scan-evidence",
+          "sha256": "bd62d2873d1674b0be0829b04b8b65bd44bc0890ef0405506a7aed8a6fa5a6f1"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000a",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+          "role": "scan-evidence",
+          "sha256": "e071c6ac1d77fa3cb14f044dac2f8492a3cfa07f02e4cdbdcc358b7f4efaacb5"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000b",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+          "role": "scan-evidence",
+          "sha256": "912d0c07da7bdb22cdae025b96da26d01523aaab7362edb28544e3949deb369d"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000c",
+          "path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+          "role": "scan-evidence",
+          "sha256": "07e2cf67db702d022d06206fdfb63b4b465cce8e2a2cf9388fdf2570b1205590"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000d",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "372a7e345b1ec72958649feb5694da38b4ee6bffd36422a3e5d30cc8bf3963fa"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000e",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json",
+          "role": "scan-maximum-candidate",
+          "sha256": "8565963a7ed6056e5ccb8d9c2840be7df1b1eef8832b2125f3c7f1e200b58063"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000f",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "e22bb6d7bb2c5d166ec3f9725bd68b01b0c2f799487508219cca42f9d02b01ef"
+        }
+      ],
+      "orientation": 0,
+      "physical_method": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "historical_heuristic",
+        "xtb_model": "gfn2"
+      },
+      "record_id": "00000000-0000-4000-8000-000000000010",
+      "request_signature": "c4c893937b811b89d992a392126e3a72cb69be9df45f15eadde23d5117acdc00",
+      "result": {
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "candidate_files": {
+          "highest_scan_energy": {
+            "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz"
+          },
+          "post_maximum": {
+            "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+          }
+        },
+        "energy_source": "scan_summary.json",
+        "final_scan_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz"
+        },
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.96,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_request.json"
+        },
+        "scan_output": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_summary.json"
+        },
+        "scan_points": 3,
+        "scan_profile_csv": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv"
+        },
+        "scan_profile_json": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_profile.json"
+        },
+        "scan_status": "success",
+        "status": "scan_success",
+        "target_distance_final_scan_angstrom": 1.0,
+        "target_distance_scan_end_angstrom": 1.0,
+        "target_distance_start_angstrom": 0.96,
+        "trajectory_path": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz"
+        },
+        "ts_candidate_metadata": {
+          "artifact_path": "orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+        }
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "stage_result_schema_version": 1,
+      "status": "completed"
+    },
+    "scan/orientation_000/start.xyz": {
+      "sha256": "e43a694b5898be3cd44512f1f7dab09a7d31d7714472a37ff093e7577e5b44c6",
+      "text": "  2\norientation_000:0.0\nH      0.000000000000     0.000000000000     0.000000000000\nH     -0.960000000000     0.000000000000     0.000000000000\n"
+    },
+    "scan/products/index.json": {
+      "format": "pyar-scan-product-registry",
+      "identity_unknown": [],
+      "ineligible_orientations": [
+        {
+          "orientation": 0,
+          "status": "scan_success"
+        }
+      ],
+      "non_products": [],
+      "product_registry_schema_version": 1,
+      "products": [],
+      "request_signature": "c4c893937b811b89d992a392126e3a72cb69be9df45f15eadde23d5117acdc00",
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "scan/request.json": {
+      "atoms_absolute": [
+        0,
+        1
+      ],
+      "atoms_local": [
+        0,
+        0
+      ],
+      "default_scan_end_angstrom": 0.512,
+      "default_scan_end_factor": 0.8,
+      "fragments": [
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "scftype": "rhf"
+        }
+      ],
+      "inputs": {
+        "A": "first.xyz",
+        "B": "second.xyz"
+      },
+      "orientation_definitions": [
+        {
+          "generation_error": null,
+          "molecule": {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                -0.96,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1,
+            "scftype": "rhf"
+          },
+          "orientation": 0,
+          "total_multiplicity": 1,
+          "total_multiplicity_source": "historical_heuristic"
+        }
+      ],
+      "orientations": 1,
+      "qc_params": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb",
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "historical_heuristic",
+        "xtb_model": "gfn2"
+      },
+      "reactant_identity": {
+        "inchi": "InChI=1S/2H",
+        "smiles": "[H].[H]"
+      },
+      "reactant_identity_error": null,
+      "request_schema_version": 1,
+      "request_signature": "c4c893937b811b89d992a392126e3a72cb69be9df45f15eadde23d5117acdc00",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "scan_end": 1.0,
+      "scan_points": 3,
+      "scan_step": null,
+      "schema_version": 2,
+      "target_symbols": [
+        "H",
+        "H"
+      ],
+      "workflow": "scan-bond"
+    },
+    "scan/results/manifest.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000d",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "372a7e345b1ec72958649feb5694da38b4ee6bffd36422a3e5d30cc8bf3963fa",
+          "source_record_id": "00000000-0000-4000-8000-000000000010",
+          "validated_transition_state": false
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000f",
+          "path": "orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz",
+          "role": "scan-maximum-candidate",
+          "sha256": "e22bb6d7bb2c5d166ec3f9725bd68b01b0c2f799487508219cca42f9d02b01ef",
+          "source_record_id": "00000000-0000-4000-8000-000000000010",
+          "validated_transition_state": false
+        }
+      ],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "scan-bond"
+    },
+    "scan/summary.csv": "barrier_from_first_scan_point_kcal_mol,candidate_files,energy_source,final_scan_path,interpretation,maximum_energy_hartree,maximum_frame_index,maximum_is_internal,maximum_scan_index,maximum_target_distance_angstrom,optimization_diagnostics,orientation,requested_through,scan_energy_source,scan_input,scan_output,scan_points,scan_profile_csv,scan_profile_json,scan_status,status,target_distance_final_scan_angstrom,target_distance_scan_end_angstrom,target_distance_start_angstrom,total_multiplicity,total_multiplicity_source,trajectory_path,ts_candidate_metadata\r\n0.0,\"{'highest_scan_energy': '<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz', 'post_maximum': '<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz'}\",scan_summary.json,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz,scan maximum candidate; not a confirmed transition state,-1.0,0,False,1,0.96,\"{'schema_version': 1, 'workflow_role': 'bond_scan_constrained', 'stage_gate': 'passed', 'gates': {'optimizer': 'passed', 'constraints': 'passed', 'atom_mapping': 'passed', 'physical_energy': 'passed'}, 'reason': 'OWNER_GATES_PASSED', 'exception_chain': [], 'automatic_recovery_attempted': False, 'recovery_supported': False, 'recovery_stop_reason': 'No certified restart contract for this stage', 'restart_authority': False}\",0,scan,scan_summary.json,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json,3,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json,success,scan_success,1.0,1.0,0.96,1,historical_heuristic,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz,<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json\r\n",
+    "scan/summary.json": [
+      {
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "candidate_files": {
+          "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+        },
+        "energy_source": "scan_summary.json",
+        "final_scan_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.96,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "requested_through": "scan",
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+        "scan_output": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+        "scan_points": 3,
+        "scan_profile_csv": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+        "scan_profile_json": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+        "scan_status": "success",
+        "status": "scan_success",
+        "target_distance_final_scan_angstrom": 1.0,
+        "target_distance_scan_end_angstrom": 1.0,
+        "target_distance_start_angstrom": 0.96,
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "historical_heuristic",
+        "trajectory_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+        "ts_candidate_metadata": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+      }
+    ],
+    "second.xyz": {
+      "sha256": "000f2b3b372b5954f822134186ddd3fae93426067163ac90203c89c7143bc1e4",
+      "text": "  1\nno_name:0.0\nH      0.00000     0.00000     0.00000\n"
+    }
+  },
+  "result": {
+    "output_dir": "<ROOT>/scan",
+    "requested_through": "scan",
+    "results": [
+      {
+        "barrier_from_first_scan_point_kcal_mol": 0.0,
+        "candidate_files": {
+          "highest_scan_energy": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/highest_scan_energy.xyz",
+          "post_maximum": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/post_maximum.xyz"
+        },
+        "energy_source": "scan_summary.json",
+        "final_scan_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/final_scan.xyz",
+        "interpretation": "scan maximum candidate; not a confirmed transition state",
+        "maximum_energy_hartree": -1.0,
+        "maximum_frame_index": 0,
+        "maximum_is_internal": false,
+        "maximum_scan_index": 1,
+        "maximum_target_distance_angstrom": 0.96,
+        "optimization_diagnostics": {
+          "automatic_recovery_attempted": false,
+          "exception_chain": [],
+          "gates": {
+            "atom_mapping": "passed",
+            "constraints": "passed",
+            "optimizer": "passed",
+            "physical_energy": "passed"
+          },
+          "reason": "OWNER_GATES_PASSED",
+          "recovery_stop_reason": "No certified restart contract for this stage",
+          "recovery_supported": false,
+          "restart_authority": false,
+          "schema_version": 1,
+          "stage_gate": "passed",
+          "workflow_role": "bond_scan_constrained"
+        },
+        "orientation": 0,
+        "requested_through": "scan",
+        "scan_energy_source": "scan_summary.json",
+        "scan_input": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_request.json",
+        "scan_output": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_summary.json",
+        "scan_points": 3,
+        "scan_profile_csv": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.csv",
+        "scan_profile_json": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_profile.json",
+        "scan_status": "success",
+        "status": "scan_success",
+        "target_distance_final_scan_angstrom": 1.0,
+        "target_distance_scan_end_angstrom": 1.0,
+        "target_distance_start_angstrom": 0.96,
+        "total_multiplicity": 1,
+        "total_multiplicity_source": "historical_heuristic",
+        "trajectory_path": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/scan/scan_trajectory.xyz",
+        "ts_candidate_metadata": "<ROOT>/scan/orientation_000/attempts/attempt_000/execution/ts_candidates/metadata.json"
+      }
+    ],
+    "scan_status": "scan_finished",
+    "status": "complete",
+    "workflow": "scan-bond"
+  }
+}

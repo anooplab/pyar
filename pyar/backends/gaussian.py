@@ -16,6 +16,8 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import os
 import logging
@@ -65,6 +67,7 @@ class Gaussian(SF):
                 f1.write(f"{self.atoms_list[i]:>3}  {coords[i][0]:10.7f}  {coords[i][1]:10.7f} {coords[i][2]:10.7f}\n")
             f1.write("\n")
 
+    @backend_operation
     def optimize(self):
         """
         Optimize the current structure with Gaussian.
@@ -103,12 +106,12 @@ class Gaussian(SF):
                 "gaussian optimization did not terminate normally job=%s input=%s output=%s cwd=%s",
                 self.job_name, self.inp_file, self.out_file, os.getcwd(),
             )
-            return False
+            raise BackendExecutionError("gaussian optimization failed; inspect the retained backend output")
         gaussian_logger.error(
             "gaussian command returned non-zero job=%s input=%s output=%s cwd=%s",
             self.job_name, self.inp_file, self.out_file, os.getcwd(),
         )
-        return False
+        raise BackendExecutionError("gaussian optimization failed; inspect the retained backend output")
 
     def get_coords(self):
         """

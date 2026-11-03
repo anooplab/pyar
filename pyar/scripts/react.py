@@ -134,10 +134,9 @@ def main(argv=None, *, prog=None):
     try:
         started_run()
         if completed_state is None:
-            result = reaction_workflow.react(*request.reactants, request.bias_min, request.bias_max,
-                                             request.orientations, request.qc_params, request.site,
-                                             request.proximity_factor,
-                                             **({"recover_stale": True} if args.recover_stale_lock else {}))
+            result = reaction_workflow.run_reaction(
+                request, **({"recover_stale": True} if args.recover_stale_lock else {})
+            )
         else:
             products = completed_state.data.get('products', [])
             result = reaction_workflow.ReactionResult(
@@ -155,7 +154,13 @@ def main(argv=None, *, prog=None):
             result = replace(result, status=(result.status if characterization['status'] in
                               {'complete', 'complete_no_products'} else 'completed_path_failed'),
                              metadata={**dict(result.metadata), 'characterization': characterization})
-    except (ValueError, OSError, ReactionStateError, BackendExecutionError, LockError) as exc:
+    except (
+        ValueError,
+        OSError,
+        ReactionStateError,
+        BackendExecutionError,
+        LockError,
+    ) as exc:
         parser.error(str(exc))
     finished_run(result)
     print(f'Reaction search: {result.status}\nProducts found: {len(result.selected_paths)}\n'

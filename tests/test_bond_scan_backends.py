@@ -10,6 +10,8 @@ from pyar.backends.bond_scan import BondScanRequest, load_bond_scan_result, run_
 from pyar.core.molecule import Molecule
 from pyar.energy_gradient_providers import EnergyGradientResult
 
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 @pytest.mark.parametrize('single_molecule', [False, True])
 def test_real_geometric_scan_constrains_distance_and_relaxes_other_bonds(tmp_path, monkeypatch, single_molecule):
@@ -132,12 +134,12 @@ def test_cli_xtb_full_cycle_does_not_require_basis(tmp_path, monkeypatch):
     path = tmp_path / "H.xyz"
     path.write_text("1\nH\nH 0 0 0\n")
     calls = []
-    monkeypatch.setattr(scan_bond, "run_scan_bond", lambda *args: calls.append(args))
+    monkeypatch.setattr(scan_bond, "run_scan_bond_request", lambda *args: calls.append(args))
     scan_bond.main([str(path), str(path), "--atoms", "0", "0", "-N", "1", "--backend", "xtb",
                     "--through", "all", "--ts-optimizer", "sella"])
-    assert calls[0][4]["xtb_model"] == "gfn2"
-    assert calls[0][9] == "all"
-    assert calls[0][10]["ts_optimizer"] == "sella"
+    assert calls[0][0]["qc_params"]["xtb_model"] == "gfn2"
+    assert calls[0][0]["through"] == "all"
+    assert calls[0][0]["reaction_options"]["ts_optimizer"] == "sella"
 
 
 def test_orca_builtin_xtb_gradient_omits_dft_keywords():
@@ -213,7 +215,7 @@ def test_cli_reports_scientific_failure_with_nonzero_exit(tmp_path, monkeypatch,
     monkeypatch.setattr('pyar.scan_request.preflight_scan', lambda *args: [])
     path = tmp_path / 'H.xyz'
     path.write_text('1\nH\nH 0 0 0\n')
-    monkeypatch.setattr(scan_bond, 'run_scan_bond', lambda *args: {
+    monkeypatch.setattr(scan_bond, 'run_scan_bond_request', lambda *args: {
         'status': 'failed', 'output_dir': str(tmp_path),
         'results': [{'continuation_status': 'scientific_gate_failed', 'failed_stage': 'frequency'}]})
     with pytest.raises(SystemExit) as error:

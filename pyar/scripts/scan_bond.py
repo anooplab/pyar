@@ -6,7 +6,7 @@ from pathlib import Path
 from pyar.backends.orca_methods import orca_method
 from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
 from pyar.workflows.scan_path import THROUGH_STAGES, validate_continuation
-from pyar.workflows.scan_bond import run_scan_bond
+from pyar.workflows.scan_bond import run_scan_bond_request
 from pyar.persistence import LockError
 
 class ScanArgumentParser(argparse.ArgumentParser):
@@ -87,6 +87,24 @@ def _backend_parameters_from_args(args, intramolecular, parser):
             params.pop(key)
     return params
 
+def _scan_invocation(args, parameters, reaction_options):
+    """Use one invocation mapping for preflight and execution."""
+    return dict(
+        input_a=args.inputs[0],
+        input_b=None if len(args.inputs) == 1 else args.inputs[1],
+        atoms=args.atoms,
+        orientations=args.orientations,
+        qc_params=parameters,
+        output_dir=args.output,
+        scan_end=args.scan_end,
+        scan_step=args.scan_step,
+        scan_points=args.scan_points,
+        through=args.through,
+        reaction_options=reaction_options,
+        characterize_unique_products=args.characterize_unique_products,
+    )
+
+
 def main(argv=None, *, prog=None):
     parser = build_parser(prog=prog)
     args = parser.parse_args(argv)
@@ -139,6 +157,7 @@ def main(argv=None, *, prog=None):
     if args.software != 'orca' and args.gxtb_wrapper:
         parser.error('--gxtb-wrapper is only used with ORCA')
     from pyar.workflows.scan_path import REACTION_OPTION_NAMES
+
     reaction_options = {name: getattr(args, name) for name in REACTION_OPTION_NAMES}
     try:
         validate_continuation(args.through, reaction_options)
@@ -151,15 +170,21 @@ def main(argv=None, *, prog=None):
     if not all((Path(path).is_file() for path in args.inputs)):
         parser.error('all input XYZ files must exist')
     from pyar.scan_request import validate_inputs
+
     try:
         molecules = validate_inputs(args)
     except ValueError as exc:
         parser.error(str(exc))
     params = _backend_parameters_from_args(args, intramolecular, parser)
+    invocation = _scan_invocation(args, params, reaction_options)
     from pyar.scan_request import preflight_scan
+
     try:
         from pyar.workflows.scan_bond import scan_request_fields, validate_scan_restart
-        request_fields = scan_request_fields(args.inputs[0], None if intramolecular else args.inputs[1], molecules[0], None if intramolecular else molecules[1], args.atoms, args.orientations, params, args.scan_end, args.scan_step, args.scan_points)
+
+        request_fields = scan_request_fields(
+            invocation, molecules[0], None if intramolecular else molecules[1]
+        )
         validate_scan_restart(args.output, request_fields)
         requirements = preflight_scan(args, params, molecules)
     except (ValueError, ImportError, OSError, RuntimeError) as exc:
@@ -178,7 +203,9 @@ def main(argv=None, *, prog=None):
         return
     started_run()
     try:
-        result = run_scan_bond(args.inputs[0], None if intramolecular else args.inputs[1], args.atoms, args.orientations, params, args.output, args.scan_end, args.scan_step, args.scan_points, args.through, reaction_options, **{'characterize_unique_products': True} if args.characterize_unique_products else {}, **{'recover_stale': True} if args.recover_stale_lock else {})
+        result = run_scan_bond_request(
+            invocation, **({"recover_stale": True} if args.recover_stale_lock else {})
+        )
     except LockError as exc:
         parser.error(str(exc))
     finished_run(result)

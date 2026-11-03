@@ -1,6 +1,7 @@
 """Selection reporting helpers."""
 
 from __future__ import annotations
+from pyar.constants import HARTREE_KCAL_MOL_REPORT
 
 import operator
 import re
@@ -14,7 +15,7 @@ __all__ = [
 ]
 
 
-HARTREE_TO_KCAL_MOL = 627.51
+HARTREE_TO_KCAL_MOL = HARTREE_KCAL_MOL_REPORT
 
 
 def print_energy_table(molecules, stream=None, title=None):

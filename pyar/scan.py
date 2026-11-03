@@ -1,3 +1,4 @@
+from pathlib import Path
 import time
 
 import numpy as np
@@ -6,10 +7,14 @@ import pyar.sampling.trial_generator as trial_generation
 from pyar.selection import clustering
 
 
-def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
-                               number_of_orientations, d_scale):
+def generate_guess_for_bonding(
+    molecule_id, seed, monomer, a, b, number_of_orientations, d_scale, *, directory=None
+):
+    directory = Path(directory or Path.cwd()).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
     from scipy.optimize import differential_evolution as global_opt
     from functools import partial
+
     my_bounds = [(-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5), (0, 2 * np.pi),
                  (0, 2 * np.pi), (0, 2 * np.pi)]
     orientations = []
@@ -27,7 +32,7 @@ def generate_guess_for_bonding(molecule_id, seed, monomer, a, b,
         each_orientation.name = each_orientation_id
         each_orientation.energy = 0.0
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
-        each_orientation.mol_to_xyz(each_orientation_xyz_file)
+        each_orientation.mol_to_xyz(str(directory / each_orientation_xyz_file))
         orientations.append(each_orientation)
     try:
         return clustering.remove_similar(orientations)
@@ -41,7 +46,11 @@ def ab_dist(a, b, monomer, seed, pts):
     return np.linalg.norm(coordinates[a] - coordinates[b])
 
 
-def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, number_of_orientations, d_scale):
+def generate_guess_for_bonding_brute_force(
+    molecule_id, seed, monomer, a, b, number_of_orientations, d_scale, *, directory=None
+):
+    directory = Path(directory or Path.cwd()).resolve()
+    directory.mkdir(parents=True, exist_ok=True)
     saved_pts = []
     orientations = []
     for population_index in range(number_of_orientations):
@@ -77,8 +86,10 @@ def generate_guess_for_bonding_brute_force(molecule_id, seed, monomer, a, b, num
         each_orientation.title = f'trial orientation {each_orientation_id}'
         each_orientation.name = each_orientation_id
         each_orientation_xyz_file = filename_prefix + each_orientation_id + '.xyz'
-        each_orientation.mol_to_xyz(each_orientation_xyz_file)
+        each_orientation.mol_to_xyz(str(directory / each_orientation_xyz_file))
     t2 = time.time()
     trial_generation.trial_generation_logger.debug(f'Wrote files in {t2 - t1} seconds')
-    trial_generation.write_trial_vectors(saved_pts, 'trial_vectors.dat')
+    trial_generation.write_trial_vectors(
+        saved_pts, str(directory / "trial_vectors.dat")
+    )
     return orientations

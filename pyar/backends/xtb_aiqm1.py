@@ -1,4 +1,6 @@
 """xTB followed by AIQM1 refinement backend."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import logging
 import os
@@ -40,6 +42,7 @@ class XtbAIQM1(SF):
 
         self.trajectory_xyz_file = 'traj_' + self.job_name + '.xyz'
 
+    @backend_operation
     def optimize(self, max_cycles=350, gamma=None, restart=False, convergence='normal'):
         # XTB optimization
         with open('xtb.out', 'w') as output_file_pointer:
@@ -48,14 +51,14 @@ class XtbAIQM1(SF):
             except Exception as e:
                 xtb_aiqm1_logger.info('    XTB optimization failed')
                 xtb_aiqm1_logger.error(f"      {e}")
-                return False
+                raise BackendExecutionError("xtb_aiqm1 optimization failed; inspect the retained backend output")
 
         if os.path.isfile('.xtboptok'):
             os.rename('xtbopt.xyz', self.xtb_optimized_xyz_file)
             os.remove('.xtboptok')
         else:
             xtb_aiqm1_logger.info('      XTB optimization failed')
-            return False
+            raise BackendExecutionError("xtb_aiqm1 optimization failed; inspect the retained backend output")
 
         # AIQM1 optimization
         with open('aiqm1.out', 'w') as output_file_pointer:
@@ -64,7 +67,7 @@ class XtbAIQM1(SF):
             except Exception as e:
                 xtb_aiqm1_logger.info('    AIQM1 optimization failed')
                 xtb_aiqm1_logger.error(f"      {e}")
-                return False
+                raise BackendExecutionError("xtb_aiqm1 optimization failed; inspect the retained backend output")
 
         write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                   job_name=self.job_name,

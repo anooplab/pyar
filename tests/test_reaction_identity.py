@@ -10,6 +10,8 @@ from pyar.core.molecule import Molecule
 from pyar import reaction_identity
 from pyar.workflows import reaction
 
+from workspace_support import in_test_workspace
+
 
 class ReactionIdentityTests(unittest.TestCase):
     def test_write_disconnected_reference_separates_fragments(self):
@@ -155,6 +157,7 @@ class ReactionIdentityTests(unittest.TestCase):
             def record_job(self, *args, **kwargs):
                 return None
 
+        @in_test_workspace
         def fake_optimise(molecule, qc_params):
             result_directory = Path(f"job_{molecule.name}")
             result_directory.mkdir()

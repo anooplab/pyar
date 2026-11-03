@@ -14,6 +14,8 @@ from pyar.core.molecule import Molecule
 from pyar.persistence import read_json, sha256_file
 from pyar.workflows.scan_bond import intramolecular_scan_plan, run_scan_bond
 
+from workspace_support import in_test_workspace
+
 
 @pytest.mark.parametrize('distance,direction', [(.74, 'break'), (2., 'form')])
 def test_automatic_plan_uses_current_distance_and_finite_grid(distance, direction):
@@ -54,18 +56,18 @@ def cli_case(tmp_path, monkeypatch):
 
 
 def test_single_input_cli_infers_mode_and_does_not_duplicate_charge(cli_case):
-    with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run:
+    with mock.patch('pyar.scripts.scan_bond.run_scan_bond_request') as run:
         cli.main([*cli_case, '--charge', '-2'])
-    args = run.call_args.args
-    assert args[:4] == ('molecule.xyz', None, [0, 1], 1)
-    assert args[4]['charge_a'] == -2
-    assert 'charge_b' not in args[4]
-    assert args[4]['multiplicity_a'] == 1
+    request = run.call_args.args[0]
+    assert (request['input_a'], request['input_b'], request['atoms'], request['orientations']) == ('molecule.xyz', None, [0, 1], 1)
+    assert request['qc_params']['charge_a'] == -2
+    assert 'charge_b' not in request['qc_params']
+    assert request['qc_params']['multiplicity_a'] == 1
 
 
 def test_single_input_preflight_is_readonly_and_shows_plan(cli_case, capsys):
     before = set(Path('.').iterdir())
-    with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run, mock.patch(
+    with mock.patch('pyar.scripts.scan_bond.run_scan_bond_request') as run, mock.patch(
         'subprocess.Popen', side_effect=AssertionError('preflight cannot launch a program')
     ):
         cli.main([*cli_case, '--check'])
@@ -77,7 +79,7 @@ def test_single_input_preflight_is_readonly_and_shows_plan(cli_case, capsys):
 
 
 def test_single_input_dry_run_records_the_proposed_plan(cli_case, capsys):
-    with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run:
+    with mock.patch('pyar.scripts.scan_bond.run_scan_bond_request') as run:
         cli.main([*cli_case, '--dry-run', '--json'])
     value = json.loads(capsys.readouterr().out)
     assert 'Plan intramolecular bond formation or breaking' in value['plan']['stages']
@@ -96,7 +98,7 @@ def test_legacy_single_input_does_not_require_fragment_orientation_count(cli_cas
     ['--atoms', '0', '2'], ['--total-multiplicity', '3'], ['--scan-end', '.5'],
 ])
 def test_single_input_invalid_requests_do_not_start(cli_case, options):
-    with mock.patch('pyar.scripts.scan_bond.run_scan_bond') as run:
+    with mock.patch('pyar.scripts.scan_bond.run_scan_bond_request') as run:
         with pytest.raises(SystemExit):
             cli.main([*cli_case, *options])
     run.assert_not_called()
@@ -139,6 +141,7 @@ def intramolecular_run(tmp_path, monkeypatch):
         controls['scan_result'] = result
         return result
 
+    @in_test_workspace
     def relax(molecule, settings):
         calls.append(('relax', molecule.charge, molecule.multiplicity, list(molecule.atoms_list)))
         if controls['relax_failure']:

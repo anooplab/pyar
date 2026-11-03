@@ -9,6 +9,10 @@ from unittest import mock
 from pyar.growth import service as aggregator
 from pyar.growth import service as growth
 
+from workspace_support import in_test_workspace
+
+from pyar.growth.policy import GrowthPolicy, SelectionOptions, FinalSelectionRun
+
 aggregate_workflow = importlib.import_module("pyar.workflows.aggregate")
 
 
@@ -118,15 +122,7 @@ class AggregatorTests(unittest.TestCase):
                 with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
                     with mock.patch.object(growth, "optimise", return_value=True):
                         with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial]) as chooser:
-                            aggregator.add_one(
-                                aggregate_id="ag_test",
-                                seeds=[seed],
-                                monomer=monomer,
-                                hm_orientations=1,
-                                qc_params=qc_params,
-                                maximum_number_of_seeds=1,
-                                site=None,
-                            )
+                            aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(1, qc_params, 1, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
             finally:
                 os.chdir(cwd)
 
@@ -143,6 +139,7 @@ class AggregatorTests(unittest.TestCase):
         trial_b.energy = 1.0
         thresholds = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             thresholds.append(qc_params.get("opt_threshold"))
             return True
@@ -155,15 +152,7 @@ class AggregatorTests(unittest.TestCase):
                 with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial_a, trial_b]):
                     with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a, trial_b]) as chooser:
-                            result = aggregator.add_one(
-                                aggregate_id="ag_test",
-                                seeds=[seed],
-                                monomer=monomer,
-                                hm_orientations=2,
-                                qc_params=qc_params,
-                                maximum_number_of_seeds=2,
-                                site=None,
-                            )
+                            result = aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(2, qc_params, 2, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
                 snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
                 second_snapshot_exists = Path(tmpdir, "selected", "result_trial_b.xyz").is_file()
                 nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
@@ -191,6 +180,7 @@ class AggregatorTests(unittest.TestCase):
         trial_b.energy = 1.0
         thresholds = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             thresholds.append(qc_params.get("opt_threshold"))
             return True
@@ -204,15 +194,7 @@ class AggregatorTests(unittest.TestCase):
                     with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(growth.shutil, "copy", return_value=None):
                             with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a]) as chooser:
-                                result = aggregator.add_one(
-                                    aggregate_id="ag_test",
-                                    seeds=[seed],
-                                    monomer=monomer,
-                                    hm_orientations=2,
-                                    qc_params=qc_params,
-                                    maximum_number_of_seeds=2,
-                                    site=None,
-                                )
+                                result = aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(2, qc_params, 2, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
                 snapshot_exists = Path(tmpdir, "selected", "result_trial_a.xyz").is_file()
                 registry_exists = Path(tmpdir, "selected", "basin_registry.json").is_file()
                 nested_selected_exists = Path(tmpdir, "selected", "stoichiometry_H").exists()
@@ -241,6 +223,7 @@ class AggregatorTests(unittest.TestCase):
         trial_b.energy = 1.0
         refined_names = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             if qc_params.get("opt_threshold") == "normal":
                 refined_names.append(molecule.name)
@@ -256,15 +239,7 @@ class AggregatorTests(unittest.TestCase):
                     with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
                         with mock.patch.object(growth.shutil, "copy", return_value=None):
                             with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial_a, trial_b]):
-                                result = aggregator.add_one(
-                                    aggregate_id="ag_test",
-                                    seeds=[seed],
-                                    monomer=monomer,
-                                    hm_orientations=2,
-                                    qc_params=qc_params,
-                                    maximum_number_of_seeds=2,
-                                    site=None,
-                                )
+                                result = aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(2, qc_params, 2, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
             finally:
                 os.chdir(cwd)
 
@@ -278,6 +253,7 @@ class AggregatorTests(unittest.TestCase):
         trial.energy = 0.0
         optimise_calls = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             optimise_calls.append(molecule.name)
             return "CycleExceeded"
@@ -292,16 +268,7 @@ class AggregatorTests(unittest.TestCase):
                         with mock.patch.object(growth.clustering, "remove_similar", side_effect=lambda molecules: molecules):
                             with mock.patch.object(growth.clustering, "choose_geometries", return_value=[]):
                                 with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
-                                    aggregator.add_one(
-                                        aggregate_id="ag_test",
-                                        seeds=[seed],
-                                        monomer=monomer,
-                                        hm_orientations=1,
-                                        qc_params=qc_params,
-                                        maximum_number_of_seeds=1,
-                                        site=None,
-                                        connectivity_policy="off",
-                                    )
+                                    aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(1, qc_params, 1, None, 'off', SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
             finally:
                 os.chdir(cwd)
 
@@ -314,6 +281,7 @@ class AggregatorTests(unittest.TestCase):
         trial.energy = 0.0
         optimise_calls = []
 
+        @in_test_workspace
         def fake_optimize(molecule, qc_params):
             optimise_calls.append(molecule.name)
             return "CycleExceeded"
@@ -328,16 +296,7 @@ class AggregatorTests(unittest.TestCase):
                         with mock.patch.object(growth.clustering, "remove_similar", side_effect=lambda molecules: molecules):
                             with mock.patch.object(growth.clustering, "choose_geometries", return_value=[]):
                                 with mock.patch.object(growth, "optimise", side_effect=fake_optimize):
-                                    aggregator.add_one(
-                                        aggregate_id="ag_test",
-                                        seeds=[seed],
-                                        monomer=monomer,
-                                        hm_orientations=1,
-                                        qc_params=qc_params,
-                                        maximum_number_of_seeds=1,
-                                        site=None,
-                                        connectivity_policy="prefer",
-                                    )
+                                    aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(1, qc_params, 1, None, 'prefer', SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
             finally:
                 os.chdir(cwd)
 
@@ -356,15 +315,7 @@ class AggregatorTests(unittest.TestCase):
                 with mock.patch.object(growth.trial_generation, "create_trial_geometries", return_value=[trial]):
                     with mock.patch.object(growth, "optimise", side_effect=RuntimeError("seed optimization failed")):
                         with self.assertRaisesRegex(RuntimeError, "seed optimization failed"):
-                            aggregator.add_one(
-                                aggregate_id="ag_test",
-                                seeds=[seed],
-                                monomer=monomer,
-                                hm_orientations=1,
-                                qc_params=qc_params,
-                                maximum_number_of_seeds=1,
-                                site=None,
-                            )
+                            aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(1, qc_params, 1, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
                 self.assertEqual(os.getcwd(), tmpdir)
             finally:
                 os.chdir(cwd)
@@ -375,6 +326,7 @@ class AggregatorTests(unittest.TestCase):
         trial = DummyMolecule("trial", n_atoms=1)
         trial.energy = 0.0
 
+        @in_test_workspace
         def fail_during_refinement(molecule, qc_params):
             if qc_params.get("opt_threshold") == "normal":
                 raise RuntimeError("refinement failed")
@@ -389,15 +341,7 @@ class AggregatorTests(unittest.TestCase):
                     with mock.patch.object(growth, "optimise", side_effect=fail_during_refinement):
                         with mock.patch.object(growth.clustering, "choose_geometries", return_value=[trial]):
                             with self.assertRaisesRegex(RuntimeError, "refinement failed"):
-                                aggregator.add_one(
-                                    aggregate_id="ag_test",
-                                    seeds=[seed],
-                                    monomer=monomer,
-                                    hm_orientations=1,
-                                    qc_params=qc_params,
-                                    maximum_number_of_seeds=1,
-                                    site=None,
-                                )
+                                aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(1, qc_params, 1, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
                 self.assertEqual(os.getcwd(), tmpdir)
             finally:
                 os.chdir(cwd)
@@ -416,15 +360,7 @@ class AggregatorTests(unittest.TestCase):
                     side_effect=RuntimeError("orientation generation failed"),
                 ):
                     with self.assertRaisesRegex(RuntimeError, "orientation generation failed"):
-                        aggregator.add_one(
-                            aggregate_id="ag_test",
-                            seeds=[seed],
-                            monomer=monomer,
-                            hm_orientations=1,
-                            qc_params={},
-                            maximum_number_of_seeds=1,
-                            site=None,
-                        )
+                        aggregator.add_one('ag_test', [seed], monomer, GrowthPolicy(1, {}, 1, None, None, SelectionOptions('auto', 'auto', 'euclidean', 'auto'), True))
                 self.assertEqual(os.getcwd(), tmpdir)
             finally:
                 os.chdir(cwd)
@@ -585,11 +521,7 @@ class AggregatorTests(unittest.TestCase):
                     stale_final_dir.mkdir(parents=True)
                     stale_result = stale_final_dir / "result_stale.xyz"
                     stale_result.write_text("1\nstale: -3.0\nH 0 0 0\n")
-                    selected = aggregator._finalize_selected_geometries(
-                        aggregate_root='.',
-                        maximum_number_of_seeds=1,
-                        algorithm='maxmin',
-                    )
+                    selected = aggregator._finalize_selected_geometries(FinalSelectionRun(Path('.'), None, True), GrowthPolicy(maximum_number_of_seeds=1, connectivity_policy='off', selection=SelectionOptions('auto', 'maxmin', 'euclidean', 'auto')))
                 final_snapshot_exists = Path(tmpdir, "selected", "stoichiometry_CH4").exists()
                 final_readme_exists = Path(tmpdir, "selected", "stoichiometry_CH4", "README.txt").is_file()
                 stale_final_result_exists = stale_result.exists()

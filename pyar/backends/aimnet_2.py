@@ -1,4 +1,7 @@
 """AIMNet2 backend implementation."""
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
+from pyar.constants import EV_HARTREE_ROUNDED
 
 import logging
 import os
@@ -82,15 +85,9 @@ class Aimnet2(SF):
                 f1.write(
                     " " + "%3s  %10.7f  %10.7f %10.7f\n" % (self.atoms_list[i], coords[i][0], coords[i][1], coords[i][2]))
 
+    @backend_operation
     def optimize(self):
-        """
-        :returns: True,
-                  'SCFFailed',
-                  'GradFailed',
-                  'UpdateFailed',
-                  'CycleExceeded',
-                  False
-        """
+        """Optimize geometry; return True or raise a typed backend error."""
 
 
         with open('aimnet2.out', 'w') as output_file_pointer:
@@ -99,7 +96,7 @@ class Aimnet2(SF):
             except Exception as e:
                 Aimnet2_logger.info('    Optimization failed')
                 Aimnet2_logger.error(f"      {e}")
-                return False
+                raise BackendExecutionError("aimnet_2 optimization failed; inspect the retained backend output")
 
             write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file,
                       job_name=self.job_name,
@@ -124,7 +121,7 @@ class Aimnet2(SF):
                 if len(energy_tokens) >= 4:
                     energy = energy_tokens[3]
                     try:
-                        energy = float(energy) * 0.0367493  # Convert energy from eV to Hartree
+                        energy = float(energy) * EV_HARTREE_ROUNDED  # Convert energy from eV to Hartree
                         return energy
                     except ValueError:
                         print("Error: Unable to convert energy value to float")

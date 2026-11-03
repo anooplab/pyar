@@ -20,8 +20,10 @@ from pyar.backends.orca_methods import orca_external_method_block, orca_method, 
 from pyar.core.molecule import Molecule
 from pyar.workflows.scan_bond import (
     absolute_target_indices, _resolve_total_multiplicity,
-    _run_scan_bond as run_scan_bond, scan_point_count,
+    scan_point_count,
 )
+
+from workspace_support import in_test_workspace, run_legacy_scan as run_scan_bond
 
 
 def test_fragment_local_indices_are_merged_asymmetric():
@@ -54,15 +56,8 @@ def test_scan_preflight_spin_request_matches_execution_request(tmp_path):
     fragment_b = Molecule.from_xyz(b)
     fragment_a.multiplicity = 2
     fragment_b.multiplicity = 2
-    preflight = scan_request_fields(
-        a, b, fragment_a, fragment_b, (0, 0), 1,
-        {"software": "orca", "total_multiplicity": None},
-    )
-    execution = scan_request_fields(
-        a, b, fragment_a, fragment_b, (0, 0), 1,
-        {"software": "orca", "total_multiplicity": 1,
-          "total_multiplicity_source": "historical_heuristic"},
-    )
+    preflight = scan_request_fields({'input_a': a, 'input_b': b, 'atoms': (0, 0), 'orientations': 1, 'qc_params': {'software': 'orca', 'total_multiplicity': None}, 'scan_end': None, 'scan_step': None, 'scan_points': None}, fragment_a, fragment_b)
+    execution = scan_request_fields({'input_a': a, 'input_b': b, 'atoms': (0, 0), 'orientations': 1, 'qc_params': {'software': 'orca', 'total_multiplicity': 1, 'total_multiplicity_source': 'historical_heuristic'}, 'scan_end': None, 'scan_step': None, 'scan_points': None}, fragment_a, fragment_b)
     assert preflight == execution
 
 
@@ -158,6 +153,7 @@ def test_orca_scan_input_and_recovery(tmp_path, monkeypatch):
     request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 2)
     scan_dir = tmp_path / "scan"
 
+    @in_test_workspace
     def fake_run(command, stdout_path=None, stderr_path=None):
         assert Path.cwd() == scan_dir
         Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
@@ -328,9 +324,9 @@ def test_scan_bond_cli_requires_gxtb_wrapper_and_dft_basis(tmp_path, monkeypatch
     wrapper.write_text("#!/bin/sh\n")
     wrapper.chmod(0o755)
     captured = {}
-    monkeypatch.setattr(scan_bond, "run_scan_bond", lambda *args: captured.setdefault("args", args))
+    monkeypatch.setattr(scan_bond, "run_scan_bond_request", lambda *args: captured.setdefault("args", args))
     scan_bond.main(common + ["--method", "g-xTB", "--gxtb-wrapper", str(wrapper)])
-    params = captured["args"][4]
+    params = captured["args"][0]["qc_params"]
     assert params["basis"] is None
     assert params["gxtb_wrapper"] == str(wrapper.resolve())
 
@@ -339,6 +335,7 @@ def test_orca_scan_rejects_incomplete_trajectory(tmp_path, monkeypatch):
     molecule = Molecule(["H", "H"], np.asarray([[0., 0., 0.], [2., 0., 0.]]))
     request = OrcaBondScanRequest(0, 1, 2.0, 1.0, 3)
 
+    @in_test_workspace
     def fake_run(command, stdout_path=None, stderr_path=None):
         Path(stdout_path).write_text("****ORCA TERMINATED NORMALLY****\n")
         Path("scan.allxyz").write_text("2\nframe 1\nH 0 0 0\nH 2 0 0\n")
@@ -406,6 +403,7 @@ def test_workflow_relaxes_scan_frame_and_writes_summary(
 
     scan_calls = 0
 
+    @in_test_workspace
     def fake_optimise(molecule, qc_params):
         observed_multiplicities.append(("relax", molecule.multiplicity))
         molecule.coordinates = np.asarray([[0., 0., 0.], [target_distance, 0., 0.]])
@@ -525,6 +523,7 @@ def test_restart_reuses_completed_scan_after_relaxation_failure(tmp_path, monkey
         saved_scan.append(result)
         return result
 
+    @in_test_workspace
     def fake_optimise(molecule, qc_params):
         nonlocal relax_calls
         relax_calls += 1
@@ -614,6 +613,7 @@ def test_workflow_default_scan_end_is_0_8_times_covalent_radii(tmp_path, monkeyp
                                   input_path, output_path, "success", frames=frames,
                                   profile=profile)
 
+    @in_test_workspace
     def fake_optimise(molecule, qc_params):
         Path("job_relaxed").mkdir()
         write_xyz(molecule.atoms_list, molecule.coordinates,

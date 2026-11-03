@@ -11,8 +11,10 @@ import numpy as np
 import pytest
 
 from pyar import optimiser
-from pyar.backend_errors import BackendExecutionError
+from pyar.backend_errors import BackendConvergenceError, BackendExecutionError
 from pyar.core.molecule import Molecule
+
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
 
 
 @pytest.fixture
@@ -61,21 +63,24 @@ def orca_runner(monkeypatch, molecule, qc, executable):
 def test_orca_normal_termination_without_geometry_convergence_is_rejected(fake_program, monkeypatch, molecule, qc):
     executable = fake_program(stdout='FINAL SINGLE POINT ENERGY -1.0\n****ORCA TERMINATED NORMALLY****',
                               files={'trial_audit.xyz': xyz()})
-    assert orca_runner(monkeypatch, molecule, qc, executable).optimize() is not True
+    with pytest.raises(BackendExecutionError):
+        orca_runner(monkeypatch, molecule, qc, executable).optimize()
 
 
 @pytest.mark.parametrize('energy_line', ['', 'FINAL SINGLE POINT ENERGY nan\n'])
 def test_orca_missing_or_nonfinite_energy_is_rejected(fake_program, monkeypatch, molecule, qc, energy_line):
     executable = fake_program(stdout=energy_line + 'THE OPTIMIZATION HAS CONVERGED\n****ORCA TERMINATED NORMALLY****',
                               files={'trial_audit.xyz': xyz()})
-    assert orca_runner(monkeypatch, molecule, qc, executable).optimize() is not True
+    with pytest.raises(BackendExecutionError):
+        orca_runner(monkeypatch, molecule, qc, executable).optimize()
 
 
 def test_orca_does_not_reuse_old_wrong_symbol_xyz(fake_program, monkeypatch, molecule, qc):
     executable = fake_program(stdout='THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****')
     runner = orca_runner(monkeypatch, molecule, qc, executable)
     Path('trial_audit.xyz').write_text(xyz(symbols=('He', 'He')))
-    assert runner.optimize() is not True
+    with pytest.raises(BackendExecutionError):
+        runner.optimize()
 
 
 def test_orca_rejects_fresh_geometry_with_wrong_symbols(fake_program, monkeypatch, molecule, qc):
@@ -84,13 +89,15 @@ def test_orca_rejects_fresh_geometry_with_wrong_symbols(fake_program, monkeypatc
                '****ORCA TERMINATED NORMALLY****',
         files={'trial_audit.xyz': xyz(symbols=('He', 'He'))},
     )
-    assert orca_runner(monkeypatch, molecule, qc, executable).optimize() is False
+    with pytest.raises(BackendExecutionError):
+        orca_runner(monkeypatch, molecule, qc, executable).optimize()
 
 
 def test_orca_nonzero_exit_does_not_promote_existing_frame(fake_program, monkeypatch, molecule, qc):
     executable = fake_program(returncode=7, files={'trial_audit.xyz': xyz()},
                               stdout='FINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****')
-    assert orca_runner(monkeypatch, molecule, qc, executable).optimize() is False
+    with pytest.raises(BackendExecutionError):
+        orca_runner(monkeypatch, molecule, qc, executable).optimize()
     assert Path('trial_audit.xyz').is_file()  # retained on disk, not a validated accepted frame
 
 
@@ -114,21 +121,24 @@ def test_xtb_stale_success_cannot_authorize_current_run(fake_program, monkeypatc
     Path('energy').write_text('$energy\n 1 -1.0\n$end\n')
     if scc_marker:
         Path('.sccnotconverged').touch()
-    assert runner.optimize() is not True
+    with pytest.raises(BackendExecutionError):
+        runner.optimize()
 
 
 def test_xtb_scc_marker_without_success_returns_failure(fake_program, monkeypatch, molecule):
     from pyar.backends import xtb
     executable = fake_program(stdout='SCC failed', files={'.sccnotconverged': ''})
     monkeypatch.setattr(xtb, 'require_executable', lambda *args: executable)
-    assert xtb.Xtb(molecule, {'opt_threshold': 'normal'}).optimize() == 'SCFFailed'
+    with pytest.raises(BackendExecutionError):
+        xtb.Xtb(molecule, {'opt_threshold': 'normal'}).optimize()
 
 
 def test_xtb_zero_exit_unknown_option_is_rejected(fake_program, monkeypatch, molecule):
     from pyar.backends import xtb
     executable = fake_program(stdout="Unknown option '--gxtb' provided")
     monkeypatch.setattr(xtb, 'require_executable', lambda *args: executable)
-    assert xtb.Xtb(molecule, {'opt_threshold': 'normal'}).optimize() is False
+    with pytest.raises(BackendExecutionError):
+        xtb.Xtb(molecule, {'opt_threshold': 'normal'}).optimize()
 
 
 @pytest.mark.parametrize('problem', ['missing', 'wrong_method', 'wrong_symbols'])
@@ -314,9 +324,10 @@ def geometric_case(fake_program, monkeypatch, *, status='cycle_exceeded', return
 def test_geometric_iteration_limit_retains_provisional_geometry(fake_program, monkeypatch, molecule, qc):
     geometric = geometric_case(fake_program, monkeypatch)
     runner = geometric.Geometric(molecule, dict(qc, software='xtb'))
-    status = runner.optimize()
-    assert status == 'CycleExceeded'
-    assert not optimiser.is_success(status) and optimiser.is_usable(status)
+    with pytest.raises(BackendConvergenceError) as caught:
+        runner.optimize()
+    assert caught.value.usable_geometry
+    assert not optimiser.is_success(caught.value)
     np.testing.assert_allclose(runner.optimized_coordinates, molecule.coordinates)
     assert runner.energy == -1.
     assert Path('result_audit.xyz').is_file()

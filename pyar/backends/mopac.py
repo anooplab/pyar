@@ -17,6 +17,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
+from pyar.constants import HARTREE_KCAL_MOL_REPORT
 
 import os
 import logging
@@ -72,6 +75,7 @@ class Mopac(SF):
             os.remove('tmp.log')
         return exit_status
 
+    @backend_operation
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """Optimize the current structure with MOPAC.
 
@@ -96,12 +100,12 @@ class Mopac(SF):
                 "mopac run completed but arc file missing job=%s input=%s arc=%s log=%s cwd=%s",
                 self.job_name, self.inp_file, self.arc_file, logfile, os.getcwd(),
             )
-            return False
+            raise BackendExecutionError("mopac optimization failed; inspect the retained backend output")
         mopac_logger.error(
             "mopac command returned non-zero job=%s input=%s log=%s cwd=%s",
             self.job_name, self.inp_file, logfile, os.getcwd(),
         )
-        return False
+        raise BackendExecutionError("mopac optimization failed; inspect the retained backend output")
 
     def get_energy(self):
         """Return the MOPAC heat of formation converted to Hartree."""
@@ -118,7 +122,7 @@ class Mopac(SF):
                     break
         except IOError:
             mopac_logger.warning("mopac arc file missing job=%s arc=%s", self.job_name, self.arc_file)
-        return en_kcal / 627.51
+        return en_kcal / HARTREE_KCAL_MOL_REPORT
 
     def get_coords(self):
         """Return the optimized Cartesian coordinates from the ARC file."""

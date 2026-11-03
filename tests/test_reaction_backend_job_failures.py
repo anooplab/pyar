@@ -52,7 +52,7 @@ def test_failed_orientation_is_recorded_and_remaining_jobs_continue(
     product_dir.mkdir()
     outcomes = iter([BackendExecutionError("backend rejected this geometry"), True])
 
-    def optimize(*_args):
+    def optimize(*_args, **_kwargs):
         outcome = next(outcomes)
         if isinstance(outcome, Exception):
             raise outcome
@@ -63,7 +63,7 @@ def test_failed_orientation_is_recorded_and_remaining_jobs_continue(
     monkeypatch.setattr(
         reaction,
         "molecule_identity_from_xyz",
-        lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
+        lambda *_args, **_kwargs: {"inchi": "reactants", "smiles": "reactants"},
     )
     monkeypatch.setattr(
         reaction,
@@ -97,10 +97,10 @@ def test_all_failed_orientations_still_raise_backend_failure(tmp_path, monkeypat
     monkeypatch.setattr(
         reaction,
         "molecule_identity_from_xyz",
-        lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
+        lambda *_args, **_kwargs: {"inchi": "reactants", "smiles": "reactants"},
     )
 
-    def fail_job(*_args):
+    def fail_job(*_args, **_kwargs):
         raise BackendExecutionError("backend is unavailable")
 
     monkeypatch.setattr(reaction, "_optimize_with_diagnostics", fail_job)
@@ -137,7 +137,7 @@ def test_legacy_reaction_exception_restores_process_working_directory(
     monkeypatch.setattr(
         reaction,
         "separated_reactant_identity",
-        lambda *_args: {"inchi": "reactants", "smiles": "reactants"},
+        lambda *_args, **_kwargs: {"inchi": "reactants", "smiles": "reactants"},
     )
 
     def fail_after_gamma_chdir(*_args, **_kwargs):
@@ -164,3 +164,27 @@ def test_legacy_reaction_exception_restores_process_working_directory(
 
     assert observed_directory == tmp_path
     os.chdir(original_directory)
+
+
+def test_product_identity_error_is_not_misclassified_as_optimizer_failure(tmp_path, monkeypatch):
+    """The native-operation catch must not swallow later product-evidence failures."""
+    molecule = DummyMolecule('orientation_00000001')
+    monkeypatch.setattr(molecule, 'is_bonded', lambda: True)
+    monkeypatch.setattr(reaction, 'write_disconnected_reference', lambda *_: None)
+    monkeypatch.setattr(reaction, '_optimize_with_diagnostics', lambda *a, **k: True)
+    monkeypatch.setattr(reaction, 'relax_without_afir_bias', lambda *a, **k: True)
+    calls = []
+
+    def identity(path, **kwargs):
+        calls.append(Path(path).name)
+        if Path(path).name == 'result_relax.xyz':
+            raise BackendExecutionError('identity evidence failed')
+        return {'inchi': 'reactants', 'smiles': 'reactants'}
+
+    monkeypatch.setattr(reaction, 'molecule_identity_from_xyz', identity)
+    state = DummyRunState()
+    with pytest.raises(BackendExecutionError, match='^identity evidence failed$'):
+        reaction.optimize_all('0001', [molecule], state, str(tmp_path),
+                              {'gamma': 1.}, directory=tmp_path)
+    assert calls[-1] == 'result_relax.xyz'
+    assert state.jobs == []

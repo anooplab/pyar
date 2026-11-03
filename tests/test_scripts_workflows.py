@@ -1,3 +1,4 @@
+from pyar.reaction_request import ReactionRequest
 import importlib
 import os
 import sys
@@ -12,6 +13,8 @@ import numpy as np
 from pyar.core.molecule import Molecule
 from pyar.state.reaction import ReactionStateError
 from pyar.workflow_results import ReactionResult
+
+from workspace_support import in_test_workspace
 
 
 class StandaloneWorkflowScriptTests(unittest.TestCase):
@@ -151,6 +154,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
             name="000_geom",
         )
 
+        @in_test_workspace
         def fail_optimization(current, _params):
             current.coordinates = None
             current.energy = None
@@ -200,6 +204,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
         )
         optimization_parameters = []
 
+        @in_test_workspace
         def succeed(current, params):
             optimization_parameters.append(dict(params))
             current.energy = -1.0
@@ -413,16 +418,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 ), \
                     mock.patch.object(reactor, "optimize_all", return_value=[]) as optimize_all, \
                     mock.patch.object(reactor.os, "chdir"):
-                    result = reactor._react(
-                        object(),
-                        object(),
-                        0.1,
-                        0.2,
-                        1,
-                        {"software": "xtb"},
-                        None,
-                        2.3,
-                    )
+                    result = reactor._react(ReactionRequest([object(), object()], {"software": "xtb"}, 0.1, 0.2, 1, None, 2.3, {}))
             finally:
                 os.chdir(cwd)
                 reactor.saved_product_identities.clear()
@@ -458,7 +454,7 @@ class StandaloneWorkflowScriptTests(unittest.TestCase):
                 ), \
                     mock.patch.object(reactor, "optimize_all", return_value=[]), \
                     mock.patch.object(reactor.os, "chdir"):
-                    result = reactor._react(object(), object(), 100.0, 100.0, 1, {"software": "xtb"}, None, 2.3)
+                    result = reactor._react(ReactionRequest([object(), object()], {"software": "xtb"}, 100.0, 100.0, 1, None, 2.3, {}))
 
             run_state.complete_cycle.assert_called_once_with(100.0, [])
             run_state.finish.assert_called_once_with("completed_products_found")

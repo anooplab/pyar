@@ -9,6 +9,10 @@ from pyar.optimization_service import inspect_optimization, optimize_once
 from pyar.recovery.models import OptimizationRequest, Outcome, FailureCode, ExecutionObservation, ProcessRecord
 from pyar.recovery.observations import snapshot_artifacts
 
+from workspace_support import in_test_workspace
+
+pytestmark = pytest.mark.usefixtures("inline_directory_worker")
+
 
 @pytest.fixture
 def molecule():
@@ -344,6 +348,7 @@ def test_facade_executes_once_and_preserves_input(tmp_path, monkeypatch, molecul
     before = copy.deepcopy(molecule)
     settings = dict(software='xtb', opt_threshold='normal')
     calls = []
+    @in_test_workspace
     def execute(candidate, params):
         calls.append((candidate, params))
         root = Path('job_h2')

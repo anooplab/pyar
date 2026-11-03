@@ -1,0 +1,649 @@
+{
+  "backend_calls": [
+    {
+      "charge": 0,
+      "coordinates_sha256": "b02f44bdbe7121edf1cdd4eafc437e1d99b960c322c04e4042073eb41269dd45",
+      "multiplicity": 1,
+      "name": "seed_000043_conf_0000",
+      "operation": "optimize",
+      "settings": {
+        "nprocs": 1,
+        "opt_threshold": "normal",
+        "software": "xtb"
+      },
+      "symbols": [
+        "C",
+        "H",
+        "H",
+        "H",
+        "H"
+      ]
+    }
+  ],
+  "files": {
+    ".conformers.pyar-v2.lock": {
+      "acquired_utc": "<TIME>",
+      "active": false,
+      "format": "pyar-run-lock",
+      "host": "<HOST>",
+      "lock_schema_version": 1,
+      "owner_id": "00000000-0000-4000-8000-000000000001",
+      "pid": "<PID>",
+      "released_utc": "<TIME>",
+      "run_root": "<ROOT>/conformers"
+    },
+    "conformers/completion.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/input.smiles",
+          "role": "input",
+          "sha256": "12f37a8a84034d3e623d726fe10e5031f4df997ac13f4d5571b5a90c41fb84fe"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000006",
+          "path": "generated/seed_000043_conf_0000.xyz",
+          "role": "generated-conformer",
+          "sha256": "129d5e578ba0aff95f0b80ec647e2317b58c5da0892d6502a0c2ef8e0651e6e1"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000007",
+          "path": "refinement/execution/job_seed_000043_conf_0000/result_seed_000043_conf_0000.xyz",
+          "role": "backend-refined-conformer",
+          "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec"
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "backend_energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -5.0
+          },
+          "conformer_id": "00000000-0000-4000-8000-000000000005",
+          "path": "results/conf_0000.xyz",
+          "rank": 0,
+          "rdkit_energy_record": {
+            "method": "uff",
+            "unit": "kcal/mol",
+            "value": 1.0
+          },
+          "role": "selected-conformer",
+          "seed": 43,
+          "selection_reason": "energy",
+          "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+          "source_artifact_id": "00000000-0000-4000-8000-000000000007",
+          "source_conf_id": 0
+        },
+        {
+          "artifact_id": "00000000-0000-4000-8000-00000000000a",
+          "path": "generated/records.json",
+          "role": "generation-metadata",
+          "sha256": "5baff3e4c24ad048224e9b51c9fd2d21a811bc50205593ac39cb81e80a91af77"
+        }
+      ],
+      "comparison_policy": {
+        "atom_mode": "heavy",
+        "bond_scale": 1.15,
+        "irmsd_timeout_seconds": 30.0,
+        "max_isomorphisms": 10000,
+        "method": "graph-rmsd-with-bidirectional-irmsd-on-incomplete-mapping",
+        "policy_version": 1,
+        "stages": {},
+        "uncertainty_policy": "keep"
+      },
+      "record_id": "00000000-0000-4000-8000-000000000009",
+      "request": {
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "backend_top_n": null,
+        "charge": null,
+        "compactness_fraction": 0.2,
+        "dedup_atom_mode": "heavy",
+        "diversity_fraction": 0.2,
+        "final_dedup_rms": 0.75,
+        "force_field": "auto",
+        "generation_dedup_rms": 0.5,
+        "input": "C",
+        "input_format": "auto",
+        "max_iterations": 200,
+        "multiplicity": 1,
+        "num_conformers": 2,
+        "num_seeds": 1,
+        "num_threads": 1,
+        "rms_threshold": 0.25,
+        "scftype": "rhf",
+        "seed": 43,
+        "seed_values": [
+          43
+        ],
+        "top_n": 1,
+        "torsion_dedup_rms": 0.5,
+        "torsion_kicks": false,
+        "torsion_kicks_per_conformer": 6,
+        "torsion_max_bonds": 3,
+        "torsion_mode": "random",
+        "torsion_rounds": 2,
+        "use_random_coords": true
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "selected": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "backend_energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -5.0
+          },
+          "conformer_id": "00000000-0000-4000-8000-000000000005",
+          "path": "results/conf_0000.xyz",
+          "rank": 0,
+          "rdkit_energy_record": {
+            "method": "uff",
+            "unit": "kcal/mol",
+            "value": 1.0
+          },
+          "role": "selected-conformer",
+          "seed": 43,
+          "selection_reason": "energy",
+          "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+          "source_artifact_id": "00000000-0000-4000-8000-000000000007",
+          "source_conf_id": 0,
+          "source_record_id": "00000000-0000-4000-8000-000000000009"
+        }
+      ],
+      "stage_result_schema_version": 1,
+      "status": "completed"
+    },
+    "conformers/generated/records.json": {
+      "conformers": [
+        {
+          "backend_artifact": {
+            "artifact_id": "00000000-0000-4000-8000-000000000007",
+            "path": "refinement/execution/job_seed_000043_conf_0000/result_seed_000043_conf_0000.xyz",
+            "role": "backend-refined-conformer",
+            "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec"
+          },
+          "backend_diagnostic_path": "refinement/execution/.pyar_optimization_diagnostics/conformer_refinement-seed_000043_conf_0000-1.json",
+          "backend_energy": -5.0,
+          "backend_energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -5.0
+          },
+          "backend_path": "refinement/execution/job_seed_000043_conf_0000/result_seed_000043_conf_0000.xyz",
+          "backend_status": "success",
+          "backend_validation_status": "INVALID_RESULT",
+          "conformer_id": "00000000-0000-4000-8000-000000000005",
+          "contact_count": 0,
+          "force_field": "uff",
+          "generation_round": 0,
+          "generation_stage": "etkdg",
+          "name": "seed_000043_conf_0000",
+          "parent_name": null,
+          "radius_gyration": 0.9744426099057861,
+          "rank": 0,
+          "rdkit_artifact": {
+            "artifact_id": "00000000-0000-4000-8000-000000000006",
+            "path": "generated/seed_000043_conf_0000.xyz",
+            "role": "generated-conformer",
+            "sha256": "129d5e578ba0aff95f0b80ec647e2317b58c5da0892d6502a0c2ef8e0651e6e1"
+          },
+          "rdkit_energy": 1.0,
+          "rdkit_energy_record": {
+            "method": "uff",
+            "unit": "kcal/mol",
+            "value": 1.0
+          },
+          "rdkit_path": "generated/seed_000043_conf_0000.xyz",
+          "rdkit_status": "converged",
+          "refinement_diversity": 0.0,
+          "refinement_reason": "energy",
+          "seed": 43,
+          "selected_path": "results/conf_0000.xyz",
+          "source_conf_id": 0,
+          "stereo_signature": "C",
+          "torsion_moves": null
+        }
+      ],
+      "record_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002"
+    },
+    "conformers/generated/seed_000043_conf_0000.xyz": {
+      "sha256": "129d5e578ba0aff95f0b80ec647e2317b58c5da0892d6502a0c2ef8e0651e6e1",
+      "text": "  5\nRDKit seed 43 conformer 0: 1.0\nC      0.00000     0.00000     0.00000\nH      0.62900     0.62900     0.62900\nH     -0.62900    -0.62900     0.62900\nH     -0.62900     0.62900    -0.62900\nH      0.62900    -0.62900    -0.62900\n"
+    },
+    "conformers/inputs/input.smiles": "C\n",
+    "conformers/inputs/metadata.json": {
+      "inputs": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000003",
+          "path": "inputs/input.smiles",
+          "role": "input",
+          "sha256": "12f37a8a84034d3e623d726fe10e5031f4df997ac13f4d5571b5a90c41fb84fe"
+        }
+      ],
+      "request": {
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "backend_top_n": null,
+        "charge": null,
+        "compactness_fraction": 0.2,
+        "dedup_atom_mode": "heavy",
+        "diversity_fraction": 0.2,
+        "final_dedup_rms": 0.75,
+        "force_field": "auto",
+        "generation_dedup_rms": 0.5,
+        "input": "C",
+        "input_format": "auto",
+        "max_iterations": 200,
+        "multiplicity": 1,
+        "num_conformers": 2,
+        "num_seeds": 1,
+        "num_threads": 1,
+        "rms_threshold": 0.25,
+        "scftype": "rhf",
+        "seed": 43,
+        "seed_values": [
+          43
+        ],
+        "top_n": 1,
+        "torsion_dedup_rms": 0.5,
+        "torsion_kicks": false,
+        "torsion_kicks_per_conformer": 6,
+        "torsion_max_bonds": 3,
+        "torsion_mode": "random",
+        "torsion_rounds": 2,
+        "use_random_coords": true
+      }
+    },
+    "conformers/layout.json": {
+      "format": "pyar-run-layout",
+      "layout_version": 2,
+      "pyar_series": "1.6",
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "conformer"
+    },
+    "conformers/refinement/execution/.pyar_optimization_diagnostics/conformer_refinement-seed_000043_conf_0000-1.json": {
+      "legacy_status": "success",
+      "molecule_name": "seed_000043_conf_0000",
+      "owner_decision": {
+        "accepted": true,
+        "allow_incomplete": true,
+        "provisional": true,
+        "reason": "Owner permits incomplete results for subsequent workflow validation",
+        "validated_converged": false
+      },
+      "recovery": null,
+      "request_error": null,
+      "result": {
+        "accepted_frame": null,
+        "attempts": [
+          {
+            "action": "initial",
+            "artifacts": [
+              {
+                "artifact_id": "8540caf3-6054-59f5-b288-26458dc57250",
+                "path": "result_seed_000043_conf_0000.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+                "source_record_id": null
+              },
+              {
+                "artifact_id": "75fac2cb-fa78-587e-a842-3faf1fae89ca",
+                "path": "trial_seed_000043_conf_0000.xyz",
+                "role": "diagnostic-evidence",
+                "sha256": "129d5e578ba0aff95f0b80ec647e2317b58c5da0892d6502a0c2ef8e0651e6e1",
+                "source_record_id": null
+              }
+            ],
+            "execution": {
+              "artifacts": [
+                {
+                  "artifact_id": "8540caf3-6054-59f5-b288-26458dc57250",
+                  "path": "result_seed_000043_conf_0000.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+                  "source_record_id": null
+                },
+                {
+                  "artifact_id": "75fac2cb-fa78-587e-a842-3faf1fae89ca",
+                  "path": "trial_seed_000043_conf_0000.xyz",
+                  "role": "diagnostic-evidence",
+                  "sha256": "129d5e578ba0aff95f0b80ec647e2317b58c5da0892d6502a0c2ef8e0651e6e1",
+                  "source_record_id": null
+                }
+              ],
+              "elapsed_seconds": "<TIME>",
+              "fresh_directory": true,
+              "legacy_status": true,
+              "processes": [],
+              "request_fingerprint": "f5883eaff30b148bc93e63699ec6df4cb4c259b06761869defc38caf4b3af60c"
+            },
+            "number": 1,
+            "original_scientific_fingerprint": null,
+            "parent_number": null,
+            "request": {
+              "asset_hashes": {},
+              "backend": "xtb",
+              "coordinates_angstrom": [
+                [
+                  0.0,
+                  0.0,
+                  0.0
+                ],
+                [
+                  0.629,
+                  0.629,
+                  0.629
+                ],
+                [
+                  -0.629,
+                  -0.629,
+                  0.629
+                ],
+                [
+                  -0.629,
+                  0.629,
+                  -0.629
+                ],
+                [
+                  0.629,
+                  -0.629,
+                  -0.629
+                ]
+              ],
+              "name": "seed_000043_conf_0000",
+              "optimizer": "native",
+              "request_fingerprint": "f5883eaff30b148bc93e63699ec6df4cb4c259b06761869defc38caf4b3af60c",
+              "scientific_fingerprint": "48058e49f0bac8702d643b9ef98c6b27b53c236c04e1e02d55cfe30020a2806d",
+              "settings": {
+                "charge": 0,
+                "fragments": [],
+                "multiplicity": 1,
+                "nprocs": 1,
+                "opt_threshold": "normal",
+                "scftype": "rhf",
+                "software": "xtb",
+                "xtb_model": "gfn2",
+                "xtb_unpaired_electrons": 0
+              },
+              "symbols": [
+                "C",
+                "H",
+                "H",
+                "H",
+                "H"
+              ],
+              "target": "minimum",
+              "workflow_role": "conformer_refinement"
+            },
+            "steps": [],
+            "versions": [],
+            "worker_returncode": null
+          }
+        ],
+        "converged": false,
+        "diagnostics": [
+          {
+            "certainty": "observed",
+            "code": "INVALID_RESULT",
+            "excerpt": null,
+            "line": null,
+            "message": "[Errno 2] No such file or directory: '<ROOT>/conformers/refinement/execution/job_seed_000043_conf_0000/xtb.out'",
+            "path": null,
+            "severity": "error",
+            "source": "validator"
+          }
+        ],
+        "exception_chain": [
+          {
+            "message": "[Errno 2] No such file or directory: '<ROOT>/conformers/refinement/execution/job_seed_000043_conf_0000/xtb.out'",
+            "type": "FileNotFoundError"
+          }
+        ],
+        "gates": [
+          {
+            "axis": "backend",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "scf",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "optimizer",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "stationarity",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "objective",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "constraints",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "workflow",
+            "detail": "Not established by available evidence",
+            "state": "unknown"
+          },
+          {
+            "axis": "acceptance_policy",
+            "detail": "Owner permits incomplete results for subsequent workflow validation",
+            "state": "passed"
+          }
+        ],
+        "observed_frame": null,
+        "reason": "INVALID_RESULT",
+        "schema_version": 1,
+        "status": "INVALID_RESULT",
+        "workflow_accepted": false
+      },
+      "schema_version": 1,
+      "workflow_role": "conformer_refinement"
+    },
+    "conformers/refinement/execution/job_seed_000043_conf_0000/result_seed_000043_conf_0000.xyz": {
+      "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+      "text": "  5\nRDKit seed 43 conformer 0: -5.0\nC      0.00000     0.00000     0.00000\nH      0.62900     0.62900     0.62900\nH     -0.62900    -0.62900     0.62900\nH     -0.62900     0.62900    -0.62900\nH      0.62900    -0.62900    -0.62900\n"
+    },
+    "conformers/refinement/execution/job_seed_000043_conf_0000/trial_seed_000043_conf_0000.xyz": {
+      "sha256": "129d5e578ba0aff95f0b80ec647e2317b58c5da0892d6502a0c2ef8e0651e6e1",
+      "text": "  5\nRDKit seed 43 conformer 0: 1.0\nC      0.00000     0.00000     0.00000\nH      0.62900     0.62900     0.62900\nH     -0.62900    -0.62900     0.62900\nH     -0.62900     0.62900    -0.62900\nH      0.62900    -0.62900    -0.62900\n"
+    },
+    "conformers/results/conf_0000.xyz": {
+      "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+      "text": "  5\nRDKit seed 43 conformer 0: -5.0\nC      0.00000     0.00000     0.00000\nH      0.62900     0.62900     0.62900\nH     -0.62900    -0.62900     0.62900\nH     -0.62900     0.62900    -0.62900\nH      0.62900    -0.62900    -0.62900\n"
+    },
+    "conformers/results/manifest.json": {
+      "artifacts": [
+        {
+          "artifact_id": "00000000-0000-4000-8000-000000000008",
+          "backend_energy_record": {
+            "convention": "physical_potential",
+            "unit": "hartree",
+            "value": -5.0
+          },
+          "conformer_id": "00000000-0000-4000-8000-000000000005",
+          "path": "results/conf_0000.xyz",
+          "rank": 0,
+          "rdkit_energy_record": {
+            "method": "uff",
+            "unit": "kcal/mol",
+            "value": 1.0
+          },
+          "role": "selected-conformer",
+          "seed": 43,
+          "selection_reason": "energy",
+          "sha256": "874d25f3fa2525574ddd5403af8a259cb164e2f2e04cd66dfe98214361da3fec",
+          "source_artifact_id": "00000000-0000-4000-8000-000000000007",
+          "source_conf_id": 0,
+          "source_record_id": "00000000-0000-4000-8000-000000000009"
+        }
+      ],
+      "format": "pyar-results-manifest",
+      "manifest_schema_version": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "workflow": "conformer"
+    },
+    "conformers/state.json": {
+      "backend_requested": true,
+      "comparison_policy": {
+        "atom_mode": "heavy",
+        "bond_scale": 1.15,
+        "irmsd_timeout_seconds": 30.0,
+        "max_isomorphisms": 10000,
+        "method": "graph-rmsd-with-bidirectional-irmsd-on-incomplete-mapping",
+        "policy_version": 1,
+        "stages": {},
+        "uncertainty_policy": "keep"
+      },
+      "generated_conformers": 1,
+      "package_version": "1.6.0",
+      "records": [
+        {
+          "backend_diagnostic_path": "refinement/execution/.pyar_optimization_diagnostics/conformer_refinement-seed_000043_conf_0000-1.json",
+          "backend_energy": -5.0,
+          "backend_path": "refinement/execution/job_seed_000043_conf_0000/result_seed_000043_conf_0000.xyz",
+          "backend_status": "success",
+          "backend_validation_status": "INVALID_RESULT",
+          "contact_count": 0,
+          "force_field": "uff",
+          "generation_round": 0,
+          "generation_stage": "etkdg",
+          "name": "seed_000043_conf_0000",
+          "parent_name": null,
+          "radius_gyration": 0.9744426099057861,
+          "rank": 0,
+          "rdkit_energy": 1.0,
+          "rdkit_path": "generated/seed_000043_conf_0000.xyz",
+          "rdkit_status": "converged",
+          "refinement_diversity": 0.0,
+          "refinement_reason": "energy",
+          "seed": 43,
+          "selected_path": "results/conf_0000.xyz",
+          "source_conf_id": 0,
+          "stereo_signature": "C",
+          "torsion_moves": null
+        }
+      ],
+      "request": {
+        "backend_parameters": {
+          "nprocs": 1,
+          "opt_threshold": "normal",
+          "software": "xtb"
+        },
+        "backend_top_n": null,
+        "charge": null,
+        "compactness_fraction": 0.2,
+        "dedup_atom_mode": "heavy",
+        "diversity_fraction": 0.2,
+        "final_dedup_rms": 0.75,
+        "force_field": "auto",
+        "generation_dedup_rms": 0.5,
+        "input": "C",
+        "input_format": "auto",
+        "max_iterations": 200,
+        "multiplicity": 1,
+        "num_conformers": 2,
+        "num_seeds": 1,
+        "num_threads": 1,
+        "rms_threshold": 0.25,
+        "scftype": "rhf",
+        "seed": 43,
+        "seed_values": [
+          43
+        ],
+        "top_n": 1,
+        "torsion_dedup_rms": 0.5,
+        "torsion_kicks": false,
+        "torsion_kicks_per_conformer": 6,
+        "torsion_max_bonds": 3,
+        "torsion_mode": "random",
+        "torsion_rounds": 2,
+        "use_random_coords": true
+      },
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "selected_results": [
+        "results/conf_0000.xyz"
+      ],
+      "source_format": "smiles",
+      "status": "completed",
+      "stereochemistry": {
+        "available": true,
+        "reference": "C",
+        "rejected_generated": 0,
+        "unspecified": []
+      },
+      "workflow": "conformer",
+      "workflow_state_schema_version": 4
+    },
+    "conformers/summary.csv": "rank,seed,name,source_conf_id,force_field,rdkit_status,rdkit_energy,rdkit_path,generation_stage,generation_round,parent_name,torsion_moves,refinement_reason,refinement_diversity,contact_count,radius_gyration,backend_status,backend_validation_status,backend_diagnostic_path,backend_energy,backend_path,selected_path,stereo_signature\r\n0,43,seed_000043_conf_0000,0,uff,converged,1.0,<ROOT>/conformers/generated/seed_000043_conf_0000.xyz,etkdg,0,,,energy,0.0,0,0.9744426099057861,success,INVALID_RESULT,refinement/execution/.pyar_optimization_diagnostics/conformer_refinement-seed_000043_conf_0000-1.json,-5.0,<ROOT>/conformers/refinement/execution/job_seed_000043_conf_0000/result_seed_000043_conf_0000.xyz,<ROOT>/conformers/results/conf_0000.xyz,C\r\n",
+    "conformers/summary.json": {
+      "generated": 1,
+      "run_id": "00000000-0000-4000-8000-000000000002",
+      "selected": 1,
+      "status": "completed"
+    }
+  },
+  "result": {
+    "metadata": {
+      "backend_requested": true,
+      "backend_top_n": 1,
+      "compactness_fraction": 0.2,
+      "comparison_policy": {
+        "atom_mode": "heavy",
+        "bond_scale": 1.15,
+        "irmsd_timeout_seconds": 30.0,
+        "max_isomorphisms": 10000,
+        "method": "graph-rmsd-with-bidirectional-irmsd-on-incomplete-mapping",
+        "policy_version": 1,
+        "stages": {},
+        "uncertainty_policy": "keep"
+      },
+      "diversity_fraction": 0.2,
+      "generated_conformers": 1,
+      "seed_values": [
+        43
+      ],
+      "selected_conformers": 1,
+      "source_format": "smiles",
+      "stereochemistry": {
+        "available": true,
+        "reference": "C",
+        "rejected_generated": 0,
+        "unspecified": []
+      },
+      "summary_path": "<ROOT>/conformers/summary.csv",
+      "torsion_dedup_rms": 0.5,
+      "torsion_kicks": false,
+      "torsion_kicks_per_conformer": 6,
+      "torsion_max_bonds": 3,
+      "torsion_mode": "random",
+      "torsion_rounds": 2,
+      "use_random_coords": true
+    },
+    "run_directory": "<ROOT>/conformers",
+    "selected_paths": [
+      "<ROOT>/conformers/results/conf_0000.xyz"
+    ],
+    "state_path": "<ROOT>/conformers/state.json",
+    "status": "completed",
+    "workflow": "conformer"
+  }
+}

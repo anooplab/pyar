@@ -15,6 +15,8 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
+from pyar.backend_errors import backend_operation
+from pyar.backend_errors import BackendExecutionError
 
 import logging
 import os
@@ -80,6 +82,7 @@ class Psi4(SF):
             f1.write("}\n")
             f1.write(f"optimize(\"{self.method}\")\n")
 
+    @backend_operation
     def optimize(self, max_cycles=350, gamma=0.0, restart=False, convergence='normal'):
         """
         Optimize the current structure with Psi4.
@@ -107,12 +110,12 @@ class Psi4(SF):
                 "psi4 optimization did not terminate normally job=%s input=%s output=%s cwd=%s",
                 self.job_name, self.inp_file, self.out_file, os.getcwd(),
             )
-            return False
+            raise BackendExecutionError("psi4 optimization failed; inspect the retained backend output")
         psi4_logger.error(
             "psi4 command returned non-zero job=%s input=%s output=%s cwd=%s",
             self.job_name, self.inp_file, self.out_file, os.getcwd(),
         )
-        return False
+        raise BackendExecutionError("psi4 optimization failed; inspect the retained backend output")
 
     def get_energy(self):
         """

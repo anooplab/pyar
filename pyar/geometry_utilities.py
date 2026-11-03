@@ -1,4 +1,5 @@
 """Geometry-only encounter generation and coordinate-component extraction."""
+from pyar.constants import GRAPH_BOND_FACTOR
 
 from pathlib import Path
 
@@ -44,7 +45,7 @@ def orient_structures(first, second, *, orientations=DEFAULT_ORIENTATIONS, outpu
             'distance_scale': scale, 'sequence_offset': sequence_offset}
 
 
-def split_structure(filename, *, output=None, bond_scale=1.15):
+def split_structure(filename, *, output=None, bond_scale=GRAPH_BOND_FACTOR):
     molecule = load_structure(filename)
     graph = infer_coordinate_graph(molecule, scale=bond_scale)
     components = sorted((sorted(component) for component in nx.connected_components(graph)),

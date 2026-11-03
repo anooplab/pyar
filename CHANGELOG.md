@@ -34,7 +34,68 @@
   interpretation guides, canonical reference and separate developer procedures.
   Archive operational material outside the public source/manual.
 
+### Added
+
+- Add ``run_reaction(request, directory=..., recover_stale=False)`` for already
+  resolved reaction requests; retain the existing ``react(...)`` API.
+
+- Add `run_scan_bond_request(settings)` for existing scan invocation mappings;
+  preserve `run_scan_bond` and its signed request, artifact and restart contracts.
+
+- Add `run_aggregate(request)` and `run_grow(request, output=...)` for resolved
+  aggregation and growth requests; retain the existing supported entry points.
+
+- Add `run_conformer_search(request, root_directory=...)` for executing an
+  existing `ConformerRequest` without converting options again.
+
+### Internal
+
+- Separate scan-product grouping and path-setting plans from immutable registry
+  publication and gated path execution. Keep existing stage order, membership
+  revisions, representative selection and artifact verification.
+
+- Give reaction orientations explicit outcomes and separate release, product
+  publication, association-reference checks and route-report stages. Report
+  assembly consumes named evidence without changing scientific acceptance gates.
+
+- Separate microsolvation step execution, candidate outcomes and durable MS4
+  proposal/evaluation/commit stages. Preserve checkpoint order, RNG state,
+  objective selection and physical-evaluation budget ownership.
+
+- Carry resolved scan and orientation contexts through native execution, evidence
+  commitment, continuation and publication, retaining `ScanLayout` ownership.
+
+- Separate aggregate/grow run opening, pathway/step execution and publication;
+  reuse resolved CLI requests and preserve immutable checkpoint ownership.
+
+- Separate growth seed preparation, bounded retries, restart pickup, selection
+  and refinement using owned growth/selection policies and explicit directories.
+
+- Separate conformer run setup, seeded generation, stereochemistry, selection,
+  refinement and publication around an explicit run context. Retain the existing
+  keyword API, scientific settings, output formats and fresh-run guards.
+
 ### Fixed
+
+- Stop interrupted growth with `GrowthStopped`, handled by the owning workflow,
+  instead of passing the `StopIteration` class to aggregation selection. Retain
+  pending checkpoints for resume without committing partial additions.
+
+- Keep reaction OpenBabel identity diagnostics in the owning reaction/orientation
+  workspace when executing without process-wide directory changes.
+
+- Remove process-wide working-directory changes. Workflow/optimization calls
+  accept explicit run directories; native commands use subprocess `cwd`, and
+  relative-file Python calculators execute in isolated child processes. Preserve
+  artifact names, scientific fingerprints, native-process evidence and
+  sequential random-number progression.
+- Centralize scientific radius tables, bond factors and conversion profiles in
+  `pyar.constants`, retaining each original value and historical precision.
+- Backend optimization and energy/gradient failures now raise typed
+  `BackendExecutionError` subclasses instead of returning failure strings or
+  booleans. Direct adapter callers must catch these errors. Incomplete usable
+  frames and release candidates remain provisional workflow observations;
+  convergence and chemistry acceptance rules are unchanged.
 
 - Prefer explicitly labeled XYZ energies over trailing gradient norms or other
   metadata when parsing structures and building energy tables.

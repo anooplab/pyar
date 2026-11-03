@@ -72,12 +72,11 @@ def run_bond_scan(molecule, request, directory, qc_params):
     """Run with calculator state and optimizer side files isolated from the caller."""
     directory = Path(directory).resolve()
     directory.mkdir(parents=True, exist_ok=True)
-    previous = Path.cwd()
-    try:
-        os.chdir(directory)
-        return _run_bond_scan(molecule, request, directory, qc_params)
-    finally:
-        os.chdir(previous)
+    from pyar.directory_execution import run_in_directory
+
+    return run_in_directory(
+        _run_bond_scan, molecule, request, directory, qc_params, directory=directory
+    )
 
 
 def _run_bond_scan(molecule, request, directory, qc_params):

@@ -16,7 +16,9 @@ def test_native_gaussian_requests_optimization_and_feeds_stdin(tmp_path, monkeyp
     calls = []
     monkeypatch.setattr(gaussian, 'run_command', lambda command, **kwargs: calls.append((command, kwargs)) or 1)
     job = gaussian.Gaussian(_water(), dict(basis='def2-SVP', method='B3LYP', nprocs=1, scf_cycles=64, opt_cycles=30))
-    assert job.optimize() is False
+    from pyar.backend_errors import BackendExecutionError
+    with pytest.raises(BackendExecutionError):
+        job.optimize()
     route = next(line for line in (tmp_path / 'trial_w.com').read_text().splitlines() if line.startswith('#'))
     assert ' Opt=(MaxCycles=30) ' in route
     command, kwargs = calls[0]
