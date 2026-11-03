@@ -2,6 +2,12 @@
 
 ## Unreleased — 1.6.0
 
+- Geometry analysis raises `ValueError` for a zero-length bond-angle ray,
+  zero-length central torsion bond, or collinear torsion plane. Defined
+  0°/180° bond angles and signed torsions are preserved; no near-degeneracy
+  tolerance is introduced. Internal-coordinate and hydrogen-bond analysis
+  propagate these errors instead of reporting undefined values as valid data.
+
 ### Breaking interface and format cleanup
 
 - Require Python 3.11 or newer. Remove Python 3.10 support, its CI jobs and
