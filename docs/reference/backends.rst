@@ -38,3 +38,4 @@ current ``jobex`` invocation. Old ``GEO_OPT_CONVERGED`` or ``GEO_OPT_FAILED``
 files remain available for inspection but cannot by themselves establish a
 current result. If the invocation produces no current status evidence, inspect
 ``jobex.out`` and the native inputs; a zero process exit is insufficient.
+Markers must be regular files; a directory with a status-marker name is invalid.

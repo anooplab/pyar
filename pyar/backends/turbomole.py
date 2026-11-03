@@ -89,10 +89,9 @@ def turbomole_functional(method):
 
 def _jobex_marker_stamp(filename):
     """Identify a marker generation without deleting retained native evidence."""
-    try:
-        stat = os.stat(filename)
-    except FileNotFoundError:
+    if not os.path.isfile(filename):
         return None
+    stat = os.stat(filename)
     return stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
 
 
