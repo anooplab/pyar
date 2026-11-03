@@ -1,0 +1,236 @@
+{
+  "source_sha": "9f1e567ce22b5d382d1facc9ff1da624de5d55a9",
+  "purpose": "Coverage-policy observations supplied to mocked workflow golden; geometric surface coverage is tested separately.",
+  "observations": [
+    {
+      "molecule_name": "micro_10000_000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "micro_10000_001",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "micro_10000_000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "micro_10000_001",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.911860790174168,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "micro_10000_000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.2986687966345925,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "ms4_00000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.2986687966345925,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "ms4_00000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 1,
+        "open_points": 7,
+        "coverage_fraction": 0.125,
+        "whole_solute_coverage_fraction": 0.125,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 1,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 0.2986687966345925,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "micro_10000_000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 0,
+        "open_points": 8,
+        "coverage_fraction": 0.0,
+        "whole_solute_coverage_fraction": 0.0,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 0,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "ms4_00001",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 0,
+        "open_points": 8,
+        "coverage_fraction": 0.0,
+        "whole_solute_coverage_fraction": 0.0,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 0,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    },
+    {
+      "molecule_name": "ms4_00001",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coverage": {
+        "surface_points": 8,
+        "covered_points": 0,
+        "open_points": 8,
+        "coverage_fraction": 0.0,
+        "whole_solute_coverage_fraction": 0.0,
+        "whole_solute_surface_points": 8,
+        "whole_solute_covered_points": 0,
+        "shell_valid": true,
+        "max_solvent_center_to_surface_angstrom": 1.4861054315058755,
+        "shell_tolerance_angstrom": 3.5,
+        "confinement_mode": "reported-not-filtered-cluster-objective",
+        "optimization_restraint_applied": false,
+        "solute_atom_count": 1,
+        "site_atoms": null
+      }
+    }
+  ]
+}
