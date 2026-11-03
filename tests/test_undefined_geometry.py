@@ -74,9 +74,17 @@ def test_defined_planar_half_turn_remains_180_degrees():
     assert abs(calculate_dihedral(*points)) == 180.0
 
 
-def test_nearly_collinear_torsion_is_not_rejected_by_an_added_tolerance():
+@pytest.mark.parametrize("nonzero_component", [1.0e-12, 1.0e-200])
+def test_nearly_collinear_torsion_is_not_rejected_by_an_added_tolerance(
+    nonzero_component,
+):
     points = np.array(
-        [[1.0e-12, 0.0, -1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 1.0]]
+        [
+            [nonzero_component, 0.0, -1.0],
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ]
     )
     assert calculate_dihedral(*points) == pytest.approx(-90.0, abs=1e-12)
 

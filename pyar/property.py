@@ -89,7 +89,7 @@ def calculate_angle(a1, b1, c1):
     v1 = a1 - b1
     v2 = c1 - b1
     norm1, norm2 = np.linalg.norm(v1), np.linalg.norm(v2)
-    if norm1 == 0.0 or norm2 == 0.0:
+    if not np.any(v1) or not np.any(v2):
         raise ValueError("Bond angle is undefined for a zero-length angle vector")
     cosine = np.dot(v1, v2) / (norm1 * norm2)
     # Roundoff can put a normalized dot product just outside arccos' domain.
@@ -119,9 +119,9 @@ def calculate_dihedral(p0, p1, p2, p3):
     b1 = p2 - p1
     b2 = p3 - p2
     norm = np.linalg.norm(b1)
-    if norm == 0.0:
+    if not np.any(b1):
         raise ValueError("Torsion is undefined for a zero-length central torsion bond")
-    if np.linalg.norm(np.cross(b0, b1)) == 0.0 or np.linalg.norm(np.cross(b1, b2)) == 0.0:
+    if not np.any(np.cross(b0, b1)) or not np.any(np.cross(b1, b2)):
         raise ValueError("Undefined torsion: collinear geometry does not define both planes")
     b1 /= norm
 
