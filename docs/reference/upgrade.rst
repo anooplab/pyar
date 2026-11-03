@@ -39,7 +39,7 @@ reports from the original geometries. Stored reports are not repaired
 automatically; the corrections do not rewrite input geometries.
 
 Undefined geometry is an error
------------------------------
+------------------------------
 
 The angle and dihedral helpers raise ``ValueError`` when a bond-angle ray has
 zero length, the central torsion bond has zero length, or either torsion plane
