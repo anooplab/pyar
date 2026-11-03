@@ -12,6 +12,8 @@
   current `jobex` invocation. Unchanged old success or cycle-limit markers
   cannot authorize publication or an incomplete result. Retain the original
   markers and raw output; process failures use the shared typed error boundary.
+  Status markers must retain the native regular-file contract; directories
+  cannot establish a current optimization result.
 
 ### Breaking interface and format cleanup
 
