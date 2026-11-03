@@ -64,6 +64,15 @@ and execution; scientific settings remain owned by the existing services.
 Scan results are published before a structured failure produces its existing
 nonzero exit status. Lock errors retain their CLI diagnostic boundary.
 
+Reaction request resolution separates calculation controls from loaded
+reactants. Bias schedules use the existing controller and gamma-schedule rules;
+fragment and combined states use the shared electronic-state validators. The
+same backend/method restrictions run before the existing reaction workflow
+builds its canonical restart request. Private stage values carry resolved data;
+``ReactionRequest`` remains the supported mutable envelope, and preflight and
+restart verification retain their existing owners. Resolution itself performs
+no backend calculations or state publication.
+
 Scientific constants and backend errors
 ---------------------------------------
 

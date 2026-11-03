@@ -50,6 +50,10 @@
 
 ### Internal
 
+- Separate reaction-request control resolution, fragment/combined electronic
+  state assignment, backend validation and restart-payload construction. Preserve
+  defaults, error ordering and the existing scientific request schema.
+
 - Separate scan-bond CLI mode/default resolution, backend options, continuation
   validation, read-only preflight, execution and result publication. Preserve
   validation order, request mapping, restart checks and exit/reporting behavior.

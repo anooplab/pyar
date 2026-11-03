@@ -1,0 +1,1164 @@
+{
+  "cases": {
+    "adaptive": {
+      "bias_max": 100,
+      "bias_min": null,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "adaptive",
+        "bias_potential": "afir",
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": null,
+        "multiplicity": 2,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "xtb",
+        "trace_enabled": true,
+        "xtb_model": "gfn2",
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "adaptive",
+          "bias_potential": "afir",
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": null,
+          "multiplicity": 2,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "xtb",
+          "trace_enabled": true,
+          "xtb_model": "gfn2",
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "adaptive",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "f8f08e100cd089e15c140ef1238000cee1678c7d99beddb3ba963a6f6be18ee8",
+      "site": null
+    },
+    "charged_softmin": {
+      "bias_max": 100,
+      "bias_min": null,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "adaptive",
+        "bias_potential": "softmin",
+        "charge": -1,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": null,
+        "multiplicity": 1,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 2.0,
+        "software": "xtb",
+        "trace_enabled": true,
+        "xtb_model": "gfn2",
+        "xtb_unpaired_electrons": 0
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": -1,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "adaptive",
+          "bias_potential": "softmin",
+          "charge": -1,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": null,
+          "multiplicity": 1,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 2.0,
+          "software": "xtb",
+          "trace_enabled": true,
+          "xtb_model": "gfn2",
+          "xtb_unpaired_electrons": 0
+        },
+        "bias_mode": "adaptive",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": -1,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": [
+          1,
+          2
+        ]
+      },
+      "restart_request_sha256": "9b093f8d287f5d5e584a00f38837c9009b7af1bf4c4fe79f61f2c0bf9354a160",
+      "site": [
+        1,
+        2
+      ]
+    },
+    "existing_boolean_acceptance": {
+      "bias_max": 100,
+      "bias_min": null,
+      "orientations": true,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "adaptive",
+        "bias_potential": "afir",
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": null,
+        "multiplicity": 2,
+        "nprocs": true,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": true,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "xtb",
+        "trace_enabled": true,
+        "xtb_model": "gfn2",
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "adaptive",
+          "bias_potential": "afir",
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": null,
+          "multiplicity": 2,
+          "nprocs": true,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": true,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "xtb",
+          "trace_enabled": true,
+          "xtb_model": "gfn2",
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "adaptive",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 1,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "c55e72ae513fe0f76ca352f857cf7ae1e9b7d56eaa2340e54e075e32370342f7",
+      "site": null
+    },
+    "fixed": {
+      "bias_max": 100,
+      "bias_min": 10,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "fixed",
+        "bias_potential": "afir",
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": null,
+        "multiplicity": 2,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "xtb",
+        "trace_enabled": true,
+        "xtb_model": "gfn2",
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "fixed",
+          "bias_potential": "afir",
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": null,
+          "multiplicity": 2,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "xtb",
+          "trace_enabled": true,
+          "xtb_model": "gfn2",
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "scheduled",
+        "gamma_schedule": [
+          10.0,
+          20.0,
+          30.0,
+          40.0,
+          50.0,
+          60.0,
+          70.0,
+          80.0,
+          90.0,
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "fb4ad9f913b23ec7df114d39af3411594e04f99ce7f5935b1e165ec62a831687",
+      "site": null
+    },
+    "none_defaults": {
+      "bias_max": 100,
+      "bias_min": null,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "adaptive",
+        "bias_potential": "afir",
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": null,
+        "multiplicity": 2,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "xtb",
+        "trace_enabled": true,
+        "xtb_model": "gfn2",
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "adaptive",
+          "bias_potential": "afir",
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": null,
+          "multiplicity": 2,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "xtb",
+          "trace_enabled": true,
+          "xtb_model": "gfn2",
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "adaptive",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "f8f08e100cd089e15c140ef1238000cee1678c7d99beddb3ba963a6f6be18ee8",
+      "site": null
+    },
+    "orca_dft": {
+      "bias_max": 100,
+      "bias_min": null,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": "def2-SVP",
+        "bias_controller": "adaptive",
+        "bias_potential": "afir",
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": "BP86",
+        "multiplicity": 2,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "orca",
+        "trace_enabled": true,
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": "def2-SVP",
+          "bias_controller": "adaptive",
+          "bias_potential": "afir",
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": "BP86",
+          "multiplicity": 2,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "orca",
+          "trace_enabled": true,
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "adaptive",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "57f998e98454e3655129fd1589cb9d5f88383439a52f558cbe84a07a98d965e2",
+      "site": null
+    },
+    "orca_xtb": {
+      "bias_max": 100,
+      "bias_min": null,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "adaptive",
+        "bias_potential": "afir",
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": "XTB2",
+        "multiplicity": 2,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "orca",
+        "trace_enabled": true,
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "adaptive",
+          "bias_potential": "afir",
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": "XTB2",
+          "multiplicity": 2,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "orca",
+          "trace_enabled": true,
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "adaptive",
+        "gamma_schedule": [
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "261c9907359fc450be0f04fa28132006d56ed7fad865405309bfebcb40a0f23b",
+      "site": null
+    },
+    "scheduled": {
+      "bias_max": 100,
+      "bias_min": 10,
+      "orientations": 8,
+      "proximity_factor": 2.3,
+      "qc_params": {
+        "basis": null,
+        "bias_controller": "scheduled",
+        "bias_potential": "afir",
+        "bias_scheduled_alpha": 0.002,
+        "charge": 0,
+        "geometry_optimizer": "geometric",
+        "index": 1,
+        "method": null,
+        "multiplicity": 2,
+        "nprocs": 1,
+        "opt_cycles": 350,
+        "opt_target": "minimum",
+        "opt_threshold": "loose",
+        "release_distance_fraction": 0.95,
+        "release_margin_factor": 2.0,
+        "release_retry_limit": 2,
+        "scf_cycles": 1000,
+        "scftype": "rhf",
+        "softmin_beta": 1.0,
+        "software": "xtb",
+        "trace_enabled": true,
+        "xtb_model": "gfn2",
+        "xtb_unpaired_electrons": 1
+      },
+      "reactants": [
+        {
+          "atoms": [
+            "H",
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.74,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 1,
+          "name": "<ROOT>/first.xyz",
+          "scftype": "rhf"
+        },
+        {
+          "atoms": [
+            "H"
+          ],
+          "charge": 0,
+          "coordinates": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ]
+          ],
+          "multiplicity": 2,
+          "name": "<ROOT>/second.xyz",
+          "scftype": "rhf"
+        }
+      ],
+      "restart_request": {
+        "backend_parameters": {
+          "basis": null,
+          "bias_controller": "scheduled",
+          "bias_potential": "afir",
+          "bias_scheduled_alpha": 0.002,
+          "charge": 0,
+          "geometry_optimizer": "geometric",
+          "index": 1,
+          "method": null,
+          "multiplicity": 2,
+          "nprocs": 1,
+          "opt_cycles": 350,
+          "opt_target": "minimum",
+          "opt_threshold": "loose",
+          "reaction_energy_convention": "physical-v1",
+          "release_distance_fraction": 0.95,
+          "release_margin_factor": 2.0,
+          "release_retry_limit": 2,
+          "scf_cycles": 1000,
+          "scftype": "rhf",
+          "softmin_beta": 1.0,
+          "software": "xtb",
+          "trace_enabled": true,
+          "xtb_model": "gfn2",
+          "xtb_unpaired_electrons": 1
+        },
+        "bias_mode": "scheduled",
+        "gamma_schedule": [
+          10.0,
+          20.0,
+          30.0,
+          40.0,
+          50.0,
+          60.0,
+          70.0,
+          80.0,
+          90.0,
+          100.0
+        ],
+        "orientations": 8,
+        "proximity_factor": 2.3,
+        "reactants": [
+          {
+            "atoms": [
+              "H",
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.74,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 1
+          },
+          {
+            "atoms": [
+              "H"
+            ],
+            "charge": 0,
+            "coordinates": [
+              [
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "multiplicity": 2
+          }
+        ],
+        "site": null
+      },
+      "restart_request_sha256": "987f9028684cdc8d69cf282840c52defa38845dbf95632bc8abfe0733613c6e1",
+      "site": null
+    }
+  },
+  "definition": "Complete resolved settings and canonical restart payload from unchanged resolver, normalizing only the temporary input root; sha256 is an independently derived comparison digest.",
+  "source_sha": "7db752fbc049de188d5f860dfc0106215f1d895a"
+}
