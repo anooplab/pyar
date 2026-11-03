@@ -210,6 +210,48 @@ def controlled_microsolvation_selection(monkeypatch):
     return calls, len(fixture["thresholds"])
 
 
+def controlled_resampling_proposals(monkeypatch):
+    """Freeze proposal/coverage inputs while checking real RNG consumption."""
+    from copy import deepcopy
+    from pyar.microsolvation import perturbation, placement
+
+    workflow = importlib.import_module("pyar.workflows.microsolvation")
+    inputs = Path(__file__).parent / "fixtures/golden"
+    proposals = json.loads((inputs / "microsolvation_proposal_inputs.json").read_text())
+    coverage = json.loads((inputs / "microsolvation_coverage_inputs.json").read_text())
+    assert proposals["source_sha"] == coverage["source_sha"] == BASELINE
+    proposal_iterator, coverage_iterator = (
+        iter(proposals["proposals"]),
+        iter(coverage["observations"]),
+    )
+    counts = [0, 0]
+    original = perturbation.propose_rigid_move
+
+    def propose(molecule, rng):
+        record = next(proposal_iterator)
+        assert molecule.name == record["source_name"]
+        assert rng.bit_generator.state == record["rng_before"]
+        candidate, _ = original(molecule, rng)
+        assert rng.bit_generator.state == record["rng_after"]
+        assert list(candidate.atoms_list) == record["symbols"]
+        candidate.coordinates = np.asarray(record["coordinates_angstrom"], dtype=float)
+        candidate.fragments_coordinates = candidate.split_coordinates()
+        counts[0] += 1
+        return candidate, deepcopy(record["move"])
+
+    def assess(molecule, request):
+        record = next(coverage_iterator)
+        assert molecule.name == record["molecule_name"]
+        assert list(molecule.atoms_list) == record["symbols"]
+        counts[1] += 1
+        return deepcopy(record["coverage"])
+
+    monkeypatch.setattr(perturbation, "propose_rigid_move", propose)
+    monkeypatch.setattr(placement, "assess_shell", assess)
+    monkeypatch.setattr(workflow, "assess_shell", assess)
+    return counts, [len(proposals["proposals"]), len(coverage["observations"])]
+
+
 def controlled_conformers(monkeypatch):
     """Fixed embedding evidence keeps the golden independent of RDKit minimizers."""
     from pyar.workflows import conformer
@@ -381,6 +423,9 @@ def _run_scenario(kind, root, monkeypatch, backend=None):
         selection_calls, expected_selections = controlled_microsolvation_selection(
             monkeypatch
         )
+        proposal_counts, expected_proposal_counts = controlled_resampling_proposals(
+            monkeypatch
+        )
         from pyar.microsolvation.request import MicrosolvationRequest
         from pyar.workflows.microsolvation import microsolvate
 
@@ -401,6 +446,7 @@ def _run_scenario(kind, root, monkeypatch, backend=None):
         )
         result = microsolvate(request, output=root / "microsolvation")
         assert len(selection_calls) == expected_selections
+        assert proposal_counts == expected_proposal_counts
     elif kind == "reaction":
         from pyar.workflows.reaction import react
 

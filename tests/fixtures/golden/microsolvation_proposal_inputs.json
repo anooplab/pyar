@@ -1,0 +1,142 @@
+{
+  "source_sha": "9f1e567ce22b5d382d1facc9ff1da624de5d55a9",
+  "purpose": "Original-source proposal inputs for mocked workflow golden; real proposal function still consumes RNG, and its exact state transitions are checked. Rigid-body mathematics is tested separately.",
+  "proposals": [
+    {
+      "source_name": "micro_10000_000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coordinates_angstrom": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          -0.7676435913194245,
+          2.3045296726404922,
+          -1.6423401972989253
+        ]
+      ],
+      "move": {
+        "policy": "whole-cluster-perturbation-v1",
+        "move": "single-fragment-rigid",
+        "fragments": [
+          {
+            "fragment_index": 0,
+            "rotation": [
+              [
+                -0.4297630065057867,
+                0.515955053628853,
+                -0.7410088669334227
+              ],
+              [
+                -0.5283744874747981,
+                0.5217803559088263,
+                0.669750446937815
+              ],
+              [
+                0.732204998087866,
+                0.6793641459648176,
+                0.04837559253014034
+              ]
+            ],
+            "translation_angstrom": [
+              -0.5407135913194245,
+              -0.2812003273595074,
+              -0.5923401972989253
+            ]
+          }
+        ]
+      },
+      "rng_before": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 287820662789174611121686965811335717241,
+          "inc": 141594020766391051164819261345714058667
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      },
+      "rng_after": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 139950243259302947971072639685479802497,
+          "inc": 141594020766391051164819261345714058667
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "source_name": "micro_10000_000",
+      "symbols": [
+        "He",
+        "He"
+      ],
+      "coordinates_angstrom": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          -0.5419745136196893,
+          3.2024462997396914,
+          -0.7419355918255233
+        ]
+      ],
+      "move": {
+        "policy": "whole-cluster-perturbation-v1",
+        "move": "single-fragment-rigid",
+        "fragments": [
+          {
+            "fragment_index": 0,
+            "rotation": [
+              [
+                0.6468495516237807,
+                0.24515421584316416,
+                0.7221392303555023
+              ],
+              [
+                -0.3079950500071191,
+                -0.78228198177462,
+                0.5414553999748131
+              ],
+              [
+                0.6976565822345735,
+                -0.5726554910634281,
+                -0.4305124641862039
+              ]
+            ],
+            "translation_angstrom": [
+              -0.31504451361968927,
+              0.6167162997396917,
+              0.3080644081744768
+            ]
+          }
+        ]
+      },
+      "rng_before": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 76883858315198043254112344022130986096,
+          "inc": 141594020766391051164819261345714058667
+        },
+        "has_uint32": 1,
+        "uinteger": 3849619447
+      },
+      "rng_after": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 221917589948605366904037089820158456472,
+          "inc": 141594020766391051164819261345714058667
+        },
+        "has_uint32": 1,
+        "uinteger": 3849619447
+      }
+    }
+  ]
+}
