@@ -50,6 +50,10 @@
 
 ### Internal
 
+- Separate microsolvation request validation into molecule, sampling/surface,
+  objective/wall, resampling, site and cumulative electronic-state checks. Keep
+  normalization order, backend-copy ownership and restart serialization intact.
+
 - Separate reaction-request control resolution, fragment/combined electronic
   state assignment, backend validation and restart-payload construction. Preserve
   defaults, error ordering and the existing scientific request schema.

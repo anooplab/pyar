@@ -101,6 +101,193 @@ def _normalize_site_groups(site_groups, contact_distance, solute_atom_count):
     return groups
 
 
+def _validate_sampling_counts(request):
+    for label, value in (
+        ("count", request.count),
+        ("orientations", request.number_of_orientations),
+        ("maximum_number_of_seeds", request.maximum_number_of_seeds),
+        ("surface_points_per_atom", request.surface_points_per_atom),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise MicrosolvationRequestError(f"{label} must be a positive integer")
+
+
+def _validate_input_molecules(request):
+    # Finish the solute's geometry/state checks before validating the solvent.
+    for label, molecule in (("solute", request.solute), ("solvent", request.solvent)):
+        _validate_molecule(label, molecule)
+
+
+def _validate_molecule(label, molecule):
+    coordinates = np.asarray(getattr(molecule, "coordinates", None), dtype=float)
+    atoms = getattr(molecule, "atoms_list", ())
+    if (
+        not atoms
+        or coordinates.shape != (len(atoms), 3)
+        or not np.isfinite(coordinates).all()
+    ):
+        raise MicrosolvationRequestError(
+            f"{label} must contain atoms with finite coordinates"
+        )
+    charge = getattr(molecule, "charge", None)
+    multiplicity = getattr(molecule, "multiplicity", None)
+    if charge is None or multiplicity is None:
+        raise MicrosolvationRequestError(
+            f"{label} charge and multiplicity must be resolved"
+        )
+    electrons = sum(molecule.atomic_number) - int(charge)
+    if (
+        electrons < 0
+        or int(multiplicity) < 1
+        or int(multiplicity) - 1 > electrons
+        or (electrons - (int(multiplicity) - 1)) % 2
+    ):
+        raise MicrosolvationRequestError(
+            f"Invalid charge/multiplicity for {label} {molecule.name}"
+        )
+
+
+def _validate_surface_and_shell(request):
+    if not np.isfinite(float(request.probe_radius)) or request.probe_radius < 0:
+        raise MicrosolvationRequestError("probe radius must be finite and non-negative")
+    if not np.isfinite(float(request.shell_tolerance)) or request.shell_tolerance <= 0:
+        raise MicrosolvationRequestError("shell tolerance must be finite and positive")
+
+
+def _validate_objective_and_wall(request):
+    if request.objective not in {"shell", "cluster"}:
+        raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
+    _validate_wall_policy(
+        request.wall,
+        request.objective,
+        request.wall_radius,
+        request.wall_force_constant,
+        request.backend_parameters,
+    )
+
+
+def _validate_placement_policy(request):
+    if request.placement_score not in {"geometric", "energy"}:
+        raise MicrosolvationRequestError(
+            "placement score must be 'geometric' or 'energy'"
+        )
+    if request.placement_score == "energy" and not request.backend_parameters.get(
+        "software"
+    ):
+        raise MicrosolvationRequestError("energy placement scoring requires --backend")
+    if request.placement_score == "energy":
+        _require_energy_gradient_backend(
+            request.backend_parameters["software"], "energy placement scoring"
+        )
+    if request.objective == "cluster" and request.placement_score != "energy":
+        raise MicrosolvationRequestError(
+            "cluster objective requires --placement-score energy"
+        )
+
+
+def _validate_resampling_options(request):
+    if (
+        isinstance(request.resampling_moves, bool)
+        or not isinstance(request.resampling_moves, int)
+        or request.resampling_moves < 0
+    ):
+        raise MicrosolvationRequestError(
+            "resampling moves must be a non-negative integer"
+        )
+    if request.resampling_moves:
+        if request.objective != "cluster":
+            raise MicrosolvationRequestError(
+                "whole-cluster resampling requires --objective cluster"
+            )
+        if (
+            not request.backend_parameters.get("software")
+            or request.backend_parameters.get("geometry_optimizer") != "geometric"
+        ):
+            raise MicrosolvationRequestError(
+                "whole-cluster resampling requires an energy-gradient backend and geometric optimizer"
+            )
+        _validate_resampling_budget(request)
+    elif (
+        request.resampling_evaluation_budget
+        or request.resampling_time_limit
+        or request.resampling_seed != 0
+    ):
+        raise MicrosolvationRequestError(
+            "resampling budgets require --resampling-moves"
+        )
+
+
+def _validate_resampling_budget(request):
+    if (
+        isinstance(request.resampling_evaluation_budget, bool)
+        or not isinstance(request.resampling_evaluation_budget, int)
+        or request.resampling_evaluation_budget < 1
+        or isinstance(request.resampling_time_limit, bool)
+        or not np.isfinite(float(request.resampling_time_limit))
+        or request.resampling_time_limit <= 0
+        or isinstance(request.resampling_seed, bool)
+        or not isinstance(request.resampling_seed, int)
+    ):
+        raise MicrosolvationRequestError(
+            "resampling requires positive evaluation/time budgets and an integer seed"
+        )
+
+
+def _normalize_solute_site(request):
+    if request.site is not None:
+        site = tuple(int(index) for index in request.site)
+        if not site or len(set(site)) != len(site):
+            raise MicrosolvationRequestError(
+                "--site requires one or more distinct solute atom indices"
+            )
+        for index in site:
+            if index < 0 or index >= len(request.solute):
+                raise MicrosolvationRequestError(
+                    f"Solute site index {index} is out of range (valid range: 0..{len(request.solute) - 1})"
+                )
+        object.__setattr__(request, "site", site)
+
+
+def _validate_cluster_states(request):
+    """Validate every cumulative state with the established spin-combination rule."""
+    from pyar.molecule_merge import combine_multiplicity
+
+    electrons = sum(request.solute.atomic_number)
+    charge = int(request.solute.charge)
+    multiplicity = int(request.solute.multiplicity)
+    backend = request.backend_parameters.get("software")
+    capabilities = None
+    if backend:
+        from pyar.backend_capabilities import (
+            get_backend_capabilities,
+            normalize_backend_name,
+        )
+
+        backend = normalize_backend_name(backend)
+        capabilities = get_backend_capabilities(backend)
+    for step in range(request.count + 1):
+        if (
+            electrons - charge < multiplicity - 1
+            or (electrons - charge - multiplicity + 1) % 2
+        ):
+            raise MicrosolvationRequestError(
+                f"Fragment spin-combination rule yields an invalid cluster state after {step} solvent(s)"
+            )
+        if capabilities and (
+            (charge and not capabilities.supports_charge)
+            or (multiplicity != 1 and not capabilities.supports_multiplicity)
+        ):
+            raise MicrosolvationRequestError(
+                f"Backend {backend!r} does not support the combined electronic state after {step} solvent(s)"
+            )
+        if step < request.count:
+            electrons += sum(request.solvent.atomic_number)
+            charge += int(request.solvent.charge)
+            multiplicity = combine_multiplicity(
+                multiplicity, int(request.solvent.multiplicity)
+            )
+
+
 @dataclass(frozen=True)
 class MicrosolvationRequest:
     """Resolved settings for explicit shell or finite-cluster sampling."""
@@ -128,109 +315,19 @@ class MicrosolvationRequest:
     resampling_seed: int = 0
 
     def __post_init__(self):
-        for label, value in (
-            ("count", self.count),
-            ("orientations", self.number_of_orientations),
-            ("maximum_number_of_seeds", self.maximum_number_of_seeds),
-            ("surface_points_per_atom", self.surface_points_per_atom),
-        ):
-            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-                raise MicrosolvationRequestError(f"{label} must be a positive integer")
-        for label, molecule in (("solute", self.solute), ("solvent", self.solvent)):
-            coordinates = np.asarray(getattr(molecule, "coordinates", None), dtype=float)
-            atoms = getattr(molecule, "atoms_list", ())
-            if not atoms or coordinates.shape != (len(atoms), 3) or not np.isfinite(coordinates).all():
-                raise MicrosolvationRequestError(f"{label} must contain atoms with finite coordinates")
-            charge = getattr(molecule, "charge", None)
-            multiplicity = getattr(molecule, "multiplicity", None)
-            if charge is None or multiplicity is None:
-                raise MicrosolvationRequestError(f"{label} charge and multiplicity must be resolved")
-            electrons = sum(molecule.atomic_number) - int(charge)
-            if (electrons < 0 or int(multiplicity) < 1
-                    or int(multiplicity) - 1 > electrons
-                    or (electrons - (int(multiplicity) - 1)) % 2):
-                raise MicrosolvationRequestError(f"Invalid charge/multiplicity for {label} {molecule.name}")
-        if not np.isfinite(float(self.probe_radius)) or self.probe_radius < 0:
-            raise MicrosolvationRequestError("probe radius must be finite and non-negative")
-        if not np.isfinite(float(self.shell_tolerance)) or self.shell_tolerance <= 0:
-            raise MicrosolvationRequestError("shell tolerance must be finite and positive")
+        _validate_sampling_counts(self)
+        _validate_input_molecules(self)
+        _validate_surface_and_shell(self)
         object.__setattr__(self, "backend_parameters", dict(self.backend_parameters or {}))
-        if self.objective not in {"shell", "cluster"}:
-            raise MicrosolvationRequestError("objective must be 'shell' or 'cluster'")
-        _validate_wall_policy(
-            self.wall,
-            self.objective,
-            self.wall_radius,
-            self.wall_force_constant,
-            self.backend_parameters,
-        )
-        if self.placement_score not in {"geometric", "energy"}:
-            raise MicrosolvationRequestError("placement score must be 'geometric' or 'energy'")
-        if self.placement_score == "energy" and not self.backend_parameters.get("software"):
-            raise MicrosolvationRequestError("energy placement scoring requires --backend")
-        if self.placement_score == "energy":
-            _require_energy_gradient_backend(
-                self.backend_parameters["software"], "energy placement scoring"
-            )
-        if self.objective == "cluster" and self.placement_score != "energy":
-            raise MicrosolvationRequestError("cluster objective requires --placement-score energy")
-        if (isinstance(self.resampling_moves, bool) or not isinstance(self.resampling_moves, int)
-                or self.resampling_moves < 0):
-            raise MicrosolvationRequestError("resampling moves must be a non-negative integer")
-        if self.resampling_moves:
-            if self.objective != "cluster":
-                raise MicrosolvationRequestError("whole-cluster resampling requires --objective cluster")
-            if not self.backend_parameters.get("software") or self.backend_parameters.get("geometry_optimizer") != "geometric":
-                raise MicrosolvationRequestError("whole-cluster resampling requires an energy-gradient backend and geometric optimizer")
-            if (isinstance(self.resampling_evaluation_budget, bool)
-                    or not isinstance(self.resampling_evaluation_budget, int) or self.resampling_evaluation_budget < 1
-                    or isinstance(self.resampling_time_limit, bool)
-                    or not np.isfinite(float(self.resampling_time_limit)) or self.resampling_time_limit <= 0
-                    or isinstance(self.resampling_seed, bool) or not isinstance(self.resampling_seed, int)):
-                raise MicrosolvationRequestError("resampling requires positive evaluation/time budgets and an integer seed")
-        elif (self.resampling_evaluation_budget or self.resampling_time_limit or self.resampling_seed != 0):
-            raise MicrosolvationRequestError("resampling budgets require --resampling-moves")
-        if self.site is not None:
-            site = tuple(int(index) for index in self.site)
-            if not site or len(set(site)) != len(site):
-                raise MicrosolvationRequestError("--site requires one or more distinct solute atom indices")
-            for index in site:
-                if index < 0 or index >= len(self.solute):
-                    raise MicrosolvationRequestError(
-                        f"Solute site index {index} is out of range (valid range: 0..{len(self.solute) - 1})"
-                    )
-            object.__setattr__(self, "site", site)
+        _validate_objective_and_wall(self)
+        _validate_placement_policy(self)
+        _validate_resampling_options(self)
+        _normalize_solute_site(self)
         groups = _normalize_site_groups(
             self.site_groups, self.contact_distance, len(self.solute)
         )
         object.__setattr__(self, "site_groups", groups)
-        from pyar.molecule_merge import combine_multiplicity
-        electrons = sum(self.solute.atomic_number)
-        charge = int(self.solute.charge)
-        multiplicity = int(self.solute.multiplicity)
-        backend = self.backend_parameters.get("software")
-        capabilities = None
-        if backend:
-            from pyar.backend_capabilities import get_backend_capabilities, normalize_backend_name
-            backend = normalize_backend_name(backend)
-            capabilities = get_backend_capabilities(backend)
-        for step in range(self.count + 1):
-            if (electrons - charge < multiplicity - 1
-                    or (electrons - charge - multiplicity + 1) % 2):
-                raise MicrosolvationRequestError(
-                    f"Fragment spin-combination rule yields an invalid cluster state after {step} solvent(s)"
-                )
-            if capabilities and (
-                (charge and not capabilities.supports_charge)
-                or (multiplicity != 1 and not capabilities.supports_multiplicity)
-            ):
-                raise MicrosolvationRequestError(
-                    f"Backend {backend!r} does not support the combined electronic state after {step} solvent(s)"
-                )
-            if step < self.count:
-                electrons += sum(self.solvent.atomic_number)
-                charge += int(self.solvent.charge)
-                multiplicity = combine_multiplicity(multiplicity, int(self.solvent.multiplicity))
+        _validate_cluster_states(self)
 
     def to_state_dict(self):
         result = {

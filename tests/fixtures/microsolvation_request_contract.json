@@ -1,0 +1,71 @@
+{
+  "cases": {
+    "automatic_cluster": {
+      "canonical_sha256": "35f6ba2f268e381e125d222113b60b78d3eb8cfc41978990a1de2d04f15818cd",
+      "ordered_sha256": "f015951ab9d5343c6504651e7f35fd7bf32593888dd0b8a183cb1de309929362",
+      "site": null,
+      "site_groups": []
+    },
+    "automatic_shell": {
+      "canonical_sha256": "ba08082d3013075814a2f93430e9ce8fa4711423aa791aaca2354693354a738f",
+      "ordered_sha256": "f3de901e19c646da57d2882bcf888bcc0eb0008ef7bda6e638a71590b8ee8f54",
+      "site": null,
+      "site_groups": []
+    },
+    "backend_alias": {
+      "canonical_sha256": "5c31c93042462156d8bbb8388fae358e1a9e35290cb73971616200cb9c7939fe",
+      "ordered_sha256": "420594490bf5627ba93ba4dad6b8c6b755e5dbb7ef06d182e8f609acb8d1f822",
+      "site": null,
+      "site_groups": []
+    },
+    "cluster": {
+      "canonical_sha256": "ec1504d87c58affb68246a22ece23f7ac3f1a9fbe5d6b69c7f808bb610841c3d",
+      "ordered_sha256": "b917e6db83e203e1c9d4c8d52e1570284e2a6f80da62bd21d647729cd487338b",
+      "site": null,
+      "site_groups": []
+    },
+    "default": {
+      "canonical_sha256": "3f18c8ba43e332a48c32cfb6e03ce4e73959234134cb63f9db0608183944d17b",
+      "ordered_sha256": "7286c7f4c78bc0af4d6714ee8f486c2c0fa22d982ca93c218600c50c6c8fef39",
+      "site": null,
+      "site_groups": []
+    },
+    "energy_shell": {
+      "canonical_sha256": "30c7677521c196414e8e1f8997e4f7ce01722107be0a7fe10a0189cdd55a3d7b",
+      "ordered_sha256": "96ffbf8d113d0b053d336136c1dadd37b62dc56fec13fa9df4a78f637bad1ec6",
+      "site": null,
+      "site_groups": []
+    },
+    "explicit_wall": {
+      "canonical_sha256": "6ce452723edb7982597c51e19d834c0a1699f7454e6202b8e4fced76bc5aaa4c",
+      "ordered_sha256": "214099231b5133bf1187ff7e5cb67316b971cb3c56ef6ee83e3827a6cf12ab56",
+      "site": null,
+      "site_groups": []
+    },
+    "resampling": {
+      "canonical_sha256": "a9a5ac05e12789d31e71bc13d290532522055b196f5fdb8aceed0cf043d9633c",
+      "ordered_sha256": "f51ee0e3b92b1a938f93ed862a55f8ad27432b756f650af43ac6566815e4c987",
+      "site": null,
+      "site_groups": []
+    },
+    "sites": {
+      "canonical_sha256": "08e165a815673ffbf59f55784d7667f88a4674ba9c5f3e46e87e0b0d4bcc3136",
+      "ordered_sha256": "6bf851be3837887339fdeb8ecefbc51839b73af287108f4fafe5b625ba7bdca5",
+      "site": [
+        1,
+        2
+      ],
+      "site_groups": [
+        [
+          "hydrogens",
+          [
+            1,
+            2
+          ]
+        ]
+      ]
+    }
+  },
+  "definition": "Original complete to_state_dict JSON digests: sorted-key content and original insertion-order bytes; no normalization or numeric tolerances.",
+  "source_sha": "741f8b835c9665ad83e7d5f8ed520eea70fa9c75"
+}
