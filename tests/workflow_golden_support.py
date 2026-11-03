@@ -154,6 +154,62 @@ class DeterministicBackend:
         return result
 
 
+def controlled_microsolvation_placement(monkeypatch):
+    """Supply original-source poses as workflow inputs, not expected outputs.
+
+    Cross-platform matrix kernels differ at the last bit. Placement mathematics
+    is covered separately; this golden checks orchestration and exact durable
+    artifacts with identical supplied geometries on every supported interpreter.
+    """
+    from pyar.microsolvation import placement
+
+    fixture = json.loads(
+        (
+            Path(__file__).parent
+            / "fixtures/golden/microsolvation_placement_inputs.json"
+        ).read_text()
+    )
+    assert fixture["source_sha"] == BASELINE
+    poses = iter(fixture["poses"])
+    calls = []
+
+    def place(solvent, target, normal, collision_environment, *, maximum_push=5.0):
+        pose = next(poses)
+        assert list(solvent.atoms_list) == pose["symbols"]
+        placed = solvent.copy()
+        placed.coordinates = np.asarray(pose["coordinates_angstrom"], dtype=float)
+        calls.append(placed)
+        return placed
+
+    monkeypatch.setattr(placement, "_place_at_target", place)
+    return calls, len(fixture["poses"])
+
+
+def controlled_microsolvation_selection(monkeypatch):
+    """Supply original selection-policy inputs independently of runtime SVD."""
+    from pyar.selection import clustering, deduplication
+
+    fixture = json.loads(
+        (
+            Path(__file__).parent
+            / "fixtures/golden/microsolvation_selection_inputs.json"
+        ).read_text()
+    )
+    assert fixture["source_sha"] == BASELINE
+    thresholds = iter(fixture["thresholds"])
+    calls = []
+
+    def threshold(molecules):
+        record = next(thresholds)
+        assert [m.name for m in molecules] == record["molecule_names"]
+        calls.append(record)
+        return record["threshold_angstrom"]
+
+    monkeypatch.setattr(deduplication, "_adaptive_duplicate_rmsd_threshold", threshold)
+    monkeypatch.setattr(clustering, "_adaptive_duplicate_rmsd_threshold", threshold)
+    return calls, len(fixture["thresholds"])
+
+
 def controlled_conformers(monkeypatch):
     """Fixed embedding evidence keeps the golden independent of RDKit minimizers."""
     from pyar.workflows import conformer
@@ -285,6 +341,9 @@ def _run_scenario(kind, root, monkeypatch, backend=None):
             output=root / "grow",
         )
     elif kind == "microsolvation":
+        placement_calls, expected_placements = controlled_microsolvation_placement(
+            monkeypatch
+        )
         from pyar.microsolvation.request import MicrosolvationRequest
         from pyar.workflows.microsolvation import microsolvate
 
@@ -308,7 +367,20 @@ def _run_scenario(kind, root, monkeypatch, backend=None):
             solute, water, 1, 2, qc, 1, None, surface_points_per_atom=16
         )
         result = microsolvate(request, output=root / "microsolvation")
+        assert len(placement_calls) == expected_placements
     elif kind == "microsolvation_resampling":
+        # This is a mocked-backend golden: freeze version metadata as an input.
+        # Native comparison scripts do not use this scenario or this control.
+        fixture = json.loads(
+            (
+                Path(__file__).parent
+                / "fixtures/golden/microsolvation_placement_inputs.json"
+            ).read_text()
+        )
+        monkeypatch.setattr(np, "__version__", fixture["numpy_metadata_version"])
+        selection_calls, expected_selections = controlled_microsolvation_selection(
+            monkeypatch
+        )
         from pyar.microsolvation.request import MicrosolvationRequest
         from pyar.workflows.microsolvation import microsolvate
 
@@ -328,6 +400,7 @@ def _run_scenario(kind, root, monkeypatch, backend=None):
             resampling_seed=12,
         )
         result = microsolvate(request, output=root / "microsolvation")
+        assert len(selection_calls) == expected_selections
     elif kind == "reaction":
         from pyar.workflows.reaction import react
 

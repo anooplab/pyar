@@ -46,7 +46,7 @@ def pytest_collection_modifyitems(items):
 @pytest.fixture
 def inline_directory_worker(monkeypatch, request):
     """Keep patched scientific engines in-process; never used by native tests."""
-    if request.node.get_closest_marker('external_backend'):
+    if request.node.get_closest_marker("external_backend"):
         yield
         return
     from workspace_support import working_directory
@@ -55,7 +55,7 @@ def inline_directory_worker(monkeypatch, request):
         with working_directory(directory):
             return operation(*args, **kwargs)
 
-    monkeypatch.setattr('pyar.directory_execution.run_in_directory', execute)
+    monkeypatch.setattr("pyar.directory_execution.run_in_directory", execute)
     yield
 
 
@@ -63,4 +63,5 @@ def inline_directory_worker(monkeypatch, request):
 def deterministic_workflow_backend(monkeypatch):
     """Shared recording backend; successful fake results are not science evidence."""
     from workflow_golden_support import DeterministicBackend
+
     return DeterministicBackend(monkeypatch)
