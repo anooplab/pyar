@@ -94,10 +94,10 @@ def get_rsmd(mol):
 
 
 def make_internal_coordinates(mol):
-    """
+    """Return bond, angle and torsion lists with atom-index/value entries.
 
-
-    :rtype: list of internal coordinates
+    Distances retain the input coordinate units; angles and signed torsions
+    use degrees. Reversed index sequences are reported only once.
     """
     coordinates = mol.coordinates
     covalent_radius = mol.covalent_radius
@@ -121,7 +121,9 @@ def make_internal_coordinates(mol):
         if a_i != a_j and a_i != k and a_i != l and a_j != k and a_j != l and k != l and bm[a_i, a_j] and bm[a_j, k] and bm[k, l]:
             seq = [a_i, a_j, k, l]
             if seq[::-1] not in [i[0] for i in dl]:
-                dl.append([seq, pyar.property.calculate_dihedral(a_i, a_j, k, l)])
+                dl.append([seq, pyar.property.calculate_dihedral(
+                    coordinates[a_i], coordinates[a_j], coordinates[k], coordinates[l]
+                )])
     return [bl, al, dl]
 
 

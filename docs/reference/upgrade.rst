@@ -19,3 +19,21 @@ Useful specialist utilities now live under subcommands; see :doc:`tools`.
 Current data integrity, restart and scientific acceptance checks remain required.
 PyAR 1.6 release/package publication is separate from the repository development
 version described by these pages.
+
+Geometry-analysis corrections
+-----------------------------
+
+``pyar.property.calculate_angle(A, B, C)`` now measures the bond angle at the
+middle atom B in degrees. Earlier code incorrectly measured at C. This corrects
+internal-coordinate bond angles and donor-H-acceptor angles in the existing
+hydrogen-bond analysis. Its distance and angle cutoffs are unchanged. Hydrogen-
+bond distance matrices now retain fractional distances rather than truncating
+them to integers.
+
+Internal-coordinate torsions now pass Cartesian positions to the dihedral
+calculator and return signed degrees for valid four-atom paths. Previously,
+these paths failed because atom indices were passed instead of positions.
+
+If earlier analyses used these routines, recompute the angle and hydrogen-bond
+reports from the original geometries. Stored reports are not repaired
+automatically; the corrections do not rewrite input geometries.
