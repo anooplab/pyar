@@ -88,10 +88,12 @@ Portable workflow characterization
 -----------------------------------
 
 Workflow artifact goldens retain the original complete expected evidence. Their
-mocked microsolvation scenarios supply frozen solvent poses and selection-policy
-inputs recorded from the untouched original source. This makes orchestration and
+mocked microsolvation scenarios supply frozen solvent poses, resampling proposals,
+coverage observations and selection-policy inputs recorded from the untouched
+original source. This makes orchestration and
 persistence comparisons independent of last-bit differences in numerical kernels.
-The resampling scenario also controls NumPy version metadata explicitly; native
+The real rigid-move generator still runs and its exact before/after RNG states
+are checked. The resampling scenario also controls NumPy version metadata explicitly; native
 comparison runs do not use that mocked scenario or its version override.
 
 Placement, permutation/Kabsch RMSD and adaptive-threshold mathematics have
