@@ -112,3 +112,20 @@ settings. Preparation, the unchanged ten-round retry budget, resumed selection,
 refinement and final composition-group publication have explicit stage outputs.
 ``GrowthStopped`` belongs to the workflow owner; it never becomes a candidate
 pool or authorizes publication of a partial step.
+
+Portable workflow characterization
+-----------------------------------
+
+Workflow artifact goldens retain the original complete expected evidence. Their
+mocked microsolvation scenarios supply frozen solvent poses and selection-policy
+inputs recorded from the untouched original source. This makes orchestration and
+persistence comparisons independent of last-bit differences in numerical kernels.
+The resampling scenario also controls NumPy version metadata explicitly; native
+comparison runs do not use that mocked scenario or its version override.
+
+Placement, permutation/Kabsch RMSD and adaptive-threshold mathematics have
+separate numerical tests, including analytical threshold floor/cap checks. The
+golden checks do not establish those algorithms or native chemistry by themselves.
+Exact XYZ bytes, request identities, artifact references, field contents and
+rejection evidence are still compared; expected evidence is never regenerated
+from refactored production code.
