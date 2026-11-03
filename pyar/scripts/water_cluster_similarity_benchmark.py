@@ -136,6 +136,56 @@ def evaluate_feature_distances(reference: np.ndarray, molecules: list[Molecule],
     return results
 
 
+def _prepare_pair_cache(
+    resume, pair_csv, cache_manifest, cache_identity, sample_size, selected
+):
+    "Authorize pair-cache reuse only from the original source and complete-comparison identity."
+    cached = {}
+    if resume and pair_csv.is_file():
+        with pair_csv.open(newline="") as stream:
+            for row in csv.DictReader(stream):
+                cached[
+                    (int(row["left_sample_index"]), int(row["right_sample_index"]))
+                ] = row
+    expected_pairs = [
+        (left, right)
+        for left in range(sample_size)
+        for right in range(left + 1, sample_size)
+    ]
+    expected_pair_set = set(expected_pairs)
+    try:
+        cached_identity = json.loads(cache_manifest.read_text())
+    except (OSError, ValueError):
+        cached_identity = None
+    valid_cached = bool(
+        resume and cached_identity == cache_identity and pair_csv.is_file()
+    )
+    if valid_cached:
+        try:
+            valid_cached = set(cached).issubset(expected_pair_set) and all(
+                cached[key]["left_source_index"]
+                == str(selected[key[0]]["source_index"])
+                and cached[key]["right_source_index"]
+                == str(selected[key[1]]["source_index"])
+                and cached[key]["comparison_complete"].lower() == "true"
+                and np.isfinite(
+                    float(cached[key]["fragment_rmsd_upper_bound_angstrom"])
+                )
+                for key in cached
+            )
+        except (KeyError, TypeError, ValueError):
+            valid_cached = False
+    if not valid_cached:
+        cached = {}
+        pair_csv.write_text(
+            "left_sample_index,right_sample_index,left_source_index,right_source_index,fragment_rmsd_upper_bound_angstrom,comparison_complete,rotation_hypotheses\n"
+        )
+        cache_manifest.write_text(
+            json.dumps(cache_identity, indent=2, sort_keys=True) + "\n"
+        )
+    return cached, expected_pairs, valid_cached
+
+
 def build_benchmark(source_path: Path, output_dir: Path, sample_size=24,
                     features=FEATURES, resume=True):
     records = load_water_minima(source_path)
@@ -168,34 +218,7 @@ def build_benchmark(source_path: Path, output_dir: Path, sample_size=24,
         "comparator": {"name": "fragment-rmsd", "atom_mode": "all",
                        "max_mappings": 10000, "max_fragment_permutations": 720},
     }
-    cached = {}
-    if resume and pair_csv.is_file():
-        with pair_csv.open(newline="") as stream:
-            for row in csv.DictReader(stream):
-                cached[(int(row["left_sample_index"]), int(row["right_sample_index"]))] = row
-    expected_pairs = [(left, right) for left in range(sample_size)
-                      for right in range(left + 1, sample_size)]
-    expected_pair_set = set(expected_pairs)
-    try:
-        cached_identity = json.loads(cache_manifest.read_text())
-    except (OSError, ValueError):
-        cached_identity = None
-    valid_cached = bool(resume and cached_identity == cache_identity and pair_csv.is_file())
-    if valid_cached:
-        try:
-            valid_cached = set(cached).issubset(expected_pair_set) and all(
-                cached[key]["left_source_index"] == str(selected[key[0]]["source_index"])
-                and cached[key]["right_source_index"] == str(selected[key[1]]["source_index"])
-                and cached[key]["comparison_complete"].lower() == "true"
-                and np.isfinite(float(cached[key]["fragment_rmsd_upper_bound_angstrom"]))
-                for key in cached
-            )
-        except (KeyError, TypeError, ValueError):
-            valid_cached = False
-    if not valid_cached:
-        cached = {}
-        pair_csv.write_text("left_sample_index,right_sample_index,left_source_index,right_source_index,fragment_rmsd_upper_bound_angstrom,comparison_complete,rotation_hypotheses\n")
-        cache_manifest.write_text(json.dumps(cache_identity, indent=2, sort_keys=True) + "\n")
+    cached, expected_pairs, valid_cached = _prepare_pair_cache(resume, pair_csv, cache_manifest, cache_identity, sample_size, selected)
     comparator = FragmentRMSDComparator(
         atom_mode="all", max_mappings=10000, max_fragment_permutations=720,
     )
@@ -319,6 +342,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     build_benchmark(args.source, args.output, args.sample_size, args.features,
                     resume=not args.no_resume)
+
+
+
+
 
 
 if __name__ == "__main__":

@@ -5,6 +5,59 @@ from __future__ import annotations
 import numpy as np
 
 
+def _assign_solvent_shells(solute_count, solvent_fragments, pairs):
+    "Assign operational geometric shells using the existing atom-contact evidence."
+    solute_indices = list(range(solute_count))
+    by_fragment = []
+    first = []
+    for fragment_index, fragment in enumerate(solvent_fragments):
+        contact_pairs = [
+            {
+                "solute_atom": pair["atom_a"],
+                "solvent_atom": pair["atom_b"],
+                "distance_angstrom": pair["distance_angstrom"],
+            }
+            for pair in pairs(solute_indices, list(fragment))
+        ]
+        is_first = bool(contact_pairs)
+        if is_first:
+            first.append(fragment_index)
+        by_fragment.append(
+            {
+                "solvent_index": fragment_index,
+                "atom_indices": list(fragment),
+                "shell": "first" if is_first else "pending",
+                "solute_contacts": contact_pairs,
+            }
+        )
+    for fragment_index, fragment in enumerate(solvent_fragments):
+        if by_fragment[fragment_index]["shell"] == "first":
+            continue
+        network_contacts = []
+        for first_index in first:
+            contact_list = pairs(list(solvent_fragments[first_index]), list(fragment))
+            for contact in contact_list:
+                network_contacts.append(
+                    {
+                        "first_shell_solvent": first_index,
+                        "first_shell_atom": contact["atom_a"],
+                        "solvent_atom": contact["atom_b"],
+                        "distance_angstrom": contact["distance_angstrom"],
+                    }
+                )
+        by_fragment[fragment_index]["shell"] = "second" if network_contacts else "outer"
+        by_fragment[fragment_index]["first_shell_contacts"] = sorted(
+            network_contacts,
+            key=lambda item: (
+                item["distance_angstrom"],
+                item["first_shell_solvent"],
+                item["first_shell_atom"],
+                item["solvent_atom"],
+            ),
+        )
+    return by_fragment, first
+
+
 def assess_contacts(molecule, request):
     """Measure explicit-distance contacts without assigning chemical bonds.
 
@@ -49,36 +102,7 @@ def assess_contacts(molecule, request):
                           "distance_angstrom": round(float(distances[i, j]), 6)})
         return sorted(found, key=lambda item: (item["distance_angstrom"], item["atom_a"], item["atom_b"]))
 
-    solute_indices = list(range(solute_count))
-    by_fragment = []
-    first = []
-    for fragment_index, fragment in enumerate(solvent_fragments):
-        contact_pairs = [{"solute_atom": pair["atom_a"], "solvent_atom": pair["atom_b"],
-                          "distance_angstrom": pair["distance_angstrom"]}
-                         for pair in pairs(solute_indices, list(fragment))]
-        is_first = bool(contact_pairs)
-        if is_first:
-            first.append(fragment_index)
-        by_fragment.append({"solvent_index": fragment_index,
-                            "atom_indices": list(fragment),
-                            "shell": "first" if is_first else "pending",
-                            "solute_contacts": contact_pairs})
-    for fragment_index, fragment in enumerate(solvent_fragments):
-        if by_fragment[fragment_index]["shell"] == "first":
-            continue
-        network_contacts = []
-        for first_index in first:
-            contact_list = pairs(list(solvent_fragments[first_index]), list(fragment))
-            for contact in contact_list:
-                network_contacts.append({"first_shell_solvent": first_index,
-                                         "first_shell_atom": contact["atom_a"],
-                                         "solvent_atom": contact["atom_b"],
-                                         "distance_angstrom": contact["distance_angstrom"]})
-        by_fragment[fragment_index]["shell"] = "second" if network_contacts else "outer"
-        by_fragment[fragment_index]["first_shell_contacts"] = sorted(
-            network_contacts, key=lambda item: (item["distance_angstrom"], item["first_shell_solvent"],
-                                                 item["first_shell_atom"], item["solvent_atom"]))
-
+    by_fragment, first = _assign_solvent_shells(solute_count, solvent_fragments, pairs)
     sites = []
     for name, indices in request.site_groups:
         occupied = []

@@ -471,6 +471,66 @@ def build_neb_images(
     return symbols, images
 
 
+def _resample_seed_frames(raw_frames, start_coordinates, end_coordinates, image_count):
+    "Align and resample the seed using the unchanged endpoint-join and arc-length rules."
+    aligned = [_align_rigid_frame(raw_frames[0][1], start_coordinates)]
+    for _frame_symbols, coordinates, _comment in raw_frames[1:]:
+        aligned.append(_align_rigid_frame(coordinates, aligned[-1]))
+    internal_steps = [
+        float(np.sqrt(np.mean(np.sum((right - left) ** 2, axis=1))))
+        for left, right in zip(aligned, aligned[1:])
+    ]
+    positive_steps = [value for value in internal_steps if value > 1e-10]
+    if not positive_steps:
+        raise ValueError("Path seed contains no distinct geometries")
+    typical_step = float(np.median(positive_steps))
+    normalized_end = _align_rigid_frame(end_coordinates, aligned[-1])
+    start_join = float(
+        np.sqrt(np.mean(np.sum((aligned[1] - start_coordinates) ** 2, axis=1)))
+    )
+    end_join = float(
+        np.sqrt(np.mean(np.sum((normalized_end - aligned[-2]) ** 2, axis=1)))
+    )
+    if start_join > 5 * typical_step or end_join > 5 * typical_step:
+        raise ValueError(
+            "Relaxed endpoint discontinuity exceeds five times the median scan-path step "
+            f"(start={start_join:.6g}, end={end_join:.6g}, median={typical_step:.6g} angstrom)"
+        )
+
+    points = [start_coordinates.copy()]
+    points.extend(frame.copy() for frame in aligned[1:-1])
+    points.append(normalized_end.copy())
+    deduplicated = [points[0]]
+    for coordinates in points[1:]:
+        distance = float(
+            np.sqrt(np.mean(np.sum((coordinates - deduplicated[-1]) ** 2, axis=1)))
+        )
+        if distance > 1e-10:
+            deduplicated.append(coordinates)
+    if len(deduplicated) < 2:
+        raise ValueError("Path seed and relaxed endpoints collapse to one geometry")
+    segment_lengths = [
+        float(np.sqrt(np.mean(np.sum((right - left) ** 2, axis=1))))
+        for left, right in zip(deduplicated, deduplicated[1:])
+    ]
+    cumulative = np.concatenate(([0.0], np.cumsum(segment_lengths)))
+    targets = np.linspace(0.0, cumulative[-1], image_count)
+    images = []
+    for target in targets:
+        segment = min(
+            int(np.searchsorted(cumulative, target, side="right") - 1),
+            len(segment_lengths) - 1,
+        )
+        fraction = (target - cumulative[segment]) / segment_lengths[segment]
+        images.append(
+            (1.0 - fraction) * deduplicated[segment]
+            + fraction * deduplicated[segment + 1]
+        )
+    images[0] = start_coordinates.copy()
+    images[-1] = normalized_end.copy()
+    return images, normalized_end
+
+
 def build_neb_images_from_path_seed(
     start, end, path_seed, image_count, *, path_refinement="none",
     idpp_fmax=0.1, idpp_steps=100, geodesic_tol=0.002, geodesic_max_iter=15,
@@ -509,51 +569,7 @@ def build_neb_images_from_path_seed(
     ):
         raise ValueError("path_seed_maximum_frame_index must refer to a frame in the seed")
 
-    aligned = [_align_rigid_frame(raw_frames[0][1], start_coordinates)]
-    for _frame_symbols, coordinates, _comment in raw_frames[1:]:
-        aligned.append(_align_rigid_frame(coordinates, aligned[-1]))
-    internal_steps = [
-        float(np.sqrt(np.mean(np.sum((right - left) ** 2, axis=1))))
-        for left, right in zip(aligned, aligned[1:])
-    ]
-    positive_steps = [value for value in internal_steps if value > 1e-10]
-    if not positive_steps:
-        raise ValueError("Path seed contains no distinct geometries")
-    typical_step = float(np.median(positive_steps))
-    normalized_end = _align_rigid_frame(end_coordinates, aligned[-1])
-    start_join = float(np.sqrt(np.mean(np.sum((aligned[1] - start_coordinates) ** 2, axis=1))))
-    end_join = float(np.sqrt(np.mean(np.sum((normalized_end - aligned[-2]) ** 2, axis=1))))
-    if start_join > 5 * typical_step or end_join > 5 * typical_step:
-        raise ValueError(
-            "Relaxed endpoint discontinuity exceeds five times the median scan-path step "
-            f"(start={start_join:.6g}, end={end_join:.6g}, median={typical_step:.6g} angstrom)"
-        )
-
-    points = [start_coordinates.copy()]
-    points.extend(frame.copy() for frame in aligned[1:-1])
-    points.append(normalized_end.copy())
-    deduplicated = [points[0]]
-    for coordinates in points[1:]:
-        distance = float(np.sqrt(np.mean(np.sum((coordinates - deduplicated[-1]) ** 2, axis=1))))
-        if distance > 1e-10:
-            deduplicated.append(coordinates)
-    if len(deduplicated) < 2:
-        raise ValueError("Path seed and relaxed endpoints collapse to one geometry")
-    segment_lengths = [
-        float(np.sqrt(np.mean(np.sum((right - left) ** 2, axis=1))))
-        for left, right in zip(deduplicated, deduplicated[1:])
-    ]
-    cumulative = np.concatenate(([0.0], np.cumsum(segment_lengths)))
-    targets = np.linspace(0.0, cumulative[-1], image_count)
-    images = []
-    for target in targets:
-        segment = min(int(np.searchsorted(cumulative, target, side="right") - 1), len(segment_lengths) - 1)
-        fraction = (target - cumulative[segment]) / segment_lengths[segment]
-        images.append((1.0 - fraction) * deduplicated[segment]
-                      + fraction * deduplicated[segment + 1])
-    images[0] = start_coordinates.copy()
-    images[-1] = normalized_end.copy()
-
+    images, normalized_end = _resample_seed_frames(raw_frames, start_coordinates, end_coordinates, image_count)
     if path_refinement in {"idpp", "geodesic"}:
         images = _idpp_refine_segment(
             symbols, images, label="path-seed whole path", fmax=idpp_fmax, steps=idpp_steps,
@@ -1408,6 +1424,31 @@ def validate_stage_input_paths(output, stage, *, start=None, end=None, ts_guess=
             raise ValueError("An input would be overwritten by this stage; use a new output directory")
 
 
+def _validate_route_seed(path_seed, path_seed_maximum_frame_index, start, end):
+    "Validate seed frame identity without preparing or running a stage."
+    if path_seed is not None:
+        from pyar.xyz_trajectory import parse_xyz_trajectory
+
+        seed_frames = parse_xyz_trajectory(path_seed)
+        if len(seed_frames) < 3:
+            raise ValueError("A path seed must contain at least three complete frames")
+        if path_seed_maximum_frame_index is not None and (
+            isinstance(path_seed_maximum_frame_index, bool)
+            or not isinstance(path_seed_maximum_frame_index, Integral)
+            or not 0 <= path_seed_maximum_frame_index < len(seed_frames)
+        ):
+            raise ValueError(
+                "path_seed_maximum_frame_index must refer to a frame in the seed"
+            )
+        if start is not None and end is not None:
+            start_symbols = read_xyz(start)[0]
+            end_symbols = read_xyz(end)[0]
+            if start_symbols != end_symbols or seed_frames[0][0] != start_symbols:
+                raise ValueError(
+                    "NEB endpoints and path seed must have identical ordered elements"
+                )
+
+
 def _validate_neb_route(options, output):
     end = options["end"]
     images = options["images"]
@@ -1443,22 +1484,7 @@ def _validate_neb_route(options, output):
         options["path_refinement"] = path_refinement
     if path_seed is not None and path_refinement == "geodesic":
         _, options["geodesic_interpolate_version"] = _geodesic_api()
-    if path_seed is not None:
-        from pyar.xyz_trajectory import parse_xyz_trajectory
-        seed_frames = parse_xyz_trajectory(path_seed)
-        if len(seed_frames) < 3:
-            raise ValueError("A path seed must contain at least three complete frames")
-        if path_seed_maximum_frame_index is not None and (
-            isinstance(path_seed_maximum_frame_index, bool)
-            or not isinstance(path_seed_maximum_frame_index, Integral)
-            or not 0 <= path_seed_maximum_frame_index < len(seed_frames)
-        ):
-            raise ValueError("path_seed_maximum_frame_index must refer to a frame in the seed")
-        if start is not None and end is not None:
-            start_symbols = read_xyz(start)[0]
-            end_symbols = read_xyz(end)[0]
-            if start_symbols != end_symbols or seed_frames[0][0] != start_symbols:
-                raise ValueError("NEB endpoints and path seed must have identical ordered elements")
+    _validate_route_seed(path_seed, path_seed_maximum_frame_index, start, end)
     if ts_geometry is not None and stage not in {"ts", "frequency"}:
         raise ValueError("--ts-geometry is supported only for ts and frequency stages")
     validate_stage_input_paths(output, stage, start=start, end=end, ts_guess=ts_guess,

@@ -532,6 +532,31 @@ class _ScanRoute:
     continue_individual_paths: bool
 
 
+def _validate_scan_grid_controls(options):
+    "Validate orientation and scan-grid controls without allocating artifacts."
+    if (
+        isinstance(options["orientations"], bool)
+        or int(options["orientations"]) != options["orientations"]
+        or options["orientations"] < 1
+    ):
+        raise ValueError("orientation count must be a positive integer")
+    if options["scan_end"] is not None and (
+        not math.isfinite(float(options["scan_end"])) or options["scan_end"] <= 0
+    ):
+        raise ValueError("scan end distance must be finite and positive")
+    if options["scan_step"] is not None and (
+        not math.isfinite(float(options["scan_step"])) or options["scan_step"] <= 0
+    ):
+        raise ValueError("scan step must be finite and positive")
+    if options["scan_points"] is not None and (
+        int(options["scan_points"]) != options["scan_points"]
+        or options["scan_points"] < 2
+    ):
+        raise ValueError("scan points must be an integer >= 2")
+    if options["scan_step"] is not None and options["scan_points"] is not None:
+        raise ValueError("--scan-step and --scan-points cannot be used together")
+
+
 def _validate_scan_route(options: Mapping):
     """Validate the requested route before reading molecules or allocating a run."""
     from pyar.backend_capabilities import normalize_backend_name, supported_geometry_backends
@@ -559,27 +584,7 @@ def _validate_scan_route(options: Mapping):
             if orca_method(settings.get("method", "BP86"))[0] == "g-xTB":
                 raise ValueError("ORCA external g-xTB supports native scanning only; "
                                  "use software=xtb, xtb_model=gxtb for continuation")
-    if (
-        isinstance(options["orientations"], bool)
-        or int(options["orientations"]) != options["orientations"]
-        or options["orientations"] < 1
-    ):
-        raise ValueError("orientation count must be a positive integer")
-    if options["scan_end"] is not None and (
-        not math.isfinite(float(options["scan_end"])) or options["scan_end"] <= 0
-    ):
-        raise ValueError("scan end distance must be finite and positive")
-    if options["scan_step"] is not None and (
-        not math.isfinite(float(options["scan_step"])) or options["scan_step"] <= 0
-    ):
-        raise ValueError("scan step must be finite and positive")
-    if options["scan_points"] is not None and (
-        int(options["scan_points"]) != options["scan_points"]
-        or options["scan_points"] < 2
-    ):
-        raise ValueError("scan points must be an integer >= 2")
-    if options["scan_step"] is not None and options["scan_points"] is not None:
-        raise ValueError("--scan-step and --scan-points cannot be used together")
+    _validate_scan_grid_controls(options)
     intramolecular = options["input_b"] is None
     if intramolecular and int(options["orientations"]) != 1:
         raise ValueError('Intramolecular scans require one orientation; no fragment placement is performed')

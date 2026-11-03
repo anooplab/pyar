@@ -177,11 +177,80 @@ def prepare_separated_reactant_reference(reactants, qc_params, output, options):
     return record
 
 
+def _compare_reference_fragments(
+    reactants,
+    coordinates,
+    boundaries,
+    directory,
+    reactant_reference,
+    reference_geometries,
+):
+    "Compare independently mapped fragment identities and internal geometries."
+    from pyar.neb import _aligned_rmsd
+    from pyar.reaction_identity import (
+        molecule_identity_from_xyz,
+        same_molecular_identity,
+    )
+    from pyar.backends import write_xyz as _write_xyz
+
+    fragment_matches, fragment_rmsds = [], []
+    for index, molecule in enumerate(reactants):
+        lower, upper = int(boundaries[index]), int(boundaries[index + 1])
+        piece = Path(directory) / f"fragment_{index + 1}.xyz"
+        _write_xyz(molecule.atoms_list, coordinates[lower:upper], piece)
+        identity = molecule_identity_from_xyz(piece)
+        expected = reactant_reference["fragments"][index]["identity"]
+        fragment_matches.append(same_molecular_identity(expected, identity))
+        fragment_rmsds.append(
+            _aligned_rmsd(coordinates[lower:upper], reference_geometries[index])
+        )
+    return fragment_matches, fragment_rmsds
+
+
+def _association_branch_label(
+    product_match,
+    reactant_match,
+    product_identity,
+    reactant_identity,
+    symbols,
+    coordinates,
+    boundaries,
+    reactants,
+):
+    "Classify endpoint evidence without promoting optimizer convergence to a connection."
+    from pyar.neb import _bond_set
+    from pyar.reaction_identity import same_molecular_identity
+
+    if product_match and not same_molecular_identity(
+        product_identity, reactant_identity
+    ):
+        label = "product"
+    elif reactant_match and not product_match:
+        interfragment = (
+            any(
+                (i < boundaries[1] <= j) or (j < boundaries[1] <= i)
+                for i, j in _bond_set(symbols, coordinates)
+            )
+            if len(reactants) == 2
+            else False
+        )
+        label = (
+            "stable_pre_reactive_minimum"
+            if interfragment
+            else "separated_fragments_minima"
+        )
+    elif product_match and reactant_match:
+        label = "ambiguous"
+    else:
+        label = "unmatched"
+    return label
+
+
 def classify_association_endpoints(symbols, endpoint_geometries, product_path,
                                    reactant_reference, reactants, tolerance,
                                    reference_directory=None):
     """Assign IRC branches to product or isolated reactants independent of pose."""
-    from pyar.neb import _aligned_rmsd, _bond_set, read_xyz
+    from pyar.neb import _aligned_rmsd, read_xyz
     from pyar.reaction_identity import molecule_identity_from_xyz, same_molecular_identity
     import tempfile
 
@@ -219,15 +288,7 @@ def classify_association_endpoints(symbols, endpoint_geometries, product_path,
             product_identity_match = same_molecular_identity(product_identity, whole_identity)
             product_match = (product_identity_match
                              and _aligned_rmsd(coordinates, product_coordinates) <= tolerance)
-            fragment_matches, fragment_rmsds = [], []
-            for index, molecule in enumerate(reactants):
-                lower, upper = int(boundaries[index]), int(boundaries[index + 1])
-                piece = Path(directory) / f'fragment_{index + 1}.xyz'
-                _write_xyz(molecule.atoms_list, coordinates[lower:upper], piece)
-                identity = molecule_identity_from_xyz(piece)
-                expected = reactant_reference['fragments'][index]['identity']
-                fragment_matches.append(same_molecular_identity(expected, identity))
-                fragment_rmsds.append(_aligned_rmsd(coordinates[lower:upper], reference_geometries[index]))
+            fragment_matches, fragment_rmsds = _compare_reference_fragments(reactants, coordinates, boundaries, directory, reactant_reference, reference_geometries)
             # A stable encounter complex may acquire an interfragment bond
             # under XYZ bond perception. Reactant-side assignment therefore
             # rests on the separately mapped fragment identities and their
@@ -235,16 +296,7 @@ def classify_association_endpoints(symbols, endpoint_geometries, product_path,
             # even when its geometry falls outside the product RMSD tolerance.
             reactant_match = (not product_identity_match and all(fragment_matches)
                               and all(value <= tolerance for value in fragment_rmsds))
-        if product_match and not same_molecular_identity(product_identity, reactant_identity):
-            label = 'product'
-        elif reactant_match and not product_match:
-            interfragment = any((i < boundaries[1] <= j) or (j < boundaries[1] <= i)
-                                for i, j in _bond_set(symbols, coordinates)) if len(reactants) == 2 else False
-            label = 'stable_pre_reactive_minimum' if interfragment else 'separated_fragments_minima'
-        elif product_match and reactant_match:
-            label = 'ambiguous'
-        else:
-            label = 'unmatched'
+        label = _association_branch_label(product_match, reactant_match, product_identity, reactant_identity, symbols, coordinates, boundaries, reactants)
         branch_classes.append(label)
         branch_details.append({'branch_index': branch, 'classification': label,
                                'fragment_identity_matches': fragment_matches,

@@ -10,6 +10,47 @@ from pathlib import Path
 import numpy as np
 
 
+def _aggregate_energy_windows(observations):
+    """Aggregate fixed energy-window retention without changing weighting."""
+    return {
+        window: {
+            "reference_basins_total": sum(
+                item["energy_window_basin_retention"][window]["reference_basins"]
+                for item in observations
+            ),
+            "retained_basins_total": sum(
+                item["energy_window_basin_retention"][window]["retained_basins"]
+                for item in observations
+            ),
+            "macro_mean_recall": float(
+                np.mean(
+                    [
+                        item["energy_window_basin_retention"][window]["recall"]
+                        for item in observations
+                        if item["energy_window_basin_retention"][window]["recall"]
+                        is not None
+                    ]
+                )
+            ),
+            "micro_recall": (
+                sum(
+                    item["energy_window_basin_retention"][window]["retained_basins"]
+                    for item in observations
+                )
+                / sum(
+                    item["energy_window_basin_retention"][window]["reference_basins"]
+                    for item in observations
+                )
+            ),
+            "per_system": {
+                item["system"]: item["energy_window_basin_retention"][window]
+                for item in observations
+            },
+        }
+        for window in ("1.0", "3.0", "6.0")
+    }
+
+
 def _summarize_condition(algorithm, feature, observations):
     """Aggregate one algorithm/feature condition without filesystem access."""
     retention = [item["retention_fraction"] for item in observations]
@@ -42,34 +83,7 @@ def _summarize_condition(algorithm, feature, observations):
         "per_system_retained_reference_basins": {
             item["system"]: item["basins_retained"] for item in observations
         },
-        "energy_window_basin_retention": {
-            window: {
-                "reference_basins_total": sum(
-                    item["energy_window_basin_retention"][window]["reference_basins"]
-                    for item in observations
-                ),
-                "retained_basins_total": sum(
-                    item["energy_window_basin_retention"][window]["retained_basins"]
-                    for item in observations
-                ),
-                "macro_mean_recall": float(np.mean([
-                    item["energy_window_basin_retention"][window]["recall"]
-                    for item in observations
-                    if item["energy_window_basin_retention"][window]["recall"] is not None
-                ])),
-                "micro_recall": (
-                    sum(item["energy_window_basin_retention"][window]["retained_basins"]
-                        for item in observations)
-                    / sum(item["energy_window_basin_retention"][window]["reference_basins"]
-                          for item in observations)
-                ),
-                "per_system": {
-                    item["system"]: item["energy_window_basin_retention"][window]
-                    for item in observations
-                },
-            }
-            for window in ("1.0", "3.0", "6.0")
-        },
+        "energy_window_basin_retention": _aggregate_energy_windows(observations),
         "macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom": (
             float(np.mean(coverage)) if coverage else None
         ),
@@ -110,6 +124,89 @@ def _rank_settings(rows):
         else item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"],
         item["macro_mean_runtime_seconds"],
     ))
+
+
+def _write_scientific_summary(output, payload, systems, rows):
+    "Render the existing report text from measured summary data."
+    with (output / "report.md").open("w") as stream:
+        stream.write("# Scientific clustering benchmark results\n\n")
+        stream.write(
+            "This is a macrocycle conformer-selection pilot. Reference labels come from independently GFN2-xTB-optimized geometries grouped by complete coordinate-graph isomorphism and heavy-atom Kabsch RMSD. See the benchmark README for attribution, methods, and limits.\n\n"
+        )
+        stream.write(
+            f"The run covers {payload['total_input_geometries']} starting geometries, "
+            f"{payload['total_reference_basins']} reference basins at 0.35 Å, "
+            f"{payload['completed_setting_runs']} algorithm/feature-setting runs, and "
+            f"{payload['unique_downstream_optimizations']} unique perturbed seed optimizations.\n\n"
+        )
+        if payload["findings"]:
+            finding = payload["findings"]
+            best = finding["best_observed_setting"]
+            one = best["one_kcal_window"]
+            three = best["three_kcal_window"]
+            stream.write(
+                f"The highest weighted basin retention was **{best['algorithm']} + {best['feature']}**: "
+                f"{best['retained_basins']}/{best['reference_basins']} basins "
+                f"({best['weighted_basin_recall']:.1%}). It retained "
+                f"{one['retained_basins_total']}/{one['reference_basins_total']} basins within 1 kcal/mol and "
+                f"{three['retained_basins_total']}/{three['reference_basins_total']} within 3 kcal/mol "
+                "of each pool's lowest reference energy.\n\n"
+                f"Across all {payload['selected_seed_condition_occurrences']} selected-seed/settings "
+                f"occurrences, xTB optimization success was "
+                f"{finding['all_settings_perturbed_optimizer_success_fraction']:.1%} and "
+                f"verified recovery of each seed's own basin was "
+                f"{finding['all_settings_own_basin_recovery_fraction']:.1%}. "
+                "These are robustness checks at the tested 0.10 Å perturbation level.\n\n"
+            )
+        stream.write("## Test systems\n\n")
+        stream.write("| System | Geometries | Reference basins |\n|---|---:|---:|\n")
+        for system in systems:
+            stream.write(
+                f"| {system['system']} | {system['frames']} | {system['reference_basins']} |\n"
+            )
+        stream.write("\n## Reference-label sensitivity and source audit\n\n")
+        stream.write(
+            "| System | Basins at 0.25 Å | Basins at 0.35 Å | Basins at 0.50 Å | Inferred topology groups | Max comment/xTB energy difference (Eh) |\n|---|---:|---:|---:|---:|---:|\n"
+        )
+        for system in systems:
+            sensitivity = system["threshold_sensitivity"]
+            delta = system["source_comment_energy_delta"][
+                "maximum_absolute_delta_numeric"
+            ]
+            stream.write(
+                f"| {system['system']} | {sensitivity['0.25']['basin_count']} | "
+                f"{sensitivity['0.35']['basin_count']} | {sensitivity['0.50']['basin_count']} | "
+                f"{system['inferred_topology_group_count']} | {delta:.2e} |\n"
+            )
+        stream.write(
+            "\nAll source comment energies match fresh xTB final energies numerically within `8e-7 Eh`. This conflicts with the upstream README's Egret-1/kcal-per-mole description; fresh GFN2-xTB Hartree energies are used for cluster minima, and source values are retained for audit.\n"
+        )
+        stream.write("\n## Settings (ranked)\n\n")
+        stream.write(
+            "| Rank | Algorithm | Feature | Basin recall (weighted) | System-macro recall | Basin recall (≤1 kcal/mol, weighted) | Basin recall (≤3 kcal/mol, weighted) | Mean nearest indexed heavy-atom RMSD (Å) | Perturbed optimization success | Verified basin recovery | Fallback systems (alg/feat/dist) | Mean selection time (s) |\n|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
+        )
+        for rank, item in enumerate(rows, 1):
+            coverage = item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"]
+            success = item["downstream_optimization_success_fraction"]
+            basin_recovery = item["verified_reference_basin_recovery_fraction"]
+            stream.write(
+                f"| {rank} | {item['algorithm_requested']} | {item['feature_requested']} | "
+                f"{item['micro_basin_retention']:.3f} | "
+                f"{item['macro_mean_basin_retention']:.3f} | "
+                f"{item['energy_window_basin_retention']['1.0']['micro_recall']:.3f} | "
+                f"{item['energy_window_basin_retention']['3.0']['micro_recall']:.3f} | "
+                f"{'n/a' if coverage is None else f'{coverage:.3f}'} | "
+                f"{'n/a' if success is None else f'{success:.3f}'} | "
+                f"{'n/a' if basin_recovery is None else f'{basin_recovery:.3f}'} | "
+                f"{item['algorithm_fallback_systems']}/{item['feature_fallback_systems']}/"
+                f"{item['distance_fallback_systems']} | {item['macro_mean_runtime_seconds']:.3f} |\n"
+            )
+        stream.write("\n## Scope and caveats\n\n")
+        for limitation in payload["limitations"]:
+            stream.write(f"- {limitation}\n")
+        stream.write(
+            "\nThe ordering is descriptive for these three test pools, not a universal feature/algorithm policy. Requested methods can fall back; per-system actual methods are recorded in `summary.json`.\n"
+        )
 
 
 def summarize(runs: list[Path], output: Path):
@@ -245,71 +342,7 @@ def summarize(runs: list[Path], output: Path):
         }
         payload["findings"] = findings
     (output / "summary.json").write_text(json.dumps(payload, indent=2) + "\n")
-    with (output / "report.md").open("w") as stream:
-        stream.write("# Scientific clustering benchmark results\n\n")
-        stream.write("This is a macrocycle conformer-selection pilot. Reference labels come from independently GFN2-xTB-optimized geometries grouped by complete coordinate-graph isomorphism and heavy-atom Kabsch RMSD. See the benchmark README for attribution, methods, and limits.\n\n")
-        stream.write(
-            f"The run covers {payload['total_input_geometries']} starting geometries, "
-            f"{payload['total_reference_basins']} reference basins at 0.35 Å, "
-            f"{payload['completed_setting_runs']} algorithm/feature-setting runs, and "
-            f"{payload['unique_downstream_optimizations']} unique perturbed seed optimizations.\n\n"
-        )
-        if payload["findings"]:
-            finding = payload["findings"]
-            best = finding["best_observed_setting"]
-            one = best["one_kcal_window"]
-            three = best["three_kcal_window"]
-            stream.write(
-                f"The highest weighted basin retention was **{best['algorithm']} + {best['feature']}**: "
-                f"{best['retained_basins']}/{best['reference_basins']} basins "
-                f"({best['weighted_basin_recall']:.1%}). It retained "
-                f"{one['retained_basins_total']}/{one['reference_basins_total']} basins within 1 kcal/mol and "
-                f"{three['retained_basins_total']}/{three['reference_basins_total']} within 3 kcal/mol "
-                "of each pool's lowest reference energy.\n\n"
-                f"Across all {payload['selected_seed_condition_occurrences']} selected-seed/settings "
-                f"occurrences, xTB optimization success was "
-                f"{finding['all_settings_perturbed_optimizer_success_fraction']:.1%} and "
-                f"verified recovery of each seed's own basin was "
-                f"{finding['all_settings_own_basin_recovery_fraction']:.1%}. "
-                "These are robustness checks at the tested 0.10 Å perturbation level.\n\n"
-            )
-        stream.write("## Test systems\n\n")
-        stream.write("| System | Geometries | Reference basins |\n|---|---:|---:|\n")
-        for system in systems:
-            stream.write(f"| {system['system']} | {system['frames']} | {system['reference_basins']} |\n")
-        stream.write("\n## Reference-label sensitivity and source audit\n\n")
-        stream.write("| System | Basins at 0.25 Å | Basins at 0.35 Å | Basins at 0.50 Å | Inferred topology groups | Max comment/xTB energy difference (Eh) |\n|---|---:|---:|---:|---:|---:|\n")
-        for system in systems:
-            sensitivity = system["threshold_sensitivity"]
-            delta = system["source_comment_energy_delta"]["maximum_absolute_delta_numeric"]
-            stream.write(
-                f"| {system['system']} | {sensitivity['0.25']['basin_count']} | "
-                f"{sensitivity['0.35']['basin_count']} | {sensitivity['0.50']['basin_count']} | "
-                f"{system['inferred_topology_group_count']} | {delta:.2e} |\n"
-            )
-        stream.write("\nAll source comment energies match fresh xTB final energies numerically within `8e-7 Eh`. This conflicts with the upstream README's Egret-1/kcal-per-mole description; fresh GFN2-xTB Hartree energies are used for cluster minima, and source values are retained for audit.\n")
-        stream.write("\n## Settings (ranked)\n\n")
-        stream.write("| Rank | Algorithm | Feature | Basin recall (weighted) | System-macro recall | Basin recall (≤1 kcal/mol, weighted) | Basin recall (≤3 kcal/mol, weighted) | Mean nearest indexed heavy-atom RMSD (Å) | Perturbed optimization success | Verified basin recovery | Fallback systems (alg/feat/dist) | Mean selection time (s) |\n|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
-        for rank, item in enumerate(rows, 1):
-            coverage = item["macro_mean_nearest_indexed_heavy_atom_rmsd_angstrom"]
-            success = item["downstream_optimization_success_fraction"]
-            basin_recovery = item["verified_reference_basin_recovery_fraction"]
-            stream.write(
-                f"| {rank} | {item['algorithm_requested']} | {item['feature_requested']} | "
-                f"{item['micro_basin_retention']:.3f} | "
-                f"{item['macro_mean_basin_retention']:.3f} | "
-                f"{item['energy_window_basin_retention']['1.0']['micro_recall']:.3f} | "
-                f"{item['energy_window_basin_retention']['3.0']['micro_recall']:.3f} | "
-                f"{'n/a' if coverage is None else f'{coverage:.3f}'} | "
-                f"{'n/a' if success is None else f'{success:.3f}'} | "
-                f"{'n/a' if basin_recovery is None else f'{basin_recovery:.3f}'} | "
-                f"{item['algorithm_fallback_systems']}/{item['feature_fallback_systems']}/"
-                f"{item['distance_fallback_systems']} | {item['macro_mean_runtime_seconds']:.3f} |\n"
-            )
-        stream.write("\n## Scope and caveats\n\n")
-        for limitation in payload["limitations"]:
-            stream.write(f"- {limitation}\n")
-        stream.write("\nThe ordering is descriptive for these three test pools, not a universal feature/algorithm policy. Requested methods can fall back; per-system actual methods are recorded in `summary.json`.\n")
+    _write_scientific_summary(output, payload, systems, rows)
     return payload
 
 
@@ -321,6 +354,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     summarize(args.runs, args.output)
     print(f"wrote {args.output / 'report.md'} and {args.output / 'summary.json'}")
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

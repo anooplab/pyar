@@ -60,6 +60,50 @@ def copy_result(source, destination):
         temporary.unlink(missing_ok=True)
 
 
+def _verify_selection_chain(state, steps):
+    "Verify ordered selection commits before adopting the current growth pool."
+    previous = None
+    for item in steps:
+        if type(item["step"]) is not int or type(item["selected_count"]) is not int:
+            raise GrowStateError("Invalid growth step/count types")
+        record = state.selection(item["step"])
+        if (
+            sha256_file(state.selection_path(item["step"])) != item["selection_sha256"]
+            or record["upstream_sha256"] != previous
+            or item["selected_paths"] != [ref["path"] for ref in record["selected"]]
+            or item["selected_count"] != len(record["selected"])
+        ):
+            raise GrowStateError("Invalid committed growth selection chain")
+        previous = item["selection_sha256"]
+
+
+def _verify_final_pool(state, data, steps, request, directory):
+    "Verify final growth copies against committed selection provenance."
+    if data.get("final_refs") and (
+        len(steps) != request["count"]
+        or len(data["final_refs"]) != len(data["current_seeds"])
+    ):
+        raise GrowStateError("Incomplete final result pool")
+    for index, ref in enumerate(data.get("final_refs", [])):
+        source = data["current_seeds"][index]
+        if (
+            ref["sha256"] != source["sha256"]
+            or ref["source_artifact_id"] != source["artifact_id"]
+            or ref["rank"] != index
+            or ref["source_record_id"] != state.selection(len(steps))["record_id"]
+        ):
+            raise GrowStateError(
+                "Final result provenance differs from committed selection"
+            )
+        ArtifactRef.from_dict(
+            {key: ref[key] for key in ("artifact_id", "role", "path", "sha256")}
+        ).verify(directory)
+    if data["status"] == "completed" and len(data.get("final_refs", [])) != len(
+        data["current_seeds"]
+    ):
+        raise GrowStateError("Completed growth results are missing")
+
+
 class GrowRunStateV2:
     def __init__(self, directory, data):
         self.directory = Path(directory).resolve()
@@ -88,36 +132,13 @@ class GrowRunStateV2:
                     or data['status'] not in {'running', 'stopped', 'completed', 'no_candidates'}
                     or (data['status'] == 'completed' and len(steps) != request['count'])):
                 raise GrowStateError('Invalid growth progress in saved state')
-            previous = None
-            for item in steps:
-                if type(item['step']) is not int or type(item['selected_count']) is not int:
-                    raise GrowStateError('Invalid growth step/count types')
-                record = state.selection(item['step'])
-                if (sha256_file(state.selection_path(item['step'])) != item['selection_sha256']
-                        or record['upstream_sha256'] != previous
-                        or item['selected_paths'] != [ref['path'] for ref in record['selected']]
-                        or item['selected_count'] != len(record['selected'])):
-                    raise GrowStateError('Invalid committed growth selection chain')
-                previous = item['selection_sha256']
+            _verify_selection_chain(state, steps)
             expected = state.selection(len(steps))['selected'] if steps else data['initial_seeds']
             if data['current_seeds'] != expected:
                 raise GrowStateError('Growth current pool does not match committed selection')
             verify_refs(data['initial_seeds'], directory)
             verify_refs(data['current_seeds'], directory)
-            if data.get('final_refs') and (len(steps) != request['count']
-                    or len(data['final_refs']) != len(data['current_seeds'])):
-                raise GrowStateError('Incomplete final result pool')
-            for index, ref in enumerate(data.get('final_refs', [])):
-                source = data['current_seeds'][index]
-                if (ref['sha256'] != source['sha256']
-                        or ref['source_artifact_id'] != source['artifact_id']
-                        or ref['rank'] != index
-                        or ref['source_record_id'] != state.selection(len(steps))['record_id']):
-                    raise GrowStateError('Final result provenance differs from committed selection')
-                ArtifactRef.from_dict({key: ref[key] for key in
-                                      ('artifact_id', 'role', 'path', 'sha256')}).verify(directory)
-            if data['status'] == 'completed' and len(data.get('final_refs', [])) != len(data['current_seeds']):
-                raise GrowStateError('Completed growth results are missing')
+            _verify_final_pool(state, data, steps, request, directory)
             return state
         except (OSError, ValueError, KeyError, TypeError) as exc:
             raise GrowStateError(f'Invalid v2 growth state: {exc}') from exc

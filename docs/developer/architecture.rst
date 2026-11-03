@@ -130,6 +130,40 @@ refinement and final composition-group publication have explicit stage outputs.
 ``GrowthStopped`` belongs to the workflow owner; it never becomes a candidate
 pool or authorizes publication of a partial step.
 
+Bounded scientific orchestration
+--------------------------------
+
+Validation helpers own coherent input contracts; they retain the order of checks
+and the existing exception messages. Evidence classification keeps diagnostics,
+individual acceptance gates and final outcomes separate. A process return code
+or an optimizer flag alone cannot certify a scientifically accepted result.
+
+Recovery orchestration owns cycle/evaluation reservations and the frozen action
+policy. Receipt handling either verifies a committed execution or executes an
+unstarted attempt once. An interrupted attempt without a receipt is never
+replayed, and its entire reserved evaluation quota is charged. Final publication
+consumes a completed recovery report; raw accepted frames and immutable commits
+remain the restart authority. Guided rollback still uses verified accepted-step
+history and the previously approved action settings.
+
+Path-seed alignment/resampling, endpoint identity checks, contact history and
+optional trace projection have separate owners. Extraction preserves numerical
+expressions, units, tolerances, atom mapping and RNG consumption. Benchmark
+loaders separately validate protocol, case inputs and execution evidence; report
+projections retain field order and unavailable-value semantics. Cache identity
+checks, including implementation hashes, remain intact, so an implementation
+change can invalidate a benchmark cache as before.
+
+``tools/measure_complexity.py`` inventories every first-party production function
+and method, including nested functions, benchmarks and utility commands. It
+retains its existing vendored-adapter exclusions and does not count class
+averages as additional functions. The measurement tests independently count the
+Radon 6 AST rules and enforce the requested function limit of CC strictly below
+30. This limit does not justify weakening validation, changing scientific
+algorithms or splitting code without a responsibility boundary. Review total
+decisions and ownership as well as the maximum score: extraction redistributes
+existing decisions and does not itself remove scientific complexity.
+
 Portable workflow characterization
 -----------------------------------
 

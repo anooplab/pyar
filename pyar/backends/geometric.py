@@ -356,6 +356,102 @@ class PyarGeometricCalculator(Calculator):
         with open(_GEOMETRIC_STATE_FILE, "w") as fp:
             json.dump(state, fp, indent=2, sort_keys=True)
 
+    def _release_trace_fields(self):
+        """Project optional release evidence into the existing trace schema."""
+        return dict(
+            accepted_step=(
+                None
+                if self.release_tracker is None
+                or self.release_tracker.evidence.accepted_step == 0
+                else self.release_tracker.evidence.accepted_step
+            ),
+            segment_index=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.segment_index
+            ),
+            release_state=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.state
+            ),
+            release_reason=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.reason
+            ),
+            release_evidence=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.as_dict()
+            ),
+            forming_pairs=(
+                None
+                if self.release_tracker is None
+                else [list(pair) for pair in self.release_tracker.evidence.forming_pairs]
+            ),
+            forming_pair_distance=(
+                None
+                if self.release_tracker is None
+                else list(self.release_tracker.evidence.forming_pair_distances)
+            ),
+            normalized_distance=(
+                None
+                if self.release_tracker is None
+                else list(self.release_tracker.evidence.normalized_distances)
+            ),
+            topology_change_state=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.state
+            ),
+            persistence_counter=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.persistence_counter
+            ),
+            alpha=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.alpha
+            ),
+            alpha_critical=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.alpha_critical
+            ),
+            alpha_target=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.alpha_target
+            ),
+            bond_order_available=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.bond_order_available
+            ),
+            bond_order_scheme=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.bond_order_scheme
+            ),
+            bond_order_delta=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.bond_order_delta
+            ),
+            bond_order_stabilized=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.bond_order_stabilized
+            ),
+            comparable_bond_orders=(
+                None
+                if self.release_tracker is None
+                else self.release_tracker.evidence.comparable_bond_orders
+            ),
+        )
+
     def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
         """Compute the backend objective plus the selected bias if enabled."""
         super().calculate(atoms, properties, system_changes)
@@ -478,78 +574,7 @@ class PyarGeometricCalculator(Calculator):
                 softmin_beta=self.softmin_beta if self.bias_potential == "softmin" else None,
                 bias_controller=self.bias_controller.state_dict() if self.gamma != 0.0 else None,
                 bias_parameters=self._bias_metadata(),
-                accepted_step=(
-                    None if self.release_tracker is None or self.release_tracker.evidence.accepted_step == 0
-                    else self.release_tracker.evidence.accepted_step
-                ),
-                segment_index=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.segment_index
-                ),
-                release_state=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.state
-                ),
-                release_reason=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.reason
-                ),
-                release_evidence=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.as_dict()
-                ),
-                forming_pairs=(
-                    None if self.release_tracker is None
-                    else [list(pair) for pair in self.release_tracker.evidence.forming_pairs]
-                ),
-                forming_pair_distance=(
-                    None if self.release_tracker is None
-                    else list(self.release_tracker.evidence.forming_pair_distances)
-                ),
-                normalized_distance=(
-                    None if self.release_tracker is None
-                    else list(self.release_tracker.evidence.normalized_distances)
-                ),
-                topology_change_state=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.state
-                ),
-                persistence_counter=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.persistence_counter
-                ),
-                alpha=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.alpha
-                ),
-                alpha_critical=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.alpha_critical
-                ),
-                alpha_target=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.alpha_target
-                ),
-                bond_order_available=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.bond_order_available
-                ),
-                bond_order_scheme=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.bond_order_scheme
-                ),
-                bond_order_delta=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.bond_order_delta
-                ),
-                bond_order_stabilized=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.bond_order_stabilized
-                ),
-                comparable_bond_orders=(
-                    None if self.release_tracker is None
-                    else self.release_tracker.evidence.comparable_bond_orders
-                ),
+                **self._release_trace_fields(),
             )
             self._record_accepted_geometry = False
 

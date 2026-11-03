@@ -142,6 +142,34 @@ def _validate_inputs(command, args):
     return [_load_for_state(geometry, args.charge, args.multiplicity)]
 
 
+def _preflight_path_extras(command, args, requirements):
+    "Check only optional APIs consumed by the selected path stage."
+    if command == "neb" and (
+        args.interpolation == "geodesic" or args.path_refinement == "geodesic"
+    ):
+        from pyar.neb import _geodesic_api, _ase_idpp_api
+
+        _geodesic_api()
+        _ase_idpp_api()
+        requirements.append("geodesic-interpolate")
+    if command == "neb" and (
+        args.interpolation == "idpp" or args.path_refinement in {"idpp", "geodesic"}
+    ):
+        from pyar.neb import _ase_idpp_api
+
+        _ase_idpp_api()
+        requirements.append("ASE IDPP")
+    if command == "ts" and args.ts_optimizer == "sella":
+        try:
+            __import__("sella")
+        except ImportError as exc:
+            raise ImportError(
+                "Sella TS optimization requires the optional Sella dependency. "
+                "Install it with `python -m pip install 'pyar-chem[sella]'`."
+            ) from exc
+        requirements.append("sella")
+
+
 def main(command, argv=None, *, prog=None):
     parser = build_parser(command, prog)
     args = parser.parse_args(argv)
@@ -156,24 +184,7 @@ def main(command, argv=None, *, prog=None):
         molecules = _validate_inputs(command, args)
         settings = _resolve_settings(args)
         requirements = preflight(settings, molecules, check_example=f"pyar {command} INPUT --backend {args.backend} --check")
-        if command == "neb" and (args.interpolation == "geodesic"
-                                  or args.path_refinement == "geodesic"):
-            from pyar.neb import _geodesic_api, _ase_idpp_api
-            _geodesic_api()
-            _ase_idpp_api()
-            requirements.append("geodesic-interpolate")
-        if command == "neb" and (args.interpolation == "idpp"
-                                  or args.path_refinement in {"idpp", "geodesic"}):
-            from pyar.neb import _ase_idpp_api
-            _ase_idpp_api()
-            requirements.append("ASE IDPP")
-        if command == "ts" and args.ts_optimizer == "sella":
-            try:
-                __import__("sella")
-            except ImportError as exc:
-                raise ImportError("Sella TS optimization requires the optional Sella dependency. "
-                                  "Install it with `python -m pip install 'pyar-chem[sella]'`.") from exc
-            requirements.append("sella")
+        _preflight_path_extras(command, args, requirements)
         if command == "irc":
             output = Path(args.run_directory).expanduser().resolve()
         else:
