@@ -85,21 +85,23 @@ def get_connectivity(coordinates, covalent_radius):
 
 
 def calculate_angle(a1, b1, c1):
-    v1 = c1 - b1
-    v2 = c1 - a1
-    return np.arccos(np.dot(v1, v2) / (
-            np.linalg.norm(v1) * np.linalg.norm(v2))) * 180 / pi
+    """Return the A-B-C angle in degrees, with B as the central atom."""
+    v1 = a1 - b1
+    v2 = c1 - b1
+    cosine = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    # Roundoff can put a normalized dot product just outside arccos' domain.
+    return np.arccos(np.clip(cosine, -1.0, 1.0)) * 180 / pi
 
 
 def hydrogen_bond_analysis(coordinates, covalent_radius, atomic_number, atoms_list):
-    """return bond matrix"""
+    """Return directed H-to-acceptor distances using the existing contact cutoffs."""
     dm = get_distance_matrix(coordinates)
     bm = get_bond_matrix(coordinates, covalent_radius)
-    hbm = np.zeros((len(coordinates), len(coordinates)), dtype=int)
+    hbm = np.zeros((len(coordinates), len(coordinates)), dtype=float)
     for i, c in enumerate(coordinates):
         for j, d in enumerate(coordinates):
             if i != j and atomic_number[i] == 1 and 1.5 < dm[i, j] < 2.5:
-                bnd = int(np.where(bm[i, :])[0])
+                bnd = int(np.where(bm[i, :])[0].item())
                 angle = calculate_angle(coordinates[bnd], coordinates[i],
                                         coordinates[j])
                 if angle > 160.0:

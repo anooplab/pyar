@@ -100,6 +100,18 @@
 
 ### Fixed
 
+- Correct `property.calculate_angle(A, B, C)` to measure the angle at B, not
+  at C, and clamp floating-point cosine roundoff before `arccos`. This changes
+  incorrect internal-coordinate bond angles and donor-H-acceptor angles in the
+  existing hydrogen-bond analysis; distance and angle cutoffs are unchanged.
+  Extract the single bonded-neighbor index explicitly for current NumPy, and
+  retain fractional contact distances in a floating-point result matrix.
+
+- Fix internal-coordinate torsion generation passing atom indices to the
+  Cartesian dihedral calculator. Bonded four-atom paths now return signed
+  dihedrals in degrees instead of failing in NumPy; preserve atom-index order,
+  reversed-path deduplication and input coordinates.
+
 - Stop interrupted growth with `GrowthStopped`, handled by the owning workflow,
   instead of passing the `StopIteration` class to aggregation selection. Retain
   pending checkpoints for resume without committing partial additions.
