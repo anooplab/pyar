@@ -1,4 +1,9 @@
 """Backend-independent relaxed bond scans and reaction-path continuation."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
 from pyar.cli_runtime import prepared_run, started_run, finished_run
 import argparse
 import os
@@ -8,6 +13,10 @@ from pyar.backend_capabilities import normalize_backend_name, supported_geometry
 from pyar.workflows.scan_path import THROUGH_STAGES, validate_continuation
 from pyar.workflows.scan_bond import run_scan_bond_request
 from pyar.persistence import LockError
+
+if TYPE_CHECKING:
+    from pyar.core.molecule import Molecule
+
 
 class ScanArgumentParser(argparse.ArgumentParser):
     """Validate the one-molecule or two-fragment input shape."""
@@ -105,57 +114,87 @@ def _scan_invocation(args, parameters, reaction_options):
     )
 
 
-def main(argv=None, *, prog=None):
-    parser = build_parser(prog=prog)
-    args = parser.parse_args(argv)
+@dataclass(frozen=True, slots=True)
+class _PreparedScanCLI:
+    """Carry validated inputs and preflight evidence to reporting and execution."""
+
+    invocation: dict
+    molecules: list[Molecule]
+    request_fields: dict
+    requirements: list[str]
+
+
+def _resolve_scan_controls(args, parser):
+    """Resolve input-mode defaults and common controls in the established order."""
     if len(args.inputs) not in (1, 2):
-        parser.error('Provide one molecule or two fragment XYZ files')
+        parser.error("Provide one molecule or two fragment XYZ files")
     intramolecular = len(args.inputs) == 1
     if args.orientations is None:
         if intramolecular:
             args.orientations = 1
         else:
             from pyar.data.defualt_parameters import values
-            args.orientations = values['how_many_orientations']
+
+            args.orientations = values["how_many_orientations"]
     if intramolecular and args.orientations != 1:
-        parser.error('Intramolecular scans preserve the input geometry; --orientations must be 1')
+        parser.error(
+            "Intramolecular scans preserve the input geometry; --orientations must be 1"
+        )
     if args.software is None:
-        parser.error('A backend is required.\nExample: pyar scan-bond A.xyz B.xyz --atoms 1 2 --backend xtb')
-    if args.xtb_model is not None and args.software != 'xtb':
-        parser.error('--xtb-model requires --backend xtb')
-    if args.software == 'xtb':
-        args.xtb_model = args.xtb_model or 'gfn2'
+        parser.error(
+            "A backend is required.\nExample: pyar scan-bond A.xyz B.xyz --atoms 1 2 --backend xtb"
+        )
+    if args.xtb_model is not None and args.software != "xtb":
+        parser.error("--xtb-model requires --backend xtb")
+    if args.software == "xtb":
+        args.xtb_model = args.xtb_model or "gfn2"
     if args.orientations < 1:
-        parser.error('orientation count must be at least 1')
+        parser.error("orientation count must be at least 1")
     if args.nprocs < 1 or args.opt_cycles < 1 or args.scf_cycles < 1:
-        parser.error('nprocs, opt-cycles and scf-cycles must be positive')
-    if args.software == 'orca':
-        args.method = args.method or 'BP86'
-        canonical, is_xtb = orca_method(args.method)
-        args.method = canonical
-        if is_xtb and args.basis is not None:
-            parser.error('--basis is not applicable to ORCA xTB methods')
-        if not is_xtb and (not args.basis):
-            parser.error('--basis is required for ORCA DFT methods')
-        if canonical == 'g-xTB':
-            if not args.gxtb_wrapper:
-                parser.error('--gxtb-wrapper is required for --method g-xTB')
-            wrapper_path = Path(args.gxtb_wrapper).expanduser().resolve()
-            if not wrapper_path.is_file() or not os.access(wrapper_path, os.X_OK):
-                parser.error('--gxtb-wrapper must point to an executable wrapper file')
-            args.gxtb_wrapper = str(wrapper_path)
-            if args.through != 'scan':
-                backend_option = '--backend'
-                parser.error(f'ORCA external g-xTB supports native scanning only; use {backend_option} xtb --xtb-model gxtb for continuation')
-        elif args.gxtb_wrapper:
-            parser.error('--gxtb-wrapper is only valid with --method g-xTB')
-    elif args.software == 'gaussian':
+        parser.error("nprocs, opt-cycles and scf-cycles must be positive")
+    return intramolecular
+
+
+def _resolve_orca_options(args, parser):
+    """Canonicalize the existing ORCA method and external-wrapper contract."""
+    args.method = args.method or "BP86"
+    canonical, is_xtb = orca_method(args.method)
+    args.method = canonical
+    if is_xtb and args.basis is not None:
+        parser.error("--basis is not applicable to ORCA xTB methods")
+    if not is_xtb and (not args.basis):
+        parser.error("--basis is required for ORCA DFT methods")
+    if canonical == "g-xTB":
+        if not args.gxtb_wrapper:
+            parser.error("--gxtb-wrapper is required for --method g-xTB")
+        wrapper_path = Path(args.gxtb_wrapper).expanduser().resolve()
+        if not wrapper_path.is_file() or not os.access(wrapper_path, os.X_OK):
+            parser.error("--gxtb-wrapper must point to an executable wrapper file")
+        args.gxtb_wrapper = str(wrapper_path)
+        if args.through != "scan":
+            backend_option = "--backend"
+            parser.error(
+                f"ORCA external g-xTB supports native scanning only; use {backend_option} xtb --xtb-model gxtb for continuation"
+            )
+    elif args.gxtb_wrapper:
+        parser.error("--gxtb-wrapper is only valid with --method g-xTB")
+
+
+def _validate_backend_options(args, parser):
+    if args.software == "orca":
+        _resolve_orca_options(args, parser)
+    elif args.software == "gaussian":
         if not args.method or not args.basis:
-            parser.error('Gaussian requires --method and --basis')
-    elif args.software in {'xtb', 'aimnet_2'} and (args.method or args.basis):
-        parser.error('--method and --basis are only used with ORCA or Gaussian; standalone xTB uses --xtb-model')
-    if args.software != 'orca' and args.gxtb_wrapper:
-        parser.error('--gxtb-wrapper is only used with ORCA')
+            parser.error("Gaussian requires --method and --basis")
+    elif args.software in {"xtb", "aimnet_2"} and (args.method or args.basis):
+        parser.error(
+            "--method and --basis are only used with ORCA or Gaussian; standalone xTB uses --xtb-model"
+        )
+    if args.software != "orca" and args.gxtb_wrapper:
+        parser.error("--gxtb-wrapper is only used with ORCA")
+
+
+def _resolve_continuation_options(args, intramolecular, parser):
     from pyar.workflows.scan_path import REACTION_OPTION_NAMES
 
     reaction_options = {name: getattr(args, name) for name in REACTION_OPTION_NAMES}
@@ -163,12 +202,23 @@ def main(argv=None, *, prog=None):
         validate_continuation(args.through, reaction_options)
     except ValueError as exc:
         parser.error(str(exc))
-    if args.characterize_unique_products and args.through == 'scan':
-        parser.error('--characterize-unique-products requires --through neb or a later stage')
-    if (args.characterize_unique_products or (intramolecular and args.through != 'scan')) and args.interpolation == 'geodesic':
-        parser.error('--characterize-unique-products currently supports linear or idpp path-seed refinement')
+    if args.characterize_unique_products and args.through == "scan":
+        parser.error(
+            "--characterize-unique-products requires --through neb or a later stage"
+        )
+    if (
+        args.characterize_unique_products or (intramolecular and args.through != "scan")
+    ) and args.interpolation == "geodesic":
+        parser.error(
+            "--characterize-unique-products currently supports linear or idpp path-seed refinement"
+        )
+    return reaction_options
+
+
+def _prepare_scan_cli(args, intramolecular, reaction_options, parser):
+    """Verify chemistry, restart authority and capabilities before preparation."""
     if not all((Path(path).is_file() for path in args.inputs)):
-        parser.error('all input XYZ files must exist')
+        parser.error("all input XYZ files must exist")
     from pyar.scan_request import validate_inputs
 
     try:
@@ -188,19 +238,52 @@ def main(argv=None, *, prog=None):
         validate_scan_restart(args.output, request_fields)
         requirements = preflight_scan(args, params, molecules)
     except (ValueError, ImportError, OSError, RuntimeError) as exc:
-        parser.error(f'Preflight failed for: scan-bond\n{exc}\nNo calculations were started.')
-    prepared_run(args, request={'scan': vars(args), 'continuation': reaction_options, **({'scan_plan': request_fields['intramolecular_plan']} if intramolecular else {})}, backend=params, molecules=molecules, requirements=requirements, outputs=[args.output])
-    print(f'Preflight: scan-bond; backend: {args.software}; orientations: {args.orientations}; through: {args.through}')
+        parser.error(
+            f"Preflight failed for: scan-bond\n{exc}\nNo calculations were started."
+        )
+    return _PreparedScanCLI(invocation, molecules, request_fields, requirements)
+
+
+def _publish_scan_preflight(args, prepared, intramolecular):
+    params = prepared.invocation["qc_params"]
+    reaction_options = prepared.invocation["reaction_options"]
+    molecules, request_fields = prepared.molecules, prepared.request_fields
+    requirements = prepared.requirements
+    prepared_run(
+        args,
+        request={
+            "scan": vars(args),
+            "continuation": reaction_options,
+            **(
+                {"scan_plan": request_fields["intramolecular_plan"]}
+                if intramolecular
+                else {}
+            ),
+        },
+        backend=params,
+        molecules=molecules,
+        requirements=requirements,
+        outputs=[args.output],
+    )
+    print(
+        f"Preflight: scan-bond; backend: {args.software}; orientations: {args.orientations}; through: {args.through}"
+    )
     if intramolecular:
-        plan = request_fields['intramolecular_plan']
-        print(f"Intramolecular {plan['scan_direction']}: {args.inputs[0]}; atoms {args.atoms}")
-        print(f"Distance: {plan['start_distance_angstrom']:.4f} -> {plan['end_distance_angstrom']:.4f} A; {plan['n_points']} points, {plan['step_angstrom']:.4f} A per interval; then free relaxation")
+        plan = request_fields["intramolecular_plan"]
+        print(
+            f"Intramolecular {plan['scan_direction']}: {args.inputs[0]}; atoms {args.atoms}"
+        )
+        print(
+            f"Distance: {plan['start_distance_angstrom']:.4f} -> {plan['end_distance_angstrom']:.4f} A; {plan['n_points']} points, {plan['step_angstrom']:.4f} A per interval; then free relaxation"
+        )
     else:
-        print(f'Inputs: {args.inputs[0]}, {args.inputs[1]}; bond: A[{args.atoms[0]}] -> B[{args.atoms[1]}]')
-    print('Requirements satisfied: ' + ', '.join(requirements))
-    if args.check:
-        print('Ready to run. --check specified; no calculations were performed.')
-        return
+        print(
+            f"Inputs: {args.inputs[0]}, {args.inputs[1]}; bond: A[{args.atoms[0]}] -> B[{args.atoms[1]}]"
+        )
+    print("Requirements satisfied: " + ", ".join(requirements))
+
+
+def _execute_scan_cli(args, invocation, parser):
     started_run()
     try:
         result = run_scan_bond_request(
@@ -208,11 +291,37 @@ def main(argv=None, *, prog=None):
         )
     except LockError as exc:
         parser.error(str(exc))
-    finished_run(result)
-    if isinstance(result, dict) and 'status' in result:
-        print(f"scan-bond: {result['status']} through {args.through}; summaries: {result['output_dir']}")
-        if result['status'] != 'complete':
-            parser.exit(1, 'One or more orientations failed; inspect summary.json for the failed stage and gate.\n')
     return result
-if __name__ == '__main__':
+
+
+def _publish_scan_result(args, result, parser):
+    finished_run(result)
+    if isinstance(result, dict) and "status" in result:
+        print(
+            f"scan-bond: {result['status']} through {args.through}; summaries: {result['output_dir']}"
+        )
+        if result["status"] != "complete":
+            parser.exit(
+                1,
+                "One or more orientations failed; inspect summary.json for the failed stage and gate.\n",
+            )
+    return result
+
+
+def main(argv=None, *, prog=None):
+    parser = build_parser(prog=prog)
+    args = parser.parse_args(argv)
+    intramolecular = _resolve_scan_controls(args, parser)
+    _validate_backend_options(args, parser)
+    reaction_options = _resolve_continuation_options(args, intramolecular, parser)
+    prepared = _prepare_scan_cli(args, intramolecular, reaction_options, parser)
+    _publish_scan_preflight(args, prepared, intramolecular)
+    if args.check:
+        print("Ready to run. --check specified; no calculations were performed.")
+        return
+    result = _execute_scan_cli(args, prepared.invocation, parser)
+    return _publish_scan_result(args, result, parser)
+
+
+if __name__ == "__main__":
     main()

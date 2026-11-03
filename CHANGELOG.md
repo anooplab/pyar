@@ -50,6 +50,10 @@
 
 ### Internal
 
+- Separate scan-bond CLI mode/default resolution, backend options, continuation
+  validation, read-only preflight, execution and result publication. Preserve
+  validation order, request mapping, restart checks and exit/reporting behavior.
+
 - Separate CLI invocation controls, profile/configuration resolution, observed
   execution and response publication. Give prepared-request updates and
   one-time config saving a per-invocation owner while preserving error ordering,
