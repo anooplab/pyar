@@ -80,6 +80,26 @@ def test_convergence_requires_native_evidence_not_just_exit_zero(subject, monkey
     assert not Path(subject.result_xyz_file).exists()
 
 
+@pytest.mark.parametrize(
+    "flag,message",
+    [
+        ("GEO_OPT_CONVERGED", "old convergence witness"),
+        ("GEO_OPT_FAILED", "OPTIMIZATION DID NOT CONVERGE"),
+    ],
+)
+def test_successful_process_with_unchanged_old_marker_has_no_current_result(
+    subject, monkeypatch, flag, message
+):
+    Path(flag).write_text(message)
+    before = Path(flag).read_bytes()
+    jobex_output(monkeypatch)
+    with pytest.raises(BackendOutputError, match="no typed result"):
+        subject.run_turbomole_jobex(max_cycles=7)
+    assert Path(flag).read_bytes() == before
+    assert subject.energy is None
+    assert not Path(subject.result_xyz_file).exists()
+
+
 def test_converged_result_uses_hartree_energy_and_bohr_coordinates(
     subject, monkeypatch
 ):
