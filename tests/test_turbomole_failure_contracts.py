@@ -80,6 +80,20 @@ def test_convergence_requires_native_evidence_not_just_exit_zero(subject, monkey
     assert not Path(subject.result_xyz_file).exists()
 
 
+@pytest.mark.parametrize("marker", ["GEO_OPT_CONVERGED", "GEO_OPT_FAILED"])
+def test_directory_is_not_a_native_status_marker(subject, monkeypatch, marker):
+    def execute(command, **kwargs):
+        Path(marker).mkdir()
+        return 0
+
+    monkeypatch.setattr(tm.subp, "check_call", execute)
+    with pytest.raises(BackendOutputError, match="no typed result"):
+        subject.run_turbomole_jobex(max_cycles=7)
+    assert Path(marker).is_dir()
+    assert subject.energy is None
+    assert not Path(subject.result_xyz_file).exists()
+
+
 @pytest.mark.parametrize(
     "flag,message",
     [
