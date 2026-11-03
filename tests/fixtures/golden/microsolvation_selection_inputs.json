@@ -1,0 +1,28 @@
+{
+  "source_sha": "9f1e567ce22b5d382d1facc9ff1da624de5d55a9",
+  "purpose": "Fixed selection-policy inputs for mocked workflow/persistence golden; RMSD/SVD and adaptive threshold mathematics are tested separately.",
+  "thresholds": [
+    {
+      "molecule_names": [
+        "micro_10000_000",
+        "micro_10000_001"
+      ],
+      "threshold_angstrom": 0.05
+    },
+    {
+      "molecule_names": [
+        "micro_10000_000",
+        "ms4_00000"
+      ],
+      "threshold_angstrom": 0.05
+    },
+    {
+      "molecule_names": [
+        "micro_10000_000",
+        "ms4_00000",
+        "ms4_00001"
+      ],
+      "threshold_angstrom": 0.05957739309483581
+    }
+  ]
+}
