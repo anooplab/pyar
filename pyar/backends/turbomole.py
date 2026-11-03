@@ -87,6 +87,15 @@ def turbomole_functional(method):
         ) from None
 
 
+def _jobex_marker_stamp(filename):
+    """Identify a marker generation without deleting retained native evidence."""
+    try:
+        stat = os.stat(filename)
+    except FileNotFoundError:
+        return None
+    return stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+
+
 class Turbomole(SF):
 
     def __init__(self, molecule, qc_params):
@@ -236,16 +245,14 @@ class Turbomole(SF):
     @backend_operation
     def run_turbomole_jobex(self, max_cycles=350):
         """Run jobex; raise typed SCF, gradient, geometry or convergence errors."""
+        previous_failed = _jobex_marker_stamp('GEO_OPT_FAILED')
+        previous_converged = _jobex_marker_stamp('GEO_OPT_CONVERGED')
         with open('jobex.out', 'w') as fj:
-            try:
-                subp.check_call(['jobex', '-ri', '-c', str(max_cycles)], stdout=fj,
-                                stderr=fj)
-            except subp.CalledProcessError as e:
-                turbomole_logger.debug('jobex failed, check %s/jobex.out'
-                                       % os.getcwd())
-                raise BackendExecutionError("turbomole optimization failed; inspect the retained backend output")
+            # The shared backend boundary owns process failures and their causes.
+            subp.check_call(['jobex', '-ri', '-c', str(max_cycles)], stdout=fj,
+                            stderr=fj)
 
-        if os.path.isfile('GEO_OPT_FAILED'):
+        if _jobex_marker_stamp('GEO_OPT_FAILED') not in (None, previous_failed):
             message = open('GEO_OPT_FAILED').read()
             if 'ERROR: Module' in message:
                 turbomole_logger.debug('Error in module!\n chcek %s/GEO_OPT_FAILED' % os.getcwd())
@@ -274,7 +281,7 @@ class Turbomole(SF):
                 turbomole_logger.debug('Unknown Error!\n chcek the files in %s' % os.getcwd())
                 raise BackendExecutionError("turbomole optimization failed; inspect the retained backend output")
 
-        elif os.path.isfile('GEO_OPT_CONVERGED'):
+        elif _jobex_marker_stamp('GEO_OPT_CONVERGED') not in (None, previous_converged):
 
             turbomole_logger.debug('jobex done')
             self.energy = get_energy()

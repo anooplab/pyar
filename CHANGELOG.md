@@ -2,6 +2,11 @@
 
 ## Unreleased — 1.6.0
 
+- Turbomole optimization requires a status marker created or updated by the
+  current `jobex` invocation. Unchanged old success or cycle-limit markers
+  cannot authorize publication or an incomplete result. Retain the original
+  markers and raw output; process failures use the shared typed error boundary.
+
 ### Breaking interface and format cleanup
 
 - Require Python 3.11 or newer. Remove Python 3.10 support, its CI jobs and

@@ -32,3 +32,9 @@ missing-dependency diagnostic before running. Keep proprietary executable/model
 installation separate from PyAR packaging. Use the vendor's current license,
 platform and execution requirements. Optional backends must remain optional for
 root help and tasks that do not use them.
+
+Turbomole optimization requires a status marker created or updated during the
+current ``jobex`` invocation. Old ``GEO_OPT_CONVERGED`` or ``GEO_OPT_FAILED``
+files remain available for inspection but cannot by themselves establish a
+current result. If the invocation produces no current status evidence, inspect
+``jobex.out`` and the native inputs; a zero process exit is insufficient.
