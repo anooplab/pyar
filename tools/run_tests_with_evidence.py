@@ -28,6 +28,12 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _filesystem_timestamp(path: Path) -> datetime:
+    """Sample the report filesystem's clock without assuming wall-clock precision."""
+    path.touch(exist_ok=False)
+    return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+
+
 def _parse_timestamp(value: str) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
@@ -99,6 +105,7 @@ def run(root: Path, output_root: Path, pytest_args: list[str]) -> int:
     coverage = run_dir / "coverage.json"
     coverage_data = run_dir / ".coverage"
     source_tree_before = _source_tree_sha256(root)
+    filesystem_started = _filesystem_timestamp(run_dir / "process.started")
     started = _utc_now()
     junit_arg = os.path.relpath(junit, root)
     coverage_arg = os.path.relpath(coverage, root)
@@ -119,6 +126,7 @@ def run(root: Path, output_root: Path, pytest_args: list[str]) -> int:
         command, cwd=root, env=environment, check=False, capture_output=True, text=True
     )
     finished = _utc_now()
+    filesystem_finished = _filesystem_timestamp(run_dir / "process.finished")
     stdout = process.stdout or ""
     stderr = process.stderr or ""
     (run_dir / "pytest.stdout.txt").write_text(stdout, encoding="utf-8")
@@ -140,6 +148,11 @@ def run(root: Path, output_root: Path, pytest_args: list[str]) -> int:
         "coverage_data_path": coverage_data_arg,
         "started_utc": started.isoformat(),
         "finished_utc": finished.isoformat(),
+        "artifact_mtime_interval": {
+            "clock": "report_filesystem",
+            "started": filesystem_started.isoformat(),
+            "finished": filesystem_finished.isoformat(),
+        },
         "pytest_exit_code": process.returncode,
         "runner_exit_code": process.returncode,
         "artifacts": {},
@@ -226,7 +239,7 @@ def run(root: Path, output_root: Path, pytest_args: list[str]) -> int:
         artifact = artifacts.get(label)
         if artifact is not None:
             mtime = _parse_timestamp(str(artifact["mtime_utc"]))
-            if not (started <= mtime <= finished):
+            if not (filesystem_started <= mtime <= filesystem_finished):
                 manifest["limitations"].append(
                     f"{label} artifact modification time is outside the pytest process interval"
                 )
