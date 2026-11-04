@@ -2,6 +2,10 @@
 
 ## Unreleased — 1.6.0
 
+- Separate ORCA native-result acceptance from process execution and result
+  publication. Preserve completion/convergence gates, atom order, finite-value
+  checks, retained diagnostics and rejection without overwriting accepted data.
+
 - Reject Gaussian optimization logs with nonfinite energies, nonfinite
   coordinates, or missing/incorrectly shaped geometries before assigning a
   result or writing XYZ. Invalid native output raises a typed backend error
