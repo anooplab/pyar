@@ -21,7 +21,7 @@ outputs. Use a fresh analysis directory when a tool writes files.
    * - ``pyar descriptor``
      - Cluster descriptors; descriptor similarity is not independent chemical identity
    * - ``pyar mlopt``
-     - MLatom AIQM1 optimization driver with its external program requirements
+     - Optional MLatom AIQM1 driver; native calculations untested; requires MNDO, DFT-D4 and Gaussian
    * - ``pyar aimnet2-ase-opt``
      - Optimization with an explicit AIMNet2 model and its model/runtime requirements
    * - ``pyar benchmark conformer``
@@ -53,6 +53,9 @@ interpret a descriptor ranking as an electronic energy ranking, or a benchmark
 completion as a broad scientific validation. These help paths were checked; ML
 backend calculations and complete benchmark campaigns were not newly run for
 this documentation change.
+
+See :doc:`backends/optional_unvalidated` for the current MLatom/AIQM1, Gaussian
+and Turbomole installation requirements and native-validation limits.
 
 Work with a pool of geometries
 -------------------------------

@@ -2,6 +2,11 @@
 
 ## Unreleased — 1.6.0
 
+- Document MLatom/AIQM1, Gaussian and Turbomole as optional, user-configured
+  integrations with native scientific calculations NOT_TESTED for this
+  development milestone. Retain their adapters and software-contract tests;
+  clarify that the current AIQM1 optimization driver also requires Gaussian.
+
 - Separate saved CLI option encoding into Boolean, repeated-option and ordinary
   value responsibilities. Preserve replay tokens, parser order, validation
   errors and exclusion of saved execution permissions.
