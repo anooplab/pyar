@@ -1,6 +1,7 @@
 """Legacy graph-to-MOL2 contracts; element inference is not chemical validation."""
 
 import json
+import builtins
 
 import pytest
 
@@ -38,6 +39,7 @@ def mol2_graph(path):
     [
         "0 1 {'weight': 1}\n1 2 {'weight': 1}\n",
         "1 0 {'weight': 1}\n1 2 {'weight': 1}\n",
+        "1 2 {'weight': 1}\n1 0 {'weight': 1}\n",
         "2 1 {'weight': 1}\n1 0 {'weight': 1}\n",
         "1 0 {1}\n1 2 {1}\n",
     ],
@@ -124,3 +126,20 @@ def test_valence_dictionary_preserves_json_parse_error(tmp_path):
     path.write_text("{")
     with pytest.raises(json.JSONDecodeError):
         validity.getValenceDict(path)
+
+
+def test_graph_conversion_closes_owned_streams_even_when_references_are_retained(
+    tmp_path, monkeypatch
+):
+    handles = []
+
+    def track(*args, **kwargs):
+        stream = builtins.open(*args, **kwargs)
+        handles.append(stream)
+        return stream
+
+    monkeypatch.setattr(validity, "open", track, raising=False)
+    result, _ = convert(tmp_path, "0 1 {1}\n", 2)
+    assert result is True
+    assert len(handles) == 2
+    assert all(stream.closed for stream in handles)

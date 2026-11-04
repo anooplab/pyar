@@ -9,13 +9,11 @@ from rdkit.Chem import Draw
 from rdkit.Chem import AllChem
 from rdkit.Chem import Draw, Lipinski
 from rdkit.Chem import Descriptors
-from pyar import sascore
 import json
 
 def getValenceDict(filename):
-    f = open(filename)
-    jobj = json.load(f.read())
-    return jobj
+    with open(filename) as stream:
+        return json.load(stream)
 
 def getAtom(valency):
     atom = "Un"
@@ -31,23 +29,28 @@ def getAtom(valency):
         atom = 'S' 
     return atom
 
+def _read_valence_graph(filename):
+    """Read dict-weight or legacy bare-weight edges, owning the input stream."""
+    with open(filename) as stream:
+        try:
+            return nx.read_edgelist(stream, nodetype=int)
+        except (TypeError, ValueError, SyntaxError):
+            stream.seek(0)
+            lines = stream.read().replace("{", "{\'weight\':").split("\n")
+            return nx.parse_edgelist(lines, nodetype=int)
+
+
 def guess_correct_molecules(readfile, writefile, n, multi):
-    
-    f = open(readfile)
-    try:
-        G=nx.read_edgelist(f, nodetype=int)
-    except:
-        f = open(readfile)
-        lines = f.read()
-        linesnew = lines.replace("{", "{\'weight\':").split("\n")
-        G = nx.parse_edgelist(linesnew, nodetype=int)
-        #return False
-    #'''
+    """Write the legacy degree-inferred MOL2 for zero-based indexed graph nodes.
+
+    This preserves the historical element heuristic, not chemical validation.
+    """
+    G = _read_valence_graph(readfile)
     try:
         if not nx.is_connected(G):
             print("Not connected")
             return False
-    except:
+    except nx.NetworkXPointlessConcept:
         print("Null graph")
         return False
     #'''
@@ -63,8 +66,8 @@ def guess_correct_molecules(readfile, writefile, n, multi):
 
     e = len(G.edges())
     deg = [] 
-    adj = np.array(nx.adjacency_matrix(G).todense())
-    for i in G.nodes():
+    adj = np.array(nx.adjacency_matrix(G, nodelist=range(len(G))).todense())
+    for i in range(len(G)):
         deg.append(np.sum(adj[i]))
     
     deg = np.array(deg)
@@ -81,46 +84,46 @@ def guess_correct_molecules(readfile, writefile, n, multi):
     OC = 0
     SC = 0
 
-    fw = open(writefile, "w")
-    
-    fw.write("@<TRIPOS>MOLECULE\n")
-    fw.write("Dummy Atom\n")
-    fw.write(str(nodes)+" "+str(e)+"\n\n")
-    
-    fw.write("@<TRIPOS>ATOM\n")
-    
-    atom_count = 0
-    #print "DE", len(degarray), degarray
-    for i in range(n):
-        #print "Debug", i , deg[i]
-        if deg[i] == 0:
-            continue
-        atom = getAtom(deg[i])
-        atom_count += 1
-        if atom == 'C':
-            CC+=1
-            fw.write(str(atom_count)+"\t"+atom+str(CC)+"\t0\t0\t0\tC\n")
-        elif atom == 'N':
-            NC+=1
-            fw.write(str(atom_count)+"\t"+atom+str(NC)+"\t0\t0\t0\tN\n")
-        elif atom == 'H':
-            HC+=1
-            fw.write(str(atom_count)+"\t"+atom+str(HC)+"\t0\t0\t0\tH\n")
-        elif atom == 'O':
-            OC+=1
-            fw.write(str(atom_count)+"\t"+atom+str(OC)+"\t0\t0\t0\tO\n")
-        
-        elif atom=='S':
-            SC+=1
-            fw.write(str(atom_count)+"\t"+atom+str(SC)+"\t0\t0\t0\tS\n")
-        else:
-            fw.write(str(atom_count)+"\t"+atom+"\t0\t0\t0\tUN\n")
-    fw.write("\n@<TRIPOS>BOND\n")
-    edge_count = 0
-    for (u,v) in G.edges(): #list(G.edges_iter(data='weight', default=1)):
-        edge_count += 1
-        w = G.get_edge_data(u,v)['weight']
-        fw.write(str(edge_count) + "\t" + str(index[u]) + "\t" + str(index[v]) + "\t" + str(w) + "\n")
+    with open(writefile, "w") as fw:
+
+        fw.write("@<TRIPOS>MOLECULE\n")
+        fw.write("Dummy Atom\n")
+        fw.write(str(nodes)+" "+str(e)+"\n\n")
+
+        fw.write("@<TRIPOS>ATOM\n")
+
+        atom_count = 0
+        #print "DE", len(degarray), degarray
+        for i in range(n):
+            #print "Debug", i , deg[i]
+            if deg[i] == 0:
+                continue
+            atom = getAtom(deg[i])
+            atom_count += 1
+            if atom == 'C':
+                CC+=1
+                fw.write(str(atom_count)+"\t"+atom+str(CC)+"\t0\t0\t0\tC\n")
+            elif atom == 'N':
+                NC+=1
+                fw.write(str(atom_count)+"\t"+atom+str(NC)+"\t0\t0\t0\tN\n")
+            elif atom == 'H':
+                HC+=1
+                fw.write(str(atom_count)+"\t"+atom+str(HC)+"\t0\t0\t0\tH\n")
+            elif atom == 'O':
+                OC+=1
+                fw.write(str(atom_count)+"\t"+atom+str(OC)+"\t0\t0\t0\tO\n")
+
+            elif atom=='S':
+                SC+=1
+                fw.write(str(atom_count)+"\t"+atom+str(SC)+"\t0\t0\t0\tS\n")
+            else:
+                fw.write(str(atom_count)+"\t"+atom+"\t0\t0\t0\tUN\n")
+        fw.write("\n@<TRIPOS>BOND\n")
+        edge_count = 0
+        for (u,v) in G.edges(): #list(G.edges_iter(data='weight', default=1)):
+            edge_count += 1
+            w = G.get_edge_data(u,v)['weight']
+            fw.write(str(edge_count) + "\t" + str(index[u]) + "\t" + str(index[v]) + "\t" + str(w) + "\n")
     return True    
 
 def drawchem(mols):
@@ -140,6 +143,8 @@ def drawchem(mols):
         count += 1 
 
 def calculate_property(m):
+    from pyar import sascore
+
     SA_score = -sascore.calculateScore(m)
     MW = Descriptors.MolWt(m)
     RB = Lipinski.NumRotatableBonds(m)

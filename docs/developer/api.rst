@@ -85,3 +85,17 @@ supported. Discovery owns restart verification; the request's descriptive
 ``restart_request`` field cannot authorize reuse of persisted artifacts.
 
 .. autofunction:: pyar.workflows.reaction.run_reaction
+
+Legacy graph conversion
+-----------------------
+
+``pyar.checkvalidity.guess_correct_molecules`` reads zero-based atom-indexed
+weighted edge lists and writes the existing MOL2 schema. Atom labels retain
+their weighted-degree element inference regardless of edge insertion order.
+This historical heuristic is not a chemical-validity or valence certification.
+Rejected empty, disconnected or excessive-degree graphs leave existing output
+untouched; unexpected parser or graph implementation failures propagate.
+
+Graph conversion and valence JSON loading do not require the historical
+``pyar.sascore`` provider. ``calculate_property`` still requires that provider;
+no alternative SA scoring algorithm is selected automatically.
