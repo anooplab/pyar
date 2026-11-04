@@ -2,6 +2,10 @@
 
 ## Unreleased — 1.6.0
 
+- Separate saved CLI option encoding into Boolean, repeated-option and ordinary
+  value responsibilities. Preserve replay tokens, parser order, validation
+  errors and exclusion of saved execution permissions.
+
 - Separate ORCA native-result acceptance from process execution and result
   publication. Preserve completion/convergence gates, atom order, finite-value
   checks, retained diagnostics and rejection without overwriting accepted data.
