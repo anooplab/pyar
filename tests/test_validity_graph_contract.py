@@ -77,6 +77,25 @@ def test_multiple_bond_weights_and_padding_preserve_output_schema(tmp_path):
 
 
 @pytest.mark.parametrize(
+    "text,n",
+    [
+        ("0 1 {'weight': 1}\n", 0),
+        ("0 1 {'weight': 1}\n", 1),
+        ("-1 0 {'weight': 1}\n", 2),
+        ("0 7 {'weight': 1}\n", 3),
+    ],
+)
+def test_atom_labels_outside_requested_count_are_rejected_before_output(
+    tmp_path, text, n
+):
+    output = tmp_path / "graph.mol2"
+    output.write_bytes(b"previous output\n")
+    result, _ = convert(tmp_path, text, n)
+    assert result is False
+    assert output.read_bytes() == b"previous output\n"
+
+
+@pytest.mark.parametrize(
     "text,n,message",
     [
         ("", 3, "Null graph"),

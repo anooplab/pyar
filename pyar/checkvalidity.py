@@ -53,6 +53,8 @@ def guess_correct_molecules(readfile, writefile, n, multi):
     except nx.NetworkXPointlessConcept:
         print("Null graph")
         return False
+    if min(G) < 0 or max(G) >= n:
+        return False
     #'''
     nodes = len(G.nodes())
     count = 1 
