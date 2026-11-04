@@ -93,7 +93,7 @@ Legacy graph conversion
 weighted edge lists and writes the existing MOL2 schema. Atom labels retain
 their weighted-degree element inference regardless of edge insertion order.
 This historical heuristic is not a chemical-validity or valence certification.
-Rejected empty, disconnected or excessive-degree graphs leave existing output
+Rejected empty, disconnected, out-of-range or excessive-degree graphs leave existing output
 untouched; unexpected parser or graph implementation failures propagate.
 
 Graph conversion and valence JSON loading do not require the historical
