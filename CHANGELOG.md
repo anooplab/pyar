@@ -2,6 +2,13 @@
 
 ## Unreleased — 1.6.0
 
+- Preserve atom-label mapping in the legacy graph-to-MOL2 helper when edges
+  arrive in a different insertion order, and reject labels outside the requested
+  atom count before writing. Fix valence JSON loading, close its
+  input/output streams, and propagate unexpected graph errors. Graph helpers
+  no longer import the unavailable historical SA scorer; property scoring
+  still requires that original provider and no substitute algorithm is selected.
+
 - Geometry analysis raises `ValueError` for a zero-length bond-angle ray,
   zero-length central torsion bond, or collinear torsion plane. Defined
   0°/180° bond angles and signed torsions are preserved; no near-degeneracy
