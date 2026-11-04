@@ -132,6 +132,14 @@ def test_failed_or_malformed_log_cannot_replace_previous_result(
         log(energy="inf"),
         log(second_z="nan"),
         log().replace("Standard orientation", "Unavailable orientation"),
+        log().replace(" 1 1 0 0.0 0.0 0.0\n", "").replace(" 2 1 0 0.0 0.0 0.74\n", ""),
+    ],
+    ids=[
+        "nan-energy",
+        "infinite-energy",
+        "nan-coordinate",
+        "missing-orientation",
+        "missing-coordinate-rows",
     ],
 )
 def test_invalid_result_is_rejected_before_publication_or_state_assignment(
