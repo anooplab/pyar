@@ -8,7 +8,8 @@
   without overwriting an existing result; valid values and units are unchanged.
 
 - Preserve atom-label mapping in the legacy graph-to-MOL2 helper when edges
-  arrive in a different insertion order. Fix valence JSON loading, close its
+  arrive in a different insertion order, and reject labels outside the requested
+  atom count before writing. Fix valence JSON loading, close its
   input/output streams, and propagate unexpected graph errors. Graph helpers
   no longer import the unavailable historical SA scorer; property scoring
   still requires that original provider and no substitute algorithm is selected.
