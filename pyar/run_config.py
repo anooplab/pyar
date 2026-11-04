@@ -397,36 +397,50 @@ def profile_path(name):
 
 
 def _option_arguments(action, value):
+    """Dispatch replay encoding by argparse action, preserving parser order."""
     option = next((name for name in action.option_strings if name.startswith('--') and not name.startswith('--no-')),
                   action.option_strings[0])
-    if isinstance(action, argparse.BooleanOptionalAction):
-        if not isinstance(value, bool):
-            raise ValueError(f"{option} must be a Boolean in saved settings")
-        return [option if value else '--no-' + option[2:]]
-    if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
-        if not isinstance(value, bool):
-            raise ValueError(f"{option} must be a Boolean in saved settings")
-        if value == action.const:
-            return [option]
-        if value != action.default:
-            raise ValueError(f"{option} cannot represent the saved value {value!r}")
-        return []
+    if isinstance(action, (argparse.BooleanOptionalAction, argparse._StoreTrueAction, argparse._StoreFalseAction)):
+        return _boolean_option_arguments(action, option, value)
     if isinstance(action, argparse._CountAction):
         if not isinstance(value, int) or value < 0:
             raise ValueError(f"{option} must be a nonnegative integer")
         return [option] * value
     if isinstance(action, argparse._AppendAction):
-        if not isinstance(value, (list, tuple)):
-            raise ValueError(f"{option} requires a list in saved settings")
-        arguments = []
-        for item in value:
-            if action.nargs is None:
-                arguments.append(f"{option}={item}")
-            else:
-                arguments.append(option)
-                arguments.extend(str(part) for part in
-                                 (item if isinstance(item, (list, tuple)) else [item]))
-        return arguments
+        return _append_option_arguments(action, option, value)
+    return _value_option_arguments(action, option, value)
+
+
+def _boolean_option_arguments(action, option, value):
+    """Encode switches without converting Boolean values into string tokens."""
+    if not isinstance(value, bool):
+        raise ValueError(f"{option} must be a Boolean in saved settings")
+    if isinstance(action, argparse.BooleanOptionalAction):
+        return [option if value else '--no-' + option[2:]]
+    if value == action.const:
+        return [option]
+    if value != action.default:
+        raise ValueError(f"{option} cannot represent the saved value {value!r}")
+    return []
+
+
+def _append_option_arguments(action, option, value):
+    """Keep each repeated option's value group intact."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"{option} requires a list in saved settings")
+    arguments = []
+    for item in value:
+        if action.nargs is None:
+            arguments.append(f"{option}={item}")
+        else:
+            arguments.append(option)
+            arguments.extend(str(part) for part in
+                             (item if isinstance(item, (list, tuple)) else [item]))
+    return arguments
+
+
+def _value_option_arguments(action, option, value):
+    """Encode scalar or grouped values with the existing saved-settings rules."""
     if action.nargs in ('+', '*') or isinstance(action.nargs, int):
         if not isinstance(value, (list, tuple)):
             raise ValueError(f"{option} requires a list in saved settings")

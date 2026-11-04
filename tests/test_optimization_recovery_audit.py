@@ -110,6 +110,57 @@ def test_orca_one_atom_has_matrix_coordinates(fake_program, monkeypatch, qc):
     assert runner.optimized_coordinates.shape == (1, 3)
 
 
+@pytest.mark.parametrize(('output', 'geometry', 'returncode'), [
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n', xyz(), 0),
+    ('FINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', xyz(), 0),
+    ('THE OPTIMIZATION HAS CONVERGED\n****ORCA TERMINATED NORMALLY****', xyz(), 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY inf\n****ORCA TERMINATED NORMALLY****', xyz(), 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', None, 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', 'not xyz', 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', xyz(symbols=('He', 'He')), 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', xyz(symbols=('H',)), 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', xyz(distance=float('nan')), 0),
+    ('THE OPTIMIZATION HAS CONVERGED\nFINAL SINGLE POINT ENERGY -1\n****ORCA TERMINATED NORMALLY****', xyz(), 7),
+])
+def test_orca_rejection_preserves_accepted_state_and_publication(
+        fake_program, monkeypatch, molecule, qc, output, geometry, returncode):
+    files = {} if geometry is None else {'trial_audit.xyz': geometry}
+    executable = fake_program(stdout=output, files=files, returncode=returncode)
+    runner = orca_runner(monkeypatch, molecule, qc, executable)
+    accepted = np.array([[0., 0., 0.], [0., 0., .8]])
+    runner.energy = -2.
+    runner.optimized_coordinates = accepted
+    previous = b'previous accepted artifact\n'
+    Path(runner.result_xyz_file).write_bytes(previous)
+    input_bytes = Path(runner.start_xyz_file).read_bytes()
+    with pytest.raises(BackendExecutionError):
+        runner.optimize()
+    assert runner.energy == -2.
+    assert runner.optimized_coordinates is accepted
+    assert Path(runner.result_xyz_file).read_bytes() == previous
+    assert Path('trial_audit.input.xyz').read_bytes() == input_bytes
+    assert Path(runner.out_file).read_text().strip() == output.strip()
+
+
+def test_orca_publication_uses_final_log_energy_and_fresh_ordered_geometry(
+        fake_program, monkeypatch, qc):
+    from pyar.io.xyz import parse_xyz
+
+    molecule = Molecule(['He', 'Ne'], [[1., 2., 3.], [4., 5., 6.]], name='audit')
+    geometry = '2\nenergy:-999\nHe 0.1 0.2 0.3\nNe 1.1 1.2 1.3\n'
+    output = ('FINAL SINGLE POINT ENERGY -3\nTHE OPTIMIZATION HAS CONVERGED\n'
+              'FINAL SINGLE POINT ENERGY -4\n****ORCA TERMINATED NORMALLY****')
+    executable = fake_program(stdout=output, files={'trial_audit.xyz': geometry})
+    runner = orca_runner(monkeypatch, molecule, qc, executable)
+    assert runner.optimize() is True
+    assert runner.energy == -4.
+    np.testing.assert_array_equal(runner.optimized_coordinates, [[.1, .2, .3], [1.1, 1.2, 1.3]])
+    symbols, coordinates, _name, _title, energy = parse_xyz(runner.result_xyz_file)
+    assert symbols == ['He', 'Ne']
+    np.testing.assert_array_equal(coordinates, runner.optimized_coordinates)
+    assert energy == -4.
+
+
 @pytest.mark.parametrize('scc_marker', [False, True])
 def test_xtb_stale_success_cannot_authorize_current_run(fake_program, monkeypatch, molecule, scc_marker):
     from pyar.backends import xtb
