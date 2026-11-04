@@ -17,7 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 from pyar.backend_errors import backend_operation
-from pyar.backend_errors import BackendExecutionError
+from pyar.backend_errors import BackendExecutionError, BackendOutputError
 
 import os
 import logging
@@ -73,7 +73,8 @@ class Gaussian(SF):
         Optimize the current structure with Gaussian.
 
         Returns:
-            bool: ``True`` when Gaussian finishes normally, otherwise ``False``.
+            bool: ``True`` for a completed optimization with a usable result.
+            Invalid output and execution failures raise typed backend errors.
         """
         self.prepare_input()
         # Feed the input on stdin so the log reaches out_file; a file argument
@@ -93,8 +94,7 @@ class Gaussian(SF):
                     check_2 = 1
 
             if this_line and ("Normal termination" in this_line[-1]) and check_1 == 1 and check_2 == 1:
-                self.energy = self.get_energy()
-                self.optimized_coordinates = self.get_coords()
+                self.energy, self.optimized_coordinates = self._read_optimization_result()
                 backends.write_xyz(self.atoms_list, self.optimized_coordinates, self.result_xyz_file, self.job_name,
                                     energy=self.energy)
                 gaussian_logger.info(
@@ -112,6 +112,16 @@ class Gaussian(SF):
             self.job_name, self.inp_file, self.out_file, os.getcwd(),
         )
         raise BackendExecutionError("gaussian optimization failed; inspect the retained backend output")
+
+    def _read_optimization_result(self):
+        """Validate parsed native values before assigning state or publishing XYZ."""
+        energy = self.get_energy()
+        if not np.isfinite(energy):
+            raise BackendOutputError("Gaussian optimization produced a nonfinite energy")
+        coordinates = np.asarray(self.get_coords(), dtype=float)
+        if coordinates.shape != (self.number_of_atoms, 3) or not np.isfinite(coordinates).all():
+            raise BackendOutputError("Gaussian optimization produced invalid coordinates")
+        return energy, coordinates
 
     def get_coords(self):
         """

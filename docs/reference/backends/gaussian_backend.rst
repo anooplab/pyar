@@ -33,6 +33,9 @@ Practical notes
   licence and system setup.
 * Confirm the executable name and output handling on a small molecule before
   running larger PyAR jobs.
+* Native optimization requires completion and SCF evidence plus a finite energy
+  and a finite geometry of the expected size. Invalid output raises a typed
+  backend error before replacing result XYZ or assigning an accepted result.
 * Gaussian calculations are usually much slower than xTB or ML-potential runs.
   For screening, use xTB/AIMNet2 first and refine selected structures later.
 

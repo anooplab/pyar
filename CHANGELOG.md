@@ -2,6 +2,11 @@
 
 ## Unreleased — 1.6.0
 
+- Reject Gaussian optimization logs with nonfinite energies, nonfinite
+  coordinates, or missing/incorrectly shaped geometries before assigning a
+  result or writing XYZ. Invalid native output raises a typed backend error
+  without overwriting an existing result; valid values and units are unchanged.
+
 - Preserve atom-label mapping in the legacy graph-to-MOL2 helper when edges
   arrive in a different insertion order, and reject labels outside the requested
   atom count before writing. Fix valence JSON loading, close its
