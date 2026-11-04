@@ -1,6 +1,7 @@
 """Tampered restart evidence must be rejected read-only, before backend work."""
 
 import json
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -121,6 +122,38 @@ def test_valid_restart_verifies_artifacts_without_backend_or_writes(prepared_rou
     validate_read_only(prepared_route)
 
 
+@pytest.mark.parametrize("mode", ["minima", "separated-reactants"])
+def test_completed_discovery_can_be_preflighted_before_characterization_exists(
+    prepared_route, mode
+):
+    route = prepared_route
+    shutil.rmtree(route.reaction / "characterization")
+    before = snapshot(route.root)
+    options = dict(route.options, reactant_reference_mode=mode)
+    assert (
+        workflow.validate_characterization_restart(
+            route.root, route.request, "neb", options
+        )
+        is None
+    )
+    assert snapshot(route.root) == before
+    route.backend.assert_not_called()
+
+
+def test_new_route_validates_committed_source_evidence_without_writing(prepared_route):
+    route = prepared_route
+    edit_json(route.state, lambda data: data.update(routes={}))
+    shutil.rmtree(route.directory)
+    validate_read_only(route)
+
+
+def test_explicit_default_reference_mode_matches_existing_default_restart(
+    prepared_route,
+):
+    prepared_route.options["reactant_reference_mode"] = "minima"
+    validate_read_only(prepared_route)
+
+
 @pytest.mark.parametrize(
     "field,message",
     [
@@ -131,6 +164,57 @@ def test_valid_restart_verifies_artifacts_without_backend_or_writes(prepared_rou
 def test_changed_discovery_binding_is_rejected(prepared_route, field, message):
     edit_json(prepared_route.state, lambda data: data.update({field: "changed"}))
     validate_read_only(prepared_route, ValueError, message)
+
+
+@pytest.mark.parametrize("misordered", ["reactant", "waypoint"])
+def test_fresh_route_rejects_inconsistent_atom_order_in_original_committed_sources(
+    tmp_path, monkeypatch, misordered
+):
+    # Publish inconsistent input evidence through the real discovery owner. Do
+    # not tamper with committed artifacts or replace checksum validation.
+    reaction = tmp_path / "reaction"
+    job = reaction / "gamma_0100/orientation_x/job_gamma_0100_x"
+    candidate = job / "candidate_ts"
+    canonical, wrong = ("He", "Ne"), ("Ne", "He")
+    product = write_xyz(reaction / "product.xyz", symbols=canonical)
+    write_xyz(
+        job.parent / "trial_gamma_0100_x.xyz",
+        symbols=wrong if misordered == "reactant" else canonical,
+    )
+    write_xyz(
+        candidate / "highest_backend_energy.xyz",
+        symbols=wrong if misordered == "waypoint" else canonical,
+    )
+    (candidate / "metadata.json").write_text("{}\n")
+    (job / "reaction_trace").mkdir()
+    (job / "reaction_trace/trace.jsonl").write_text("")
+    request_data = {
+        "backend_parameters": {"software": "xtb"},
+        "gamma_schedule": [100.0],
+    }
+    state = ReactionRunStateV2.create(
+        tmp_path, request_data, [], [Molecule.from_xyz(str(product))]
+    )
+    state.record_product(
+        "gamma_0100_x",
+        100.0,
+        "fixture",
+        "fixture",
+        product,
+        trace_summary={"candidate_ts_directory": str(candidate)},
+    )
+    state.finish("completed_products_found")
+    execution = Mock(
+        side_effect=AssertionError("invalid ordering must not launch stages")
+    )
+    monkeypatch.setattr(workflow, "run_path_stages", execution)
+    before = snapshot(tmp_path)
+    with pytest.raises(ValueError, match="Pathway atom ordering changed"):
+        workflow.validate_characterization_restart(
+            tmp_path, SimpleNamespace(restart_request=request_data), "neb", {}
+        )
+    assert snapshot(tmp_path) == before
+    execution.assert_not_called()
 
 
 @pytest.mark.parametrize("owner", ["summary", "pathway", "invocation"])
