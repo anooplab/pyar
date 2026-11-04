@@ -1,6 +1,7 @@
 """Tampered restart evidence must be rejected read-only, before backend work."""
 
 import json
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -118,6 +119,38 @@ def validate_read_only(route, error=None, match=None):
 
 
 def test_valid_restart_verifies_artifacts_without_backend_or_writes(prepared_route):
+    validate_read_only(prepared_route)
+
+
+@pytest.mark.parametrize("mode", ["minima", "separated-reactants"])
+def test_completed_discovery_can_be_preflighted_before_characterization_exists(
+    prepared_route, mode
+):
+    route = prepared_route
+    shutil.rmtree(route.reaction / "characterization")
+    before = snapshot(route.root)
+    options = dict(route.options, reactant_reference_mode=mode)
+    assert (
+        workflow.validate_characterization_restart(
+            route.root, route.request, "neb", options
+        )
+        is None
+    )
+    assert snapshot(route.root) == before
+    route.backend.assert_not_called()
+
+
+def test_new_route_validates_committed_source_evidence_without_writing(prepared_route):
+    route = prepared_route
+    edit_json(route.state, lambda data: data.update(routes={}))
+    shutil.rmtree(route.directory)
+    validate_read_only(route)
+
+
+def test_explicit_default_reference_mode_matches_existing_default_restart(
+    prepared_route,
+):
+    prepared_route.options["reactant_reference_mode"] = "minima"
     validate_read_only(prepared_route)
 
 
