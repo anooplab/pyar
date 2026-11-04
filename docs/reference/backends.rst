@@ -26,6 +26,12 @@ matrix from an import succeeding.
    backends/mopac_backend
    backends/obabel_backend
    backends/psi4_backend
+   backends/optional_unvalidated
+
+MLatom/AIQM1, Gaussian and Turbomole are optional user-configured integrations
+whose native scientific calculations are NOT_TESTED for this development
+milestone. See :doc:`backends/optional_unvalidated` for prerequisites and the
+scope of this status. Existing software-contract tests remain in place.
 
 For Turbomole and optional ML programs, consult the installed capability and
 missing-dependency diagnostic before running. Keep proprietary executable/model

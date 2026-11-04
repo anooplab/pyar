@@ -5,6 +5,11 @@ Gaussian is a quantum-chemistry backend available through PyAR for users who
 have a licensed Gaussian installation and want higher-level electronic-
 structure calculations.
 
+This is an optional user-configured integration. Native scientific calculations
+are NOT_TESTED for this development milestone; see
+:doc:`optional_unvalidated`. Synthetic output and failure-handling tests do not
+establish native scientific validation.
+
 When to use Gaussian
 --------------------
 
